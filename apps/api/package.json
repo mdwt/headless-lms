@@ -11,8 +11,8 @@
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:generate": "tsx --env-file=../../.env node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "tsx --env-file=../../.env node_modules/drizzle-kit/bin.cjs migrate"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
