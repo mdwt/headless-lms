@@ -3,3 +3,4 @@ dist/
 coverage/
 *.tsbuildinfo
 apps/api/drizzle/
+apps/student/

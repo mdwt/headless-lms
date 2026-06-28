@@ -1,0 +1,222 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* =========================================================================
+   Design tokens — Headless LMS "Course Platform" handoff (high-fidelity).
+   The handoff's brand accent is exposed as `--brand` (utilities: brand,
+   brand-strong, brand-soft, brand-contrast) to avoid colliding with shadcn's
+   own `--accent` hover token. shadcn `--primary` is mapped onto `--brand` so
+   shadcn primitives inherit the design.
+   ========================================================================= */
+
+:root {
+  /* neutrals (warm gray) */
+  --page: #f7f6f3;
+  --surface: #ffffff;
+  --surface-warm: #fbfaf8;
+  --surface-warm-2: #faf9f6;
+  --ink: #1b1b19;
+  --ink-2: #6f6d66;
+  --ink-3: #8e8b82;
+  --ink-4: #a3a097;
+  --ink-faint: #b3afa5;
+  --ink-faintest: #c2bfb5;
+  --line: #e9e7e2;
+  --line-strong: #eae8e2;
+  --line-divider: #eeece6;
+  --line-btn: #e0ddd4;
+  --line-dashed: #d9d6cd;
+  --hover-surface: #f2f1ec;
+  --hover-surface-2: #f1efe9;
+  --track-seg: #efeee8;
+  --track-card: #edece6;
+  --track-side: #e9e6df;
+  --ring-conic: #e6e3dc;
+  --toast-bg: #1f1e1b;
+
+  /* status / semantic */
+  --status-progress-bg: #f3efe2;
+  --status-progress-fg: #a07c2e;
+  --status-idle-bg: #f0ede6;
+  --status-idle-fg: #8e8b82;
+  --quiz-wrong-bg: #fbf1f1;
+  --quiz-wrong-border: #e6c7c7;
+  --quiz-wrong-fg: #a14444;
+  --quiz-wrong-mark: #c25b5b;
+  --expired-gate-bg: #f3ede2;
+  --expired-gate-fg: #b08948;
+  --expired-bar: #cac7be;
+
+  /* accent — Indigo (default). Re-themeable via [data-accent]. */
+  --brand: #4f46e5;
+  --brand-strong: #4338ca;
+  --brand-soft: #eef1fe;
+  --brand-contrast: #ffffff;
+
+  /* radius */
+  --radius: 0.5rem; /* 8px base for small controls */
+  --radius-card: 16px;
+
+  /* ---- shadcn semantic tokens, mapped onto the design ---- */
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-contrast);
+  --secondary: var(--surface-warm);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-warm);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--hover-surface); /* shadcn hover surface (NOT the brand) */
+  --accent-foreground: var(--ink);
+  --destructive: var(--quiz-wrong-fg);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line-btn);
+  --ring: var(--brand);
+}
+
+/* Accent themes (handoff: indigo default, emerald, orange, ink) */
+[data-accent="emerald"] {
+  --brand: #059669;
+  --brand-strong: #047857;
+  --brand-soft: #e6f6ef;
+  --brand-contrast: #ffffff;
+}
+[data-accent="orange"] {
+  --brand: #ea580c;
+  --brand-strong: #c2410c;
+  --brand-soft: #fdeee4;
+  --brand-contrast: #ffffff;
+}
+[data-accent="ink"] {
+  --brand: #1f1e1b;
+  --brand-strong: #000000;
+  --brand-soft: #edece7;
+  --brand-contrast: #ffffff;
+}
+
+/* =========================================================================
+   Tailwind v4 theme — generate utilities from the tokens above.
+   ========================================================================= */
+@theme inline {
+  --font-sans: var(--font-pretendard), system-ui, sans-serif;
+
+  /* neutrals */
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-warm: var(--surface-warm);
+  --color-surface-warm-2: var(--surface-warm-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-faintest: var(--ink-faintest);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-divider: var(--line-divider);
+  --color-line-btn: var(--line-btn);
+  --color-line-dashed: var(--line-dashed);
+  --color-hover-surface: var(--hover-surface);
+  --color-hover-surface-2: var(--hover-surface-2);
+  --color-track-seg: var(--track-seg);
+  --color-track-card: var(--track-card);
+  --color-track-side: var(--track-side);
+  --color-ring-conic: var(--ring-conic);
+  --color-toast: var(--toast-bg);
+
+  /* brand accent */
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-contrast: var(--brand-contrast);
+
+  /* status */
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-progress-fg: var(--status-progress-fg);
+  --color-status-idle-bg: var(--status-idle-bg);
+  --color-status-idle-fg: var(--status-idle-fg);
+  --color-quiz-wrong-bg: var(--quiz-wrong-bg);
+  --color-quiz-wrong-border: var(--quiz-wrong-border);
+  --color-quiz-wrong-fg: var(--quiz-wrong-fg);
+  --color-quiz-wrong-mark: var(--quiz-wrong-mark);
+  --color-expired-gate-bg: var(--expired-gate-bg);
+  --color-expired-gate-fg: var(--expired-gate-fg);
+  --color-expired-bar: var(--expired-bar);
+
+  /* shadcn semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* radii */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: 11px;
+  --radius-card: var(--radius-card);
+  --radius-xl: 18px;
+  --radius-2xl: 20px;
+
+  /* prototype animations */
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-pulse-dot: pulseDot 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes barPulse {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums; /* align %, counts, timecodes */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 16%, transparent);
+  }
+  button {
+    cursor: pointer;
+  }
+}
