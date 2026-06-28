@@ -1,0 +1,76 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# test
+coverage/
+*.lcov
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# caches
+.cache/
+.turbo/
+.vite/
+.vitest/
+.eslintcache
+
+# single package manager — pnpm only
+bun.lock
+package-lock.json
+yarn.lock
+
+# os
+.DS_Store
+Thumbs.db
+
+# editors — JetBrains / WebStorm
+.idea/
+*.iml
+*.iws
+
+# editors — VS Code
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# editors — other
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+
+# AI agents & assistants
+.claude/
+CLAUDE.local.md
+.cursor/
+.cursorignore
+.cursorindexingignore
+.aider*
+.continue/
+.windsurf/
+.codeium/
+.github/copilot-instructions.local.md
+.gemini/
+.roo/
+.cline/
+.serena/
+.mcp.local.json
