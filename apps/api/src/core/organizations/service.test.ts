@@ -150,4 +150,20 @@ describe("OrganizationService", () => {
     await svc.unassignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
     expect(await svc.assignedCourseIds(org.id, "m1")).toEqual([]);
   });
+
+  it("normalizes Better Auth's member role to student on mirror", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    await svc.provisionOrganization(orgInput);
+    const m = await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_x", studentId: "s3", role: "member" });
+    expect(m.role).toBe("student");
+  });
+
+  it("collapses a multi-role mirror to the highest-privilege role", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    await svc.provisionOrganization(orgInput);
+    const m = await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_y", studentId: "s4", role: "admin,instructor" });
+    expect(m.role).toBe("admin");
+  });
 });

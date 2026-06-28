@@ -1,6 +1,7 @@
 // organizations context — service implementation (inbound port).
 import type { OrganizationService, OrganizationsRepository } from "./ports.js";
 import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
+import { normalizeRole } from "./roles.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
@@ -20,7 +21,7 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async addMembership(input: AddMembershipInput): Promise<Membership> {
     const org = await this.requireOrg(input.authOrgId);
-    return this.repo.insertMembership(org.id, input);
+    return this.repo.insertMembership(org.id, { ...input, role: normalizeRole(input.role) });
   }
 
   async removeMembership(authMemberId: string): Promise<void> {

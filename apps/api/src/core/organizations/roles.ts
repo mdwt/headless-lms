@@ -71,3 +71,22 @@ export function canForCourse(
   if (cap === "assigned") return ctx.assignedCourseIds.includes(ctx.courseId);
   return false;
 }
+
+// Better Auth's role model is broader than ours: it keeps a built-in `member`
+// role and allows comma-joined multi-role strings. Normalize any incoming role
+// string to a single domain Role before persisting: `member` -> `student`, a
+// multi-role string -> its highest-privilege known role, unknown -> `student`.
+const RANK: Record<Role, number> = { owner: 3, admin: 2, instructor: 1, student: 0 };
+
+export function normalizeRole(raw: string): Role {
+  let best: Role = "student";
+  let bestRank = -1;
+  for (const token of raw.split(",").map((t) => t.trim())) {
+    const r: Role | null = isRole(token) ? token : token === "member" ? "student" : null;
+    if (r && RANK[r] > bestRank) {
+      best = r;
+      bestRank = RANK[r];
+    }
+  }
+  return best;
+}
