@@ -15,6 +15,13 @@
       "when": 1782667006406,
       "tag": "0001_bent_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782680439846,
+      "tag": "0002_modern_riptide",
+      "breakpoints": true
     }
   ]
 }

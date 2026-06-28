@@ -8,6 +8,7 @@ export function loadConfigFromEnv(): Config {
     authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
     trustedOrigins: [clientOrigin],
+    mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:3001/login",
     storage: {
       endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
       port: Number(process.env.STORAGE_PORT ?? 9000),
