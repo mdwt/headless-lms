@@ -1,0 +1,192 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* =========================================================================
+   Headless LMS — Management dashboard (back-office).
+   A crisp, cool-neutral grayscale ramp with a single disciplined indigo
+   accent (shared with the student "course platform" so the product family
+   reads as one). Flat and structural: borders + dividers over heavy shadows.
+   shadcn semantic tokens are mapped onto these primitives so restyled
+   shadcn primitives inherit the design automatically.
+   ========================================================================= */
+
+:root {
+  /* neutral ramp — cool gray, content-first */
+  --page: #f7f8f9;
+  --surface: #ffffff;
+  --surface-2: #f4f5f7; /* recessed wells, nested panels */
+  --surface-3: #eef0f2;
+  --ink: #18181b; /* primary text / headings */
+  --ink-2: #51525c; /* secondary text */
+  --ink-3: #70707b; /* muted labels */
+  --ink-4: #9395a1; /* faint / placeholder */
+  --ink-faint: #b6b8c0;
+  --line: #ececef; /* hairline borders */
+  --line-strong: #e2e3e7; /* emphasized dividers / inputs */
+  --hover: #f3f4f6; /* row / ghost hover surface */
+  --hover-2: #eceef0;
+  --selected: #f0f1f4;
+
+  /* accent — indigo (shared family accent) */
+  --brand: #4f46e5;
+  --brand-strong: #4338ca;
+  --brand-soft: #eef0fe;
+  --brand-soft-2: #e5e7fd;
+  --brand-contrast: #ffffff;
+
+  /* semantic status (calm, single-hue families) */
+  --success: #15803d;
+  --success-soft: #e8f5ec;
+  --warning: #b45309;
+  --warning-soft: #fcf1e3;
+  --danger: #b91c1c;
+  --danger-soft: #fbeded;
+  --info: #4f46e5;
+  --info-soft: #eef0fe;
+  --neutral-soft: #f0f1f3;
+  --neutral-soft-fg: #51525c;
+
+  /* radius scale */
+  --radius: 0.5rem; /* 8px — base controls */
+  --radius-card: 0.75rem; /* 12px — panels/cards */
+
+  /* ---- shadcn semantic tokens, mapped onto the design ---- */
+  --background: var(--page);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-contrast);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--hover); /* shadcn hover surface (NOT the brand) */
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--brand);
+}
+
+/* =========================================================================
+   Tailwind v4 theme — generate utilities from the tokens above.
+   ========================================================================= */
+@theme inline {
+  --font-sans: var(--font-pretendard), system-ui, sans-serif;
+
+  /* neutrals */
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-hover: var(--hover);
+  --color-hover-2: var(--hover-2);
+  --color-selected: var(--selected);
+
+  /* brand accent */
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-2: var(--brand-soft-2);
+  --color-brand-contrast: var(--brand-contrast);
+
+  /* status */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-soft-fg: var(--neutral-soft-fg);
+
+  /* shadcn semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* radii */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: 0.625rem;
+  --radius-card: var(--radius-card);
+  --radius-xl: 1rem;
+
+  /* motion — calm, not flashy */
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem; /* 14px base — appropriate density for a back office */
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums; /* align counts, %, dates in tables */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 18%, transparent);
+  }
+  button {
+    cursor: pointer;
+  }
+  /* Consistent, accessible focus rings everywhere */
+  :focus-visible {
+    outline: none;
+  }
+}
+
+/* Skeleton shimmer used by loading states */
+@utility skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
