@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { OrganizationServiceImpl } from "./service.js";
 import type { OrganizationsRepository } from "./ports.js";
 import type { Organization, Membership, Invitation } from "./model.js";
+import type { Role } from "./roles.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
@@ -27,7 +28,7 @@ function fakeRepo() {
         id: `m${++n}`,
         orgId,
         studentId: input.studentId,
-        role: input.role,
+        role: input.role as Role,
         authMemberId: input.authMemberId,
         createdAt: new Date(0),
       };
@@ -103,5 +104,18 @@ describe("OrganizationService", () => {
         role: "member",
       }),
     ).rejects.toThrow(/unknown organization/);
+  });
+
+  it("stores the membership role as a domain Role", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    await svc.provisionOrganization(orgInput);
+    const m = await svc.addMembership({
+      authOrgId: "org_1",
+      authMemberId: "mem_1",
+      studentId: "s2",
+      role: "instructor",
+    });
+    expect(m.role).toBe("instructor");
   });
 });

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { OrganizationsRepository } from "../../../core/organizations/ports.js";
 import type { Organization, Membership, Invitation } from "../../../core/organizations/model.js";
+import { parseRole } from "../../../core/organizations/index.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
@@ -47,7 +48,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .onConflictDoNothing({ target: memberships.authMemberId })
       .returning();
-    if (row) return row;
+    if (row) return { ...row, role: parseRole(row.role) };
     // Already mirrored (hook fired more than once) — return the existing row.
     const [existing] = await this.db
       .select()
@@ -55,7 +56,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(eq(memberships.authMemberId, input.authMemberId))
       .limit(1);
     if (!existing) throw new Error("failed to insert membership");
-    return existing;
+    return { ...existing, role: parseRole(existing.role) };
   }
 
   async deleteMembershipByAuthMemberId(authMemberId: string): Promise<void> {
