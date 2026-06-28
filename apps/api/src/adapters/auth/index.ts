@@ -84,6 +84,12 @@ export function createAuth(opts: CreateAuthOptions) {
             });
           },
           afterAddMember: async ({ member, user, organization: org }) => {
+            // During org creation better-auth adds the creator and may fire this
+            // hook before afterCreateOrganization has mirrored the org. In that
+            // case skip — the creator's membership is mirrored by
+            // afterCreateOrganization. For genuine later adds the org exists.
+            const mirrored = await opts.organizations.getByAuthOrgId(org.id);
+            if (!mirrored) return;
             const student = await requireStudent(user.id);
             await opts.organizations.addMembership({
               authOrgId: org.id,

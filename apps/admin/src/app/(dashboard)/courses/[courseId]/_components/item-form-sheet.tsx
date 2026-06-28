@@ -145,8 +145,8 @@ export function ItemFormSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item, defaultKind]);
 
-  const kind = watch("kind");
-  const assessmentType = watch("assessmentType");
+  const kind = useWatch({ control, name: "kind" });
+  const assessmentType = useWatch({ control, name: "assessmentType" });
 
   async function onValid(values: FormValues) {
     const payload: Partial<ModuleItem> & { id?: string } =

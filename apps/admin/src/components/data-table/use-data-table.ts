@@ -28,10 +28,15 @@ export function useDataTable(opts?: { pageSize?: number; initialSort?: SortingSt
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset to page 1 whenever the result set changes shape.
-  React.useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, columnFilters, pageSize, sorting]);
+  // Reset to page 1 whenever the result set changes shape. Done during render
+  // (React's documented "adjust state when inputs change" pattern with a
+  // previous-value state) so there's no extra render pass and no effect.
+  const resetKey = JSON.stringify([debouncedSearch, columnFilters, pageSize, sorting]);
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    if (page !== 1) setPage(1);
+  }
 
   const filters = React.useMemo(() => {
     const out: Record<string, string[]> = {};

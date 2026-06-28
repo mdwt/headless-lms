@@ -102,7 +102,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-start gap-3 rounded-card border border-line bg-surface px-5 py-6">
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-ink">Couldn't load your overview</p>
+        <p className="text-sm font-medium text-ink">Couldn&apos;t load your overview</p>
         <p className="max-w-[60ch] text-sm text-ink-3 text-pretty">
           Something went wrong fetching the latest numbers. Check your connection and try again.
         </p>

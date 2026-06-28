@@ -21,6 +21,12 @@ const CONTEXTS = [
   "progress",
   "identity",
   "organizations",
+  "students",
+  "enrollments",
+  "submissions",
+  "team",
+  "dashboard",
+  "modules",
 ];
 
 // A context file may import a sibling context ONLY through its public index.ts.

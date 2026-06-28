@@ -120,14 +120,11 @@ export function DataTable<TData>({
               </button>
             )}
           </div>
-          {facets.map((f) => (
-            <FacetedFilter
-              key={f.columnId}
-              column={table.getColumn(f.columnId)}
-              title={f.title}
-              options={f.options}
-            />
-          ))}
+          {facets.map((f) => {
+            const column = table.getColumn(f.columnId);
+            if (!column) return null; // facet column not mounted — skip gracefully
+            return <FacetedFilter key={f.columnId} column={column} title={f.title} options={f.options} />;
+          })}
           {hasToolbarFilters && (
             <Button
               variant="ghost"

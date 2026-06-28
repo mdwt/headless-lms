@@ -18,11 +18,13 @@ export interface OrganizationProvisioner {
   removeMembership(authMemberId: string): Promise<void>;
   recordInvitation(input: RecordInvitationInput): Promise<Invitation>;
   acceptInvitation(input: AcceptInvitationInput): Promise<void>;
+  // Lets the adapter detect whether an org is already mirrored (used to make
+  // the creator's membership hook resilient to firing before provisioning).
+  getByAuthOrgId(authOrgId: string): Promise<Organization | null>;
 }
 
 // Inbound port (use cases the service exposes).
 export interface OrganizationService extends OrganizationProvisioner {
-  getByAuthOrgId(authOrgId: string): Promise<Organization | null>;
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;

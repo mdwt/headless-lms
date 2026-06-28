@@ -3,32 +3,35 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { useSession } from "@/lib/auth/client";
+import { useDashboardSession } from "@/lib/auth/client";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { canAccessDashboard } from "@/lib/roles";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { FullPageLoader } from "@/components/full-page-states";
+import { CreateOrganization } from "./_components/create-organization";
 
 /**
  * Auth gate for the entire back office. Unauthenticated users → /login.
- * Students have no dashboard access → bounced to /login too. Everyone else
- * gets the shell with their session in context.
+ * Students have no dashboard access → bounced to /login. A signed-in user with
+ * no organization is offered an org-creation step. Everyone else gets the shell
+ * with their resolved session (user + active org + role) in context.
  */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending } = useSession();
+  const { data: session, status } = useDashboardSession();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (isPending) return;
-    if (!session) {
+    if (status === "unauthenticated") {
       router.replace("/login");
-    } else if (!canAccessDashboard(session.user.role)) {
+    } else if (status === "authenticated" && session && !canAccessDashboard(session.user.role)) {
       router.replace("/login?denied=1");
     }
-  }, [isPending, session, router]);
+  }, [status, session, router]);
 
-  if (isPending) return <FullPageLoader />;
-  if (!session || !canAccessDashboard(session.user.role)) return <FullPageLoader label="Redirecting…" />;
+  if (status === "no-organization") return <CreateOrganization />;
+
+  if (status !== "authenticated" || !session) return <FullPageLoader />;
+  if (!canAccessDashboard(session.user.role)) return <FullPageLoader label="Redirecting…" />;
 
   return (
     <SessionProvider session={session}>

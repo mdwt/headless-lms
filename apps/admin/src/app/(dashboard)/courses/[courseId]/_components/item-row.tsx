@@ -14,7 +14,6 @@ import {
   Pencil,
   Trash2,
   Video,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -23,28 +22,34 @@ import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useDeleteItem, useSaveItem } from "@/lib/api/hooks";
-import type { LessonType, ModuleItem } from "@/lib/api/types";
+import type { ModuleItem } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
-const LESSON_ICON: Record<LessonType, LucideIcon> = {
-  video: Video,
-  text: FileText,
-  pdf: FileText,
-  audio: Headphones,
-  download: Download,
-  embed: Code2,
-};
-
-function iconFor(item: ModuleItem): LucideIcon {
-  if (item.kind === "assessment") return item.type === "quiz" ? ListChecks : ClipboardList;
-  return LESSON_ICON[item.type];
+function ItemGlyph({ item }: { item: ModuleItem }) {
+  const cls = "size-4";
+  if (item.kind === "assessment") {
+    return item.type === "quiz" ? <ListChecks className={cls} /> : <ClipboardList className={cls} />;
+  }
+  switch (item.type) {
+    case "video":
+      return <Video className={cls} />;
+    case "audio":
+      return <Headphones className={cls} />;
+    case "download":
+      return <Download className={cls} />;
+    case "embed":
+      return <Code2 className={cls} />;
+    case "pdf":
+    case "text":
+    default:
+      return <FileText className={cls} />;
+  }
 }
 
 function ItemIcon({ item }: { item: ModuleItem }) {
-  const Icon = iconFor(item);
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-2 text-ink-3">
-      <Icon className="size-4" />
+      <ItemGlyph item={item} />
     </span>
   );
 }

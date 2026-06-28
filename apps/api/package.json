@@ -5,9 +5,11 @@
   "type": "module",
   "main": "dist/http/server.js",
   "scripts": {
-    "dev": "tsx watch src/http/server.ts",
+    "dev": "tsx watch --env-file=../../.env src/http/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/http/server.js",
+    "start": "node --env-file=../../.env dist/http/server.js",
+    "seed:admin": "tsx --env-file=../../.env scripts/seed-admin.ts",
+    "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -16,10 +18,14 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^6.0.0",
+    "@headless-lms/api-contract": "workspace:*",
     "@headless-lms/shared-types": "workspace:*",
     "better-auth": "^1.6.22",
     "drizzle-orm": "^0.38.2",
     "fastify": "^5.2.0",
+    "fastify-type-provider-zod": "^7.0.0",
     "pg": "^8.13.1",
     "zod": "4.4.3"
   },

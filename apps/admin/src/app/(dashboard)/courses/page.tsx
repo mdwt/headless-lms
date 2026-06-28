@@ -103,7 +103,7 @@ export default function CoursesPage() {
               >
                 {course.title}
               </button>
-              <span className="text-xs text-ink-4">{course.category}</span>
+              <span className="text-xs text-ink-4">{course.slug}</span>
             </div>
           );
         },
@@ -112,6 +112,11 @@ export default function CoursesPage() {
         accessorKey: "instructorName",
         header: ({ column }) => <ColumnHeader column={column} title="Instructor" />,
         cell: ({ row }) => <span className="text-ink-2">{row.original.instructorName}</span>,
+      },
+      {
+        accessorKey: "category",
+        header: ({ column }) => <ColumnHeader column={column} title="Category" />,
+        cell: ({ row }) => <span className="text-ink-2">{row.original.category}</span>,
       },
       {
         accessorKey: "status",

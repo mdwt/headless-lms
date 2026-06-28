@@ -342,7 +342,7 @@ function ModuleComposer({ courseId }: { courseId: string }) {
         }}
       />
       <Button
-        variant="primary"
+        variant="secondary"
         onClick={submit}
         disabled={!title.trim() || createModule.isPending}
       >

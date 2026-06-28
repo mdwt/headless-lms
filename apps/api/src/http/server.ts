@@ -1,19 +1,40 @@
 // Inbound: Fastify HTTP server. Imports the container, mounts auth + routes, starts.
 import Fastify, { type FastifyRequest, type FastifyReply } from "fastify";
 import cors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  jsonSchemaTransform,
+} from "fastify-type-provider-zod";
 import { fromNodeHeaders } from "better-auth/node";
 import { buildContainer } from "../composition/container.js";
+import { coursesRoutes } from "./routes/courses.js";
+import { modulesRoutes } from "./routes/modules.js";
+import { studentsRoutes } from "./routes/students.js";
+import { enrollmentsRoutes } from "./routes/enrollments.js";
+import { submissionsRoutes } from "./routes/submissions.js";
+import { teamRoutes } from "./routes/team.js";
+import { dashboardRoutes } from "./routes/dashboard.js";
 
 function loadConfig() {
-  const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
+  // CLIENT_ORIGIN is a comma-separated list of browser app origins (web app +
+  // admin dashboard). Each is allowed for CORS and registered as a trusted
+  // origin so better-auth accepts its requests and sets cookies for it.
+  const clientOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
   return {
     port: Number(process.env.PORT ?? 3000),
-    clientOrigin,
+    publicUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    clientOrigins,
     container: {
       databaseUrl: process.env.DATABASE_URL ?? "",
       authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
       authSecret: process.env.BETTER_AUTH_SECRET ?? "",
-      trustedOrigins: [clientOrigin],
+      trustedOrigins: clientOrigins,
     },
   };
 }
@@ -24,14 +45,30 @@ export function buildServer() {
   const container = buildContainer(config.container);
   const { auth } = container;
 
-  // CORS must allow credentials so the SPA can carry the session cookie.
+  // Validate + serialize request/response bodies from the shared Zod contract.
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
+
+  // CORS must allow credentials so the SPA/admin can carry the session cookie.
   app.register(cors, {
-    origin: config.clientOrigin,
+    origin: config.clientOrigins,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     maxAge: 86400,
   });
+
+  // OpenAPI: @fastify/swagger reads the Zod route schemas (via the transform)
+  // to build the spec the frontend SDK is generated from. Registered before the
+  // routes so its onRoute hook captures them. UI + JSON served under /docs.
+  app.register(swagger, {
+    openapi: {
+      info: { title: "Headless LMS API", version: "0.0.0" },
+      servers: [{ url: config.publicUrl }],
+    },
+    transform: jsonSchemaTransform,
+  });
+  app.register(swaggerUi, { routePrefix: "/docs" });
 
   // Mount better-auth: a catch-all that bridges Fastify <-> Web Request/Response.
   app.route({
@@ -64,6 +101,17 @@ export function buildServer() {
   });
 
   app.get("/health", async () => ({ status: "ok" }));
+
+  // Domain routes (validated against the shared contract).
+  app.register(async (instance) => {
+    await coursesRoutes(instance, container);
+    await modulesRoutes(instance, container);
+    await studentsRoutes(instance, container);
+    await enrollmentsRoutes(instance, container);
+    await submissionsRoutes(instance, container);
+    await teamRoutes(instance, container);
+    await dashboardRoutes(instance, container);
+  });
 
   return app;
 }

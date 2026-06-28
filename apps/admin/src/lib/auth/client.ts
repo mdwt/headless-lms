@@ -1,161 +1,115 @@
 "use client";
 
 /**
- * Auth client.
+ * Real Better Auth client, wired to the headless-LMS API (`apps/api`), which
+ * mounts better-auth at `/api/auth` with the organization plugin
+ * (owner/admin/instructor/student roles).
  *
- * This exposes the exact surface of better-auth's React client so swapping to
- * the real server is a single import change:
- *
- *   import { createAuthClient } from "better-auth/react";
- *   import { organizationClient } from "better-auth/client/plugins";
- *   export const authClient = createAuthClient({
- *     baseURL: process.env.NEXT_PUBLIC_API_URL,
- *     plugins: [organizationClient()],
- *   });
- *   export const { useSession, signIn, signOut } = authClient;
- *
- * Until the API is wired, we back it with an in-memory session that mirrors
- * the `data.user` / `data.session` shape better-auth returns. Roles drive the
- * role-aware UI; change `DEMO_USERS` to preview each role.
+ * The dashboard UI is driven by a single `Session` shape — `useDashboardSession`
+ * adapts better-auth's session + the caller's active-organization membership
+ * role into it, so every page/component stays unchanged.
  */
 
-import { useSyncExternalStore } from "react";
-import { CURRENT_USER, ORG } from "../api/mock-data";
-import { setAuthToken } from "../api/http";
+import * as React from "react";
+import { createAuthClient } from "better-auth/react";
+import { organizationClient } from "better-auth/client/plugins";
+
 import type { Organization, Role, SessionUser } from "../api/types";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+
+export const authClient = createAuthClient({
+  // better-auth appends its basePath (`/api/auth`) to this origin.
+  baseURL: API_URL,
+  plugins: [organizationClient()],
+});
+
+export const { signIn, signOut, signUp, organization, useSession } = authClient;
+
+/** The shape the dashboard consumes (provided via SessionProvider). */
 export interface Session {
   user: SessionUser;
   organization: Organization;
   token: string;
 }
 
-interface AuthState {
-  session: Session | null;
+const KNOWN_ROLES: Role[] = ["owner", "admin", "instructor", "student"];
+function toRole(value: unknown): Role {
+  return KNOWN_ROLES.includes(value as Role) ? (value as Role) : "student";
+}
+
+export type DashboardSessionStatus =
+  | "loading"
+  | "unauthenticated"
+  | "no-organization"
+  | "authenticated";
+
+/**
+ * Resolves the full dashboard session: the signed-in user, their active
+ * organization, and their role in it. Ensures an active organization is
+ * selected (picks the first one when none is active yet).
+ */
+export function useDashboardSession(): {
+  data: Session | null;
   isPending: boolean;
-}
+  status: DashboardSessionStatus;
+} {
+  const { data: raw, isPending: sessionPending } = authClient.useSession();
+  const { data: orgs, isPending: orgsPending } = authClient.useListOrganizations();
+  const { data: activeOrg, isPending: activeOrgPending } = authClient.useActiveOrganization();
+  const { data: activeMember, isPending: memberPending } = authClient.useActiveMember();
 
-/** Demo accounts — password is "password" for all. Pick one to preview a role. */
-export const DEMO_USERS: Record<string, { user: SessionUser; label: string }> = {
-  "mira@atelier.academy": {
-    label: "Owner — full access",
-    user: { ...CURRENT_USER, role: "owner", scopedCourseIds: [] },
-  },
-  "admin@atelier.academy": {
-    label: "Admin — full access",
-    user: {
-      id: "usr_admin",
-      name: "Daniel Mercer",
-      email: "admin@atelier.academy",
-      image: null,
-      role: "admin",
-      scopedCourseIds: [],
-    },
-  },
-  "instructor@atelier.academy": {
-    label: "Instructor — assigned courses + grading",
-    user: {
-      id: "usr_inst_1",
-      name: "Priya Nair",
-      email: "instructor@atelier.academy",
-      image: null,
-      role: "instructor",
-      scopedCourseIds: ["crs_002", "crs_008", "crs_014", "crs_020", "crs_026"],
-    },
-  },
-  "student@atelier.academy": {
-    label: "Student — no dashboard access",
-    user: {
-      id: "usr_student",
-      name: "Felix Lowell",
-      email: "student@atelier.academy",
-      image: null,
-      role: "student",
-      scopedCourseIds: [],
-    },
-  },
-};
+  const activeOrgId = raw?.session.activeOrganizationId ?? null;
+  const settingRef = React.useRef(false);
 
-const STORAGE_KEY = "admin.session";
-
-let state: AuthState = { session: null, isPending: true };
-const listeners = new Set<() => void>();
-
-function emit() {
-  for (const l of listeners) l();
-}
-function set(next: Partial<AuthState>) {
-  state = { ...state, ...next };
-  setAuthToken(state.session?.token ?? null);
-  emit();
-}
-
-/** Hydrate from storage once on the client. */
-function hydrate() {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const email = JSON.parse(raw) as string;
-      const found = DEMO_USERS[email];
-      if (found) {
-        set({ session: makeSession(found.user), isPending: false });
-        return;
-      }
+  // When signed in but no organization is active yet, activate the first one.
+  React.useEffect(() => {
+    if (!raw) {
+      settingRef.current = false;
+      return;
     }
-  } catch {
-    // ignore
+    if (!activeOrgId && orgs && orgs.length > 0 && !settingRef.current) {
+      settingRef.current = true;
+      void authClient.organization
+        .setActive({ organizationId: orgs[0].id })
+        .catch(() => {
+          settingRef.current = false;
+        });
+    }
+  }, [raw, activeOrgId, orgs]);
+
+  if (sessionPending) return { data: null, isPending: true, status: "loading" };
+  if (!raw) return { data: null, isPending: false, status: "unauthenticated" };
+
+  // Signed in, but not a member of any organization.
+  if (!orgsPending && (orgs?.length ?? 0) === 0) {
+    return { data: null, isPending: false, status: "no-organization" };
   }
-  set({ isPending: false });
-}
 
-function makeSession(user: SessionUser): Session {
-  return { user, organization: ORG, token: `mock.${user.id}.token` };
-}
+  // Wait for the active org + membership to resolve.
+  if (!activeOrgId || activeOrgPending || memberPending || !activeOrg || !activeMember) {
+    return { data: null, isPending: true, status: "loading" };
+  }
 
-let hydrated = false;
-function ensureHydrated() {
-  if (hydrated) return;
-  hydrated = true;
-  hydrate();
-}
+  const user: SessionUser = {
+    id: raw.user.id,
+    name: raw.user.name,
+    email: raw.user.email,
+    image: raw.user.image ?? null,
+    role: toRole(activeMember.role),
+    // Instructor course scoping would come from the courses API
+    // (course_assignments). Managers see everything regardless.
+    scopedCourseIds: [],
+  };
+  const organization: Organization = {
+    id: activeOrg.id,
+    name: activeOrg.name,
+    slug: activeOrg.slug,
+  };
 
-function subscribe(cb: () => void) {
-  ensureHydrated();
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-}
-
-/** Mirrors `authClient.useSession()` → `{ data, isPending, error }`. */
-export function useSession(): { data: Session | null; isPending: boolean; error: null } {
-  const snap = useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => ({ session: null, isPending: true }) as AuthState,
-  );
-  return { data: snap.session, isPending: snap.isPending, error: null };
-}
-
-export const signIn = {
-  async email(input: { email: string; password: string }): Promise<{ error: { message: string } | null }> {
-    await new Promise((r) => setTimeout(r, 600));
-    const found = DEMO_USERS[input.email.trim().toLowerCase()];
-    if (!found || input.password.length < 4) {
-      return { error: { message: "Invalid email or password" } };
-    }
-    set({ session: makeSession(found.user), isPending: false });
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(found.user.email));
-    }
-    return { error: null };
-  },
-  async social(_input: { provider: string }): Promise<{ error: { message: string } | null }> {
-    await new Promise((r) => setTimeout(r, 400));
-    return { error: { message: "Social sign-in isn't configured in this demo" } };
-  },
-};
-
-export async function signOut(): Promise<void> {
-  if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
-  set({ session: null, isPending: false });
+  return {
+    data: { user, organization, token: raw.session.token ?? raw.session.id ?? "" },
+    isPending: false,
+    status: "authenticated",
+  };
 }
