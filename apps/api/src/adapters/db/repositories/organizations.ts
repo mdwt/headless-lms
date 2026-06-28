@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { OrganizationsRepository } from "../../../core/organizations/ports.js";
 import type { Organization, Membership, Invitation, CourseAssignment } from "../../../core/organizations/model.js";
@@ -10,7 +10,7 @@ import type {
   RecordInvitationInput,
   AssignCourseInput,
 } from "../../../core/organizations/types.js";
-import { organizations, memberships, invitations } from "../schema/organizations.js";
+import { organizations, memberships, invitations, courseAssignments } from "../schema/organizations.js";
 
 export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   constructor(private readonly db: NodePgDatabase) {}
@@ -95,16 +95,45 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(eq(invitations.authInvitationId, authInvitationId));
   }
 
-  // Course assignment methods — DB migration and full implementation deferred to a later task.
-  async insertCourseAssignment(_orgId: string, _input: AssignCourseInput): Promise<CourseAssignment> {
-    throw new Error("insertCourseAssignment: not yet implemented");
+  async insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment> {
+    const [row] = await this.db
+      .insert(courseAssignments)
+      .values({ orgId, membershipId: input.membershipId, courseId: input.courseId })
+      .onConflictDoNothing()
+      .returning();
+    if (row) return row;
+    const [existing] = await this.db
+      .select()
+      .from(courseAssignments)
+      .where(
+        and(
+          eq(courseAssignments.orgId, orgId),
+          eq(courseAssignments.membershipId, input.membershipId),
+          eq(courseAssignments.courseId, input.courseId),
+        ),
+      )
+      .limit(1);
+    if (!existing) throw new Error("failed to insert course assignment");
+    return existing;
   }
 
-  async deleteCourseAssignment(_orgId: string, _membershipId: string, _courseId: string): Promise<void> {
-    throw new Error("deleteCourseAssignment: not yet implemented");
+  async deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void> {
+    await this.db
+      .delete(courseAssignments)
+      .where(
+        and(
+          eq(courseAssignments.orgId, orgId),
+          eq(courseAssignments.membershipId, membershipId),
+          eq(courseAssignments.courseId, courseId),
+        ),
+      );
   }
 
-  async findAssignedCourseIds(_orgId: string, _membershipId: string): Promise<string[]> {
-    throw new Error("findAssignedCourseIds: not yet implemented");
+  async findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ courseId: courseAssignments.courseId })
+      .from(courseAssignments)
+      .where(and(eq(courseAssignments.orgId, orgId), eq(courseAssignments.membershipId, membershipId)));
+    return rows.map((r) => r.courseId);
   }
 }
