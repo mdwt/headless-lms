@@ -34,6 +34,15 @@ export interface CreateAuthOptions {
   mcpLoginPage: string;
 }
 
+function htmlEscape(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Renders an inline HTML consent page for the MCP OAuth flow.
  * POSTs JSON to POST /api/auth/oauth2/consent with { accept: boolean, consent_code: string }.
@@ -48,7 +57,7 @@ function getConsentHTML(p: {
   clientName: string;
   code: string;
 }): string {
-  const scopeList = p.scopes.map((s) => `<li>${s}</li>`).join("");
+  const scopeList = p.scopes.map((s) => `<li>${htmlEscape(s)}</li>`).join("");
   const icon = p.clientIcon
     ? `<img src="${p.clientIcon}" alt="" style="width:48px;height:48px;border-radius:8px;margin-bottom:12px;" /><br />`
     : "";
@@ -59,7 +68,7 @@ function getConsentHTML(p: {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Authorize ${p.clientName}</title>
+  <title>Authorize ${htmlEscape(p.clientName)}</title>
   <style>
     body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
     .card { background: #fff; border-radius: 12px; padding: 32px; max-width: 400px; width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
@@ -75,24 +84,35 @@ function getConsentHTML(p: {
 <body>
   <div class="card">
     ${icon}
-    <h1>${p.clientName} wants access</h1>
+    <h1>${htmlEscape(p.clientName)} wants access</h1>
     <p>This app is requesting the following permissions:</p>
     <ul>${scopeList}</ul>
     <div class="actions">
       <button class="allow" onclick="respond(true)">Allow</button>
       <button class="deny" onclick="respond(false)">Deny</button>
     </div>
+    <p id="err" style="color:#dc2626;margin-top:12px;display:none;"></p>
   </div>
   <script>
     async function respond(accept) {
-      const res = await fetch('/api/auth/oauth2/consent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ accept, consent_code: '${safeCode}' })
-      });
-      const data = await res.json();
-      if (data.redirectURI) window.location.href = data.redirectURI;
+      try {
+        const res = await fetch('/api/auth/oauth2/consent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ accept, consent_code: '${safeCode}' })
+        });
+        if (!res.ok) { showError('Request failed (' + res.status + ')'); return; }
+        const data = await res.json();
+        if (data.redirectURI) { window.location.href = data.redirectURI; return; }
+        showError('Authorization failed: no redirect received.');
+      } catch (e) {
+        showError('Network error. Please try again.');
+      }
+    }
+    function showError(msg) {
+      const el = document.getElementById('err');
+      if (el) { el.textContent = msg; el.style.display = ''; }
     }
   </script>
 </body>
