@@ -105,8 +105,11 @@ export function ItemRow({
 
   function togglePublished(next: boolean) {
     setPublished(next);
+    // Send the full item so the SDK rebuilds the correct discriminated body —
+    // a partial {id, published} would be re-typed as a default lesson and wipe
+    // the title/type (and assessment fields).
     save.mutate(
-      { moduleId, item: { id: item.id, published: next } },
+      { moduleId, item: { ...item, published: next } },
       { onError: () => setPublished(serverPublished) },
     );
   }

@@ -1,7 +1,5 @@
 /** Small, dependency-free formatters. Numbers stay tabular for tidy tables. */
 
-import { NOW } from "./api/mock-data";
-
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -11,10 +9,10 @@ export function initials(name: string): string {
 
 const DAY = 86_400_000;
 
-/** Relative time against the fixed mock "now" (e.g. "3 days ago", "in 2 weeks"). */
+/** Relative time against the current time (e.g. "3 days ago", "in 2 weeks"). */
 export function relativeTime(iso: string | null): string {
   if (!iso) return "—";
-  const diff = new Date(iso).getTime() - NOW;
+  const diff = new Date(iso).getTime() - Date.now();
   const abs = Math.abs(diff);
   const past = diff < 0;
   const units: [number, string][] = [
@@ -46,4 +44,12 @@ export function formatDate(iso: string | null): string {
 
 export function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
+}
+
+export function formatBytes(bytes: number): string {
+  if (!bytes) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, i);
+  return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
 }

@@ -230,6 +230,7 @@ export type ListModulesResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -278,6 +279,7 @@ export type CreateModuleResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -326,6 +328,7 @@ export type ReorderModulesResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -373,6 +376,7 @@ export type DeleteModuleResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -422,6 +426,7 @@ export type UpdateModuleResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -471,6 +476,7 @@ export type ReorderItemsResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -497,6 +503,7 @@ export type CreateItemData = {
         title: string;
         type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
         durationLabel?: string;
+        assetId?: string;
         published?: boolean;
       }
     | {
@@ -533,6 +540,7 @@ export type CreateItemResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -581,6 +589,7 @@ export type DeleteItemResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -607,6 +616,7 @@ export type UpdateItemData = {
         title: string;
         type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
         durationLabel?: string;
+        assetId?: string;
         published?: boolean;
       }
     | {
@@ -644,6 +654,7 @@ export type UpdateItemResponses = {
           order: number;
           type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
           durationLabel?: string;
+          assetId?: string;
           published: boolean;
         }
       | {
@@ -747,6 +758,8 @@ export type ListEnrollmentsData = {
     sort?: string;
     status?: "active" | "expired" | "revoked";
     source?: "manual" | "purchase" | "import";
+    studentId?: string;
+    courseId?: string;
   };
   url: "/api/enrollments";
 };
@@ -1120,3 +1133,332 @@ export type GetOverviewResponses = {
 };
 
 export type GetOverviewResponse = GetOverviewResponses[keyof GetOverviewResponses];
+
+export type RequestUploadData = {
+  body: {
+    filename: string;
+    contentType: string;
+    kind: "video" | "download" | "content";
+  };
+  path?: never;
+  query?: never;
+  url: "/api/uploads";
+};
+
+export type RequestUploadErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type RequestUploadError = RequestUploadErrors[keyof RequestUploadErrors];
+
+export type RequestUploadResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    asset: {
+      id: string;
+      orgId: string;
+      key: string;
+      kind: "video" | "download" | "content";
+      filename: string;
+      contentType: string;
+      size: number;
+      status: "pending" | "ready";
+      uploadedBy: string;
+      createdAt: string;
+    };
+    uploadUrl: string;
+    method: "PUT";
+    expiresInSeconds: number;
+    headers: {
+      [key: string]: string;
+    };
+  };
+};
+
+export type RequestUploadResponse = RequestUploadResponses[keyof RequestUploadResponses];
+
+export type ConfirmAssetData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}/confirm";
+};
+
+export type ConfirmAssetErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ConfirmAssetError = ConfirmAssetErrors[keyof ConfirmAssetErrors];
+
+export type ConfirmAssetResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    orgId: string;
+    key: string;
+    kind: "video" | "download" | "content";
+    filename: string;
+    contentType: string;
+    size: number;
+    status: "pending" | "ready";
+    uploadedBy: string;
+    createdAt: string;
+  };
+};
+
+export type ConfirmAssetResponse = ConfirmAssetResponses[keyof ConfirmAssetResponses];
+
+export type ListAssetsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: string;
+    kind?: "video" | "download" | "content";
+  };
+  url: "/api/assets";
+};
+
+export type ListAssetsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ListAssetsError = ListAssetsErrors[keyof ListAssetsErrors];
+
+export type ListAssetsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      id: string;
+      orgId: string;
+      key: string;
+      kind: "video" | "download" | "content";
+      filename: string;
+      contentType: string;
+      size: number;
+      status: "pending" | "ready";
+      uploadedBy: string;
+      createdAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListAssetsResponse = ListAssetsResponses[keyof ListAssetsResponses];
+
+export type DeleteAssetData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}";
+};
+
+export type DeleteAssetErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type DeleteAssetError = DeleteAssetErrors[keyof DeleteAssetErrors];
+
+export type DeleteAssetResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetAssetData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}";
+};
+
+export type GetAssetErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type GetAssetError = GetAssetErrors[keyof GetAssetErrors];
+
+export type GetAssetResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    orgId: string;
+    key: string;
+    kind: "video" | "download" | "content";
+    filename: string;
+    contentType: string;
+    size: number;
+    status: "pending" | "ready";
+    uploadedBy: string;
+    createdAt: string;
+  };
+};
+
+export type GetAssetResponse = GetAssetResponses[keyof GetAssetResponses];
+
+export type RequestAssetDownloadData = {
+  body: {
+    filename?: string;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}/download-url";
+};
+
+export type RequestAssetDownloadErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type RequestAssetDownloadError =
+  RequestAssetDownloadErrors[keyof RequestAssetDownloadErrors];
+
+export type RequestAssetDownloadResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    url: string;
+    asset: {
+      id: string;
+      orgId: string;
+      key: string;
+      kind: "video" | "download" | "content";
+      filename: string;
+      contentType: string;
+      size: number;
+      status: "pending" | "ready";
+      uploadedBy: string;
+      createdAt: string;
+    };
+  };
+};
+
+export type RequestAssetDownloadResponse =
+  RequestAssetDownloadResponses[keyof RequestAssetDownloadResponses];

@@ -1,7 +1,9 @@
 // Wires adapters + services in dependency order. Starts nothing.
+import { randomUUID } from "node:crypto";
 import { createDb } from "../adapters/db/index.js";
 import { InMemoryEventBus } from "../adapters/events/index.js";
 import { EmailAdapter } from "../adapters/email/index.js";
+import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
 
 import { CoursesServiceImpl } from "../core/courses/index.js";
@@ -17,6 +19,7 @@ import { SubmissionsServiceImpl } from "../core/submissions/index.js";
 import { TeamServiceImpl } from "../core/team/index.js";
 import { DashboardServiceImpl } from "../core/dashboard/index.js";
 import { ModulesServiceImpl } from "../core/modules/index.js";
+import { AssetsServiceImpl } from "../core/assets/index.js";
 
 import { DrizzleEntitlementsRepository } from "../adapters/db/repositories/entitlements.js";
 import { DrizzleOffersRepository } from "../adapters/db/repositories/offers.js";
@@ -31,12 +34,14 @@ import { InMemorySubmissionsRepository } from "../adapters/inmemory/submissions.
 import { InMemoryTeamRepository } from "../adapters/inmemory/team.js";
 import { InMemoryDashboardRepository } from "../adapters/inmemory/dashboard.js";
 import { InMemoryModulesRepository } from "../adapters/inmemory/modules.js";
+import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 
 export interface Config {
   databaseUrl: string;
   authBaseURL: string;
   authSecret: string;
   trustedOrigins: string[];
+  storage: MinioStorageConfig;
 }
 
 export interface Container {
@@ -55,6 +60,8 @@ export interface Container {
   team: TeamServiceImpl;
   dashboard: DashboardServiceImpl;
   modules: ModulesServiceImpl;
+  assets: AssetsServiceImpl;
+  storage: MinioStorageAdapter;
 }
 
 export function buildContainer(config: Config): Container {
@@ -62,6 +69,7 @@ export function buildContainer(config: Config): Container {
   const db = createDb(config.databaseUrl);
   const eventBus = new InMemoryEventBus();
   const email = new EmailAdapter();
+  const storage = new MinioStorageAdapter(config.storage);
   void eventBus;
 
   // Repositories
@@ -88,6 +96,12 @@ export function buildContainer(config: Config): Container {
   const team = new TeamServiceImpl(new InMemoryTeamRepository());
   const dashboard = new DashboardServiceImpl(new InMemoryDashboardRepository());
   const modules = new ModulesServiceImpl(new InMemoryModulesRepository());
+  const assets = new AssetsServiceImpl(
+    storage,
+    new DrizzleAssetsRepository(db),
+    () => randomUUID(),
+    () => new Date().toISOString(),
+  );
 
   // Auth adapter — depends on core ports (email, identity, organizations);
   // composition only injects the implementations.
@@ -116,5 +130,7 @@ export function buildContainer(config: Config): Container {
     team,
     dashboard,
     modules,
+    assets,
+    storage,
   };
 }

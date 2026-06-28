@@ -15,7 +15,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { api, type Caller } from "./client";
+import { api } from "./sdk";
 import { qk } from "../query-keys";
 import type {
   Course,
@@ -35,11 +35,11 @@ export function useOverview() {
 
 // --- courses ---------------------------------------------------------------
 
-export function useCourses(params: ListParams, caller: Caller) {
-  const scope = caller.role === "instructor" ? `inst:${caller.scopedCourseIds.join(",")}` : "all";
+export function useCourses(params: ListParams) {
+  // The API scopes courses to the caller's org/role from the session cookie.
   return useQuery({
-    queryKey: qk.courses.list(params, scope),
-    queryFn: () => api.listCourses(params, caller),
+    queryKey: qk.courses.list(params, "all"),
+    queryFn: () => api.listCourses(params),
     placeholderData: keepPreviousData,
   });
 }
@@ -50,6 +50,10 @@ export function useCourse(id: string) {
 
 export function useCoursesLite() {
   return useQuery({ queryKey: qk.courses.lite, queryFn: () => api.coursesLite() });
+}
+
+export function useInstructorsLite() {
+  return useQuery({ queryKey: qk.instructors.lite, queryFn: () => api.instructorsLite() });
 }
 
 export function useCreateCourse() {
@@ -316,6 +320,56 @@ export function useRemoveMember() {
       toast.success("Member removed");
     },
     onError: (e) => toast.error("Couldn't remove member", { description: e.message }),
+  });
+}
+
+// --- media library (assets) ------------------------------------------------
+
+export function useAssets(params: ListParams) {
+  return useQuery({
+    queryKey: qk.assets.list(params),
+    queryFn: () => api.listAssets(params),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Lazily resolve a short-lived presigned URL for previewing/serving an asset. */
+export function useAssetUrl(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: qk.assets.url(id),
+    queryFn: async () => (await api.assetDownloadUrl(id)).url,
+    enabled,
+    // Presigned URLs live ~5 min; refetch before they expire.
+    staleTime: 4 * 60_000,
+    gcTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Single-file upload mutation. The component passes an `onProgress` callback per
+ * file so it can render live progress; the list is invalidated on success.
+ */
+export function useUploadAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, onProgress }: { file: File; onProgress?: (f: number) => void }) =>
+      api.uploadAsset(file, onProgress),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.assets.all });
+    },
+    onError: (e) => toast.error("Upload failed", { description: (e as Error).message }),
+  });
+}
+
+export function useDeleteAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteAsset(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.assets.all });
+      toast.success("File deleted");
+    },
+    onError: (e) => toast.error("Couldn't delete file", { description: e.message }),
   });
 }
 

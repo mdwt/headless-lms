@@ -50,6 +50,7 @@ export const can = {
 export function visibleNav(role: Role): {
   overview: boolean;
   courses: boolean;
+  media: boolean;
   students: boolean;
   enrollments: boolean;
   grading: boolean;
@@ -59,6 +60,8 @@ export function visibleNav(role: Role): {
   return {
     overview: true,
     courses: true,
+    // Anyone who builds course content can manage media.
+    media: true,
     students: manager,
     enrollments: manager,
     grading: true,

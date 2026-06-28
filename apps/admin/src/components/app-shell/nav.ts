@@ -2,6 +2,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   ClipboardCheck,
+  Image,
   Library,
   Ticket,
   Users,
@@ -20,6 +21,7 @@ export interface NavItem {
 const ALL_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard, key: "overview" },
   { href: "/courses", label: "Courses", icon: Library, key: "courses" },
+  { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
   { href: "/enrollments", label: "Enrollments", icon: Ticket, key: "enrollments" },
   { href: "/grading", label: "Grading", icon: ClipboardCheck, key: "grading" },

@@ -17,6 +17,7 @@ import { enrollmentsRoutes } from "./routes/enrollments.js";
 import { submissionsRoutes } from "./routes/submissions.js";
 import { teamRoutes } from "./routes/team.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { assetsRoutes } from "./routes/assets.js";
 
 function loadConfig() {
   // CLIENT_ORIGIN is a comma-separated list of browser app origins (web app +
@@ -35,6 +36,17 @@ function loadConfig() {
       authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
       authSecret: process.env.BETTER_AUTH_SECRET ?? "",
       trustedOrigins: clientOrigins,
+      storage: {
+        endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
+        port: Number(process.env.STORAGE_PORT ?? 9000),
+        useSSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
+        accessKey: process.env.STORAGE_ACCESS_KEY ?? "minioadmin",
+        secretKey: process.env.STORAGE_SECRET_KEY ?? "minioadmin",
+        region: process.env.STORAGE_REGION ?? "us-east-1",
+        bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
+        uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
+        downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 300),
+      },
     },
   };
 }
@@ -98,6 +110,8 @@ export function buildServer() {
       return;
     }
     request.authUser = sessionData.user;
+    request.orgId =
+      (sessionData.session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null;
   });
 
   app.get("/health", async () => ({ status: "ok" }));
@@ -111,6 +125,7 @@ export function buildServer() {
     await submissionsRoutes(instance, container);
     await teamRoutes(instance, container);
     await dashboardRoutes(instance, container);
+    await assetsRoutes(instance, container);
   });
 
   return app;

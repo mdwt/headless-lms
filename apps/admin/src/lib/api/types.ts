@@ -1,17 +1,71 @@
 /**
  * Domain types for the management dashboard.
  *
- * These mirror the eventual REST API payloads. Every component and hook is
- * driven by these shapes, so swapping the mock transport (see `mock-server.ts`)
- * for the real API is a one-file change — no component edits required.
+ * These are derived from the generated SDK (`@headless-lms/sdk`), which is
+ * generated from the API contract package — a single source of truth shared by
+ * the server, the OpenAPI spec, and this client. The hand-written mock types
+ * are gone; everything here tracks the real API.
  */
 
-// ---------------------------------------------------------------------------
-// Auth / identity
-// ---------------------------------------------------------------------------
+import type {
+  GetAssetResponse,
+  GetCourseResponse,
+  GetOverviewResponse,
+  GetStudentResponse,
+  ListAssetsResponse,
+  ListCoursesResponse,
+  ListEnrollmentsResponse,
+  ListMembersResponse,
+  ListModulesResponse,
+  ListStudentsResponse,
+  ListSubmissionsResponse,
+  RequestAssetDownloadResponse,
+  RequestUploadResponse,
+} from "@headless-lms/sdk";
 
-/** Org-scoped roles, mirrored from better-auth's organization plugin. */
-export type Role = "owner" | "admin" | "instructor" | "student";
+// --- entities (straight from the SDK responses) ----------------------------
+
+export type Course = GetCourseResponse;
+export type CourseStatus = Course["status"];
+
+export type Module = ListModulesResponse[number];
+export type ModuleItem = Module["items"][number];
+export type Lesson = Extract<ModuleItem, { kind: "lesson" }>;
+export type Assessment = Extract<ModuleItem, { kind: "assessment" }>;
+export type LessonType = Lesson["type"];
+export type AssessmentType = Assessment["type"];
+
+export type Student = GetStudentResponse;
+
+export type Enrollment = ListEnrollmentsResponse["rows"][number];
+export type EnrollmentStatus = Enrollment["status"];
+
+export type Submission = ListSubmissionsResponse["rows"][number];
+export type SubmissionStatus = Submission["status"];
+
+export type Member = ListMembersResponse["rows"][number];
+export type MemberStatus = Member["status"];
+export type Role = Member["role"];
+
+export type OverviewStats = GetOverviewResponse;
+
+// --- media library (assets) ------------------------------------------------
+
+export type Asset = GetAssetResponse;
+export type AssetKind = Asset["kind"];
+export type AssetStatus = Asset["status"];
+export type UploadTicket = RequestUploadResponse;
+export type DownloadTicket = RequestAssetDownloadResponse;
+
+// Page envelopes (shape: { rows, total, page, pageSize }).
+export type CoursesPage = ListCoursesResponse;
+export type StudentsPage = ListStudentsResponse;
+export type EnrollmentsPage = ListEnrollmentsResponse;
+export type SubmissionsPage = ListSubmissionsResponse;
+export type MembersPage = ListMembersResponse;
+export type AssetsPage = ListAssetsResponse;
+
+// --- auth / session (not part of the resource API) -------------------------
 
 export interface SessionUser {
   id: string;
@@ -20,7 +74,6 @@ export interface SessionUser {
   image?: string | null;
   /** Active org role + the courses an instructor is scoped to. */
   role: Role;
-  /** Course ids an instructor may manage/grade; empty for owner/admin (all). */
   scopedCourseIds: string[];
 }
 
@@ -30,142 +83,7 @@ export interface Organization {
   slug: string;
 }
 
-// ---------------------------------------------------------------------------
-// Courses · modules · items
-// ---------------------------------------------------------------------------
-
-export type CourseStatus = "draft" | "published";
-
-export type LessonType = "video" | "text" | "pdf" | "audio" | "download" | "embed";
-export type AssessmentType = "quiz" | "assignment";
-export type ModuleItemKind = "lesson" | "assessment";
-
-export interface Course {
-  id: string;
-  title: string;
-  slug: string;
-  description: string;
-  status: CourseStatus;
-  category: string;
-  instructorId: string;
-  instructorName: string;
-  moduleCount: number;
-  lessonCount: number;
-  enrolledCount: number;
-  updatedAt: string;
-  createdAt: string;
-}
-
-export interface Lesson {
-  id: string;
-  moduleId: string;
-  kind: "lesson";
-  title: string;
-  order: number;
-  type: LessonType;
-  /** Type-specific payload (url, body, fileName…). Loosely typed for the mock. */
-  durationLabel?: string;
-  published: boolean;
-}
-
-export interface Assessment {
-  id: string;
-  moduleId: string;
-  kind: "assessment";
-  title: string;
-  order: number;
-  type: AssessmentType;
-  questionCount?: number;
-  pointsPossible?: number;
-  published: boolean;
-}
-
-export type ModuleItem = Lesson | Assessment;
-
-export interface Module {
-  id: string;
-  courseId: string;
-  title: string;
-  order: number;
-  items: ModuleItem[];
-}
-
-// ---------------------------------------------------------------------------
-// Students · enrollments
-// ---------------------------------------------------------------------------
-
-export type EnrollmentStatus = "active" | "expired" | "revoked";
-
-export interface Student {
-  id: string;
-  name: string;
-  email: string;
-  image?: string | null;
-  enrollmentCount: number;
-  /** 0–100, averaged across active enrollments. */
-  avgProgress: number;
-  joinedAt: string;
-  lastActiveAt: string | null;
-}
-
-export interface Enrollment {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  courseId: string;
-  courseTitle: string;
-  status: EnrollmentStatus;
-  progressPercent: number;
-  grantedAt: string;
-  expiresAt: string | null;
-  source: "manual" | "purchase" | "import";
-}
-
-// ---------------------------------------------------------------------------
-// Grading queue (assignment submissions)
-// ---------------------------------------------------------------------------
-
-export type SubmissionStatus = "pending" | "graded" | "returned";
-
-export interface Submission {
-  id: string;
-  assessmentId: string;
-  assessmentTitle: string;
-  courseId: string;
-  courseTitle: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  status: SubmissionStatus;
-  submittedAt: string;
-  pointsPossible: number;
-  score: number | null;
-  feedback: string | null;
-  /** Mock body of the student's submission. */
-  responsePreview: string;
-}
-
-// ---------------------------------------------------------------------------
-// Org / team
-// ---------------------------------------------------------------------------
-
-export type MemberStatus = "active" | "invited";
-
-export interface Member {
-  id: string;
-  name: string;
-  email: string;
-  image?: string | null;
-  role: Role;
-  status: MemberStatus;
-  joinedAt: string | null;
-  invitedAt: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// List transport — server-side pagination / sort / filter (mocked)
-// ---------------------------------------------------------------------------
+// --- list transport (client-side table state → API query) ------------------
 
 export interface ListParams {
   page: number;
@@ -181,13 +99,4 @@ export interface Paginated<T> {
   total: number;
   page: number;
   pageSize: number;
-}
-
-export interface OverviewStats {
-  publishedCourses: number;
-  draftCourses: number;
-  activeStudents: number;
-  activeEnrollments: number;
-  pendingSubmissions: number;
-  expiringSoon: number;
 }

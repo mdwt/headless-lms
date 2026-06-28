@@ -21,7 +21,10 @@ const FORM_ID = "grade-submission-form";
 function buildSchema(pointsPossible: number) {
   return z.object({
     score: z.coerce
-      .number({ invalid_type_error: "Enter a score" })
+      .number({ error: "Enter a score" })
+      // The API contract requires a whole-number score; match it client-side so
+      // a fractional value fails validation here instead of as a 400.
+      .int("Enter a whole number")
       .min(0, "Score can't be negative")
       .max(pointsPossible, `Score can't exceed ${pointsPossible}`),
     feedback: z.string().trim().min(1, "Feedback is required"),
@@ -147,7 +150,7 @@ export function GradeSheet({
               inputMode="numeric"
               min={0}
               max={pointsPossible}
-              step="any"
+              step={1}
               placeholder="0"
               {...register("score")}
             />

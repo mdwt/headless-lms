@@ -27,6 +27,7 @@ const CONTEXTS = [
   "team",
   "dashboard",
   "modules",
+  "assets",
 ];
 
 // A context file may import a sibling context ONLY through its public index.ts.

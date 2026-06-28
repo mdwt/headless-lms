@@ -3,12 +3,18 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  ConfirmAssetData,
+  ConfirmAssetErrors,
+  ConfirmAssetResponses,
   CreateCourseData,
   CreateCourseResponses,
   CreateItemData,
   CreateItemResponses,
   CreateModuleData,
   CreateModuleResponses,
+  DeleteAssetData,
+  DeleteAssetErrors,
+  DeleteAssetResponses,
   DeleteCourseData,
   DeleteCourseErrors,
   DeleteCourseResponses,
@@ -16,6 +22,9 @@ import type {
   DeleteItemResponses,
   DeleteModuleData,
   DeleteModuleResponses,
+  GetAssetData,
+  GetAssetErrors,
+  GetAssetResponses,
   GetCourseData,
   GetCourseErrors,
   GetCourseResponses,
@@ -32,6 +41,9 @@ import type {
   InviteMemberData,
   InviteMemberErrors,
   InviteMemberResponses,
+  ListAssetsData,
+  ListAssetsErrors,
+  ListAssetsResponses,
   ListCoursesData,
   ListCoursesResponses,
   ListEnrollmentsData,
@@ -51,6 +63,12 @@ import type {
   ReorderItemsResponses,
   ReorderModulesData,
   ReorderModulesResponses,
+  RequestAssetDownloadData,
+  RequestAssetDownloadErrors,
+  RequestAssetDownloadResponses,
+  RequestUploadData,
+  RequestUploadErrors,
+  RequestUploadResponses,
   SetEnrollmentStatusData,
   SetEnrollmentStatusErrors,
   SetEnrollmentStatusResponses,
@@ -478,6 +496,94 @@ export class Dashboard {
     return (options?.client ?? client).get<GetOverviewResponses, unknown, ThrowOnError>({
       url: "/api/overview",
       ...options,
+    });
+  }
+}
+
+export class Assets {
+  /**
+   * Register an asset and get a presigned upload URL
+   */
+  public static requestUpload<ThrowOnError extends boolean = false>(
+    options: Options<RequestUploadData, ThrowOnError>,
+  ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RequestUploadResponses,
+      RequestUploadErrors,
+      ThrowOnError
+    >({
+      url: "/api/uploads",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Confirm an upload completed (captures size + content type)
+   */
+  public static confirmAsset<ThrowOnError extends boolean = false>(
+    options: Options<ConfirmAssetData, ThrowOnError>,
+  ): RequestResult<ConfirmAssetResponses, ConfirmAssetErrors, ThrowOnError> {
+    return (options.client ?? client).post<ConfirmAssetResponses, ConfirmAssetErrors, ThrowOnError>(
+      { url: "/api/assets/{id}/confirm", ...options },
+    );
+  }
+
+  /**
+   * Browse the organization's media library
+   */
+  public static listAssets<ThrowOnError extends boolean = false>(
+    options?: Options<ListAssetsData, ThrowOnError>,
+  ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAssetsResponses, ListAssetsErrors, ThrowOnError>({
+      url: "/api/assets",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete an asset (removes the object from storage)
+   */
+  public static deleteAsset<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAssetData, ThrowOnError>,
+  ): RequestResult<DeleteAssetResponses, DeleteAssetErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAssetResponses, DeleteAssetErrors, ThrowOnError>(
+      { url: "/api/assets/{id}", ...options },
+    );
+  }
+
+  /**
+   * Get an asset's metadata
+   */
+  public static getAsset<ThrowOnError extends boolean = false>(
+    options: Options<GetAssetData, ThrowOnError>,
+  ): RequestResult<GetAssetResponses, GetAssetErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAssetResponses, GetAssetErrors, ThrowOnError>({
+      url: "/api/assets/{id}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get a short-lived presigned URL to download/serve an asset
+   */
+  public static requestAssetDownload<ThrowOnError extends boolean = false>(
+    options: Options<RequestAssetDownloadData, ThrowOnError>,
+  ): RequestResult<RequestAssetDownloadResponses, RequestAssetDownloadErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      RequestAssetDownloadResponses,
+      RequestAssetDownloadErrors,
+      ThrowOnError
+    >({
+      url: "/api/assets/{id}/download-url",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }

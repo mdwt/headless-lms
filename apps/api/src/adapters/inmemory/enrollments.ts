@@ -51,6 +51,8 @@ export class InMemoryEnrollmentsRepository implements EnrollmentsRepository {
     let rows = this.enrollments;
     if (query.status) rows = rows.filter((e) => e.status === query.status);
     if (query.source) rows = rows.filter((e) => e.source === query.source);
+    if (query.studentId) rows = rows.filter((e) => e.studentId === query.studentId);
+    if (query.courseId) rows = rows.filter((e) => e.courseId === query.courseId);
     return applyList(rows, query, ["studentName", "studentEmail", "courseTitle"]);
   }
 

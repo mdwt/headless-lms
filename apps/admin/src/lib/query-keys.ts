@@ -40,4 +40,10 @@ export const qk = {
   },
 
   instructors: { lite: ["instructors", "lite"] as const },
+
+  assets: {
+    all: ["assets"] as const,
+    list: (params: ListParams) => ["assets", "list", params] as const,
+    url: (id: string) => ["assets", id, "url"] as const,
+  },
 };

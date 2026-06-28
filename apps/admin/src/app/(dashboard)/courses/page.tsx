@@ -20,8 +20,9 @@ import {
   useCourses,
   useToggleCoursePublish,
   useDeleteCourse,
+  useInstructorsLite,
 } from "@/lib/api/hooks";
-import { useCurrentUser, useCaller } from "@/lib/auth/session-context";
+import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
 import { relativeTime, formatNumber } from "@/lib/format";
 import type { Course } from "@/lib/api/types";
@@ -42,10 +43,9 @@ const CATEGORY_OPTIONS = [
 export default function CoursesPage() {
   const router = useRouter();
   const user = useCurrentUser();
-  const caller = useCaller();
 
   const state = useDataTable({ pageSize: 10, initialSort: [{ id: "updatedAt", desc: true }] });
-  const query = useCourses(state.params, caller);
+  const query = useCourses(state.params);
   const rows = query.data?.rows;
   const total = query.data?.total ?? 0;
 
@@ -63,10 +63,8 @@ export default function CoursesPage() {
   const canPublish = can.publishCourse(user);
   const canDelete = can.deleteCourse(user);
 
-  const instructorNames = React.useMemo(
-    () => Array.from(new Set((rows ?? []).map((c) => c.instructorName).filter(Boolean))),
-    [rows],
-  );
+  const instructorsQuery = useInstructorsLite();
+  const instructors = instructorsQuery.data ?? [];
 
   const openCreate = React.useCallback(() => {
     setEditing(undefined);
@@ -255,7 +253,7 @@ export default function CoursesPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         course={editing}
-        instructors={instructorNames}
+        instructors={instructors}
       />
 
       <ConfirmDialog

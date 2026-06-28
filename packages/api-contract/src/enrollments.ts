@@ -26,6 +26,10 @@ export type Enrollment = z.infer<typeof Enrollment>;
 export const EnrollmentsQuery = ListQuery.extend({
   status: EnrollmentStatus.optional(),
   source: EnrollmentSource.optional(),
+  /** Scope to a single student (used by the student detail view). */
+  studentId: z.string().optional(),
+  /** Scope to a single course. */
+  courseId: z.string().optional(),
 });
 export type EnrollmentsQuery = z.infer<typeof EnrollmentsQuery>;
 

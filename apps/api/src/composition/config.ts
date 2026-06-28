@@ -8,5 +8,16 @@ export function loadConfigFromEnv(): Config {
     authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
     trustedOrigins: [clientOrigin],
+    storage: {
+      endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
+      port: Number(process.env.STORAGE_PORT ?? 9000),
+      useSSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
+      accessKey: process.env.STORAGE_ACCESS_KEY ?? "minioadmin",
+      secretKey: process.env.STORAGE_SECRET_KEY ?? "minioadmin",
+      region: process.env.STORAGE_REGION ?? "us-east-1",
+      bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
+      uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
+      downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 300),
+    },
   };
 }

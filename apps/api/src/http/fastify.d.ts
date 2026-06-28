@@ -17,5 +17,7 @@ declare module "fastify" {
   }
   interface FastifyRequest {
     authUser?: AuthUser;
+    /** Active organization id from the session, set by `requireSession`. */
+    orgId?: string | null;
   }
 }

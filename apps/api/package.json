@@ -6,7 +6,7 @@
   "main": "dist/http/server.js",
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/http/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "start": "node --env-file=../../.env dist/http/server.js",
     "seed:admin": "tsx --env-file=../../.env scripts/seed-admin.ts",
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
@@ -26,6 +26,7 @@
     "drizzle-orm": "^0.38.2",
     "fastify": "^5.2.0",
     "fastify-type-provider-zod": "^7.0.0",
+    "minio": "^8.0.7",
     "pg": "^8.13.1",
     "zod": "4.4.3"
   },
@@ -33,6 +34,7 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.30.1",
+    "tsup": "^8.5.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

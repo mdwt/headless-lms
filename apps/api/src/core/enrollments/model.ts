@@ -24,6 +24,8 @@ export interface EnrollmentsQuery {
   sort?: string | undefined;
   status?: EnrollmentStatus | undefined;
   source?: EnrollmentSource | undefined;
+  studentId?: string | undefined;
+  courseId?: string | undefined;
 }
 
 export interface GrantEnrollmentInput {

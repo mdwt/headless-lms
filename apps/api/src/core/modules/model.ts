@@ -12,6 +12,8 @@ export interface Lesson {
   order: number;
   type: LessonType;
   durationLabel?: string;
+  /** Media-library asset backing this lesson (video file, downloadable, …). */
+  assetId?: string;
   published: boolean;
 }
 
@@ -43,6 +45,7 @@ export type SaveItemInput =
       title: string;
       type: LessonType;
       durationLabel?: string;
+      assetId?: string;
       published?: boolean;
     }
   | {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { Session } from "./client";
-import type { Caller } from "../api/client";
+import type { Caller } from "../api/sdk";
 import type { SessionUser } from "../api/types";
 
 const SessionContext = React.createContext<Session | null>(null);

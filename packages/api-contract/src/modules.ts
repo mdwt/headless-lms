@@ -15,6 +15,8 @@ export const Lesson = z.object({
   order: z.number().int(),
   type: LessonType,
   durationLabel: z.string().optional(),
+  /** Media-library asset backing this lesson (video file, downloadable, …). */
+  assetId: z.string().optional(),
   published: z.boolean(),
 });
 export type Lesson = z.infer<typeof Lesson>;
@@ -76,6 +78,7 @@ export const SaveLesson = z.object({
   title: z.string().min(1),
   type: LessonType,
   durationLabel: z.string().optional(),
+  assetId: z.string().optional(),
   published: z.boolean().optional(),
 });
 export const SaveAssessment = z.object({
