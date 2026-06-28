@@ -60,7 +60,18 @@ function loadConfig() {
 /** Bridges a Web API Response back to a Fastify reply. */
 async function bridgeWebResponse(response: Response, reply: FastifyReply) {
   reply.status(response.status);
-  response.headers.forEach((value, key) => reply.header(key, value));
+  // Emit each Set-Cookie value individually — forEach() collapses multiple
+  // Set-Cookie headers into one comma-joined string (undici behaviour), which
+  // corrupts multi-cookie auth responses. getSetCookie() returns them as an
+  // array so each one is forwarded as a separate header.
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) {
+    reply.raw.setHeader("set-cookie", cookies);
+  }
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") return; // already handled above
+    reply.header(key, value);
+  });
   reply.send(response.body ? await response.text() : null);
 }
 
@@ -73,6 +84,16 @@ export function buildServer() {
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // OAuth 2.1 / MCP clients POST form-encoded bodies to the token endpoint.
+  // Fastify has no built-in parser for this content-type and would 415 before
+  // the handler runs. Register a raw passthrough so the string body reaches
+  // the bridge, which forwards it verbatim with the original Content-Type.
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_req, body, done) => done(null, body),
+  );
 
   // CORS must allow credentials so the SPA/admin can carry the session cookie.
   app.register(cors, {
@@ -104,7 +125,12 @@ export function buildServer() {
       const req = new Request(url.toString(), {
         method: request.method,
         headers: fromNodeHeaders(request.headers),
-        body: request.body ? JSON.stringify(request.body) : undefined,
+        body:
+          typeof request.body === "string"
+            ? request.body
+            : request.body
+              ? JSON.stringify(request.body)
+              : undefined,
       });
       await bridgeWebResponse(await auth.handler(req), reply);
     },

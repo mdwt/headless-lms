@@ -2,12 +2,17 @@
 import type { Config } from "./container.js";
 
 export function loadConfigFromEnv(): Config {
-  const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
+  const clientOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   return {
     databaseUrl: process.env.DATABASE_URL ?? "",
-    authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    authBaseURL: apiOrigin,
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
-    trustedOrigins: [clientOrigin],
+    trustedOrigins,
     mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:3001/login",
     storage: {
       endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",

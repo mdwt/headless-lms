@@ -5,7 +5,7 @@
 // `session.active_organization_id`). These are the multi-tenant source of truth;
 // core mirrors them via organizationHooks. Regenerate with the CLI and let
 // drizzle-kit own the migration.
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -105,42 +105,60 @@ export const invitation = pgTable("invitation", {
 });
 
 // --- OAuth / OIDC provider tables (MCP). Owned by Better Auth's mcp plugin. ---
-export const oauthApplication = pgTable("oauth_application", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  icon: text("icon"),
-  metadata: text("metadata"),
-  clientId: text("client_id").notNull().unique(),
-  clientSecret: text("client_secret"),
-  redirectUrls: text("redirect_urls").notNull(),
-  type: text("type").notNull(),
-  disabled: boolean("disabled").default(false),
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-});
+export const oauthApplication = pgTable(
+  "oauth_application",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    icon: text("icon"),
+    metadata: text("metadata"),
+    clientId: text("client_id").notNull().unique(),
+    clientSecret: text("client_secret"),
+    redirectUrls: text("redirect_urls").notNull(),
+    type: text("type").notNull(),
+    disabled: boolean("disabled").default(false),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => [index("oauth_application_user_id_idx").on(t.userId)],
+);
 
-export const oauthAccessToken = pgTable("oauth_access_token", {
-  id: text("id").primaryKey(),
-  accessToken: text("access_token").notNull().unique(),
-  refreshToken: text("refresh_token").notNull().unique(),
-  accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
-  clientId: text("client_id").notNull(),
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
-  scopes: text("scopes").notNull(),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-});
+export const oauthAccessToken = pgTable(
+  "oauth_access_token",
+  {
+    id: text("id").primaryKey(),
+    accessToken: text("access_token").notNull().unique(),
+    refreshToken: text("refresh_token").notNull().unique(),
+    accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
+    clientId: text("client_id").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    scopes: text("scopes").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => [
+    index("oauth_access_token_client_id_idx").on(t.clientId),
+    index("oauth_access_token_user_id_idx").on(t.userId),
+  ],
+);
 
-export const oauthConsent = pgTable("oauth_consent", {
-  id: text("id").primaryKey(),
-  clientId: text("client_id").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  scopes: text("scopes").notNull(),
-  consentGiven: boolean("consent_given").notNull(),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-});
+export const oauthConsent = pgTable(
+  "oauth_consent",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    scopes: text("scopes").notNull(),
+    consentGiven: boolean("consent_given").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => [
+    index("oauth_consent_client_id_idx").on(t.clientId),
+    index("oauth_consent_user_id_idx").on(t.userId),
+  ],
+);
