@@ -31,3 +31,9 @@ export interface RecordInvitationInput {
 export interface AcceptInvitationInput {
   authInvitationId: string;
 }
+
+export interface AssignCourseInput {
+  authOrgId: string;
+  membershipId: string;
+  courseId: string;
+}

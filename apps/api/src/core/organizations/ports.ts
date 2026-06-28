@@ -1,10 +1,11 @@
 // organizations context — ports.
-import type { Organization, Membership, Invitation } from "./model.js";
+import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
+  AssignCourseInput,
 } from "./types.js";
 
 // Capability used by the auth adapter to mirror the organization plugin's
@@ -22,6 +23,9 @@ export interface OrganizationProvisioner {
 // Inbound port (use cases the service exposes).
 export interface OrganizationService extends OrganizationProvisioner {
   getByAuthOrgId(authOrgId: string): Promise<Organization | null>;
+  assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
+  unassignCourse(input: AssignCourseInput): Promise<void>;
+  assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -32,4 +36,7 @@ export interface OrganizationsRepository {
   deleteMembershipByAuthMemberId(authMemberId: string): Promise<void>;
   insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation>;
   setInvitationStatusByAuthId(authInvitationId: string, status: string): Promise<void>;
+  insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
+  deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
+  findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
 }

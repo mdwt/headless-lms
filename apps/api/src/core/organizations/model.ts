@@ -2,6 +2,7 @@
 // Framework-free, runtime-free. The org is the tenant root that owns all
 // org-scoped data; memberships and invitations are mirrored from the auth
 // adapter's organization plugin.
+import type { Role } from "./roles.js";
 
 export interface Organization {
   readonly id: string;
@@ -18,7 +19,7 @@ export interface Membership {
   readonly id: string;
   readonly orgId: string;
   readonly studentId: string;
-  readonly role: string;
+  readonly role: Role;
   // Links to the better-auth member record.
   readonly authMemberId: string;
   readonly createdAt: Date;
@@ -34,5 +35,13 @@ export interface Invitation {
   // Links to the better-auth invitation record.
   readonly authInvitationId: string;
   readonly expiresAt: Date | null;
+  readonly createdAt: Date;
+}
+
+export interface CourseAssignment {
+  readonly id: string;
+  readonly orgId: string;
+  readonly membershipId: string;
+  readonly courseId: string;
   readonly createdAt: Date;
 }

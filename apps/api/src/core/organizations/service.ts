@@ -1,11 +1,13 @@
 // organizations context — service implementation (inbound port).
 import type { OrganizationService, OrganizationsRepository } from "./ports.js";
-import type { Organization, Membership, Invitation } from "./model.js";
+import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
+import { normalizeRole } from "./roles.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
+  AssignCourseInput,
 } from "./types.js";
 
 export class OrganizationServiceImpl implements OrganizationService {
@@ -19,7 +21,7 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async addMembership(input: AddMembershipInput): Promise<Membership> {
     const org = await this.requireOrg(input.authOrgId);
-    return this.repo.insertMembership(org.id, input);
+    return this.repo.insertMembership(org.id, { ...input, role: normalizeRole(input.role) });
   }
 
   async removeMembership(authMemberId: string): Promise<void> {
@@ -37,6 +39,20 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async getByAuthOrgId(authOrgId: string): Promise<Organization | null> {
     return this.repo.findByAuthOrgId(authOrgId);
+  }
+
+  async assignCourse(input: AssignCourseInput): Promise<CourseAssignment> {
+    const org = await this.requireOrg(input.authOrgId);
+    return this.repo.insertCourseAssignment(org.id, input);
+  }
+
+  async unassignCourse(input: AssignCourseInput): Promise<void> {
+    const org = await this.requireOrg(input.authOrgId);
+    await this.repo.deleteCourseAssignment(org.id, input.membershipId, input.courseId);
+  }
+
+  async assignedCourseIds(orgId: string, membershipId: string): Promise<string[]> {
+    return this.repo.findAssignedCourseIds(orgId, membershipId);
   }
 
   private async requireOrg(authOrgId: string): Promise<Organization> {

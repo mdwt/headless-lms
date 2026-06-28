@@ -17,6 +17,7 @@ import type { EmailSender } from "../../core/shared/ports.js";
 import type { IdentityService } from "../../core/identity/index.js";
 import type { OrganizationProvisioner } from "../../core/organizations/index.js";
 import * as authSchema from "./schema.js";
+import { ac, roles } from "./access.js";
 
 export interface CreateAuthOptions {
   db: NodePgDatabase;
@@ -62,6 +63,9 @@ export function createAuth(opts: CreateAuthOptions) {
         },
       }),
       organization({
+        ac,
+        roles,
+        creatorRole: "owner",
         organizationHooks: {
           // New org → mirror it plus the creator's owner membership.
           afterCreateOrganization: async ({ organization: org, member, user }) => {
