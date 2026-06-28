@@ -9,6 +9,7 @@ import {
   jsonSchemaTransform,
 } from "fastify-type-provider-zod";
 import { fromNodeHeaders } from "better-auth/node";
+import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { buildContainer } from "../composition/container.js";
 import { coursesRoutes } from "./routes/courses.js";
 import { modulesRoutes } from "./routes/modules.js";
@@ -27,15 +28,19 @@ function loadConfig() {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+  const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  // Include the API's own origin so MCP OAuth flows originating from the same
+  // server (e.g. server-side token requests) are accepted by better-auth.
+  const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   return {
     port: Number(process.env.PORT ?? 3000),
-    publicUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    publicUrl: apiOrigin,
     clientOrigins,
     container: {
       databaseUrl: process.env.DATABASE_URL ?? "",
-      authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+      authBaseURL: apiOrigin,
       authSecret: process.env.BETTER_AUTH_SECRET ?? "",
-      trustedOrigins: clientOrigins,
+      trustedOrigins,
       mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:3001/login",
       storage: {
         endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
@@ -50,6 +55,13 @@ function loadConfig() {
       },
     },
   };
+}
+
+/** Bridges a Web API Response back to a Fastify reply. */
+async function bridgeWebResponse(response: Response, reply: FastifyReply) {
+  reply.status(response.status);
+  response.headers.forEach((value, key) => reply.header(key, value));
+  reply.send(response.body ? await response.text() : null);
 }
 
 export function buildServer() {
@@ -94,11 +106,31 @@ export function buildServer() {
         headers: fromNodeHeaders(request.headers),
         body: request.body ? JSON.stringify(request.body) : undefined,
       });
-      const response = await auth.handler(req);
-      reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
-      reply.send(response.body ? await response.text() : null);
+      await bridgeWebResponse(await auth.handler(req), reply);
     },
+  });
+
+  // OAuth 2.0 discovery endpoints required by MCP clients (RFC 8414).
+  // These must live at the root — outside any /api prefix — so MCP clients
+  // can discover the authorization server via standard well-known paths.
+  const discoveryHandler = oAuthDiscoveryMetadata(auth);
+  app.get("/.well-known/oauth-authorization-server", async (request, reply) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const req = new Request(url.toString(), {
+      method: "GET",
+      headers: fromNodeHeaders(request.headers),
+    });
+    await bridgeWebResponse(await discoveryHandler(req), reply);
+  });
+
+  const protectedResourceHandler = oAuthProtectedResourceMetadata(auth);
+  app.get("/.well-known/oauth-protected-resource", async (request, reply) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const req = new Request(url.toString(), {
+      method: "GET",
+      headers: fromNodeHeaders(request.headers),
+    });
+    await bridgeWebResponse(await protectedResourceHandler(req), reply);
   });
 
   // preHandler that resolves the current session; 401 when absent.
