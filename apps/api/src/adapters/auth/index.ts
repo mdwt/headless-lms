@@ -58,8 +58,9 @@ function getConsentHTML(p: {
   code: string;
 }): string {
   const scopeList = p.scopes.map((s) => `<li>${htmlEscape(s)}</li>`).join("");
+  // clientIcon is attacker-controlled under open DCR — escape it in the attribute.
   const icon = p.clientIcon
-    ? `<img src="${p.clientIcon}" alt="" style="width:48px;height:48px;border-radius:8px;margin-bottom:12px;" /><br />`
+    ? `<img src="${htmlEscape(p.clientIcon)}" alt="" style="width:48px;height:48px;border-radius:8px;margin-bottom:12px;" /><br />`
     : "";
   // Escape code for safe embedding in JS string literal
   const safeCode = p.code.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
