@@ -2,12 +2,13 @@
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { OrganizationsRepository } from "../../../core/organizations/ports.js";
-import type { Organization, Membership, Invitation } from "../../../core/organizations/model.js";
+import type { Organization, Membership, Invitation, CourseAssignment } from "../../../core/organizations/model.js";
 import { parseRole } from "../../../core/organizations/index.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
+  AssignCourseInput,
 } from "../../../core/organizations/types.js";
 import { organizations, memberships, invitations } from "../schema/organizations.js";
 
@@ -92,5 +93,18 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .update(invitations)
       .set({ status })
       .where(eq(invitations.authInvitationId, authInvitationId));
+  }
+
+  // Course assignment methods — DB migration and full implementation deferred to a later task.
+  async insertCourseAssignment(_orgId: string, _input: AssignCourseInput): Promise<CourseAssignment> {
+    throw new Error("insertCourseAssignment: not yet implemented");
+  }
+
+  async deleteCourseAssignment(_orgId: string, _membershipId: string, _courseId: string): Promise<void> {
+    throw new Error("deleteCourseAssignment: not yet implemented");
+  }
+
+  async findAssignedCourseIds(_orgId: string, _membershipId: string): Promise<string[]> {
+    throw new Error("findAssignedCourseIds: not yet implemented");
   }
 }

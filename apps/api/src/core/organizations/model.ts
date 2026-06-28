@@ -37,3 +37,11 @@ export interface Invitation {
   readonly expiresAt: Date | null;
   readonly createdAt: Date;
 }
+
+export interface CourseAssignment {
+  readonly id: string;
+  readonly orgId: string;
+  readonly membershipId: string;
+  readonly courseId: string;
+  readonly createdAt: Date;
+}

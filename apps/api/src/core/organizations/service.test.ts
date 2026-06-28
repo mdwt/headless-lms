@@ -13,6 +13,7 @@ function fakeRepo() {
   const orgs: Organization[] = [];
   const members: Membership[] = [];
   const invitations: Invitation[] = [];
+  const assignments: { id: string; orgId: string; membershipId: string; courseId: string; createdAt: Date }[] = [];
   let n = 0;
   const repo: OrganizationsRepository = {
     async insertOrganization(input: ProvisionOrganizationInput) {
@@ -57,6 +58,18 @@ function fakeRepo() {
     async setInvitationStatusByAuthId(authInvitationId: string, status: string) {
       const inv = invitations.find((x) => x.authInvitationId === authInvitationId);
       if (inv) (inv as { status: string }).status = status;
+    },
+    async insertCourseAssignment(orgId, input) {
+      const row = { id: `a${++n}`, orgId, membershipId: input.membershipId, courseId: input.courseId, createdAt: new Date(0) };
+      assignments.push(row);
+      return row;
+    },
+    async deleteCourseAssignment(orgId, membershipId, courseId) {
+      const i = assignments.findIndex((x) => x.orgId === orgId && x.membershipId === membershipId && x.courseId === courseId);
+      if (i >= 0) assignments.splice(i, 1);
+    },
+    async findAssignedCourseIds(orgId, membershipId) {
+      return assignments.filter((x) => x.orgId === orgId && x.membershipId === membershipId).map((x) => x.courseId);
     },
   };
   return { repo, orgs, members, invitations };
@@ -117,5 +130,24 @@ describe("OrganizationService", () => {
       role: "instructor",
     });
     expect(m.role).toBe("instructor");
+  });
+
+  it("assigns and lists instructor course assignments", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    const org = await svc.provisionOrganization(orgInput);
+    const a = await svc.assignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
+    expect(a.orgId).toBe(org.id);
+    expect(a.courseId).toBe("c1");
+    expect(await svc.assignedCourseIds(org.id, "m1")).toEqual(["c1"]);
+  });
+
+  it("unassigns a course", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    const org = await svc.provisionOrganization(orgInput);
+    await svc.assignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
+    await svc.unassignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
+    expect(await svc.assignedCourseIds(org.id, "m1")).toEqual([]);
   });
 });
