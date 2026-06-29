@@ -4,6 +4,12 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "types": ["node"],
+    // Transpile-only build (tsup bundle:false) emits file-for-file ESM that
+    // Node resolves natively, so relative imports MUST carry .js extensions.
+    // NodeNext makes tsc enforce that — a missing extension is a compile error
+    // rather than a production-only ERR_MODULE_NOT_FOUND.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     // Application package: nothing imports its declarations, so don't emit them.
     // Avoids TS2742 from third-party (better-auth/zod) inferred types under pnpm.
     "composite": false,
