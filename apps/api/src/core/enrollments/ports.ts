@@ -7,13 +7,13 @@ import type {
 } from "./model.js";
 
 export interface EnrollmentsService {
-  list(query: EnrollmentsQuery): Promise<Page<Enrollment>>;
-  grant(input: GrantEnrollmentInput): Promise<Enrollment>;
-  setStatus(id: string, status: "active" | "revoked"): Promise<Enrollment | null>;
+  list(orgId: string, query: EnrollmentsQuery): Promise<Page<Enrollment>>;
+  grant(orgId: string, input: GrantEnrollmentInput): Promise<Enrollment>;
+  setStatus(orgId: string, id: string, status: "active" | "revoked"): Promise<Enrollment | null>;
 }
 
 export interface EnrollmentsRepository {
-  list(query: EnrollmentsQuery): Promise<Page<Enrollment>>;
-  insert(input: GrantEnrollmentInput): Promise<Enrollment>;
-  setStatus(id: string, status: "active" | "revoked"): Promise<Enrollment | null>;
+  list(orgId: string, query: EnrollmentsQuery): Promise<Page<Enrollment>>;
+  insert(orgId: string, input: GrantEnrollmentInput): Promise<Enrollment>;
+  setStatus(orgId: string, id: string, status: "active" | "revoked"): Promise<Enrollment | null>;
 }

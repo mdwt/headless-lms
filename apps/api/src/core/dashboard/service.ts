@@ -5,7 +5,7 @@ import type { DashboardRepository, DashboardService } from "./ports.js";
 export class DashboardServiceImpl implements DashboardService {
   constructor(private readonly repo: DashboardRepository) {}
 
-  overview(): Promise<OverviewStats> {
-    return this.repo.overview();
+  overview(orgId: string): Promise<OverviewStats> {
+    return this.repo.overview(orgId);
   }
 }

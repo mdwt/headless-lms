@@ -29,6 +29,13 @@
       "when": 1782682233099,
       "tag": "0003_wise_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782713375027,
+      "tag": "0004_dazzling_tusk",
+      "breakpoints": true
     }
   ]
 }

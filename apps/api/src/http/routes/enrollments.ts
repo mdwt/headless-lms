@@ -11,6 +11,7 @@ import {
   SetEnrollmentStatus,
 } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
+import { resolveScope } from "../scope.js";
 
 export async function enrollmentsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -19,6 +20,7 @@ export async function enrollmentsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: "GET",
     url: "/api/enrollments",
+    preHandler: app.requireSession,
     schema: {
       operationId: "listEnrollments",
       tags: ["Enrollments"],
@@ -26,12 +28,16 @@ export async function enrollmentsRoutes(app: FastifyInstance, container: Contain
       querystring: EnrollmentsQuery,
       response: { 200: EnrollmentsPage },
     },
-    handler: (req) => enrollments.list(req.query),
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return enrollments.list(scope.orgId, req.query);
+    },
   });
 
   r.route({
     method: "POST",
     url: "/api/enrollments",
+    preHandler: app.requireSession,
     schema: {
       operationId: "grantEnrollment",
       tags: ["Enrollments"],
@@ -40,7 +46,8 @@ export async function enrollmentsRoutes(app: FastifyInstance, container: Contain
       response: { 201: Enrollment },
     },
     handler: async (req, reply) => {
-      const enrollment = await enrollments.grant(req.body);
+      const scope = await resolveScope(container, req);
+      const enrollment = await enrollments.grant(scope.orgId, req.body);
       return reply.code(201).send(enrollment);
     },
   });
@@ -48,6 +55,7 @@ export async function enrollmentsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: "PATCH",
     url: "/api/enrollments/:id",
+    preHandler: app.requireSession,
     schema: {
       operationId: "setEnrollmentStatus",
       tags: ["Enrollments"],
@@ -57,7 +65,8 @@ export async function enrollmentsRoutes(app: FastifyInstance, container: Contain
       response: { 200: Enrollment, 404: ErrorBody },
     },
     handler: async (req, reply) => {
-      const enrollment = await enrollments.setStatus(req.params.id, req.body.status);
+      const scope = await resolveScope(container, req);
+      const enrollment = await enrollments.setStatus(scope.orgId, req.params.id, req.body.status);
       if (!enrollment) return reply.code(404).send({ error: "not_found", message: "Enrollment not found" });
       return enrollment;
     },

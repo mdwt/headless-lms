@@ -1,38 +1,55 @@
 // modules context — service implementation (inbound port). Thin delegation;
-// ordering/persistence detail lives in the repository.
+// ordering/persistence detail lives in the repository. Every method is
+// org-scoped: the leading `orgId` is threaded through to the repository.
 import type { Module, SaveItemInput } from "./model.js";
 import type { ModulesRepository, ModulesService } from "./ports.js";
 
 export class ModulesServiceImpl implements ModulesService {
   constructor(private readonly repo: ModulesRepository) {}
 
-  listForCourse(courseId: string): Promise<Module[]> {
-    return this.repo.listForCourse(courseId);
+  listForCourse(orgId: string, courseId: string): Promise<Module[]> {
+    return this.repo.listForCourse(orgId, courseId);
   }
-  reorderModules(courseId: string, orderedIds: string[]): Promise<Module[]> {
-    return this.repo.reorderModules(courseId, orderedIds);
+  reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
+    return this.repo.reorderModules(orgId, courseId, orderedIds);
   }
-  createModule(courseId: string, title: string): Promise<Module[]> {
-    return this.repo.createModule(courseId, title);
+  createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
+    return this.repo.createModule(orgId, courseId, title);
   }
-  updateModule(courseId: string, moduleId: string, title: string): Promise<Module[]> {
-    return this.repo.updateModule(courseId, moduleId, title);
+  updateModule(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    title: string,
+  ): Promise<Module[]> {
+    return this.repo.updateModule(orgId, courseId, moduleId, title);
   }
-  deleteModule(courseId: string, moduleId: string): Promise<Module[]> {
-    return this.repo.deleteModule(courseId, moduleId);
+  deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
+    return this.repo.deleteModule(orgId, courseId, moduleId);
   }
-  reorderItems(courseId: string, moduleId: string, orderedIds: string[]): Promise<Module[]> {
-    return this.repo.reorderItems(courseId, moduleId, orderedIds);
+  reorderItems(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    orderedIds: string[],
+  ): Promise<Module[]> {
+    return this.repo.reorderItems(orgId, courseId, moduleId, orderedIds);
   }
   saveItem(
+    orgId: string,
     courseId: string,
     moduleId: string,
     input: SaveItemInput,
     itemId?: string,
   ): Promise<Module[]> {
-    return this.repo.saveItem(courseId, moduleId, input, itemId);
+    return this.repo.saveItem(orgId, courseId, moduleId, input, itemId);
   }
-  deleteItem(courseId: string, moduleId: string, itemId: string): Promise<Module[]> {
-    return this.repo.deleteItem(courseId, moduleId, itemId);
+  deleteItem(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    itemId: string,
+  ): Promise<Module[]> {
+    return this.repo.deleteItem(orgId, courseId, moduleId, itemId);
   }
 }

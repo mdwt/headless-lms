@@ -14,6 +14,7 @@ import {
 } from "@headless-lms/api-contract";
 import { z } from "zod";
 import type { Container } from "../../composition/container.js";
+import { resolveScope } from "../scope.js";
 
 export async function coursesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -22,6 +23,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: "GET",
     url: "/api/courses",
+    preHandler: app.requireSession,
     schema: {
       operationId: "listCourses",
       tags: ["Courses"],
@@ -29,12 +31,16 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       querystring: CoursesQuery,
       response: { 200: CoursesPage },
     },
-    handler: (req) => courses.list(req.query),
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return courses.list(scope.orgId, req.query);
+    },
   });
 
   r.route({
     method: "GET",
     url: "/api/courses/:id",
+    preHandler: app.requireSession,
     schema: {
       operationId: "getCourse",
       tags: ["Courses"],
@@ -43,7 +49,8 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       response: { 200: Course, 404: ErrorBody },
     },
     handler: async (req, reply) => {
-      const course = await courses.get(req.params.id);
+      const scope = await resolveScope(container, req);
+      const course = await courses.get(scope.orgId, req.params.id);
       if (!course) return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return course;
     },
@@ -52,6 +59,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: "POST",
     url: "/api/courses",
+    preHandler: app.requireSession,
     schema: {
       operationId: "createCourse",
       tags: ["Courses"],
@@ -60,7 +68,8 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       response: { 201: Course },
     },
     handler: async (req, reply) => {
-      const course = await courses.create(req.body);
+      const scope = await resolveScope(container, req);
+      const course = await courses.create(scope.orgId, req.body, scope.actorStudentId);
       return reply.code(201).send(course);
     },
   });
@@ -68,6 +77,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: "PATCH",
     url: "/api/courses/:id",
+    preHandler: app.requireSession,
     schema: {
       operationId: "updateCourse",
       tags: ["Courses"],
@@ -77,7 +87,8 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       response: { 200: Course, 404: ErrorBody },
     },
     handler: async (req, reply) => {
-      const course = await courses.update(req.params.id, req.body);
+      const scope = await resolveScope(container, req);
+      const course = await courses.update(scope.orgId, req.params.id, req.body);
       if (!course) return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return course;
     },
@@ -86,6 +97,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: "DELETE",
     url: "/api/courses/:id",
+    preHandler: app.requireSession,
     schema: {
       operationId: "deleteCourse",
       tags: ["Courses"],
@@ -94,7 +106,8 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       response: { 204: z.void(), 404: ErrorBody },
     },
     handler: async (req, reply) => {
-      const removed = await courses.remove(req.params.id);
+      const scope = await resolveScope(container, req);
+      const removed = await courses.remove(scope.orgId, req.params.id);
       if (!removed) return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return reply.code(204).send();
     },

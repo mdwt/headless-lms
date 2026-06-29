@@ -5,11 +5,11 @@ import type { StudentsRepository, StudentsService } from "./ports.js";
 export class StudentsServiceImpl implements StudentsService {
   constructor(private readonly repo: StudentsRepository) {}
 
-  list(query: StudentsQuery): Promise<Page<Student>> {
-    return this.repo.list(query);
+  list(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
+    return this.repo.list(orgId, query);
   }
 
-  get(id: string): Promise<Student | null> {
-    return this.repo.findById(id);
+  get(orgId: string, id: string): Promise<Student | null> {
+    return this.repo.findById(orgId, id);
   }
 }

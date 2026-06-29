@@ -9,6 +9,7 @@ import {
   StudentsQuery,
 } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
+import { resolveScope } from "../scope.js";
 
 export async function studentsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -17,6 +18,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
   r.route({
     method: "GET",
     url: "/api/students",
+    preHandler: app.requireSession,
     schema: {
       operationId: "listStudents",
       tags: ["Students"],
@@ -24,12 +26,16 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       querystring: StudentsQuery,
       response: { 200: StudentsPage },
     },
-    handler: (req) => students.list(req.query),
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return students.list(scope.orgId, req.query);
+    },
   });
 
   r.route({
     method: "GET",
     url: "/api/students/:id",
+    preHandler: app.requireSession,
     schema: {
       operationId: "getStudent",
       tags: ["Students"],
@@ -38,7 +44,8 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       response: { 200: Student, 404: ErrorBody },
     },
     handler: async (req, reply) => {
-      const student = await students.get(req.params.id);
+      const scope = await resolveScope(container, req);
+      const student = await students.get(scope.orgId, req.params.id);
       if (!student) return reply.code(404).send({ error: "not_found", message: "Student not found" });
       return student;
     },

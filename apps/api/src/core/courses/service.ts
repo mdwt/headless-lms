@@ -19,23 +19,25 @@ function slugify(title: string): string {
 export class CoursesServiceImpl implements CoursesService {
   constructor(private readonly repo: CoursesRepository) {}
 
-  list(query: ListCoursesQuery): Promise<Page<Course>> {
-    return this.repo.list(query);
+  list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
+    return this.repo.list(orgId, query);
   }
 
-  get(id: string): Promise<Course | null> {
-    return this.repo.findById(id);
+  get(orgId: string, id: string): Promise<Course | null> {
+    return this.repo.findById(orgId, id);
   }
 
-  create(input: CreateCourseInput): Promise<Course> {
-    return this.repo.create(input, slugify(input.title));
+  create(orgId: string, input: CreateCourseInput, actorStudentId: string): Promise<Course> {
+    // Default the instructor to the acting member when the input omits one.
+    const instructorId = input.instructorId ?? actorStudentId;
+    return this.repo.create(orgId, input, slugify(input.title), instructorId);
   }
 
-  update(id: string, patch: UpdateCourseInput): Promise<Course | null> {
-    return this.repo.update(id, patch);
+  update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {
+    return this.repo.update(orgId, id, patch);
   }
 
-  remove(id: string): Promise<boolean> {
-    return this.repo.delete(id);
+  remove(orgId: string, id: string): Promise<boolean> {
+    return this.repo.delete(orgId, id);
   }
 }

@@ -10,15 +10,15 @@ import type { EnrollmentsRepository, EnrollmentsService } from "./ports.js";
 export class EnrollmentsServiceImpl implements EnrollmentsService {
   constructor(private readonly repo: EnrollmentsRepository) {}
 
-  list(query: EnrollmentsQuery): Promise<Page<Enrollment>> {
-    return this.repo.list(query);
+  list(orgId: string, query: EnrollmentsQuery): Promise<Page<Enrollment>> {
+    return this.repo.list(orgId, query);
   }
 
-  grant(input: GrantEnrollmentInput): Promise<Enrollment> {
-    return this.repo.insert(input);
+  grant(orgId: string, input: GrantEnrollmentInput): Promise<Enrollment> {
+    return this.repo.insert(orgId, input);
   }
 
-  setStatus(id: string, status: "active" | "revoked"): Promise<Enrollment | null> {
-    return this.repo.setStatus(id, status);
+  setStatus(orgId: string, id: string, status: "active" | "revoked"): Promise<Enrollment | null> {
+    return this.repo.setStatus(orgId, id, status);
   }
 }

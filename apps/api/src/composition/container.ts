@@ -5,6 +5,7 @@ import { InMemoryEventBus } from "../adapters/events/index.js";
 import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
+import { createOrgAdmin } from "../adapters/auth/org-admin.js";
 
 import { CoursesServiceImpl } from "../core/courses/index.js";
 import { EntitlementsServiceImpl } from "../core/entitlements/index.js";
@@ -26,12 +27,12 @@ import { DrizzleBillingRepository } from "../adapters/db/repositories/billing.js
 import { DrizzleProgressRepository } from "../adapters/db/repositories/progress.js";
 import { DrizzleIdentityRepository } from "../adapters/db/repositories/identity.js";
 import { DrizzleOrganizationsRepository } from "../adapters/db/repositories/organizations.js";
-import { InMemoryCoursesRepository } from "../adapters/inmemory/courses.js";
-import { InMemoryStudentsRepository } from "../adapters/inmemory/students.js";
-import { InMemoryEnrollmentsRepository } from "../adapters/inmemory/enrollments.js";
-import { InMemoryTeamRepository } from "../adapters/inmemory/team.js";
-import { InMemoryDashboardRepository } from "../adapters/inmemory/dashboard.js";
-import { InMemoryModulesRepository } from "../adapters/inmemory/modules.js";
+import { DrizzleCoursesRepository } from "../adapters/db/repositories/courses.js";
+import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
+import { DrizzleEnrollmentsRepository } from "../adapters/db/repositories/enrollments.js";
+import { DrizzleTeamRepository } from "../adapters/db/repositories/team.js";
+import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
+import { DrizzleModulesRepository } from "../adapters/db/repositories/modules.js";
 import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 
 export interface Config {
@@ -53,7 +54,7 @@ export interface Container {
   progress: ProgressServiceImpl;
   identity: IdentityServiceImpl;
   organizations: OrganizationServiceImpl;
-  // Back-office read/write surfaces (in-memory until their schemas are built out).
+  // Back-office read/write surfaces — all org-scoped and Postgres-backed.
   students: StudentsServiceImpl;
   enrollments: EnrollmentsServiceImpl;
   team: TeamServiceImpl;
@@ -71,9 +72,7 @@ export function buildContainer(config: Config): Container {
   const storage = new MinioStorageAdapter(config.storage);
   void eventBus;
 
-  // Repositories
-  // Courses are served from memory until the Drizzle schema is built out.
-  const coursesRepo = new InMemoryCoursesRepository();
+  // Repositories (all Postgres-backed)
   const entitlementsRepo = new DrizzleEntitlementsRepository();
   const offersRepo = new DrizzleOffersRepository();
   const billingRepo = new DrizzleBillingRepository();
@@ -84,16 +83,15 @@ export function buildContainer(config: Config): Container {
   // Services (inject repos + peer services in dependency order)
   const identity = new IdentityServiceImpl(identityRepo);
   const organizations = new OrganizationServiceImpl(organizationsRepo);
-  const courses = new CoursesServiceImpl(coursesRepo);
+  const courses = new CoursesServiceImpl(new DrizzleCoursesRepository(db));
   const entitlements = new EntitlementsServiceImpl(entitlementsRepo);
   const offers = new OffersServiceImpl(offersRepo);
   const billing = new BillingServiceImpl(billingRepo);
   const progress = new ProgressServiceImpl(progressRepo);
-  const students = new StudentsServiceImpl(new InMemoryStudentsRepository());
-  const enrollments = new EnrollmentsServiceImpl(new InMemoryEnrollmentsRepository());
-  const team = new TeamServiceImpl(new InMemoryTeamRepository());
-  const dashboard = new DashboardServiceImpl(new InMemoryDashboardRepository());
-  const modules = new ModulesServiceImpl(new InMemoryModulesRepository());
+  const students = new StudentsServiceImpl(new DrizzleStudentsRepository(db));
+  const enrollments = new EnrollmentsServiceImpl(new DrizzleEnrollmentsRepository(db));
+  const dashboard = new DashboardServiceImpl(new DrizzleDashboardRepository(db));
+  const modules = new ModulesServiceImpl(new DrizzleModulesRepository(db));
   const assets = new AssetsServiceImpl(
     storage,
     new DrizzleAssetsRepository(db),
@@ -113,6 +111,10 @@ export function buildContainer(config: Config): Container {
     identity,
     organizations,
   });
+
+  // team reads from the domain mirror (db) and writes through Better Auth, so it
+  // is constructed after auth.
+  const team = new TeamServiceImpl(new DrizzleTeamRepository(db), createOrgAdmin(auth));
 
   return {
     auth,
