@@ -138,10 +138,13 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   }
 
   async findMembershipByStudent(studentId: string): Promise<Membership | null> {
+    // v1: a student is assumed to have a single membership; order by createdAt
+    // for a deterministic result if more than one ever exists.
     const [row] = await this.db
       .select()
       .from(memberships)
       .where(eq(memberships.studentId, studentId))
+      .orderBy(memberships.createdAt)
       .limit(1);
     return row ? { ...row, role: parseRole(row.role) } : null;
   }

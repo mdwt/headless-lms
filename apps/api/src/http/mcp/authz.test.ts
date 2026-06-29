@@ -67,4 +67,15 @@ describe("authorize", () => {
   it("returns false for student without scope even for consume_content", () => {
     expect(authorize(student, "lms:write", "consume_content")).toBe(false);
   });
+
+  it("denies an 'assigned' course-scoped permission called WITHOUT a courseId", () => {
+    // instructor.edit_assigned_course is capability "assigned", not true — the
+    // org-global path (no courseId) must reject it, requiring the courseId branch.
+    expect(authorize(instructor, "lms:write", "edit_assigned_course")).toBe(false);
+  });
+
+  it("denies an 'enrolled' permission (consume_content) called without a courseId", () => {
+    // student.consume_content is capability "enrolled", never an org-global true.
+    expect(authorize(student, "lms:read", "consume_content")).toBe(false);
+  });
 });
