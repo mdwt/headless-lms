@@ -1,5 +1,7 @@
 // organizations context — ports.
 import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
+import type { Member, MembersQuery, InviteMemberInput, Page } from "./members.js";
+import type { Role } from "./roles.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
@@ -29,6 +31,12 @@ export interface OrganizationService extends OrganizationProvisioner {
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
   getMembershipByStudent(studentId: string): Promise<Membership | null>;
+  // Member-management operations (formerly the `team` context). Reads come from
+  // the domain mirror; writes go through Better Auth via OrgAdmin.
+  listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
+  inviteMember(ctx: MemberWriteContext, input: InviteMemberInput): Promise<Member>;
+  updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null>;
+  removeMember(ctx: MemberWriteContext, id: string): Promise<boolean>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -43,4 +51,33 @@ export interface OrganizationsRepository {
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
   findMembershipByStudent(studentId: string): Promise<Membership | null>;
+}
+
+/** A member row enriched with the auth-provider ids needed to drive writes. */
+export interface MemberRecord extends Member {
+  kind: "member" | "invitation";
+  authMemberId: string | null;
+  authInvitationId: string | null;
+}
+
+// Outbound: reads the org's members + pending invitations from the domain mirror.
+export interface MembersRepository {
+  list(orgId: string, query: MembersQuery): Promise<Page<Member>>;
+  findByEmail(orgId: string, email: string): Promise<MemberRecord | null>;
+  findById(orgId: string, id: string): Promise<MemberRecord | null>;
+}
+
+/** Context for a write: domain org (reads/rules) + auth org & session (writes). */
+export interface MemberWriteContext {
+  orgId: string;
+  authOrgId: string;
+  headers: Record<string, string | string[] | undefined>;
+}
+
+/** Outbound: org membership writes, fulfilled by the auth provider (Better Auth). */
+export interface OrgAdmin {
+  invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;
+  updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
+  removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;
+  cancelInvitation(ctx: MemberWriteContext, authInvitationId: string): Promise<void>;
 }

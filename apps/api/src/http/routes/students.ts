@@ -1,4 +1,4 @@
-// HTTP routes for the students context (read-only).
+// HTTP routes for the students list (read-only; served by the reporting layer).
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import {
@@ -13,7 +13,7 @@ import { resolveScope } from "../scope.js";
 
 export async function studentsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const students = container.students;
+  const students = container.reporting.students;
 
   r.route({
     method: "GET",

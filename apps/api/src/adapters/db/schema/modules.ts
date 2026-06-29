@@ -1,6 +1,7 @@
-// modules tables. Curriculum structure under a course, org-scoped with composite
-// (org_id, id) keys. A module has ordered items; each item is a lesson or an
-// assessment (discriminated by `kind`).
+// modules tables (`modules`, `module_items`) — owned by the `courses` context.
+// Curriculum structure under a course, org-scoped with composite (org_id, id)
+// keys. A module has ordered items; each item is a lesson or an assessment
+// (discriminated by `kind`).
 import { pgTable, uuid, text, integer, boolean, primaryKey, foreignKey } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations.js";
 import { courses } from "./courses.js";

@@ -39,8 +39,8 @@ export const can = {
   editCourse: (u: SessionUser, courseId: string) =>
     isManager(u.role) || (u.role === "instructor" && u.scopedCourseIds.includes(courseId)),
   manageStudents: (u: SessionUser) => isManager(u.role),
-  manageEnrollments: (u: SessionUser) => isManager(u.role),
-  viewTeam: (u: SessionUser) => isManager(u.role),
+  manageEntitlements: (u: SessionUser) => isManager(u.role),
+  viewMembers: (u: SessionUser) => isManager(u.role),
   manageRoles: (u: SessionUser) => isManager(u.role),
   inviteMembers: (u: SessionUser) => isManager(u.role),
 };
@@ -51,8 +51,8 @@ export function visibleNav(role: Role): {
   courses: boolean;
   media: boolean;
   students: boolean;
-  enrollments: boolean;
-  team: boolean;
+  entitlements: boolean;
+  members: boolean;
   connectedApps: boolean;
 } {
   const manager = isManager(role);
@@ -62,8 +62,8 @@ export function visibleNav(role: Role): {
     // Anyone who builds course content can manage media.
     media: true,
     students: manager,
-    enrollments: manager,
-    team: manager,
+    entitlements: manager,
+    members: manager,
     // All dashboard users can see and revoke their own connected apps.
     connectedApps: true,
   };

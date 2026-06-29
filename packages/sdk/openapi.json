@@ -628,7 +628,7 @@
         "operationId": "listModules",
         "summary": "List a course's modules",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "parameters": [
           {
@@ -801,7 +801,7 @@
         "operationId": "createModule",
         "summary": "Add a module",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -995,7 +995,7 @@
         "operationId": "reorderModules",
         "summary": "Reorder modules",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -1191,7 +1191,7 @@
         "operationId": "updateModule",
         "summary": "Rename a module",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -1391,7 +1391,7 @@
         "operationId": "deleteModule",
         "summary": "Delete a module",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "parameters": [
           {
@@ -1574,7 +1574,7 @@
         "operationId": "reorderItems",
         "summary": "Reorder items in a module",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -1778,7 +1778,7 @@
         "operationId": "createItem",
         "summary": "Add a lesson or assessment",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -2052,7 +2052,7 @@
         "operationId": "updateItem",
         "summary": "Update a lesson or assessment",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "requestBody": {
           "required": true,
@@ -2332,7 +2332,7 @@
         "operationId": "deleteItem",
         "summary": "Delete a lesson or assessment",
         "tags": [
-          "Modules"
+          "Courses"
         ],
         "parameters": [
           {
@@ -2746,12 +2746,12 @@
         }
       }
     },
-    "/api/enrollments": {
+    "/api/entitlements": {
       "get": {
-        "operationId": "listEnrollments",
-        "summary": "List enrollments",
+        "operationId": "listEntitlements",
+        "summary": "List entitlements",
         "tags": [
-          "Enrollments"
+          "Entitlements"
         ],
         "parameters": [
           {
@@ -2810,7 +2810,6 @@
               "type": "string",
               "enum": [
                 "manual",
-                "purchase",
                 "import"
               ]
             },
@@ -2890,7 +2889,6 @@
                             "type": "string",
                             "enum": [
                               "manual",
-                              "purchase",
                               "import"
                             ]
                           }
@@ -2941,10 +2939,10 @@
         }
       },
       "post": {
-        "operationId": "grantEnrollment",
+        "operationId": "grantEntitlement",
         "summary": "Grant a student access to a course",
         "tags": [
-          "Enrollments"
+          "Entitlements"
         ],
         "requestBody": {
           "required": true,
@@ -3023,7 +3021,6 @@
                       "type": "string",
                       "enum": [
                         "manual",
-                        "purchase",
                         "import"
                       ]
                     }
@@ -3049,12 +3046,12 @@
         }
       }
     },
-    "/api/enrollments/{id}": {
+    "/api/entitlements/{id}": {
       "patch": {
-        "operationId": "setEnrollmentStatus",
-        "summary": "Revoke or reinstate an enrollment",
+        "operationId": "setEntitlementStatus",
+        "summary": "Revoke or reinstate an entitlement",
         "tags": [
-          "Enrollments"
+          "Entitlements"
         ],
         "requestBody": {
           "required": true,
@@ -3138,7 +3135,6 @@
                       "type": "string",
                       "enum": [
                         "manual",
-                        "purchase",
                         "import"
                       ]
                     }
@@ -3186,12 +3182,12 @@
         }
       }
     },
-    "/api/team": {
+    "/api/members": {
       "get": {
         "operationId": "listMembers",
-        "summary": "List team members",
+        "summary": "List organization members",
         "tags": [
-          "Team"
+          "Organizations"
         ],
         "parameters": [
           {
@@ -3353,9 +3349,9 @@
       },
       "post": {
         "operationId": "inviteMember",
-        "summary": "Invite a team member",
+        "summary": "Invite an organization member",
         "tags": [
-          "Team"
+          "Organizations"
         ],
         "requestBody": {
           "required": true,
@@ -3472,12 +3468,12 @@
         }
       }
     },
-    "/api/team/{id}/role": {
+    "/api/members/{id}/role": {
       "patch": {
         "operationId": "updateMemberRole",
         "summary": "Change a member's role",
         "tags": [
-          "Team"
+          "Organizations"
         ],
         "requestBody": {
           "required": true,
@@ -3620,12 +3616,12 @@
         }
       }
     },
-    "/api/team/{id}": {
+    "/api/members/{id}": {
       "delete": {
         "operationId": "removeMember",
-        "summary": "Remove a team member",
+        "summary": "Remove an organization member",
         "tags": [
-          "Team"
+          "Organizations"
         ],
         "parameters": [
           {
@@ -3647,6 +3643,28 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {

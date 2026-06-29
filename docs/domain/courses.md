@@ -1,37 +1,46 @@
 # Courses — Domain Spec
 
-> **Build state:** course *metadata* is implemented (in-memory repo; schema is a stub). The Module → Lesson/Item curriculum structure lives in the **`modules`** context. Drip/unlock rules are not built.
-
-Owns course content structure. The template, not per-student state.
+The curriculum aggregate: Course → Module → Item → Lesson, plus drip/unlock rules. The Course is the aggregate root; Module/Item/Lesson are entities under it. Static and shared across students — the template, not per-student state.
 
 ## Scope
 
-- Owns the curriculum: Course → Module → Lesson, and the ordered items within a module.
-- Owns lesson content for presentational types (video, text, pdf, audio, download, embed).
+- Owns the curriculum aggregate: Course (root) → Module → Item → Lesson, and the ordered items within a module.
+- Owns lesson content for presentational types (`video | text | pdf | audio | download | embed`).
+- Owns the **module/item editor write surface** (absorbed from the former `modules` context): `listForCourse`, reorder modules/items, `saveItem`, create/update/delete module, `deleteItem`.
 - Owns gating *rules* defined on structure (drip schedule, unlock-on-completion rules).
-- Static/shared across students. Does **not** own per-student state (completion, access, outcomes).
+- References assets by `assetId`. Does **not** own per-student state (completion, access, outcomes).
 
 ## Model
 
-- **Course** — title, description, thumbnail, status (draft/published), ordered modules.
+- **Course** — root: title, slug, status (draft/published), ordered modules.
 - **Module** — title, order, parent course, ordered items.
-- **Item** — an ordered slot in a module. Either a Lesson, or a reference to an assessment (`{ type, assessmentId }`). Heterogeneous; ordered.
-- **Lesson** — title, type, content (presentational payload), completion rule (e.g. video % required).
+- **Item** — a discriminated slot in a module; either a **Lesson** or a **typed assessment slot**. Heterogeneous; ordered.
+- **Lesson** — title, `type` (`video | text | pdf | audio | download | embed`), content (presentational payload), optional `assetId`, completion rule (e.g. video % required).
+- **Assessment item** — a typed authoring slot, `type` (`quiz | assignment`), optional `questionCount` / `pointsPossible`, `published`. The grading engine is out of scope (archived); the item is only an authoring slot inside the aggregate — there is no assessment domain.
 - **Drip rule** — release timing for a module/item, relative to access start date.
 - **Unlock rule** — an item/module is gated until another item is complete.
+
+## Editor write surface
+
+The module/item write surface absorbed from the former `modules` context:
+
+- Modules: `listForCourse`, `reorderModules`, `createModule`, `updateModule`, `deleteModule`.
+- Items: `reorderItems`, `saveItem` (create or update, keyed by optional `itemId`), `deleteItem`.
+
+Every write returns the course's **full module list** — matching how the editor re-renders after each change.
 
 ## Lesson content
 
 - Presentational lesson content is a discriminated union keyed by `type`, stored as a payload.
-- Assessment items are not lessons — the module item references the assessment context by id.
+- Assessment items are typed authoring slots within the aggregate, not lessons.
 - Content shape validated at the boundary (no DB-level shape enforcement).
 
 ## Boundaries
 
-1. **courses ↔ assessment**
-   - *courses* owns the curriculum slot; holds a reference to an assessment by id.
-   - *assessment* owns the assessment itself.
-   - Connection: reference by id. Courses never reads questions; assessment never reads structure.
+1. **courses ↔ assets**
+   - *courses* owns the lesson; a lesson references a media-library asset by `assetId`.
+   - *assets* owns the stored object.
+   - Connection: reference by id. Courses never reads bytes; assets never reads curriculum.
 
 2. **courses → progress**
    - *courses* owns structure and what counts toward completion.
@@ -51,3 +60,7 @@ Owns course content structure. The template, not per-student state.
 ## Mutable structure
 
 Structure changes (adding/removing items, reordering) affect per-student progress denominators. Courses owns structure; progress derives percentage against current structure at read time. Courses does not recalculate or store progress.
+
+## Build state
+
+Built and **persisted** via a Drizzle repository (`adapters/db/repositories/courses.ts`), including the absorbed module/item editor surface.

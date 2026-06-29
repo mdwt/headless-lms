@@ -14,7 +14,7 @@ import type {
 } from "../../../core/courses/types.js";
 import { courses } from "../schema/courses.js";
 import { modules, moduleItems } from "../schema/modules.js";
-import { enrollments } from "../schema/enrollments.js";
+import { entitlements } from "../schema/entitlements.js";
 import { students } from "../schema/identity.js";
 
 // Derived counts as correlated subqueries against the current `courses` row.
@@ -33,11 +33,11 @@ const lessonCountExpr = sql<number>`(
 )`;
 
 const enrolledCountExpr = sql<number>`(
-  select count(*)::int from ${enrollments}
-  where ${enrollments.orgId} = ${courses.orgId}
-    and ${enrollments.courseId} = ${courses.id}
-    and ${enrollments.status} = 'active'
-    and (${enrollments.expiresAt} is null or ${enrollments.expiresAt} >= now())
+  select count(*)::int from ${entitlements}
+  where ${entitlements.orgId} = ${courses.orgId}
+    and ${entitlements.courseId} = ${courses.id}
+    and ${entitlements.status} = 'active'
+    and (${entitlements.expiresAt} is null or ${entitlements.expiresAt} >= now())
 )`;
 
 const instructorNameExpr = sql<string>`coalesce(${students.displayName}, '')`;

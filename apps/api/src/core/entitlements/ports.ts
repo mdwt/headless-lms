@@ -1,14 +1,21 @@
 // entitlements context — ports.
-// Inbound: the use-case interface the service implements.
-// Outbound: contracts this context needs (repository, other contexts' capabilities).
-import type { EntitlementsEntity } from "./model.js";
+import type {
+  Entitlement,
+  EntitlementsQuery,
+  GrantEntitlementInput,
+  Page,
+} from "./model.js";
 
-// Inbound port (use cases the service exposes). Methods added later.
+// Inbound port (use cases the service exposes).
 export interface EntitlementsService {
-  // intentionally empty for bootstrap
+  list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
+  grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
+  setStatus(orgId: string, id: string, status: "active" | "revoked"): Promise<Entitlement | null>;
 }
 
-// Outbound port (persistence contract the repository fulfils)
+// Outbound port (persistence contract the repository fulfils).
 export interface EntitlementsRepository {
-  findById(id: string): Promise<EntitlementsEntity | null>;
+  list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
+  insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
+  setStatus(orgId: string, id: string, status: "active" | "revoked"): Promise<Entitlement | null>;
 }

@@ -4,7 +4,7 @@
  * TanStack Query hooks, grouped by domain. Every mutation invalidates the
  * right domain root so lists, detail views, and the overview counts stay
  * coherent. Optimistic updates are used where rollback is safe (publish
- * toggles, enrollment status, role changes).
+ * toggles, entitlement status, role changes).
  */
 
 import {
@@ -20,7 +20,7 @@ import { qk } from "../query-keys";
 import type {
   ConnectedApp,
   Course,
-  Enrollment,
+  Entitlement,
   ListParams,
   Member,
   ModuleItem,
@@ -197,30 +197,30 @@ export function useStudents(params: ListParams) {
 export function useStudent(id: string) {
   return useQuery({ queryKey: qk.students.detail(id), queryFn: () => api.getStudent(id) });
 }
-export function useStudentEnrollments(id: string) {
-  return useQuery({ queryKey: qk.students.enrollments(id), queryFn: () => api.studentEnrollments(id) });
+export function useStudentEntitlements(id: string) {
+  return useQuery({ queryKey: qk.students.entitlements(id), queryFn: () => api.studentEntitlements(id) });
 }
 export function useStudentsLite() {
   return useQuery({ queryKey: qk.students.lite, queryFn: () => api.studentsLite() });
 }
 
-// --- enrollments -----------------------------------------------------------
+// --- entitlements ----------------------------------------------------------
 
-export function useEnrollments(params: ListParams) {
+export function useEntitlements(params: ListParams) {
   return useQuery({
-    queryKey: qk.enrollments.list(params),
-    queryFn: () => api.listEnrollments(params),
+    queryKey: qk.entitlements.list(params),
+    queryFn: () => api.listEntitlements(params),
     placeholderData: keepPreviousData,
   });
 }
 
-export function useGrantEnrollment() {
+export function useGrantEntitlement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { studentId: string; courseId: string; expiresAt: string | null }) =>
-      api.grantEnrollment(input),
+      api.grantEntitlement(input),
     onSuccess: (e) => {
-      qc.invalidateQueries({ queryKey: qk.enrollments.all });
+      qc.invalidateQueries({ queryKey: qk.entitlements.all });
       qc.invalidateQueries({ queryKey: qk.overview });
       toast.success("Access granted", { description: `${e.studentName} → ${e.courseTitle}` });
     },
@@ -228,13 +228,13 @@ export function useGrantEnrollment() {
   });
 }
 
-export function useSetEnrollmentStatus() {
+export function useSetEntitlementStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, action }: { id: string; action: "revoke" | "reinstate" }) =>
-      action === "revoke" ? api.revokeEnrollment(id) : api.reinstateEnrollment(id),
+      action === "revoke" ? api.revokeEntitlement(id) : api.reinstateEntitlement(id),
     onSuccess: (_e, { action }) => {
-      qc.invalidateQueries({ queryKey: qk.enrollments.all });
+      qc.invalidateQueries({ queryKey: qk.entitlements.all });
       qc.invalidateQueries({ queryKey: qk.overview });
       toast.success(action === "revoke" ? "Access revoked" : "Access reinstated");
     },
@@ -242,7 +242,7 @@ export function useSetEnrollmentStatus() {
   });
 }
 
-// --- team ------------------------------------------------------------------
+// --- members ---------------------------------------------------------------
 
 export function useMembers(params: ListParams) {
   return useQuery({
@@ -372,4 +372,4 @@ export function useRevokeConnectedApp() {
   });
 }
 
-export type { ConnectedApp, Enrollment };
+export type { ConnectedApp, Entitlement };

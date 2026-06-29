@@ -2,31 +2,25 @@
  *
  * Element types (by folder):
  *   core      apps/api/src/core/<context>/**   — framework-free domain
+ *   reporting apps/api/src/reporting/**         — read layer (composed cross-context reads)
  *   adapters  apps/api/src/adapters/**          — outbound infra
  *   composition apps/api/src/composition/**     — wiring
  *   inbound   apps/api/src/{http,cli,workers,cron}/**
  *
  * Rules:
  *   - A context may import another context ONLY via its index.ts (no deep imports).
- *   - core/ may not import adapters/, composition/, inbound, frameworks, or drizzle.
+ *   - core/ may not import adapters/, composition/, inbound, reporting, frameworks, or drizzle.
+ *   - reporting/ may import core context public surfaces; it owns no domain rules.
  *   - adapters/ own the Drizzle schema (adapters/db/schema) and repositories;
- *     they may import core ports only.
+ *     they may import core ports and reporting ports.
  */
 // Business bounded contexts (everything under core/ except shared/).
 const CONTEXTS = [
-  "courses",
-  "entitlements",
-  "offers",
-  "billing",
-  "progress",
   "identity",
   "organizations",
-  "students",
-  "enrollments",
-  "submissions",
-  "team",
-  "dashboard",
-  "modules",
+  "courses",
+  "entitlements",
+  "progress",
   "assets",
 ];
 
@@ -65,6 +59,12 @@ module.exports = {
         mode: "folder",
         capture: ["context"],
       },
+      {
+        type: "reporting",
+        pattern: "apps/api/src/reporting/*",
+        mode: "folder",
+        capture: ["context"],
+      },
       { type: "adapters", pattern: "apps/api/src/adapters/*", mode: "folder" },
       { type: "composition", pattern: "apps/api/src/composition/**" },
       { type: "http", pattern: "apps/api/src/http/**" },
@@ -90,15 +90,19 @@ module.exports = {
           // core may only depend on itself (context-to-context gated to index.ts
           // by the per-context no-restricted-imports override below)
           { from: "core", allow: ["core"] },
-          // adapters depend on core (ports) only
-          { from: "adapters", allow: ["core"] },
+          // reporting composes core context public surfaces; owns no data/rules
+          { from: "reporting", allow: ["core", "reporting"] },
+          // adapters depend on core (ports) + reporting (read-model ports). They
+          // may also compose other adapters (e.g. db repositories read the auth
+          // adapter's mirrored `user` table for display joins).
+          { from: "adapters", allow: ["core", "reporting", "adapters"] },
           // composition wires everything
           {
             from: "composition",
-            allow: ["core", "adapters"],
+            allow: ["core", "adapters", "reporting"],
           },
-          // inbound entry points use composition + core public surface
-          { from: ["http", "cli", "workers", "cron"], allow: ["composition", "core"] },
+          // inbound entry points use composition + core public surface + reporting
+          { from: ["http", "cli", "workers", "cron"], allow: ["composition", "core", "reporting"] },
         ],
       },
     ],

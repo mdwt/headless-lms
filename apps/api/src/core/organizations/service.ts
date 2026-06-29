@@ -1,7 +1,22 @@
 // organizations context — service implementation (inbound port).
-import type { OrganizationService, OrganizationsRepository } from "./ports.js";
+import type {
+  OrganizationService,
+  OrganizationsRepository,
+  MembersRepository,
+  MemberRecord,
+  MemberWriteContext,
+  OrgAdmin,
+} from "./ports.js";
 import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
 import { normalizeRole } from "./roles.js";
+import type { Role } from "./roles.js";
+import {
+  OrganizationRuleError,
+  type Member,
+  type MembersQuery,
+  type InviteMemberInput,
+  type Page,
+} from "./members.js";
 import type {
   ProvisionOrganizationInput,
   AddMembershipInput,
@@ -10,8 +25,29 @@ import type {
   AssignCourseInput,
 } from "./types.js";
 
+function toMember(r: MemberRecord): Member {
+  return {
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    image: r.image,
+    role: r.role,
+    status: r.status,
+    joinedAt: r.joinedAt,
+    invitedAt: r.invitedAt,
+  };
+}
+
 export class OrganizationServiceImpl implements OrganizationService {
-  constructor(private readonly repo: OrganizationsRepository) {}
+  // `orgAdmin` is provided lazily: the auth adapter depends on this service (for
+  // its mirror hooks), and OrgAdmin is built over that same auth instance — so it
+  // cannot exist at construction time. The thunk is resolved at request time,
+  // after composition has finished wiring auth.
+  constructor(
+    private readonly repo: OrganizationsRepository,
+    private readonly membersRepo: MembersRepository,
+    private readonly orgAdmin: () => OrgAdmin,
+  ) {}
 
   async provisionOrganization(input: ProvisionOrganizationInput): Promise<Organization> {
     const existing = await this.repo.findByAuthOrgId(input.authOrgId);
@@ -57,6 +93,51 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async getMembershipByStudent(studentId: string): Promise<Membership | null> {
     return this.repo.findMembershipByStudent(studentId);
+  }
+
+  // --- Member management (formerly the `team` context) -----------------------
+  // Reads come from the domain mirror; writes go through Better Auth (OrgAdmin),
+  // whose hooks then mirror the change back into the domain tables.
+
+  listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>> {
+    return this.membersRepo.list(orgId, query);
+  }
+
+  async inviteMember(ctx: MemberWriteContext, input: InviteMemberInput): Promise<Member> {
+    const existing = await this.membersRepo.findByEmail(ctx.orgId, input.email);
+    if (existing) throw new OrganizationRuleError("That email is already a member or invited");
+    await this.orgAdmin().invite(ctx, input);
+    const created = await this.membersRepo.findByEmail(ctx.orgId, input.email);
+    if (!created) throw new Error("invitation did not propagate to the domain mirror");
+    return toMember(created);
+  }
+
+  async updateMemberRole(
+    ctx: MemberWriteContext,
+    id: string,
+    role: Role,
+  ): Promise<Member | null> {
+    const member = await this.membersRepo.findById(ctx.orgId, id);
+    if (!member) return null;
+    if (member.role === "owner")
+      throw new OrganizationRuleError("The owner role cannot be reassigned");
+    if (member.kind !== "member" || !member.authMemberId)
+      throw new OrganizationRuleError("Only active members can have their role changed");
+    await this.orgAdmin().updateRole(ctx, member.authMemberId, role);
+    const updated = await this.membersRepo.findById(ctx.orgId, id);
+    return updated ? toMember(updated) : null;
+  }
+
+  async removeMember(ctx: MemberWriteContext, id: string): Promise<boolean> {
+    const member = await this.membersRepo.findById(ctx.orgId, id);
+    if (!member) return false;
+    if (member.role === "owner") throw new OrganizationRuleError("The owner cannot be removed");
+    if (member.kind === "member" && member.authMemberId) {
+      await this.orgAdmin().removeMember(ctx, member.authMemberId);
+    } else if (member.kind === "invitation" && member.authInvitationId) {
+      await this.orgAdmin().cancelInvitation(ctx, member.authInvitationId);
+    }
+    return true;
   }
 
   private async requireOrg(authOrgId: string): Promise<Organization> {

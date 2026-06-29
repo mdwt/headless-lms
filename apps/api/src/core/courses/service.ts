@@ -1,6 +1,7 @@
 // courses context — service implementation (inbound port).
 import type { Course } from "./model.js";
-import type { CoursesService, CoursesRepository } from "./ports.js";
+import type { Module, SaveItemInput } from "./modules.js";
+import type { CoursesService, CoursesRepository, ModulesRepository } from "./ports.js";
 import type {
   CreateCourseInput,
   ListCoursesQuery,
@@ -17,7 +18,10 @@ function slugify(title: string): string {
 }
 
 export class CoursesServiceImpl implements CoursesService {
-  constructor(private readonly repo: CoursesRepository) {}
+  constructor(
+    private readonly repo: CoursesRepository,
+    private readonly modulesRepo: ModulesRepository,
+  ) {}
 
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
     return this.repo.list(orgId, query);
@@ -39,5 +43,53 @@ export class CoursesServiceImpl implements CoursesService {
 
   remove(orgId: string, id: string): Promise<boolean> {
     return this.repo.delete(orgId, id);
+  }
+
+  // --- modules & items (delegated to the modules repository) -------------
+
+  listForCourse(orgId: string, courseId: string): Promise<Module[]> {
+    return this.modulesRepo.listForCourse(orgId, courseId);
+  }
+  reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
+    return this.modulesRepo.reorderModules(orgId, courseId, orderedIds);
+  }
+  createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
+    return this.modulesRepo.createModule(orgId, courseId, title);
+  }
+  updateModule(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    title: string,
+  ): Promise<Module[]> {
+    return this.modulesRepo.updateModule(orgId, courseId, moduleId, title);
+  }
+  deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
+    return this.modulesRepo.deleteModule(orgId, courseId, moduleId);
+  }
+  reorderItems(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    orderedIds: string[],
+  ): Promise<Module[]> {
+    return this.modulesRepo.reorderItems(orgId, courseId, moduleId, orderedIds);
+  }
+  saveItem(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    input: SaveItemInput,
+    itemId?: string,
+  ): Promise<Module[]> {
+    return this.modulesRepo.saveItem(orgId, courseId, moduleId, input, itemId);
+  }
+  deleteItem(
+    orgId: string,
+    courseId: string,
+    moduleId: string,
+    itemId: string,
+  ): Promise<Module[]> {
+    return this.modulesRepo.deleteItem(orgId, courseId, moduleId, itemId);
   }
 }

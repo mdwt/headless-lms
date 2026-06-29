@@ -1,8 +1,6 @@
 # Progress — Domain Spec
 
-> **Build state:** not yet implemented — `core/progress` is a stub (id + org_id schema only).
-
-A peer context owning per-student completion of curriculum items. Owns the **completion fact**, not outcomes and not access.
+Owns per-student completion of curriculum items and derived percentage against the course's current structure. Owns the **completion fact**, not outcomes and not access.
 
 ## Scope
 
@@ -10,12 +8,13 @@ A peer context owning per-student completion of curriculum items. Owns the **com
 - Per-student, per-item. High-frequency, activity-driven.
 - Computes completion in two ways:
   - **Direct** — presentational lessons completed by the student (viewed, marked complete, or rule satisfied e.g. video % watched).
-  - **Event-driven** — assessment items completed when assessment emits an outcome; progress applies the item's completion rule (e.g. "passed" vs "attempted") and records completion.
-- Does **not** own outcomes (assessment's), access or validity (entitlements'), or structure (courses').
+  - **Event-driven** — completion recorded from an outcome event, if/when an assessment/grading engine exists to emit one (an optional future outcome-event source, not a referenced domain). Progress applies the item's completion rule (e.g. "passed" vs "attempted") and records completion.
+- References items (courses) and the user (identity) by id.
+- Does **not** own access or validity (entitlements'), structure (courses'), or outcomes.
 
 ## What it owns
 
-- **Completion record** — student + curriculum item + completed_at.
+- **Completion record** — student + curriculum item + `completed_at`.
 - **Derived progress** — percentage complete for a module / course, computed against current course structure.
 - **Resume point** — the student's last-accessed item, for "continue where you left off."
 
@@ -30,10 +29,10 @@ Progress is measured against the course's current published structure. Adding/re
    - *progress* references items by id and reads current structure to derive percentage.
    - Connection: progress reads structure; courses knows nothing of completion.
 
-2. **assessment → progress**
-   - *assessment* owns outcome and **emits** it.
-   - *progress* consumes the outcome event and records completion per the item's rule.
-   - Connection: event. Progress never reads assessment internals; assessment never writes progress.
+2. **progress ← outcome events (optional, future)**
+   - If/when an assessment/grading engine exists, it **emits** an outcome event.
+   - *progress* consumes the event and records completion per the item's rule.
+   - Connection: event. There is no assessment domain today; this is an optional future source, not a referenced context.
 
 3. **progress → gating**
    - *progress* exposes "what has this student completed."
@@ -41,8 +40,8 @@ Progress is measured against the course's current published structure. Adding/re
    - Connection: gating reads progress only.
 
 4. **progress ↔ identity**
-   - *identity* owns the student.
-   - *progress* references student id on completion records.
+   - *identity* owns the user.
+   - *progress* references the user id on completion records.
    - Connection: reference only.
 
 ## Events
@@ -51,16 +50,16 @@ Progress is measured against the course's current published structure. Adding/re
 - `course.completed`
 - `progress.updated`
 
-## Use case — course with one video + one assessment
+## Use case — course with one video + one assessment item
 
-Structure (courses): Course → 1 module → [video lesson, assessment]. Two completable items; denominator = 2.
+Structure (courses): Course → 1 module → [video lesson, assessment item]. Two completable items; denominator = 2.
 
 1. **Enrolled** — no completion records. Course 0%.
 2. **Watches video** — video completion rule satisfied. Progress records completion **directly** (presentational lesson, no event). Course 1/2 = 50%. Emits `lesson.completed`, `progress.updated`.
-3. **Takes assessment** — assessment computes outcome, emits `quiz.passed`. Writes nothing to progress.
-4. **Progress consumes `quiz.passed`** — applies the item's rule ("passed" → complete), records completion. Course 2/2 = 100%. Emits `lesson.completed`, `progress.updated`, `course.completed`.
+3. **Completes the assessment item** — if a grading engine exists, it computes an outcome and emits an outcome event. Writes nothing to progress.
+4. **Progress consumes the outcome event** — applies the item's rule ("passed" → complete), records completion. Course 2/2 = 100%. Emits `lesson.completed`, `progress.updated`, `course.completed`.
 
-Two completion paths: video → **direct**; assessment → **event-driven** (assessment emits, progress records).
+Two completion paths: video → **direct**; assessment item → **event-driven** (an outcome source emits, progress records).
 
 Progress holds completion records, not a stored percentage:
 ```
@@ -69,12 +68,14 @@ Progress holds completion records, not a stored percentage:
 ```
 Percentage is derived on read: completed ÷ current items = 2/2 = 100%. If the author later adds a lesson, the denominator becomes 3 and this student correctly reads 2/3 with no recalculation job.
 
-Outcome vs completion stay distinct: assessment knows the student passed (and the score); progress knows the item is complete. Score → ask assessment; "done" → ask progress.
-
 ## Relationship to entitlements (distinct domains)
 
 Progress (completion) and entitlements (access) move independently:
 - enrolled with zero progress (just granted, never started)
 - full progress but expired entitlement (finished, then access lapsed)
 
-Access state comes from grants (purchase/comp/refund); completion state comes from activity against structure. Progress references that access exists but does not own it.
+Access state comes from grants; completion state comes from activity against structure. Progress references that access exists but does not own it.
+
+## Build state
+
+Built and **persisted** via a Drizzle repository (`adapters/db/repositories/progress.ts`).

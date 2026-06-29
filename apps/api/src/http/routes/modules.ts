@@ -19,8 +19,9 @@ import { resolveScope } from "../scope.js";
 
 export async function modulesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const modules = container.modules;
-  const tags = ["Modules"];
+  // Modules/items are part of the courses aggregate; grouped under the Courses tag.
+  const modules = container.courses;
+  const tags = ["Courses"];
 
   r.route({
     method: "GET",

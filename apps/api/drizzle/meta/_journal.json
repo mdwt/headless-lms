@@ -36,6 +36,13 @@
       "when": 1782713375027,
       "tag": "0004_dazzling_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782721078355,
+      "tag": "0005_hard_frank_castle",
+      "breakpoints": true
     }
   ]
 }

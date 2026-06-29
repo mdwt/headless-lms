@@ -4,7 +4,7 @@
 // private `list` runs at the end of every mutation within the same transaction.
 import { eq, and, inArray } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { ModulesRepository } from "../../../core/modules/ports.js";
+import type { ModulesRepository } from "../../../core/courses/ports.js";
 import type {
   Module,
   ModuleItem,
@@ -13,7 +13,7 @@ import type {
   LessonType,
   AssessmentType,
   SaveItemInput,
-} from "../../../core/modules/model.js";
+} from "../../../core/courses/modules.js";
 import { modules, moduleItems } from "../schema/index.js";
 
 /** Transaction executor — the same query surface as the root db. */

@@ -4,11 +4,11 @@
 // (expires_at null or in the future) — expiry is derived at read time.
 import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { DashboardRepository } from "../../../core/dashboard/ports.js";
-import type { OverviewStats } from "../../../core/dashboard/model.js";
-import { courses, enrollments } from "../schema/index.js";
+import type { DashboardReportRepository } from "../../../reporting/dashboard/index.js";
+import type { OverviewStats } from "../../../reporting/dashboard/index.js";
+import { courses, entitlements } from "../schema/index.js";
 
-export class DrizzleDashboardRepository implements DashboardRepository {
+export class DrizzleDashboardRepository implements DashboardReportRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   async overview(orgId: string): Promise<OverviewStats> {
@@ -21,18 +21,18 @@ export class DrizzleDashboardRepository implements DashboardRepository {
       .where(eq(courses.orgId, orgId));
 
     const effectiveActive = and(
-      eq(enrollments.orgId, orgId),
-      eq(enrollments.status, "active"),
-      or(isNull(enrollments.expiresAt), gte(enrollments.expiresAt, sql`now()`)),
+      eq(entitlements.orgId, orgId),
+      eq(entitlements.status, "active"),
+      or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
     );
 
     const [enrollmentCounts] = await this.db
       .select({
         activeEnrollments: sql<number>`count(*)`,
-        activeStudents: sql<number>`count(distinct ${enrollments.studentId})`,
-        expiringSoon: sql<number>`count(*) filter (where ${enrollments.expiresAt} is not null and ${enrollments.expiresAt} < now() + interval '14 days')`,
+        activeStudents: sql<number>`count(distinct ${entitlements.studentId})`,
+        expiringSoon: sql<number>`count(*) filter (where ${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now() + interval '14 days')`,
       })
-      .from(enrollments)
+      .from(entitlements)
       .where(effectiveActive);
 
     return {

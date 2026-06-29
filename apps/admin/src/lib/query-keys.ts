@@ -20,13 +20,13 @@ export const qk = {
     all: ["students"] as const,
     list: (params: ListParams) => ["students", "list", params] as const,
     detail: (id: string) => ["students", "detail", id] as const,
-    enrollments: (id: string) => ["students", id, "enrollments"] as const,
+    entitlements: (id: string) => ["students", id, "entitlements"] as const,
     lite: ["students", "lite"] as const,
   },
 
-  enrollments: {
-    all: ["enrollments"] as const,
-    list: (params: ListParams) => ["enrollments", "list", params] as const,
+  entitlements: {
+    all: ["entitlements"] as const,
+    list: (params: ListParams) => ["entitlements", "list", params] as const,
   },
 
   members: {

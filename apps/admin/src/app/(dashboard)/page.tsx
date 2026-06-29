@@ -23,7 +23,7 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: bool
   { key: "publishedCourses", label: "Published courses" },
   { key: "draftCourses", label: "Draft courses" },
   { key: "activeStudents", label: "Active students", managerOnly: true },
-  { key: "activeEnrollments", label: "Active enrollments", managerOnly: true },
+  { key: "activeEnrollments", label: "Active entitlements", managerOnly: true },
 { key: "expiringSoon", label: "Expiring soon", managerOnly: true },
 ];
 
@@ -73,9 +73,9 @@ export default function OverviewPage() {
             <div className="@container">
               <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
                 <FocusPanel
-                  href="/enrollments"
+                  href="/entitlements"
                   title="Expiring soon"
-                  description="Active enrollments lapsing within 30 days."
+                  description="Active entitlements lapsing within 30 days."
                   count={data.expiringSoon}
                 />
               </div>

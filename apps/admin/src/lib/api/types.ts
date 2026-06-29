@@ -15,7 +15,7 @@ import type {
   ListAssetsResponse,
   ListConnectedAppsResponse,
   ListCoursesResponse,
-  ListEnrollmentsResponse,
+  ListEntitlementsResponse,
   ListMembersResponse,
   ListModulesResponse,
   ListStudentsResponse,
@@ -37,8 +37,8 @@ export type AssessmentType = Assessment["type"];
 
 export type Student = GetStudentResponse;
 
-export type Enrollment = ListEnrollmentsResponse["rows"][number];
-export type EnrollmentStatus = Enrollment["status"];
+export type Entitlement = ListEntitlementsResponse["rows"][number];
+export type EntitlementStatus = Entitlement["status"];
 
 export type Member = ListMembersResponse["rows"][number];
 export type MemberStatus = Member["status"];
@@ -59,7 +59,7 @@ export type DownloadTicket = RequestAssetDownloadResponse;
 // Page envelopes (shape: { rows, total, page, pageSize }).
 export type CoursesPage = ListCoursesResponse;
 export type StudentsPage = ListStudentsResponse;
-export type EnrollmentsPage = ListEnrollmentsResponse;
+export type EntitlementsPage = ListEntitlementsResponse;
 export type MembersPage = ListMembersResponse;
 export type AssetsPage = ListAssetsResponse;
 

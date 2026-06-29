@@ -23,8 +23,8 @@ const ALL_NAV: NavItem[] = [
   { href: "/courses", label: "Courses", icon: Library, key: "courses" },
   { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
-  { href: "/enrollments", label: "Enrollments", icon: Ticket, key: "enrollments" },
-{ href: "/team", label: "Team", icon: Users, key: "team" },
+  { href: "/entitlements", label: "Entitlements", icon: Ticket, key: "entitlements" },
+  { href: "/members", label: "Members", icon: Users, key: "members" },
   { href: "/connected-apps", label: "Connected Apps", icon: Plug, key: "connectedApps" },
 ];
 

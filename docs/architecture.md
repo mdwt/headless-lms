@@ -4,7 +4,7 @@
 
 A headless LMS: student UI + (eventual) checkout, bring-your-own-funnel. REST API, TypeScript, Postgres. No website builder.
 
-> **Build state.** This document describes both the intended design and what is built today. Contexts are tagged **built**, **in-memory** (working, but backed by an in-memory repo until its schema is finished), **stub**, or **deferred**. The persisted, working core today is **organizations**, **identity**, and **assets** (plus the Better Auth integration and an OAuth/OIDC provider); most other contexts are in-memory or stubs.
+All six domains are built and Drizzle-persisted against real Postgres schema.
 
 ## Architecture
 
@@ -22,7 +22,7 @@ A context defines its own ports. The service sits in the middle: it **implements
 
 - **Inbound port** — the use-case interface the context *offers*. The **service implements it**; callers (HTTP, the auth adapter) depend on it, not the concrete service. E.g. `IdentityService.registerStudent` is the inbound port the HTTP layer and auth hooks call.
 - **Outbound port** — something the context *needs*. The **service depends on it**; an adapter or another context's public service implements it. Injected at composition. Two kinds:
-  - **Repository** — persistence the context needs without knowing the DB (e.g. `OrganizationRepository`). The interface lives in `core/<ctx>/ports.ts`; the implementation lives in `adapters/db/repositories/` (Drizzle) or `adapters/inmemory/`.
+  - **Repository** — persistence the context needs without knowing the DB (e.g. `OrganizationRepository`). The interface lives in `core/<ctx>/ports.ts`; the Drizzle implementation lives in `adapters/db/repositories/`.
   - **Capability from elsewhere** — the slice it needs from another context, named by the consumer (e.g. `StudentProvisioner { registerStudent() }`, which the auth adapter depends on and `identity` satisfies).
 
 A context never defines a port into another context's internals — only its public surface.
@@ -40,52 +40,39 @@ A context never defines a port into another context's internals — only its pub
 
 ## Contexts
 
-**Built & persisted**
-- **organizations** — org/tenancy, membership, role/permission matrix, course assignments. Source of truth is Better Auth's organization plugin, mirrored into core via hooks. Persisted (`organizations`, `memberships`, `invitations`, `course_assignments`).
-- **identity** — the domain student record, mirrored from Better Auth (the user system of record) via a user-create hook. Persisted (`students`).
-- **assets** — uploads & content storage: presigned PUT/GET via the object-storage (MinIO/S3) adapter. Persisted (`assets`).
+Six domains, all built and Drizzle-persisted.
 
-**Built, in-memory** (working behavior; schema not yet built out)
-- **team** — org member & role management: invite / change-role / remove, with the rule "the owner role cannot be reassigned". This is the operational member-management surface; `organizations` itself only mirrors Better Auth.
-- **enrollments** — access granting: `grant` / `list` / `setStatus`; status `active | expired | revoked`; source `manual | purchase | import`. This is the live surface for what the `entitlements` doc describes.
-- **modules** — curriculum structure under a course: `Module` + `ModuleItem` (lesson | assessment-authoring stub); reorder / save / delete.
-- **courses** — course *metadata* (title, slug, status, category, instructor, counts). The Module → Lesson structure lives in **modules**; drip/unlock rules are not built. Schema is a stub.
-
-**Read-models** (in-memory, cross-context projections — not bounded contexts)
-- **students** — back-office list/projection over `identity` (enrollment count, average progress).
-- **dashboard** — cross-context overview stats.
-
-**Stub** (placeholder service + `id`/`org_id` schema only)
-- **entitlements** — intended owner of access truth; currently empty. Real behavior lives in **enrollments**.
-- **progress** — intended per-student completion of curriculum items; currently empty.
-
-**Deferred** (specified, not built)
-- **offers** — what's sold, pricing.
-- **billing** — payment, orders, transactions.
+- **identity** — user identity and authentication only. Owns the domain user record other contexts reference by id; mirrors Better Auth (the credentials/session system of record) via hooks. No org/membership/roles.
+- **organizations** — the tenant root every org-scoped context FKs to. Owns Organization, Membership, Invitation, the role/permission matrix (`owner | admin | instructor | student`; instructor course-scoped), course assignments, and the member-management operations (invite / change-role / remove / list). Better Auth's organization plugin is the source of truth, mirrored read-only via `organizationHooks`; writes go through Better Auth via the `OrgAdmin` port.
+- **courses** — the curriculum aggregate: Course (root) → Module → Item → Lesson, drip/unlock rules, and the module/item editor write surface. Lessons are `video | text | pdf | audio | download | embed`; assessment items are typed authoring slots (`quiz | assignment`). References assets by `assetId`.
+- **entitlements** — access grants: a student↔course access grant, its status (`active | expired | revoked`) and source (`manual | import`). Use cases `grant` / `list` / `setStatus`. The grant references the course by id directly. Access ≠ completion.
+- **progress** — per-student completion records and derived percentage against the course's current structure. Direct (presentational lessons) and event-driven (an optional future outcome-event source) completion. References courses items + identity user by id.
+- **assets** — the org media library: a registry row per stored object, served via short-lived presigned URLs over the object-storage (MinIO/S3) adapter. Org-scoped.
 
 **Cross-cutting**
 - **shared** — cross-cutting ports (Clock, EventBus, Logger, EmailSender, ObjectStorage).
 
-> **Current scope: no billing.** Offers and billing are deferred. Access is granted directly via **enrollments** (`grant`, for comp / manual / import), with no order or payment. The `offers`/`billing` docs describe the eventual paid flow; they are not built now.
+### Reporting read layer
 
-Money (billing), access (entitlements/enrollments), and content (courses/modules) are separate concerns. A payment and an entitlement are not 1:1 — comps, manual grants, and refunds break the mapping. Authorization (team roles, owned by organizations) and access (student enrollments) are also separate: roles govern managing the platform; enrollments govern consuming content.
+`apps/api/src/reporting/` — a read-side outside the domains that composes cross-context reads. It calls each context's public service and assembles views (`reporting/students/`, `reporting/dashboard/`); it owns no data and no rules. It lives outside `core/` because a domain depends on nothing outward, whereas reporting reads many domains' public surfaces — the one privilege domains can't have. See `docs/domain/reporting.md`.
 
 ## Layout
 
 ```
 apps/api/src/
   core/                 # framework- and persistence-free domain, one folder per context
-    organizations/  identity/  assets/  team/  enrollments/  modules/
-    courses/  students/  dashboard/  entitlements/  progress/  offers/  billing/
+    identity/  organizations/  courses/  entitlements/  progress/  assets/
     shared/             # cross-cutting ports
     # each context: service.ts model.ts types.ts events.ts ports.ts index.ts service.test.ts
+
+  reporting/            # cross-context read layer (sibling of core/); composes domain public services
+    students/  dashboard/
 
   adapters/             # outbound infra; implement core ports
     db/
       index.ts          # drizzle client + pool
       schema/           # Drizzle tables, one file per context (the migration source)
       repositories/     # Drizzle repository implementations
-    inmemory/           # in-memory repositories (back-office contexts, until schemas land)
     auth/               # Better Auth: user SoR, org plugin, OAuth/OIDC provider
     storage/            # MinIO / S3-compatible object storage (presigned URLs)
     email/  payment/  video/   # stubs
@@ -111,7 +98,7 @@ Better Auth's own tables (`user`, `session`, `account`, `verification`, `organiz
 - **index.ts** — public surface; the only thing other contexts may import.
 - **service.test.ts** — unit tests.
 
-Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/schema/<ctx>.ts` and its repository implementation in `adapters/db/repositories/<ctx>.ts` (or `adapters/inmemory/<ctx>.ts`).
+Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/schema/<ctx>.ts` and its repository implementation in `adapters/db/repositories/<ctx>.ts`.
 
 ## Adapters
 
@@ -120,7 +107,6 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 - **storage** — MinIO / S3-compatible; presigned upload/download for `assets`.
 - **email / payment / video** — stub adapters (no real transport yet).
 - **events** — in-process event bus.
-- **inmemory** — in-memory repositories for the back-office contexts.
 
 ## Inbound & API surface
 
@@ -148,4 +134,6 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 
 ## Boundaries
 
-TypeScript does not enforce module boundaries at runtime. A boundary linter (`.eslintrc.cjs`, `eslint-plugin-boundaries` + scoped `no-restricted-imports`) enforces: a context may import another context only via its public `index.ts`; `core/` may not import `adapters/`, inbound, wiring, or `drizzle-orm`; `adapters/` may import `core/` ports only. Violations fail CI.
+TypeScript does not enforce module boundaries at runtime. A boundary linter (`.eslintrc.cjs`, `eslint-plugin-boundaries` + scoped `no-restricted-imports`) enforces: a context may import another context only via its public `index.ts`; `core/` may not import `adapters/`, inbound, wiring, `reporting/`, or `drizzle-orm`; `adapters/` may import `core/` ports only. Violations fail CI.
+
+**Reporting rules:** `reporting/` may import any `core/<ctx>/index.ts` public surface (the only place allowed to read multiple contexts); it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`. Inbound (`http/`) and `composition/` may import `reporting/`.

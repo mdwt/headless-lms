@@ -5,15 +5,15 @@ import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { ForbiddenView } from "@/components/full-page-states";
-import { EnrollmentStatusBadge } from "@/components/status-badge";
+import { EntitlementStatusBadge } from "@/components/status-badge";
 import { NameAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStudent, useStudentEnrollments } from "@/lib/api/hooks";
+import { useStudent, useStudentEntitlements } from "@/lib/api/hooks";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { isManager } from "@/lib/roles";
 import { formatDate, relativeTime } from "@/lib/format";
-import type { Enrollment, Student } from "@/lib/api/types";
+import type { Entitlement, Student } from "@/lib/api/types";
 
 import { ProgressMeter } from "../_components/progress-meter";
 
@@ -23,7 +23,7 @@ export default function StudentDetailPage() {
   const studentId = params.studentId;
 
   const student = useStudent(studentId);
-  const enrollments = useStudentEnrollments(studentId);
+  const entitlements = useStudentEntitlements(studentId);
 
   if (!isManager(user.role)) return <ForbiddenView />;
 
@@ -51,25 +51,25 @@ export default function StudentDetailPage() {
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-4">
-          <h2 className="text-lg font-semibold tracking-tight text-ink">Enrollments</h2>
-          {enrollments.data && enrollments.data.length > 0 ? (
-            <span className="text-sm text-ink-3">{enrollments.data.length} total</span>
+          <h2 className="text-lg font-semibold tracking-tight text-ink">Entitlements</h2>
+          {entitlements.data && entitlements.data.length > 0 ? (
+            <span className="text-sm text-ink-3">{entitlements.data.length} total</span>
           ) : null}
         </div>
 
-        {enrollments.isLoading ? (
+        {entitlements.isLoading ? (
           <ListSkeleton />
-        ) : enrollments.isError ? (
+        ) : entitlements.isError ? (
           <ErrorBlock
-            title="Couldn't load enrollments"
-            onRetry={() => enrollments.refetch()}
+            title="Couldn't load entitlements"
+            onRetry={() => entitlements.refetch()}
           />
-        ) : !enrollments.data || enrollments.data.length === 0 ? (
-          <EmptyEnrollments />
+        ) : !entitlements.data || entitlements.data.length === 0 ? (
+          <EmptyEntitlements />
         ) : (
           <ul className="divide-y divide-line rounded-card border border-line bg-surface px-4 sm:px-5">
-            {enrollments.data.map((e) => (
-              <EnrollmentRow key={e.id} enrollment={e} />
+            {entitlements.data.map((e) => (
+              <EntitlementRow key={e.id} entitlement={e} />
             ))}
           </ul>
         )}
@@ -80,7 +80,7 @@ export default function StudentDetailPage() {
 
 function StudentHeader({ student }: { student: Student }) {
   const stats: { label: string; value: string }[] = [
-    { label: "Enrollments", value: String(student.enrollmentCount) },
+    { label: "Entitlements", value: String(student.enrollmentCount) },
     { label: "Avg. progress", value: `${Math.round(student.avgProgress)}%` },
     { label: "Last active", value: relativeTime(student.lastActiveAt) },
   ];
@@ -112,14 +112,14 @@ function StudentHeader({ student }: { student: Student }) {
   );
 }
 
-function EnrollmentRow({ enrollment: e }: { enrollment: Enrollment }) {
+function EntitlementRow({ entitlement: e }: { entitlement: Entitlement }) {
   const pct = Math.round(e.progressPercent);
   return (
     <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="truncate font-medium text-ink">{e.courseTitle}</span>
-          <EnrollmentStatusBadge status={e.status} />
+          <EntitlementStatusBadge status={e.status} />
         </div>
         <p className="text-xs text-ink-3">
           Granted {formatDate(e.grantedAt)}
@@ -135,11 +135,11 @@ function EnrollmentRow({ enrollment: e }: { enrollment: Enrollment }) {
   );
 }
 
-function EmptyEnrollments() {
+function EmptyEntitlements() {
   return (
     <div className="grid place-items-center rounded-card border border-dashed border-line bg-surface px-6 py-12 text-center">
       <div className="flex max-w-sm flex-col gap-1">
-        <p className="text-sm font-medium text-ink">No enrollments</p>
+        <p className="text-sm font-medium text-ink">No entitlements</p>
         <p className="text-sm text-ink-3 text-pretty">
           This student hasn&apos;t been granted access to any courses yet.
         </p>

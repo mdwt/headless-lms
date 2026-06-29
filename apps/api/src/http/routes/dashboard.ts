@@ -20,7 +20,7 @@ export async function dashboardRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return container.dashboard.overview(scope.orgId);
+      return container.reporting.dashboard.overview(scope.orgId);
     },
   });
 }

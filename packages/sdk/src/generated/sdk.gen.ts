@@ -37,8 +37,8 @@ import type {
   GetStudentData,
   GetStudentErrors,
   GetStudentResponses,
-  GrantEnrollmentData,
-  GrantEnrollmentResponses,
+  GrantEntitlementData,
+  GrantEntitlementResponses,
   InviteMemberData,
   InviteMemberErrors,
   InviteMemberResponses,
@@ -50,8 +50,8 @@ import type {
   ListConnectedAppsResponses,
   ListCoursesData,
   ListCoursesResponses,
-  ListEnrollmentsData,
-  ListEnrollmentsResponses,
+  ListEntitlementsData,
+  ListEntitlementsResponses,
   ListMembersData,
   ListMembersResponses,
   ListModulesData,
@@ -76,9 +76,9 @@ import type {
   RevokeConnectedAppData,
   RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
-  SetEnrollmentStatusData,
-  SetEnrollmentStatusErrors,
-  SetEnrollmentStatusResponses,
+  SetEntitlementStatusData,
+  SetEntitlementStatusErrors,
+  SetEntitlementStatusResponses,
   UpdateCourseData,
   UpdateCourseErrors,
   UpdateCourseResponses,
@@ -182,9 +182,7 @@ export class Courses {
       },
     });
   }
-}
 
-export class Modules {
   /**
    * List a course's modules
    */
@@ -344,15 +342,15 @@ export class Students {
   }
 }
 
-export class Enrollments {
+export class Entitlements {
   /**
-   * List enrollments
+   * List entitlements
    */
-  public static listEnrollments<ThrowOnError extends boolean = false>(
-    options?: Options<ListEnrollmentsData, ThrowOnError>,
-  ): RequestResult<ListEnrollmentsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListEnrollmentsResponses, unknown, ThrowOnError>({
-      url: "/api/enrollments",
+  public static listEntitlements<ThrowOnError extends boolean = false>(
+    options?: Options<ListEntitlementsData, ThrowOnError>,
+  ): RequestResult<ListEntitlementsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListEntitlementsResponses, unknown, ThrowOnError>({
+      url: "/api/entitlements",
       ...options,
     });
   }
@@ -360,11 +358,11 @@ export class Enrollments {
   /**
    * Grant a student access to a course
    */
-  public static grantEnrollment<ThrowOnError extends boolean = false>(
-    options: Options<GrantEnrollmentData, ThrowOnError>,
-  ): RequestResult<GrantEnrollmentResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).post<GrantEnrollmentResponses, unknown, ThrowOnError>({
-      url: "/api/enrollments",
+  public static grantEntitlement<ThrowOnError extends boolean = false>(
+    options: Options<GrantEntitlementData, ThrowOnError>,
+  ): RequestResult<GrantEntitlementResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<GrantEntitlementResponses, unknown, ThrowOnError>({
+      url: "/api/entitlements",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -374,17 +372,17 @@ export class Enrollments {
   }
 
   /**
-   * Revoke or reinstate an enrollment
+   * Revoke or reinstate an entitlement
    */
-  public static setEnrollmentStatus<ThrowOnError extends boolean = false>(
-    options: Options<SetEnrollmentStatusData, ThrowOnError>,
-  ): RequestResult<SetEnrollmentStatusResponses, SetEnrollmentStatusErrors, ThrowOnError> {
+  public static setEntitlementStatus<ThrowOnError extends boolean = false>(
+    options: Options<SetEntitlementStatusData, ThrowOnError>,
+  ): RequestResult<SetEntitlementStatusResponses, SetEntitlementStatusErrors, ThrowOnError> {
     return (options.client ?? client).patch<
-      SetEnrollmentStatusResponses,
-      SetEnrollmentStatusErrors,
+      SetEntitlementStatusResponses,
+      SetEntitlementStatusErrors,
       ThrowOnError
     >({
-      url: "/api/enrollments/{id}",
+      url: "/api/entitlements/{id}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -394,28 +392,28 @@ export class Enrollments {
   }
 }
 
-export class Team {
+export class Organizations {
   /**
-   * List team members
+   * List organization members
    */
   public static listMembers<ThrowOnError extends boolean = false>(
     options?: Options<ListMembersData, ThrowOnError>,
   ): RequestResult<ListMembersResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError>({
-      url: "/api/team",
+      url: "/api/members",
       ...options,
     });
   }
 
   /**
-   * Invite a team member
+   * Invite an organization member
    */
   public static inviteMember<ThrowOnError extends boolean = false>(
     options: Options<InviteMemberData, ThrowOnError>,
   ): RequestResult<InviteMemberResponses, InviteMemberErrors, ThrowOnError> {
     return (options.client ?? client).post<InviteMemberResponses, InviteMemberErrors, ThrowOnError>(
       {
-        url: "/api/team",
+        url: "/api/members",
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -436,7 +434,7 @@ export class Team {
       UpdateMemberRoleErrors,
       ThrowOnError
     >({
-      url: "/api/team/{id}/role",
+      url: "/api/members/{id}/role",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -446,7 +444,7 @@ export class Team {
   }
 
   /**
-   * Remove a team member
+   * Remove an organization member
    */
   public static removeMember<ThrowOnError extends boolean = false>(
     options: Options<RemoveMemberData, ThrowOnError>,
@@ -455,7 +453,7 @@ export class Team {
       RemoveMemberResponses,
       RemoveMemberErrors,
       ThrowOnError
-    >({ url: "/api/team/{id}", ...options });
+    >({ url: "/api/members/{id}", ...options });
   }
 }
 

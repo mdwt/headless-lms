@@ -2,7 +2,7 @@ import { Badge, Dot } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/roles";
 import type {
   CourseStatus,
-  EnrollmentStatus,
+  EntitlementStatus,
   MemberStatus,
   Role,
 } from "@/lib/api/types";
@@ -45,7 +45,7 @@ export function CourseStatusBadge({ status }: { status: CourseStatus }) {
   );
 }
 
-export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) {
+export function EntitlementStatusBadge({ status }: { status: EntitlementStatus }) {
   const map = {
     active: { variant: "success", label: "Active" },
     expired: { variant: "warning", label: "Expired" },

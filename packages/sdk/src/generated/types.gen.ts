@@ -748,7 +748,7 @@ export type GetStudentResponses = {
 
 export type GetStudentResponse = GetStudentResponses[keyof GetStudentResponses];
 
-export type ListEnrollmentsData = {
+export type ListEntitlementsData = {
   body?: never;
   path?: never;
   query?: {
@@ -757,14 +757,14 @@ export type ListEnrollmentsData = {
     search?: string;
     sort?: string;
     status?: "active" | "expired" | "revoked";
-    source?: "manual" | "purchase" | "import";
+    source?: "manual" | "import";
     studentId?: string;
     courseId?: string;
   };
-  url: "/api/enrollments";
+  url: "/api/entitlements";
 };
 
-export type ListEnrollmentsResponses = {
+export type ListEntitlementsResponses = {
   /**
    * Default Response
    */
@@ -780,7 +780,7 @@ export type ListEnrollmentsResponses = {
       progressPercent: number;
       grantedAt: string;
       expiresAt: string | null;
-      source: "manual" | "purchase" | "import";
+      source: "manual" | "import";
     }>;
     total: number;
     page: number;
@@ -788,9 +788,9 @@ export type ListEnrollmentsResponses = {
   };
 };
 
-export type ListEnrollmentsResponse = ListEnrollmentsResponses[keyof ListEnrollmentsResponses];
+export type ListEntitlementsResponse = ListEntitlementsResponses[keyof ListEntitlementsResponses];
 
-export type GrantEnrollmentData = {
+export type GrantEntitlementData = {
   body: {
     studentId: string;
     courseId: string;
@@ -798,10 +798,10 @@ export type GrantEnrollmentData = {
   };
   path?: never;
   query?: never;
-  url: "/api/enrollments";
+  url: "/api/entitlements";
 };
 
-export type GrantEnrollmentResponses = {
+export type GrantEntitlementResponses = {
   /**
    * Default Response
    */
@@ -816,13 +816,13 @@ export type GrantEnrollmentResponses = {
     progressPercent: number;
     grantedAt: string;
     expiresAt: string | null;
-    source: "manual" | "purchase" | "import";
+    source: "manual" | "import";
   };
 };
 
-export type GrantEnrollmentResponse = GrantEnrollmentResponses[keyof GrantEnrollmentResponses];
+export type GrantEntitlementResponse = GrantEntitlementResponses[keyof GrantEntitlementResponses];
 
-export type SetEnrollmentStatusData = {
+export type SetEntitlementStatusData = {
   body: {
     status: "active" | "revoked";
   };
@@ -830,10 +830,10 @@ export type SetEnrollmentStatusData = {
     id: string;
   };
   query?: never;
-  url: "/api/enrollments/{id}";
+  url: "/api/entitlements/{id}";
 };
 
-export type SetEnrollmentStatusErrors = {
+export type SetEntitlementStatusErrors = {
   /**
    * Default Response
    */
@@ -843,9 +843,10 @@ export type SetEnrollmentStatusErrors = {
   };
 };
 
-export type SetEnrollmentStatusError = SetEnrollmentStatusErrors[keyof SetEnrollmentStatusErrors];
+export type SetEntitlementStatusError =
+  SetEntitlementStatusErrors[keyof SetEntitlementStatusErrors];
 
-export type SetEnrollmentStatusResponses = {
+export type SetEntitlementStatusResponses = {
   /**
    * Default Response
    */
@@ -860,12 +861,12 @@ export type SetEnrollmentStatusResponses = {
     progressPercent: number;
     grantedAt: string;
     expiresAt: string | null;
-    source: "manual" | "purchase" | "import";
+    source: "manual" | "import";
   };
 };
 
-export type SetEnrollmentStatusResponse =
-  SetEnrollmentStatusResponses[keyof SetEnrollmentStatusResponses];
+export type SetEntitlementStatusResponse =
+  SetEntitlementStatusResponses[keyof SetEntitlementStatusResponses];
 
 export type ListMembersData = {
   body?: never;
@@ -878,7 +879,7 @@ export type ListMembersData = {
     role?: "owner" | "admin" | "instructor" | "student";
     status?: "active" | "invited";
   };
-  url: "/api/team";
+  url: "/api/members";
 };
 
 export type ListMembersResponses = {
@@ -911,7 +912,7 @@ export type InviteMemberData = {
   };
   path?: never;
   query?: never;
-  url: "/api/team";
+  url: "/api/members";
 };
 
 export type InviteMemberErrors = {
@@ -952,7 +953,7 @@ export type UpdateMemberRoleData = {
     id: string;
   };
   query?: never;
-  url: "/api/team/{id}/role";
+  url: "/api/members/{id}/role";
 };
 
 export type UpdateMemberRoleErrors = {
@@ -998,7 +999,7 @@ export type RemoveMemberData = {
     id: string;
   };
   query?: never;
-  url: "/api/team/{id}";
+  url: "/api/members/{id}";
 };
 
 export type RemoveMemberErrors = {
@@ -1006,6 +1007,13 @@ export type RemoveMemberErrors = {
    * Default Response
    */
   404: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
   };

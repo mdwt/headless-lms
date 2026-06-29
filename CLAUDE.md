@@ -25,11 +25,11 @@ Per-workspace: `pnpm --filter @headless-lms/api <script>`.
 
 Hexagonal. The api (`apps/api/src/`) is layered:
 
-- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. 14 bounded contexts (+ `shared/` for cross-cutting ports). Built + Postgres-persisted: `organizations`, `identity`, `assets` (uploads via MinIO presigned URLs). Built but in-memory: `team`, `enrollments`, `modules`. Partial: `courses` (metadata service in-memory, schema stub). Read-models (in-memory): `students` (over identity), `dashboard`. Stubs/deferred: `entitlements` (real behavior in `enrollments`), `progress`, `offers` (deferred), `billing` (deferred).
-- `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `inmemory`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
+- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Six bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets` (+ `shared/` for cross-cutting ports).
+- `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `composition/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
+- `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).
   - `adapters/db/repositories/<context>.ts` — `Drizzle*Repository` classes implementing the core outbound ports.
-  - `adapters/inmemory/` — in-memory repositories for contexts whose Drizzle tables don't exist yet (`team`, `enrollments`, `modules`, `courses`, `students`, `dashboard`).
 - `composition/container.ts` — wires adapters into services.
 - Inbound entry points: `http/`, `cli/`, `workers/`, `cron/`.
 
@@ -41,10 +41,12 @@ Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`, `
 
 ### Import boundaries (enforced by ESLint — `.eslintrc.cjs`)
 
+- The six contexts are `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`.
 - A context imports another context **only** through its `index.ts` (no deep imports). `core/shared/ports` is the exception (cross-cutting, allowed).
-- `core/` may not import `adapters/`, `http/`, `composition/`, frameworks (`fastify`, `pg`), or `drizzle-orm`.
+- `core/` may not import `adapters/`, `http/`, `composition/`, `reporting/`, frameworks (`fastify`, `pg`), or `drizzle-orm`.
+- `reporting/` may import any `core/<ctx>/index.ts`; it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`.
 - `adapters/` may import `core/` ports only.
-- `composition/` wires `core` + `adapters`; inbound entry points use `composition` + `core`.
+- `composition/` wires `core` + `adapters` + `reporting`; inbound entry points use `composition`, `core`, and `reporting`.
 
 These rules are not advisory — run `pnpm lint` after changing imports across layers.
 
@@ -63,5 +65,5 @@ The HTTP API is **schema-first**, and the frontend SDK is **generated off the Op
 - `openapi.json` and `src/generated/` are **committed**. Regenerate (`pnpm gen:sdk`) whenever the contract or routes change; CI/review should treat a stale diff as an error.
 - `gen:openapi` boots the real app, so the **database must be up** (it reads env via `--env-file`). No port is bound.
 - **Not ts-rest:** ts-rest 3.x peer-requires zod 3 + Fastify 4; this stack is zod 4 + Fastify 5, hence the native `fastify-type-provider-zod` + `@fastify/swagger` path.
-- **Specced resources** (6 tags): `courses`, `modules` (course sub-resource), `students`, `enrollments`, `team`, `dashboard` (overview). These mirror the `apps/admin` dashboard surface.
-- The back-office contexts (`courses`, `modules`, `students`, `enrollments`, `team`, `dashboard`) are backed by **in-memory repositories** (`adapters/inmemory/*`) because their Drizzle tables are still stubs — seeded deterministically, mutations live for process life. The core/port/route/SDK layers are real; swapping in a Drizzle repo is a one-line change per context in `composition/container.ts`. They are deliberately separate contexts from the auth-wired `identity`/`organizations` so the back-office read models don't disturb auth.
+- **Resource tags:** `courses` (modules/items folded in as a sub-resource), `organizations` (member management folded in from the former `team`), `identity`, `entitlements`, `progress`, `assets`. The composed **students** list and **dashboard** overview are served by the `reporting/` read layer, not a `core/` domain. These mirror the `apps/admin` dashboard surface.
+- All six domains are backed by **Drizzle repositories** (`adapters/db/repositories/*`) against real Postgres schema (`adapters/db/schema/*`). The core/port/route/SDK layers map onto them directly. The students-list and dashboard-overview routes call `reporting` services, which compose the domains' public services.

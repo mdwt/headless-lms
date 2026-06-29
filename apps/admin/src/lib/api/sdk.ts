@@ -12,10 +12,9 @@ import {
   ConnectedApps,
   Courses,
   Dashboard,
-  Enrollments,
-  Modules,
+  Entitlements,
+  Organizations,
   Students,
-  Team,
   configureSdk,
 } from "@headless-lms/sdk";
 
@@ -26,7 +25,7 @@ import type {
   ConnectedApp,
   Course,
   DownloadTicket,
-  Enrollment,
+  Entitlement,
   ListParams,
   Member,
   Module,
@@ -143,29 +142,29 @@ export const api = {
   // modules + items (write endpoints return the full, reordered module list)
   async listModules(courseId: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.listModules({ path: { courseId } }));
+    return unwrap(await Courses.listModules({ path: { courseId } }));
   },
   async reorderModules(courseId: string, orderedIds: string[]): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.reorderModules({ path: { courseId }, body: { orderedIds } }));
+    return unwrap(await Courses.reorderModules({ path: { courseId }, body: { orderedIds } }));
   },
   async reorderItems(courseId: string, moduleId: string, orderedIds: string[]): Promise<Module[]> {
     ensureConfigured();
     return unwrap(
-      await Modules.reorderItems({ path: { courseId, moduleId }, body: { orderedIds } }),
+      await Courses.reorderItems({ path: { courseId, moduleId }, body: { orderedIds } }),
     );
   },
   async createModule(courseId: string, title: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.createModule({ path: { courseId }, body: { title } }));
+    return unwrap(await Courses.createModule({ path: { courseId }, body: { title } }));
   },
   async updateModule(courseId: string, moduleId: string, title: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.updateModule({ path: { courseId, moduleId }, body: { title } }));
+    return unwrap(await Courses.updateModule({ path: { courseId, moduleId }, body: { title } }));
   },
   async deleteModule(courseId: string, moduleId: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.deleteModule({ path: { courseId, moduleId } }));
+    return unwrap(await Courses.deleteModule({ path: { courseId, moduleId } }));
   },
   async saveItem(
     courseId: string,
@@ -195,14 +194,14 @@ export const api = {
           };
     if (item.id) {
       return unwrap(
-        await Modules.updateItem({ path: { courseId, moduleId, itemId: item.id }, body }),
+        await Courses.updateItem({ path: { courseId, moduleId, itemId: item.id }, body }),
       );
     }
-    return unwrap(await Modules.createItem({ path: { courseId, moduleId }, body }));
+    return unwrap(await Courses.createItem({ path: { courseId, moduleId }, body }));
   },
   async deleteItem(courseId: string, moduleId: string, itemId: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Modules.deleteItem({ path: { courseId, moduleId, itemId } }));
+    return unwrap(await Courses.deleteItem({ path: { courseId, moduleId, itemId } }));
   },
 
   // students
@@ -214,54 +213,54 @@ export const api = {
     ensureConfigured();
     return unwrap(await Students.getStudent({ path: { id } }));
   },
-  async studentEnrollments(studentId: string): Promise<Enrollment[]> {
+  async studentEntitlements(studentId: string): Promise<Entitlement[]> {
     ensureConfigured();
     const page = unwrap(
-      await Enrollments.listEnrollments({ query: { studentId, pageSize: 100 } }),
+      await Entitlements.listEntitlements({ query: { studentId, pageSize: 100 } }),
     );
     return page.rows;
   },
 
-  // enrollments
-  async listEnrollments(params: ListParams): Promise<Paginated<Enrollment>> {
+  // entitlements
+  async listEntitlements(params: ListParams): Promise<Paginated<Entitlement>> {
     ensureConfigured();
     return unwrap(
-      await Enrollments.listEnrollments({ query: toQuery(params, ["status", "source"]) }),
+      await Entitlements.listEntitlements({ query: toQuery(params, ["status", "source"]) }),
     );
   },
-  async grantEnrollment(input: {
+  async grantEntitlement(input: {
     studentId: string;
     courseId: string;
     expiresAt: string | null;
-  }): Promise<Enrollment> {
+  }): Promise<Entitlement> {
     ensureConfigured();
-    return unwrap(await Enrollments.grantEnrollment({ body: input }));
+    return unwrap(await Entitlements.grantEntitlement({ body: input }));
   },
-  async revokeEnrollment(id: string): Promise<Enrollment> {
+  async revokeEntitlement(id: string): Promise<Entitlement> {
     ensureConfigured();
-    return unwrap(await Enrollments.setEnrollmentStatus({ path: { id }, body: { status: "revoked" } }));
+    return unwrap(await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "revoked" } }));
   },
-  async reinstateEnrollment(id: string): Promise<Enrollment> {
+  async reinstateEntitlement(id: string): Promise<Entitlement> {
     ensureConfigured();
-    return unwrap(await Enrollments.setEnrollmentStatus({ path: { id }, body: { status: "active" } }));
+    return unwrap(await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "active" } }));
   },
 
-  // team
+  // members
   async listMembers(params: ListParams): Promise<Paginated<Member>> {
     ensureConfigured();
-    return unwrap(await Team.listMembers({ query: toQuery(params, ["role", "status"]) }));
+    return unwrap(await Organizations.listMembers({ query: toQuery(params, ["role", "status"]) }));
   },
   async inviteMember(input: { email: string; role: Role }): Promise<Member> {
     ensureConfigured();
-    return unwrap(await Team.inviteMember({ body: input }));
+    return unwrap(await Organizations.inviteMember({ body: input }));
   },
   async updateMemberRole(id: string, role: Role): Promise<Member> {
     ensureConfigured();
-    return unwrap(await Team.updateMemberRole({ path: { id }, body: { role } }));
+    return unwrap(await Organizations.updateMemberRole({ path: { id }, body: { role } }));
   },
   async removeMember(id: string): Promise<void> {
     ensureConfigured();
-    expectOk(await Team.removeMember({ path: { id } }));
+    expectOk(await Organizations.removeMember({ path: { id } }));
   },
 
   // media library (assets)
@@ -322,7 +321,7 @@ export const api = {
   },
   async instructorsLite(): Promise<{ id: string; name: string }[]> {
     ensureConfigured();
-    const page = unwrap(await Team.listMembers({ query: { pageSize: 100 } }));
+    const page = unwrap(await Organizations.listMembers({ query: { pageSize: 100 } }));
     return page.rows
       .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "instructor")
       .map((m) => ({ id: m.id, name: m.name }));

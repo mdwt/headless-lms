@@ -26,7 +26,7 @@ Owns the org's media library: tracked objects in storage (video, downloadable fi
 
 1. **assets ↔ storage adapter** — `AssetsServiceImpl` owns key construction and lifecycle; delegates object operations to the `ObjectStorage` port. Implemented by `MinioStorageAdapter` (MinIO / S3-compatible): private bucket, access only via presigned URLs.
 2. **assets ↔ organizations** — every asset is org-scoped; routes resolve the session's active org to the domain org id before any operation.
-3. **assets ↔ modules** — a lesson references an asset by `assetId`; assets never reads curriculum.
+3. **assets ↔ courses** — a lesson (owned by courses) references an asset by `assetId`; assets never reads curriculum.
 
 ## Build state
 

@@ -137,7 +137,7 @@ export function registerTools(
       const resolvedStudentId = canViewAll ? args.studentId : principal.studentId;
 
       try {
-        const page = await container.enrollments.list(principal.orgId, {
+        const page = await container.entitlements.list(principal.orgId, {
           page: args.page,
           pageSize: args.pageSize,
           studentId: resolvedStudentId,
@@ -169,7 +169,7 @@ export function registerTools(
         return forbidden();
       }
       try {
-        const enrollment = await container.enrollments.grant(principal.orgId, {
+        const enrollment = await container.entitlements.grant(principal.orgId, {
           studentId: args.studentId,
           courseId: args.courseId,
           expiresAt: args.expiresAt ?? null,
@@ -198,7 +198,7 @@ export function registerTools(
         return forbidden();
       }
       try {
-        const student = await container.students.get(principal.orgId, args.studentId);
+        const student = await container.reporting.students.get(principal.orgId, args.studentId);
         if (!student) return notFound("student", args.studentId);
         return json({
           studentId: args.studentId,
