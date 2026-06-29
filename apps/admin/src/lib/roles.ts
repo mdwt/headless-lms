@@ -38,7 +38,6 @@ export const can = {
   /** Instructors may edit content only for their assigned courses. */
   editCourse: (u: SessionUser, courseId: string) =>
     isManager(u.role) || (u.role === "instructor" && u.scopedCourseIds.includes(courseId)),
-  grade: (u: SessionUser) => u.role !== "student",
   manageStudents: (u: SessionUser) => isManager(u.role),
   manageEnrollments: (u: SessionUser) => isManager(u.role),
   viewTeam: (u: SessionUser) => isManager(u.role),
@@ -53,7 +52,6 @@ export function visibleNav(role: Role): {
   media: boolean;
   students: boolean;
   enrollments: boolean;
-  grading: boolean;
   team: boolean;
 } {
   const manager = isManager(role);
@@ -64,7 +62,6 @@ export function visibleNav(role: Role): {
     media: true,
     students: manager,
     enrollments: manager,
-    grading: true,
     team: manager,
   };
 }

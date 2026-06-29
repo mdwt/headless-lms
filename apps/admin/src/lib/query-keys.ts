@@ -29,11 +29,6 @@ export const qk = {
     list: (params: ListParams) => ["enrollments", "list", params] as const,
   },
 
-  submissions: {
-    all: ["submissions"] as const,
-    list: (params: ListParams) => ["submissions", "list", params] as const,
-  },
-
   members: {
     all: ["members"] as const,
     list: (params: ListParams) => ["members", "list", params] as const,

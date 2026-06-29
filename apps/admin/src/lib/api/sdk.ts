@@ -14,7 +14,6 @@ import {
   Enrollments,
   Modules,
   Students,
-  Submissions,
   Team,
   configureSdk,
 } from "@headless-lms/sdk";
@@ -34,7 +33,6 @@ import type {
   Paginated,
   Role,
   Student,
-  Submission,
 } from "./types";
 
 let configured = false;
@@ -244,18 +242,6 @@ export const api = {
   async reinstateEnrollment(id: string): Promise<Enrollment> {
     ensureConfigured();
     return unwrap(await Enrollments.setEnrollmentStatus({ path: { id }, body: { status: "active" } }));
-  },
-
-  // grading
-  async listSubmissions(params: ListParams): Promise<Paginated<Submission>> {
-    ensureConfigured();
-    return unwrap(
-      await Submissions.listSubmissions({ query: toQuery(params, ["status", "courseTitle"]) }),
-    );
-  },
-  async gradeSubmission(id: string, input: { score: number; feedback: string }): Promise<Submission> {
-    ensureConfigured();
-    return unwrap(await Submissions.gradeSubmission({ path: { id }, body: input }));
   },
 
   // team

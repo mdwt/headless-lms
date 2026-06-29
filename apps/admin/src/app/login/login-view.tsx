@@ -111,7 +111,7 @@ export function LoginView() {
         <div className="relative flex h-full flex-col justify-end p-12">
           <blockquote className="max-w-md">
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
-              Everything your team needs to run courses — content, enrollments, and grading in one calm place.
+              Everything your team needs to run courses — content and enrollments in one calm place.
             </p>
             <footer className="mt-4 text-sm text-surface/60">Atelier Academy · Management dashboard</footer>
           </blockquote>

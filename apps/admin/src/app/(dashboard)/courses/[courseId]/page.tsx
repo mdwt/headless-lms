@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, GraduationCap, Pencil, RotateCw } from "lucide-react";
+import { ChevronLeft, Pencil, RotateCw } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { CourseStatusBadge } from "@/components/status-badge";
@@ -70,12 +70,6 @@ export default function CourseBuilderPage() {
           title={course.title}
           actions={
             <>
-              <Button asChild variant="ghost">
-                <Link href="/grading">
-                  <GraduationCap className="size-4" />
-                  Grading
-                </Link>
-              </Button>
               {canEdit ? (
                 <Button variant="secondary" onClick={() => setDetailsOpen(true)}>
                   <Pencil className="size-4" />

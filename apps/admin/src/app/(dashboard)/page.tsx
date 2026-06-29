@@ -24,8 +24,7 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: bool
   { key: "draftCourses", label: "Draft courses" },
   { key: "activeStudents", label: "Active students", managerOnly: true },
   { key: "activeEnrollments", label: "Active enrollments", managerOnly: true },
-  { key: "pendingSubmissions", label: "Pending submissions" },
-  { key: "expiringSoon", label: "Expiring soon", managerOnly: true },
+{ key: "expiringSoon", label: "Expiring soon", managerOnly: true },
 ];
 
 export default function OverviewPage() {
@@ -70,24 +69,18 @@ export default function OverviewPage() {
         <Section>
           <StatStrip stats={stats} />
 
-          <div className="@container">
-            <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
-              <FocusPanel
-                href="/grading"
-                title="Needs grading"
-                description="Submissions waiting for a score and feedback."
-                count={data.pendingSubmissions}
-              />
-              {manager ? (
+          {manager ? (
+            <div className="@container">
+              <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
                 <FocusPanel
                   href="/enrollments"
                   title="Expiring soon"
                   description="Active enrollments lapsing within 30 days."
                   count={data.expiringSoon}
                 />
-              ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
         </Section>
       )}
     </div>
