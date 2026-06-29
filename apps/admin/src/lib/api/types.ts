@@ -18,7 +18,6 @@ import type {
   ListMembersResponse,
   ListModulesResponse,
   ListStudentsResponse,
-  ListSubmissionsResponse,
   RequestAssetDownloadResponse,
   RequestUploadResponse,
 } from "@headless-lms/sdk";
@@ -40,9 +39,6 @@ export type Student = GetStudentResponse;
 export type Enrollment = ListEnrollmentsResponse["rows"][number];
 export type EnrollmentStatus = Enrollment["status"];
 
-export type Submission = ListSubmissionsResponse["rows"][number];
-export type SubmissionStatus = Submission["status"];
-
 export type Member = ListMembersResponse["rows"][number];
 export type MemberStatus = Member["status"];
 export type Role = Member["role"];
@@ -61,7 +57,6 @@ export type DownloadTicket = RequestAssetDownloadResponse;
 export type CoursesPage = ListCoursesResponse;
 export type StudentsPage = ListStudentsResponse;
 export type EnrollmentsPage = ListEnrollmentsResponse;
-export type SubmissionsPage = ListSubmissionsResponse;
 export type MembersPage = ListMembersResponse;
 export type AssetsPage = ListAssetsResponse;
 

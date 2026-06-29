@@ -224,7 +224,6 @@ export function createAuth(opts: CreateAuthOptions) {
             "enrollments:read",
             "enrollments:write",
             "assessments:read",
-            "assessments:grade",
             "org:read",
           ],
           getConsentHTML,

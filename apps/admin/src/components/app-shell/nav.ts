@@ -1,7 +1,6 @@
 import {
   GraduationCap,
   LayoutDashboard,
-  ClipboardCheck,
   Image,
   Library,
   Ticket,
@@ -24,8 +23,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
   { href: "/enrollments", label: "Enrollments", icon: Ticket, key: "enrollments" },
-  { href: "/grading", label: "Grading", icon: ClipboardCheck, key: "grading" },
-  { href: "/team", label: "Team", icon: Users, key: "team" },
+{ href: "/team", label: "Team", icon: Users, key: "team" },
 ];
 
 /** Filter nav by what the role is allowed to see. */

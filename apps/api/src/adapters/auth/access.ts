@@ -5,7 +5,7 @@ import { defaultStatements, ownerAc, adminAc } from "better-auth/plugins/organiz
 
 export const statement = {
   ...defaultStatements,
-  course: ["create", "read", "update", "delete", "grade"],
+  course: ["create", "read", "update", "delete"],
   progress: ["view"],
 } as const;
 
@@ -14,16 +14,16 @@ const ac = createAccessControl(statement);
 export const roles = {
   owner: ac.newRole({
     ...ownerAc.statements,
-    course: ["create", "read", "update", "delete", "grade"],
+    course: ["create", "read", "update", "delete"],
     progress: ["view"],
   }),
   admin: ac.newRole({
     ...adminAc.statements,
-    course: ["create", "read", "update", "delete", "grade"],
+    course: ["create", "read", "update", "delete"],
     progress: ["view"],
   }),
   instructor: ac.newRole({
-    course: ["read", "update", "grade"],
+    course: ["read", "update"],
     progress: ["view"],
   }),
   student: ac.newRole({

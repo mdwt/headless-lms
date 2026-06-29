@@ -27,6 +27,7 @@ import type {
   Role,
 } from "./types";
 
+
 // --- dashboard -------------------------------------------------------------
 
 export function useOverview() {
@@ -237,30 +238,6 @@ export function useSetEnrollmentStatus() {
       toast.success(action === "revoke" ? "Access revoked" : "Access reinstated");
     },
     onError: (e) => toast.error("Couldn't update access", { description: e.message }),
-  });
-}
-
-// --- grading ---------------------------------------------------------------
-
-export function useSubmissions(params: ListParams) {
-  return useQuery({
-    queryKey: qk.submissions.list(params),
-    queryFn: () => api.listSubmissions(params),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useGradeSubmission() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, score, feedback }: { id: string; score: number; feedback: string }) =>
-      api.gradeSubmission(id, { score, feedback }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.submissions.all });
-      qc.invalidateQueries({ queryKey: qk.overview });
-      toast.success("Grade submitted");
-    },
-    onError: (e) => toast.error("Couldn't submit grade", { description: e.message }),
   });
 }
 

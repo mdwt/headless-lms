@@ -5,7 +5,6 @@ import type {
   EnrollmentStatus,
   MemberStatus,
   Role,
-  SubmissionStatus,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -51,20 +50,6 @@ export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) 
     active: { variant: "success", label: "Active" },
     expired: { variant: "warning", label: "Expired" },
     revoked: { variant: "danger", label: "Revoked" },
-  } as const;
-  const { variant, label } = map[status];
-  return (
-    <StatusBadge variant={variant} dot>
-      {label}
-    </StatusBadge>
-  );
-}
-
-export function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) {
-  const map = {
-    pending: { variant: "warning", label: "Needs grading" },
-    graded: { variant: "success", label: "Graded" },
-    returned: { variant: "brand", label: "Returned" },
   } as const;
   const { variant, label } = map[status];
   return (

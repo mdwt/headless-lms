@@ -25,7 +25,7 @@ Four roles, defined in code as a string-literal union (stored as a `text` column
 
 - **Owner** — full control, billing, ownership transfer. Org-global. One per org.
 - **Admin** — manage courses, students, settings. Everything except billing/ownership. Org-global.
-- **Instructor** — create/manage assigned courses, grade assessments. **Course-scoped** via a course assignment.
+- **Instructor** — create/manage assigned courses. **Course-scoped** via a course assignment.
 - **Student** — consume content. Default role. Per-enrollment (access owned by entitlements; the role here is "is a learner").
 
 ### Permissions (table stakes)
@@ -37,7 +37,6 @@ Four roles, defined in code as a string-literal union (stored as a `text` column
 | Manage users | ✓ | ✓ | | |
 | Create/edit any course | ✓ | ✓ | | |
 | Edit assigned course | ✓ | ✓ | ✓ (assigned) | |
-| Grade assessments | ✓ | ✓ | ✓ (assigned) | |
 | View student progress | ✓ | ✓ | ✓ (assigned) | |
 | Consume content | | | | ✓ (enrolled) |
 
@@ -56,7 +55,7 @@ The permission matrix is defined in code (a role → permissions map), not in th
    - Course assignments reference a course by id (instructor scope).
    - Connection: reference by id. organizations never reads course content.
 4. **organizations → all contexts**
-   - Provides `org_id` for tenant scoping, and grader authorization (instructor role + assignment) for assessment.
+   - Provides `org_id` for tenant scoping.
    - Connection: reference + authorization lookup.
 
 ## Events

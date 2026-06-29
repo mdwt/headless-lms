@@ -15,7 +15,6 @@ import { coursesRoutes } from "./routes/courses.js";
 import { modulesRoutes } from "./routes/modules.js";
 import { studentsRoutes } from "./routes/students.js";
 import { enrollmentsRoutes } from "./routes/enrollments.js";
-import { submissionsRoutes } from "./routes/submissions.js";
 import { teamRoutes } from "./routes/team.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { assetsRoutes } from "./routes/assets.js";
@@ -181,7 +180,6 @@ export function buildServer() {
     await modulesRoutes(instance, container);
     await studentsRoutes(instance, container);
     await enrollmentsRoutes(instance, container);
-    await submissionsRoutes(instance, container);
     await teamRoutes(instance, container);
     await dashboardRoutes(instance, container);
     await assetsRoutes(instance, container);

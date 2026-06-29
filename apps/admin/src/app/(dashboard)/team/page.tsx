@@ -208,7 +208,7 @@ export default function TeamPage() {
           ) : undefined
         }
         emptyTitle="No members found"
-        emptyDescription="Invite teammates to help manage courses, students and grading."
+        emptyDescription="Invite teammates to help manage courses and students."
         emptyAction={
           canInvite ? (
             <Button variant="secondary" size="sm" onClick={() => setInviteOpen(true)}>
