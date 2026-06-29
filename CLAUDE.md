@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. `apps/api` (Fastify + Drizzle/Postgres), `apps/web` (React + Vite), `packages/shared-types` (api↔web types).
+Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. Apps: `apps/api` (Fastify + Drizzle/Postgres), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI), `apps/web` (older React + Vite student UI, overlaps `apps/student`). Packages: `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/shared-types` (shared types).
 
 ## Commands
 
 ```bash
-pnpm dev              # run api (tsx watch) + web (vite) in parallel
+pnpm dev              # pnpm --parallel --filter "./apps/*" dev — runs all four apps (api, admin, student, web)
 pnpm build            # build all workspaces
 pnpm test             # vitest run, all workspaces
 pnpm test:watch
@@ -25,10 +25,11 @@ Per-workspace: `pnpm --filter @headless-lms/api <script>`.
 
 Hexagonal. The api (`apps/api/src/`) is layered:
 
-- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. One folder per bounded context: `organizations`, `courses`, `entitlements`, `offers`, `billing`, `progress`, `identity` (+ `shared/`).
-- `adapters/` — outbound infra: `db`, `payment`, `email`, `video`, `storage`, `events`. Drizzle schema and repositories live here, **not** in core:
+- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. 14 bounded contexts (+ `shared/` for cross-cutting ports). Built + Postgres-persisted: `organizations`, `identity`, `assets` (uploads via MinIO presigned URLs). Built but in-memory: `team`, `enrollments`, `modules`. Partial: `courses` (metadata service in-memory, schema stub). Read-models (in-memory): `students` (over identity), `dashboard`. Stubs/deferred: `entitlements` (real behavior in `enrollments`), `progress`, `offers` (deferred), `billing` (deferred).
+- `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `inmemory`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).
   - `adapters/db/repositories/<context>.ts` — `Drizzle*Repository` classes implementing the core outbound ports.
+  - `adapters/inmemory/` — in-memory repositories for contexts whose Drizzle tables don't exist yet (`team`, `enrollments`, `modules`, `courses`, `students`, `dashboard`).
 - `composition/container.ts` — wires adapters into services.
 - Inbound entry points: `http/`, `cli/`, `workers/`, `cron/`.
 

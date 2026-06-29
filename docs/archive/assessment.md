@@ -1,3 +1,5 @@
+> **Archived 2026-06-29.** Describes a removed/never-built feature (assessment & grading were cut from scope). Kept for history; not implemented in the codebase.
+
 # Assessment — Domain Spec
 
 A peer context owning all assessment types. Owns **outcome**, not completion.

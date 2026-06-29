@@ -1,5 +1,7 @@
 # Courses — Domain Spec
 
+> **Build state:** course *metadata* is implemented (in-memory repo; schema is a stub). The Module → Lesson/Item curriculum structure lives in the **`modules`** context. Drip/unlock rules are not built.
+
 Owns course content structure. The template, not per-student state.
 
 ## Scope

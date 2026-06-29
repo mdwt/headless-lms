@@ -1,5 +1,7 @@
 # Organizations Roles Implementation Plan
 
+> **Status: ✅ Done (implemented 2026-06).**
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the free-text `membership.role` with a structured, code-defined role model (`owner | admin | instructor | student`), a permission matrix, and a course-assignment link for instructor scope — with Better Auth's organization plugin configured to use those four roles as its system-of-record roles.
@@ -41,7 +43,7 @@
   - `capability(role: Role, permission: Permission): Capability | false`
   - `canForCourse(role: Role, permission: Permission, ctx: { assignedCourseIds: readonly string[]; courseId: string }): boolean`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // apps/api/src/core/organizations/roles.test.ts
@@ -76,12 +78,12 @@ describe("roles", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm vitest run apps/api/src/core/organizations/roles.test.ts`
 Expected: FAIL — `Cannot find module './roles.js'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // apps/api/src/core/organizations/roles.ts
@@ -160,12 +162,12 @@ export function canForCourse(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run apps/api/src/core/organizations/roles.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/api/src/core/organizations/roles.ts apps/api/src/core/organizations/roles.test.ts
@@ -186,7 +188,7 @@ git commit -m "feat(organizations): add structured roles + permission matrix"
 - Consumes: `Role`, `parseRole` from `./roles.js` (Task 1).
 - Produces: `Membership.role` is now `Role` (was `string`). Public surface re-exports `Role`, `parseRole`, `capability`, `canForCourse`, `Permission`, `Capability`, `ROLES`. The repository narrows `role` via `parseRole` on membership reads so the build stays green.
 
-- [ ] **Step 1: Update the membership model to use `Role`**
+- [x] **Step 1: Update the membership model to use `Role`**
 
 In `apps/api/src/core/organizations/model.ts`, add the import at the top and change the `Membership.role` field type:
 
@@ -204,7 +206,7 @@ to:
 ```
 (within the `Membership` interface only — leave `Invitation.role` as `string`).
 
-- [ ] **Step 2: Re-export the role surface from the context index**
+- [x] **Step 2: Re-export the role surface from the context index**
 
 In `apps/api/src/core/organizations/index.ts`, add:
 
@@ -213,7 +215,7 @@ export { ROLES, isRole, parseRole, capability, canForCourse } from "./roles.js";
 export type { Role, Permission, Capability } from "./roles.js";
 ```
 
-- [ ] **Step 3: Narrow `role` to `Role` in the repository (keeps the build green)**
+- [x] **Step 3: Narrow `role` to `Role` in the repository (keeps the build green)**
 
 In `apps/api/src/adapters/db/repositories/organizations.ts`, add the import:
 
@@ -230,7 +232,7 @@ In `insertMembership`, the DB returns `role` as `text` (`string`) but `Membershi
     return { ...existing, role: parseRole(existing.role) };
 ```
 
-- [ ] **Step 4: Add a test asserting the mirrored role is a typed Role**
+- [x] **Step 4: Add a test asserting the mirrored role is a typed Role**
 
 Append to `apps/api/src/core/organizations/service.test.ts` (inside the existing `describe("OrganizationService", ...)` block):
 
@@ -249,7 +251,7 @@ Append to `apps/api/src/core/organizations/service.test.ts` (inside the existing
   });
 ```
 
-- [ ] **Step 5: Run typecheck and the org tests**
+- [x] **Step 5: Run typecheck and the org tests**
 
 Run: `pnpm typecheck`
 Expected: Done (no errors). The `fakeRepo` in `service.test.ts` builds `Membership` objects with `role: input.role` — `input.role` is `string`; change the fake's membership build to `role: input.role as Role` and add `import type { Role } from "./roles.js";` at the top of the test if typecheck complains.
@@ -257,7 +259,7 @@ Expected: Done (no errors). The `fakeRepo` in `service.test.ts` builds `Membersh
 Run: `pnpm vitest run apps/api/src/core/organizations/service.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/core/organizations apps/api/src/adapters/db/repositories/organizations.ts
@@ -284,7 +286,7 @@ git commit -m "feat(organizations): type membership role as domain Role"
   - On `OrganizationService`: `assignCourse(input: AssignCourseInput): Promise<CourseAssignment>`, `unassignCourse(input: AssignCourseInput): Promise<void>`, `assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>`
   - On `OrganizationsRepository`: `insertCourseAssignment(orgId, input): Promise<CourseAssignment>`, `deleteCourseAssignment(orgId, membershipId, courseId): Promise<void>`, `findAssignedCourseIds(orgId, membershipId): Promise<string[]>`
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Append to `apps/api/src/core/organizations/service.test.ts` inside the describe block:
 
@@ -309,7 +311,7 @@ Append to `apps/api/src/core/organizations/service.test.ts` inside the describe 
   });
 ```
 
-- [ ] **Step 2: Extend the fake repo in the test to support assignments**
+- [x] **Step 2: Extend the fake repo in the test to support assignments**
 
 In `apps/api/src/core/organizations/service.test.ts`, inside `fakeRepo()`, add an `assignments` array and three methods to the `repo` object:
 
@@ -334,12 +336,12 @@ and within the `repo` object literal:
     },
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `pnpm vitest run apps/api/src/core/organizations/service.test.ts`
 Expected: FAIL — `svc.assignCourse is not a function` (and type errors on the new repo methods).
 
-- [ ] **Step 4: Add the model and input types**
+- [x] **Step 4: Add the model and input types**
 
 In `apps/api/src/core/organizations/model.ts`, append:
 
@@ -363,7 +365,7 @@ export interface AssignCourseInput {
 }
 ```
 
-- [ ] **Step 5: Extend the ports**
+- [x] **Step 5: Extend the ports**
 
 In `apps/api/src/core/organizations/ports.ts`:
 
@@ -383,7 +385,7 @@ Add to `OrganizationsRepository`:
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
 ```
 
-- [ ] **Step 6: Implement the service methods**
+- [x] **Step 6: Implement the service methods**
 
 In `apps/api/src/core/organizations/service.ts`, add imports `CourseAssignment` (from `./model.js`) and `AssignCourseInput` (from `./types.js`), then add methods to `OrganizationServiceImpl`:
 
@@ -403,18 +405,18 @@ In `apps/api/src/core/organizations/service.ts`, add imports `CourseAssignment` 
   }
 ```
 
-- [ ] **Step 7: Re-export from index**
+- [x] **Step 7: Re-export from index**
 
 In `apps/api/src/core/organizations/index.ts`, add `CourseAssignment` to the `model.js` type export and `AssignCourseInput` to the `types.js` type export.
 
-- [ ] **Step 8: Run tests + typecheck**
+- [x] **Step 8: Run tests + typecheck**
 
 Run: `pnpm vitest run apps/api/src/core/organizations/service.test.ts`
 Expected: PASS.
 Run: `pnpm typecheck`
 Expected: Done.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/api/src/core/organizations
@@ -432,7 +434,7 @@ git commit -m "feat(organizations): add course-assignment use cases for instruct
 - Consumes: `organizations`, `memberships` tables (existing); `courses` table from `./courses.js`.
 - Produces: `courseAssignments` Drizzle table with composite `(org_id, id)` PK, FKs to memberships and courses.
 
-- [ ] **Step 1: Add the table**
+- [x] **Step 1: Add the table**
 
 In `apps/api/src/adapters/db/schema/organizations.ts`, add `foreignKey` and `unique` to the `drizzle-orm/pg-core` import, import the courses table, and append the table:
 
@@ -470,12 +472,12 @@ export const courseAssignments = pgTable(
 
 The unique constraint on `(org_id, membership_id, course_id)` is what makes the repository's `onConflictDoNothing()` idempotent (Task 5).
 
-- [ ] **Step 2: Verify typecheck**
+- [x] **Step 2: Verify typecheck**
 
 Run: `pnpm typecheck`
 Expected: Done. (The schema barrel `schema/index.ts` already re-exports `./organizations.js` via `export *`, so `courseAssignments` is exported automatically.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/api/src/adapters/db/schema/organizations.ts
@@ -493,7 +495,7 @@ git commit -m "feat(db): add course_assignments table"
 - Consumes: `courseAssignments` table (Task 4); `CourseAssignment`, `AssignCourseInput` from core organizations. (`parseRole` import + membership role-narrowing were added in Task 2.)
 - Produces: `DrizzleOrganizationsRepository` implements the three assignment methods.
 
-- [ ] **Step 1: Add imports**
+- [x] **Step 1: Add imports**
 
 In `apps/api/src/adapters/db/repositories/organizations.ts`, add `and` to the `drizzle-orm` import, add `courseAssignments` to the schema import, and import the assignment types (the `parseRole` import already exists from Task 2):
 
@@ -504,7 +506,7 @@ import type { CourseAssignment } from "../../../core/organizations/model.js";
 import type { AssignCourseInput } from "../../../core/organizations/types.js";
 ```
 
-- [ ] **Step 2: Implement the assignment methods**
+- [x] **Step 2: Implement the assignment methods**
 
 Append to `DrizzleOrganizationsRepository`:
 
@@ -552,14 +554,14 @@ Append to `DrizzleOrganizationsRepository`:
   }
 ```
 
-- [ ] **Step 3: Verify typecheck + lint**
+- [x] **Step 3: Verify typecheck + lint**
 
 Run: `pnpm typecheck`
 Expected: Done.
 Run: `pnpm lint`
 Expected: exit 0 (adapter importing `core/organizations` public index is allowed).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/api/src/adapters/db/repositories/organizations.ts
@@ -579,7 +581,7 @@ git commit -m "feat(db): implement course-assignment repository methods"
 - Consumes: Better Auth `createAccessControl`, the org plugin's `defaultStatements`/`ownerAc`/`adminAc`.
 - Produces: `ac` (AccessControl) and `roles` (`{ owner, admin, instructor, student }`) for the organization plugin; `creatorRole: "owner"`.
 
-- [ ] **Step 1: Write the access-control config**
+- [x] **Step 1: Write the access-control config**
 
 ```ts
 // apps/api/src/adapters/auth/access.ts
@@ -619,7 +621,7 @@ export const roles = {
 export { ac };
 ```
 
-- [ ] **Step 2: Write a smoke test**
+- [x] **Step 2: Write a smoke test**
 
 ```ts
 // apps/api/src/adapters/auth/access.test.ts
@@ -633,12 +635,12 @@ describe("auth access control", () => {
 });
 ```
 
-- [ ] **Step 3: Run the smoke test**
+- [x] **Step 3: Run the smoke test**
 
 Run: `pnpm vitest run apps/api/src/adapters/auth/access.test.ts`
 Expected: PASS.
 
-- [ ] **Step 4: Wire the roles into the organization plugin**
+- [x] **Step 4: Wire the roles into the organization plugin**
 
 In `apps/api/src/adapters/auth/index.ts`:
 
@@ -654,7 +656,7 @@ In the `organization({ ... })` plugin call, add these options alongside `organiz
         creatorRole: "owner",
 ```
 
-- [ ] **Step 5: Verify typecheck, lint, full test run**
+- [x] **Step 5: Verify typecheck, lint, full test run**
 
 Run: `pnpm typecheck`
 Expected: Done.
@@ -663,7 +665,7 @@ Expected: exit 0.
 Run: `pnpm test`
 Expected: all suites pass (identity, organizations, roles, access; web App test skipped/passes).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/api/src/adapters/auth

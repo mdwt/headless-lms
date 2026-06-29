@@ -1,5 +1,7 @@
 # MCP Readiness — Spec
 
+> **Status (2026-06-29): Slice A done; B–D outstanding.** The OAuth/OIDC *provider* is implemented — better-auth `mcp`+`oidc` plugins, the three OAuth tables (`oauth_application`/`oauth_access_token`/`oauth_consent` in adapters/auth/schema.ts), and the `/.well-known/oauth-authorization-server` + `/.well-known/oauth-protected-resource` discovery endpoints in http/server.ts. NOT built: the MCP server route and tools (`list_courses`, `get_course`, `get_student_progress`, `list_enrollments`, `enroll_student`), the principal/authorization resolver, and the connected-apps management UI — `@modelcontextprotocol/sdk` is not yet a dependency.
+
 Expose the LMS over MCP so AI/agent clients act **on a user's behalf**, authenticated via OAuth 2.1 (Better Auth `oidcProvider` + `mcp`), authorized by **org + role + scopes**, multi-tenant. MCP is just another **inbound entry point** — its tools are thin wrappers over context services, owning no business logic.
 
 ## Better Auth setup

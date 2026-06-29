@@ -1,5 +1,7 @@
 # Organizations — Domain Spec
 
+> **Build state:** org mirroring, the role/permission matrix, and course assignments are implemented and persisted. Member-management *operations* (invite / change-role / remove, "owner role is immutable") live in the **`team`** context (in-memory).
+
 Owns org/tenancy, membership, team roles, and course assignments. The tenant root every other context scopes to. Source of truth is Better Auth's organization plugin, mirrored into core.
 
 ## Scope

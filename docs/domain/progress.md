@@ -1,5 +1,7 @@
 # Progress — Domain Spec
 
+> **Build state:** not yet implemented — `core/progress` is a stub (id + org_id schema only).
+
 A peer context owning per-student completion of curriculum items. Owns the **completion fact**, not outcomes and not access.
 
 ## Scope

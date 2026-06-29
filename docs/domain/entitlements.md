@@ -1,5 +1,7 @@
 # Entitlements — Domain Spec
 
+> **Build state:** `core/entitlements` is currently an empty stub. The access-granting behavior described here (enroll, status) is implemented in the **`enrollments`** context (in-memory).
+
 Owns access truth: who can access what, and whether it's valid. Distinct from payment and from completion.
 
 > **Current scope: enrollment by grant only.** Billing is deferred, so grants are created directly (comp / manual / free) — `enroll()` grants access to a course with no order or payment. The offers/billing boundaries below describe the eventual paid flow and are not built now. Until offers exists, a grant references the **course** directly rather than an offer/product.

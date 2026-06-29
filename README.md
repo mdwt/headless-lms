@@ -8,25 +8,27 @@ Monorepo scaffold for a headless LMS. Hexagonal architecture, framework-free dom
 - **Package manager:** pnpm workspaces
 - **HTTP:** Fastify · **ORM:** Drizzle + Postgres
 - **API contract:** Zod schemas → request/response validation (`fastify-type-provider-zod`) → OpenAPI (`@fastify/swagger`) → generated SDK (`@hey-api/openapi-ts`)
-- **Frontends:** Next.js (`apps/admin`, `apps/student`) · TanStack Query
+- **Frontends:** Next.js (`apps/admin`, `apps/student`) · TanStack Query · plus `apps/web` (older Vite student UI)
 - **Tests:** Vitest
-- **Build:** `tsc`
+- **Build:** `tsup` (api) via `pnpm -r build`
 
 ## Layout
 
 ```
 apps/
-  api/   backend service
+  api/   backend service (Fastify)
     src/
       core/         framework-free domain, one folder per bounded context
-      adapters/     outbound infra (db, payment, email, video, storage, events)
+      adapters/     outbound infra (db, auth, email, events, inmemory, payment, storage, video)
                     db/schema/        centralized Drizzle tables (one file per context)
                     db/repositories/  Drizzle repository implementations
+                    inmemory/         in-memory repos for contexts without Drizzle tables yet
       composition/  container.ts — wires adapters + services
       http/ cli/ workers/ cron/   inbound entry points
     scripts/      gen-openapi.ts — emits the OpenAPI spec from the live routes
   admin/    Next.js back-office dashboard
-  student/  Next.js student UI
+  student/  Next.js student course UI (recently added)
+  web/      older Vite student UI — overlaps the newer `student` (Next) app
 packages/
   api-contract/   Zod schemas — single source of truth for the HTTP API
   sdk/            @headless-lms/sdk — generated, resource-based client (off the spec)
@@ -35,7 +37,13 @@ packages/
 
 ### Bounded contexts
 
-`organizations` · `courses` · `entitlements` · `offers` · `billing` · `progress` · `identity`
+14 contexts (+ `shared` for cross-cutting ports), at varying build states:
+
+- **Built, Postgres-persisted:** `organizations`, `identity`, `assets` (uploads via MinIO presigned URLs)
+- **Built, in-memory:** `team` (member invite / role / remove), `enrollments` (grant / list / setStatus), `modules` (Module + ModuleItem)
+- **Partial:** `courses` (metadata service in-memory, schema stub)
+- **Read-models (in-memory):** `students` (over `identity`), `dashboard`
+- **Stub / deferred:** `entitlements` (real behavior lives in `enrollments`), `progress`, `offers` (deferred), `billing` (deferred)
 
 Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`,
 `events.ts`, `ports.ts`, `index.ts`, `service.test.ts`. Persistence lives outside
@@ -87,15 +95,16 @@ See `packages/api-contract/README.md` and `packages/sdk/README.md` for details.
 
 | Script | Action |
 | --- | --- |
-| `pnpm dev` | run api (`tsx watch`) + web (`vite`) |
-| `pnpm build` | build all packages |
+| `pnpm dev` | `pnpm --parallel --filter "./apps/*" dev` — runs all four apps (api, admin, student, web) |
+| `pnpm build` | `pnpm -r build` (api builds with `tsup`) |
 | `pnpm test` | `vitest run` across workspaces |
 | `pnpm test:watch` | watch mode |
 | `pnpm lint` | eslint incl. boundary rules |
-| `pnpm typecheck` | `tsc -b` |
-| `pnpm db:generate` | drizzle-kit generate |
-| `pnpm db:migrate` | drizzle-kit migrate |
+| `pnpm typecheck` | `pnpm -r typecheck` |
+| `pnpm db:generate` | tsx wrapper around `drizzle-kit generate` (reads root `.env`) |
+| `pnpm db:migrate` | tsx wrapper around `drizzle-kit migrate` (reads root `.env`) |
 | `pnpm gen:sdk` | regenerate the OpenAPI spec + typed SDK from the API routes |
+| `pnpm seed:admin` | seed the admin account + org (`apps/api`, from `SEED_*` env) |
 
 ## Getting started
 
@@ -105,3 +114,18 @@ cp .env.example .env
 pnpm typecheck
 pnpm test
 ```
+
+## Local development
+
+```bash
+docker compose up -d        # Postgres + MinIO (see docker-compose.yml)
+cp .env.example .env        # root .env — set BETTER_AUTH_SECRET (openssl rand -base64 32)
+pnpm db:generate            # generate Drizzle migrations
+pnpm db:migrate             # apply them
+pnpm seed:admin             # optional: seed the admin account + org
+pnpm dev                    # run all four apps
+```
+
+The database must be up before `pnpm dev` and `pnpm gen:sdk` — `gen:openapi` boots
+the real app and reads the root `.env`. DB scripts run drizzle-kit via
+`tsx --env-file=../../.env`, so they read the same root `.env`.

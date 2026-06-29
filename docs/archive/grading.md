@@ -1,3 +1,5 @@
+> **Archived 2026-06-29.** Describes a removed/never-built feature (assessment & grading were cut from scope). Kept for history; not implemented in the codebase.
+
 # Grading — separation, removal, and deferred re-introduction
 
 ## TL;DR

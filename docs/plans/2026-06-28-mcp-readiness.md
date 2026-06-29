@@ -1,5 +1,7 @@
 # MCP Readiness Implementation Plan
 
+> **Status (2026-06-29): Slice A done; B–D outstanding.** The OAuth/OIDC *provider* is implemented — better-auth `mcp`+`oidc` plugins, the three OAuth tables (`oauth_application`/`oauth_access_token`/`oauth_consent` in adapters/auth/schema.ts), and the `/.well-known/oauth-authorization-server` + `/.well-known/oauth-protected-resource` discovery endpoints in http/server.ts. NOT built: the MCP server route and tools (`list_courses`, `get_course`, `get_student_progress`, `list_enrollments`, `enroll_student`), the principal/authorization resolver, and the connected-apps management UI — `@modelcontextprotocol/sdk` is not yet a dependency.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development to execute task-by-task. Spec: `docs/specs/mcp-readiness.md`.
 
 **Goal:** Make the LMS an OAuth 2.1 / MCP provider via Better Auth so AI clients act on a signed-in user's behalf, authorized by org + role + scopes (per-user tokens, open DCR, reads + 2 guarded writes).
@@ -23,11 +25,11 @@
 
 **Files:** Modify `apps/api/src/adapters/auth/schema.ts`, `apps/api/src/adapters/auth/index.ts`, `apps/api/src/composition/config.ts` (or wherever `CreateAuthOptions` is fed).
 
-- [ ] **Add the 3 OAuth tables** to `adapters/auth/schema.ts` (fields from better-auth oidc-provider schema; text columns, snake_case):
+- [x] **Add the 3 OAuth tables** to `adapters/auth/schema.ts` (fields from better-auth oidc-provider schema; text columns, snake_case):
   - `oauth_application`: `id` text pk, `name` text notNull, `icon` text, `metadata` text, `client_id` text notNull unique, `client_secret` text, `redirect_urls` text notNull, `type` text notNull, `disabled` boolean default false, `user_id` text → `user.id` (cascade), `created_at`/`updated_at` timestamps notNull.
   - `oauth_access_token`: `id` text pk, `access_token` text notNull unique, `refresh_token` text notNull unique, `access_token_expires_at`/`refresh_token_expires_at` timestamps notNull, `client_id` text → `oauth_application.client_id`... (reference by client_id; use a plain text column + index, FK optional), `user_id` text → `user.id` (cascade), `scopes` text notNull, `created_at`/`updated_at` timestamps notNull.
   - `oauth_consent`: `id` text pk, `client_id` text notNull, `user_id` text → `user.id` (cascade), `scopes` text notNull, `consent_given` boolean notNull, `created_at`/`updated_at` timestamps notNull.
-- [ ] **Add `mcp` to the plugins array** in `createAuth`:
+- [x] **Add `mcp` to the plugins array** in `createAuth`:
   ```ts
   import { magicLink, organization, mcp } from "better-auth/plugins";
   // ...
@@ -48,17 +50,17 @@
     },
   }),
   ```
-- [ ] Add `mcpLoginPage: string` to `CreateAuthOptions` and `Config`; feed it from env (`MCP_LOGIN_PAGE`, default the admin `/login`). Add the var to `.env.example`.
-- [ ] `pnpm db:generate && pnpm db:migrate` to create the tables.
-- [ ] Verify `pnpm typecheck` + `pnpm build`. Boot the app; confirm no plugin init error.
+- [x] Add `mcpLoginPage: string` to `CreateAuthOptions` and `Config`; feed it from env (`MCP_LOGIN_PAGE`, default the admin `/login`). Add the var to `.env.example`.
+- [x] `pnpm db:generate && pnpm db:migrate` to create the tables.
+- [x] Verify `pnpm typecheck` + `pnpm build`. Boot the app; confirm no plugin init error.
 
 ### Task A2: Discovery endpoints at root
 
 **Files:** Modify `apps/api/src/http/server.ts`.
 
-- [ ] Import `oAuthDiscoveryMetadata`, `oAuthProtectedResourceMetadata` from `better-auth/plugins/mcp`.
-- [ ] Register two root routes — `GET /.well-known/oauth-authorization-server` and `GET /.well-known/oauth-protected-resource` — each bridging the Fastify request to the helper's `(request: Request) => Promise<Response>` exactly like the existing `/api/auth/*` bridge (build a Web `Request`, call the handler, copy status/headers/body back).
-- [ ] Verify: boot the app, `curl localhost:3000/.well-known/oauth-authorization-server` returns JSON metadata listing the `/api/auth/mcp/*` authorize/token/register endpoints.
+- [x] Import `oAuthDiscoveryMetadata`, `oAuthProtectedResourceMetadata` from `better-auth/plugins/mcp`.
+- [x] Register two root routes — `GET /.well-known/oauth-authorization-server` and `GET /.well-known/oauth-protected-resource` — each bridging the Fastify request to the helper's `(request: Request) => Promise<Response>` exactly like the existing `/api/auth/*` bridge (build a Web `Request`, call the handler, copy status/headers/body back).
+- [x] Verify: boot the app, `curl localhost:3000/.well-known/oauth-authorization-server` returns JSON metadata listing the `/api/auth/mcp/*` authorize/token/register endpoints.
 
 ---
 
