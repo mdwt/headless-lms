@@ -368,7 +368,7 @@ export function useRevokeConnectedApp() {
       qc.invalidateQueries({ queryKey: qk.connectedApps.all });
       toast.success("App disconnected");
     },
-    onError: (e) => toast.error("Couldn't revoke access", { description: (e as Error).message }),
+    onError: (e) => toast.error("Couldn't revoke access", { description: e.message }),
   });
 }
 
