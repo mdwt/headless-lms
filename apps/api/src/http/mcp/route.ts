@@ -60,22 +60,27 @@ export async function mcpRoutes(app: FastifyInstance, container: Container): Pro
     method: ["GET", "POST", "DELETE"],
     url: "/mcp",
     handler: async (request: FastifyRequest, reply: FastifyReply) => {
-      const url = new URL(request.url, `http://${request.headers.host}`);
-      const webRequest = new Request(url.toString(), {
-        method: request.method,
-        headers: fromNodeHeaders(request.headers),
-        body:
-          request.method !== "GET" && request.method !== "DELETE"
-            ? request.body
-              ? typeof request.body === "string"
-                ? request.body
-                : JSON.stringify(request.body)
-              : undefined
-            : undefined,
-      });
+      try {
+        const url = new URL(request.url, `http://${request.headers.host}`);
+        const webRequest = new Request(url.toString(), {
+          method: request.method,
+          headers: fromNodeHeaders(request.headers),
+          body:
+            request.method !== "GET" && request.method !== "DELETE"
+              ? request.body
+                ? typeof request.body === "string"
+                  ? request.body
+                  : JSON.stringify(request.body)
+                : undefined
+              : undefined,
+        });
 
-      const response = await mcpHandler(webRequest);
-      await bridgeMcpResponse(response, reply);
+        const response = await mcpHandler(webRequest);
+        await bridgeMcpResponse(response, reply);
+      } catch (err) {
+        console.error("[mcp] unexpected error:", err);
+        await reply.status(500).send({ error: "internal_error" });
+      }
     },
   });
 }

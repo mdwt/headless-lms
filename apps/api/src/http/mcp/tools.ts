@@ -5,6 +5,7 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Container } from "../../composition/container.js";
 import { authorize, type McpPrincipal } from "./authz.js";
+import { capability } from "../../core/organizations/index.js";
 
 /** Wraps an authorization failure as an MCP error content response. */
 function forbidden(): { content: [{ type: "text"; text: string }]; isError: true } {
@@ -22,6 +23,14 @@ function notFound(kind: string, id: string): { content: [{ type: "text"; text: s
   };
 }
 
+/** Returns a generic opaque error — do NOT include thrown message. */
+function internalError(): { content: [{ type: "text"; text: string }]; isError: true } {
+  return {
+    content: [{ type: "text" as const, text: "internal error" }],
+    isError: true,
+  };
+}
+
 /** Serializes a value to a JSON text content block. */
 function json(value: unknown): { content: [{ type: "text"; text: string }] } {
   return {
@@ -35,8 +44,8 @@ export function registerTools(
   principal: McpPrincipal,
 ): void {
   // ── list_courses ──────────────────────────────────────────────────────────
-  // Lists courses visible to the org. Requires courses:read scope and at least
-  // the view_student_progress capability (owner / admin / instructor).
+  // Lists courses visible to the org. Any org member with courses:read scope
+  // may read the course catalog (scope-only gate — no role restriction).
   server.registerTool(
     "list_courses",
     {
@@ -50,21 +59,24 @@ export function registerTools(
       }),
     },
     async (args) => {
-      if (!authorize(principal, "courses:read", "view_student_progress")) {
-        return forbidden();
+      if (!principal.scopes.includes("courses:read")) return forbidden();
+      try {
+        const page = await container.courses.list({
+          page: args.page,
+          pageSize: args.pageSize,
+          search: args.search,
+          status: args.status,
+        });
+        return json(page);
+      } catch {
+        return internalError();
       }
-      const page = await container.courses.list({
-        page: args.page,
-        pageSize: args.pageSize,
-        search: args.search,
-        status: args.status,
-      });
-      return json(page);
     },
   );
 
   // ── get_course ────────────────────────────────────────────────────────────
-  // Gets a single course by ID. Same authorization as list_courses.
+  // Gets a single course by ID. Any org member with courses:read scope may
+  // read the course catalog (scope-only gate — no role restriction).
   server.registerTool(
     "get_course",
     {
@@ -75,18 +87,20 @@ export function registerTools(
       }),
     },
     async (args) => {
-      if (!authorize(principal, "courses:read", "view_student_progress")) {
-        return forbidden();
+      if (!principal.scopes.includes("courses:read")) return forbidden();
+      try {
+        const course = await container.courses.get(args.id);
+        if (!course) return notFound("course", args.id);
+        return json(course);
+      } catch {
+        return internalError();
       }
-      const course = await container.courses.get(args.id);
-      if (!course) return notFound("course", args.id);
-      return json(course);
     },
   );
 
   // ── list_enrollments ──────────────────────────────────────────────────────
   // Lists enrollments. Requires enrollments:read scope.
-  // Owner/admin/instructor (view_student_progress) can see any student.
+  // Owner/admin/instructor (view_student_progress !== false) can see any student.
   // A student (consume_content) is restricted to their own enrollments by
   // defaulting studentId to principal.studentId when not provided.
   server.registerTool(
@@ -102,8 +116,10 @@ export function registerTools(
       }),
     },
     async (args) => {
-      // Admin / owner / instructor can view any student's enrollments.
-      const canViewAll = authorize(principal, "enrollments:read", "view_student_progress");
+      // Owner/admin (cap === true) and instructor (cap === "assigned") may
+      // view all enrollments; false means the role has no grant at all.
+      const cap = capability(principal.role, "view_student_progress");
+      const canViewAll = principal.scopes.includes("enrollments:read") && cap !== false;
       // Students can list their own enrollments when they have the read scope —
       // consume_content is enrollment-scoped ("enrolled"), so we check scope +
       // role directly rather than going through authorize().
@@ -120,13 +136,17 @@ export function registerTools(
       // Students are scoped to their own enrollments.
       const resolvedStudentId = canViewAll ? args.studentId : principal.studentId;
 
-      const page = await container.enrollments.list({
-        page: args.page,
-        pageSize: args.pageSize,
-        studentId: resolvedStudentId,
-        courseId: args.courseId,
-      });
-      return json(page);
+      try {
+        const page = await container.enrollments.list({
+          page: args.page,
+          pageSize: args.pageSize,
+          studentId: resolvedStudentId,
+          courseId: args.courseId,
+        });
+        return json(page);
+      } catch {
+        return internalError();
+      }
     },
   );
 
@@ -148,12 +168,46 @@ export function registerTools(
       if (!authorize(principal, "enrollments:write", "manage_users")) {
         return forbidden();
       }
-      const enrollment = await container.enrollments.grant({
-        studentId: args.studentId,
-        courseId: args.courseId,
-        expiresAt: args.expiresAt ?? null,
-      });
-      return json(enrollment);
+      try {
+        const enrollment = await container.enrollments.grant({
+          studentId: args.studentId,
+          courseId: args.courseId,
+          expiresAt: args.expiresAt ?? null,
+        });
+        return json(enrollment);
+      } catch {
+        return internalError();
+      }
+    },
+  );
+
+  // ── get_student_progress ──────────────────────────────────────────────────
+  // Returns overall progress summary for a student.
+  // Requires progress:read scope and view_student_progress capability (owner/admin).
+  server.registerTool(
+    "get_student_progress",
+    {
+      title: "Get Student Progress",
+      description: "Get overall progress summary for a student",
+      inputSchema: z.object({
+        studentId: z.string(),
+      }),
+    },
+    async (args) => {
+      if (!authorize(principal, "progress:read", "view_student_progress")) {
+        return forbidden();
+      }
+      try {
+        const student = await container.students.get(args.studentId);
+        if (!student) return notFound("student", args.studentId);
+        return json({
+          studentId: args.studentId,
+          avgProgress: student.avgProgress,
+          enrollmentCount: student.enrollmentCount,
+        });
+      } catch {
+        return internalError();
+      }
     },
   );
 }
