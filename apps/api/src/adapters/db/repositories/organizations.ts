@@ -136,4 +136,13 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(and(eq(courseAssignments.orgId, orgId), eq(courseAssignments.membershipId, membershipId)));
     return rows.map((r) => r.courseId);
   }
+
+  async findMembershipByStudent(studentId: string): Promise<Membership | null> {
+    const [row] = await this.db
+      .select()
+      .from(memberships)
+      .where(eq(memberships.studentId, studentId))
+      .limit(1);
+    return row ? { ...row, role: parseRole(row.role) } : null;
+  }
 }

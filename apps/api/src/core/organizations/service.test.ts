@@ -71,6 +71,9 @@ function fakeRepo() {
     async findAssignedCourseIds(orgId, membershipId) {
       return assignments.filter((x) => x.orgId === orgId && x.membershipId === membershipId).map((x) => x.courseId);
     },
+    async findMembershipByStudent(studentId: string) {
+      return members.find((m) => m.studentId === studentId) ?? null;
+    },
   };
   return { repo, orgs, members, invitations };
 }
@@ -165,5 +168,24 @@ describe("OrganizationService", () => {
     await svc.provisionOrganization(orgInput);
     const m = await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_y", studentId: "s4", role: "admin,instructor" });
     expect(m.role).toBe("admin");
+  });
+
+  it("getMembershipByStudent returns the membership for a known student", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    const org = await svc.provisionOrganization(orgInput);
+    await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_1", studentId: "s2", role: "instructor" });
+    const m = await svc.getMembershipByStudent("s2");
+    expect(m).not.toBeNull();
+    expect(m!.orgId).toBe(org.id);
+    expect(m!.role).toBe("instructor");
+  });
+
+  it("getMembershipByStudent returns null for an unknown student", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo);
+    await svc.provisionOrganization(orgInput);
+    const m = await svc.getMembershipByStudent("no-such-student");
+    expect(m).toBeNull();
   });
 });
