@@ -9,6 +9,7 @@
  */
 import {
   Assets,
+  ConnectedApps,
   Courses,
   Dashboard,
   Enrollments,
@@ -22,6 +23,7 @@ import { ApiError } from "./http";
 import type {
   Asset,
   AssetKind,
+  ConnectedApp,
   Course,
   DownloadTicket,
   Enrollment,
@@ -293,6 +295,16 @@ export const api = {
     await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file, onProgress);
 
     return unwrap(await Assets.confirmAsset({ path: { id: ticket.asset.id } }));
+  },
+
+  // connected apps (OAuth tokens the current user has issued)
+  async listConnectedApps(): Promise<ConnectedApp[]> {
+    ensureConfigured();
+    return unwrap(await ConnectedApps.listConnectedApps());
+  },
+  async revokeConnectedApp(id: string): Promise<void> {
+    ensureConfigured();
+    expectOk(await ConnectedApps.revokeConnectedApp({ path: { id } }));
   },
 
   // option sources for selects (derived from the list endpoints)

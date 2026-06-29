@@ -19,6 +19,7 @@ import { teamRoutes } from "./routes/team.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { assetsRoutes } from "./routes/assets.js";
 import { mcpRoutes } from "./mcp/route.js";
+import { connectedAppsRoutes } from "./routes/connected-apps.js";
 
 function loadConfig() {
   // CLIENT_ORIGIN is a comma-separated list of browser app origins (web app +
@@ -184,6 +185,7 @@ export function buildServer() {
     await teamRoutes(instance, container);
     await dashboardRoutes(instance, container);
     await assetsRoutes(instance, container);
+    await connectedAppsRoutes(instance, container);
     await mcpRoutes(instance, container);
   });
 

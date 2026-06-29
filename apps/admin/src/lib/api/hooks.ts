@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { api } from "./sdk";
 import { qk } from "../query-keys";
 import type {
+  ConnectedApp,
   Course,
   Enrollment,
   ListParams,
@@ -350,4 +351,25 @@ export function useDeleteAsset() {
   });
 }
 
-export type { Enrollment };
+// --- connected apps --------------------------------------------------------
+
+export function useConnectedApps() {
+  return useQuery({
+    queryKey: qk.connectedApps.all,
+    queryFn: () => api.listConnectedApps(),
+  });
+}
+
+export function useRevokeConnectedApp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.revokeConnectedApp(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.connectedApps.all });
+      toast.success("App disconnected");
+    },
+    onError: (e) => toast.error("Couldn't revoke access", { description: (e as Error).message }),
+  });
+}
+
+export type { ConnectedApp, Enrollment };

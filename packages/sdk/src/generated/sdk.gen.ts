@@ -20,6 +20,8 @@ import type {
   DeleteCourseResponses,
   DeleteItemData,
   DeleteItemResponses,
+  DeleteMcpData,
+  DeleteMcpResponses,
   DeleteModuleData,
   DeleteModuleResponses,
   GetAssetData,
@@ -28,6 +30,8 @@ import type {
   GetCourseData,
   GetCourseErrors,
   GetCourseResponses,
+  GetMcpData,
+  GetMcpResponses,
   GetOverviewData,
   GetOverviewResponses,
   GetStudentData,
@@ -41,6 +45,9 @@ import type {
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListConnectedAppsData,
+  ListConnectedAppsErrors,
+  ListConnectedAppsResponses,
   ListCoursesData,
   ListCoursesResponses,
   ListEnrollmentsData,
@@ -51,6 +58,8 @@ import type {
   ListModulesResponses,
   ListStudentsData,
   ListStudentsResponses,
+  PostMcpData,
+  PostMcpResponses,
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
@@ -64,6 +73,9 @@ import type {
   RequestUploadData,
   RequestUploadErrors,
   RequestUploadResponses,
+  RevokeConnectedAppData,
+  RevokeConnectedAppErrors,
+  RevokeConnectedAppResponses,
   SetEnrollmentStatusData,
   SetEnrollmentStatusErrors,
   SetEnrollmentStatusResponses,
@@ -545,6 +557,63 @@ export class Assets {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class ConnectedApps {
+  /**
+   * List apps the current user has authorized
+   */
+  public static listConnectedApps<ThrowOnError extends boolean = false>(
+    options?: Options<ListConnectedAppsData, ThrowOnError>,
+  ): RequestResult<ListConnectedAppsResponses, ListConnectedAppsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListConnectedAppsResponses,
+      ListConnectedAppsErrors,
+      ThrowOnError
+    >({ url: "/api/connected-apps", ...options });
+  }
+
+  /**
+   * Revoke a connected app's access token
+   */
+  public static revokeConnectedApp<ThrowOnError extends boolean = false>(
+    options: Options<RevokeConnectedAppData, ThrowOnError>,
+  ): RequestResult<RevokeConnectedAppResponses, RevokeConnectedAppErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      RevokeConnectedAppResponses,
+      RevokeConnectedAppErrors,
+      ThrowOnError
+    >({ url: "/api/connected-apps/{id}", ...options });
+  }
+}
+
+export class Default {
+  public static deleteMcp<ThrowOnError extends boolean = false>(
+    options?: Options<DeleteMcpData, ThrowOnError>,
+  ): RequestResult<DeleteMcpResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).delete<DeleteMcpResponses, unknown, ThrowOnError>({
+      url: "/mcp",
+      ...options,
+    });
+  }
+
+  public static getMcp<ThrowOnError extends boolean = false>(
+    options?: Options<GetMcpData, ThrowOnError>,
+  ): RequestResult<GetMcpResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMcpResponses, unknown, ThrowOnError>({
+      url: "/mcp",
+      ...options,
+    });
+  }
+
+  public static postMcp<ThrowOnError extends boolean = false>(
+    options?: Options<PostMcpData, ThrowOnError>,
+  ): RequestResult<PostMcpResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<PostMcpResponses, unknown, ThrowOnError>({
+      url: "/mcp",
+      ...options,
     });
   }
 }
