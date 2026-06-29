@@ -9,6 +9,7 @@ import {
   jsonSchemaTransform,
 } from "fastify-type-provider-zod";
 import { fromNodeHeaders } from "better-auth/node";
+import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { buildContainer } from "../composition/container.js";
 import { coursesRoutes } from "./routes/courses.js";
 import { modulesRoutes } from "./routes/modules.js";
@@ -27,15 +28,20 @@ function loadConfig() {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+  const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  // Include the API's own origin so MCP OAuth flows originating from the same
+  // server (e.g. server-side token requests) are accepted by better-auth.
+  const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   return {
     port: Number(process.env.PORT ?? 3000),
-    publicUrl: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    publicUrl: apiOrigin,
     clientOrigins,
     container: {
       databaseUrl: process.env.DATABASE_URL ?? "",
-      authBaseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+      authBaseURL: apiOrigin,
       authSecret: process.env.BETTER_AUTH_SECRET ?? "",
-      trustedOrigins: clientOrigins,
+      trustedOrigins,
+      mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:3001/login",
       storage: {
         endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
         port: Number(process.env.STORAGE_PORT ?? 9000),
@@ -51,6 +57,24 @@ function loadConfig() {
   };
 }
 
+/** Bridges a Web API Response back to a Fastify reply. */
+async function bridgeWebResponse(response: Response, reply: FastifyReply) {
+  reply.status(response.status);
+  // Emit each Set-Cookie value individually — forEach() collapses multiple
+  // Set-Cookie headers into one comma-joined string (undici behaviour), which
+  // corrupts multi-cookie auth responses. getSetCookie() returns them as an
+  // array so each one is forwarded as a separate header.
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length > 0) {
+    reply.raw.setHeader("set-cookie", cookies);
+  }
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") return; // already handled above
+    reply.header(key, value);
+  });
+  reply.send(response.body ? await response.text() : null);
+}
+
 export function buildServer() {
   const config = loadConfig();
   const app = Fastify({ logger: true });
@@ -60,6 +84,16 @@ export function buildServer() {
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // OAuth 2.1 / MCP clients POST form-encoded bodies to the token endpoint.
+  // Fastify has no built-in parser for this content-type and would 415 before
+  // the handler runs. Register a raw passthrough so the string body reaches
+  // the bridge, which forwards it verbatim with the original Content-Type.
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_req, body, done) => done(null, body),
+  );
 
   // CORS must allow credentials so the SPA/admin can carry the session cookie.
   app.register(cors, {
@@ -91,13 +125,38 @@ export function buildServer() {
       const req = new Request(url.toString(), {
         method: request.method,
         headers: fromNodeHeaders(request.headers),
-        body: request.body ? JSON.stringify(request.body) : undefined,
+        body:
+          typeof request.body === "string"
+            ? request.body
+            : request.body
+              ? JSON.stringify(request.body)
+              : undefined,
       });
-      const response = await auth.handler(req);
-      reply.status(response.status);
-      response.headers.forEach((value, key) => reply.header(key, value));
-      reply.send(response.body ? await response.text() : null);
+      await bridgeWebResponse(await auth.handler(req), reply);
     },
+  });
+
+  // OAuth 2.0 discovery endpoints required by MCP clients (RFC 8414).
+  // These must live at the root — outside any /api prefix — so MCP clients
+  // can discover the authorization server via standard well-known paths.
+  const discoveryHandler = oAuthDiscoveryMetadata(auth);
+  app.get("/.well-known/oauth-authorization-server", async (request, reply) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const req = new Request(url.toString(), {
+      method: "GET",
+      headers: fromNodeHeaders(request.headers),
+    });
+    await bridgeWebResponse(await discoveryHandler(req), reply);
+  });
+
+  const protectedResourceHandler = oAuthProtectedResourceMetadata(auth);
+  app.get("/.well-known/oauth-protected-resource", async (request, reply) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const req = new Request(url.toString(), {
+      method: "GET",
+      headers: fromNodeHeaders(request.headers),
+    });
+    await bridgeWebResponse(await protectedResourceHandler(req), reply);
   });
 
   // preHandler that resolves the current session; 401 when absent.

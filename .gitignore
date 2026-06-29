@@ -59,6 +59,7 @@ Thumbs.db
 *~
 
 # AI agents & assistants
+.superpowers/
 .claude/
 CLAUDE.local.md
 .cursor/

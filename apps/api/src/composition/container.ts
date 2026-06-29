@@ -41,6 +41,8 @@ export interface Config {
   authBaseURL: string;
   authSecret: string;
   trustedOrigins: string[];
+  /** Login page URL shown to unauthenticated MCP OAuth clients. */
+  mcpLoginPage: string;
   storage: MinioStorageConfig;
 }
 
@@ -110,6 +112,7 @@ export function buildContainer(config: Config): Container {
     baseURL: config.authBaseURL,
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
+    mcpLoginPage: config.mcpLoginPage,
     email,
     identity,
     organizations,
