@@ -6,6 +6,7 @@ import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
 import { createOrgAdmin } from "../adapters/auth/org-admin.js";
+import { createConnectedAppsRepo, type ConnectedAppsRepo } from "../adapters/auth/connected-apps.js";
 
 import { CoursesServiceImpl } from "../core/courses/index.js";
 import { EntitlementsServiceImpl } from "../core/entitlements/index.js";
@@ -62,6 +63,7 @@ export interface Container {
   modules: ModulesServiceImpl;
   assets: AssetsServiceImpl;
   storage: MinioStorageAdapter;
+  connectedApps: ConnectedAppsRepo;
 }
 
 export function buildContainer(config: Config): Container {
@@ -99,6 +101,8 @@ export function buildContainer(config: Config): Container {
     () => new Date().toISOString(),
   );
 
+  const connectedApps = createConnectedAppsRepo(db);
+
   // Auth adapter — depends on core ports (email, identity, organizations);
   // composition only injects the implementations.
   const auth = createAuth({
@@ -132,5 +136,6 @@ export function buildContainer(config: Config): Container {
     modules,
     assets,
     storage,
+    connectedApps,
   };
 }

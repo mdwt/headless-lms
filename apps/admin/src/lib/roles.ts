@@ -53,6 +53,7 @@ export function visibleNav(role: Role): {
   students: boolean;
   enrollments: boolean;
   team: boolean;
+  connectedApps: boolean;
 } {
   const manager = isManager(role);
   return {
@@ -63,5 +64,7 @@ export function visibleNav(role: Role): {
     students: manager,
     enrollments: manager,
     team: manager,
+    // All dashboard users can see and revoke their own connected apps.
+    connectedApps: true,
   };
 }

@@ -28,6 +28,7 @@ export interface OrganizationService extends OrganizationProvisioner {
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
+  getMembershipByStudent(studentId: string): Promise<Membership | null>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -41,4 +42,5 @@ export interface OrganizationsRepository {
   insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
+  findMembershipByStudent(studentId: string): Promise<Membership | null>;
 }

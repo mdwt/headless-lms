@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Image,
   Library,
+  Plug,
   Ticket,
   Users,
   type LucideIcon,
@@ -24,6 +25,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
   { href: "/enrollments", label: "Enrollments", icon: Ticket, key: "enrollments" },
 { href: "/team", label: "Team", icon: Users, key: "team" },
+  { href: "/connected-apps", label: "Connected Apps", icon: Plug, key: "connectedApps" },
 ];
 
 /** Filter nav by what the role is allowed to see. */

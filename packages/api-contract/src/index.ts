@@ -9,3 +9,4 @@ export * from "./enrollments.js";
 export * from "./team.js";
 export * from "./dashboard.js";
 export * from "./assets.js";
+export * from "./connected-apps.js";

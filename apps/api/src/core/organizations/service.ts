@@ -55,6 +55,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findAssignedCourseIds(orgId, membershipId);
   }
 
+  async getMembershipByStudent(studentId: string): Promise<Membership | null> {
+    return this.repo.findMembershipByStudent(studentId);
+  }
+
   private async requireOrg(authOrgId: string): Promise<Organization> {
     const org = await this.repo.findByAuthOrgId(authOrgId);
     if (!org) throw new Error(`unknown organization for authOrgId ${authOrgId}`);

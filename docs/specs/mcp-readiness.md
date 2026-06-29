@@ -63,6 +63,10 @@ The MCP principal's **role** = the user's org membership role (`owner|admin|inst
 
 A token can never exceed the user's own role: **effective = scopes ∩ role-permissions**. `orgId` from the principal scopes every query → multi-tenant by construction.
 
+### Tenant isolation (platform invariant)
+
+Tenant isolation is enforced **at the data layer**, not per-tool: the auth token is scoped to an org, and every org-scoped table carries `org_id`. The MCP principal resolves `orgId`, and tool service calls operate within that tenant once the data layer is org-scoped. **Dependency (tracked):** the back-office contexts (`courses`, `enrollments`, `students`) are currently single global in-memory stores with no `org_id`; they must thread `org_id` through their queries/repos for the isolation guarantee to hold. Until then the MCP tools operate on the shared demo dataset. This is a known data-layer fix, not an MCP-layer change — MCP already carries the tenant on the principal.
+
 ## Capabilities — what makes a good MCP tool
 
 A good MCP capability is **task-shaped, read-first, low-blast-radius, and a thin wrapper over a context service** (not raw CRUD). Tools map to inbound use cases, so the same authz as HTTP applies.

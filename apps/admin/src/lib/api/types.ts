@@ -13,6 +13,7 @@ import type {
   GetOverviewResponse,
   GetStudentResponse,
   ListAssetsResponse,
+  ListConnectedAppsResponse,
   ListCoursesResponse,
   ListEnrollmentsResponse,
   ListMembersResponse,
@@ -46,6 +47,8 @@ export type Role = Member["role"];
 export type OverviewStats = GetOverviewResponse;
 
 // --- media library (assets) ------------------------------------------------
+
+export type ConnectedApp = ListConnectedAppsResponse[number];
 
 export type Asset = GetAssetResponse;
 export type AssetKind = Asset["kind"];
