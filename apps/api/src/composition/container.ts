@@ -15,7 +15,6 @@ import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl } from "../core/organizations/index.js";
 import { StudentsServiceImpl } from "../core/students/index.js";
 import { EnrollmentsServiceImpl } from "../core/enrollments/index.js";
-import { SubmissionsServiceImpl } from "../core/submissions/index.js";
 import { TeamServiceImpl } from "../core/team/index.js";
 import { DashboardServiceImpl } from "../core/dashboard/index.js";
 import { ModulesServiceImpl } from "../core/modules/index.js";
@@ -30,7 +29,6 @@ import { DrizzleOrganizationsRepository } from "../adapters/db/repositories/orga
 import { InMemoryCoursesRepository } from "../adapters/inmemory/courses.js";
 import { InMemoryStudentsRepository } from "../adapters/inmemory/students.js";
 import { InMemoryEnrollmentsRepository } from "../adapters/inmemory/enrollments.js";
-import { InMemorySubmissionsRepository } from "../adapters/inmemory/submissions.js";
 import { InMemoryTeamRepository } from "../adapters/inmemory/team.js";
 import { InMemoryDashboardRepository } from "../adapters/inmemory/dashboard.js";
 import { InMemoryModulesRepository } from "../adapters/inmemory/modules.js";
@@ -58,7 +56,6 @@ export interface Container {
   // Back-office read/write surfaces (in-memory until their schemas are built out).
   students: StudentsServiceImpl;
   enrollments: EnrollmentsServiceImpl;
-  submissions: SubmissionsServiceImpl;
   team: TeamServiceImpl;
   dashboard: DashboardServiceImpl;
   modules: ModulesServiceImpl;
@@ -94,7 +91,6 @@ export function buildContainer(config: Config): Container {
   const progress = new ProgressServiceImpl(progressRepo);
   const students = new StudentsServiceImpl(new InMemoryStudentsRepository());
   const enrollments = new EnrollmentsServiceImpl(new InMemoryEnrollmentsRepository());
-  const submissions = new SubmissionsServiceImpl(new InMemorySubmissionsRepository());
   const team = new TeamServiceImpl(new InMemoryTeamRepository());
   const dashboard = new DashboardServiceImpl(new InMemoryDashboardRepository());
   const modules = new ModulesServiceImpl(new InMemoryModulesRepository());
@@ -129,7 +125,6 @@ export function buildContainer(config: Config): Container {
     organizations,
     students,
     enrollments,
-    submissions,
     team,
     dashboard,
     modules,

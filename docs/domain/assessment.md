@@ -5,7 +5,7 @@ A peer context owning all assessment types. Owns **outcome**, not completion.
 ## Scope
 
 - One context, all assessment types (quiz, assignment, …). Types differ by grading mechanic (auto vs human); handled inside.
-- Owns the **outcome**: passed/failed, scored, graded/approved — computed per type's rules.
+- Owns the **outcome**: passed/failed, scored — computed per type's rules.
 - Does **not** own completion. That is progress's concern.
 
 ## Model
@@ -15,9 +15,6 @@ A peer context owning all assessment types. Owns **outcome**, not completion.
 - **Option** — choices + answer key (never exposed to student client).
 - **Attempt** — student's run: started, submitted, score, pass/fail.
 - **Response** — answer per question within an attempt.
-- **Assignment** — submission type, rubric, due date.
-- **Submission** — student work, status (submitted → graded → returned).
-- **Grade** — score, feedback, grader, graded_at.
 
 ## Boundaries
 
@@ -29,9 +26,9 @@ Each boundary names what each side owns and how they connect.
    - Connection: courses references assessment by id in a slot. Courses never reads questions; assessment never reads structure.
 
 2. **assessment → progress**
-   - *assessment* owns the **outcome** — did the student pass/fail, what score, graded or not. It computes this per the type's rules and **emits** it.
+   - *assessment* owns the **outcome** — did the student pass/fail, what score. It computes this per the type's rules and **emits** it.
    - *progress* owns the **completion fact** — that the student has completed this curriculum item. It consumes the assessment's outcome event and records completion (applying the item's rule, e.g. "passed" vs "attempted").
-   - Connection: an event (`quiz.passed`, `assignment.graded`). Assessment never writes to progress; progress never reads assessment internals. Outcome → completion is the boundary.
+   - Connection: an event (`quiz.passed`). Assessment never writes to progress; progress never reads assessment internals. Outcome → completion is the boundary.
 
 3. **progress → gating**
    - *progress* owns completion state and exposes "what has this student completed."
@@ -46,4 +43,3 @@ Each boundary names what each side owns and how they connect.
 ## Events
 
 - `quiz.passed`, `quiz.failed`
-- `assignment.submitted`, `assignment.graded`

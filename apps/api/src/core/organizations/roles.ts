@@ -20,7 +20,6 @@ export type Permission =
   | "manage_users"
   | "create_course"
   | "edit_assigned_course"
-  | "grade_assessments"
   | "view_student_progress"
   | "consume_content";
 
@@ -36,7 +35,6 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     manage_users: true,
     create_course: true,
     edit_assigned_course: true,
-    grade_assessments: true,
     view_student_progress: true,
   },
   admin: {
@@ -44,12 +42,10 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     manage_users: true,
     create_course: true,
     edit_assigned_course: true,
-    grade_assessments: true,
     view_student_progress: true,
   },
   instructor: {
     edit_assigned_course: "assigned",
-    grade_assessments: "assigned",
     view_student_progress: "assigned",
   },
   student: {

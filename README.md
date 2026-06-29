@@ -77,7 +77,7 @@ packages/api-contract   Zod schemas (single source of truth)
 
 - **Validation is automatic, both directions.** Routes attach the shared Zod schemas, so a bad request is rejected with `400` and a handler returning an off-contract payload fails instead of shipping drift. The same schemas produce the OpenAPI spec.
 - **The SDK is resource-based and fully typed** — `Courses.listCourses({ query })`, `Courses.getCourse({ path: { id } })`, etc. Point it at an origin once with `configureSdk({ baseUrl })`.
-- **Specced resources** (one SDK class each): `Courses`, `Modules`, `Students`, `Enrollments`, `Submissions`, `Team`, `Dashboard` — mirroring the admin dashboard surface. Back-office contexts are backed by in-memory repos until their Drizzle tables exist.
+- **Specced resources** (one SDK class each): `Courses`, `Modules`, `Students`, `Enrollments`, `Team`, `Dashboard` — mirroring the admin dashboard surface. Back-office contexts are backed by in-memory repos until their Drizzle tables exist.
 - **Regenerate after changing the contract or routes:** `pnpm gen:sdk`. The generated `packages/sdk/openapi.json` and `packages/sdk/src/generated/` are committed — a stale diff in review means someone forgot to regenerate. (`gen:openapi` boots the app, so the database must be running.)
 - **To add a resource:** add its schemas to `packages/api-contract`, add a route file in `apps/api/src/http/routes/` (Zod type provider + `tags: ["<Resource>"]`), register it in `server.ts`, then `pnpm gen:sdk`.
 

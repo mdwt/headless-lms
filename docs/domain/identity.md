@@ -30,9 +30,6 @@ Better Auth authenticates (credentials, sessions, OAuth) **and is the system of 
    - *organizations* owns org/membership/roles and references the student id.
    - *identity* owns the student record.
    - Connection: reference only.
-4. **identity ↔ assessment (grader)**
-   - The Instructor role (owned by organizations) is the human grader in assessment.
-   - Connection: assessment references the grader's student id; organizations authorizes who may grade.
 
 ## Events
 

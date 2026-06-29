@@ -33,9 +33,6 @@ import type {
   GetStudentData,
   GetStudentErrors,
   GetStudentResponses,
-  GradeSubmissionData,
-  GradeSubmissionErrors,
-  GradeSubmissionResponses,
   GrantEnrollmentData,
   GrantEnrollmentResponses,
   InviteMemberData,
@@ -54,8 +51,6 @@ import type {
   ListModulesResponses,
   ListStudentsData,
   ListStudentsResponses,
-  ListSubmissionsData,
-  ListSubmissionsResponses,
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
@@ -378,40 +373,6 @@ export class Enrollments {
       ThrowOnError
     >({
       url: "/api/enrollments/{id}",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-}
-
-export class Submissions {
-  /**
-   * List submissions in the grading queue
-   */
-  public static listSubmissions<ThrowOnError extends boolean = false>(
-    options?: Options<ListSubmissionsData, ThrowOnError>,
-  ): RequestResult<ListSubmissionsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListSubmissionsResponses, unknown, ThrowOnError>({
-      url: "/api/submissions",
-      ...options,
-    });
-  }
-
-  /**
-   * Grade a submission
-   */
-  public static gradeSubmission<ThrowOnError extends boolean = false>(
-    options: Options<GradeSubmissionData, ThrowOnError>,
-  ): RequestResult<GradeSubmissionResponses, GradeSubmissionErrors, ThrowOnError> {
-    return (options.client ?? client).patch<
-      GradeSubmissionResponses,
-      GradeSubmissionErrors,
-      ThrowOnError
-    >({
-      url: "/api/submissions/{id}",
       ...options,
       headers: {
         "Content-Type": "application/json",

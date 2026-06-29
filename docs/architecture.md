@@ -41,7 +41,7 @@ A context never defines a port into another context's internals — only its pub
 - **organizations** — org/tenancy, membership, team roles, course assignments. Source of truth is Better Auth's organization plugin, mirrored into core via database hooks.
 - **identity** — the domain user/student, mirrored from Better Auth (the user system of record). Auth + the domain user record only.
 - **courses** — content structure: Course → Module → Lesson, curriculum items.
-- **assessment** — quizzes/assignments, attempts, submissions, grading. Owns outcome; emits to progress.
+- **assessment** — quizzes/assignments, attempts. Owns outcome; emits to progress.
 - **entitlements** — access truth: who can access what, validity. Owns the enrollment record and the `enroll()` use case.
 - **progress** — per-student completion of curriculum items; derived progress.
 - **offers** — what's sold, pricing. **Deferred** — not implemented yet.

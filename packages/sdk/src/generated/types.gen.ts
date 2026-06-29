@@ -867,97 +867,6 @@ export type SetEnrollmentStatusResponses = {
 export type SetEnrollmentStatusResponse =
   SetEnrollmentStatusResponses[keyof SetEnrollmentStatusResponses];
 
-export type ListSubmissionsData = {
-  body?: never;
-  path?: never;
-  query?: {
-    page?: number;
-    pageSize?: number;
-    search?: string;
-    sort?: string;
-    status?: "pending" | "graded" | "returned";
-    courseTitle?: string;
-  };
-  url: "/api/submissions";
-};
-
-export type ListSubmissionsResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    rows: Array<{
-      id: string;
-      assessmentId: string;
-      assessmentTitle: string;
-      courseId: string;
-      courseTitle: string;
-      studentId: string;
-      studentName: string;
-      studentEmail: string;
-      status: "pending" | "graded" | "returned";
-      submittedAt: string;
-      pointsPossible: number;
-      score: number | null;
-      feedback: string | null;
-      responsePreview: string;
-    }>;
-    total: number;
-    page: number;
-    pageSize: number;
-  };
-};
-
-export type ListSubmissionsResponse = ListSubmissionsResponses[keyof ListSubmissionsResponses];
-
-export type GradeSubmissionData = {
-  body: {
-    score: number;
-    feedback: string;
-  };
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/submissions/{id}";
-};
-
-export type GradeSubmissionErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type GradeSubmissionError = GradeSubmissionErrors[keyof GradeSubmissionErrors];
-
-export type GradeSubmissionResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    id: string;
-    assessmentId: string;
-    assessmentTitle: string;
-    courseId: string;
-    courseTitle: string;
-    studentId: string;
-    studentName: string;
-    studentEmail: string;
-    status: "pending" | "graded" | "returned";
-    submittedAt: string;
-    pointsPossible: number;
-    score: number | null;
-    feedback: string | null;
-    responsePreview: string;
-  };
-};
-
-export type GradeSubmissionResponse = GradeSubmissionResponses[keyof GradeSubmissionResponses];
-
 export type ListMembersData = {
   body?: never;
   path?: never;
@@ -1127,7 +1036,6 @@ export type GetOverviewResponses = {
     draftCourses: number;
     activeStudents: number;
     activeEnrollments: number;
-    pendingSubmissions: number;
     expiringSoon: number;
   };
 };

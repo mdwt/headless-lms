@@ -6,7 +6,6 @@ export * from "./courses.js";
 export * from "./modules.js";
 export * from "./students.js";
 export * from "./enrollments.js";
-export * from "./submissions.js";
 export * from "./team.js";
 export * from "./dashboard.js";
 export * from "./assets.js";
