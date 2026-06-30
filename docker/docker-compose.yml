@@ -1,11 +1,16 @@
-# Local development Postgres for headless-lms.
-# Matches the default DATABASE_URL in .env.example:
-#   postgres://postgres:postgres@localhost:5432/headless_lms
+# Local development services for headless-lms.
+# Pinned project name so volumes stay `headless-lms_*` regardless of this file's
+# directory (otherwise compose would derive the name from the `docker/` folder).
 #
-# Usage:
-#   docker compose up -d        # start in the background
-#   docker compose down         # stop (keeps data)
-#   docker compose down -v      # stop and wipe the data volume
+# Host ports live in the 8000 range to avoid conflicts; container-internal ports
+# are unchanged. Run from the repo root:
+#   docker compose -f docker/docker-compose.yml up -d     # start in the background
+#   docker compose -f docker/docker-compose.yml down      # stop (keeps data)
+#   docker compose -f docker/docker-compose.yml down -v   # stop and wipe data
+#
+# Postgres:  postgres://postgres:postgres@localhost:8005/headless_lms
+name: headless-lms
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -16,7 +21,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: headless_lms
     ports:
-      - "5432:5432"
+      - "8005:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -27,8 +32,8 @@ services:
 
   # S3-compatible object storage for uploads + content (private bucket, served
   # via presigned URLs). Matches the STORAGE_* defaults in .env.example.
-  #   API:     http://localhost:9000
-  #   Console: http://localhost:9001  (login minioadmin / minioadmin)
+  #   API:     http://localhost:8006
+  #   Console: http://localhost:8007  (login minioadmin / minioadmin)
   minio:
     image: minio/minio:latest
     container_name: headless-lms-minio
@@ -38,8 +43,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8006:9000"
+      - "8007:9001"
     volumes:
       - minio-data:/data
 
