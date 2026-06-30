@@ -1,14 +1,34 @@
-// progress tables. Org-scoped: composite (org_id, id) key. Stub.
-import { pgTable, uuid, primaryKey } from "drizzle-orm/pg-core";
+// progress tables — one progress record per student per target (lesson,
+// assessment, module, or course). Tracks lifecycle: started_at on open, position
+// (typed resume payload) as the player reports it, completed_at when the rule is
+// satisfied (null = in progress). Target is denormalized (type + id, no FK) so a
+// record survives structure edits. Percentage and resume are derived on read;
+// nothing here is a stored percentage.
+import { pgTable, uuid, text, jsonb, timestamp, primaryKey, unique } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations.js";
 
-export const progress = pgTable(
-  "progress",
+export const progressRecords = pgTable(
+  "progress_records",
   {
-    id: uuid("id").notNull().defaultRandom(),
     orgId: uuid("org_id")
       .notNull()
       .references(() => organizations.id),
+    id: uuid("id").notNull().defaultRandom(),
+    studentId: uuid("student_id").notNull(),
+    targetType: text("target_type", {
+      enum: ["lesson", "assessment", "module", "course"],
+    }).notNull(),
+    targetId: uuid("target_id").notNull(),
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+    position: jsonb("position"), // opaque typed payload; service interprets per target type
+    completedAt: timestamp("completed_at"), // null = in progress
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.orgId, t.id] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    targetUq: unique().on(t.orgId, t.studentId, t.targetType, t.targetId),
+  }),
 );

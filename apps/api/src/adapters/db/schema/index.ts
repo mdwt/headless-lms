@@ -3,7 +3,6 @@
 // repositories have a single import surface.
 export * from "./organizations.js";
 export * from "./courses.js";
-export * from "./modules.js";
 export * from "./entitlements.js";
 export * from "./progress.js";
 export * from "./identity.js";

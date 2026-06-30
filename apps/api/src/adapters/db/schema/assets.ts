@@ -11,12 +11,14 @@ export const assets = pgTable(
       .notNull()
       .references(() => organizations.id),
     key: text("key").notNull(),
-    kind: text("kind").notNull(),
+    kind: text("kind", { enum: ["video", "download", "content"] }).notNull(),
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
     // Bytes; bigint because media files exceed int4. 0 until upload confirmed.
     size: bigint("size", { mode: "number" }).notNull().default(0),
-    status: text("status").notNull().default("pending"),
+    status: text("status", { enum: ["pending", "ready"] })
+      .notNull()
+      .default("pending"),
     uploadedBy: text("uploaded_by").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
