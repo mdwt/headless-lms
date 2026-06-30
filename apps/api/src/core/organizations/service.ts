@@ -8,7 +8,6 @@ import type {
   OrgAdmin,
 } from "./ports.js";
 import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
-import { normalizeRole } from "./roles.js";
 import type { Role } from "./roles.js";
 import {
   OrganizationRuleError,
@@ -18,7 +17,7 @@ import {
   type Page,
 } from "./members.js";
 import type {
-  ProvisionOrganizationInput,
+  CreateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
@@ -49,23 +48,23 @@ export class OrganizationServiceImpl implements OrganizationService {
     private readonly orgAdmin: () => OrgAdmin,
   ) {}
 
-  async provisionOrganization(input: ProvisionOrganizationInput): Promise<Organization> {
-    const existing = await this.repo.findByAuthOrgId(input.authOrgId);
+  async createOrg(input: CreateOrganizationInput): Promise<Organization> {
+    const existing = await this.repo.findByExternalId(input.externalId);
     if (existing) return existing;
-    return this.repo.insertOrganization(input);
+    return this.repo.create(input);
   }
 
   async addMembership(input: AddMembershipInput): Promise<Membership> {
-    const org = await this.requireOrg(input.authOrgId);
-    return this.repo.insertMembership(org.id, { ...input, role: normalizeRole(input.role) });
+    const org = await this.requireOrg(input.orgExternalId);
+    return this.repo.insertMembership(org.id, input);
   }
 
-  async removeMembership(authMemberId: string): Promise<void> {
-    await this.repo.deleteMembershipByAuthMemberId(authMemberId);
+  async removeMembership(externalId: string): Promise<void> {
+    await this.repo.deleteMembershipByExternalId(externalId);
   }
 
   async recordInvitation(input: RecordInvitationInput): Promise<Invitation> {
-    const org = await this.requireOrg(input.authOrgId);
+    const org = await this.requireOrg(input.orgExternalId);
     return this.repo.insertInvitation(org.id, input);
   }
 
@@ -73,17 +72,17 @@ export class OrganizationServiceImpl implements OrganizationService {
     await this.repo.setInvitationStatusByAuthId(input.authInvitationId, "accepted");
   }
 
-  async getByAuthOrgId(authOrgId: string): Promise<Organization | null> {
-    return this.repo.findByAuthOrgId(authOrgId);
+  async getByExternalId(externalId: string): Promise<Organization | null> {
+    return this.repo.findByExternalId(externalId);
   }
 
   async assignCourse(input: AssignCourseInput): Promise<CourseAssignment> {
-    const org = await this.requireOrg(input.authOrgId);
+    const org = await this.requireOrg(input.orgExternalId);
     return this.repo.insertCourseAssignment(org.id, input);
   }
 
   async unassignCourse(input: AssignCourseInput): Promise<void> {
-    const org = await this.requireOrg(input.authOrgId);
+    const org = await this.requireOrg(input.orgExternalId);
     await this.repo.deleteCourseAssignment(org.id, input.membershipId, input.courseId);
   }
 
@@ -91,8 +90,8 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findAssignedCourseIds(orgId, membershipId);
   }
 
-  async getMembershipByStudent(studentId: string): Promise<Membership | null> {
-    return this.repo.findMembershipByStudent(studentId);
+  async getMembershipByUser(userId: string): Promise<Membership | null> {
+    return this.repo.findMembershipByUser(userId);
   }
 
   // --- Member management (formerly the `team` context) -----------------------
@@ -140,9 +139,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     return true;
   }
 
-  private async requireOrg(authOrgId: string): Promise<Organization> {
-    const org = await this.repo.findByAuthOrgId(authOrgId);
-    if (!org) throw new Error(`unknown organization for authOrgId ${authOrgId}`);
+  private async requireOrg(externalId: string): Promise<Organization> {
+    const org = await this.repo.findByExternalId(externalId);
+    if (!org) throw new Error(`unknown organization for externalId ${externalId}`);
     return org;
   }
 }

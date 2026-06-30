@@ -1,20 +1,27 @@
 // identity context — ports.
-import type { Student } from "./model.js";
-import type { RegisterStudentInput } from "./types.js";
+import type { User, Student } from "./model.js";
+import type { RegisterUserInput, RegisterStudentInput } from "./types.js";
 
-// Capability used by the auth adapter to provision a domain student when a
-// credential user is created — a narrow slice of the identity service.
+// Capabilities used by the auth adapter to provision a domain identity when a
+// credential user is created — narrow slices of the identity service.
+export interface UserProvisioner {
+  registerUser(input: RegisterUserInput): Promise<User>;
+}
+
 export interface StudentProvisioner {
   registerStudent(input: RegisterStudentInput): Promise<Student>;
 }
 
 // Inbound port (use cases the service exposes).
-export interface IdentityService extends StudentProvisioner {
-  getStudentByAuthUserId(authUserId: string): Promise<Student | null>;
+export interface IdentityService extends UserProvisioner, StudentProvisioner {
+  getUserByExternalId(externalId: string): Promise<User | null>;
+  getStudentByExternalId(externalId: string): Promise<Student | null>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
 export interface IdentityRepository {
-  insert(input: RegisterStudentInput): Promise<Student>;
-  findByAuthUserId(authUserId: string): Promise<Student | null>;
+  insertUser(input: RegisterUserInput): Promise<User>;
+  findUserByExternalId(externalId: string): Promise<User | null>;
+  insertStudent(input: RegisterStudentInput): Promise<Student>;
+  findStudentByExternalId(externalId: string): Promise<Student | null>;
 }

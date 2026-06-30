@@ -8,7 +8,7 @@
  * Run (API must be running):  pnpm --filter @headless-lms/api seed:admin
  */
 
-const BASE = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+const BASE = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
 const email = process.env.SEED_ADMIN_EMAIL ?? "mira@atelier.academy";
 const password = process.env.SEED_ADMIN_PASSWORD ?? "password123";
 const name = process.env.SEED_ADMIN_NAME ?? "Owner";

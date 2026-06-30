@@ -25,16 +25,16 @@ function loadConfig() {
   // CLIENT_ORIGIN is a comma-separated list of browser app origins (web app +
   // admin dashboard). Each is allowed for CORS and registered as a trusted
   // origin so better-auth accepts its requests and sets cookies for it.
-  const clientOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
+  const clientOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
-  const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
   // Include the API's own origin so MCP OAuth flows originating from the same
   // server (e.g. server-side token requests) are accepted by better-auth.
   const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   return {
-    port: Number(process.env.PORT ?? 3000),
+    port: Number(process.env.PORT ?? 8000),
     publicUrl: apiOrigin,
     clientOrigins,
     container: {
@@ -42,10 +42,10 @@ function loadConfig() {
       authBaseURL: apiOrigin,
       authSecret: process.env.BETTER_AUTH_SECRET ?? "",
       trustedOrigins,
-      mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:3001/login",
+      mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:8001/login",
       storage: {
         endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
-        port: Number(process.env.STORAGE_PORT ?? 9000),
+        port: Number(process.env.STORAGE_PORT ?? 8006),
         useSSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
         accessKey: process.env.STORAGE_ACCESS_KEY ?? "minioadmin",
         secretKey: process.env.STORAGE_SECRET_KEY ?? "minioadmin",
@@ -194,7 +194,7 @@ export function buildServer() {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const app = buildServer();
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 8000);
   app.listen({ port, host: "0.0.0.0" }).catch((err) => {
     app.log.error(err);
     process.exit(1);

@@ -118,23 +118,16 @@ export function registerTools(
     async (args) => {
       // Owner/admin (cap === true) and instructor (cap === "assigned") may
       // view all enrollments; false means the role has no grant at all.
+      // Listing enrollments requires the read scope plus a role that may view
+      // student progress (owner/admin/instructor). There is no learner principal.
       const cap = capability(principal.role, "view_student_progress");
       const canViewAll = principal.scopes.includes("enrollments:read") && cap !== false;
-      // Students can list their own enrollments when they have the read scope —
-      // consume_content is enrollment-scoped ("enrolled"), so we check scope +
-      // role directly rather than going through authorize().
-      const scopeOk = principal.scopes.includes("enrollments:read");
-      const isOwnEnrollments =
-        scopeOk &&
-        principal.role === "student" &&
-        (args.studentId === undefined || args.studentId === principal.studentId);
 
-      if (!canViewAll && !isOwnEnrollments) {
+      if (!canViewAll) {
         return forbidden();
       }
 
-      // Students are scoped to their own enrollments.
-      const resolvedStudentId = canViewAll ? args.studentId : principal.studentId;
+      const resolvedStudentId = args.studentId;
 
       try {
         const page = await container.entitlements.list(principal.orgId, {

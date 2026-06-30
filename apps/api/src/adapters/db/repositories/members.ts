@@ -1,16 +1,16 @@
 // organizations members — Drizzle read repository. Reads the domain mirror of the
-// org's members (memberships) and pending invitations, joined to the student/user
+// org's members (memberships) and pending invitations, joined to the identity user
 // for display. Writes go through the auth provider (see adapters/auth/org-admin.ts).
 import { and, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { MembersRepository, MemberRecord } from "../../../core/organizations/index.js";
 import type { Member, MembersQuery, Page, Role } from "../../../core/organizations/index.js";
 import { memberships, invitations } from "../schema/organizations.js";
-import { students } from "../schema/identity.js";
+import { users } from "../schema/identity.js";
 import { user } from "../../auth/schema.js";
 
-const ROLES: Role[] = ["owner", "admin", "instructor", "student"];
-const roleOf = (t: string): Role => (ROLES.includes(t as Role) ? (t as Role) : "student");
+const ROLES: Role[] = ["owner", "admin", "instructor"];
+const roleOf = (t: string): Role => (ROLES.includes(t as Role) ? (t as Role) : "instructor");
 
 function toMember(r: MemberRecord): Member {
   return {
@@ -32,16 +32,16 @@ export class DrizzleMembersRepository implements MembersRepository {
     const memberRows = await this.db
       .select({
         id: memberships.id,
-        name: students.displayName,
-        email: students.email,
+        name: users.displayName,
+        email: users.email,
         image: user.image,
         role: memberships.role,
         joinedAt: memberships.createdAt,
-        authMemberId: memberships.authMemberId,
+        authMemberId: memberships.externalId,
       })
       .from(memberships)
-      .innerJoin(students, eq(students.id, memberships.studentId))
-      .leftJoin(user, eq(user.id, students.authUserId))
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .leftJoin(user, eq(user.id, users.externalId))
       .where(eq(memberships.orgId, orgId));
 
     const inviteRows = await this.db

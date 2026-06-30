@@ -2,7 +2,7 @@
 // Defined in code (no DB enum). The DB stores role as text; the domain narrows
 // it to Role and answers authorization questions here.
 
-export const ROLES = ["owner", "admin", "instructor", "student"] as const;
+export const ROLES = ["owner", "admin", "instructor"] as const;
 export type Role = (typeof ROLES)[number];
 
 export function isRole(value: string): value is Role {
@@ -48,9 +48,6 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     edit_assigned_course: "assigned",
     view_student_progress: "assigned",
   },
-  student: {
-    consume_content: "enrolled",
-  },
 };
 
 export function capability(role: Role, permission: Permission): Capability | false {
@@ -70,15 +67,15 @@ export function canForCourse(
 
 // Better Auth's role model is broader than ours: it keeps a built-in `member`
 // role and allows comma-joined multi-role strings. Normalize any incoming role
-// string to a single domain Role before persisting: `member` -> `student`, a
-// multi-role string -> its highest-privilege known role, unknown -> `student`.
-const RANK: Record<Role, number> = { owner: 3, admin: 2, instructor: 1, student: 0 };
+// string to a single domain Role before persisting: `member` -> `instructor`, a
+// multi-role string -> its highest-privilege known role, unknown -> `instructor`.
+const RANK: Record<Role, number> = { owner: 3, admin: 2, instructor: 1 };
 
 export function normalizeRole(raw: string): Role {
-  let best: Role = "student";
+  let best: Role = "instructor";
   let bestRank = -1;
   for (const token of raw.split(",").map((t) => t.trim())) {
-    const r: Role | null = isRole(token) ? token : token === "member" ? "student" : null;
+    const r: Role | null = isRole(token) ? token : token === "member" ? "instructor" : null;
     if (r && RANK[r] > bestRank) {
       best = r;
       bestRank = RANK[r];

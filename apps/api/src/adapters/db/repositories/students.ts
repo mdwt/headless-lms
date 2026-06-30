@@ -1,17 +1,20 @@
 // students — Drizzle repository (implements the core outbound port).
-// A read-model over identity + entitlements: a "student" in an org is a domain
+// A read-model over identity + enrollments: a "student" in an org is a domain
 // student with >=1 enrollment in that org. Rows are aggregated per student and
-// scoped by `entitlements.orgId`. Identity (name/email/joinedAt) comes from the
+// scoped by `enrollments.orgId`. Identity (name/email/joinedAt) comes from the
 // `students` table; the avatar comes from the better-auth `user` table.
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { StudentsReportRepository } from "../../../reporting/students/index.js";
 import type { Page, Student, StudentsQuery } from "../../../reporting/students/index.js";
-import { students, entitlements } from "../schema/index.js";
+import { students, enrollments } from "../schema/index.js";
 import { user } from "../../auth/schema.js";
 
-const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
-const avgProgressExpr = sql<number>`coalesce(round(avg(${entitlements.progressPercent})), 0)`;
+const nameExpr = sql<string>`${students.firstName} || ' ' || ${students.lastName}`;
+const enrollmentCountExpr = sql<number>`count(${enrollments.id})`;
+// Completion now lives in the progress domain; the students report no longer
+// derives a percentage from enrollments. Placeholder until wired to progress.
+const avgProgressExpr = sql<number>`0`;
 
 interface StudentRow {
   id: string;
@@ -40,33 +43,35 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   async list(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
-    const filters: SQL[] = [eq(entitlements.orgId, orgId)];
+    const filters: SQL[] = [eq(enrollments.orgId, orgId)];
     const q = query.search?.trim();
     if (q) {
       const like = `%${q}%`;
-      filters.push(or(ilike(students.displayName, like), ilike(students.email, like))!);
+      filters.push(
+        or(ilike(students.firstName, like), ilike(students.lastName, like), ilike(students.email, like))!,
+      );
     }
     const where = and(...filters);
 
     const [totals] = await this.db
       .select({ total: sql<number>`count(distinct ${students.id})` })
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
       .where(where);
 
     const rows = await this.db
       .select({
         id: students.id,
-        name: students.displayName,
+        name: nameExpr,
         email: students.email,
         image: user.image,
         createdAt: students.createdAt,
-        enrollmentCount: entitlementCountExpr,
+        enrollmentCount: enrollmentCountExpr,
         avgProgress: avgProgressExpr,
       })
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
-      .leftJoin(user, eq(user.id, students.authUserId))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .leftJoin(user, eq(user.id, students.externalId))
       .where(where)
       .groupBy(students.id, user.image)
       .orderBy(...this.resolveOrder(query.sort))
@@ -85,17 +90,17 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     const [row] = await this.db
       .select({
         id: students.id,
-        name: students.displayName,
+        name: nameExpr,
         email: students.email,
         image: user.image,
         createdAt: students.createdAt,
-        enrollmentCount: entitlementCountExpr,
+        enrollmentCount: enrollmentCountExpr,
         avgProgress: avgProgressExpr,
       })
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
-      .leftJoin(user, eq(user.id, students.authUserId))
-      .where(and(eq(entitlements.orgId, orgId), eq(students.id, id)))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .leftJoin(user, eq(user.id, students.externalId))
+      .where(and(eq(enrollments.orgId, orgId), eq(students.id, id)))
       .groupBy(students.id, user.image)
       .limit(1);
     return row ? toStudent(row) : null;
@@ -109,14 +114,14 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
       case "email":
         return [dir(students.email)];
       case "enrollmentCount":
-        return [dir(entitlementCountExpr)];
+        return [dir(enrollmentCountExpr)];
       case "avgProgress":
         return [dir(avgProgressExpr)];
       case "joinedAt":
         return [dir(students.createdAt)];
       case "name":
       default:
-        return [dir(students.displayName)];
+        return [dir(nameExpr)];
     }
   }
 }

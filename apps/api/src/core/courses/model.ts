@@ -9,8 +9,6 @@ export interface Course {
   description: string;
   status: CourseStatus;
   category: string;
-  instructorId: string;
-  instructorName: string;
   moduleCount: number;
   lessonCount: number;
   enrolledCount: number;

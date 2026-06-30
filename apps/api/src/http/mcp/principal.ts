@@ -25,12 +25,12 @@ export async function buildPrincipal(
   token: OAuthAccessToken,
   container: Container,
 ): Promise<McpPrincipal> {
-  const student = await container.identity.getStudentByAuthUserId(token.userId);
-  if (!student) {
-    throw new PrincipalError("no domain student for auth user", 401);
+  const user = await container.identity.getUserByExternalId(token.userId);
+  if (!user) {
+    throw new PrincipalError("no domain user for auth user", 401);
   }
 
-  const membership = await container.organizations.getMembershipByStudent(student.id);
+  const membership = await container.organizations.getMembershipByUser(user.id);
   if (!membership) {
     throw new PrincipalError("user has no org membership", 403);
   }
@@ -44,7 +44,9 @@ export async function buildPrincipal(
   const scopes = token.scopes.split(" ").filter(Boolean);
 
   return {
-    studentId: student.id,
+    // Staff user id (membership-bearing principal); kept under `studentId` for
+    // the tool layer's existing self-scope defaulting.
+    studentId: user.id,
     orgId: membership.orgId,
     role: parseRole(membership.role),
     assignedCourseIds,

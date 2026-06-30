@@ -8,12 +8,12 @@ export type EntitlementSource = "manual" | "import";
 export interface Entitlement {
   readonly id: string;
   studentId: string;
-  studentName: string;
+  firstName: string;
+  lastName: string;
   studentEmail: string;
   courseId: string;
   courseTitle: string;
   status: EntitlementStatus;
-  progressPercent: number;
   grantedAt: string;
   expiresAt: string | null;
   source: EntitlementSource;

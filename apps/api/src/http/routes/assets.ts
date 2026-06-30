@@ -31,7 +31,7 @@ async function resolveOrgId(
     await reply.code(400).send({ error: "no_active_org", message: "No active organization" });
     return null;
   }
-  const org = await container.organizations.getByAuthOrgId(req.orgId);
+  const org = await container.organizations.getByExternalId(req.orgId);
   if (!org) {
     await reply.code(400).send({ error: "no_active_org", message: "Organization not provisioned" });
     return null;

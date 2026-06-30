@@ -7,10 +7,10 @@ import type {
   OrgAdmin,
 } from "./ports.js";
 import type { Organization, Membership, Invitation } from "./model.js";
-import type { Role } from "./roles.js";
+import { type Role, normalizeRole } from "./roles.js";
 import { OrganizationRuleError } from "./members.js";
 import type {
-  ProvisionOrganizationInput,
+  CreateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
 } from "./types.js";
@@ -42,28 +42,28 @@ function fakeRepo() {
   const assignments: { id: string; orgId: string; membershipId: string; courseId: string; createdAt: Date }[] = [];
   let n = 0;
   const repo: OrganizationsRepository = {
-    async insertOrganization(input: ProvisionOrganizationInput) {
+    async create(input: CreateOrganizationInput) {
       const row: Organization = { id: `o${++n}`, createdAt: new Date(0), ...input };
       orgs.push(row);
       return row;
     },
-    async findByAuthOrgId(authOrgId: string) {
-      return orgs.find((o) => o.authOrgId === authOrgId) ?? null;
+    async findByExternalId(externalId: string) {
+      return orgs.find((o) => o.externalId === externalId) ?? null;
     },
     async insertMembership(orgId: string, input: AddMembershipInput) {
       const row: Membership = {
         id: `m${++n}`,
         orgId,
-        studentId: input.studentId,
-        role: input.role as Role,
-        authMemberId: input.authMemberId,
+        userId: input.userId,
+        role: normalizeRole(input.role),
+        externalId: input.externalId,
         createdAt: new Date(0),
       };
       members.push(row);
       return row;
     },
-    async deleteMembershipByAuthMemberId(authMemberId: string) {
-      const i = members.findIndex((m) => m.authMemberId === authMemberId);
+    async deleteMembershipByExternalId(externalId: string) {
+      const i = members.findIndex((m) => m.externalId === externalId);
       if (i >= 0) members.splice(i, 1);
     },
     async insertInvitation(orgId: string, input: RecordInvitationInput) {
@@ -71,9 +71,9 @@ function fakeRepo() {
         id: `i${++n}`,
         orgId,
         email: input.email,
-        role: input.role,
+        role: input.role as Role,
         status: input.status,
-        inviterStudentId: input.inviterStudentId,
+        invetedBy: input.inviterUserId,
         authInvitationId: input.authInvitationId,
         expiresAt: input.expiresAt,
         createdAt: new Date(0),
@@ -97,26 +97,26 @@ function fakeRepo() {
     async findAssignedCourseIds(orgId, membershipId) {
       return assignments.filter((x) => x.orgId === orgId && x.membershipId === membershipId).map((x) => x.courseId);
     },
-    async findMembershipByStudent(studentId: string) {
-      return members.find((m) => m.studentId === studentId) ?? null;
+    async findMembershipByUser(userId: string) {
+      return members.find((m) => m.userId === userId) ?? null;
     },
   };
   return { repo, orgs, members, invitations };
 }
 
-const orgInput: ProvisionOrganizationInput = {
-  authOrgId: "org_1",
+const orgInput: CreateOrganizationInput = {
+  externalId: "org_1",
   name: "Acme",
   slug: "acme",
-  ownerStudentId: "s1",
+  ownerId: "s1",
 };
 
 describe("OrganizationService", () => {
   it("provisions an org and is idempotent on the auth org id", async () => {
     const { repo, orgs } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    const first = await svc.provisionOrganization(orgInput);
-    const second = await svc.provisionOrganization(orgInput);
+    const first = await svc.createOrg(orgInput);
+    const second = await svc.createOrg(orgInput);
     expect(second.id).toBe(first.id);
     expect(orgs).toHaveLength(1);
   });
@@ -124,11 +124,11 @@ describe("OrganizationService", () => {
   it("resolves the org by auth id when mirroring a membership", async () => {
     const { repo, members } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    const org = await svc.provisionOrganization(orgInput);
+    const org = await svc.createOrg(orgInput);
     const m = await svc.addMembership({
-      authOrgId: "org_1",
-      authMemberId: "mem_1",
-      studentId: "s2",
+      orgExternalId: "org_1",
+      externalId: "mem_1",
+      userId: "s2",
       role: "member",
     });
     expect(m.orgId).toBe(org.id);
@@ -140,9 +140,9 @@ describe("OrganizationService", () => {
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
     await expect(
       svc.addMembership({
-        authOrgId: "missing",
-        authMemberId: "mem_1",
-        studentId: "s2",
+        orgExternalId: "missing",
+        externalId: "mem_1",
+        userId: "s2",
         role: "member",
       }),
     ).rejects.toThrow(/unknown organization/);
@@ -151,11 +151,11 @@ describe("OrganizationService", () => {
   it("stores the membership role as a domain Role", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    await svc.provisionOrganization(orgInput);
+    await svc.createOrg(orgInput);
     const m = await svc.addMembership({
-      authOrgId: "org_1",
-      authMemberId: "mem_1",
-      studentId: "s2",
+      orgExternalId: "org_1",
+      externalId: "mem_1",
+      userId: "s2",
       role: "instructor",
     });
     expect(m.role).toBe("instructor");
@@ -164,8 +164,8 @@ describe("OrganizationService", () => {
   it("assigns and lists instructor course assignments", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    const org = await svc.provisionOrganization(orgInput);
-    const a = await svc.assignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
+    const org = await svc.createOrg(orgInput);
+    const a = await svc.assignCourse({ orgExternalId: "org_1", membershipId: "m1", courseId: "c1" });
     expect(a.orgId).toBe(org.id);
     expect(a.courseId).toBe("c1");
     expect(await svc.assignedCourseIds(org.id, "m1")).toEqual(["c1"]);
@@ -174,44 +174,44 @@ describe("OrganizationService", () => {
   it("unassigns a course", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    const org = await svc.provisionOrganization(orgInput);
-    await svc.assignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
-    await svc.unassignCourse({ authOrgId: "org_1", membershipId: "m1", courseId: "c1" });
+    const org = await svc.createOrg(orgInput);
+    await svc.assignCourse({ orgExternalId: "org_1", membershipId: "m1", courseId: "c1" });
+    await svc.unassignCourse({ orgExternalId: "org_1", membershipId: "m1", courseId: "c1" });
     expect(await svc.assignedCourseIds(org.id, "m1")).toEqual([]);
   });
 
-  it("normalizes Better Auth's member role to student on mirror", async () => {
+  it("normalizes Better Auth's member role to instructor on mirror", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    await svc.provisionOrganization(orgInput);
-    const m = await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_x", studentId: "s3", role: "member" });
-    expect(m.role).toBe("student");
+    await svc.createOrg(orgInput);
+    const m = await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_x", userId: "s3", role: "member" });
+    expect(m.role).toBe("instructor");
   });
 
   it("collapses a multi-role mirror to the highest-privilege role", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    await svc.provisionOrganization(orgInput);
-    const m = await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_y", studentId: "s4", role: "admin,instructor" });
+    await svc.createOrg(orgInput);
+    const m = await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_y", userId: "s4", role: "admin,instructor" });
     expect(m.role).toBe("admin");
   });
 
-  it("getMembershipByStudent returns the membership for a known student", async () => {
+  it("getMembershipByUser returns the membership for a known user", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    const org = await svc.provisionOrganization(orgInput);
-    await svc.addMembership({ authOrgId: "org_1", authMemberId: "mem_1", studentId: "s2", role: "instructor" });
-    const m = await svc.getMembershipByStudent("s2");
+    const org = await svc.createOrg(orgInput);
+    await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_1", userId: "s2", role: "instructor" });
+    const m = await svc.getMembershipByUser("s2");
     expect(m).not.toBeNull();
     expect(m!.orgId).toBe(org.id);
     expect(m!.role).toBe("instructor");
   });
 
-  it("getMembershipByStudent returns null for an unknown student", async () => {
+  it("getMembershipByUser returns null for an unknown user", async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    await svc.provisionOrganization(orgInput);
-    const m = await svc.getMembershipByStudent("no-such-student");
+    await svc.createOrg(orgInput);
+    const m = await svc.getMembershipByUser("no-such-user");
     expect(m).toBeNull();
   });
 });
@@ -226,7 +226,7 @@ describe("OrganizationService — member management", () => {
       name: "X",
       email: "x@example.com",
       image: null,
-      role: "student",
+      role: "instructor",
       status: "active",
       joinedAt: "2026-01-01T00:00:00Z",
       invitedAt: null,
@@ -272,7 +272,7 @@ describe("OrganizationService — member management", () => {
 
   it("rejects inviting an email that is already a member or invited", async () => {
     const { svc, calls } = harness([memberRecord({ id: "m1", email: "dup@example.com" })]);
-    await expect(svc.inviteMember(ctx, { email: "dup@example.com", role: "student" })).rejects.toThrow(
+    await expect(svc.inviteMember(ctx, { email: "dup@example.com", role: "instructor" })).rejects.toThrow(
       OrganizationRuleError,
     );
     expect(calls).not.toContain("invite");
@@ -291,8 +291,8 @@ describe("OrganizationService — member management", () => {
   });
 
   it("updates a non-owner member's role via OrgAdmin", async () => {
-    const { svc, calls } = harness([memberRecord({ id: "m1", role: "student" })]);
-    await svc.updateMemberRole(ctx, "m1", "instructor");
+    const { svc, calls } = harness([memberRecord({ id: "m1", role: "instructor" })]);
+    await svc.updateMemberRole(ctx, "m1", "admin");
     expect(calls).toContain("updateRole");
   });
 
@@ -300,7 +300,7 @@ describe("OrganizationService — member management", () => {
     const { svc, calls } = harness([
       memberRecord({
         id: "i1",
-        role: "student",
+        role: "instructor",
         kind: "invitation",
         status: "invited",
         authMemberId: null,

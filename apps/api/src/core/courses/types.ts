@@ -24,13 +24,11 @@ export interface CreateCourseInput {
   title: string;
   description?: string | undefined;
   category?: string | undefined;
-  instructorId?: string | undefined;
 }
 
 export interface UpdateCourseInput {
   title?: string | undefined;
   description?: string | undefined;
   category?: string | undefined;
-  instructorId?: string | undefined;
   status?: CourseStatus | undefined;
 }

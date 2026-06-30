@@ -1,7 +1,8 @@
 // courses — Drizzle repository (implements the core outbound port). Org-scoped:
 // every method takes the domain `organizations.id` and constrains its queries to
-// that tenant. The `Course` model carries DERIVED fields (instructor name, module
-// / lesson / enrolled counts) computed via a join + correlated subqueries.
+// that tenant. The `Course` model carries DERIVED fields (module / lesson /
+// enrolled counts) computed via correlated subqueries. Courses no longer
+// reference an instructor (teaching is `course_assignments` in organizations).
 import { eq, and, sql, count, asc, desc, ilike, or, type SQL, type AnyColumn } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { CoursesRepository } from "../../../core/courses/ports.js";
@@ -12,10 +13,8 @@ import type {
   Page,
   UpdateCourseInput,
 } from "../../../core/courses/types.js";
-import { courses } from "../schema/courses.js";
-import { modules, moduleItems } from "../schema/modules.js";
-import { entitlements } from "../schema/entitlements.js";
-import { students } from "../schema/identity.js";
+import { courses, modules, moduleItems } from "../schema/courses.js";
+import { enrollments } from "../schema/entitlements.js";
 
 // Derived counts as correlated subqueries against the current `courses` row.
 const moduleCountExpr = sql<number>`(
@@ -33,14 +32,12 @@ const lessonCountExpr = sql<number>`(
 )`;
 
 const enrolledCountExpr = sql<number>`(
-  select count(*)::int from ${entitlements}
-  where ${entitlements.orgId} = ${courses.orgId}
-    and ${entitlements.courseId} = ${courses.id}
-    and ${entitlements.status} = 'active'
-    and (${entitlements.expiresAt} is null or ${entitlements.expiresAt} >= now())
+  select count(*)::int from ${enrollments}
+  where ${enrollments.orgId} = ${courses.orgId}
+    and ${enrollments.courseId} = ${courses.id}
+    and ${enrollments.status} = 'active'
+    and (${enrollments.expiresAt} is null or ${enrollments.expiresAt} >= now())
 )`;
-
-const instructorNameExpr = sql<string>`coalesce(${students.displayName}, '')`;
 
 const selection = {
   id: courses.id,
@@ -49,8 +46,6 @@ const selection = {
   description: courses.description,
   status: courses.status,
   category: courses.category,
-  instructorId: courses.instructorId,
-  instructorName: instructorNameExpr,
   moduleCount: moduleCountExpr,
   lessonCount: lessonCountExpr,
   enrolledCount: enrolledCountExpr,
@@ -65,8 +60,6 @@ type CourseRow = {
   description: string;
   status: string;
   category: string;
-  instructorId: string | null;
-  instructorName: string | null;
   moduleCount: number;
   lessonCount: number;
   enrolledCount: number;
@@ -82,8 +75,6 @@ function toCourse(row: CourseRow): Course {
     description: row.description,
     status: row.status as CourseStatus,
     category: row.category,
-    instructorId: row.instructorId ?? "",
-    instructorName: row.instructorName ?? "",
     moduleCount: Number(row.moduleCount),
     lessonCount: Number(row.lessonCount),
     enrolledCount: Number(row.enrolledCount),
@@ -100,7 +91,6 @@ const sortColumns: Record<string, AnyColumn | SQL> = {
   category: courses.category,
   createdAt: courses.createdAt,
   updatedAt: courses.updatedAt,
-  instructorName: instructorNameExpr,
   moduleCount: moduleCountExpr,
   lessonCount: lessonCountExpr,
   enrolledCount: enrolledCountExpr,
@@ -117,11 +107,7 @@ export class DrizzleCoursesRepository implements CoursesRepository {
     const search = query.search?.trim();
     if (search) {
       const like = `%${search}%`;
-      const match = or(
-        ilike(courses.title, like),
-        ilike(courses.category, like),
-        ilike(students.displayName, like),
-      );
+      const match = or(ilike(courses.title, like), ilike(courses.category, like));
       if (match) conditions.push(match);
     }
 
@@ -144,7 +130,6 @@ export class DrizzleCoursesRepository implements CoursesRepository {
     const rows = await this.db
       .select(selection)
       .from(courses)
-      .leftJoin(students, eq(students.id, courses.instructorId))
       .where(where)
       .orderBy(orderBy)
       .limit(query.pageSize)
@@ -153,7 +138,6 @@ export class DrizzleCoursesRepository implements CoursesRepository {
     const [totalRow] = await this.db
       .select({ value: count() })
       .from(courses)
-      .leftJoin(students, eq(students.id, courses.instructorId))
       .where(where);
 
     return {
@@ -168,18 +152,12 @@ export class DrizzleCoursesRepository implements CoursesRepository {
     const [row] = await this.db
       .select(selection)
       .from(courses)
-      .leftJoin(students, eq(students.id, courses.instructorId))
       .where(and(eq(courses.orgId, orgId), eq(courses.id, id)))
       .limit(1);
     return row ? toCourse(row) : null;
   }
 
-  async create(
-    orgId: string,
-    input: CreateCourseInput,
-    slug: string,
-    instructorId: string,
-  ): Promise<Course> {
+  async create(orgId: string, input: CreateCourseInput, slug: string): Promise<Course> {
     const [inserted] = await this.db
       .insert(courses)
       .values({
@@ -187,8 +165,7 @@ export class DrizzleCoursesRepository implements CoursesRepository {
         title: input.title,
         slug,
         description: input.description ?? "",
-        category: input.category ?? "Design",
-        instructorId,
+        category: input.category ?? "",
       })
       .returning({ id: courses.id });
     if (!inserted) throw new Error("failed to insert course");
@@ -202,7 +179,6 @@ export class DrizzleCoursesRepository implements CoursesRepository {
     if (patch.title !== undefined) set.title = patch.title;
     if (patch.description !== undefined) set.description = patch.description;
     if (patch.category !== undefined) set.category = patch.category;
-    if (patch.instructorId !== undefined) set.instructorId = patch.instructorId;
     if (patch.status !== undefined) set.status = patch.status;
 
     const [updated] = await this.db

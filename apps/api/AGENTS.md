@@ -1,0 +1,1 @@
+- enums follow the  text(col, { enum: [...] }) pattern for drizzle

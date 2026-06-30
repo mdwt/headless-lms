@@ -24,8 +24,6 @@ const COURSE: Course = {
   description: "Learn TypeScript",
   status: "published",
   category: "Engineering",
-  instructorId: "inst-1",
-  instructorName: "Alice",
   moduleCount: 3,
   lessonCount: 12,
   enrolledCount: 5,
@@ -36,12 +34,12 @@ const COURSE: Course = {
 const ENROLLMENT: Entitlement = {
   id: "enroll-1",
   studentId: "student-1",
-  studentName: "Bob",
+  firstName: "Bob",
+  lastName: "Smith",
   studentEmail: "bob@example.com",
   courseId: "course-1",
   courseTitle: "Intro to TypeScript",
   status: "active",
-  progressPercent: 0,
   grantedAt: "2026-01-01T00:00:00Z",
   expiresAt: null,
   source: "manual",
@@ -138,11 +136,11 @@ const ADMIN_PRINCIPAL: McpPrincipal = {
   scopes: ["courses:read", "courses:write", "enrollments:read", "enrollments:write", "progress:read"],
 };
 
-/** Student principal with only read scopes. */
+/** Low-privilege member (instructor) with only read scopes. */
 const STUDENT_PRINCIPAL: McpPrincipal = {
   studentId: "student-1",
   orgId: "org-1",
-  role: "student",
+  role: "instructor",
   assignedCourseIds: [],
   scopes: ["courses:read", "enrollments:read"],
 };
@@ -287,10 +285,10 @@ describe("registerTools — enroll_student", () => {
     });
   });
 
-  it("rejects a student role (lacks manage_users permission)", async () => {
+  it("rejects an instructor role (lacks manage_users permission)", async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
-    // Give student the right scope but wrong role
+    // Give the instructor the right scope but a role lacking manage_users
     const studentWithWriteScope: McpPrincipal = {
       ...STUDENT_PRINCIPAL,
       scopes: [...STUDENT_PRINCIPAL.scopes, "enrollments:write"],
@@ -350,10 +348,9 @@ describe("registerTools — list_enrollments", () => {
     expect((container.entitlements.list as Mock)).toHaveBeenCalled();
   });
 
-  it("scopes student to their own enrollments when studentId not given", async () => {
+  it("lists enrollments org-wide (no studentId filter) when studentId not given", async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
-    // Student has consume_content via enrolled, and enrollments:read scope
     registerTools(server, container, STUDENT_PRINCIPAL);
 
     const listEnrollments = callbacks.get("list_enrollments")!;
@@ -362,7 +359,7 @@ describe("registerTools — list_enrollments", () => {
     expect(result.isError).toBeFalsy();
     expect((container.entitlements.list as Mock)).toHaveBeenCalledWith(
       "org-1",
-      expect.objectContaining({ studentId: "student-1" }),
+      expect.objectContaining({ studentId: undefined }),
     );
   });
 });

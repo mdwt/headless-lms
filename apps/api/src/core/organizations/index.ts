@@ -17,7 +17,7 @@ export type {
   OrganizationId,
   MembershipId,
   InvitationId,
-  ProvisionOrganizationInput,
+  CreateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,

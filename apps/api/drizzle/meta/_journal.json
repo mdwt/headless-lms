@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1782658577221,
-      "tag": "0000_ancient_catseye",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1782667006406,
-      "tag": "0001_bent_boom_boom",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1782680439846,
-      "tag": "0002_modern_riptide",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1782682233099,
-      "tag": "0003_wise_stardust",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1782713375027,
-      "tag": "0004_dazzling_tusk",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1782721078355,
-      "tag": "0005_hard_frank_castle",
+      "when": 1782838247636,
+      "tag": "0000_melodic_white_queen",
       "breakpoints": true
     }
   ]

@@ -1,36 +1,46 @@
 import { describe, it, expect } from "vitest";
 import { IdentityServiceImpl } from "./service.js";
 import type { IdentityRepository } from "./ports.js";
-import type { Student } from "./model.js";
-import type { RegisterStudentInput } from "./types.js";
+import type { Student, User } from "./model.js";
+import type { RegisterStudentInput, RegisterUserInput } from "./types.js";
 
 function fakeRepo() {
-  const rows: Student[] = [];
+  const students: Student[] = [];
+  const users: User[] = [];
   let n = 0;
   const repo: IdentityRepository = {
-    async insert(input: RegisterStudentInput) {
-      const row: Student = { id: `s${++n}`, createdAt: new Date(0), ...input };
-      rows.push(row);
+    async insertUser(input: RegisterUserInput) {
+      const row: User = { id: `u${++n}`, createdAt: new Date(0), updatedAt: new Date(0), ...input };
+      users.push(row);
       return row;
     },
-    async findByAuthUserId(authUserId: string) {
-      return rows.find((r) => r.authUserId === authUserId) ?? null;
+    async findUserByExternalId(externalId: string) {
+      return users.find((r) => r.externalId === externalId) ?? null;
+    },
+    async insertStudent(input: RegisterStudentInput) {
+      const row: Student = { id: `s${++n}`, createdAt: new Date(0), updatedAt: new Date(0), ...input };
+      students.push(row);
+      return row;
+    },
+    async findStudentByExternalId(externalId: string) {
+      return students.find((r) => r.externalId === externalId) ?? null;
     },
   };
-  return { repo, rows };
+  return { repo, rows: students };
 }
 
 describe("IdentityService.registerStudent", () => {
   const input: RegisterStudentInput = {
-    authUserId: "auth_1",
+    externalId: "auth_1",
     email: "a@example.com",
-    displayName: "Ada",
+    firstName: "Ada",
+    lastName: "Lovelace",
   };
 
   it("creates a student for a new auth user", async () => {
     const { repo, rows } = fakeRepo();
     const student = await new IdentityServiceImpl(repo).registerStudent(input);
-    expect(student.authUserId).toBe("auth_1");
+    expect(student.externalId).toBe("auth_1");
     expect(rows).toHaveLength(1);
   });
 

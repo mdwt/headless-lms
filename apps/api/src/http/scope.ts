@@ -8,13 +8,13 @@ import type { Container } from "../composition/container.js";
 export interface OrgScope {
   /** Domain `organizations.id` (uuid) for the session's active org. */
   orgId: string;
-  /** Domain `students.id` (uuid) of the acting user. */
-  actorStudentId: string;
+  /** Domain `users.id` (uuid) of the acting staff user. */
+  actorUserId: string;
   /** Better-auth organization id (for writes that go through the auth provider). */
   authOrgId: string;
 }
 
-/** Thrown when the session has no resolvable active org / domain student. */
+/** Thrown when the session has no resolvable active org / domain user. */
 export class NoActiveOrgError extends Error {}
 
 export async function resolveScope(container: Container, req: FastifyRequest): Promise<OrgScope> {
@@ -22,9 +22,9 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
   const authOrgId = req.orgId ?? null;
   if (!authUser) throw new NoActiveOrgError("no authenticated user");
   if (!authOrgId) throw new NoActiveOrgError("no active organization in session");
-  const org = await container.organizations.getByAuthOrgId(authOrgId);
+  const org = await container.organizations.getByExternalId(authOrgId);
   if (!org) throw new NoActiveOrgError("active organization not found");
-  const student = await container.identity.getStudentByAuthUserId(authUser.id);
-  if (!student) throw new NoActiveOrgError("no domain student for the current user");
-  return { orgId: org.id, actorStudentId: student.id, authOrgId };
+  const user = await container.identity.getUserByExternalId(authUser.id);
+  if (!user) throw new NoActiveOrgError("no domain user for the current user");
+  return { orgId: org.id, actorUserId: user.id, authOrgId };
 }

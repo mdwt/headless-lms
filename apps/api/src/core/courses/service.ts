@@ -31,10 +31,8 @@ export class CoursesServiceImpl implements CoursesService {
     return this.repo.findById(orgId, id);
   }
 
-  create(orgId: string, input: CreateCourseInput, actorStudentId: string): Promise<Course> {
-    // Default the instructor to the acting member when the input omits one.
-    const instructorId = input.instructorId ?? actorStudentId;
-    return this.repo.create(orgId, input, slugify(input.title), instructorId);
+  create(orgId: string, input: CreateCourseInput): Promise<Course> {
+    return this.repo.create(orgId, input, slugify(input.title));
   }
 
   update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {

@@ -85,7 +85,11 @@ export function buildContainer(config: Config): Container {
     new DrizzleModulesRepository(db),
   );
   const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db));
-  const progress = new ProgressServiceImpl(new DrizzleProgressRepository());
+  const progress = new ProgressServiceImpl(
+    new DrizzleProgressRepository(db),
+    () => randomUUID(),
+    () => new Date().toISOString(),
+  );
   const assets = new AssetsServiceImpl(
     storage,
     new DrizzleAssetsRepository(db),

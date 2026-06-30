@@ -15,7 +15,7 @@ import type {
 export interface CoursesService {
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
   get(orgId: string, id: string): Promise<Course | null>;
-  create(orgId: string, input: CreateCourseInput, actorStudentId: string): Promise<Course>;
+  create(orgId: string, input: CreateCourseInput): Promise<Course>;
   update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null>;
   remove(orgId: string, id: string): Promise<boolean>;
 
@@ -46,7 +46,7 @@ export interface CoursesService {
 export interface CoursesRepository {
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
   findById(orgId: string, id: string): Promise<Course | null>;
-  create(orgId: string, input: CreateCourseInput, slug: string, instructorId: string): Promise<Course>;
+  create(orgId: string, input: CreateCourseInput, slug: string): Promise<Course>;
   update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null>;
   delete(orgId: string, id: string): Promise<boolean>;
 }

@@ -3,7 +3,7 @@ import type { Organization, Membership, Invitation, CourseAssignment } from "./m
 import type { Member, MembersQuery, InviteMemberInput, Page } from "./members.js";
 import type { Role } from "./roles.js";
 import type {
-  ProvisionOrganizationInput,
+  CreateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
@@ -12,17 +12,17 @@ import type {
 
 // Capability used by the auth adapter to mirror the organization plugin's
 // records (org, members, invitations) into the domain. A narrow slice of the
-// organization service. The adapter resolves auth user ids to domain student
-// ids before calling, so core stays decoupled from the auth schema.
+// organization service. The adapter resolves auth user ids to domain USER ids
+// before calling, so core stays decoupled from the auth schema.
 export interface OrganizationProvisioner {
-  provisionOrganization(input: ProvisionOrganizationInput): Promise<Organization>;
+  createOrg(input: CreateOrganizationInput): Promise<Organization>;
   addMembership(input: AddMembershipInput): Promise<Membership>;
-  removeMembership(authMemberId: string): Promise<void>;
+  removeMembership(externalId: string): Promise<void>;
   recordInvitation(input: RecordInvitationInput): Promise<Invitation>;
   acceptInvitation(input: AcceptInvitationInput): Promise<void>;
   // Lets the adapter detect whether an org is already mirrored (used to make
   // the creator's membership hook resilient to firing before provisioning).
-  getByAuthOrgId(authOrgId: string): Promise<Organization | null>;
+  getByExternalId(externalId: string): Promise<Organization | null>;
 }
 
 // Inbound port (use cases the service exposes).
@@ -30,7 +30,7 @@ export interface OrganizationService extends OrganizationProvisioner {
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
-  getMembershipByStudent(studentId: string): Promise<Membership | null>;
+  getMembershipByUser(userId: string): Promise<Membership | null>;
   // Member-management operations (formerly the `team` context). Reads come from
   // the domain mirror; writes go through Better Auth via OrgAdmin.
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
@@ -41,16 +41,16 @@ export interface OrganizationService extends OrganizationProvisioner {
 
 // Outbound port (persistence contract the repository fulfils).
 export interface OrganizationsRepository {
-  insertOrganization(input: ProvisionOrganizationInput): Promise<Organization>;
-  findByAuthOrgId(authOrgId: string): Promise<Organization | null>;
+  create(input: CreateOrganizationInput): Promise<Organization>;
+  findByExternalId(externalId: string): Promise<Organization | null>;
   insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership>;
-  deleteMembershipByAuthMemberId(authMemberId: string): Promise<void>;
+  deleteMembershipByExternalId(externalId: string): Promise<void>;
   insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation>;
   setInvitationStatusByAuthId(authInvitationId: string, status: string): Promise<void>;
   insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
-  findMembershipByStudent(studentId: string): Promise<Membership | null>;
+  findMembershipByUser(userId: string): Promise<Membership | null>;
 }
 
 /** A member row enriched with the auth-provider ids needed to drive writes. */

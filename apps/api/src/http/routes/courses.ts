@@ -69,7 +69,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      const course = await courses.create(scope.orgId, req.body, scope.actorStudentId);
+      const course = await courses.create(scope.orgId, req.body);
       return reply.code(201).send(course);
     },
   });

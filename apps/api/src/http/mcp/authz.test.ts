@@ -18,14 +18,6 @@ const instructor: McpPrincipal = {
   scopes: ["lms:read", "lms:write"],
 };
 
-const student: McpPrincipal = {
-  studentId: "s3",
-  orgId: "o1",
-  role: "student",
-  assignedCourseIds: [],
-  scopes: ["lms:read"],
-};
-
 describe("authorize", () => {
   it("returns false when the principal lacks the required scope", () => {
     expect(authorize(owner, "lms:admin", "manage_billing")).toBe(false);
@@ -55,27 +47,18 @@ describe("authorize", () => {
     expect(authorize(instructor, "lms:write", "manage_billing")).toBe(false);
   });
 
-  it("returns false for student who lacks manage_billing permission", () => {
-    expect(authorize(student, "lms:read", "manage_billing")).toBe(false);
-  });
-
   it("owner with course-scoped permission and a courseId returns true regardless of assignedCourseIds", () => {
     // owner has capability === true for view_student_progress, so canForCourse returns true
     expect(authorize(owner, "lms:read", "view_student_progress", "any_course")).toBe(true);
   });
 
-  it("returns false for student without scope even for consume_content", () => {
-    expect(authorize(student, "lms:write", "consume_content")).toBe(false);
+  it("returns false for instructor without the required scope even when the role would allow it", () => {
+    expect(authorize(instructor, "lms:admin", "edit_assigned_course", "c1")).toBe(false);
   });
 
   it("denies an 'assigned' course-scoped permission called WITHOUT a courseId", () => {
     // instructor.edit_assigned_course is capability "assigned", not true — the
     // org-global path (no courseId) must reject it, requiring the courseId branch.
     expect(authorize(instructor, "lms:write", "edit_assigned_course")).toBe(false);
-  });
-
-  it("denies an 'enrolled' permission (consume_content) called without a courseId", () => {
-    // student.consume_content is capability "enrolled", never an org-global true.
-    expect(authorize(student, "lms:read", "consume_content")).toBe(false);
   });
 });

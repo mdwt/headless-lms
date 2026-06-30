@@ -1,5 +1,5 @@
 // entitlements — Drizzle repository (implements the core outbound port). Org-scoped.
-// Rows are denormalized at read time by joining students (display name + email)
+// Rows are denormalized at read time by joining students (first/last name + email)
 // and courses (title). The "expired" status is DERIVED in SQL from expires_at so
 // no cron is needed to flip rows; the derived value is used both in the returned
 // payload and for status filtering/sorting.
@@ -14,54 +14,54 @@ import type {
   GrantEntitlementInput,
   Page,
 } from "../../../core/entitlements/model.js";
-import { entitlements } from "../schema/entitlements.js";
+import { enrollments } from "../schema/index.js";
 import { students } from "../schema/identity.js";
 import { courses } from "../schema/courses.js";
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.
 const derivedStatus = sql<EntitlementStatus>`case
-  when ${entitlements.status} = 'revoked' then 'revoked'
-  when ${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now() then 'expired'
+  when ${enrollments.status} = 'revoked' then 'revoked'
+  when ${enrollments.expiresAt} is not null and ${enrollments.expiresAt} < now() then 'expired'
   else 'active'
 end`;
 
 // Sortable columns by the client-facing field name. `status` sorts on the derived
 // expression so the ordering matches the displayed value.
 const sortColumns = {
-  studentName: students.displayName,
+  firstName: students.firstName,
+  lastName: students.lastName,
   studentEmail: students.email,
   courseTitle: courses.title,
   status: derivedStatus,
-  progressPercent: entitlements.progressPercent,
-  grantedAt: entitlements.grantedAt,
-  expiresAt: entitlements.expiresAt,
-  source: entitlements.source,
+  grantedAt: enrollments.grantedAt,
+  expiresAt: enrollments.expiresAt,
+  source: enrollments.source,
 } as const;
 
 const selection = {
-  id: entitlements.id,
-  studentId: entitlements.studentId,
-  studentName: students.displayName,
+  id: enrollments.id,
+  studentId: enrollments.studentId,
+  firstName: students.firstName,
+  lastName: students.lastName,
   studentEmail: students.email,
-  courseId: entitlements.courseId,
+  courseId: enrollments.courseId,
   courseTitle: courses.title,
   status: derivedStatus,
-  progressPercent: entitlements.progressPercent,
-  grantedAt: entitlements.grantedAt,
-  expiresAt: entitlements.expiresAt,
-  source: entitlements.source,
+  grantedAt: enrollments.grantedAt,
+  expiresAt: enrollments.expiresAt,
+  source: enrollments.source,
 } as const;
 
 interface Row {
   id: string;
   studentId: string;
-  studentName: string;
+  firstName: string;
+  lastName: string;
   studentEmail: string;
   courseId: string;
   courseTitle: string;
   status: EntitlementStatus;
-  progressPercent: number;
   grantedAt: Date;
   expiresAt: Date | null;
   source: string;
@@ -71,12 +71,12 @@ function toEntitlement(row: Row): Entitlement {
   return {
     id: row.id,
     studentId: row.studentId,
-    studentName: row.studentName,
+    firstName: row.firstName,
+    lastName: row.lastName,
     studentEmail: row.studentEmail,
     courseId: row.courseId,
     courseTitle: row.courseTitle,
     status: row.status,
-    progressPercent: row.progressPercent,
     grantedAt: row.grantedAt.toISOString(),
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     source: row.source as EntitlementSource,
@@ -87,16 +87,17 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   async list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>> {
-    const conditions: SQL[] = [eq(entitlements.orgId, orgId)];
+    const conditions: SQL[] = [eq(enrollments.orgId, orgId)];
     if (query.status) conditions.push(sql`${derivedStatus} = ${query.status}`);
-    if (query.source) conditions.push(eq(entitlements.source, query.source));
-    if (query.studentId) conditions.push(eq(entitlements.studentId, query.studentId));
-    if (query.courseId) conditions.push(eq(entitlements.courseId, query.courseId));
+    if (query.source) conditions.push(eq(enrollments.source, query.source));
+    if (query.studentId) conditions.push(eq(enrollments.studentId, query.studentId));
+    if (query.courseId) conditions.push(eq(enrollments.courseId, query.courseId));
     if (query.search) {
       const pattern = `%${query.search}%`;
       conditions.push(
         or(
-          ilike(students.displayName, pattern),
+          ilike(students.firstName, pattern),
+          ilike(students.lastName, pattern),
           ilike(students.email, pattern),
           ilike(courses.title, pattern),
         ) as SQL,
@@ -109,21 +110,21 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     if (query.sort) {
       const isDesc = query.sort.startsWith("-");
       const field = (isDesc ? query.sort.slice(1) : query.sort) as keyof typeof sortColumns;
-      const col = sortColumns[field] ?? entitlements.grantedAt;
+      const col = sortColumns[field] ?? enrollments.grantedAt;
       orderBy = isDesc ? desc(col) : asc(col);
     } else {
-      orderBy = desc(entitlements.grantedAt);
+      orderBy = desc(enrollments.grantedAt);
     }
 
     const offset = (query.page - 1) * query.pageSize;
 
     const rows = await this.db
       .select(selection)
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
       .innerJoin(
         courses,
-        and(eq(courses.orgId, entitlements.orgId), eq(courses.id, entitlements.courseId)),
+        and(eq(courses.orgId, enrollments.orgId), eq(courses.id, enrollments.courseId)),
       )
       .where(where)
       .orderBy(orderBy)
@@ -132,11 +133,11 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
 
     const [{ total } = { total: 0 }] = await this.db
       .select({ total: sql<number>`cast(count(*) as int)` })
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
       .innerJoin(
         courses,
-        and(eq(courses.orgId, entitlements.orgId), eq(courses.id, entitlements.courseId)),
+        and(eq(courses.orgId, enrollments.orgId), eq(courses.id, enrollments.courseId)),
       )
       .where(where);
 
@@ -150,28 +151,26 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
 
   async insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
     const [row] = await this.db
-      .insert(entitlements)
+      .insert(enrollments)
       .values({
         orgId,
         studentId: input.studentId,
         courseId: input.courseId,
         status: "active",
         source: "manual",
-        progressPercent: 0,
         grantedAt: new Date(),
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       })
       .onConflictDoUpdate({
-        target: [entitlements.orgId, entitlements.studentId, entitlements.courseId],
+        target: [enrollments.orgId, enrollments.studentId, enrollments.courseId],
         set: {
           status: "active",
           source: "manual",
-          progressPercent: 0,
           grantedAt: new Date(),
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
         },
       })
-      .returning({ id: entitlements.id });
+      .returning({ id: enrollments.id });
     if (!row) throw new Error("failed to insert entitlement");
     const entitlement = await this.findById(orgId, row.id);
     if (!entitlement) throw new Error("failed to read inserted entitlement");
@@ -184,10 +183,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     status: "active" | "revoked",
   ): Promise<Entitlement | null> {
     const [row] = await this.db
-      .update(entitlements)
+      .update(enrollments)
       .set({ status })
-      .where(and(eq(entitlements.orgId, orgId), eq(entitlements.id, id)))
-      .returning({ id: entitlements.id });
+      .where(and(eq(enrollments.orgId, orgId), eq(enrollments.id, id)))
+      .returning({ id: enrollments.id });
     if (!row) return null;
     return this.findById(orgId, row.id);
   }
@@ -195,13 +194,13 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
   private async findById(orgId: string, id: string): Promise<Entitlement | null> {
     const [row] = await this.db
       .select(selection)
-      .from(entitlements)
-      .innerJoin(students, eq(students.id, entitlements.studentId))
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
       .innerJoin(
         courses,
-        and(eq(courses.orgId, entitlements.orgId), eq(courses.id, entitlements.courseId)),
+        and(eq(courses.orgId, enrollments.orgId), eq(courses.id, enrollments.courseId)),
       )
-      .where(and(eq(entitlements.orgId, orgId), eq(entitlements.id, id)))
+      .where(and(eq(enrollments.orgId, orgId), eq(enrollments.id, id)))
       .limit(1);
     return row ? toEntitlement(row) : null;
   }

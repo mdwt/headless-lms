@@ -121,12 +121,12 @@ function getConsentHTML(p: {
 }
 
 export function createAuth(opts: CreateAuthOptions) {
-  // Resolve a better-auth user id to its mirrored domain student. The student is
+  // Resolve a better-auth user id to its mirrored domain staff User. The User is
   // provisioned on user creation, so it exists by the time org hooks fire.
-  const requireStudent = async (authUserId: string) => {
-    const student = await opts.identity.getStudentByAuthUserId(authUserId);
-    if (!student) throw new Error(`no domain student for auth user ${authUserId}`);
-    return student;
+  const requireUser = async (externalId: string) => {
+    const user = await opts.identity.getUserByExternalId(externalId);
+    if (!user) throw new Error(`no domain user for auth user ${externalId}`);
+    return user;
   };
 
   return betterAuth({
@@ -157,17 +157,17 @@ export function createAuth(opts: CreateAuthOptions) {
         organizationHooks: {
           // New org → mirror it plus the creator's owner membership.
           afterCreateOrganization: async ({ organization: org, member, user }) => {
-            const owner = await requireStudent(user.id);
-            await opts.organizations.provisionOrganization({
-              authOrgId: org.id,
+            const owner = await requireUser(user.id);
+            await opts.organizations.createOrg({
+              externalId: org.id,
               name: org.name,
               slug: org.slug,
-              ownerStudentId: owner.id,
+              ownerId: owner.id,
             });
             await opts.organizations.addMembership({
-              authOrgId: org.id,
-              authMemberId: member.id,
-              studentId: owner.id,
+              orgExternalId: org.id,
+              externalId: member.id,
+              userId: owner.id,
               role: member.role,
             });
           },
@@ -176,13 +176,13 @@ export function createAuth(opts: CreateAuthOptions) {
             // hook before afterCreateOrganization has mirrored the org. In that
             // case skip — the creator's membership is mirrored by
             // afterCreateOrganization. For genuine later adds the org exists.
-            const mirrored = await opts.organizations.getByAuthOrgId(org.id);
+            const mirrored = await opts.organizations.getByExternalId(org.id);
             if (!mirrored) return;
-            const student = await requireStudent(user.id);
+            const user_ = await requireUser(user.id);
             await opts.organizations.addMembership({
-              authOrgId: org.id,
-              authMemberId: member.id,
-              studentId: student.id,
+              orgExternalId: org.id,
+              externalId: member.id,
+              userId: user_.id,
               role: member.role,
             });
           },
@@ -190,14 +190,14 @@ export function createAuth(opts: CreateAuthOptions) {
             await opts.organizations.removeMembership(member.id);
           },
           afterCreateInvitation: async ({ invitation, inviter, organization: org }) => {
-            const inviterStudent = await requireStudent(inviter.id);
+            const inviterUser = await requireUser(inviter.id);
             await opts.organizations.recordInvitation({
-              authOrgId: org.id,
+              orgExternalId: org.id,
               authInvitationId: invitation.id,
               email: invitation.email,
               role: invitation.role,
               status: invitation.status,
-              inviterStudentId: inviterStudent.id,
+              inviterUserId: inviterUser.id,
               expiresAt: invitation.expiresAt ?? null,
             });
           },
@@ -234,9 +234,9 @@ export function createAuth(opts: CreateAuthOptions) {
       user: {
         create: {
           after: async (user) => {
-            // Translate better-auth's user into the identity context's input.
-            await opts.identity.registerStudent({
-              authUserId: user.id,
+            // Translate better-auth's user into the identity context's staff User.
+            await opts.identity.registerUser({
+              externalId: user.id,
               email: user.email,
               displayName: user.name,
             });
