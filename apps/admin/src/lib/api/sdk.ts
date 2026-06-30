@@ -29,17 +29,17 @@ import type {
   ListParams,
   Member,
   Module,
-  ModuleItem,
   OverviewStats,
   Paginated,
   Role,
+  SaveItemInput,
   Student,
 } from "./types";
 
 let configured = false;
 function ensureConfigured(): void {
   if (configured) return;
-  configureSdk({ baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000" });
+  configureSdk({ baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000" });
   configured = true;
 }
 
@@ -114,7 +114,6 @@ export const api = {
           title: input.title ?? "Untitled course",
           description: input.description,
           category: input.category,
-          instructorId: input.instructorId,
         },
       }),
     );
@@ -128,7 +127,6 @@ export const api = {
           title: patch.title,
           description: patch.description,
           category: patch.category,
-          instructorId: patch.instructorId,
           status: patch.status,
         },
       }),
@@ -169,7 +167,7 @@ export const api = {
   async saveItem(
     courseId: string,
     moduleId: string,
-    item: Partial<ModuleItem> & { id?: string },
+    item: SaveItemInput,
   ): Promise<Module[]> {
     ensureConfigured();
     // Build the discriminated SaveItem body from the form payload.
@@ -177,20 +175,18 @@ export const api = {
       item.kind === "assessment"
         ? {
             kind: "assessment" as const,
-            title: item.title ?? "New assessment",
-            type: (item as { type?: "quiz" | "assignment" }).type ?? "quiz",
-            questionCount: (item as { questionCount?: number }).questionCount,
-            pointsPossible: (item as { pointsPossible?: number }).pointsPossible,
+            title: item.title,
+            type: item.type,
+            questionCount: item.questionCount,
+            pointsPossible: item.pointsPossible,
             published: item.published,
           }
         : {
             kind: "lesson" as const,
-            title: item.title ?? "New lesson",
-            type:
-              (item as { type?: "video" | "text" | "pdf" | "audio" | "download" | "embed" }).type ??
-              "video",
-            durationLabel: (item as { durationLabel?: string }).durationLabel,
-            published: item.published,
+            title: item.title,
+            type: item.type,
+            settings: item.settings,
+            assetIds: item.assetIds,
           };
     if (item.id) {
       return unwrap(

@@ -39,24 +39,6 @@ function isExpiringSoon(expiresAt: string | null, status: Entitlement["status"])
   return rel.startsWith("in ") && /\b(day|hour|minute)s?\b/.test(rel);
 }
 
-function ProgressMeter({ value }: { value: number }) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <div
-        className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-2"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-9 text-right text-sm text-ink-2">{pct}%</span>
-    </div>
-  );
-}
-
 export default function EntitlementsPage() {
   const user = useCurrentUser();
   const table = useDataTable({ initialSort: [{ id: "grantedAt", desc: true }] });
@@ -69,15 +51,16 @@ export default function EntitlementsPage() {
   const columns = React.useMemo<ColumnDef<Entitlement, unknown>[]>(
     () => [
       {
-        accessorKey: "studentName",
+        accessorKey: "firstName",
         header: ({ column }) => <ColumnHeader column={column} title="Student" />,
         cell: ({ row }) => {
           const e = row.original;
+          const name = `${e.firstName} ${e.lastName}`;
           return (
             <div className="flex min-w-0 items-center gap-2.5">
-              <NameAvatar name={e.studentName} className="size-7 shrink-0" />
+              <NameAvatar name={name} className="size-7 shrink-0" />
               <div className="min-w-0">
-                <div className="truncate font-medium text-ink">{e.studentName}</div>
+                <div className="truncate font-medium text-ink">{name}</div>
                 <div className="truncate text-sm text-ink-4">{e.studentEmail}</div>
               </div>
             </div>
@@ -106,12 +89,6 @@ export default function EntitlementsPage() {
           <Badge variant="outline">{SOURCE_LABEL[row.original.source]}</Badge>
         ),
         enableSorting: false,
-      },
-      {
-        accessorKey: "progressPercent",
-        header: ({ column }) => <ColumnHeader column={column} title="Progress" align="right" />,
-        cell: ({ row }) => <ProgressMeter value={row.original.progressPercent} />,
-        meta: { align: "right" },
       },
       {
         accessorKey: "grantedAt",
@@ -237,7 +214,7 @@ export default function EntitlementsPage() {
         title="Revoke access?"
         description={
           revokeTarget
-            ? `${revokeTarget.studentName} will immediately lose access to ${revokeTarget.courseTitle}. You can reinstate it later.`
+            ? `${revokeTarget.firstName} ${revokeTarget.lastName} will immediately lose access to ${revokeTarget.courseTitle}. You can reinstate it later.`
             : ""
         }
         confirmLabel="Revoke access"

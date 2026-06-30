@@ -28,9 +28,13 @@ import { cn } from "@/lib/utils";
 function ItemGlyph({ item }: { item: ModuleItem }) {
   const cls = "size-4";
   if (item.kind === "assessment") {
-    return item.type === "quiz" ? <ListChecks className={cls} /> : <ClipboardList className={cls} />;
+    return item.assessment.type === "quiz" ? (
+      <ListChecks className={cls} />
+    ) : (
+      <ClipboardList className={cls} />
+    );
   }
-  switch (item.type) {
+  switch (item.lesson.type) {
     case "video":
       return <Video className={cls} />;
     case "audio":
@@ -56,19 +60,26 @@ function ItemIcon({ item }: { item: ModuleItem }) {
 
 function metaFor(item: ModuleItem): { label: string; detail?: string } {
   if (item.kind === "assessment") {
-    if (item.type === "quiz") {
+    if (item.assessment.type === "quiz") {
       return {
         label: "Quiz",
-        detail: item.questionCount != null ? `${item.questionCount} questions` : undefined,
+        detail:
+          item.assessment.questionCount != null
+            ? `${item.assessment.questionCount} questions`
+            : undefined,
       };
     }
     return {
       label: "Assignment",
-      detail: item.pointsPossible != null ? `${item.pointsPossible} pts` : undefined,
+      detail:
+        item.assessment.pointsPossible != null
+          ? `${item.assessment.pointsPossible} pts`
+          : undefined,
     };
   }
-  const label = item.type.charAt(0).toUpperCase() + item.type.slice(1);
-  return { label, detail: item.durationLabel };
+  const type = item.lesson.type;
+  const label = type.charAt(0).toUpperCase() + type.slice(1);
+  return { label };
 }
 
 export function ItemRow({
@@ -87,13 +98,15 @@ export function ItemRow({
   const save = useSaveItem(courseId);
   const del = useDeleteItem(courseId);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [published, setPublished] = React.useState(item.published);
-  const [serverPublished, setServerPublished] = React.useState(item.published);
+  // Only assessments carry a published flag; lessons have none.
+  const itemPublished = item.kind === "assessment" ? item.assessment.published : false;
+  const [published, setPublished] = React.useState(itemPublished);
+  const [serverPublished, setServerPublished] = React.useState(itemPublished);
 
   // Sync optimistic state when the server value changes (no effect needed).
-  if (item.published !== serverPublished) {
-    setServerPublished(item.published);
-    setPublished(item.published);
+  if (itemPublished !== serverPublished) {
+    setServerPublished(itemPublished);
+    setPublished(itemPublished);
   }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -102,14 +115,25 @@ export function ItemRow({
   });
 
   const meta = metaFor(item);
+  const title = item.kind === "assessment" ? item.assessment.title : item.lesson.title;
 
   function togglePublished(next: boolean) {
+    if (item.kind !== "assessment") return;
     setPublished(next);
-    // Send the full item so the SDK rebuilds the correct discriminated body —
-    // a partial {id, published} would be re-typed as a default lesson and wipe
-    // the title/type (and assessment fields).
+    // Rebuild the full assessment payload so the SDK sends a complete body.
     save.mutate(
-      { moduleId, item: { ...item, published: next } },
+      {
+        moduleId,
+        item: {
+          id: item.id,
+          kind: "assessment",
+          title: item.assessment.title,
+          type: item.assessment.type,
+          questionCount: item.assessment.questionCount,
+          pointsPossible: item.assessment.pointsPossible,
+          published: next,
+        },
+      },
       { onError: () => setPublished(serverPublished) },
     );
   }
@@ -149,7 +173,7 @@ export function ItemRow({
       <ItemIcon item={item} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium text-ink">{item.title}</span>
+        <span className="truncate text-sm font-medium text-ink">{title}</span>
         <div className="flex items-center gap-1.5 text-xs text-ink-4">
           <span>{meta.label}</span>
           {meta.detail ? (
@@ -161,18 +185,20 @@ export function ItemRow({
         </div>
       </div>
 
-      {canEdit ? (
-        <Switch
-          checked={published}
-          onCheckedChange={togglePublished}
-          aria-label={published ? "Published — click to unpublish" : "Draft — click to publish"}
-          className="shrink-0"
-        />
-      ) : (
-        <Badge variant={published ? "success" : "neutral"}>
-          {published ? "Published" : "Draft"}
-        </Badge>
-      )}
+      {item.kind === "assessment" ? (
+        canEdit ? (
+          <Switch
+            checked={published}
+            onCheckedChange={togglePublished}
+            aria-label={published ? "Published — click to unpublish" : "Draft — click to publish"}
+            className="shrink-0"
+          />
+        ) : (
+          <Badge variant={published ? "success" : "neutral"}>
+            {published ? "Published" : "Draft"}
+          </Badge>
+        )
+      ) : null}
 
       {canEdit ? (
         <RowActions label="Item actions">
@@ -194,7 +220,7 @@ export function ItemRow({
         title="Delete item"
         description={
           <>
-            Delete <span className="font-medium text-ink">{item.title}</span>? This can&apos;t be
+            Delete <span className="font-medium text-ink">{title}</span>? This can&apos;t be
             undone.
           </>
         }

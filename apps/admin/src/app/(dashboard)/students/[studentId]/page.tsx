@@ -15,8 +15,6 @@ import { isManager } from "@/lib/roles";
 import { formatDate, relativeTime } from "@/lib/format";
 import type { Entitlement, Student } from "@/lib/api/types";
 
-import { ProgressMeter } from "../_components/progress-meter";
-
 export default function StudentDetailPage() {
   const user = useCurrentUser();
   const params = useParams<{ studentId: string }>();
@@ -113,7 +111,6 @@ function StudentHeader({ student }: { student: Student }) {
 }
 
 function EntitlementRow({ entitlement: e }: { entitlement: Entitlement }) {
-  const pct = Math.round(e.progressPercent);
   return (
     <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex min-w-0 flex-col gap-1.5">
@@ -126,10 +123,6 @@ function EntitlementRow({ entitlement: e }: { entitlement: Entitlement }) {
           {" · "}
           {e.expiresAt ? `Expires ${relativeTime(e.expiresAt)}` : "No expiry"}
         </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3 sm:w-56">
-        <ProgressMeter value={pct} className="w-full" />
-        <span className="w-9 shrink-0 text-right text-xs text-ink-3">{pct}%</span>
       </div>
     </li>
   );

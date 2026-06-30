@@ -37,7 +37,6 @@ const ROLE_FACETS = [
   { label: "Owner", value: "owner" },
   { label: "Admin", value: "admin" },
   { label: "Instructor", value: "instructor" },
-  { label: "Student", value: "student" },
 ];
 
 const STATUS_FACETS = [
@@ -49,7 +48,6 @@ const STATUS_FACETS = [
 const ASSIGNABLE_ROLES = [
   { label: "Admin", value: "admin" },
   { label: "Instructor", value: "instructor" },
-  { label: "Student", value: "student" },
 ] as const;
 
 /**

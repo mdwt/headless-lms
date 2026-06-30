@@ -32,8 +32,32 @@ export type Module = ListModulesResponse[number];
 export type ModuleItem = Module["items"][number];
 export type Lesson = Extract<ModuleItem, { kind: "lesson" }>;
 export type Assessment = Extract<ModuleItem, { kind: "assessment" }>;
-export type LessonType = Lesson["type"];
-export type AssessmentType = Assessment["type"];
+export type LessonType = Lesson["lesson"]["type"];
+export type AssessmentType = Assessment["assessment"]["type"];
+
+/**
+ * Flat form payload for creating/updating a module item. Mirrors the SDK's
+ * discriminated SaveItem body — the form builds this; `api.saveItem` maps it
+ * onto the create/update endpoints.
+ */
+export type SaveItemInput =
+  | {
+      id?: string;
+      kind: "lesson";
+      title: string;
+      type: LessonType;
+      settings?: unknown;
+      assetIds?: string[];
+    }
+  | {
+      id?: string;
+      kind: "assessment";
+      title: string;
+      type: AssessmentType;
+      questionCount?: number;
+      pointsPossible?: number;
+      published?: boolean;
+    };
 
 export type Student = GetStudentResponse;
 

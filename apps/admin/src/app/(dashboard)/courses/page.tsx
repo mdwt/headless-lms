@@ -20,7 +20,6 @@ import {
   useCourses,
   useToggleCoursePublish,
   useDeleteCourse,
-  useInstructorsLite,
 } from "@/lib/api/hooks";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
@@ -63,9 +62,6 @@ export default function CoursesPage() {
   const canPublish = can.publishCourse(user);
   const canDelete = can.deleteCourse(user);
 
-  const instructorsQuery = useInstructorsLite();
-  const instructors = instructorsQuery.data ?? [];
-
   const openCreate = React.useCallback(() => {
     setEditing(undefined);
     setSheetOpen(true);
@@ -105,11 +101,6 @@ export default function CoursesPage() {
             </div>
           );
         },
-      },
-      {
-        accessorKey: "instructorName",
-        header: ({ column }) => <ColumnHeader column={column} title="Instructor" />,
-        cell: ({ row }) => <span className="text-ink-2">{row.original.instructorName}</span>,
       },
       {
         accessorKey: "category",
@@ -253,7 +244,6 @@ export default function CoursesPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         course={editing}
-        instructors={instructors}
       />
 
       <ConfirmDialog

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSaveItem } from "@/lib/api/hooks";
-import type { LessonType, ModuleItem } from "@/lib/api/types";
+import type { LessonType, ModuleItem, SaveItemInput } from "@/lib/api/types";
 
 const LESSON_TYPES: LessonType[] = ["video", "text", "pdf", "audio", "download", "embed"];
 const LESSON_TYPE_LABEL: Record<LessonType, string> = {
@@ -39,7 +39,6 @@ const schema = z
       .min(1, "Give this item a title")
       .max(120, "Keep the title under 120 characters"),
     lessonType: z.enum(["video", "text", "pdf", "audio", "download", "embed"]),
-    durationLabel: z.string().trim().max(40, "Keep it short, e.g. “12 min”").optional(),
     assessmentType: z.enum(["quiz", "assignment"]),
     questionCount: z.string().optional(),
     pointsPossible: z.string().optional(),
@@ -78,7 +77,6 @@ function toDefaults(item: ModuleItem | null, fallbackKind: "lesson" | "assessmen
       kind: fallbackKind,
       title: "",
       lessonType: "video",
-      durationLabel: "",
       assessmentType: "quiz",
       questionCount: "10",
       pointsPossible: "100",
@@ -88,24 +86,22 @@ function toDefaults(item: ModuleItem | null, fallbackKind: "lesson" | "assessmen
   if (item.kind === "lesson") {
     return {
       kind: "lesson",
-      title: item.title,
-      lessonType: item.type,
-      durationLabel: item.durationLabel ?? "",
+      title: item.lesson.title,
+      lessonType: item.lesson.type,
       assessmentType: "quiz",
       questionCount: "10",
       pointsPossible: "100",
-      published: item.published,
+      published: false,
     };
   }
   return {
     kind: "assessment",
-    title: item.title,
+    title: item.assessment.title,
     lessonType: "video",
-    durationLabel: "",
-    assessmentType: item.type,
-    questionCount: item.questionCount != null ? String(item.questionCount) : "10",
-    pointsPossible: item.pointsPossible != null ? String(item.pointsPossible) : "100",
-    published: item.published,
+    assessmentType: item.assessment.type,
+    questionCount: item.assessment.questionCount != null ? String(item.assessment.questionCount) : "10",
+    pointsPossible: item.assessment.pointsPossible != null ? String(item.assessment.pointsPossible) : "100",
+    published: item.assessment.published,
   };
 }
 
@@ -149,15 +145,13 @@ export function ItemFormSheet({
   const assessmentType = useWatch({ control, name: "assessmentType" });
 
   async function onValid(values: FormValues) {
-    const payload: Partial<ModuleItem> & { id?: string } =
+    const payload: SaveItemInput =
       values.kind === "lesson"
         ? {
             ...(isEdit ? { id: item!.id } : {}),
             kind: "lesson",
             title: values.title,
             type: values.lessonType,
-            durationLabel: values.durationLabel?.trim() ? values.durationLabel.trim() : undefined,
-            published: values.published,
           }
         : {
             ...(isEdit ? { id: item!.id } : {}),
@@ -238,14 +232,6 @@ export function ItemFormSheet({
                 )}
               />
             </Field>
-            <Field
-              id="durationLabel"
-              label="Duration"
-              hint="Optional. Shown as a small label, e.g. “12 min”."
-              error={errors.durationLabel?.message}
-            >
-              <Input id="durationLabel" placeholder="12 min" {...register("durationLabel")} />
-            </Field>
           </>
         ) : (
           <>
@@ -300,18 +286,20 @@ export function ItemFormSheet({
           </>
         )}
 
-        <Field id="published" label="Visibility" hint="Published items are visible to enrolled students.">
-          <div className="flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2.5">
-            <span className="text-sm text-ink-2">Published</span>
-            <Controller
-              control={control}
-              name="published"
-              render={({ field }) => (
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              )}
-            />
-          </div>
-        </Field>
+        {kind === "assessment" ? (
+          <Field id="published" label="Visibility" hint="Published assessments are visible to enrolled students.">
+            <div className="flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2.5">
+              <span className="text-sm text-ink-2">Published</span>
+              <Controller
+                control={control}
+                name="published"
+                render={({ field }) => (
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                )}
+              />
+            </div>
+          </Field>
+        ) : null}
       </form>
     </FormSheet>
   );

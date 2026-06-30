@@ -23,9 +23,9 @@ import type {
   Entitlement,
   ListParams,
   Member,
-  ModuleItem,
   Paginated,
   Role,
+  SaveItemInput,
 } from "./types";
 
 
@@ -171,7 +171,7 @@ export function useDeleteModule(courseId: string) {
 export function useSaveItem(courseId: string) {
   return useModuleMutation(
     courseId,
-    ({ moduleId, item }: { moduleId: string; item: Partial<ModuleItem> & { id?: string } }) =>
+    ({ moduleId, item }: { moduleId: string; item: SaveItemInput }) =>
       api.saveItem(courseId, moduleId, item),
     "Saved",
   );
@@ -222,7 +222,9 @@ export function useGrantEntitlement() {
     onSuccess: (e) => {
       qc.invalidateQueries({ queryKey: qk.entitlements.all });
       qc.invalidateQueries({ queryKey: qk.overview });
-      toast.success("Access granted", { description: `${e.studentName} → ${e.courseTitle}` });
+      toast.success("Access granted", {
+        description: `${e.firstName} ${e.lastName} → ${e.courseTitle}`,
+      });
     },
     onError: (e) => toast.error("Couldn't grant access", { description: e.message }),
   });

@@ -3,7 +3,7 @@
 /**
  * Real Better Auth client, wired to the headless-LMS API (`apps/api`), which
  * mounts better-auth at `/api/auth` with the organization plugin
- * (owner/admin/instructor/student roles).
+ * (owner/admin/instructor roles).
  *
  * The dashboard UI is driven by a single `Session` shape — `useDashboardSession`
  * adapts better-auth's session + the caller's active-organization membership
@@ -16,7 +16,7 @@ import { organizationClient } from "better-auth/client/plugins";
 
 import type { Organization, Role, SessionUser } from "../api/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export const authClient = createAuthClient({
   // better-auth appends its basePath (`/api/auth`) to this origin.
@@ -33,9 +33,9 @@ export interface Session {
   token: string;
 }
 
-const KNOWN_ROLES: Role[] = ["owner", "admin", "instructor", "student"];
+const KNOWN_ROLES: Role[] = ["owner", "admin", "instructor"];
 function toRole(value: unknown): Role {
-  return KNOWN_ROLES.includes(value as Role) ? (value as Role) : "student";
+  return KNOWN_ROLES.includes(value as Role) ? (value as Role) : "instructor";
 }
 
 export type DashboardSessionStatus =

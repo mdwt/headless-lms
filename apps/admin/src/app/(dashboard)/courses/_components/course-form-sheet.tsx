@@ -33,7 +33,6 @@ const CATEGORIES = [
 const schema = z.object({
   title: z.string().trim().min(1, "Title is required").max(120, "Keep it under 120 characters"),
   category: z.string().min(1, "Pick a category"),
-  instructorId: z.string().min(1, "Instructor is required"),
   description: z.string().trim().max(600, "Keep it under 600 characters").optional(),
 });
 
@@ -45,14 +44,11 @@ export function CourseFormSheet({
   open,
   onOpenChange,
   course,
-  instructors,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Present = edit mode; absent = create mode. */
   course?: Course;
-  /** Assignable instructors (members), by id. */
-  instructors: { id: string; name: string }[];
 }) {
   const isEdit = Boolean(course);
   const create = useCreateCourse();
@@ -71,7 +67,6 @@ export function CourseFormSheet({
     defaultValues: {
       title: "",
       category: "",
-      instructorId: "",
       description: "",
     },
   });
@@ -82,30 +77,16 @@ export function CourseFormSheet({
     reset({
       title: course?.title ?? "",
       category: course?.category ?? "",
-      instructorId: course?.instructorId ?? "",
       description: course?.description ?? "",
     });
   }, [open, course, reset]);
 
   const category = watch("category");
-  const instructorId = watch("instructorId");
-
-  // Include the course's current instructor even if they're not in the lite list.
-  const instructorOptions = React.useMemo(() => {
-    const byId = new Map(instructors.map((i) => [i.id, i.name]));
-    if (course?.instructorId && !byId.has(course.instructorId)) {
-      byId.set(course.instructorId, course.instructorName);
-    }
-    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  }, [instructors, course]);
 
   const onSubmit = handleSubmit((values) => {
     const patch: Partial<Course> = {
       title: values.title.trim(),
       category: values.category,
-      instructorId: values.instructorId,
       description: values.description?.trim() ?? "",
     };
     if (isEdit && course) {
@@ -156,32 +137,6 @@ export function CourseFormSheet({
               {CATEGORIES.map((c) => (
                 <SelectItem key={c} value={c}>
                   {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field
-          id="instructorId"
-          label="Instructor"
-          required
-          error={errors.instructorId?.message}
-          hint={instructorOptions.length === 0 ? "No instructors available yet." : undefined}
-        >
-          <Select
-            value={instructorId || undefined}
-            onValueChange={(v) =>
-              setValue("instructorId", v, { shouldValidate: true, shouldDirty: true })
-            }
-          >
-            <SelectTrigger id="instructorId" aria-invalid={Boolean(errors.instructorId)}>
-              <SelectValue placeholder="Assign an instructor" />
-            </SelectTrigger>
-            <SelectContent>
-              {instructorOptions.map((opt) => (
-                <SelectItem key={opt.id} value={opt.id}>
-                  {opt.name}
                 </SelectItem>
               ))}
             </SelectContent>

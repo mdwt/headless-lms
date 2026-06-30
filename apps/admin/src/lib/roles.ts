@@ -10,19 +10,17 @@ export const ROLE_LABEL: Record<Role, string> = {
   owner: "Owner",
   admin: "Admin",
   instructor: "Instructor",
-  student: "Student",
 };
 
 export const ROLE_RANK: Record<Role, number> = {
   owner: 3,
   admin: 2,
   instructor: 1,
-  student: 0,
 };
 
-/** Students have no back-office access — used to redirect them to login. */
-export function canAccessDashboard(role: Role): boolean {
-  return role !== "student";
+/** Every org role has back-office access. */
+export function canAccessDashboard(_role: Role): boolean {
+  return true;
 }
 
 /** Owner/Admin see and do everything across the org. */
