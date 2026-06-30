@@ -7,7 +7,6 @@ export type AssetStatus = "pending" | "ready";
 
 export interface Asset {
   readonly id: string;
-  orgId: string;
   /** Object key in the storage bucket. */
   key: string;
   kind: AssetKind;
@@ -22,7 +21,6 @@ export interface Asset {
 }
 
 export interface RequestUploadInput {
-  orgId: string;
   uploadedBy: string;
   filename: string;
   contentType: string;
@@ -43,7 +41,6 @@ export interface DownloadTicket {
 }
 
 export interface AssetsQuery {
-  orgId: string;
   page: number;
   pageSize: number;
   search?: string | undefined;

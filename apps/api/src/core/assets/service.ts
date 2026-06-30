@@ -30,13 +30,12 @@ export class AssetsServiceImpl implements AssetsService {
     private readonly now: () => string,
   ) {}
 
-  async requestUpload(input: RequestUploadInput): Promise<UploadTicket> {
+  async requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket> {
     const id = this.newId();
-    const key = `${orgPrefix(input.orgId)}${input.kind}/${id}/${sanitizeFilename(input.filename)}`;
+    const key = `${orgPrefix(orgId)}${input.kind}/${id}/${sanitizeFilename(input.filename)}`;
     const presigned = await this.storage.presignUpload({ key, contentType: input.contentType });
-    const asset = await this.repo.insert({
+    const asset = await this.repo.insert(orgId, {
       id,
-      orgId: input.orgId,
       key,
       kind: input.kind,
       filename: input.filename,
@@ -67,8 +66,8 @@ export class AssetsServiceImpl implements AssetsService {
     });
   }
 
-  list(query: AssetsQuery): Promise<Page<Asset>> {
-    return this.repo.list(query);
+  list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {
+    return this.repo.list(orgId, query);
   }
 
   get(orgId: string, id: string): Promise<Asset | null> {

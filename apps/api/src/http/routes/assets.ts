@@ -60,8 +60,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
       if (!orgId) return;
-      const ticket = await assets.requestUpload({
-        orgId,
+      const ticket = await assets.requestUpload(orgId, {
         uploadedBy: req.authUser?.id ?? "",
         ...req.body,
       });
@@ -103,7 +102,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
       if (!orgId) return;
-      return assets.list({ orgId, ...req.query });
+      return assets.list(orgId, req.query);
     },
   });
 

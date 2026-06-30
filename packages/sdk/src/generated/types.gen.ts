@@ -1087,7 +1087,6 @@ export type RequestUploadResponses = {
   201: {
     asset: {
       id: string;
-      orgId: string;
       key: string;
       kind: "video" | "download" | "content";
       filename: string;
@@ -1149,7 +1148,6 @@ export type ConfirmAssetResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     key: string;
     kind: "video" | "download" | "content";
     filename: string;
@@ -1202,7 +1200,6 @@ export type ListAssetsResponses = {
   200: {
     rows: Array<{
       id: string;
-      orgId: string;
       key: string;
       kind: "video" | "download" | "content";
       filename: string;
@@ -1303,7 +1300,6 @@ export type GetAssetResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     key: string;
     kind: "video" | "download" | "content";
     filename: string;
@@ -1363,7 +1359,6 @@ export type RequestAssetDownloadResponses = {
     url: string;
     asset: {
       id: string;
-      orgId: string;
       key: string;
       kind: "video" | "download" | "content";
       filename: string;

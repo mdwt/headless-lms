@@ -12,7 +12,6 @@ export type AssetStatus = z.infer<typeof AssetStatus>;
 
 export const Asset = z.object({
   id: z.string(),
-  orgId: z.string(),
   key: z.string(),
   kind: AssetKind,
   filename: z.string(),

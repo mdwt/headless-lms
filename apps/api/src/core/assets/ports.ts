@@ -10,10 +10,10 @@ import type {
 
 export interface AssetsService {
   /** Register an asset and return a presigned URL to upload its bytes. */
-  requestUpload(input: RequestUploadInput): Promise<UploadTicket>;
+  requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
   /** After upload, capture size/content-type from storage and mark ready. */
   confirm(orgId: string, id: string): Promise<Asset | null>;
-  list(query: AssetsQuery): Promise<Page<Asset>>;
+  list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
   get(orgId: string, id: string): Promise<Asset | null>;
   /** Short-lived presigned URL to download/serve the asset. */
   requestDownload(orgId: string, id: string, filename?: string): Promise<DownloadTicket | null>;
@@ -22,8 +22,8 @@ export interface AssetsService {
 }
 
 export interface AssetsRepository {
-  insert(asset: Asset): Promise<Asset>;
-  list(query: AssetsQuery): Promise<Page<Asset>>;
+  insert(orgId: string, asset: Asset): Promise<Asset>;
+  list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
   /** Scoped to the org — returns null if the asset belongs to another org. */
   findById(orgId: string, id: string): Promise<Asset | null>;
   update(

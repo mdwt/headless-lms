@@ -3799,9 +3799,6 @@
                         "id": {
                           "type": "string"
                         },
-                        "orgId": {
-                          "type": "string"
-                        },
                         "key": {
                           "type": "string"
                         },
@@ -3840,7 +3837,6 @@
                       },
                       "required": [
                         "id",
-                        "orgId",
                         "key",
                         "kind",
                         "filename",
@@ -3960,9 +3956,6 @@
                     "id": {
                       "type": "string"
                     },
-                    "orgId": {
-                      "type": "string"
-                    },
                     "key": {
                       "type": "string"
                     },
@@ -4001,7 +3994,6 @@
                   },
                   "required": [
                     "id",
-                    "orgId",
                     "key",
                     "kind",
                     "filename",
@@ -4161,9 +4153,6 @@
                           "id": {
                             "type": "string"
                           },
-                          "orgId": {
-                            "type": "string"
-                          },
                           "key": {
                             "type": "string"
                           },
@@ -4202,7 +4191,6 @@
                         },
                         "required": [
                           "id",
-                          "orgId",
                           "key",
                           "kind",
                           "filename",
@@ -4317,9 +4305,6 @@
                     "id": {
                       "type": "string"
                     },
-                    "orgId": {
-                      "type": "string"
-                    },
                     "key": {
                       "type": "string"
                     },
@@ -4358,7 +4343,6 @@
                   },
                   "required": [
                     "id",
-                    "orgId",
                     "key",
                     "kind",
                     "filename",
@@ -4584,9 +4568,6 @@
                         "id": {
                           "type": "string"
                         },
-                        "orgId": {
-                          "type": "string"
-                        },
                         "key": {
                           "type": "string"
                         },
@@ -4625,7 +4606,6 @@
                       },
                       "required": [
                         "id",
-                        "orgId",
                         "key",
                         "kind",
                         "filename",

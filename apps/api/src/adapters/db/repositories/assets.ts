@@ -16,7 +16,6 @@ type Row = typeof assets.$inferSelect;
 function toAsset(row: Row): Asset {
   return {
     id: row.id,
-    orgId: row.orgId,
     key: row.key,
     kind: row.kind as AssetKind,
     filename: row.filename,
@@ -38,12 +37,12 @@ const SORT_COLUMNS = {
 export class DrizzleAssetsRepository implements AssetsRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
-  async insert(asset: Asset): Promise<Asset> {
+  async insert(orgId: string, asset: Asset): Promise<Asset> {
     const [row] = await this.db
       .insert(assets)
       .values({
         id: asset.id,
-        orgId: asset.orgId,
+        orgId,
         key: asset.key,
         kind: asset.kind,
         filename: asset.filename,
@@ -58,8 +57,8 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     return toAsset(row);
   }
 
-  async list(query: AssetsQuery): Promise<Page<Asset>> {
-    const filters: (SQL | undefined)[] = [eq(assets.orgId, query.orgId)];
+  async list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {
+    const filters: (SQL | undefined)[] = [eq(assets.orgId, orgId)];
     if (query.kind) filters.push(eq(assets.kind, query.kind));
     const q = query.search?.trim();
     if (q) filters.push(ilike(assets.filename, `%${q}%`));
