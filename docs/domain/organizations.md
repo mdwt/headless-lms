@@ -1,81 +1,64 @@
 # Organizations — Domain Spec
 
-Owns the tenant: organization, membership, invitation, the role model, course assignments, and member-management operations. The tenant root every other context scopes to. Better Auth's organization plugin is the source of truth, mirrored read-only into core; writes go through Better Auth.
+Organizations owns the tenant: the organization itself, the staff who belong to it, and their roles. It is the tenant root that every other context scopes to by `org_id`. Better Auth's organization plugin is the source of truth; core holds a read-only mirror, and all writes go through Better Auth.
+
+Membership here is **staff only** — it links a *User* (the staff identity from the identity domain) to an org. Learners are the separate Student identity and do not hold org memberships or roles; whether someone is a learner is determined by their entitlements, not by anything in this domain.
 
 ## Scope
 
-- Owns the **org (tenant)**, **membership** (user↔org), **invitation**, **roles**, and **course assignments** (instructor scope).
-- Owns **authorization** (role → permission) for members.
-- Owns the **member-management operations** (formerly the `team` context): invite a member, change a member's role, remove a member, list members, and the rules on those operations.
-- Does **not** own the user record (identity), access (entitlements), content (courses), or completion (progress).
+- Owns the **organization (tenant)**, **membership** (staff User ↔ org), **invitation**, **roles**, and **course assignments** (which scope an instructor to specific courses).
+- Owns **authorization** — the mapping from a member's role to what they may do.
+- Owns **member management** — inviting, reassigning, and removing the staff who belong to an org.
+- Does **not** own the user record (identity), learner access (entitlements), content (courses), or completion (progress).
 
 ## System of record
 
-Better Auth's **organization plugin** is the source of truth for organizations, members, and invitations. Core holds a **read-only mirror** populated by `organizationHooks` (`afterCreateOrganization`, `afterAddMember`, `afterCreateInvitation`, …) into domain tables. All member writes (invite / change-role / remove) go **through Better Auth** via the `OrgAdmin` port — core never writes the mirror directly. Org-scoped tables across the system carry `org_id` and FK to the mirrored organization. A provider swap is a **data migration, not a port swap**.
+Better Auth's **organization plugin** is the source of truth for organizations, members, and invitations. Core holds a **read-only mirror**, populated by Better Auth's organization hooks writing into domain tables. Every member write — invite, reassign, remove — goes **through Better Auth**; core never writes the mirror directly, it reads the mirror and reacts to the hooks. Because Better Auth is the source of truth rather than an interchangeable adapter, replacing it would be a **data migration, not a port swap**.
 
-## Model
+## Models
 
-- **Organization** — the tenant. Root every org-scoped table FKs to. Mirrors a Better Auth org.
-- **Membership** — links a user to an org with a role. Mirrors a Better Auth member.
+- **Organization** — the tenant. The root that every org-scoped table FKs to. Mirrors a Better Auth org.
+- **Membership** — links a staff User to an org and carries their role. Mirrors a Better Auth member.
 - **Invitation** — a pending invite to join an org. Mirrors a Better Auth invitation.
-- **Course assignment** — links an instructor membership to a course, scoping instructor permissions to assigned courses.
+- **Course assignment** — links an instructor's membership to a specific course, which is how an instructor's permissions are scoped to the courses they actually teach.
 
 ## Roles
 
-Four roles, defined in code as a string-literal union (stored as a `text` column; **no DB enum**): `owner | admin | instructor | student`. Two axes: **role** (what) × **scope** (over what).
+Three staff roles: `owner | admin | instructor`. A role answers two questions — what a member can do, and over which resources.
 
-- **Owner** — full control, ownership transfer. Org-global. One per org.
-- **Admin** — manage courses, students, settings. Org-global.
-- **Instructor** — create/manage assigned courses. **Course-scoped** via a course assignment.
-- **Student** — consume content. Default role. Per-membership (access owned by entitlements; the role here is "is a learner").
+- **Owner** — full control, including transferring ownership. Org-global. One per org.
+- **Admin** — manage courses, members, and settings. Org-global.
+- **Instructor** — create and manage the courses assigned to them. **Course-scoped** through a course assignment.
 
-### Permissions (table stakes)
+Learners are not represented here; they are the Student identity and are governed by entitlements, not by an org role.
 
-| Action | Owner | Admin | Instructor | Student |
-|---|---|---|---|---|
-| Manage org / ownership | ✓ | | | |
-| Manage org settings | ✓ | ✓ | | |
-| Manage users | ✓ | ✓ | | |
-| Create/edit any course | ✓ | ✓ | | |
-| Edit assigned course | ✓ | ✓ | ✓ (assigned) | |
-| View student progress | ✓ | ✓ | ✓ (assigned) | |
-| Consume content | | | | ✓ (enrolled) |
+### Permissions
 
-The permission matrix is defined in code (a role → permissions map), not in the database.
+The table-stakes permission map — the starting set, not a fixed contract.
 
-## Member-management operations
+| Action | Owner | Admin | Instructor |
+|---|---|---|---|
+| Manage org / ownership | ✓ | | |
+| Manage org settings | ✓ | ✓ | |
+| Manage members | ✓ | ✓ | |
+| Create / edit any course | ✓ | ✓ | |
+| Edit assigned course | ✓ | ✓ | ✓ (assigned) |
+| View student progress | ✓ | ✓ | ✓ (assigned) |
 
-The invite/change-role/remove/list surface absorbed from the former `team` context. Writes go through the `OrgAdmin` port (Better Auth); the core mirror updates via `organizationHooks`.
+## Member management
 
-- **`list`** — paged/filtered query (search, sort, `role`, `status`).
-- **`invite`** — invite by email + role; rejects an email already a member or invited.
-- **`updateRole`** — change a member's role.
-- **`remove`** — remove a member.
-
-### Rules
-
-- **The owner role cannot be reassigned** — `updateRole` on an owner raises `OrganizationRuleError`.
-- A duplicate invite (email already a member or invited) raises `OrganizationRuleError`.
-
-`OrganizationRuleError` surfaces at the HTTP boundary as `409 Conflict`.
+Owners and admins manage who belongs to an org: invite staff by email and role, reassign a member's role, and remove a member. Ownership is held by exactly one member and moves only through a deliberate ownership transfer, not the ordinary role-reassignment path. All of these are writes, so they go through Better Auth and the mirror follows.
 
 ## Boundaries
 
-1. **organizations ↔ Better Auth**
-   - The organization plugin is the source of truth; core holds a read-only mirror via `organizationHooks`. Member writes go through Better Auth via the `OrgAdmin` port.
-   - Connection: read-only mirror via hooks; writes via the `OrgAdmin` port.
-2. **organizations ↔ identity**
-   - *identity* owns the user record.
-   - *organizations* references the user id on membership / course assignment.
-   - Connection: reference only.
-3. **organizations ↔ courses**
-   - Course assignments reference a course by id (instructor scope).
-   - Connection: reference by id. organizations never reads course content.
-4. **organizations → all contexts**
-   - Provides `org_id` for tenant scoping.
-   - Connection: reference + authorization lookup.
+1. **organizations ↔ Better Auth** — the organization plugin is the source of truth; core holds a read-only mirror via the organization hooks, and all member writes go through Better Auth.
+2. **organizations ↔ identity** — identity owns the User record; organizations references the User by id on membership and course assignment. Reference only.
+3. **organizations ↔ courses** — a course assignment references a course by id to scope an instructor; organizations never reads course content. Reference only.
+4. **organizations → all contexts** — provides `org_id` for tenant scoping and answers authorization lookups. Reference plus authorization.
 
 ## Events
+
+Emitted by core when the mirror updates in response to a Better Auth hook (core owns these domain events; Better Auth owns the underlying auth action).
 
 - `organization.created`
 - `membership.created`, `role.assigned`
@@ -83,8 +66,8 @@ The invite/change-role/remove/list surface absorbed from the former `team` conte
 
 ## Multi-tenancy
 
-Organization is the tenant root. Every org-scoped table carries a composite `(org_id, id)` key with `org_id` → `organization`. Users are global (one per Better Auth user); the org↔user link is membership.
+The organization is the tenant root. Every org-scoped table across the system carries a composite `(org_id, id)` key, with `org_id` referencing the mirrored organization. Users are global at the Better Auth level; the link between a user and an org is the membership.
 
 ## Build state
 
-Built and **persisted** via a Drizzle repository (`adapters/db/repositories/organizations.ts`), including the absorbed member-management surface.
+Built and **persisted** via a Drizzle repository (`adapters/db/repositories/organizations.ts`).

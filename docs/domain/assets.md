@@ -1,33 +1,36 @@
 # Assets — Domain Spec
 
-Owns the org's media library: tracked objects in storage (video, downloadable file, inline content) that domain objects (e.g. a lesson) reference by id. Bytes live in object storage; the registry lives in the domain.
+Owns the org's media library: tracked objects in storage — video, downloadable files, inline content — that other domains reference. The bytes live in object storage; the registry of what exists lives here.
 
 ## Scope
 
-- Owns the **asset**: a registry row for one stored object, its lifecycle, and the org-scoped key it lives under.
-- Owns the upload/serve flow via short-lived presigned URLs — bytes never transit the API.
-- Does **not** own the storage backend (an adapter) or the domain objects that reference an asset.
+- Owns the **asset**: a registry entry for one stored object, its lifecycle, and the org-scoped location it lives under.
+- Owns the upload and serve flow through short-lived presigned URLs, so file bytes go straight between the client and storage. The object store itself sits behind a storage port; assets owns the registry and lifecycle and delegates the raw object operations (put, stat, get, delete) to it.
+- Owns nothing about the storage backend itself or the domain objects that reference an asset.
 
 ## Model
 
-- **Asset** — id, `orgId`, storage `key`, `kind` (`video | download | content`), `filename`, `contentType`, `size` (0 until confirmed), `status` (`pending | ready`), `uploadedBy`, `createdAt`.
-- **UploadTicket** / **DownloadTicket** — a presigned URL (+ method/headers) plus the asset.
-- Keys are constructed `org/<orgId>/<kind>/<id>/<sanitized-filename>`; org isolation is enforced by scoping every lookup to the caller's org (cross-org reads return null).
+### Entities (persisted)
 
-## Key operations
+- **Asset** — the registry entry for a stored object: its org, storage location, filename, content type, size, status (`pending` until the upload is confirmed, then `ready`), who uploaded it, and when. Every asset belongs to an org, and all access is scoped to that org.
 
-- **`requestUpload`** — register a `pending` asset and return a presigned **PUT** URL.
-- **`confirm`** — `stat` the object in storage, capture size/content-type, mark `ready`.
-- **`requestDownload`** — return a short-lived presigned **GET** URL (optional download filename).
-- **`list`** / **`get`** — paged/filtered library reads, org-scoped.
-- **`remove`** — delete the object from storage and the registry row.
+### Not persisted
+
+- **Upload / download ticket** — a short-lived presigned URL (with its method and any required headers) handed to the client for a single upload or download. Generated on demand, never stored.
+
+## Capabilities
+
+- **Request an upload** — register a pending asset and hand back a presigned upload URL.
+- **Confirm an upload** — once the client has uploaded, capture the object's real size and content type and mark the asset ready.
+- **Request a download** — hand back a short-lived presigned download URL.
+- **Browse the library** — list and read assets, scoped to the org.
+- **Remove an asset** — delete both the stored object and its registry entry.
 
 ## Boundaries
 
-1. **assets ↔ storage adapter** — `AssetsServiceImpl` owns key construction and lifecycle; delegates object operations to the `ObjectStorage` port. Implemented by `MinioStorageAdapter` (MinIO / S3-compatible): private bucket, access only via presigned URLs.
-2. **assets ↔ organizations** — every asset is org-scoped; routes resolve the session's active org to the domain org id before any operation.
-3. **assets ↔ courses** — a lesson (owned by courses) references an asset by `assetId`; assets never reads curriculum.
+1. **assets → organizations** — every asset is scoped to an org; an operation resolves the caller's active org before touching anything, and one org cannot see another's assets.
+2. **assets ↔ courses** — a lesson (owned by courses) references the assets it uses; a lesson can reference many, and an asset can be used by many lessons. Assets owns the objects; courses owns the curriculum.
 
 ## Build state
 
-Implemented and **persisted** (`assets` table) plus the MinIO/S3 storage adapter. HTTP routes require an active-org session (`/api/uploads`, `/api/assets/:id/confirm`, library + download under `/api/assets`).
+Built and **persisted** (`assets` table) with a storage adapter behind the storage port.

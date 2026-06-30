@@ -40,7 +40,7 @@ A context never defines a port into another context's internals — only its pub
 
 ## Contexts
 
-Six domains, all built and Drizzle-persisted.
+Six domains.
 
 - **identity** — user identity and authentication only. Owns the domain user record other contexts reference by id; mirrors Better Auth (the credentials/session system of record) via hooks. No org/membership/roles.
 - **organizations** — the tenant root every org-scoped context FKs to. Owns Organization, Membership, Invitation, the role/permission matrix (`owner | admin | instructor | student`; instructor course-scoped), course assignments, and the member-management operations (invite / change-role / remove / list). Better Auth's organization plugin is the source of truth, mirrored read-only via `organizationHooks`; writes go through Better Auth via the `OrgAdmin` port.
