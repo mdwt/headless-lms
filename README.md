@@ -118,12 +118,12 @@ pnpm test
 ## Local development
 
 ```bash
-docker compose up -d        # Postgres + MinIO (see docker-compose.yml)
+docker compose -f docker/docker-compose.yml up -d   # Postgres (:8005) + MinIO (:8006/:8007)
 cp .env.example .env        # root .env — set BETTER_AUTH_SECRET (openssl rand -base64 32)
 pnpm db:generate            # generate Drizzle migrations
 pnpm db:migrate             # apply them
 pnpm seed:admin             # optional: seed the admin account + org
-pnpm dev                    # run all four apps
+pnpm dev                    # api :8000 · admin :8001 · student :8002
 ```
 
 The database must be up before `pnpm dev` and `pnpm gen:sdk` — `gen:openapi` boots

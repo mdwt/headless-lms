@@ -1,4 +1,7 @@
 // Course modules + items (lessons and assessments) resource schemas.
+// A module holds an ordered list of module items; each item is a link placing
+// one lesson OR one assessment at a position (`seq`) and embeds the resolved
+// content entity.
 import { z } from "zod";
 
 export const LessonType = z.enum(["video", "text", "pdf", "audio", "download", "embed"]);
@@ -7,41 +10,54 @@ export type LessonType = z.infer<typeof LessonType>;
 export const AssessmentType = z.enum(["quiz", "assignment"]);
 export type AssessmentType = z.infer<typeof AssessmentType>;
 
+// Content entities.
 export const Lesson = z.object({
   id: z.string(),
-  moduleId: z.string(),
-  kind: z.literal("lesson"),
-  title: z.string(),
-  order: z.number().int(),
   type: LessonType,
-  durationLabel: z.string().optional(),
-  /** Media-library asset backing this lesson (video file, downloadable, …). */
-  assetId: z.string().optional(),
-  published: z.boolean(),
+  title: z.string(),
+  // Opaque per-lesson blob (content payload + completion rule + settings).
+  settings: z.unknown(),
+  assetIds: z.array(z.string()),
 });
 export type Lesson = z.infer<typeof Lesson>;
 
 export const Assessment = z.object({
   id: z.string(),
-  moduleId: z.string(),
-  kind: z.literal("assessment"),
-  title: z.string(),
-  order: z.number().int(),
   type: AssessmentType,
+  title: z.string(),
+  published: z.boolean(),
   questionCount: z.number().int().optional(),
   pointsPossible: z.number().int().optional(),
-  published: z.boolean(),
 });
 export type Assessment = z.infer<typeof Assessment>;
 
-export const ModuleItem = z.discriminatedUnion("kind", [Lesson, Assessment]);
+// Module item: an orderable link to a lesson or an assessment, embedding it.
+export const LessonItem = z.object({
+  id: z.string(),
+  moduleId: z.string(),
+  seq: z.number().int(),
+  kind: z.literal("lesson"),
+  lessonId: z.string(),
+  lesson: Lesson,
+});
+
+export const AssessmentItem = z.object({
+  id: z.string(),
+  moduleId: z.string(),
+  seq: z.number().int(),
+  kind: z.literal("assessment"),
+  assessmentId: z.string(),
+  assessment: Assessment,
+});
+
+export const ModuleItem = z.discriminatedUnion("kind", [LessonItem, AssessmentItem]);
 export type ModuleItem = z.infer<typeof ModuleItem>;
 
 export const Module = z.object({
   id: z.string(),
   courseId: z.string(),
   title: z.string(),
-  order: z.number().int(),
+  seq: z.number().int(),
   items: z.array(ModuleItem),
 });
 export type Module = z.infer<typeof Module>;
@@ -77,9 +93,8 @@ export const SaveLesson = z.object({
   kind: z.literal("lesson"),
   title: z.string().min(1),
   type: LessonType,
-  durationLabel: z.string().optional(),
-  assetId: z.string().optional(),
-  published: z.boolean().optional(),
+  settings: z.unknown().optional(),
+  assetIds: z.array(z.string()).optional(),
 });
 export const SaveAssessment = z.object({
   kind: z.literal("assessment"),

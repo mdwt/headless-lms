@@ -9,7 +9,7 @@ export { client } from "./generated/client.gen";
 import { client } from "./generated/client.gen";
 
 export interface ConfigureSdkOptions {
-  /** API origin, e.g. `https://api.example.com` or `http://localhost:3000`. */
+  /** API origin, e.g. `https://api.example.com` or `http://localhost:8000`. */
   baseUrl: string;
   /**
    * Send credentials (the better-auth session cookie) with every request.

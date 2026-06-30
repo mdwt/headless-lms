@@ -110,12 +110,6 @@
                           "category": {
                             "type": "string"
                           },
-                          "instructorId": {
-                            "type": "string"
-                          },
-                          "instructorName": {
-                            "type": "string"
-                          },
                           "moduleCount": {
                             "type": "integer",
                             "minimum": -9007199254740991,
@@ -145,8 +139,6 @@
                           "description",
                           "status",
                           "category",
-                          "instructorId",
-                          "instructorName",
                           "moduleCount",
                           "lessonCount",
                           "enrolledCount",
@@ -207,10 +199,7 @@
                     "type": "string"
                   },
                   "category": {
-                    "default": "Design",
-                    "type": "string"
-                  },
-                  "instructorId": {
+                    "default": "",
                     "type": "string"
                   }
                 },
@@ -251,12 +240,6 @@
                     "category": {
                       "type": "string"
                     },
-                    "instructorId": {
-                      "type": "string"
-                    },
-                    "instructorName": {
-                      "type": "string"
-                    },
                     "moduleCount": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -286,8 +269,6 @@
                     "description",
                     "status",
                     "category",
-                    "instructorId",
-                    "instructorName",
                     "moduleCount",
                     "lessonCount",
                     "enrolledCount",
@@ -349,12 +330,6 @@
                     "category": {
                       "type": "string"
                     },
-                    "instructorId": {
-                      "type": "string"
-                    },
-                    "instructorName": {
-                      "type": "string"
-                    },
                     "moduleCount": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -384,8 +359,6 @@
                     "description",
                     "status",
                     "category",
-                    "instructorId",
-                    "instructorName",
                     "moduleCount",
                     "lessonCount",
                     "enrolledCount",
@@ -443,10 +416,7 @@
                     "type": "string"
                   },
                   "category": {
-                    "default": "Design",
-                    "type": "string"
-                  },
-                  "instructorId": {
+                    "default": "",
                     "type": "string"
                   },
                   "status": {
@@ -501,12 +471,6 @@
                     "category": {
                       "type": "string"
                     },
-                    "instructorId": {
-                      "type": "string"
-                    },
-                    "instructorName": {
-                      "type": "string"
-                    },
                     "moduleCount": {
                       "type": "integer",
                       "minimum": -9007199254740991,
@@ -536,8 +500,6 @@
                     "description",
                     "status",
                     "category",
-                    "instructorId",
-                    "instructorName",
                     "moduleCount",
                     "lessonCount",
                     "enrolledCount",
@@ -659,7 +621,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -677,49 +639,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -732,49 +710,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -786,7 +781,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -851,7 +846,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -869,49 +864,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -924,49 +935,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -978,7 +1006,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -1047,7 +1075,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -1065,49 +1093,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -1120,49 +1164,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -1174,7 +1235,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -1249,7 +1310,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -1267,49 +1328,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -1322,49 +1399,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -1376,7 +1470,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -1430,7 +1524,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -1448,49 +1542,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -1503,49 +1613,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -1557,7 +1684,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -1634,7 +1761,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -1652,49 +1779,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -1707,49 +1850,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -1761,7 +1921,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -1810,14 +1970,12 @@
                           "embed"
                         ]
                       },
-                      "durationLabel": {
-                        "type": "string"
-                      },
-                      "assetId": {
-                        "type": "string"
-                      },
-                      "published": {
-                        "type": "boolean"
+                      "settings": {},
+                      "assetIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     },
                     "required": [
@@ -1908,7 +2066,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -1926,49 +2084,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -1981,49 +2155,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -2035,7 +2226,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -2084,14 +2275,12 @@
                           "embed"
                         ]
                       },
-                      "durationLabel": {
-                        "type": "string"
-                      },
-                      "assetId": {
-                        "type": "string"
-                      },
-                      "published": {
-                        "type": "boolean"
+                      "settings": {},
+                      "assetIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     },
                     "required": [
@@ -2190,7 +2379,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -2208,49 +2397,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -2263,49 +2468,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -2317,7 +2539,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -2379,7 +2601,7 @@
                       "title": {
                         "type": "string"
                       },
-                      "order": {
+                      "seq": {
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
@@ -2397,49 +2619,65 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "lesson"
                                   ]
                                 },
-                                "title": {
+                                "lessonId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "video",
-                                    "text",
-                                    "pdf",
-                                    "audio",
-                                    "download",
-                                    "embed"
-                                  ]
-                                },
-                                "durationLabel": {
-                                  "type": "string"
-                                },
-                                "assetId": {
-                                  "type": "string"
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "lesson": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "video",
+                                        "text",
+                                        "pdf",
+                                        "audio",
+                                        "download",
+                                        "embed"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "settings": {},
+                                    "assetIds": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "settings",
+                                    "assetIds"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "lessonId",
+                                "lesson"
                               ],
                               "additionalProperties": false
                             },
@@ -2452,49 +2690,66 @@
                                 "moduleId": {
                                   "type": "string"
                                 },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
                                 "kind": {
                                   "type": "string",
                                   "enum": [
                                     "assessment"
                                   ]
                                 },
-                                "title": {
+                                "assessmentId": {
                                   "type": "string"
                                 },
-                                "order": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "quiz",
-                                    "assignment"
-                                  ]
-                                },
-                                "questionCount": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "pointsPossible": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "published": {
-                                  "type": "boolean"
+                                "assessment": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "quiz",
+                                        "assignment"
+                                      ]
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "boolean"
+                                    },
+                                    "questionCount": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "pointsPossible": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "type",
+                                    "title",
+                                    "published"
+                                  ],
+                                  "additionalProperties": false
                                 }
                               },
                               "required": [
                                 "id",
                                 "moduleId",
+                                "seq",
                                 "kind",
-                                "title",
-                                "order",
-                                "type",
-                                "published"
+                                "assessmentId",
+                                "assessment"
                               ],
                               "additionalProperties": false
                             }
@@ -2506,7 +2761,7 @@
                       "id",
                       "courseId",
                       "title",
-                      "order",
+                      "seq",
                       "items"
                     ],
                     "additionalProperties": false
@@ -2853,7 +3108,10 @@
                           "studentId": {
                             "type": "string"
                           },
-                          "studentName": {
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "lastName": {
                             "type": "string"
                           },
                           "studentEmail": {
@@ -2873,11 +3131,6 @@
                               "revoked"
                             ]
                           },
-                          "progressPercent": {
-                            "type": "integer",
-                            "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
-                          },
                           "grantedAt": {
                             "type": "string"
                           },
@@ -2896,12 +3149,12 @@
                         "required": [
                           "id",
                           "studentId",
-                          "studentName",
+                          "firstName",
+                          "lastName",
                           "studentEmail",
                           "courseId",
                           "courseTitle",
                           "status",
-                          "progressPercent",
                           "grantedAt",
                           "expiresAt",
                           "source"
@@ -2985,7 +3238,10 @@
                     "studentId": {
                       "type": "string"
                     },
-                    "studentName": {
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
                       "type": "string"
                     },
                     "studentEmail": {
@@ -3005,11 +3261,6 @@
                         "revoked"
                       ]
                     },
-                    "progressPercent": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
                     "grantedAt": {
                       "type": "string"
                     },
@@ -3028,12 +3279,12 @@
                   "required": [
                     "id",
                     "studentId",
-                    "studentName",
+                    "firstName",
+                    "lastName",
                     "studentEmail",
                     "courseId",
                     "courseTitle",
                     "status",
-                    "progressPercent",
                     "grantedAt",
                     "expiresAt",
                     "source"
@@ -3099,7 +3350,10 @@
                     "studentId": {
                       "type": "string"
                     },
-                    "studentName": {
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "lastName": {
                       "type": "string"
                     },
                     "studentEmail": {
@@ -3119,11 +3373,6 @@
                         "revoked"
                       ]
                     },
-                    "progressPercent": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
                     "grantedAt": {
                       "type": "string"
                     },
@@ -3142,12 +3391,12 @@
                   "required": [
                     "id",
                     "studentId",
-                    "studentName",
+                    "firstName",
+                    "lastName",
                     "studentEmail",
                     "courseId",
                     "courseTitle",
                     "status",
-                    "progressPercent",
                     "grantedAt",
                     "expiresAt",
                     "source"
@@ -3234,8 +3483,7 @@
               "enum": [
                 "owner",
                 "admin",
-                "instructor",
-                "student"
+                "instructor"
               ]
             },
             "in": "query",
@@ -3286,8 +3534,7 @@
                             "enum": [
                               "owner",
                               "admin",
-                              "instructor",
-                              "student"
+                              "instructor"
                             ]
                           },
                           "status": {
@@ -3370,8 +3617,7 @@
                     "enum": [
                       "owner",
                       "admin",
-                      "instructor",
-                      "student"
+                      "instructor"
                     ]
                   }
                 },
@@ -3409,8 +3655,7 @@
                       "enum": [
                         "owner",
                         "admin",
-                        "instructor",
-                        "student"
+                        "instructor"
                       ]
                     },
                     "status": {
@@ -3487,8 +3732,7 @@
                     "enum": [
                       "owner",
                       "admin",
-                      "instructor",
-                      "student"
+                      "instructor"
                     ]
                   }
                 },
@@ -3535,8 +3779,7 @@
                       "enum": [
                         "owner",
                         "admin",
-                        "instructor",
-                        "student"
+                        "instructor"
                       ]
                     },
                     "status": {
@@ -4870,7 +5113,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:3000"
+      "url": "http://localhost:8000"
     }
   ]
 }

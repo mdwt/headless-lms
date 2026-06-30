@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ListQuery, paginated } from "./shared.js";
 
 /** Org-scoped roles, mirrored from better-auth's organization plugin. */
-export const Role = z.enum(["owner", "admin", "instructor", "student"]);
+export const Role = z.enum(["owner", "admin", "instructor"]);
 export type Role = z.infer<typeof Role>;
 
 export const MemberStatus = z.enum(["active", "invited"]);

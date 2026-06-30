@@ -14,8 +14,6 @@ export const Course = z.object({
   description: z.string(),
   status: CourseStatus,
   category: z.string(),
-  instructorId: z.string(),
-  instructorName: z.string(),
   moduleCount: z.number().int(),
   lessonCount: z.number().int(),
   enrolledCount: z.number().int(),
@@ -27,8 +25,7 @@ export type Course = z.infer<typeof Course>;
 export const CreateCourse = z.object({
   title: z.string().min(1),
   description: z.string().default(""),
-  category: z.string().default("Design"),
-  instructorId: z.string().optional(),
+  category: z.string().default(""),
 });
 export type CreateCourse = z.infer<typeof CreateCourse>;
 
