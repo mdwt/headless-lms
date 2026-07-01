@@ -18,7 +18,7 @@ import { resolveScope } from "../scope.js";
 
 export async function coursesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const courses = container.courses;
+  const courses = container.content;
 
   r.route({
     method: "GET",

@@ -3,6 +3,7 @@
 // isolation by scoping every lookup to the caller's org. One record per
 // (student, target); start is idempotent, position/completion upsert on the
 // existing record. Percentage/resume are derived by readers, never stored here.
+import { genId } from "../shared/id.js";
 import type { ProgressRecord } from "./model.js";
 import type { ProgressRepository, ProgressService } from "./ports.js";
 import type { ProgressTarget, RecordPositionInput } from "./types.js";
@@ -10,7 +11,6 @@ import type { ProgressTarget, RecordPositionInput } from "./types.js";
 export class ProgressServiceImpl implements ProgressService {
   constructor(
     private readonly repo: ProgressRepository,
-    private readonly newId: () => string,
     private readonly now: () => string,
   ) {}
 
@@ -18,7 +18,7 @@ export class ProgressServiceImpl implements ProgressService {
     const existing = await this.repo.findByTarget(orgId, target);
     if (existing) return existing;
     return this.repo.insert(orgId, {
-      id: this.newId(),
+      id: genId("progress"),
       orgId,
       studentId: target.studentId,
       targetType: target.targetType,

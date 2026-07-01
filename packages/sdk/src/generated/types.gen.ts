@@ -31,7 +31,7 @@ export type ListCoursesResponses = {
       status: "draft" | "published";
       category: string;
       moduleCount: number;
-      lessonCount: number;
+      activityCount: number;
       enrolledCount: number;
       updatedAt: string;
       createdAt: string;
@@ -67,7 +67,7 @@ export type CreateCourseResponses = {
     status: "draft" | "published";
     category: string;
     moduleCount: number;
-    lessonCount: number;
+    activityCount: number;
     enrolledCount: number;
     updatedAt: string;
     createdAt: string;
@@ -137,7 +137,7 @@ export type GetCourseResponses = {
     status: "draft" | "published";
     category: string;
     moduleCount: number;
-    lessonCount: number;
+    activityCount: number;
     enrolledCount: number;
     updatedAt: string;
     createdAt: string;
@@ -184,7 +184,7 @@ export type UpdateCourseResponses = {
     status: "draft" | "published";
     category: string;
     moduleCount: number;
-    lessonCount: number;
+    activityCount: number;
     enrolledCount: number;
     updatedAt: string;
     createdAt: string;
@@ -211,37 +211,13 @@ export type ListModulesResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
@@ -267,37 +243,13 @@ export type CreateModuleResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
@@ -323,37 +275,13 @@ export type ReorderModulesResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
@@ -378,37 +306,13 @@ export type DeleteModuleResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
@@ -435,43 +339,19 @@ export type UpdateModuleResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
 export type UpdateModuleResponse = UpdateModuleResponses[keyof UpdateModuleResponses];
 
-export type ReorderItemsData = {
+export type ReorderActivitiesData = {
   body: {
     orderedIds: Array<string>;
   };
@@ -480,10 +360,10 @@ export type ReorderItemsData = {
     moduleId: string;
   };
   query?: never;
-  url: "/api/courses/{courseId}/modules/{moduleId}/items/reorder";
+  url: "/api/courses/{courseId}/modules/{moduleId}/activities/reorder";
 };
 
-export type ReorderItemsResponses = {
+export type ReorderActivitiesResponses = {
   /**
    * Default Response
    */
@@ -492,68 +372,33 @@ export type ReorderItemsResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
-export type ReorderItemsResponse = ReorderItemsResponses[keyof ReorderItemsResponses];
+export type ReorderActivitiesResponse =
+  ReorderActivitiesResponses[keyof ReorderActivitiesResponses];
 
-export type CreateItemData = {
-  body:
-    | {
-        kind: "lesson";
-        title: string;
-        type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-        settings?: unknown;
-        assetIds?: Array<string>;
-      }
-    | {
-        kind: "assessment";
-        title: string;
-        type: "quiz" | "assignment";
-        questionCount?: number;
-        pointsPossible?: number;
-        published?: boolean;
-      };
+export type CreateActivityData = {
+  body: {
+    settings?: unknown;
+    assetIds?: Array<string>;
+  };
   path: {
     courseId: string;
     moduleId: string;
   };
   query?: never;
-  url: "/api/courses/{courseId}/modules/{moduleId}/items";
+  url: "/api/courses/{courseId}/modules/{moduleId}/activities";
 };
 
-export type CreateItemResponses = {
+export type CreateActivityResponses = {
   /**
    * Default Response
    */
@@ -562,54 +407,30 @@ export type CreateItemResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
-export type CreateItemResponse = CreateItemResponses[keyof CreateItemResponses];
+export type CreateActivityResponse = CreateActivityResponses[keyof CreateActivityResponses];
 
-export type DeleteItemData = {
+export type DeleteActivityData = {
   body?: never;
   path: {
     courseId: string;
     moduleId: string;
-    itemId: string;
+    activityId: string;
   };
   query?: never;
-  url: "/api/courses/{courseId}/modules/{moduleId}/items/{itemId}";
+  url: "/api/courses/{courseId}/modules/{moduleId}/activities/{activityId}";
 };
 
-export type DeleteItemResponses = {
+export type DeleteActivityResponses = {
   /**
    * Default Response
    */
@@ -618,69 +439,33 @@ export type DeleteItemResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
-export type DeleteItemResponse = DeleteItemResponses[keyof DeleteItemResponses];
+export type DeleteActivityResponse = DeleteActivityResponses[keyof DeleteActivityResponses];
 
-export type UpdateItemData = {
-  body:
-    | {
-        kind: "lesson";
-        title: string;
-        type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-        settings?: unknown;
-        assetIds?: Array<string>;
-      }
-    | {
-        kind: "assessment";
-        title: string;
-        type: "quiz" | "assignment";
-        questionCount?: number;
-        pointsPossible?: number;
-        published?: boolean;
-      };
+export type UpdateActivityData = {
+  body: {
+    settings?: unknown;
+    assetIds?: Array<string>;
+  };
   path: {
     courseId: string;
     moduleId: string;
-    itemId: string;
+    activityId: string;
   };
   query?: never;
-  url: "/api/courses/{courseId}/modules/{moduleId}/items/{itemId}";
+  url: "/api/courses/{courseId}/modules/{moduleId}/activities/{activityId}";
 };
 
-export type UpdateItemResponses = {
+export type UpdateActivityResponses = {
   /**
    * Default Response
    */
@@ -689,41 +474,17 @@ export type UpdateItemResponses = {
     courseId: string;
     title: string;
     seq: number;
-    items: Array<
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "lesson";
-          lessonId: string;
-          lesson: {
-            id: string;
-            type: "video" | "text" | "pdf" | "audio" | "download" | "embed";
-            title: string;
-            settings: unknown;
-            assetIds: Array<string>;
-          };
-        }
-      | {
-          id: string;
-          moduleId: string;
-          seq: number;
-          kind: "assessment";
-          assessmentId: string;
-          assessment: {
-            id: string;
-            type: "quiz" | "assignment";
-            title: string;
-            published: boolean;
-            questionCount?: number;
-            pointsPossible?: number;
-          };
-        }
-    >;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
   }>;
 };
 
-export type UpdateItemResponse = UpdateItemResponses[keyof UpdateItemResponses];
+export type UpdateActivityResponse = UpdateActivityResponses[keyof UpdateActivityResponses];
 
 export type ListStudentsData = {
   body?: never;

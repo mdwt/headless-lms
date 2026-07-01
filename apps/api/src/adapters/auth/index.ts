@@ -16,8 +16,26 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { EmailSender } from "../../core/shared/ports.js";
 import type { IdentityService } from "../../core/identity/index.js";
 import type { OrganizationProvisioner } from "../../core/organizations/index.js";
+import { prefixId } from "../../core/shared/id.js";
 import * as authSchema from "./schema.js";
 import { ac, roles } from "./access.js";
+
+// Prefixes for better-auth's own tables. This is a distinct id space from the
+// mirrored domain rows (auth `user.id` → `users.external_id`, etc.), but we reuse
+// the same human-readable prefixes so a `usr_`/`org_` id reads the same on both
+// sides of the mirror. Unmapped models fall back to a generic `id_` prefix.
+const AUTH_ID_PREFIXES: Record<string, string> = {
+  user: "usr",
+  session: "ses",
+  account: "acc",
+  verification: "ver",
+  organization: "org",
+  member: "mem",
+  invitation: "inv",
+  oauthApplication: "oap",
+  oauthAccessToken: "oat",
+  oauthConsent: "oac",
+};
 
 export interface CreateAuthOptions {
   db: NodePgDatabase;
@@ -133,6 +151,12 @@ export function createAuth(opts: CreateAuthOptions) {
     baseURL: opts.baseURL,
     secret: opts.secret,
     trustedOrigins: opts.trustedOrigins,
+    advanced: {
+      database: {
+        // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).
+        generateId: ({ model }) => prefixId(AUTH_ID_PREFIXES[model] ?? "id"),
+      },
+    },
     database: drizzleAdapter(opts.db, {
       provider: "pg",
       schema: authSchema,

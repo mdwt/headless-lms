@@ -29,35 +29,36 @@ export type Course = GetCourseResponse;
 export type CourseStatus = Course["status"];
 
 export type Module = ListModulesResponse[number];
-export type ModuleItem = Module["items"][number];
-export type Lesson = Extract<ModuleItem, { kind: "lesson" }>;
-export type Assessment = Extract<ModuleItem, { kind: "assessment" }>;
-export type LessonType = Lesson["lesson"]["type"];
-export type AssessmentType = Assessment["assessment"]["type"];
 
 /**
- * Flat form payload for creating/updating a module item. Mirrors the SDK's
- * discriminated SaveItem body — the form builds this; `api.saveItem` maps it
- * onto the create/update endpoints.
+ * An activity is uniform on the wire: `{ id, moduleId, seq, settings, assetIds }`.
+ * Everything content-specific lives in the opaque `settings` blob.
  */
-export type SaveItemInput =
-  | {
-      id?: string;
-      kind: "lesson";
-      title: string;
-      type: LessonType;
-      settings?: unknown;
-      assetIds?: string[];
-    }
-  | {
-      id?: string;
-      kind: "assessment";
-      title: string;
-      type: AssessmentType;
-      questionCount?: number;
-      pointsPossible?: number;
-      published?: boolean;
-    };
+export type Activity = Module["activities"][number];
+
+/**
+ * Admin-side view of the opaque `settings` blob. The API stores it as `unknown`;
+ * the editor reads/writes these fields, defaulting anything missing.
+ */
+export interface ActivitySettings {
+  title?: string;
+  type?: string;
+  body?: string;
+  published?: boolean;
+}
+
+/** Type options the activity editor offers (kept from the former lesson types). */
+export type ActivityType = "video" | "text" | "pdf" | "audio" | "download" | "embed" | "quiz";
+
+/**
+ * Form payload for creating/updating an activity. Maps onto the SDK's
+ * `SaveActivity` body (`{ settings?, assetIds? }`); `api.saveActivity` sends it.
+ */
+export interface SaveActivityInput {
+  id?: string;
+  settings?: unknown;
+  assetIds?: string[];
+}
 
 export type Student = GetStudentResponse;
 

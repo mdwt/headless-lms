@@ -61,7 +61,7 @@ export function registerTools(
     async (args) => {
       if (!principal.scopes.includes("courses:read")) return forbidden();
       try {
-        const page = await container.courses.list(principal.orgId, {
+        const page = await container.content.list(principal.orgId, {
           page: args.page,
           pageSize: args.pageSize,
           search: args.search,
@@ -89,7 +89,7 @@ export function registerTools(
     async (args) => {
       if (!principal.scopes.includes("courses:read")) return forbidden();
       try {
-        const course = await container.courses.get(principal.orgId, args.id);
+        const course = await container.content.get(principal.orgId, args.id);
         if (!course) return notFound("course", args.id);
         return json(course);
       } catch {

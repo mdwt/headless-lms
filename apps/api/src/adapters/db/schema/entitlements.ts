@@ -3,22 +3,25 @@
 // staff User. `status` is stored as active | revoked; "expired" is DERIVED at
 // read time from `expiresAt` (no cron to flip rows). Completion is NOT held
 // here — it belongs to progress and is composed at access-resolution time.
-import { pgTable, uuid, text, timestamp, primaryKey, foreignKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, primaryKey, foreignKey, unique } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
 import { organizations } from "./organizations.js";
 import { students } from "./identity.js";
-import { courses } from "./courses.js";
+import { courses } from "./content.js";
 
 export const enrollments = pgTable(
   "enrollments",
   {
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: uuid("id").notNull().defaultRandom(),
-    studentId: uuid("student_id")
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("enrollment")),
+    studentId: text("student_id")
       .notNull()
       .references(() => students.id),
-    courseId: uuid("course_id").notNull(),
+    courseId: text("course_id").notNull(),
     status: text("status", { enum: ["active", "revoked"] })
       .notNull()
       .default("active"),

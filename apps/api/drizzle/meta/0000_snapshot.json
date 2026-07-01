@@ -1,5 +1,5 @@
 {
-  "id": "d6af39af-39a1-4b4d-94ae-587502df7e77",
+  "id": "c08cf61c-ab20-49d3-a42a-ef9a21673119",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -8,28 +8,27 @@
       "name": "course_assignments",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "membership_id": {
           "name": "membership_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "course_id": {
           "name": "course_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -115,16 +114,15 @@
       "name": "invitations",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -148,7 +146,7 @@
         },
         "invited_by": {
           "name": "invited_by",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -229,20 +227,19 @@
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -323,10 +320,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "external_id": {
           "name": "external_id",
@@ -348,7 +344,7 @@
         },
         "owner_id": {
           "name": "owner_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -397,53 +393,39 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.assessments": {
-      "name": "assessments",
+    "public.activities": {
+      "name": "activities",
       "schema": "",
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "type": {
-          "name": "type",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "title": {
-          "name": "title",
+        "module_id": {
+          "name": "module_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "question_count": {
-          "name": "question_count",
+        "seq": {
+          "name": "seq",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "points_possible": {
-          "name": "points_possible",
-          "type": "integer",
+        "settings": {
+          "name": "settings",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
-        },
-        "published": {
-          "name": "published",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -462,9 +444,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "assessments_org_id_organizations_id_fk": {
-          "name": "assessments_org_id_organizations_id_fk",
-          "tableFrom": "assessments",
+        "activities_org_id_organizations_id_fk": {
+          "name": "activities_org_id_organizations_id_fk",
+          "tableFrom": "activities",
           "tableTo": "organizations",
           "columnsFrom": [
             "org_id"
@@ -474,18 +456,149 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "activities_org_id_module_id_modules_org_id_id_fk": {
+          "name": "activities_org_id_module_id_modules_org_id_id_fk",
+          "tableFrom": "activities",
+          "tableTo": "modules",
+          "columnsFrom": [
+            "org_id",
+            "module_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "assessments_org_id_id_pk": {
-          "name": "assessments_org_id_id_pk",
+        "activities_org_id_id_pk": {
+          "name": "activities_org_id_id_pk",
           "columns": [
             "org_id",
             "id"
           ]
         }
       },
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "activities_org_id_module_id_seq_unique": {
+          "name": "activities_org_id_module_id_seq_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "org_id",
+            "module_id",
+            "seq"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.activity_assets": {
+      "name": "activity_assets",
+      "schema": "",
+      "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activity_id": {
+          "name": "activity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "activity_assets_org_id_organizations_id_fk": {
+          "name": "activity_assets_org_id_organizations_id_fk",
+          "tableFrom": "activity_assets",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "activity_assets_org_id_activity_id_activities_org_id_id_fk": {
+          "name": "activity_assets_org_id_activity_id_activities_org_id_id_fk",
+          "tableFrom": "activity_assets",
+          "tableTo": "activities",
+          "columnsFrom": [
+            "org_id",
+            "activity_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "activity_assets_org_id_asset_id_assets_org_id_id_fk": {
+          "name": "activity_assets_org_id_asset_id_assets_org_id_id_fk",
+          "tableFrom": "activity_assets",
+          "tableTo": "assets",
+          "columnsFrom": [
+            "org_id",
+            "asset_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "activity_assets_org_id_id_pk": {
+          "name": "activity_assets_org_id_id_pk",
+          "columns": [
+            "org_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "activity_assets_org_id_activity_id_asset_id_unique": {
+          "name": "activity_assets_org_id_activity_id_asset_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "org_id",
+            "activity_id",
+            "asset_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -496,16 +609,15 @@
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "title": {
           "name": "title",
@@ -594,351 +706,25 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.lesson_assets": {
-      "name": "lesson_assets",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lesson_id": {
-          "name": "lesson_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "asset_id": {
-          "name": "asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "seq": {
-          "name": "seq",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "lesson_assets_org_id_organizations_id_fk": {
-          "name": "lesson_assets_org_id_organizations_id_fk",
-          "tableFrom": "lesson_assets",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lesson_assets_org_id_lesson_id_lessons_org_id_id_fk": {
-          "name": "lesson_assets_org_id_lesson_id_lessons_org_id_id_fk",
-          "tableFrom": "lesson_assets",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "org_id",
-            "lesson_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lesson_assets_org_id_asset_id_assets_org_id_id_fk": {
-          "name": "lesson_assets_org_id_asset_id_assets_org_id_id_fk",
-          "tableFrom": "lesson_assets",
-          "tableTo": "assets",
-          "columnsFrom": [
-            "org_id",
-            "asset_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "lesson_assets_org_id_id_pk": {
-          "name": "lesson_assets_org_id_id_pk",
-          "columns": [
-            "org_id",
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {
-        "lesson_assets_org_id_lesson_id_asset_id_unique": {
-          "name": "lesson_assets_org_id_lesson_id_asset_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "lesson_id",
-            "asset_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.lessons": {
-      "name": "lessons",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "settings": {
-          "name": "settings",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "lessons_org_id_organizations_id_fk": {
-          "name": "lessons_org_id_organizations_id_fk",
-          "tableFrom": "lessons",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "lessons_org_id_id_pk": {
-          "name": "lessons_org_id_id_pk",
-          "columns": [
-            "org_id",
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.module_items": {
-      "name": "module_items",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "module_id": {
-          "name": "module_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "seq": {
-          "name": "seq",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lesson_id": {
-          "name": "lesson_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assessment_id": {
-          "name": "assessment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "module_items_org_id_organizations_id_fk": {
-          "name": "module_items_org_id_organizations_id_fk",
-          "tableFrom": "module_items",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "module_items_org_id_module_id_modules_org_id_id_fk": {
-          "name": "module_items_org_id_module_id_modules_org_id_id_fk",
-          "tableFrom": "module_items",
-          "tableTo": "modules",
-          "columnsFrom": [
-            "org_id",
-            "module_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "module_items_org_id_lesson_id_lessons_org_id_id_fk": {
-          "name": "module_items_org_id_lesson_id_lessons_org_id_id_fk",
-          "tableFrom": "module_items",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "org_id",
-            "lesson_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "module_items_org_id_assessment_id_assessments_org_id_id_fk": {
-          "name": "module_items_org_id_assessment_id_assessments_org_id_id_fk",
-          "tableFrom": "module_items",
-          "tableTo": "assessments",
-          "columnsFrom": [
-            "org_id",
-            "assessment_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "module_items_org_id_id_pk": {
-          "name": "module_items_org_id_id_pk",
-          "columns": [
-            "org_id",
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {
-        "module_items_org_id_module_id_seq_unique": {
-          "name": "module_items_org_id_module_id_seq_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "module_id",
-            "seq"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "module_items_one_target": {
-          "name": "module_items_one_target",
-          "value": "(lesson_id IS NOT NULL) <> (assessment_id IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.modules": {
       "name": "modules",
       "schema": "",
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "course_id": {
           "name": "course_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1006,26 +792,25 @@
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "student_id": {
           "name": "student_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "course_id": {
           "name": "course_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1131,20 +916,19 @@
       "columns": {
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "student_id": {
           "name": "student_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1156,7 +940,7 @@
         },
         "target_id": {
           "name": "target_id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1234,10 +1018,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "external_id": {
           "name": "external_id",
@@ -1307,10 +1090,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "external_id": {
           "name": "external_id",
@@ -1372,16 +1154,15 @@
       "name": "assets",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
         "org_id": {
           "name": "org_id",
-          "type": "uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },

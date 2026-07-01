@@ -11,7 +11,7 @@ import { registerTools } from "./tools.js";
 import type { McpPrincipal } from "./authz.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Container } from "../../composition/container.js";
-import type { Course } from "../../core/courses/model.js";
+import type { Course } from "../../core/content/index.js";
 import type { Entitlement } from "../../core/entitlements/model.js";
 import type { Student } from "../../reporting/students/model.js";
 
@@ -25,7 +25,7 @@ const COURSE: Course = {
   status: "published",
   category: "Engineering",
   moduleCount: 3,
-  lessonCount: 12,
+  activityCount: 12,
   enrolledCount: 5,
   updatedAt: "2026-01-01T00:00:00Z",
   createdAt: "2026-01-01T00:00:00Z",
@@ -82,7 +82,7 @@ function makeStubServer(): {
 /** Builds a mock container with vi.fn() stubs for courses, entitlements, and the
  *  reporting students read model. */
 function makeContainer(overrides?: {
-  coursesListResult?: Awaited<ReturnType<Container["courses"]["list"]>>;
+  coursesListResult?: Awaited<ReturnType<Container["content"]["list"]>>;
   coursesGetResult?: Course | null;
   enrollmentsListResult?: Awaited<ReturnType<Container["entitlements"]["list"]>>;
   enrollmentsGrantResult?: Entitlement;
@@ -94,7 +94,7 @@ function makeContainer(overrides?: {
   const studentsGetResult =
     overrides && "studentsGetResult" in overrides ? overrides.studentsGetResult : STUDENT;
   return {
-    courses: {
+    content: {
       list: vi.fn().mockResolvedValue(
         overrides?.coursesListResult ?? { rows: [COURSE], total: 1, page: 1, pageSize: 20 },
       ),
@@ -179,7 +179,7 @@ describe("registerTools — list_courses", () => {
     const parsed = JSON.parse(result.content[0]!.text);
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.rows[0].id).toBe("course-1");
-    expect((container.courses.list as Mock)).toHaveBeenCalledWith("org-1", {
+    expect((container.content.list as Mock)).toHaveBeenCalledWith("org-1", {
       page: 1,
       pageSize: 20,
       search: undefined,
@@ -197,7 +197,7 @@ describe("registerTools — list_courses", () => {
     const result = await listCourses({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
-    expect((container.courses.list as Mock)).toHaveBeenCalled();
+    expect((container.content.list as Mock)).toHaveBeenCalled();
   });
 
   it("rejects a principal with no scopes even if role would allow it", async () => {
@@ -209,7 +209,7 @@ describe("registerTools — list_courses", () => {
     const result = await listCourses({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBe(true);
-    expect((container.courses.list as Mock)).not.toHaveBeenCalled();
+    expect((container.content.list as Mock)).not.toHaveBeenCalled();
   });
 });
 
@@ -262,7 +262,7 @@ describe("registerTools — get_course", () => {
     const result = await getCourse({ id: "course-1" });
 
     expect(result.isError).toBe(true);
-    expect((container.courses.get as Mock)).not.toHaveBeenCalled();
+    expect((container.content.get as Mock)).not.toHaveBeenCalled();
   });
 });
 

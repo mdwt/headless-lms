@@ -2,6 +2,7 @@
 // lifecycle (register → upload → confirm → serve → remove); delegates the
 // actual object operations to the ObjectStorage port. Org isolation is enforced
 // by scoping every lookup to the caller's org (cross-org reads return null).
+import { genId } from "../shared/id.js";
 import type { ObjectStorage } from "../shared/ports.js";
 import type {
   Asset,
@@ -26,12 +27,11 @@ export class AssetsServiceImpl implements AssetsService {
   constructor(
     private readonly storage: ObjectStorage,
     private readonly repo: AssetsRepository,
-    private readonly newId: () => string,
     private readonly now: () => string,
   ) {}
 
   async requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket> {
-    const id = this.newId();
+    const id = genId("asset");
     const key = `${orgPrefix(orgId)}${input.kind}/${id}/${sanitizeFilename(input.filename)}`;
     const presigned = await this.storage.presignUpload({ key, contentType: input.contentType });
     const asset = await this.repo.insert(orgId, {

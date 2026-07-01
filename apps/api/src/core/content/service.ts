@@ -1,7 +1,10 @@
-// courses context — service implementation (inbound port).
-import type { Course } from "./model.js";
-import type { Module, SaveItemInput } from "./modules.js";
-import type { CoursesService, CoursesRepository, ModulesRepository } from "./ports.js";
+// content context — service implementation (inbound port).
+import type { Course, Module, SaveActivityInput } from "./model.js";
+import type {
+  ContentService,
+  ContentRepository,
+  ContentStructureRepository,
+} from "./ports.js";
 import type {
   CreateCourseInput,
   ListCoursesQuery,
@@ -17,10 +20,10 @@ function slugify(title: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export class CoursesServiceImpl implements CoursesService {
+export class ContentServiceImpl implements ContentService {
   constructor(
-    private readonly repo: CoursesRepository,
-    private readonly modulesRepo: ModulesRepository,
+    private readonly repo: ContentRepository,
+    private readonly structureRepo: ContentStructureRepository,
   ) {}
 
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
@@ -43,16 +46,16 @@ export class CoursesServiceImpl implements CoursesService {
     return this.repo.delete(orgId, id);
   }
 
-  // --- modules & items (delegated to the modules repository) -------------
+  // --- modules & activities (delegated to the structure repository) -------
 
   listForCourse(orgId: string, courseId: string): Promise<Module[]> {
-    return this.modulesRepo.listForCourse(orgId, courseId);
+    return this.structureRepo.listForCourse(orgId, courseId);
   }
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
-    return this.modulesRepo.reorderModules(orgId, courseId, orderedIds);
+    return this.structureRepo.reorderModules(orgId, courseId, orderedIds);
   }
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
-    return this.modulesRepo.createModule(orgId, courseId, title);
+    return this.structureRepo.createModule(orgId, courseId, title);
   }
   updateModule(
     orgId: string,
@@ -60,34 +63,34 @@ export class CoursesServiceImpl implements CoursesService {
     moduleId: string,
     title: string,
   ): Promise<Module[]> {
-    return this.modulesRepo.updateModule(orgId, courseId, moduleId, title);
+    return this.structureRepo.updateModule(orgId, courseId, moduleId, title);
   }
   deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
-    return this.modulesRepo.deleteModule(orgId, courseId, moduleId);
+    return this.structureRepo.deleteModule(orgId, courseId, moduleId);
   }
-  reorderItems(
+  reorderActivities(
     orgId: string,
     courseId: string,
     moduleId: string,
     orderedIds: string[],
   ): Promise<Module[]> {
-    return this.modulesRepo.reorderItems(orgId, courseId, moduleId, orderedIds);
+    return this.structureRepo.reorderActivities(orgId, courseId, moduleId, orderedIds);
   }
-  saveItem(
+  saveActivity(
     orgId: string,
     courseId: string,
     moduleId: string,
-    input: SaveItemInput,
-    itemId?: string,
+    input: SaveActivityInput,
+    activityId?: string,
   ): Promise<Module[]> {
-    return this.modulesRepo.saveItem(orgId, courseId, moduleId, input, itemId);
+    return this.structureRepo.saveActivity(orgId, courseId, moduleId, input, activityId);
   }
-  deleteItem(
+  deleteActivity(
     orgId: string,
     courseId: string,
     moduleId: string,
-    itemId: string,
+    activityId: string,
   ): Promise<Module[]> {
-    return this.modulesRepo.deleteItem(orgId, courseId, moduleId, itemId);
+    return this.structureRepo.deleteActivity(orgId, courseId, moduleId, activityId);
   }
 }

@@ -1,17 +1,20 @@
 // organizations tables — the domain mirror of the auth adapter's organization
 // plugin. `organizations` is the tenant root (every org-scoped table FKs to it);
 // memberships and invitations carry a composite (org_id, id) key.
-import { pgTable, uuid, text, timestamp, primaryKey, foreignKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, primaryKey, foreignKey, unique } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
 import { users } from "./identity.js";
-import { courses } from "./courses.js";
+import { courses } from "./content.js";
 
 export const organizations = pgTable("organizations", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => genId("organization")),
   // Links to the better-auth organization record.
   externalId: text("external_id").notNull().unique(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
-  ownerId: uuid("owner_id")
+  ownerId: text("owner_id")
     .notNull()
     .references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -20,12 +23,14 @@ export const organizations = pgTable("organizations", {
 export const memberships = pgTable(
   "memberships",
   {
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: uuid("id").notNull().defaultRandom(),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("membership")),
 
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     role: text("role", { enum: ["owner", "admin", "instructor"] }).notNull(),
@@ -38,16 +43,18 @@ export const memberships = pgTable(
 export const invitations = pgTable(
   "invitations",
   {
-    id: uuid("id").notNull().defaultRandom(),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("invitation")),
     email: text("email").notNull(),
     role: text("role", { enum: ["owner", "admin", "instructor"] }).notNull(),
     status: text("status", {
       enum: ["pending", "accepted", "rejected", "canceled"],
     }).notNull(),
-    invetedBy: uuid("invited_by")
+    invetedBy: text("invited_by")
       .notNull()
       .references(() => users.id),
     authInvitationId: text("auth_invitation_id").notNull().unique(),
@@ -60,12 +67,14 @@ export const invitations = pgTable(
 export const courseAssignments = pgTable(
   "course_assignments",
   {
-    id: uuid("id").notNull().defaultRandom(),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    membershipId: uuid("membership_id").notNull(),
-    courseId: uuid("course_id").notNull(),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("courseAssignment")),
+    membershipId: text("membership_id").notNull(),
+    courseId: text("course_id").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({

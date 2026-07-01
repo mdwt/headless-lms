@@ -1,15 +1,18 @@
 // assets table — the org's media library. Org-scoped: composite (org_id, id) PK
 // with org_id → organizations.id, mirroring the multi-tenant table shape.
-import { pgTable, uuid, text, bigint, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
 import { organizations } from "./organizations.js";
 
 export const assets = pgTable(
   "assets",
   {
-    id: uuid("id").notNull().defaultRandom(),
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("asset")),
     key: text("key").notNull(),
     kind: text("kind", { enum: ["video", "download", "content"] }).notNull(),
     filename: text("filename").notNull(),

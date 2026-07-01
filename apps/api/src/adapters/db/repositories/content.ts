@@ -1,19 +1,19 @@
-// courses — Drizzle repository (implements the core outbound port). Org-scoped:
-// every method takes the domain `organizations.id` and constrains its queries to
-// that tenant. The `Course` model carries DERIVED fields (module / lesson /
-// enrolled counts) computed via correlated subqueries. Courses no longer
-// reference an instructor (teaching is `course_assignments` in organizations).
+// content — Drizzle repository for the course aggregate root (implements the core
+// outbound `ContentRepository` port). Org-scoped: every method takes the domain
+// `organizations.id` and constrains its queries to that tenant. The `Course`
+// model carries DERIVED fields (module / activity / enrolled counts) computed via
+// correlated subqueries.
 import { eq, and, sql, count, asc, desc, ilike, or, type SQL, type AnyColumn } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { CoursesRepository } from "../../../core/courses/ports.js";
-import type { Course, CourseStatus } from "../../../core/courses/model.js";
+import type { ContentRepository } from "../../../core/content/ports.js";
+import type { Course, CourseStatus } from "../../../core/content/model.js";
 import type {
   CreateCourseInput,
   ListCoursesQuery,
   Page,
   UpdateCourseInput,
-} from "../../../core/courses/types.js";
-import { courses, modules, moduleItems } from "../schema/courses.js";
+} from "../../../core/content/types.js";
+import { courses, modules, activities } from "../schema/content.js";
 import { enrollments } from "../schema/entitlements.js";
 
 // Derived counts as correlated subqueries against the current `courses` row.
@@ -22,13 +22,12 @@ const moduleCountExpr = sql<number>`(
   where ${modules.orgId} = ${courses.orgId} and ${modules.courseId} = ${courses.id}
 )`;
 
-const lessonCountExpr = sql<number>`(
-  select count(*)::int from ${moduleItems}
+const activityCountExpr = sql<number>`(
+  select count(*)::int from ${activities}
   inner join ${modules}
-    on ${modules.orgId} = ${moduleItems.orgId} and ${modules.id} = ${moduleItems.moduleId}
+    on ${modules.orgId} = ${activities.orgId} and ${modules.id} = ${activities.moduleId}
   where ${modules.orgId} = ${courses.orgId}
     and ${modules.courseId} = ${courses.id}
-    and ${moduleItems.kind} = 'lesson'
 )`;
 
 const enrolledCountExpr = sql<number>`(
@@ -47,7 +46,7 @@ const selection = {
   status: courses.status,
   category: courses.category,
   moduleCount: moduleCountExpr,
-  lessonCount: lessonCountExpr,
+  activityCount: activityCountExpr,
   enrolledCount: enrolledCountExpr,
   createdAt: courses.createdAt,
   updatedAt: courses.updatedAt,
@@ -61,7 +60,7 @@ type CourseRow = {
   status: string;
   category: string;
   moduleCount: number;
-  lessonCount: number;
+  activityCount: number;
   enrolledCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -76,7 +75,7 @@ function toCourse(row: CourseRow): Course {
     status: row.status as CourseStatus,
     category: row.category,
     moduleCount: Number(row.moduleCount),
-    lessonCount: Number(row.lessonCount),
+    activityCount: Number(row.activityCount),
     enrolledCount: Number(row.enrolledCount),
     updatedAt: row.updatedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
@@ -92,11 +91,11 @@ const sortColumns: Record<string, AnyColumn | SQL> = {
   createdAt: courses.createdAt,
   updatedAt: courses.updatedAt,
   moduleCount: moduleCountExpr,
-  lessonCount: lessonCountExpr,
+  activityCount: activityCountExpr,
   enrolledCount: enrolledCountExpr,
 };
 
-export class DrizzleCoursesRepository implements CoursesRepository {
+export class DrizzleContentRepository implements ContentRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   async list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {

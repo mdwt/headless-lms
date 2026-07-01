@@ -59,8 +59,8 @@ export default function CourseBuilderPage() {
   if (user.role === "instructor" && !canEdit) return <ForbiddenView />;
 
   const moduleCount = modulesQ.data?.length ?? course.moduleCount;
-  const lessonCount =
-    modulesQ.data?.reduce((sum, m) => sum + m.items.length, 0) ?? course.lessonCount;
+  const activityCount =
+    modulesQ.data?.reduce((sum, m) => sum + m.activities.length, 0) ?? course.activityCount;
 
   return (
     <div className="flex flex-col gap-6">
@@ -93,7 +93,7 @@ export default function CourseBuilderPage() {
             <span aria-hidden className="text-ink-4">·</span>
             <span className="tabular-nums">{formatNumber(moduleCount)} modules</span>
             <span aria-hidden className="text-ink-4">·</span>
-            <span className="tabular-nums">{formatNumber(lessonCount)} items</span>
+            <span className="tabular-nums">{formatNumber(activityCount)} activities</span>
             <span aria-hidden className="text-ink-4">·</span>
             <span className="tabular-nums">{formatNumber(course.enrolledCount)} enrolled</span>
             <span aria-hidden className="text-ink-4">·</span>

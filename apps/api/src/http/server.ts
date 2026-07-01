@@ -12,7 +12,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { buildContainer } from "../composition/container.js";
 import { coursesRoutes } from "./routes/courses.js";
-import { modulesRoutes } from "./routes/modules.js";
+import { activitiesRoutes } from "./routes/activities.js";
 import { studentsRoutes } from "./routes/students.js";
 import { entitlementsRoutes } from "./routes/entitlements.js";
 import { organizationsRoutes } from "./routes/organizations.js";
@@ -179,7 +179,7 @@ export function buildServer() {
   // Domain routes (validated against the shared contract).
   app.register(async (instance) => {
     await coursesRoutes(instance, container);
-    await modulesRoutes(instance, container);
+    await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);
     await entitlementsRoutes(instance, container);
     await organizationsRoutes(instance, container);

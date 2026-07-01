@@ -6,20 +6,20 @@ import type {
   ConfirmAssetData,
   ConfirmAssetErrors,
   ConfirmAssetResponses,
+  CreateActivityData,
+  CreateActivityResponses,
   CreateCourseData,
   CreateCourseResponses,
-  CreateItemData,
-  CreateItemResponses,
   CreateModuleData,
   CreateModuleResponses,
+  DeleteActivityData,
+  DeleteActivityResponses,
   DeleteAssetData,
   DeleteAssetErrors,
   DeleteAssetResponses,
   DeleteCourseData,
   DeleteCourseErrors,
   DeleteCourseResponses,
-  DeleteItemData,
-  DeleteItemResponses,
   DeleteMcpData,
   DeleteMcpResponses,
   DeleteModuleData,
@@ -63,8 +63,8 @@ import type {
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
-  ReorderItemsData,
-  ReorderItemsResponses,
+  ReorderActivitiesData,
+  ReorderActivitiesResponses,
   ReorderModulesData,
   ReorderModulesResponses,
   RequestAssetDownloadData,
@@ -79,11 +79,11 @@ import type {
   SetEntitlementStatusData,
   SetEntitlementStatusErrors,
   SetEntitlementStatusResponses,
+  UpdateActivityData,
+  UpdateActivityResponses,
   UpdateCourseData,
   UpdateCourseErrors,
   UpdateCourseResponses,
-  UpdateItemData,
-  UpdateItemResponses,
   UpdateMemberRoleData,
   UpdateMemberRoleErrors,
   UpdateMemberRoleResponses,
@@ -256,13 +256,13 @@ export class Courses {
   }
 
   /**
-   * Reorder items in a module
+   * Reorder activities in a module
    */
-  public static reorderItems<ThrowOnError extends boolean = false>(
-    options: Options<ReorderItemsData, ThrowOnError>,
-  ): RequestResult<ReorderItemsResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).post<ReorderItemsResponses, unknown, ThrowOnError>({
-      url: "/api/courses/{courseId}/modules/{moduleId}/items/reorder",
+  public static reorderActivities<ThrowOnError extends boolean = false>(
+    options: Options<ReorderActivitiesData, ThrowOnError>,
+  ): RequestResult<ReorderActivitiesResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<ReorderActivitiesResponses, unknown, ThrowOnError>({
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities/reorder",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -272,13 +272,13 @@ export class Courses {
   }
 
   /**
-   * Add a lesson or assessment
+   * Add an activity
    */
-  public static createItem<ThrowOnError extends boolean = false>(
-    options: Options<CreateItemData, ThrowOnError>,
-  ): RequestResult<CreateItemResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).post<CreateItemResponses, unknown, ThrowOnError>({
-      url: "/api/courses/{courseId}/modules/{moduleId}/items",
+  public static createActivity<ThrowOnError extends boolean = false>(
+    options: Options<CreateActivityData, ThrowOnError>,
+  ): RequestResult<CreateActivityResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<CreateActivityResponses, unknown, ThrowOnError>({
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -288,25 +288,25 @@ export class Courses {
   }
 
   /**
-   * Delete a lesson or assessment
+   * Delete an activity
    */
-  public static deleteItem<ThrowOnError extends boolean = false>(
-    options: Options<DeleteItemData, ThrowOnError>,
-  ): RequestResult<DeleteItemResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).delete<DeleteItemResponses, unknown, ThrowOnError>({
-      url: "/api/courses/{courseId}/modules/{moduleId}/items/{itemId}",
+  public static deleteActivity<ThrowOnError extends boolean = false>(
+    options: Options<DeleteActivityData, ThrowOnError>,
+  ): RequestResult<DeleteActivityResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteActivityResponses, unknown, ThrowOnError>({
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities/{activityId}",
       ...options,
     });
   }
 
   /**
-   * Update a lesson or assessment
+   * Update an activity
    */
-  public static updateItem<ThrowOnError extends boolean = false>(
-    options: Options<UpdateItemData, ThrowOnError>,
-  ): RequestResult<UpdateItemResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).patch<UpdateItemResponses, unknown, ThrowOnError>({
-      url: "/api/courses/{courseId}/modules/{moduleId}/items/{itemId}",
+  public static updateActivity<ThrowOnError extends boolean = false>(
+    options: Options<UpdateActivityData, ThrowOnError>,
+  ): RequestResult<UpdateActivityResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateActivityResponses, unknown, ThrowOnError>({
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities/{activityId}",
       ...options,
       headers: {
         "Content-Type": "application/json",

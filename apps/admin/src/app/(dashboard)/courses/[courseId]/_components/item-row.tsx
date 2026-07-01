@@ -10,31 +10,26 @@ import {
   FileText,
   GripVertical,
   Headphones,
-  ListChecks,
   Pencil,
   Trash2,
   Video,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useDeleteItem, useSaveItem } from "@/lib/api/hooks";
-import type { ModuleItem } from "@/lib/api/types";
+import { useDeleteActivity } from "@/lib/api/hooks";
+import type { Activity, ActivitySettings } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
-function ItemGlyph({ item }: { item: ModuleItem }) {
+/** Read the opaque settings blob as the admin-side shape. */
+function settingsOf(activity: Activity): ActivitySettings {
+  return (activity.settings ?? {}) as ActivitySettings;
+}
+
+function ActivityGlyph({ type }: { type?: string }) {
   const cls = "size-4";
-  if (item.kind === "assessment") {
-    return item.assessment.type === "quiz" ? (
-      <ListChecks className={cls} />
-    ) : (
-      <ClipboardList className={cls} />
-    );
-  }
-  switch (item.lesson.type) {
+  switch (type) {
     case "video":
       return <Video className={cls} />;
     case "audio":
@@ -43,6 +38,8 @@ function ItemGlyph({ item }: { item: ModuleItem }) {
       return <Download className={cls} />;
     case "embed":
       return <Code2 className={cls} />;
+    case "quiz":
+      return <ClipboardList className={cls} />;
     case "pdf":
     case "text":
     default:
@@ -50,36 +47,17 @@ function ItemGlyph({ item }: { item: ModuleItem }) {
   }
 }
 
-function ItemIcon({ item }: { item: ModuleItem }) {
+function ActivityIcon({ type }: { type?: string }) {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-2 text-ink-3">
-      <ItemGlyph item={item} />
+      <ActivityGlyph type={type} />
     </span>
   );
 }
 
-function metaFor(item: ModuleItem): { label: string; detail?: string } {
-  if (item.kind === "assessment") {
-    if (item.assessment.type === "quiz") {
-      return {
-        label: "Quiz",
-        detail:
-          item.assessment.questionCount != null
-            ? `${item.assessment.questionCount} questions`
-            : undefined,
-      };
-    }
-    return {
-      label: "Assignment",
-      detail:
-        item.assessment.pointsPossible != null
-          ? `${item.assessment.pointsPossible} pts`
-          : undefined,
-    };
-  }
-  const type = item.lesson.type;
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
-  return { label };
+function typeLabel(type?: string): string {
+  if (!type) return "Activity";
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 export function ItemRow({
@@ -89,58 +67,26 @@ export function ItemRow({
   canEdit,
   onEdit,
 }: {
-  item: ModuleItem;
+  item: Activity;
   courseId: string;
   moduleId: string;
   canEdit: boolean;
-  onEdit: (item: ModuleItem) => void;
+  onEdit: (item: Activity) => void;
 }) {
-  const save = useSaveItem(courseId);
-  const del = useDeleteItem(courseId);
+  const del = useDeleteActivity(courseId);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  // Only assessments carry a published flag; lessons have none.
-  const itemPublished = item.kind === "assessment" ? item.assessment.published : false;
-  const [published, setPublished] = React.useState(itemPublished);
-  const [serverPublished, setServerPublished] = React.useState(itemPublished);
-
-  // Sync optimistic state when the server value changes (no effect needed).
-  if (itemPublished !== serverPublished) {
-    setServerPublished(itemPublished);
-    setPublished(itemPublished);
-  }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     disabled: !canEdit,
   });
 
-  const meta = metaFor(item);
-  const title = item.kind === "assessment" ? item.assessment.title : item.lesson.title;
-
-  function togglePublished(next: boolean) {
-    if (item.kind !== "assessment") return;
-    setPublished(next);
-    // Rebuild the full assessment payload so the SDK sends a complete body.
-    save.mutate(
-      {
-        moduleId,
-        item: {
-          id: item.id,
-          kind: "assessment",
-          title: item.assessment.title,
-          type: item.assessment.type,
-          questionCount: item.assessment.questionCount,
-          pointsPossible: item.assessment.pointsPossible,
-          published: next,
-        },
-      },
-      { onError: () => setPublished(serverPublished) },
-    );
-  }
+  const settings = settingsOf(item);
+  const title = settings.title?.trim() || "Untitled activity";
 
   async function confirmDelete() {
     try {
-      await del.mutateAsync({ moduleId, itemId: item.id });
+      await del.mutateAsync({ moduleId, activityId: item.id });
       setConfirmOpen(false);
     } catch {
       /* toast handled by hook */
@@ -170,35 +116,14 @@ export function ItemRow({
         <span className="w-7 shrink-0" aria-hidden />
       )}
 
-      <ItemIcon item={item} />
+      <ActivityIcon type={settings.type} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm font-medium text-ink">{title}</span>
         <div className="flex items-center gap-1.5 text-xs text-ink-4">
-          <span>{meta.label}</span>
-          {meta.detail ? (
-            <>
-              <span aria-hidden>·</span>
-              <span>{meta.detail}</span>
-            </>
-          ) : null}
+          <span>{typeLabel(settings.type)}</span>
         </div>
       </div>
-
-      {item.kind === "assessment" ? (
-        canEdit ? (
-          <Switch
-            checked={published}
-            onCheckedChange={togglePublished}
-            aria-label={published ? "Published — click to unpublish" : "Draft — click to publish"}
-            className="shrink-0"
-          />
-        ) : (
-          <Badge variant={published ? "success" : "neutral"}>
-            {published ? "Published" : "Draft"}
-          </Badge>
-        )
-      ) : null}
 
       {canEdit ? (
         <RowActions label="Item actions">
@@ -217,14 +142,14 @@ export function ItemRow({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Delete item"
+        title="Delete activity"
         description={
           <>
             Delete <span className="font-medium text-ink">{title}</span>? This can&apos;t be
             undone.
           </>
         }
-        confirmLabel="Delete item"
+        confirmLabel="Delete activity"
         pending={del.isPending}
         onConfirm={confirmDelete}
       />

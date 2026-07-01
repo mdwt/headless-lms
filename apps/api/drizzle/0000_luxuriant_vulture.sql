@@ -1,20 +1,20 @@
 CREATE TABLE "course_assignments" (
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"org_id" uuid NOT NULL,
-	"membership_id" uuid NOT NULL,
-	"course_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"membership_id" text NOT NULL,
+	"course_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "course_assignments_org_id_id_pk" PRIMARY KEY("org_id","id"),
 	CONSTRAINT "course_assignments_org_id_membership_id_course_id_unique" UNIQUE("org_id","membership_id","course_id")
 );
 --> statement-breakpoint
 CREATE TABLE "invitations" (
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"org_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
 	"email" text NOT NULL,
 	"role" text NOT NULL,
 	"status" text NOT NULL,
-	"invited_by" uuid NOT NULL,
+	"invited_by" text NOT NULL,
 	"auth_invitation_id" text NOT NULL,
 	"expires_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -23,9 +23,9 @@ CREATE TABLE "invitations" (
 );
 --> statement-breakpoint
 CREATE TABLE "memberships" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"user_id" text NOT NULL,
 	"role" text NOT NULL,
 	"external_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -34,32 +34,41 @@ CREATE TABLE "memberships" (
 );
 --> statement-breakpoint
 CREATE TABLE "organizations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"external_id" text NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
-	"owner_id" uuid NOT NULL,
+	"owner_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "organizations_external_id_unique" UNIQUE("external_id"),
 	CONSTRAINT "organizations_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
-CREATE TABLE "assessments" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"type" text NOT NULL,
-	"title" text NOT NULL,
-	"question_count" integer,
-	"points_possible" integer,
-	"published" boolean DEFAULT false NOT NULL,
+CREATE TABLE "activities" (
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"module_id" text NOT NULL,
+	"seq" integer NOT NULL,
+	"settings" jsonb,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "assessments_org_id_id_pk" PRIMARY KEY("org_id","id")
+	CONSTRAINT "activities_org_id_id_pk" PRIMARY KEY("org_id","id"),
+	CONSTRAINT "activities_org_id_module_id_seq_unique" UNIQUE("org_id","module_id","seq")
+);
+--> statement-breakpoint
+CREATE TABLE "activity_assets" (
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"activity_id" text NOT NULL,
+	"asset_id" text NOT NULL,
+	"seq" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "activity_assets_org_id_id_pk" PRIMARY KEY("org_id","id"),
+	CONSTRAINT "activity_assets_org_id_activity_id_asset_id_unique" UNIQUE("org_id","activity_id","asset_id")
 );
 --> statement-breakpoint
 CREATE TABLE "courses" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
 	"title" text NOT NULL,
 	"slug" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
@@ -71,54 +80,20 @@ CREATE TABLE "courses" (
 	CONSTRAINT "courses_org_id_slug_unique" UNIQUE("org_id","slug")
 );
 --> statement-breakpoint
-CREATE TABLE "lesson_assets" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"lesson_id" uuid NOT NULL,
-	"asset_id" uuid NOT NULL,
-	"seq" integer DEFAULT 0 NOT NULL,
-	CONSTRAINT "lesson_assets_org_id_id_pk" PRIMARY KEY("org_id","id"),
-	CONSTRAINT "lesson_assets_org_id_lesson_id_asset_id_unique" UNIQUE("org_id","lesson_id","asset_id")
-);
---> statement-breakpoint
-CREATE TABLE "lessons" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"type" text NOT NULL,
-	"title" text NOT NULL,
-	"settings" jsonb,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "lessons_org_id_id_pk" PRIMARY KEY("org_id","id")
-);
---> statement-breakpoint
-CREATE TABLE "module_items" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"module_id" uuid NOT NULL,
-	"seq" integer NOT NULL,
-	"kind" text NOT NULL,
-	"lesson_id" uuid,
-	"assessment_id" uuid,
-	CONSTRAINT "module_items_org_id_id_pk" PRIMARY KEY("org_id","id"),
-	CONSTRAINT "module_items_org_id_module_id_seq_unique" UNIQUE("org_id","module_id","seq"),
-	CONSTRAINT "module_items_one_target" CHECK ((lesson_id IS NOT NULL) <> (assessment_id IS NOT NULL))
-);
---> statement-breakpoint
 CREATE TABLE "modules" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"course_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"course_id" text NOT NULL,
 	"title" text NOT NULL,
 	"seq" integer NOT NULL,
 	CONSTRAINT "modules_org_id_id_pk" PRIMARY KEY("org_id","id")
 );
 --> statement-breakpoint
 CREATE TABLE "enrollments" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"student_id" uuid NOT NULL,
-	"course_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"student_id" text NOT NULL,
+	"course_id" text NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"source" text DEFAULT 'manual' NOT NULL,
 	"granted_at" timestamp DEFAULT now() NOT NULL,
@@ -128,11 +103,11 @@ CREATE TABLE "enrollments" (
 );
 --> statement-breakpoint
 CREATE TABLE "progress_records" (
-	"org_id" uuid NOT NULL,
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"student_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"student_id" text NOT NULL,
 	"target_type" text NOT NULL,
-	"target_id" uuid NOT NULL,
+	"target_id" text NOT NULL,
 	"started_at" timestamp DEFAULT now() NOT NULL,
 	"position" jsonb,
 	"completed_at" timestamp,
@@ -142,7 +117,7 @@ CREATE TABLE "progress_records" (
 );
 --> statement-breakpoint
 CREATE TABLE "students" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"external_id" text NOT NULL,
 	"email" text NOT NULL,
 	"first_name" text NOT NULL,
@@ -154,7 +129,7 @@ CREATE TABLE "students" (
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"external_id" text NOT NULL,
 	"email" text NOT NULL,
 	"display_name" text NOT NULL,
@@ -165,8 +140,8 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 CREATE TABLE "assets" (
-	"id" uuid DEFAULT gen_random_uuid() NOT NULL,
-	"org_id" uuid NOT NULL,
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
 	"key" text NOT NULL,
 	"kind" text NOT NULL,
 	"filename" text NOT NULL,
@@ -306,16 +281,12 @@ ALTER TABLE "invitations" ADD CONSTRAINT "invitations_invited_by_users_id_fk" FO
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organizations" ADD CONSTRAINT "organizations_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "assessments" ADD CONSTRAINT "assessments_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_module_id_modules_org_id_id_fk" FOREIGN KEY ("org_id","module_id") REFERENCES "public"."modules"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_activity_id_activities_org_id_id_fk" FOREIGN KEY ("org_id","activity_id") REFERENCES "public"."activities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_asset_id_assets_org_id_id_fk" FOREIGN KEY ("org_id","asset_id") REFERENCES "public"."assets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "courses" ADD CONSTRAINT "courses_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "lesson_assets" ADD CONSTRAINT "lesson_assets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "lesson_assets" ADD CONSTRAINT "lesson_assets_org_id_lesson_id_lessons_org_id_id_fk" FOREIGN KEY ("org_id","lesson_id") REFERENCES "public"."lessons"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "lesson_assets" ADD CONSTRAINT "lesson_assets_org_id_asset_id_assets_org_id_id_fk" FOREIGN KEY ("org_id","asset_id") REFERENCES "public"."assets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "lessons" ADD CONSTRAINT "lessons_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "module_items" ADD CONSTRAINT "module_items_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "module_items" ADD CONSTRAINT "module_items_org_id_module_id_modules_org_id_id_fk" FOREIGN KEY ("org_id","module_id") REFERENCES "public"."modules"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "module_items" ADD CONSTRAINT "module_items_org_id_lesson_id_lessons_org_id_id_fk" FOREIGN KEY ("org_id","lesson_id") REFERENCES "public"."lessons"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "module_items" ADD CONSTRAINT "module_items_org_id_assessment_id_assessments_org_id_id_fk" FOREIGN KEY ("org_id","assessment_id") REFERENCES "public"."assessments"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

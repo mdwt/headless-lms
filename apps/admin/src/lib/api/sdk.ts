@@ -32,7 +32,7 @@ import type {
   OverviewStats,
   Paginated,
   Role,
-  SaveItemInput,
+  SaveActivityInput,
   Student,
 } from "./types";
 
@@ -146,10 +146,10 @@ export const api = {
     ensureConfigured();
     return unwrap(await Courses.reorderModules({ path: { courseId }, body: { orderedIds } }));
   },
-  async reorderItems(courseId: string, moduleId: string, orderedIds: string[]): Promise<Module[]> {
+  async reorderActivities(courseId: string, moduleId: string, orderedIds: string[]): Promise<Module[]> {
     ensureConfigured();
     return unwrap(
-      await Courses.reorderItems({ path: { courseId, moduleId }, body: { orderedIds } }),
+      await Courses.reorderActivities({ path: { courseId, moduleId }, body: { orderedIds } }),
     );
   },
   async createModule(courseId: string, title: string): Promise<Module[]> {
@@ -164,40 +164,27 @@ export const api = {
     ensureConfigured();
     return unwrap(await Courses.deleteModule({ path: { courseId, moduleId } }));
   },
-  async saveItem(
+  async saveActivity(
     courseId: string,
     moduleId: string,
-    item: SaveItemInput,
+    activity: SaveActivityInput,
   ): Promise<Module[]> {
     ensureConfigured();
-    // Build the discriminated SaveItem body from the form payload.
-    const body =
-      item.kind === "assessment"
-        ? {
-            kind: "assessment" as const,
-            title: item.title,
-            type: item.type,
-            questionCount: item.questionCount,
-            pointsPossible: item.pointsPossible,
-            published: item.published,
-          }
-        : {
-            kind: "lesson" as const,
-            title: item.title,
-            type: item.type,
-            settings: item.settings,
-            assetIds: item.assetIds,
-          };
-    if (item.id) {
+    // Activities are uniform: the body is just the opaque settings + assets.
+    const body = { settings: activity.settings, assetIds: activity.assetIds };
+    if (activity.id) {
       return unwrap(
-        await Courses.updateItem({ path: { courseId, moduleId, itemId: item.id }, body }),
+        await Courses.updateActivity({
+          path: { courseId, moduleId, activityId: activity.id },
+          body,
+        }),
       );
     }
-    return unwrap(await Courses.createItem({ path: { courseId, moduleId }, body }));
+    return unwrap(await Courses.createActivity({ path: { courseId, moduleId }, body }));
   },
-  async deleteItem(courseId: string, moduleId: string, itemId: string): Promise<Module[]> {
+  async deleteActivity(courseId: string, moduleId: string, activityId: string): Promise<Module[]> {
     ensureConfigured();
-    return unwrap(await Courses.deleteItem({ path: { courseId, moduleId, itemId } }));
+    return unwrap(await Courses.deleteActivity({ path: { courseId, moduleId, activityId } }));
   },
 
   // students

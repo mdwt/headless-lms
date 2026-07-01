@@ -1,7 +1,5 @@
-// courses context — DTOs and use-case inputs/outputs. Framework-free.
+// content context — DTOs and use-case inputs/outputs. Framework-free.
 import type { CourseStatus } from "./model.js";
-
-export type CoursesId = string;
 
 export interface ListCoursesQuery {
   page: number;

@@ -1,26 +1,26 @@
-// HTTP routes for course modules + items. Write operations return the course's
-// full, reordered module list (how the editor re-renders). Nested under courses.
-// All require a session with an active organization; handlers resolve the
-// session's active org to the domain org id and scope every call by it.
+// HTTP routes for course modules + activities. Write operations return the
+// course's full, reordered module list (how the editor re-renders). Nested under
+// courses. All require a session with an active organization; handlers resolve
+// the session's active org to the domain org id and scope every call by it.
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import {
+  ActivityPathParam,
   CourseIdPathParam,
   CreateModule,
-  ItemPathParam,
   ModuleList,
   ModulePathParam,
   ReorderInput,
-  SaveItem,
+  SaveActivity,
   UpdateModule,
 } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
 import { resolveScope } from "../scope.js";
 
-export async function modulesRoutes(app: FastifyInstance, container: Container): Promise<void> {
+export async function activitiesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  // Modules/items are part of the courses aggregate; grouped under the Courses tag.
-  const modules = container.courses;
+  // Modules/activities are part of the content aggregate; grouped under the Courses tag.
+  const content = container.content;
   const tags = ["Courses"];
 
   r.route({
@@ -36,7 +36,7 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.listForCourse(scope.orgId, req.params.courseId);
+      return content.listForCourse(scope.orgId, req.params.courseId);
     },
   });
 
@@ -54,7 +54,7 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.createModule(scope.orgId, req.params.courseId, req.body.title);
+      return content.createModule(scope.orgId, req.params.courseId, req.body.title);
     },
   });
 
@@ -72,7 +72,7 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.reorderModules(scope.orgId, req.params.courseId, req.body.orderedIds);
+      return content.reorderModules(scope.orgId, req.params.courseId, req.body.orderedIds);
     },
   });
 
@@ -90,7 +90,7 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.updateModule(
+      return content.updateModule(
         scope.orgId,
         req.params.courseId,
         req.params.moduleId,
@@ -112,25 +112,25 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.deleteModule(scope.orgId, req.params.courseId, req.params.moduleId);
+      return content.deleteModule(scope.orgId, req.params.courseId, req.params.moduleId);
     },
   });
 
   r.route({
     method: "POST",
-    url: "/api/courses/:courseId/modules/:moduleId/items/reorder",
+    url: "/api/courses/:courseId/modules/:moduleId/activities/reorder",
     preHandler: app.requireSession,
     schema: {
-      operationId: "reorderItems",
+      operationId: "reorderActivities",
       tags,
-      summary: "Reorder items in a module",
+      summary: "Reorder activities in a module",
       params: ModulePathParam,
       body: ReorderInput,
       response: { 200: ModuleList },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.reorderItems(
+      return content.reorderActivities(
         scope.orgId,
         req.params.courseId,
         req.params.moduleId,
@@ -141,64 +141,64 @@ export async function modulesRoutes(app: FastifyInstance, container: Container):
 
   r.route({
     method: "POST",
-    url: "/api/courses/:courseId/modules/:moduleId/items",
+    url: "/api/courses/:courseId/modules/:moduleId/activities",
     preHandler: app.requireSession,
     schema: {
-      operationId: "createItem",
+      operationId: "createActivity",
       tags,
-      summary: "Add a lesson or assessment",
+      summary: "Add an activity",
       params: ModulePathParam,
-      body: SaveItem,
+      body: SaveActivity,
       response: { 200: ModuleList },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.saveItem(scope.orgId, req.params.courseId, req.params.moduleId, req.body);
+      return content.saveActivity(scope.orgId, req.params.courseId, req.params.moduleId, req.body);
     },
   });
 
   r.route({
     method: "PATCH",
-    url: "/api/courses/:courseId/modules/:moduleId/items/:itemId",
+    url: "/api/courses/:courseId/modules/:moduleId/activities/:activityId",
     preHandler: app.requireSession,
     schema: {
-      operationId: "updateItem",
+      operationId: "updateActivity",
       tags,
-      summary: "Update a lesson or assessment",
-      params: ItemPathParam,
-      body: SaveItem,
+      summary: "Update an activity",
+      params: ActivityPathParam,
+      body: SaveActivity,
       response: { 200: ModuleList },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.saveItem(
+      return content.saveActivity(
         scope.orgId,
         req.params.courseId,
         req.params.moduleId,
         req.body,
-        req.params.itemId,
+        req.params.activityId,
       );
     },
   });
 
   r.route({
     method: "DELETE",
-    url: "/api/courses/:courseId/modules/:moduleId/items/:itemId",
+    url: "/api/courses/:courseId/modules/:moduleId/activities/:activityId",
     preHandler: app.requireSession,
     schema: {
-      operationId: "deleteItem",
+      operationId: "deleteActivity",
       tags,
-      summary: "Delete a lesson or assessment",
-      params: ItemPathParam,
+      summary: "Delete an activity",
+      params: ActivityPathParam,
       response: { 200: ModuleList },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return modules.deleteItem(
+      return content.deleteActivity(
         scope.orgId,
         req.params.courseId,
         req.params.moduleId,
-        req.params.itemId,
+        req.params.activityId,
       );
     },
   });

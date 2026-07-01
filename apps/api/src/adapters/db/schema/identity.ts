@@ -1,7 +1,10 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
 
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => genId("user")),
   // auth engine's ID - e.g. better-auth
   externalId: text("external_id").notNull().unique(),
 
@@ -16,7 +19,9 @@ export const users = pgTable("users", {
 
 
 export const students = pgTable("students", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => genId("student")),
   externalId: text("external_id").notNull().unique(),
   email: text("email").notNull().unique(),
   firstName: text("first_name").notNull(),

@@ -16,7 +16,7 @@ import type {
 } from "../../../core/entitlements/model.js";
 import { enrollments } from "../schema/index.js";
 import { students } from "../schema/identity.js";
-import { courses } from "../schema/courses.js";
+import { courses } from "../schema/content.js";
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.

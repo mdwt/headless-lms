@@ -25,7 +25,7 @@ import type {
   Member,
   Paginated,
   Role,
-  SaveItemInput,
+  SaveActivityInput,
 } from "./types";
 
 
@@ -153,9 +153,9 @@ export function useReorderModules(courseId: string) {
     api.reorderModules(courseId, orderedIds),
   );
 }
-export function useReorderItems(courseId: string) {
+export function useReorderActivities(courseId: string) {
   return useModuleMutation(courseId, ({ moduleId, orderedIds }: { moduleId: string; orderedIds: string[] }) =>
-    api.reorderItems(courseId, moduleId, orderedIds),
+    api.reorderActivities(courseId, moduleId, orderedIds),
   );
 }
 export function useCreateModule(courseId: string) {
@@ -168,20 +168,20 @@ export function useUpdateModule(courseId: string) {
 export function useDeleteModule(courseId: string) {
   return useModuleMutation(courseId, (moduleId: string) => api.deleteModule(courseId, moduleId), "Module deleted");
 }
-export function useSaveItem(courseId: string) {
+export function useSaveActivity(courseId: string) {
   return useModuleMutation(
     courseId,
-    ({ moduleId, item }: { moduleId: string; item: SaveItemInput }) =>
-      api.saveItem(courseId, moduleId, item),
+    ({ moduleId, activity }: { moduleId: string; activity: SaveActivityInput }) =>
+      api.saveActivity(courseId, moduleId, activity),
     "Saved",
   );
 }
-export function useDeleteItem(courseId: string) {
+export function useDeleteActivity(courseId: string) {
   return useModuleMutation(
     courseId,
-    ({ moduleId, itemId }: { moduleId: string; itemId: string }) =>
-      api.deleteItem(courseId, moduleId, itemId),
-    "Item deleted",
+    ({ moduleId, activityId }: { moduleId: string; activityId: string }) =>
+      api.deleteActivity(courseId, moduleId, activityId),
+    "Activity deleted",
   );
 }
 

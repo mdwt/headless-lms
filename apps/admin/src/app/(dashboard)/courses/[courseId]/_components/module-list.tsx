@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, FileText, GripVertical, ListChecks, Plus, X } from "lucide-react";
+import { Check, GripVertical, Plus, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +29,11 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   useCreateModule,
   useDeleteModule,
-  useReorderItems,
+  useReorderActivities,
   useReorderModules,
   useUpdateModule,
 } from "@/lib/api/hooks";
-import type { Module, ModuleItem } from "@/lib/api/types";
+import type { Activity, Module } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 import { ItemRow } from "./item-row";
@@ -65,23 +65,22 @@ function SortableModule({
 }) {
   const updateModule = useUpdateModule(courseId);
   const deleteModule = useDeleteModule(courseId);
-  const reorderItems = useReorderItems(courseId);
+  const reorderActivities = useReorderActivities(courseId);
   const sensors = useDndSensors();
 
-  const [items, setItems] = React.useState<ModuleItem[]>(module.items);
-  const [serverItems, setServerItems] = React.useState<ModuleItem[]>(module.items);
+  const [items, setItems] = React.useState<Activity[]>(module.activities);
+  const [serverItems, setServerItems] = React.useState<Activity[]>(module.activities);
   const [editingTitle, setEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(module.title);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [sheetItem, setSheetItem] = React.useState<ModuleItem | null>(null);
-  const [sheetKind, setSheetKind] = React.useState<"lesson" | "assessment">("lesson");
+  const [sheetItem, setSheetItem] = React.useState<Activity | null>(null);
 
-  // Re-sync local ordering when the server returns a new item set.
-  if (module.items !== serverItems) {
-    setServerItems(module.items);
-    setItems(module.items);
+  // Re-sync local ordering when the server returns a new activity set.
+  if (module.activities !== serverItems) {
+    setServerItems(module.activities);
+    setItems(module.activities);
   }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -97,7 +96,7 @@ function SortableModule({
     if (oldIndex === -1 || newIndex === -1) return;
     const next = arrayMove(items, oldIndex, newIndex);
     setItems(next);
-    reorderItems.mutate({ moduleId: module.id, orderedIds: next.map((i) => i.id) });
+    reorderActivities.mutate({ moduleId: module.id, orderedIds: next.map((i) => i.id) });
   }
 
   function saveTitle() {
@@ -110,15 +109,13 @@ function SortableModule({
     updateModule.mutate({ moduleId: module.id, title: next });
   }
 
-  function openCreate(kind: "lesson" | "assessment") {
+  function openCreate() {
     setSheetItem(null);
-    setSheetKind(kind);
     setSheetOpen(true);
   }
 
-  function openEdit(item: ModuleItem) {
+  function openEdit(item: Activity) {
     setSheetItem(item);
-    setSheetKind(item.kind);
     setSheetOpen(true);
   }
 
@@ -195,16 +192,13 @@ function SortableModule({
         )}
 
         <span className="shrink-0 text-xs text-ink-4 tabular-nums">
-          {module.items.length} {module.items.length === 1 ? "item" : "items"}
+          {module.activities.length} {module.activities.length === 1 ? "activity" : "activities"}
         </span>
 
         {canEdit ? (
           <RowActions label="Module actions">
             <DropdownMenuItem onClick={() => setEditingTitle(true)}>Rename</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openCreate("lesson")}>Add lesson</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => openCreate("assessment")}>
-              Add assessment
-            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openCreate()}>Add activity</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="danger" onClick={() => setConfirmOpen(true)}>
               Delete module
@@ -216,7 +210,7 @@ function SortableModule({
       <div className="px-2 py-2">
         {items.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-ink-4">
-            No content yet{canEdit ? " — add a lesson or assessment below." : "."}
+            No content yet{canEdit ? " — add an activity below." : "."}
           </p>
         ) : (
           <DndContext
@@ -247,13 +241,9 @@ function SortableModule({
 
         {canEdit ? (
           <div className="flex items-center gap-2 px-1 pt-2">
-            <Button size="sm" variant="ghost" onClick={() => openCreate("lesson")}>
-              <FileText className="size-4" />
-              Add lesson
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => openCreate("assessment")}>
-              <ListChecks className="size-4" />
-              Add assessment
+            <Button size="sm" variant="ghost" onClick={() => openCreate()}>
+              <Sparkles className="size-4" />
+              Add activity
             </Button>
           </div>
         ) : null}
@@ -267,7 +257,6 @@ function SortableModule({
             courseId={courseId}
             moduleId={module.id}
             item={sheetItem}
-            defaultKind={sheetKind}
           />
           <ConfirmDialog
             open={confirmOpen}
@@ -276,8 +265,9 @@ function SortableModule({
             description={
               <>
                 Delete <span className="font-medium text-ink">{module.title}</span> and its{" "}
-                {module.items.length} {module.items.length === 1 ? "item" : "items"}? This can&apos;t
-                be undone.
+                {module.activities.length}{" "}
+                {module.activities.length === 1 ? "activity" : "activities"}? This can&apos;t be
+                undone.
               </>
             }
             confirmLabel="Delete module"

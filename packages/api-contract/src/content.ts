@@ -1,6 +1,6 @@
-// Courses resource schemas. The single source of truth for the Course payload:
-// the Fastify routes validate requests/responses against these, the OpenAPI
-// spec is built from them, and the frontend SDK is generated off that spec.
+// Content resource schemas (courses). The single source of truth for the Course
+// payload: the Fastify routes validate requests/responses against these, the
+// OpenAPI spec is built from them, and the frontend SDK is generated off that spec.
 import { z } from "zod";
 import { ListQuery, paginated } from "./shared.js";
 
@@ -15,7 +15,7 @@ export const Course = z.object({
   status: CourseStatus,
   category: z.string(),
   moduleCount: z.number().int(),
-  lessonCount: z.number().int(),
+  activityCount: z.number().int(),
   enrolledCount: z.number().int(),
   updatedAt: z.string(),
   createdAt: z.string(),

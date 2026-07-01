@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -9,7 +9,6 @@ import { FormSheet } from "@/components/forms/form-sheet";
 import { Field } from "@/components/forms/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -17,91 +16,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSaveItem } from "@/lib/api/hooks";
-import type { LessonType, ModuleItem, SaveItemInput } from "@/lib/api/types";
+import { useSaveActivity } from "@/lib/api/hooks";
+import type { Activity, ActivitySettings, ActivityType, SaveActivityInput } from "@/lib/api/types";
 
-const LESSON_TYPES: LessonType[] = ["video", "text", "pdf", "audio", "download", "embed"];
-const LESSON_TYPE_LABEL: Record<LessonType, string> = {
+const ACTIVITY_TYPES: ActivityType[] = [
+  "video",
+  "text",
+  "pdf",
+  "audio",
+  "download",
+  "embed",
+  "quiz",
+];
+const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
   video: "Video",
   text: "Text / article",
   pdf: "PDF",
   audio: "Audio",
   download: "Download",
   embed: "Embed",
+  quiz: "Quiz",
 };
 
-const schema = z
-  .object({
-    kind: z.enum(["lesson", "assessment"]),
-    title: z
-      .string()
-      .trim()
-      .min(1, "Give this item a title")
-      .max(120, "Keep the title under 120 characters"),
-    lessonType: z.enum(["video", "text", "pdf", "audio", "download", "embed"]),
-    assessmentType: z.enum(["quiz", "assignment"]),
-    questionCount: z.string().optional(),
-    pointsPossible: z.string().optional(),
-    published: z.boolean(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.kind !== "assessment") return;
-    if (v.assessmentType === "quiz") {
-      const n = Number(v.questionCount);
-      if (!v.questionCount || Number.isNaN(n) || n < 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["questionCount"],
-          message: "Enter at least one question",
-        });
-      }
-    } else {
-      const n = Number(v.pointsPossible);
-      if (!v.pointsPossible || Number.isNaN(n) || n < 1) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["pointsPossible"],
-          message: "Enter the total points",
-        });
-      }
-    }
-  });
+const schema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Give this activity a title")
+    .max(120, "Keep the title under 120 characters"),
+  type: z.enum(["video", "text", "pdf", "audio", "download", "embed", "quiz"]),
+  published: z.boolean(),
+});
 
 type FormValues = z.infer<typeof schema>;
 
 const FORM_ID = "item-form";
 
-function toDefaults(item: ModuleItem | null, fallbackKind: "lesson" | "assessment"): FormValues {
-  if (!item) {
-    return {
-      kind: fallbackKind,
-      title: "",
-      lessonType: "video",
-      assessmentType: "quiz",
-      questionCount: "10",
-      pointsPossible: "100",
-      published: false,
-    };
-  }
-  if (item.kind === "lesson") {
-    return {
-      kind: "lesson",
-      title: item.lesson.title,
-      lessonType: item.lesson.type,
-      assessmentType: "quiz",
-      questionCount: "10",
-      pointsPossible: "100",
-      published: false,
-    };
-  }
+/** Read the opaque settings blob as the admin-side shape. */
+function settingsOf(activity: Activity | null): ActivitySettings {
+  return (activity?.settings ?? {}) as ActivitySettings;
+}
+
+function toDefaults(item: Activity | null): FormValues {
+  const s = settingsOf(item);
+  const type = (s.type ?? "video") as ActivityType;
   return {
-    kind: "assessment",
-    title: item.assessment.title,
-    lessonType: "video",
-    assessmentType: item.assessment.type,
-    questionCount: item.assessment.questionCount != null ? String(item.assessment.questionCount) : "10",
-    pointsPossible: item.assessment.pointsPossible != null ? String(item.assessment.pointsPossible) : "100",
-    published: item.assessment.published,
+    title: s.title ?? "",
+    type: ACTIVITY_TYPES.includes(type) ? type : "video",
+    published: s.published ?? false,
   };
 }
 
@@ -111,61 +73,49 @@ export function ItemFormSheet({
   courseId,
   moduleId,
   item,
-  defaultKind = "lesson",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   courseId: string;
   moduleId: string;
-  item: ModuleItem | null;
-  defaultKind?: "lesson" | "assessment";
+  item: Activity | null;
 }) {
   const isEdit = item != null;
-  const save = useSaveItem(courseId);
+  const save = useSaveActivity(courseId);
 
   const {
     control,
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: toDefaults(item, defaultKind),
+    defaultValues: toDefaults(item),
   });
 
   // Re-seed the form whenever the sheet opens for a different target.
   React.useEffect(() => {
-    if (open) reset(toDefaults(item, defaultKind));
+    if (open) reset(toDefaults(item));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, item, defaultKind]);
-
-  const kind = useWatch({ control, name: "kind" });
-  const assessmentType = useWatch({ control, name: "assessmentType" });
+  }, [open, item]);
 
   async function onValid(values: FormValues) {
-    const payload: SaveItemInput =
-      values.kind === "lesson"
-        ? {
-            ...(isEdit ? { id: item!.id } : {}),
-            kind: "lesson",
-            title: values.title,
-            type: values.lessonType,
-          }
-        : {
-            ...(isEdit ? { id: item!.id } : {}),
-            kind: "assessment",
-            title: values.title,
-            type: values.assessmentType,
-            published: values.published,
-            ...(values.assessmentType === "quiz"
-              ? { questionCount: Number(values.questionCount) }
-              : { pointsPossible: Number(values.pointsPossible) }),
-          };
+    // Preserve any settings fields the editor doesn't surface (e.g. body).
+    const settings: ActivitySettings = {
+      ...settingsOf(item),
+      title: values.title,
+      type: values.type,
+      published: values.published,
+    };
+    const payload: SaveActivityInput = {
+      ...(isEdit ? { id: item!.id } : {}),
+      settings,
+      assetIds: item?.assetIds,
+    };
 
     try {
-      await save.mutateAsync({ moduleId, item: payload });
+      await save.mutateAsync({ moduleId, activity: payload });
       onOpenChange(false);
     } catch {
       // toast handled by the mutation hook
@@ -176,130 +126,58 @@ export function ItemFormSheet({
     <FormSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit item" : kind === "assessment" ? "New assessment" : "New lesson"}
+      title={isEdit ? "Edit activity" : "New activity"}
       description={
         isEdit
-          ? "Update this item's details."
+          ? "Update this activity's details."
           : "Add content to this module. You can reorder it afterwards."
       }
       formId={FORM_ID}
-      submitLabel={isEdit ? "Save changes" : "Add item"}
+      submitLabel={isEdit ? "Save changes" : "Add activity"}
       pending={save.isPending}
     >
       <form id={FORM_ID} onSubmit={handleSubmit(onValid)} className="flex flex-col gap-5">
-        <Tabs
-          value={kind}
-          onValueChange={(v) => setValue("kind", v as "lesson" | "assessment")}
-        >
-          <TabsList className="w-full">
-            <TabsTrigger value="lesson" disabled={isEdit} className="flex-1">
-              Lesson
-            </TabsTrigger>
-            <TabsTrigger value="assessment" disabled={isEdit} className="flex-1">
-              Assessment
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <Field id="title" label="Title" required error={errors.title?.message}>
-          <Input
-            id="title"
-            placeholder={kind === "assessment" ? "End-of-module quiz" : "Welcome & overview"}
-            autoFocus
-            {...register("title")}
+          <Input id="title" placeholder="Welcome & overview" autoFocus {...register("title")} />
+        </Field>
+
+        <Field id="type" label="Activity type" error={errors.type?.message}>
+          <Controller
+            control={control}
+            name="type"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVITY_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {ACTIVITY_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
         </Field>
 
-        {kind === "lesson" ? (
-          <>
-            <Field id="lessonType" label="Lesson type" error={errors.lessonType?.message}>
-              <Controller
-                control={control}
-                name="lessonType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="lessonType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LESSON_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {LESSON_TYPE_LABEL[t]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-          </>
-        ) : (
-          <>
-            <Field id="assessmentType" label="Assessment type" error={errors.assessmentType?.message}>
-              <Controller
-                control={control}
-                name="assessmentType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="assessmentType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="quiz">Quiz</SelectItem>
-                      <SelectItem value="assignment">Assignment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-            {assessmentType === "quiz" ? (
-              <Field
-                id="questionCount"
-                label="Questions"
-                required
-                error={errors.questionCount?.message}
-              >
-                <Input
-                  id="questionCount"
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  {...register("questionCount")}
-                />
-              </Field>
-            ) : (
-              <Field
-                id="pointsPossible"
-                label="Points possible"
-                required
-                error={errors.pointsPossible?.message}
-              >
-                <Input
-                  id="pointsPossible"
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  {...register("pointsPossible")}
-                />
-              </Field>
-            )}
-          </>
-        )}
-
-        {kind === "assessment" ? (
-          <Field id="published" label="Visibility" hint="Published assessments are visible to enrolled students.">
-            <div className="flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2.5">
-              <span className="text-sm text-ink-2">Published</span>
-              <Controller
-                control={control}
-                name="published"
-                render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                )}
-              />
-            </div>
-          </Field>
-        ) : null}
+        <Field
+          id="published"
+          label="Visibility"
+          hint="Published activities are visible to enrolled students."
+        >
+          <div className="flex items-center justify-between rounded-md border border-line bg-surface-2 px-3 py-2.5">
+            <span className="text-sm text-ink-2">Published</span>
+            <Controller
+              control={control}
+              name="published"
+              render={({ field }) => (
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              )}
+            />
+          </div>
+        </Field>
       </form>
     </FormSheet>
   );

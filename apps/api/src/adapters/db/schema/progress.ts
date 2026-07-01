@@ -4,21 +4,24 @@
 // satisfied (null = in progress). Target is denormalized (type + id, no FK) so a
 // record survives structure edits. Percentage and resume are derived on read;
 // nothing here is a stored percentage.
-import { pgTable, uuid, text, jsonb, timestamp, primaryKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, jsonb, timestamp, primaryKey, unique } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
 import { organizations } from "./organizations.js";
 
 export const progressRecords = pgTable(
   "progress_records",
   {
-    orgId: uuid("org_id")
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: uuid("id").notNull().defaultRandom(),
-    studentId: uuid("student_id").notNull(),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("progress")),
+    studentId: text("student_id").notNull(),
     targetType: text("target_type", {
       enum: ["lesson", "assessment", "module", "course"],
     }).notNull(),
-    targetId: uuid("target_id").notNull(),
+    targetId: text("target_id").notNull(),
     startedAt: timestamp("started_at").notNull().defaultNow(),
     position: jsonb("position"), // opaque typed payload; service interprets per target type
     completedAt: timestamp("completed_at"), // null = in progress

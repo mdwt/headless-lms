@@ -121,11 +121,11 @@ export default function CoursesPage() {
         ),
       },
       {
-        accessorKey: "lessonCount",
-        header: ({ column }) => <ColumnHeader column={column} title="Lessons" align="right" />,
+        accessorKey: "activityCount",
+        header: ({ column }) => <ColumnHeader column={column} title="Activities" align="right" />,
         meta: { align: "right" },
         cell: ({ row }) => (
-          <span className="text-ink-2">{formatNumber(row.original.lessonCount)}</span>
+          <span className="text-ink-2">{formatNumber(row.original.activityCount)}</span>
         ),
       },
       {

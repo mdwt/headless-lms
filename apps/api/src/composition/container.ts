@@ -1,5 +1,4 @@
 // Wires adapters + services in dependency order. Starts nothing.
-import { randomUUID } from "node:crypto";
 import { createDb } from "../adapters/db/index.js";
 import { InMemoryEventBus } from "../adapters/events/index.js";
 import { EmailAdapter } from "../adapters/email/index.js";
@@ -8,7 +7,7 @@ import { createAuth, type Auth } from "../adapters/auth/index.js";
 import { createOrgAdmin } from "../adapters/auth/org-admin.js";
 import { createConnectedAppsRepo, type ConnectedAppsRepo } from "../adapters/auth/connected-apps.js";
 
-import { CoursesServiceImpl } from "../core/courses/index.js";
+import { ContentServiceImpl } from "../core/content/index.js";
 import { EntitlementsServiceImpl } from "../core/entitlements/index.js";
 import { ProgressServiceImpl } from "../core/progress/index.js";
 import { IdentityServiceImpl } from "../core/identity/index.js";
@@ -22,8 +21,8 @@ import { DrizzleProgressRepository } from "../adapters/db/repositories/progress.
 import { DrizzleIdentityRepository } from "../adapters/db/repositories/identity.js";
 import { DrizzleOrganizationsRepository } from "../adapters/db/repositories/organizations.js";
 import { DrizzleMembersRepository } from "../adapters/db/repositories/members.js";
-import { DrizzleCoursesRepository } from "../adapters/db/repositories/courses.js";
-import { DrizzleModulesRepository } from "../adapters/db/repositories/modules.js";
+import { DrizzleContentRepository } from "../adapters/db/repositories/content.js";
+import { DrizzleContentStructureRepository } from "../adapters/db/repositories/structure.js";
 import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
 import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
@@ -43,7 +42,7 @@ export interface Container {
   // Domains
   identity: IdentityServiceImpl;
   organizations: OrganizationServiceImpl;
-  courses: CoursesServiceImpl;
+  content: ContentServiceImpl;
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
   assets: AssetsServiceImpl;
@@ -80,20 +79,18 @@ export function buildContainer(config: Config): Container {
     new DrizzleMembersRepository(db),
     orgAdminProvider,
   );
-  const courses = new CoursesServiceImpl(
-    new DrizzleCoursesRepository(db),
-    new DrizzleModulesRepository(db),
+  const content = new ContentServiceImpl(
+    new DrizzleContentRepository(db),
+    new DrizzleContentStructureRepository(db),
   );
   const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db));
   const progress = new ProgressServiceImpl(
     new DrizzleProgressRepository(db),
-    () => randomUUID(),
     () => new Date().toISOString(),
   );
   const assets = new AssetsServiceImpl(
     storage,
     new DrizzleAssetsRepository(db),
-    () => randomUUID(),
     () => new Date().toISOString(),
   );
 
@@ -125,7 +122,7 @@ export function buildContainer(config: Config): Container {
     auth,
     identity,
     organizations,
-    courses,
+    content,
     entitlements,
     progress,
     assets,

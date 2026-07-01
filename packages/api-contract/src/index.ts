@@ -2,8 +2,8 @@
 // server validates against (request + response), the OpenAPI spec is built
 // from, and the generated SDK is derived off.
 export * from "./shared.js";
-export * from "./courses.js";
-export * from "./modules.js";
+export * from "./content.js";
+export * from "./activities.js";
 export * from "./students.js";
 export * from "./entitlements.js";
 export * from "./members.js";
