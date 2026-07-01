@@ -104,7 +104,7 @@ See `packages/api-contract/README.md` and `packages/sdk/README.md` for details.
 | `pnpm db:generate` | tsx wrapper around `drizzle-kit generate` (reads root `.env`) |
 | `pnpm db:migrate` | tsx wrapper around `drizzle-kit migrate` (reads root `.env`) |
 | `pnpm gen:sdk` | regenerate the OpenAPI spec + typed SDK from the API routes |
-| `pnpm seed:admin` | seed the admin account + org (`apps/api`, from `SEED_*` env) |
+| `pnpm --filter @headless-lms/api seed` | seed random data across every domain (`apps/api`) |
 
 ## Getting started
 
@@ -122,7 +122,7 @@ docker compose -f docker/docker-compose.yml up -d   # Postgres (:8005) + MinIO (
 cp .env.example .env        # root .env — set BETTER_AUTH_SECRET (openssl rand -base64 32)
 pnpm db:generate            # generate Drizzle migrations
 pnpm db:migrate             # apply them
-pnpm seed:admin             # optional: seed the admin account + org
+pnpm --filter @headless-lms/api seed   # optional: seed random data across every domain
 pnpm dev                    # api :8000 · admin :8001 · student :8002
 ```
 

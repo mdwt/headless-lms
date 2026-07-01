@@ -8,7 +8,7 @@
     "dev": "tsx watch --env-file=../../.env src/http/server.ts",
     "build": "tsup",
     "start": "node --env-file=../../.env dist/http/server.js",
-    "seed:admin": "tsx --env-file=../../.env scripts/seed-admin.ts",
+    "seed": "tsx --env-file=../../.env scripts/seed.ts",
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
     "test": "vitest run",
     "lint": "eslint src",
@@ -33,6 +33,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.30.1",
