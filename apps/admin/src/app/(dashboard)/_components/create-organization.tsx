@@ -8,7 +8,8 @@ import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { organization, signOut } from "@/lib/auth/client";
+import { signOut } from "@/lib/auth/client";
+import { api } from "@/lib/api/sdk";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,14 +32,19 @@ export function CreateOrganization() {
 
   async function onSubmit(values: Values) {
     const slug = uniqueOrgSlug(values.name);
-    const { data, error } = await organization.create({ name: values.name, slug });
-    if (error || !data) {
-      toast.error("Couldn't create organization", { description: error?.message });
+    try {
+      // Creates the org and makes it the session's active org, server-side.
+      await api.createOrganization({ name: values.name, slug });
+    } catch (e) {
+      toast.error("Couldn't create organization", {
+        description: e instanceof Error ? e.message : undefined,
+      });
       return;
     }
-    await organization.setActive({ organizationId: data.id });
-    toast.success("Organization created");
-    router.refresh();
+    // The new org and active-org selection live on the session server-side; a
+    // full reload lets the Better Auth client session pick them up so the
+    // dashboard renders the new org (a soft refresh keeps the stale org store).
+    window.location.assign("/");
   }
 
   return (

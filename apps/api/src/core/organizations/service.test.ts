@@ -29,6 +29,10 @@ const stubMembersRepo: MembersRepository = {
   },
 };
 const stubOrgAdmin = (): OrgAdmin => ({
+  async createOrganization() {
+    return { externalId: "org_stub" };
+  },
+  async setActiveOrganization() {},
   async invite() {},
   async updateRole() {},
   async removeMember() {},
@@ -214,6 +218,40 @@ describe("OrganizationService", () => {
     const m = await svc.getMembershipByUser("no-such-user");
     expect(m).toBeNull();
   });
+
+  it("creates an org via OrgAdmin, sets it active, then returns the mirrored org", async () => {
+    const { repo } = fakeRepo();
+    const calls: string[] = [];
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async createOrganization(_headers, input) {
+        calls.push("create");
+        // Simulate Better Auth's afterCreateOrganization mirroring the org.
+        await repo.create({ externalId: "org_new", name: input.name, slug: input.slug, ownerId: "s1" });
+        return { externalId: "org_new" };
+      },
+      async setActiveOrganization(_headers, externalId) {
+        calls.push(`setActive:${externalId}`);
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const org = await svc.createOrganization({}, { name: "New", slug: "new" });
+    expect(org.externalId).toBe("org_new");
+    expect(org.slug).toBe("new");
+    expect(calls).toEqual(["create", "setActive:org_new"]);
+  });
+
+  it("throws when the created org does not propagate to the domain mirror", async () => {
+    const { repo } = fakeRepo();
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async createOrganization() {
+        return { externalId: "ghost" };
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    await expect(svc.createOrganization({}, { name: "X", slug: "x" })).rejects.toThrow(/did not propagate/);
+  });
 });
 
 // Member-management operations (formerly the `team` context). Writes go through
@@ -252,6 +290,10 @@ describe("OrganizationService — member management", () => {
       },
     };
     const orgAdmin: OrgAdmin = {
+      async createOrganization() {
+        return { externalId: "org_stub" };
+      },
+      async setActiveOrganization() {},
       async invite() {
         calls.push("invite");
       },

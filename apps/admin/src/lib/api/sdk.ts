@@ -29,6 +29,7 @@ import type {
   ListParams,
   Member,
   Module,
+  Organization,
   OverviewStats,
   Paginated,
   Role,
@@ -226,6 +227,12 @@ export const api = {
   async reinstateEntitlement(id: string): Promise<Entitlement> {
     ensureConfigured();
     return unwrap(await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "active" } }));
+  },
+
+  // organizations
+  async createOrganization(input: { name: string; slug: string }): Promise<Organization> {
+    ensureConfigured();
+    return unwrap(await Organizations.createOrganization({ body: input }));
   },
 
   // members

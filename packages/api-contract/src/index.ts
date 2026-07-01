@@ -6,6 +6,7 @@ export * from "./content.js";
 export * from "./activities.js";
 export * from "./students.js";
 export * from "./entitlements.js";
+export * from "./organizations.js";
 export * from "./members.js";
 export * from "./dashboard.js";
 export * from "./assets.js";

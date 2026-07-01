@@ -1,15 +1,19 @@
-// HTTP routes for organization member management. Reads from the domain mirror;
-// writes go through Better Auth (org provider). Org-scoped via the session.
+// HTTP routes for the organizations resource: creating an org, and managing its
+// members (a sub-resource, under /api/organizations/members). Member reads come
+// from the domain mirror; org/member writes go through Better Auth (the org
+// provider). Member routes are org-scoped via the session.
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import {
+  CreateOrganization,
   ErrorBody,
   InviteMember,
   Member,
   MemberIdParam,
   MembersPage,
   MembersQuery,
+  Organization,
   UpdateMemberRole,
 } from "@headless-lms/api-contract";
 import { OrganizationRuleError, type MemberWriteContext } from "../../core/organizations/index.js";
@@ -21,9 +25,35 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
   const organizations = container.organizations;
   const tags = ["Organizations"];
 
+  // Create a new organization on the caller's behalf and make it their active
+  // org. This is the API's own front door for org creation — it drives Better
+  // Auth internally, so callers use the typed SDK, not the auth namespace. No
+  // resolveScope here: the caller has no active org yet, only a session.
+  r.route({
+    method: "POST",
+    url: "/api/organizations",
+    preHandler: app.requireSession,
+    schema: {
+      operationId: "createOrganization",
+      tags,
+      summary: "Create an organization and make it active",
+      body: CreateOrganization,
+      response: { 201: Organization },
+    },
+    handler: async (req, reply) => {
+      const org = await organizations.createOrganization(req.headers, req.body);
+      return reply.code(201).send({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        createdAt: org.createdAt.toISOString(),
+      });
+    },
+  });
+
   r.route({
     method: "GET",
-    url: "/api/members",
+    url: "/api/organizations/members",
     preHandler: app.requireSession,
     schema: {
       operationId: "listMembers",
@@ -40,7 +70,7 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
 
   r.route({
     method: "POST",
-    url: "/api/members",
+    url: "/api/organizations/members",
     preHandler: app.requireSession,
     schema: {
       operationId: "inviteMember",
@@ -69,7 +99,7 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
 
   r.route({
     method: "PATCH",
-    url: "/api/members/:id/role",
+    url: "/api/organizations/members/:id/role",
     preHandler: app.requireSession,
     schema: {
       operationId: "updateMemberRole",
@@ -100,7 +130,7 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
 
   r.route({
     method: "DELETE",
-    url: "/api/members/:id",
+    url: "/api/organizations/members/:id",
     preHandler: app.requireSession,
     schema: {
       operationId: "removeMember",

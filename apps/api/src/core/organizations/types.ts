@@ -13,6 +13,15 @@ export interface CreateOrganizationInput {
   ownerId: string;
 }
 
+// A user-facing request to create a new organization. Unlike
+// CreateOrganizationInput (the mirror slice), this carries no externalId/ownerId:
+// Better Auth creates the org (inferring the owner from the session) and its
+// hooks mirror it into the domain, at which point the service reads it back.
+export interface NewOrganizationInput {
+  name: string;
+  slug: string;
+}
+
 export interface AddMembershipInput {
   // The owning org's better-auth id (used to locate the domain org).
   orgExternalId: string;

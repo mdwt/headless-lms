@@ -6,6 +6,7 @@ import type {
   MemberRecord,
   MemberWriteContext,
   OrgAdmin,
+  AuthHeaders,
 } from "./ports.js";
 import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
 import type { Role } from "./roles.js";
@@ -18,6 +19,7 @@ import {
 } from "./members.js";
 import type {
   CreateOrganizationInput,
+  NewOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
@@ -52,6 +54,17 @@ export class OrganizationServiceImpl implements OrganizationService {
     const existing = await this.repo.findByExternalId(input.externalId);
     if (existing) return existing;
     return this.repo.create(input);
+  }
+
+  // User-facing create: drive Better Auth to create the org (it infers the owner
+  // from the session) and make it active, then read back the org its hooks
+  // mirrored into the domain. Mirrors the write-then-read shape of inviteMember.
+  async createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<Organization> {
+    const { externalId } = await this.orgAdmin().createOrganization(headers, input);
+    await this.orgAdmin().setActiveOrganization(headers, externalId);
+    const org = await this.repo.findByExternalId(externalId);
+    if (!org) throw new Error("organization did not propagate to the domain mirror");
+    return org;
   }
 
   async addMembership(input: AddMembershipInput): Promise<Membership> {

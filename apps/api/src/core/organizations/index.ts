@@ -7,6 +7,7 @@ export type {
   MemberRecord,
   MemberWriteContext,
   OrgAdmin,
+  AuthHeaders,
 } from "./ports.js";
 export type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
 export { OrganizationRuleError } from "./members.js";
@@ -18,6 +19,7 @@ export type {
   MembershipId,
   InvitationId,
   CreateOrganizationInput,
+  NewOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,

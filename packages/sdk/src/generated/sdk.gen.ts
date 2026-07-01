@@ -12,6 +12,8 @@ import type {
   CreateCourseResponses,
   CreateModuleData,
   CreateModuleResponses,
+  CreateOrganizationData,
+  CreateOrganizationResponses,
   DeleteActivityData,
   DeleteActivityResponses,
   DeleteAssetData,
@@ -394,13 +396,29 @@ export class Entitlements {
 
 export class Organizations {
   /**
+   * Create an organization and make it active
+   */
+  public static createOrganization<ThrowOnError extends boolean = false>(
+    options: Options<CreateOrganizationData, ThrowOnError>,
+  ): RequestResult<CreateOrganizationResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<CreateOrganizationResponses, unknown, ThrowOnError>({
+      url: "/api/organizations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List organization members
    */
   public static listMembers<ThrowOnError extends boolean = false>(
     options?: Options<ListMembersData, ThrowOnError>,
   ): RequestResult<ListMembersResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError>({
-      url: "/api/members",
+      url: "/api/organizations/members",
       ...options,
     });
   }
@@ -413,7 +431,7 @@ export class Organizations {
   ): RequestResult<InviteMemberResponses, InviteMemberErrors, ThrowOnError> {
     return (options.client ?? client).post<InviteMemberResponses, InviteMemberErrors, ThrowOnError>(
       {
-        url: "/api/members",
+        url: "/api/organizations/members",
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -434,7 +452,7 @@ export class Organizations {
       UpdateMemberRoleErrors,
       ThrowOnError
     >({
-      url: "/api/members/{id}/role",
+      url: "/api/organizations/members/{id}/role",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -453,7 +471,7 @@ export class Organizations {
       RemoveMemberResponses,
       RemoveMemberErrors,
       ThrowOnError
-    >({ url: "/api/members/{id}", ...options });
+    >({ url: "/api/organizations/members/{id}", ...options });
   }
 }
 

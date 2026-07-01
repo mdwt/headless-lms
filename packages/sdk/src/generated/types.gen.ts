@@ -680,6 +680,31 @@ export type SetEntitlementStatusResponses = {
 export type SetEntitlementStatusResponse =
   SetEntitlementStatusResponses[keyof SetEntitlementStatusResponses];
 
+export type CreateOrganizationData = {
+  body: {
+    name: string;
+    slug: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations";
+};
+
+export type CreateOrganizationResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: string;
+  };
+};
+
+export type CreateOrganizationResponse =
+  CreateOrganizationResponses[keyof CreateOrganizationResponses];
+
 export type ListMembersData = {
   body?: never;
   path?: never;
@@ -691,7 +716,7 @@ export type ListMembersData = {
     role?: "owner" | "admin" | "instructor";
     status?: "active" | "invited";
   };
-  url: "/api/members";
+  url: "/api/organizations/members";
 };
 
 export type ListMembersResponses = {
@@ -724,7 +749,7 @@ export type InviteMemberData = {
   };
   path?: never;
   query?: never;
-  url: "/api/members";
+  url: "/api/organizations/members";
 };
 
 export type InviteMemberErrors = {
@@ -765,7 +790,7 @@ export type UpdateMemberRoleData = {
     id: string;
   };
   query?: never;
-  url: "/api/members/{id}/role";
+  url: "/api/organizations/members/{id}/role";
 };
 
 export type UpdateMemberRoleErrors = {
@@ -811,7 +836,7 @@ export type RemoveMemberData = {
     id: string;
   };
   query?: never;
-  url: "/api/members/{id}";
+  url: "/api/organizations/members/{id}";
 };
 
 export type RemoveMemberErrors = {

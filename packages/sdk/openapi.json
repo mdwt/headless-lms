@@ -2247,7 +2247,73 @@
         }
       }
     },
-    "/api/members": {
+    "/api/organizations": {
+      "post": {
+        "operationId": "createOrganization",
+        "summary": "Create an organization and make it active",
+        "tags": [
+          "Organizations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/organizations/members": {
       "get": {
         "operationId": "listMembers",
         "summary": "List organization members",
@@ -2529,7 +2595,7 @@
         }
       }
     },
-    "/api/members/{id}/role": {
+    "/api/organizations/members/{id}/role": {
       "patch": {
         "operationId": "updateMemberRole",
         "summary": "Change a member's role",
@@ -2675,7 +2741,7 @@
         }
       }
     },
-    "/api/members/{id}": {
+    "/api/organizations/members/{id}": {
       "delete": {
         "operationId": "removeMember",
         "summary": "Remove an organization member",

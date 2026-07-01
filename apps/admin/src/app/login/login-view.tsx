@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
-import { organization, signIn, signUp, useSession } from "@/lib/auth/client";
+import { signIn, signUp, useSession } from "@/lib/auth/client";
+import { api } from "@/lib/api/sdk";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,15 +184,13 @@ function SignUpForm({ onError, onDone }: { onError: (m: string | null) => void; 
       return;
     }
     const slug = uniqueOrgSlug(values.organizationName);
-    const { data: org, error: orgError } = await organization.create({
-      name: values.organizationName,
-      slug,
-    });
-    if (orgError || !org) {
-      onError(orgError?.message ?? "Account created, but the organization couldn't be set up");
+    try {
+      // Creates the org and makes it the session's active org, server-side.
+      await api.createOrganization({ name: values.organizationName, slug });
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Account created, but the organization couldn't be set up");
       return;
     }
-    await organization.setActive({ organizationId: org.id });
     onDone();
   }
 

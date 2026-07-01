@@ -4,11 +4,15 @@ import type { Member, MembersQuery, InviteMemberInput, Page } from "./members.js
 import type { Role } from "./roles.js";
 import type {
   CreateOrganizationInput,
+  NewOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
   AssignCourseInput,
 } from "./types.js";
+
+/** Inbound HTTP headers carrying the session, forwarded to the auth provider. */
+export type AuthHeaders = Record<string, string | string[] | undefined>;
 
 // Capability used by the auth adapter to mirror the organization plugin's
 // records (org, members, invitations) into the domain. A narrow slice of the
@@ -27,6 +31,10 @@ export interface OrganizationProvisioner {
 
 // Inbound port (use cases the service exposes).
 export interface OrganizationService extends OrganizationProvisioner {
+  // Creates a new organization on the caller's behalf and makes it the session's
+  // active org. Drives Better Auth (via OrgAdmin); its hooks mirror the org into
+  // the domain, which this method then returns.
+  createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<Organization>;
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
@@ -76,6 +84,10 @@ export interface MemberWriteContext {
 
 /** Outbound: org membership writes, fulfilled by the auth provider (Better Auth). */
 export interface OrgAdmin {
+  // Creates an org (owner inferred from the session) and returns its auth id.
+  createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<{ externalId: string }>;
+  // Marks an org as the session's active organization.
+  setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void>;
   invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;
   updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
   removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;

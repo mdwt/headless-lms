@@ -8,12 +8,31 @@ import type {
   MemberWriteContext,
   Role,
   InviteMemberInput,
+  NewOrganizationInput,
+  AuthHeaders,
 } from "../../core/organizations/index.js";
 import type { Auth } from "./index.js";
 
 export function createOrgAdmin(auth: Auth): OrgAdmin {
   const headersOf = (ctx: MemberWriteContext) => fromNodeHeaders(ctx.headers);
   return {
+    async createOrganization(
+      headers: AuthHeaders,
+      input: NewOrganizationInput,
+    ): Promise<{ externalId: string }> {
+      const org = await auth.api.createOrganization({
+        body: { name: input.name, slug: input.slug },
+        headers: fromNodeHeaders(headers),
+      });
+      if (!org) throw new Error("Better Auth did not return the created organization");
+      return { externalId: org.id };
+    },
+    async setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void> {
+      await auth.api.setActiveOrganization({
+        body: { organizationId: externalId },
+        headers: fromNodeHeaders(headers),
+      });
+    },
     async invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void> {
       await auth.api.createInvitation({
         body: { email: input.email, role: input.role, organizationId: ctx.authOrgId },
