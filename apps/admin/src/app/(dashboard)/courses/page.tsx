@@ -12,15 +12,8 @@ import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  useCourses,
-  useToggleCoursePublish,
-  useDeleteCourse,
-} from "@/lib/api/hooks";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useCourses, useToggleCoursePublish, useDeleteCourse } from "@/lib/api/hooks";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
 import { relativeTime, formatNumber } from "@/lib/format";
@@ -159,9 +152,7 @@ export default function CoursesPage() {
                   <DropdownMenuItem onClick={() => openEdit(course)}>Edit</DropdownMenuItem>
                 )}
                 {canPublish && (
-                  <DropdownMenuItem
-                    onClick={() => togglePublish.mutate({ course })}
-                  >
+                  <DropdownMenuItem onClick={() => togglePublish.mutate({ course })}>
                     {course.status === "published" ? "Unpublish" : "Publish"}
                   </DropdownMenuItem>
                 )}
@@ -240,11 +231,7 @@ export default function CoursesPage() {
       />
 
       {/* Opened only via gated triggers (create button / Edit menu item). */}
-      <CourseFormSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        course={editing}
-      />
+      <CourseFormSheet open={sheetOpen} onOpenChange={setSheetOpen} course={editing} />
 
       <ConfirmDialog
         open={toDelete !== null}
@@ -255,8 +242,9 @@ export default function CoursesPage() {
         description={
           toDelete ? (
             <>
-              This permanently deletes <span className="font-medium text-ink">{toDelete.title}</span>,
-              along with its modules and lessons. This can&apos;t be undone.
+              This permanently deletes{" "}
+              <span className="font-medium text-ink">{toDelete.title}</span>, along with its modules
+              and lessons. This can&apos;t be undone.
             </>
           ) : null
         }

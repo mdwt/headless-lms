@@ -15,14 +15,7 @@
  *     they may import core ports and reporting ports.
  */
 // Business bounded contexts (everything under core/ except shared/).
-const CONTEXTS = [
-  "identity",
-  "organizations",
-  "courses",
-  "entitlements",
-  "progress",
-  "assets",
-];
+const CONTEXTS = ["identity", "organizations", "courses", "entitlements", "progress", "assets"];
 
 // A context file may import a sibling context ONLY through its public index.ts.
 // ESLint's no-restricted-imports group matcher supports `*` and exact paths, but
@@ -48,7 +41,11 @@ module.exports = {
     // classify cross-context imports (otherwise deep-import violations slip through).
     "import/resolver": {
       typescript: {
-        project: ["apps/api/tsconfig.json", "apps/web/tsconfig.json", "packages/shared-types/tsconfig.json"],
+        project: [
+          "apps/api/tsconfig.json",
+          "apps/web/tsconfig.json",
+          "packages/shared-types/tsconfig.json",
+        ],
       },
     },
     "boundaries/include": ["apps/api/src/**/*"],

@@ -5,7 +5,10 @@ import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
 import { createOrgAdmin } from "../adapters/auth/org-admin.js";
-import { createConnectedAppsRepo, type ConnectedAppsRepo } from "../adapters/auth/connected-apps.js";
+import {
+  createConnectedAppsRepo,
+  type ConnectedAppsRepo,
+} from "../adapters/auth/connected-apps.js";
 
 import { ContentServiceImpl } from "../core/content/index.js";
 import { EntitlementsServiceImpl } from "../core/entitlements/index.js";
@@ -84,14 +87,11 @@ export function buildContainer(config: Config): Container {
     new DrizzleContentStructureRepository(db),
   );
   const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db));
-  const progress = new ProgressServiceImpl(
-    new DrizzleProgressRepository(db),
-    () => new Date().toISOString(),
+  const progress = new ProgressServiceImpl(new DrizzleProgressRepository(db), () =>
+    new Date().toISOString(),
   );
-  const assets = new AssetsServiceImpl(
-    storage,
-    new DrizzleAssetsRepository(db),
-    () => new Date().toISOString(),
+  const assets = new AssetsServiceImpl(storage, new DrizzleAssetsRepository(db), () =>
+    new Date().toISOString(),
   );
 
   const reporting = {

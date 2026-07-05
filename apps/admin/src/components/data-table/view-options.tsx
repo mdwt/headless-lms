@@ -46,5 +46,8 @@ export function ViewOptions<TData>({ table }: { table: Table<TData> }) {
 }
 
 function columnLabel(id: string): string {
-  return id.replace(/([A-Z])/g, " $1").replace(/[_-]/g, " ").trim();
+  return id
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]/g, " ")
+    .trim();
 }

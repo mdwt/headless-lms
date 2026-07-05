@@ -19,10 +19,7 @@ export default function StudentsPage() {
   const table = useDataTable({ initialSort: [{ id: "lastActiveAt", desc: true }] });
   const { data, isLoading, isFetching, isError, error, refetch } = useStudents(table.params);
 
-  const goToStudent = React.useCallback(
-    (id: string) => router.push(`/students/${id}`),
-    [router],
-  );
+  const goToStudent = React.useCallback((id: string) => router.push(`/students/${id}`), [router]);
 
   const columns = React.useMemo(() => studentColumns(goToStudent), [goToStudent]);
 

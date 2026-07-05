@@ -36,9 +36,7 @@ export function studentColumns(onView: (id: string) => void): ColumnDef<Student,
     {
       accessorKey: "enrollmentCount",
       header: ({ column }) => <ColumnHeader column={column} title="Entitlements" align="right" />,
-      cell: ({ row }) => (
-        <span className="text-ink-2">{row.original.enrollmentCount}</span>
-      ),
+      cell: ({ row }) => <span className="text-ink-2">{row.original.enrollmentCount}</span>,
       meta: { align: "right" },
     },
     {
@@ -58,7 +56,9 @@ export function studentColumns(onView: (id: string) => void): ColumnDef<Student,
       accessorKey: "lastActiveAt",
       header: ({ column }) => <ColumnHeader column={column} title="Last active" />,
       cell: ({ row }) => (
-        <span className="whitespace-nowrap text-ink-3">{relativeTime(row.original.lastActiveAt)}</span>
+        <span className="whitespace-nowrap text-ink-3">
+          {relativeTime(row.original.lastActiveAt)}
+        </span>
       ),
     },
     {
@@ -69,7 +69,9 @@ export function studentColumns(onView: (id: string) => void): ColumnDef<Student,
       cell: ({ row }) => (
         <div className="flex justify-end">
           <RowActions>
-            <DropdownMenuItem onClick={() => onView(row.original.id)}>View student</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onView(row.original.id)}>
+              View student
+            </DropdownMenuItem>
           </RowActions>
         </div>
       ),

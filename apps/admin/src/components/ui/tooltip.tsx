@@ -4,7 +4,10 @@ import * as React from "react";
 import { Tooltip as T } from "radix-ui";
 import { cn } from "@/lib/utils";
 
-const TooltipProvider = ({ delayDuration = 200, ...props }: React.ComponentProps<typeof T.Provider>) => (
+const TooltipProvider = ({
+  delayDuration = 200,
+  ...props
+}: React.ComponentProps<typeof T.Provider>) => (
   <T.Provider delayDuration={delayDuration} {...props} />
 );
 const Tooltip = (p: React.ComponentProps<typeof T.Root>) => <T.Root {...p} />;

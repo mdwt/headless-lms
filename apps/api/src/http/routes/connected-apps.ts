@@ -4,11 +4,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import {
-  ConnectedAppIdParam,
-  ConnectedAppsList,
-  ErrorBody,
-} from "@headless-lms/api-contract";
+import { ConnectedAppIdParam, ConnectedAppsList, ErrorBody } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
 
 export async function connectedAppsRoutes(

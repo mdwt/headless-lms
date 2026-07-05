@@ -19,7 +19,9 @@ const times = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n
 const chance = (p: number) => faker.number.float() < p;
 // Random provider suffix keeps every address unique (trailing KSUID bytes are random).
 const uEmail = (firstName?: string, lastName?: string) =>
-  faker.internet.email({ firstName, lastName, provider: `${ksuid().slice(-8)}.example.com` }).toLowerCase();
+  faker.internet
+    .email({ firstName, lastName, provider: `${ksuid().slice(-8)}.example.com` })
+    .toLowerCase();
 
 async function main() {
   const users: (typeof schema.users.$inferInsert)[] = [];
@@ -37,22 +39,45 @@ async function main() {
   times(faker.number.int({ min: 3, max: 6 }), () => {
     // Owner user + org.
     const ownerId = genId("user");
-    users.push({ id: ownerId, externalId: ksuid(), email: uEmail(), displayName: faker.person.fullName() });
+    users.push({
+      id: ownerId,
+      externalId: ksuid(),
+      email: uEmail(),
+      displayName: faker.person.fullName(),
+    });
 
     const orgId = genId("organization");
     const orgName = faker.company.name();
     organizations.push({
-      id: orgId, externalId: ksuid(), name: orgName, slug: faker.helpers.slugify(orgName).toLowerCase() + "-" + ksuid().slice(-6), ownerId,
+      id: orgId,
+      externalId: ksuid(),
+      name: orgName,
+      slug: faker.helpers.slugify(orgName).toLowerCase() + "-" + ksuid().slice(-6),
+      ownerId,
     });
-    memberships.push({ orgId, id: genId("membership"), userId: ownerId, role: "owner", externalId: ksuid() });
+    memberships.push({
+      orgId,
+      id: genId("membership"),
+      userId: ownerId,
+      role: "owner",
+      externalId: ksuid(),
+    });
 
     // Staff.
     times(faker.number.int({ min: 2, max: 4 }), () => {
       const uid = genId("user");
-      users.push({ id: uid, externalId: ksuid(), email: uEmail(), displayName: faker.person.fullName() });
+      users.push({
+        id: uid,
+        externalId: ksuid(),
+        email: uEmail(),
+        displayName: faker.person.fullName(),
+      });
       memberships.push({
-        orgId, id: genId("membership"), userId: uid,
-        role: faker.helpers.arrayElement(["admin", "instructor"] as const), externalId: ksuid(),
+        orgId,
+        id: genId("membership"),
+        userId: uid,
+        role: faker.helpers.arrayElement(["admin", "instructor"] as const),
+        externalId: ksuid(),
       });
     });
 
@@ -61,7 +86,13 @@ async function main() {
       const sid = genId("student");
       const first = faker.person.firstName();
       const last = faker.person.lastName();
-      students.push({ id: sid, externalId: ksuid(), email: uEmail(first, last), firstName: first, lastName: last });
+      students.push({
+        id: sid,
+        externalId: ksuid(),
+        email: uEmail(first, last),
+        firstName: first,
+        lastName: last,
+      });
       return sid;
     });
 
@@ -69,9 +100,15 @@ async function main() {
     const orgAssets = times(faker.number.int({ min: 4, max: 8 }), () => {
       const id = genId("asset");
       assets.push({
-        orgId, id, key: `${orgId}/${ksuid()}`, kind: faker.helpers.arrayElement(["video", "download", "content"] as const),
-        filename: faker.system.commonFileName(), contentType: faker.system.mimeType(),
-        size: faker.number.int({ min: 1_000, max: 500_000_000 }), status: "ready", uploadedBy: ownerId,
+        orgId,
+        id,
+        key: `${orgId}/${ksuid()}`,
+        kind: faker.helpers.arrayElement(["video", "download", "content"] as const),
+        filename: faker.system.commonFileName(),
+        contentType: faker.system.mimeType(),
+        size: faker.number.int({ min: 1_000, max: 500_000_000 }),
+        status: "ready",
+        uploadedBy: ownerId,
       });
       return id;
     });
@@ -79,11 +116,26 @@ async function main() {
     // Courses → modules → activities, with asset links.
     times(faker.number.int({ min: 2, max: 5 }), () => {
       const courseId = genId("course");
-      const title = faker.helpers.arrayElement([faker.company.catchPhrase(), faker.commerce.productName(), faker.hacker.phrase()]);
+      const title = faker.helpers.arrayElement([
+        faker.company.catchPhrase(),
+        faker.commerce.productName(),
+        faker.hacker.phrase(),
+      ]);
       courses.push({
-        orgId, id: courseId, title, slug: faker.helpers.slugify(title).toLowerCase() + "-" + ksuid().slice(-6),
-        description: faker.lorem.paragraph(), status: faker.helpers.arrayElement(["draft", "published"] as const),
-        category: faker.helpers.arrayElement(["Art", "Design", "Music", "Craft", "Science", "Technology"]),
+        orgId,
+        id: courseId,
+        title,
+        slug: faker.helpers.slugify(title).toLowerCase() + "-" + ksuid().slice(-6),
+        description: faker.lorem.paragraph(),
+        status: faker.helpers.arrayElement(["draft", "published"] as const),
+        category: faker.helpers.arrayElement([
+          "Art",
+          "Design",
+          "Music",
+          "Craft",
+          "Science",
+          "Technology",
+        ]),
       });
 
       const courseModules = times(faker.number.int({ min: 2, max: 5 }), (m) => {
@@ -92,11 +144,23 @@ async function main() {
         times(faker.number.int({ min: 2, max: 6 }), (a) => {
           const activityId = genId("activity");
           activities.push({
-            orgId, id: activityId, moduleId, seq: a,
-            settings: { title: faker.lorem.sentence(3), type: faker.helpers.arrayElement(["lesson", "assessment"]) },
+            orgId,
+            id: activityId,
+            moduleId,
+            seq: a,
+            settings: {
+              title: faker.lorem.sentence(3),
+              type: faker.helpers.arrayElement(["lesson", "assessment"]),
+            },
           });
           if (chance(0.5))
-            activityAssets.push({ orgId, id: genId("activityAsset"), activityId, assetId: faker.helpers.arrayElement(orgAssets), seq: 0 });
+            activityAssets.push({
+              orgId,
+              id: genId("activityAsset"),
+              activityId,
+              assetId: faker.helpers.arrayElement(orgAssets),
+              seq: 0,
+            });
         });
         return moduleId;
       });
@@ -105,15 +169,31 @@ async function main() {
       for (const studentId of orgStudents) {
         if (chance(0.4)) continue;
         enrollments.push({
-          orgId, id: genId("enrollment"), studentId, courseId,
+          orgId,
+          id: genId("enrollment"),
+          studentId,
+          courseId,
           status: faker.helpers.arrayElement(["active", "revoked"] as const),
           source: faker.helpers.arrayElement(["manual", "import"] as const),
           expiresAt: chance(0.3) ? faker.date.future() : null,
         });
-        const targetType = faker.helpers.arrayElement(["lesson", "assessment", "module", "course"] as const);
+        const targetType = faker.helpers.arrayElement([
+          "lesson",
+          "assessment",
+          "module",
+          "course",
+        ] as const);
         progress.push({
-          orgId, id: genId("progress"), studentId, targetType,
-          targetId: targetType === "course" ? courseId : targetType === "module" ? faker.helpers.arrayElement(courseModules) : genId("activity"),
+          orgId,
+          id: genId("progress"),
+          studentId,
+          targetType,
+          targetId:
+            targetType === "course"
+              ? courseId
+              : targetType === "module"
+                ? faker.helpers.arrayElement(courseModules)
+                : genId("activity"),
           completedAt: chance(0.5) ? faker.date.recent() : null,
         });
       }

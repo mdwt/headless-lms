@@ -219,10 +219,7 @@ function SortableModule({
             modifiers={DND_MODIFIERS}
             onDragEnd={handleItemDragEnd}
           >
-            <SortableContext
-              items={items.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-0.5">
                 {items.map((item) => (
                   <ItemRow
@@ -410,10 +407,7 @@ export function ModuleList({
           modifiers={DND_MODIFIERS}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext
-            items={ordered.map((m) => m.id)}
-            strategy={verticalListSortingStrategy}
-          >
+          <SortableContext items={ordered.map((m) => m.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-3">
               {ordered.map((module, i) => (
                 <SortableModule

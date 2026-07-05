@@ -13,7 +13,10 @@ import {
 import type { Container } from "../../composition/container.js";
 import { resolveScope } from "../scope.js";
 
-export async function entitlementsRoutes(app: FastifyInstance, container: Container): Promise<void> {
+export async function entitlementsRoutes(
+  app: FastifyInstance,
+  container: Container,
+): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const entitlements = container.entitlements;
 

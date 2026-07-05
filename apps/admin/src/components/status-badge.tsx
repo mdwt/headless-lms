@@ -1,11 +1,6 @@
 import { Badge, Dot } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/roles";
-import type {
-  CourseStatus,
-  EntitlementStatus,
-  MemberStatus,
-  Role,
-} from "@/lib/api/types";
+import type { CourseStatus, EntitlementStatus, MemberStatus, Role } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const DOT: Record<string, string> = {
@@ -73,7 +68,5 @@ export function MemberStatusBadge({ status }: { status: MemberStatus }) {
 
 export function RoleBadge({ role }: { role: Role }) {
   const variant = role === "owner" ? "brand" : role === "admin" ? "neutral" : "outline";
-  return (
-    <Badge variant={variant as "brand" | "neutral" | "outline"}>{ROLE_LABEL[role]}</Badge>
-  );
+  return <Badge variant={variant as "brand" | "neutral" | "outline"}>{ROLE_LABEL[role]}</Badge>;
 }

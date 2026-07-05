@@ -10,10 +10,7 @@ import { EntitlementStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NameAvatar } from "@/components/ui/avatar";
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DataTable } from "@/components/data-table/data-table";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
@@ -85,9 +82,7 @@ export default function EntitlementsPage() {
       {
         accessorKey: "source",
         header: ({ column }) => <ColumnHeader column={column} title="Source" />,
-        cell: ({ row }) => (
-          <Badge variant="outline">{SOURCE_LABEL[row.original.source]}</Badge>
-        ),
+        cell: ({ row }) => <Badge variant="outline">{SOURCE_LABEL[row.original.source]}</Badge>,
         enableSorting: false,
       },
       {
@@ -125,10 +120,7 @@ export default function EntitlementsPage() {
               <RowActions>
                 {e.status === "active" ? (
                   <>
-                    <DropdownMenuItem
-                      variant="danger"
-                      onSelect={() => setRevokeTarget(e)}
-                    >
+                    <DropdownMenuItem variant="danger" onSelect={() => setRevokeTarget(e)}>
                       Revoke access
                     </DropdownMenuItem>
                   </>

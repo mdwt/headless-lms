@@ -95,7 +95,8 @@ export default function MediaPage() {
 
   const hasFilters = state.search.length > 0 || activeKind !== "all";
   const showGrid = !query.isLoading && !query.isError && (rows?.length ?? 0) > 0;
-  const isForbidden = query.isError && query.error instanceof ApiError && query.error.status === 403;
+  const isForbidden =
+    query.isError && query.error instanceof ApiError && query.error.status === 403;
 
   return (
     <div
@@ -168,7 +169,10 @@ export default function MediaPage() {
       {query.isLoading ? (
         <GridSkeleton />
       ) : isForbidden ? (
-        <StatePanel title="You don't have access to media" description="Ask an owner or admin for access." />
+        <StatePanel
+          title="You don't have access to media"
+          description="Ask an owner or admin for access."
+        />
       ) : query.isError ? (
         <StatePanel
           title="Couldn't load the media library"
@@ -228,7 +232,10 @@ export default function MediaPage() {
         </div>
       )}
 
-      <UploadTray uploads={uploads} onDismiss={(id) => setUploads((l) => l.filter((u) => u.id !== id))} />
+      <UploadTray
+        uploads={uploads}
+        onDismiss={(id) => setUploads((l) => l.filter((u) => u.id !== id))}
+      />
 
       <AssetPreviewSheet
         asset={preview}

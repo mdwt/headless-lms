@@ -21,10 +21,24 @@ describe("roles", () => {
   });
 
   it("canForCourse resolves unconditional and assigned scopes", () => {
-    expect(canForCourse("admin", "view_student_progress", { assignedCourseIds: [], courseId: "c1" })).toBe(true);
-    expect(canForCourse("instructor", "edit_assigned_course", { assignedCourseIds: ["c1"], courseId: "c1" })).toBe(true);
-    expect(canForCourse("instructor", "edit_assigned_course", { assignedCourseIds: ["c2"], courseId: "c1" })).toBe(false);
-    expect(canForCourse("instructor", "manage_users", { assignedCourseIds: [], courseId: "c1" })).toBe(false);
+    expect(
+      canForCourse("admin", "view_student_progress", { assignedCourseIds: [], courseId: "c1" }),
+    ).toBe(true);
+    expect(
+      canForCourse("instructor", "edit_assigned_course", {
+        assignedCourseIds: ["c1"],
+        courseId: "c1",
+      }),
+    ).toBe(true);
+    expect(
+      canForCourse("instructor", "edit_assigned_course", {
+        assignedCourseIds: ["c2"],
+        courseId: "c1",
+      }),
+    ).toBe(false);
+    expect(
+      canForCourse("instructor", "manage_users", { assignedCourseIds: [], courseId: "c1" }),
+    ).toBe(false);
   });
 });
 

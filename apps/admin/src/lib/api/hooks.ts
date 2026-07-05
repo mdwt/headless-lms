@@ -7,12 +7,7 @@
  * toggles, entitlement status, role changes).
  */
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { api } from "./sdk";
@@ -27,7 +22,6 @@ import type {
   Role,
   SaveActivityInput,
 } from "./types";
-
 
 // --- dashboard -------------------------------------------------------------
 
@@ -74,7 +68,8 @@ export function useCreateCourse() {
 export function useUpdateCourse() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Course> }) => api.updateCourse(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Course> }) =>
+      api.updateCourse(id, patch),
     onSuccess: (course) => {
       qc.invalidateQueries({ queryKey: qk.courses.all });
       qc.setQueryData(qk.courses.detail(course.id), course);
@@ -89,7 +84,9 @@ export function useToggleCoursePublish() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ course }: { course: Course }) =>
-      api.updateCourse(course.id, { status: course.status === "published" ? "draft" : "published" }),
+      api.updateCourse(course.id, {
+        status: course.status === "published" ? "draft" : "published",
+      }),
     onMutate: async ({ course }) => {
       await qc.cancelQueries({ queryKey: qk.courses.detail(course.id) });
       const prev = qc.getQueryData<Course>(qk.courses.detail(course.id));
@@ -128,7 +125,10 @@ export function useDeleteCourse() {
 // --- modules + items -------------------------------------------------------
 
 export function useModules(courseId: string) {
-  return useQuery({ queryKey: qk.courses.modules(courseId), queryFn: () => api.listModules(courseId) });
+  return useQuery({
+    queryKey: qk.courses.modules(courseId),
+    queryFn: () => api.listModules(courseId),
+  });
 }
 
 function useModuleMutation<TArgs>(
@@ -154,19 +154,33 @@ export function useReorderModules(courseId: string) {
   );
 }
 export function useReorderActivities(courseId: string) {
-  return useModuleMutation(courseId, ({ moduleId, orderedIds }: { moduleId: string; orderedIds: string[] }) =>
-    api.reorderActivities(courseId, moduleId, orderedIds),
+  return useModuleMutation(
+    courseId,
+    ({ moduleId, orderedIds }: { moduleId: string; orderedIds: string[] }) =>
+      api.reorderActivities(courseId, moduleId, orderedIds),
   );
 }
 export function useCreateModule(courseId: string) {
-  return useModuleMutation(courseId, (title: string) => api.createModule(courseId, title), "Module added");
+  return useModuleMutation(
+    courseId,
+    (title: string) => api.createModule(courseId, title),
+    "Module added",
+  );
 }
 export function useUpdateModule(courseId: string) {
-  return useModuleMutation(courseId, ({ moduleId, title }: { moduleId: string; title: string }) =>
-    api.updateModule(courseId, moduleId, title), "Module renamed");
+  return useModuleMutation(
+    courseId,
+    ({ moduleId, title }: { moduleId: string; title: string }) =>
+      api.updateModule(courseId, moduleId, title),
+    "Module renamed",
+  );
 }
 export function useDeleteModule(courseId: string) {
-  return useModuleMutation(courseId, (moduleId: string) => api.deleteModule(courseId, moduleId), "Module deleted");
+  return useModuleMutation(
+    courseId,
+    (moduleId: string) => api.deleteModule(courseId, moduleId),
+    "Module deleted",
+  );
 }
 export function useSaveActivity(courseId: string) {
   return useModuleMutation(
@@ -198,7 +212,10 @@ export function useStudent(id: string) {
   return useQuery({ queryKey: qk.students.detail(id), queryFn: () => api.getStudent(id) });
 }
 export function useStudentEntitlements(id: string) {
-  return useQuery({ queryKey: qk.students.entitlements(id), queryFn: () => api.studentEntitlements(id) });
+  return useQuery({
+    queryKey: qk.students.entitlements(id),
+    queryFn: () => api.studentEntitlements(id),
+  });
 }
 export function useStudentsLite() {
   return useQuery({ queryKey: qk.students.lite, queryFn: () => api.studentsLite() });

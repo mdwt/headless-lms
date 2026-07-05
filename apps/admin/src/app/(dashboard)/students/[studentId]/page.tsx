@@ -39,10 +39,7 @@ export default function StudentDetailPage() {
       {student.isLoading ? (
         <HeaderSkeleton />
       ) : student.isError || !student.data ? (
-        <ErrorBlock
-          title="Couldn't load this student"
-          onRetry={() => student.refetch()}
-        />
+        <ErrorBlock title="Couldn't load this student" onRetry={() => student.refetch()} />
       ) : (
         <StudentHeader student={student.data} />
       )}
@@ -58,10 +55,7 @@ export default function StudentDetailPage() {
         {entitlements.isLoading ? (
           <ListSkeleton />
         ) : entitlements.isError ? (
-          <ErrorBlock
-            title="Couldn't load entitlements"
-            onRetry={() => entitlements.refetch()}
-          />
+          <ErrorBlock title="Couldn't load entitlements" onRetry={() => entitlements.refetch()} />
         ) : !entitlements.data || entitlements.data.length === 0 ? (
           <EmptyEntitlements />
         ) : (

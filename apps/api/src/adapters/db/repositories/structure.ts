@@ -112,9 +112,9 @@ export class DrizzleContentStructureRepository implements ContentStructureReposi
       .delete(activityAssets)
       .where(and(eq(activityAssets.orgId, orgId), eq(activityAssets.activityId, activityId)));
     if (assetIds.length) {
-      await tx.insert(activityAssets).values(
-        assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })),
-      );
+      await tx
+        .insert(activityAssets)
+        .values(assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })));
     }
   }
 

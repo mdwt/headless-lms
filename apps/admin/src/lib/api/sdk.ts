@@ -147,7 +147,11 @@ export const api = {
     ensureConfigured();
     return unwrap(await Courses.reorderModules({ path: { courseId }, body: { orderedIds } }));
   },
-  async reorderActivities(courseId: string, moduleId: string, orderedIds: string[]): Promise<Module[]> {
+  async reorderActivities(
+    courseId: string,
+    moduleId: string,
+    orderedIds: string[],
+  ): Promise<Module[]> {
     ensureConfigured();
     return unwrap(
       await Courses.reorderActivities({ path: { courseId, moduleId }, body: { orderedIds } }),
@@ -222,11 +226,15 @@ export const api = {
   },
   async revokeEntitlement(id: string): Promise<Entitlement> {
     ensureConfigured();
-    return unwrap(await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "revoked" } }));
+    return unwrap(
+      await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "revoked" } }),
+    );
   },
   async reinstateEntitlement(id: string): Promise<Entitlement> {
     ensureConfigured();
-    return unwrap(await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "active" } }));
+    return unwrap(
+      await Entitlements.setEntitlementStatus({ path: { id }, body: { status: "active" } }),
+    );
   },
 
   // organizations
@@ -305,7 +313,9 @@ export const api = {
   async studentsLite(search?: string): Promise<{ id: string; name: string; email: string }[]> {
     ensureConfigured();
     const page = unwrap(
-      await Students.listStudents({ query: { pageSize: 100, search: search || undefined, sort: "name" } }),
+      await Students.listStudents({
+        query: { pageSize: 100, search: search || undefined, sort: "name" },
+      }),
     );
     return page.rows.map((s) => ({ id: s.id, name: s.name, email: s.email }));
   },

@@ -89,7 +89,10 @@ export class DrizzleMembersRepository implements MembersRepository {
     if (query.role) rows = rows.filter((r) => r.role === query.role);
     if (query.status) rows = rows.filter((r) => r.status === query.status);
     const q = query.search?.trim().toLowerCase();
-    if (q) rows = rows.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q));
+    if (q)
+      rows = rows.filter(
+        (r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q),
+      );
 
     const sort = query.sort;
     const desc = sort?.startsWith("-") ?? false;

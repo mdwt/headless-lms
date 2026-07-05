@@ -90,10 +90,7 @@ export function CourseFormSheet({
       description: values.description?.trim() ?? "",
     };
     if (isEdit && course) {
-      update.mutate(
-        { id: course.id, patch },
-        { onSuccess: () => onOpenChange(false) },
-      );
+      update.mutate({ id: course.id, patch }, { onSuccess: () => onOpenChange(false) });
     } else {
       create.mutate(patch, { onSuccess: () => onOpenChange(false) });
     }

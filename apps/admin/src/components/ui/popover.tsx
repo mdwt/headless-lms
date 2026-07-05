@@ -5,7 +5,9 @@ import { Popover as P } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 const Popover = (p: React.ComponentProps<typeof P.Root>) => <P.Root data-slot="popover" {...p} />;
-const PopoverTrigger = (p: React.ComponentProps<typeof P.Trigger>) => <P.Trigger data-slot="popover-trigger" {...p} />;
+const PopoverTrigger = (p: React.ComponentProps<typeof P.Trigger>) => (
+  <P.Trigger data-slot="popover-trigger" {...p} />
+);
 const PopoverAnchor = (p: React.ComponentProps<typeof P.Anchor>) => <P.Anchor {...p} />;
 
 function PopoverContent({

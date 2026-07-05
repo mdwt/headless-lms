@@ -24,7 +24,7 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: bool
   { key: "draftCourses", label: "Draft courses" },
   { key: "activeStudents", label: "Active students", managerOnly: true },
   { key: "activeEnrollments", label: "Active entitlements", managerOnly: true },
-{ key: "expiringSoon", label: "Expiring soon", managerOnly: true },
+  { key: "expiringSoon", label: "Expiring soon", managerOnly: true },
 ];
 
 export default function OverviewPage() {

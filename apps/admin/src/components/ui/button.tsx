@@ -15,19 +15,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // one filled primary, solid ring matching the fill
-        primary:
-          "bg-brand text-brand-contrast hover:bg-brand-strong focus-visible:ring-brand/40",
+        primary: "bg-brand text-brand-contrast hover:bg-brand-strong focus-visible:ring-brand/40",
         // secondary: bordered surface
-        secondary:
-          "border border-line-strong bg-surface text-ink-2 hover:bg-hover hover:text-ink",
+        secondary: "border border-line-strong bg-surface text-ink-2 hover:bg-hover hover:text-ink",
         // ghost: text-only
         ghost: "text-ink-2 hover:bg-hover hover:text-ink",
         // destructive: muted by default (per buttons guideline); promote to
         // a filled style only inside confirm dialogs via `destructiveSolid`
-        destructive:
-          "border border-danger/20 bg-surface text-danger hover:bg-danger-soft",
-        destructiveSolid:
-          "bg-danger text-white hover:bg-danger/90 focus-visible:ring-danger/40",
+        destructive: "border border-danger/20 bg-surface text-danger hover:bg-danger-soft",
+        destructiveSolid: "bg-danger text-white hover:bg-danger/90 focus-visible:ring-danger/40",
         link: "text-brand underline-offset-4 hover:underline",
       },
       size: {
@@ -48,8 +44,7 @@ function Button({
   asChild = false,
   type,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
+}: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : "button";
   return (
     <Comp

@@ -46,7 +46,8 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
       const student = await students.get(scope.orgId, req.params.id);
-      if (!student) return reply.code(404).send({ error: "not_found", message: "Student not found" });
+      if (!student)
+        return reply.code(404).send({ error: "not_found", message: "Student not found" });
       return student;
     },
   });

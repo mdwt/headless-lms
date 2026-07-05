@@ -1,10 +1,5 @@
 // entitlements context — service implementation (inbound port).
-import type {
-  Entitlement,
-  EntitlementsQuery,
-  GrantEntitlementInput,
-  Page,
-} from "./model.js";
+import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from "./model.js";
 import type { EntitlementsRepository, EntitlementsService } from "./ports.js";
 
 export class EntitlementsServiceImpl implements EntitlementsService {

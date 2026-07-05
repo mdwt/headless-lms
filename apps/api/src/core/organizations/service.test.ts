@@ -43,7 +43,13 @@ function fakeRepo() {
   const orgs: Organization[] = [];
   const members: Membership[] = [];
   const invitations: Invitation[] = [];
-  const assignments: { id: string; orgId: string; membershipId: string; courseId: string; createdAt: Date }[] = [];
+  const assignments: {
+    id: string;
+    orgId: string;
+    membershipId: string;
+    courseId: string;
+    createdAt: Date;
+  }[] = [];
   let n = 0;
   const repo: OrganizationsRepository = {
     async create(input: CreateOrganizationInput) {
@@ -90,16 +96,26 @@ function fakeRepo() {
       if (inv) (inv as { status: string }).status = status;
     },
     async insertCourseAssignment(orgId, input) {
-      const row = { id: `a${++n}`, orgId, membershipId: input.membershipId, courseId: input.courseId, createdAt: new Date(0) };
+      const row = {
+        id: `a${++n}`,
+        orgId,
+        membershipId: input.membershipId,
+        courseId: input.courseId,
+        createdAt: new Date(0),
+      };
       assignments.push(row);
       return row;
     },
     async deleteCourseAssignment(orgId, membershipId, courseId) {
-      const i = assignments.findIndex((x) => x.orgId === orgId && x.membershipId === membershipId && x.courseId === courseId);
+      const i = assignments.findIndex(
+        (x) => x.orgId === orgId && x.membershipId === membershipId && x.courseId === courseId,
+      );
       if (i >= 0) assignments.splice(i, 1);
     },
     async findAssignedCourseIds(orgId, membershipId) {
-      return assignments.filter((x) => x.orgId === orgId && x.membershipId === membershipId).map((x) => x.courseId);
+      return assignments
+        .filter((x) => x.orgId === orgId && x.membershipId === membershipId)
+        .map((x) => x.courseId);
     },
     async findMembershipByUser(userId: string) {
       return members.find((m) => m.userId === userId) ?? null;
@@ -169,7 +185,11 @@ describe("OrganizationService", () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
     const org = await svc.createOrg(orgInput);
-    const a = await svc.assignCourse({ orgExternalId: "org_1", membershipId: "m1", courseId: "c1" });
+    const a = await svc.assignCourse({
+      orgExternalId: "org_1",
+      membershipId: "m1",
+      courseId: "c1",
+    });
     expect(a.orgId).toBe(org.id);
     expect(a.courseId).toBe("c1");
     expect(await svc.assignedCourseIds(org.id, "m1")).toEqual(["c1"]);
@@ -188,7 +208,12 @@ describe("OrganizationService", () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
     await svc.createOrg(orgInput);
-    const m = await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_x", userId: "s3", role: "member" });
+    const m = await svc.addMembership({
+      orgExternalId: "org_1",
+      externalId: "mem_x",
+      userId: "s3",
+      role: "member",
+    });
     expect(m.role).toBe("instructor");
   });
 
@@ -196,7 +221,12 @@ describe("OrganizationService", () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
     await svc.createOrg(orgInput);
-    const m = await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_y", userId: "s4", role: "admin,instructor" });
+    const m = await svc.addMembership({
+      orgExternalId: "org_1",
+      externalId: "mem_y",
+      userId: "s4",
+      role: "admin,instructor",
+    });
     expect(m.role).toBe("admin");
   });
 
@@ -204,7 +234,12 @@ describe("OrganizationService", () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
     const org = await svc.createOrg(orgInput);
-    await svc.addMembership({ orgExternalId: "org_1", externalId: "mem_1", userId: "s2", role: "instructor" });
+    await svc.addMembership({
+      orgExternalId: "org_1",
+      externalId: "mem_1",
+      userId: "s2",
+      role: "instructor",
+    });
     const m = await svc.getMembershipByUser("s2");
     expect(m).not.toBeNull();
     expect(m!.orgId).toBe(org.id);
@@ -227,7 +262,12 @@ describe("OrganizationService", () => {
       async createOrganization(_headers, input) {
         calls.push("create");
         // Simulate Better Auth's afterCreateOrganization mirroring the org.
-        await repo.create({ externalId: "org_new", name: input.name, slug: input.slug, ownerId: "s1" });
+        await repo.create({
+          externalId: "org_new",
+          name: input.name,
+          slug: input.slug,
+          ownerId: "s1",
+        });
         return { externalId: "org_new" };
       },
       async setActiveOrganization(_headers, externalId) {
@@ -250,7 +290,9 @@ describe("OrganizationService", () => {
       },
     };
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
-    await expect(svc.createOrganization({}, { name: "X", slug: "x" })).rejects.toThrow(/did not propagate/);
+    await expect(svc.createOrganization({}, { name: "X", slug: "x" })).rejects.toThrow(
+      /did not propagate/,
+    );
   });
 });
 
@@ -314,9 +356,9 @@ describe("OrganizationService — member management", () => {
 
   it("rejects inviting an email that is already a member or invited", async () => {
     const { svc, calls } = harness([memberRecord({ id: "m1", email: "dup@example.com" })]);
-    await expect(svc.inviteMember(ctx, { email: "dup@example.com", role: "instructor" })).rejects.toThrow(
-      OrganizationRuleError,
-    );
+    await expect(
+      svc.inviteMember(ctx, { email: "dup@example.com", role: "instructor" }),
+    ).rejects.toThrow(OrganizationRuleError);
     expect(calls).not.toContain("invite");
   });
 

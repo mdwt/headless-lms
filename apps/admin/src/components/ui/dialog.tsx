@@ -15,7 +15,10 @@ const DialogClose = (props: React.ComponentProps<typeof DialogPrimitive.Close>) 
   <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 );
 
-function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
@@ -65,7 +68,13 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="dialog-header" className={cn("flex flex-col gap-1.5 pr-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-1.5 pr-6", className)}
+      {...props}
+    />
+  );
 }
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -85,7 +94,10 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
     />
   );
 }
-function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

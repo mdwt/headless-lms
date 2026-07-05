@@ -59,7 +59,10 @@ export class OrganizationServiceImpl implements OrganizationService {
   // User-facing create: drive Better Auth to create the org (it infers the owner
   // from the session) and make it active, then read back the org its hooks
   // mirrored into the domain. Mirrors the write-then-read shape of inviteMember.
-  async createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<Organization> {
+  async createOrganization(
+    headers: AuthHeaders,
+    input: NewOrganizationInput,
+  ): Promise<Organization> {
     const { externalId } = await this.orgAdmin().createOrganization(headers, input);
     await this.orgAdmin().setActiveOrganization(headers, externalId);
     const org = await this.repo.findByExternalId(externalId);
@@ -124,11 +127,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     return toMember(created);
   }
 
-  async updateMemberRole(
-    ctx: MemberWriteContext,
-    id: string,
-    role: Role,
-  ): Promise<Member | null> {
+  async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
     const member = await this.membersRepo.findById(ctx.orgId, id);
     if (!member) return null;
     if (member.role === "owner")

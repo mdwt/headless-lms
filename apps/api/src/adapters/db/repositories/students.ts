@@ -48,7 +48,11 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     if (q) {
       const like = `%${q}%`;
       filters.push(
-        or(ilike(students.firstName, like), ilike(students.lastName, like), ilike(students.email, like))!,
+        or(
+          ilike(students.firstName, like),
+          ilike(students.lastName, like),
+          ilike(students.email, like),
+        )!,
       );
     }
     const where = and(...filters);

@@ -11,9 +11,7 @@ export interface Stat {
 
 /** Column count adapts to how many stats a role sees (3 vs 6). */
 function colsClass(count: number): string {
-  return count <= 3
-    ? "@md:grid-cols-3"
-    : "@md:grid-cols-3 @4xl:grid-cols-6";
+  return count <= 3 ? "@md:grid-cols-3" : "@md:grid-cols-3 @4xl:grid-cols-6";
 }
 
 /**

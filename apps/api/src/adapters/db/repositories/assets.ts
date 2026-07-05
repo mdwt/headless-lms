@@ -120,7 +120,10 @@ export class DrizzleAssetsRepository implements AssetsRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    const deleted = await this.db.delete(assets).where(eq(assets.id, id)).returning({ id: assets.id });
+    const deleted = await this.db
+      .delete(assets)
+      .where(eq(assets.id, id))
+      .returning({ id: assets.id });
     return deleted.length > 0;
   }
 }

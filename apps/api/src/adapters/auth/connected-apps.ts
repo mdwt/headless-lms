@@ -66,21 +66,11 @@ export function createConnectedAppsRepo(db: NodePgDatabase): ConnectedAppsRepo {
       const [deletedTokens, deletedConsent] = await Promise.all([
         db
           .delete(oauthAccessToken)
-          .where(
-            and(
-              eq(oauthAccessToken.userId, userId),
-              eq(oauthAccessToken.clientId, clientId),
-            ),
-          )
+          .where(and(eq(oauthAccessToken.userId, userId), eq(oauthAccessToken.clientId, clientId)))
           .returning({ id: oauthAccessToken.id }),
         db
           .delete(oauthConsent)
-          .where(
-            and(
-              eq(oauthConsent.userId, userId),
-              eq(oauthConsent.clientId, clientId),
-            ),
-          )
+          .where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, clientId)))
           .returning({ id: oauthConsent.id }),
       ]);
       return deletedTokens.length > 0 || deletedConsent.length > 0;

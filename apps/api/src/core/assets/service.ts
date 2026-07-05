@@ -74,7 +74,11 @@ export class AssetsServiceImpl implements AssetsService {
     return this.repo.findById(orgId, id);
   }
 
-  async requestDownload(orgId: string, id: string, filename?: string): Promise<DownloadTicket | null> {
+  async requestDownload(
+    orgId: string,
+    id: string,
+    filename?: string,
+  ): Promise<DownloadTicket | null> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) return null;
     const url = await this.storage.presignDownload({

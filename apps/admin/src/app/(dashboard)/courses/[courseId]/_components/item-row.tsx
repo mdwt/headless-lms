@@ -145,8 +145,7 @@ export function ItemRow({
         title="Delete activity"
         description={
           <>
-            Delete <span className="font-medium text-ink">{title}</span>? This can&apos;t be
-            undone.
+            Delete <span className="font-medium text-ink">{title}</span>? This can&apos;t be undone.
           </>
         }
         confirmLabel="Delete activity"

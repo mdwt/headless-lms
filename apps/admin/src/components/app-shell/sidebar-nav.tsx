@@ -7,13 +7,7 @@ import { cn } from "@/lib/utils";
 import type { NavItem } from "./nav";
 
 /** Vertical nav. Active item = darker text + soft surface, never high-contrast. */
-export function SidebarNav({
-  items,
-  onNavigate,
-}: {
-  items: NavItem[];
-  onNavigate?: () => void;
-}) {
+export function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (

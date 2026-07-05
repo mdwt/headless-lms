@@ -17,7 +17,6 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
 });
 
-
 export const students = pgTable("students", {
   id: text("id")
     .primaryKey()
@@ -32,5 +31,3 @@ export const students = pgTable("students", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
-
-

@@ -97,11 +97,7 @@ export function AssetPreviewSheet({
 
         <SheetFooter className="justify-between">
           {asset && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => onDelete(asset)}
-            >
+            <Button variant="destructive" size="sm" onClick={() => onDelete(asset)}>
               <Trash2 />
               Delete
             </Button>

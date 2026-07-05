@@ -70,13 +70,22 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 function SheetBody({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="sheet-body" className={cn("flex-1 overflow-y-auto px-6 py-5", className)} {...props} />;
+  return (
+    <div
+      data-slot="sheet-body"
+      className={cn("flex-1 overflow-y-auto px-6 py-5", className)}
+      {...props}
+    />
+  );
 }
 function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn("mt-auto flex items-center justify-end gap-2 border-t border-line px-6 py-4", className)}
+      className={cn(
+        "mt-auto flex items-center justify-end gap-2 border-t border-line px-6 py-4",
+        className,
+      )}
       {...props}
     />
   );
@@ -90,7 +99,10 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
     />
   );
 }
-function SheetDescription({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Description>) {
+function SheetDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Description>) {
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"

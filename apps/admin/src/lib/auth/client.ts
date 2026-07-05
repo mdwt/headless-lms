@@ -39,10 +39,7 @@ function toRole(value: unknown): Role {
 }
 
 export type DashboardSessionStatus =
-  | "loading"
-  | "unauthenticated"
-  | "no-organization"
-  | "authenticated";
+  "loading" | "unauthenticated" | "no-organization" | "authenticated";
 
 /**
  * Resolves the full dashboard session: the signed-in user, their active
@@ -70,11 +67,9 @@ export function useDashboardSession(): {
     }
     if (!activeOrgId && orgs && orgs.length > 0 && !settingRef.current) {
       settingRef.current = true;
-      void authClient.organization
-        .setActive({ organizationId: orgs[0].id })
-        .catch(() => {
-          settingRef.current = false;
-        });
+      void authClient.organization.setActive({ organizationId: orgs[0].id }).catch(() => {
+        settingRef.current = false;
+      });
     }
   }, [raw, activeOrgId, orgs]);
 

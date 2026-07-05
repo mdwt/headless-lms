@@ -20,7 +20,10 @@ import { OrganizationRuleError, type MemberWriteContext } from "../../core/organ
 import type { Container } from "../../composition/container.js";
 import { resolveScope } from "../scope.js";
 
-export async function organizationsRoutes(app: FastifyInstance, container: Container): Promise<void> {
+export async function organizationsRoutes(
+  app: FastifyInstance,
+  container: Container,
+): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const organizations = container.organizations;
   const tags = ["Organizations"];
@@ -118,7 +121,8 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
       };
       try {
         const member = await organizations.updateMemberRole(ctx, req.params.id, req.body.role);
-        if (!member) return reply.code(404).send({ error: "not_found", message: "Member not found" });
+        if (!member)
+          return reply.code(404).send({ error: "not_found", message: "Member not found" });
         return member;
       } catch (err) {
         if (err instanceof OrganizationRuleError)
@@ -148,7 +152,8 @@ export async function organizationsRoutes(app: FastifyInstance, container: Conta
       };
       try {
         const removed = await organizations.removeMember(ctx, req.params.id);
-        if (!removed) return reply.code(404).send({ error: "not_found", message: "Member not found" });
+        if (!removed)
+          return reply.code(404).send({ error: "not_found", message: "Member not found" });
         return reply.code(204).send();
       } catch (err) {
         if (err instanceof OrganizationRuleError)

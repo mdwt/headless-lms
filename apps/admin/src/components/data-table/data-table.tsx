@@ -1,12 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
+import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -123,7 +118,9 @@ export function DataTable<TData>({
           {facets.map((f) => {
             const column = table.getColumn(f.columnId);
             if (!column) return null; // facet column not mounted — skip gracefully
-            return <FacetedFilter key={f.columnId} column={column} title={f.title} options={f.options} />;
+            return (
+              <FacetedFilter key={f.columnId} column={column} title={f.title} options={f.options} />
+            );
           })}
           {hasToolbarFilters && (
             <Button

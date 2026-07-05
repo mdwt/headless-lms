@@ -31,7 +31,9 @@ export default function ConnectedAppsPage() {
       )}
 
       {isError && (
-        <p className="text-sm text-danger">Failed to load connected apps. Please refresh the page.</p>
+        <p className="text-sm text-danger">
+          Failed to load connected apps. Please refresh the page.
+        </p>
       )}
 
       {!isLoading && !isError && apps !== undefined && apps.length === 0 && (
@@ -78,11 +80,7 @@ export default function ConnectedAppsPage() {
                     {app.expiresAt ? formatDate(app.expiresAt) : "Never"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setRevokeTarget(app)}
-                    >
+                    <Button variant="destructive" size="sm" onClick={() => setRevokeTarget(app)}>
                       Revoke
                     </Button>
                   </td>

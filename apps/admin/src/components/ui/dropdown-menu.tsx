@@ -5,7 +5,9 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 import { DropdownMenu as DM } from "radix-ui";
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = (p: React.ComponentProps<typeof DM.Root>) => <DM.Root data-slot="dropdown-menu" {...p} />;
+const DropdownMenu = (p: React.ComponentProps<typeof DM.Root>) => (
+  <DM.Root data-slot="dropdown-menu" {...p} />
+);
 const DropdownMenuTrigger = (p: React.ComponentProps<typeof DM.Trigger>) => (
   <DM.Trigger data-slot="dropdown-menu-trigger" {...p} />
 );
@@ -48,7 +50,8 @@ function DropdownMenuItem({
         "transition-colors focus:bg-hover focus:text-ink data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         "[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-ink-3",
         inset && "pl-8",
-        variant === "danger" && "text-danger focus:bg-danger-soft focus:text-danger [&_svg]:text-danger",
+        variant === "danger" &&
+          "text-danger focus:bg-danger-soft focus:text-danger [&_svg]:text-danger",
         className,
       )}
       {...props}
@@ -104,7 +107,9 @@ function DropdownMenuRadioItem({
   );
 }
 
-const DropdownMenuRadioGroup = (p: React.ComponentProps<typeof DM.RadioGroup>) => <DM.RadioGroup {...p} />;
+const DropdownMenuRadioGroup = (p: React.ComponentProps<typeof DM.RadioGroup>) => (
+  <DM.RadioGroup {...p} />
+);
 
 function DropdownMenuLabel({
   className,
@@ -124,7 +129,9 @@ function DropdownMenuSeparator({ className, ...props }: React.ComponentProps<typ
 }
 
 function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
-  return <span className={cn("ml-auto text-xs tracking-widest text-ink-4", className)} {...props} />;
+  return (
+    <span className={cn("ml-auto text-xs tracking-widest text-ink-4", className)} {...props} />
+  );
 }
 
 const DropdownMenuSub = (p: React.ComponentProps<typeof DM.Sub>) => <DM.Sub {...p} />;
@@ -146,7 +153,10 @@ const DropdownMenuSubTrigger = ({
     <ChevronRight className="ml-auto size-4 text-ink-3" />
   </DM.SubTrigger>
 );
-const DropdownMenuSubContent = ({ className, ...props }: React.ComponentProps<typeof DM.SubContent>) => (
+const DropdownMenuSubContent = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DM.SubContent>) => (
   <DM.SubContent
     className={cn(
       "z-50 min-w-32 overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg",

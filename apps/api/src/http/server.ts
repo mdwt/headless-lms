@@ -171,7 +171,8 @@ export function buildServer() {
     }
     request.authUser = sessionData.user;
     request.orgId =
-      (sessionData.session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null;
+      (sessionData.session as { activeOrganizationId?: string | null }).activeOrganizationId ??
+      null;
   });
 
   app.get("/health", async () => ({ status: "ok" }));

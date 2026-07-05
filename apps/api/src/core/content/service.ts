@@ -1,16 +1,7 @@
 // content context — service implementation (inbound port).
 import type { Course, Module, SaveActivityInput } from "./model.js";
-import type {
-  ContentService,
-  ContentRepository,
-  ContentStructureRepository,
-} from "./ports.js";
-import type {
-  CreateCourseInput,
-  ListCoursesQuery,
-  Page,
-  UpdateCourseInput,
-} from "./types.js";
+import type { ContentService, ContentRepository, ContentStructureRepository } from "./ports.js";
+import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from "./types.js";
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
 function slugify(title: string): string {

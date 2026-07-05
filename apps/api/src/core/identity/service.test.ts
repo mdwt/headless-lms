@@ -18,7 +18,12 @@ function fakeRepo() {
       return users.find((r) => r.externalId === externalId) ?? null;
     },
     async insertStudent(input: RegisterStudentInput) {
-      const row: Student = { id: `s${++n}`, createdAt: new Date(0), updatedAt: new Date(0), ...input };
+      const row: Student = {
+        id: `s${++n}`,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        ...input,
+      };
       students.push(row);
       return row;
     },

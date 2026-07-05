@@ -22,11 +22,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import {
-  useMembers,
-  useUpdateMemberRole,
-  useRemoveMember,
-} from "@/lib/api/hooks";
+import { useMembers, useUpdateMemberRole, useRemoveMember } from "@/lib/api/hooks";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { isManager, can } from "@/lib/roles";
 import { relativeTime } from "@/lib/format";
@@ -131,9 +127,7 @@ export default function MembersPage() {
       id: "joinedAt",
       accessorKey: "joinedAt",
       header: ({ column }) => <ColumnHeader column={column} title="Joined" />,
-      cell: ({ row }) => (
-        <span className="text-ink-3">{relativeTime(row.original.joinedAt)}</span>
-      ),
+      cell: ({ row }) => <span className="text-ink-3">{relativeTime(row.original.joinedAt)}</span>,
     },
     {
       id: "invitedAt",

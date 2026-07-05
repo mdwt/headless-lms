@@ -1,0 +1,28 @@
+# Prettier does NOT read .gitignore, and only auto-excludes node_modules/.git.
+# Without this file, `prettier --write .` descends into build output and
+# reformats generated artifacts. Keep it aligned with .gitignore's build dirs.
+
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+**/out/
+**/.next/
+*.tsbuildinfo
+
+# Caches
+**/.turbo/
+**/.cache/
+**/.vite/
+**/.vitest/
+**/coverage/
+
+# Generated API client + OpenAPI spec (produced by `pnpm gen:sdk`, already
+# formatted by openapi-ts — don't double-process or churn them)
+packages/sdk/src/generated/
+packages/sdk/openapi.json
+
+# Lockfile
+pnpm-lock.yaml

@@ -2,7 +2,12 @@
 import { eq, and } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { OrganizationsRepository } from "../../../core/organizations/ports.js";
-import type { Organization, Membership, Invitation, CourseAssignment } from "../../../core/organizations/model.js";
+import type {
+  Organization,
+  Membership,
+  Invitation,
+  CourseAssignment,
+} from "../../../core/organizations/model.js";
 import { parseRole, normalizeRole } from "../../../core/organizations/index.js";
 import type {
   CreateOrganizationInput,
@@ -10,7 +15,12 @@ import type {
   RecordInvitationInput,
   AssignCourseInput,
 } from "../../../core/organizations/types.js";
-import { organizations, memberships, invitations, courseAssignments } from "../schema/organizations.js";
+import {
+  organizations,
+  memberships,
+  invitations,
+  courseAssignments,
+} from "../schema/organizations.js";
 
 const INVITATION_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InvitationStatus = (typeof INVITATION_STATUSES)[number];
@@ -122,7 +132,11 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return existing;
   }
 
-  async deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void> {
+  async deleteCourseAssignment(
+    orgId: string,
+    membershipId: string,
+    courseId: string,
+  ): Promise<void> {
     await this.db
       .delete(courseAssignments)
       .where(
@@ -138,7 +152,9 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const rows = await this.db
       .select({ courseId: courseAssignments.courseId })
       .from(courseAssignments)
-      .where(and(eq(courseAssignments.orgId, orgId), eq(courseAssignments.membershipId, membershipId)));
+      .where(
+        and(eq(courseAssignments.orgId, orgId), eq(courseAssignments.membershipId, membershipId)),
+      );
     return rows.map((r) => r.courseId);
   }
 

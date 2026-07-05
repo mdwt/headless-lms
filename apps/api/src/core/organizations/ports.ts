@@ -85,7 +85,10 @@ export interface MemberWriteContext {
 /** Outbound: org membership writes, fulfilled by the auth provider (Better Auth). */
 export interface OrgAdmin {
   // Creates an org (owner inferred from the session) and returns its auth id.
-  createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<{ externalId: string }>;
+  createOrganization(
+    headers: AuthHeaders,
+    input: NewOrganizationInput,
+  ): Promise<{ externalId: string }>;
   // Marks an org as the session's active organization.
   setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void>;
   invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;

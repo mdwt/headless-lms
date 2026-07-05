@@ -16,7 +16,10 @@ function forbidden(): { content: [{ type: "text"; text: string }]; isError: true
 }
 
 /** Wraps a not-found result as an MCP error content response. */
-function notFound(kind: string, id: string): { content: [{ type: "text"; text: string }]; isError: true } {
+function notFound(
+  kind: string,
+  id: string,
+): { content: [{ type: "text"; text: string }]; isError: true } {
   return {
     content: [{ type: "text" as const, text: `${kind} not found: ${id}` }],
     isError: true,

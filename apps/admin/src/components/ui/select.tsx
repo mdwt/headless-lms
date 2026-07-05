@@ -53,7 +53,8 @@ function SelectContent({
           "relative z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-lg border border-line bg-surface text-ink shadow-[0_16px_40px_-16px_rgba(24,24,27,0.25)]",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
-          position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+          position === "popper" &&
+            "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
         )}
         {...props}
@@ -62,7 +63,11 @@ function SelectContent({
           <ChevronUp className="size-4 text-ink-3" />
         </S.ScrollUpButton>
         <S.Viewport
-          className={cn("p-1", position === "popper" && "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)")}
+          className={cn(
+            "p-1",
+            position === "popper" &&
+              "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)",
+          )}
         >
           {children}
         </S.Viewport>
@@ -96,7 +101,9 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
 }
 
 function SelectLabel({ className, ...props }: React.ComponentProps<typeof S.Label>) {
-  return <S.Label className={cn("px-2 py-1.5 text-xs font-medium text-ink-3", className)} {...props} />;
+  return (
+    <S.Label className={cn("px-2 py-1.5 text-xs font-medium text-ink-3", className)} {...props} />
+  );
 }
 function SelectSeparator({ className, ...props }: React.ComponentProps<typeof S.Separator>) {
   return <S.Separator className={cn("-mx-1 my-1 h-px bg-line", className)} {...props} />;

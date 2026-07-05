@@ -95,18 +95,27 @@ function makeContainer(overrides?: {
     overrides && "studentsGetResult" in overrides ? overrides.studentsGetResult : STUDENT;
   return {
     content: {
-      list: vi.fn().mockResolvedValue(
-        overrides?.coursesListResult ?? { rows: [COURSE], total: 1, page: 1, pageSize: 20 },
-      ),
+      list: vi
+        .fn()
+        .mockResolvedValue(
+          overrides?.coursesListResult ?? { rows: [COURSE], total: 1, page: 1, pageSize: 20 },
+        ),
       get: vi.fn().mockResolvedValue(coursesGetResult),
       create: vi.fn(),
       update: vi.fn(),
       remove: vi.fn(),
     },
     entitlements: {
-      list: vi.fn().mockResolvedValue(
-        overrides?.enrollmentsListResult ?? { rows: [ENROLLMENT], total: 1, page: 1, pageSize: 20 },
-      ),
+      list: vi
+        .fn()
+        .mockResolvedValue(
+          overrides?.enrollmentsListResult ?? {
+            rows: [ENROLLMENT],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+          },
+        ),
       grant: vi.fn().mockResolvedValue(overrides?.enrollmentsGrantResult ?? ENROLLMENT),
       setStatus: vi.fn(),
     },
@@ -133,7 +142,13 @@ const ADMIN_PRINCIPAL: McpPrincipal = {
   orgId: "org-1",
   role: "admin",
   assignedCourseIds: [],
-  scopes: ["courses:read", "courses:write", "enrollments:read", "enrollments:write", "progress:read"],
+  scopes: [
+    "courses:read",
+    "courses:write",
+    "enrollments:read",
+    "enrollments:write",
+    "progress:read",
+  ],
 };
 
 /** Low-privilege member (instructor) with only read scopes. */
@@ -179,7 +194,7 @@ describe("registerTools — list_courses", () => {
     const parsed = JSON.parse(result.content[0]!.text);
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.rows[0].id).toBe("course-1");
-    expect((container.content.list as Mock)).toHaveBeenCalledWith("org-1", {
+    expect(container.content.list as Mock).toHaveBeenCalledWith("org-1", {
       page: 1,
       pageSize: 20,
       search: undefined,
@@ -197,7 +212,7 @@ describe("registerTools — list_courses", () => {
     const result = await listCourses({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
-    expect((container.content.list as Mock)).toHaveBeenCalled();
+    expect(container.content.list as Mock).toHaveBeenCalled();
   });
 
   it("rejects a principal with no scopes even if role would allow it", async () => {
@@ -209,7 +224,7 @@ describe("registerTools — list_courses", () => {
     const result = await listCourses({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBe(true);
-    expect((container.content.list as Mock)).not.toHaveBeenCalled();
+    expect(container.content.list as Mock).not.toHaveBeenCalled();
   });
 });
 
@@ -262,7 +277,7 @@ describe("registerTools — get_course", () => {
     const result = await getCourse({ id: "course-1" });
 
     expect(result.isError).toBe(true);
-    expect((container.content.get as Mock)).not.toHaveBeenCalled();
+    expect(container.content.get as Mock).not.toHaveBeenCalled();
   });
 });
 
@@ -278,7 +293,7 @@ describe("registerTools — enroll_student", () => {
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0]!.text);
     expect(parsed.id).toBe("enroll-1");
-    expect((container.entitlements.grant as Mock)).toHaveBeenCalledWith("org-1", {
+    expect(container.entitlements.grant as Mock).toHaveBeenCalledWith("org-1", {
       studentId: "student-1",
       courseId: "course-1",
       expiresAt: null,
@@ -300,7 +315,7 @@ describe("registerTools — enroll_student", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toMatch(/Forbidden/);
-    expect((container.entitlements.grant as Mock)).not.toHaveBeenCalled();
+    expect(container.entitlements.grant as Mock).not.toHaveBeenCalled();
   });
 
   it("rejects an admin principal that lacks the enrollments:write scope", async () => {
@@ -316,7 +331,7 @@ describe("registerTools — enroll_student", () => {
     const result = await enroll({ studentId: "student-1", courseId: "course-1", expiresAt: null });
 
     expect(result.isError).toBe(true);
-    expect((container.entitlements.grant as Mock)).not.toHaveBeenCalled();
+    expect(container.entitlements.grant as Mock).not.toHaveBeenCalled();
   });
 });
 
@@ -345,7 +360,7 @@ describe("registerTools — list_enrollments", () => {
     const result = await listEnrollments({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
-    expect((container.entitlements.list as Mock)).toHaveBeenCalled();
+    expect(container.entitlements.list as Mock).toHaveBeenCalled();
   });
 
   it("lists enrollments org-wide (no studentId filter) when studentId not given", async () => {
@@ -357,7 +372,7 @@ describe("registerTools — list_enrollments", () => {
     const result = await listEnrollments({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
-    expect((container.entitlements.list as Mock)).toHaveBeenCalledWith(
+    expect(container.entitlements.list as Mock).toHaveBeenCalledWith(
       "org-1",
       expect.objectContaining({ studentId: undefined }),
     );
@@ -378,7 +393,7 @@ describe("registerTools — get_student_progress", () => {
     expect(parsed.studentId).toBe("student-1");
     expect(parsed.avgProgress).toBe(65);
     expect(parsed.enrollmentCount).toBe(3);
-    expect((container.reporting.students.get as Mock)).toHaveBeenCalledWith("org-1", "student-1");
+    expect(container.reporting.students.get as Mock).toHaveBeenCalledWith("org-1", "student-1");
   });
 
   it("returns isError when student is not found", async () => {
@@ -407,7 +422,7 @@ describe("registerTools — get_student_progress", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toMatch(/Forbidden/);
-    expect((container.reporting.students.get as Mock)).not.toHaveBeenCalled();
+    expect(container.reporting.students.get as Mock).not.toHaveBeenCalled();
   });
 
   it("rejects an instructor (view_student_progress is assigned, not true — owner/admin only)", async () => {
@@ -424,6 +439,6 @@ describe("registerTools — get_student_progress", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toMatch(/Forbidden/);
-    expect((container.reporting.students.get as Mock)).not.toHaveBeenCalled();
+    expect(container.reporting.students.get as Mock).not.toHaveBeenCalled();
   });
 });

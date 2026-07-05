@@ -10,7 +10,10 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof Tb.List>)
   return (
     <Tb.List
       data-slot="tabs-list"
-      className={cn("inline-flex items-center gap-1 overflow-x-auto border-b border-line", className)}
+      className={cn(
+        "inline-flex items-center gap-1 overflow-x-auto border-b border-line",
+        className,
+      )}
       {...props}
     />
   );
@@ -33,7 +36,9 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof Tb.Tri
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof Tb.Content>) {
-  return <Tb.Content data-slot="tabs-content" className={cn("outline-none", className)} {...props} />;
+  return (
+    <Tb.Content data-slot="tabs-content" className={cn("outline-none", className)} {...props} />
+  );
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };

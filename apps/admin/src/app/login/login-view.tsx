@@ -112,9 +112,12 @@ export function LoginView() {
         <div className="relative flex h-full flex-col justify-end p-12">
           <blockquote className="max-w-md">
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
-              Everything your team needs to run courses — content and entitlements in one calm place.
+              Everything your team needs to run courses — content and entitlements in one calm
+              place.
             </p>
-            <footer className="mt-4 text-sm text-surface/60">Atelier Academy · Management dashboard</footer>
+            <footer className="mt-4 text-sm text-surface/60">
+              Atelier Academy · Management dashboard
+            </footer>
           </blockquote>
         </div>
       </div>
@@ -122,12 +125,21 @@ export function LoginView() {
   );
 }
 
-function SignInForm({ onError, onDone }: { onError: (m: string | null) => void; onDone: () => void }) {
+function SignInForm({
+  onError,
+  onDone,
+}: {
+  onError: (m: string | null) => void;
+  onDone: () => void;
+}) {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SignInValues>({ resolver: zodResolver(signInSchema), defaultValues: { email: "", password: "" } });
+  } = useForm<SignInValues>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
   async function onSubmit(values: SignInValues) {
     onError(null);
@@ -143,15 +155,34 @@ function SignInForm({ onError, onDone }: { onError: (m: string | null) => void; 
     <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" autoComplete="email" placeholder="you@atelier.academy" aria-invalid={!!errors.email} {...register("email")} />
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@atelier.academy"
+          aria-invalid={!!errors.email}
+          {...register("email")}
+        />
         {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
-          <a href="#" className="text-sm text-ink-3 underline-offset-4 hover:text-ink hover:underline">Forgot?</a>
+          <a
+            href="#"
+            className="text-sm text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+          >
+            Forgot?
+          </a>
         </div>
-        <Input id="password" type="password" autoComplete="current-password" placeholder="••••••••" aria-invalid={!!errors.password} {...register("password")} />
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          aria-invalid={!!errors.password}
+          {...register("password")}
+        />
         {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
       </div>
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-1 w-full">
@@ -162,7 +193,13 @@ function SignInForm({ onError, onDone }: { onError: (m: string | null) => void; 
   );
 }
 
-function SignUpForm({ onError, onDone }: { onError: (m: string | null) => void; onDone: () => void }) {
+function SignUpForm({
+  onError,
+  onDone,
+}: {
+  onError: (m: string | null) => void;
+  onDone: () => void;
+}) {
   const {
     register,
     handleSubmit,
@@ -188,7 +225,9 @@ function SignUpForm({ onError, onDone }: { onError: (m: string | null) => void; 
       // Creates the org and makes it the session's active org, server-side.
       await api.createOrganization({ name: values.organizationName, slug });
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Account created, but the organization couldn't be set up");
+      onError(
+        e instanceof Error ? e.message : "Account created, but the organization couldn't be set up",
+      );
       return;
     }
     onDone();
@@ -198,23 +237,50 @@ function SignUpForm({ onError, onDone }: { onError: (m: string | null) => void; 
     <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Your name</Label>
-        <Input id="name" autoComplete="name" placeholder="Mira Okonkwo" aria-invalid={!!errors.name} {...register("name")} />
+        <Input
+          id="name"
+          autoComplete="name"
+          placeholder="Mira Okonkwo"
+          aria-invalid={!!errors.name}
+          {...register("name")}
+        />
         {errors.name && <p className="text-sm text-danger">{errors.name.message}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="su-email">Email</Label>
-        <Input id="su-email" type="email" autoComplete="email" placeholder="you@atelier.academy" aria-invalid={!!errors.email} {...register("email")} />
+        <Input
+          id="su-email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@atelier.academy"
+          aria-invalid={!!errors.email}
+          {...register("email")}
+        />
         {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="su-password">Password</Label>
-        <Input id="su-password" type="password" autoComplete="new-password" placeholder="At least 8 characters" aria-invalid={!!errors.password} {...register("password")} />
+        <Input
+          id="su-password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          aria-invalid={!!errors.password}
+          {...register("password")}
+        />
         {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="org">Organization name</Label>
-        <Input id="org" placeholder="Atelier Academy" aria-invalid={!!errors.organizationName} {...register("organizationName")} />
-        {errors.organizationName && <p className="text-sm text-danger">{errors.organizationName.message}</p>}
+        <Input
+          id="org"
+          placeholder="Atelier Academy"
+          aria-invalid={!!errors.organizationName}
+          {...register("organizationName")}
+        />
+        {errors.organizationName && (
+          <p className="text-sm text-danger">{errors.organizationName.message}</p>
+        )}
       </div>
       <Button type="submit" variant="primary" disabled={isSubmitting} className="mt-1 w-full">
         {isSubmitting && <Loader2 className="animate-spin" />}

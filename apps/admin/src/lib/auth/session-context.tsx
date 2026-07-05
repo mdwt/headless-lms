@@ -8,7 +8,13 @@ import type { SessionUser } from "../api/types";
 const SessionContext = React.createContext<Session | null>(null);
 
 /** Provided by the dashboard gate once a session is guaranteed. */
-export function SessionProvider({ session, children }: { session: Session; children: React.ReactNode }) {
+export function SessionProvider({
+  session,
+  children,
+}: {
+  session: Session;
+  children: React.ReactNode;
+}) {
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }
 

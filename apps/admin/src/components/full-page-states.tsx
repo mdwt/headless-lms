@@ -23,7 +23,8 @@ export function ForbiddenView({ description }: { description?: string }) {
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-semibold tracking-tight text-ink">Access restricted</h1>
           <p className="text-sm text-ink-3 text-pretty">
-            {description ?? "Your role doesn't permit access to this area. Contact an owner or admin if you need it."}
+            {description ??
+              "Your role doesn't permit access to this area. Contact an owner or admin if you need it."}
           </p>
         </div>
       </div>

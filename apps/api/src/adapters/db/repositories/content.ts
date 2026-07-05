@@ -17,25 +17,30 @@ import { courses, modules, activities } from "../schema/content.js";
 import { enrollments } from "../schema/entitlements.js";
 
 // Derived counts as correlated subqueries against the current `courses` row.
+// NOTE: Drizzle does NOT table-qualify a Column interpolated into a raw `sql`
+// template (`${modules.orgId}` renders bare `"org_id"`), which collides with the
+// outer `courses.org_id` and yields a 42702 "ambiguous column" error. Qualify
+// every reference explicitly by interpolating the TABLE (`${modules}` → "modules")
+// and appending the column name.
 const moduleCountExpr = sql<number>`(
   select count(*)::int from ${modules}
-  where ${modules.orgId} = ${courses.orgId} and ${modules.courseId} = ${courses.id}
+  where ${modules}.org_id = ${courses}.org_id and ${modules}.course_id = ${courses}.id
 )`;
 
 const activityCountExpr = sql<number>`(
   select count(*)::int from ${activities}
   inner join ${modules}
-    on ${modules.orgId} = ${activities.orgId} and ${modules.id} = ${activities.moduleId}
-  where ${modules.orgId} = ${courses.orgId}
-    and ${modules.courseId} = ${courses.id}
+    on ${modules}.org_id = ${activities}.org_id and ${modules}.id = ${activities}.module_id
+  where ${modules}.org_id = ${courses}.org_id
+    and ${modules}.course_id = ${courses}.id
 )`;
 
 const enrolledCountExpr = sql<number>`(
   select count(*)::int from ${enrollments}
-  where ${enrollments.orgId} = ${courses.orgId}
-    and ${enrollments.courseId} = ${courses.id}
-    and ${enrollments.status} = 'active'
-    and (${enrollments.expiresAt} is null or ${enrollments.expiresAt} >= now())
+  where ${enrollments}.org_id = ${courses}.org_id
+    and ${enrollments}.course_id = ${courses}.id
+    and ${enrollments}.status = 'active'
+    and (${enrollments}.expires_at is null or ${enrollments}.expires_at >= now())
 )`;
 
 const selection = {
@@ -134,10 +139,7 @@ export class DrizzleContentRepository implements ContentRepository {
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
 
-    const [totalRow] = await this.db
-      .select({ value: count() })
-      .from(courses)
-      .where(where);
+    const [totalRow] = await this.db.select({ value: count() }).from(courses).where(where);
 
     return {
       rows: rows.map(toCourse),

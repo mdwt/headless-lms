@@ -10,7 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 /** Consistent row-action affordance: a 3-dot trigger + a menu of items. */
-export function RowActions({ children, label = "Row actions" }: { children: React.ReactNode; label?: string }) {
+export function RowActions({
+  children,
+  label = "Row actions",
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

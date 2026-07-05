@@ -90,13 +90,21 @@ export default function CourseBuilderPage() {
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-3">
             <CourseStatusBadge status={course.status} />
-            <span aria-hidden className="text-ink-4">·</span>
+            <span aria-hidden className="text-ink-4">
+              ·
+            </span>
             <span className="tabular-nums">{formatNumber(moduleCount)} modules</span>
-            <span aria-hidden className="text-ink-4">·</span>
+            <span aria-hidden className="text-ink-4">
+              ·
+            </span>
             <span className="tabular-nums">{formatNumber(activityCount)} activities</span>
-            <span aria-hidden className="text-ink-4">·</span>
+            <span aria-hidden className="text-ink-4">
+              ·
+            </span>
             <span className="tabular-nums">{formatNumber(course.enrolledCount)} enrolled</span>
-            <span aria-hidden className="text-ink-4">·</span>
+            <span aria-hidden className="text-ink-4">
+              ·
+            </span>
             <span>Updated {relativeTime(course.updatedAt)}</span>
           </div>
         </PageHeader>
@@ -105,9 +113,7 @@ export default function CourseBuilderPage() {
       <section className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-medium text-ink-2">Curriculum</h2>
-          {!canEdit ? (
-            <span className="text-xs text-ink-4">Read-only</span>
-          ) : null}
+          {!canEdit ? <span className="text-xs text-ink-4">Read-only</span> : null}
         </div>
 
         {modulesQ.isLoading ? (

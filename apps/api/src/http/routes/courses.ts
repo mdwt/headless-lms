@@ -108,7 +108,8 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
       const removed = await courses.remove(scope.orgId, req.params.id);
-      if (!removed) return reply.code(404).send({ error: "not_found", message: "Course not found" });
+      if (!removed)
+        return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return reply.code(204).send();
     },
   });

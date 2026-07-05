@@ -55,9 +55,12 @@ export function CreateOrganization() {
         </div>
         <div className="mt-6 rounded-card border border-line bg-surface p-6">
           <div className="flex flex-col gap-1">
-            <h1 className="text-lg font-semibold tracking-tight text-ink">Create your organization</h1>
+            <h1 className="text-lg font-semibold tracking-tight text-ink">
+              Create your organization
+            </h1>
             <p className="text-sm text-ink-3 text-pretty">
-              You&apos;re signed in but not part of an organization yet. Create one to get started — you&apos;ll be its owner.
+              You&apos;re signed in but not part of an organization yet. Create one to get started —
+              you&apos;ll be its owner.
             </p>
           </div>
           <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex flex-col gap-4" noValidate>

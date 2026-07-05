@@ -17,9 +17,9 @@ describe("OAuth discovery endpoints", () => {
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body) as Record<string, unknown>;
     // RFC 8414 requires either issuer or authorization_endpoint
-    expect(
-      typeof body.issuer === "string" || typeof body.authorization_endpoint === "string",
-    ).toBe(true);
+    expect(typeof body.issuer === "string" || typeof body.authorization_endpoint === "string").toBe(
+      true,
+    );
   });
 
   it("GET /.well-known/oauth-protected-resource → 200 with resource", async () => {
