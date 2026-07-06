@@ -18,7 +18,6 @@ import "server-only";
  * exactly (cache hit, no refetch on first paint).
  */
 
-import { cookies } from "next/headers";
 import {
   Assets,
   ConnectedApps,
@@ -27,10 +26,10 @@ import {
   Entitlements,
   Organizations,
   Students,
-  configureSdk,
 } from "@headless-lms/sdk";
 
 import { toQuery, unwrap } from "./shared";
+import { ensureConfigured, authHeaders } from "./server-call";
 import type {
   Asset,
   ConnectedApp,
@@ -44,28 +43,12 @@ import type {
   Student,
 } from "./types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  // baseUrl only — the cookie is passed per-call, never on the shared client.
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-/** Per-call header bag that forwards the incoming request's raw cookie. */
-async function cookieHeader(): Promise<{ headers: { cookie: string } }> {
-  const cookie = (await cookies()).toString();
-  return { headers: { cookie } };
-}
 
 export const serverApi = {
   // dashboard
   async overview(): Promise<OverviewStats> {
     ensureConfigured();
-    return unwrap(await Dashboard.getOverview(await cookieHeader()));
+    return unwrap(await Dashboard.getOverview(await authHeaders()));
   },
 
   // courses
@@ -74,24 +57,24 @@ export const serverApi = {
     return unwrap(
       await Courses.listCourses({
         query: toQuery(params, ["status", "category"]),
-        ...(await cookieHeader()),
+        ...(await authHeaders()),
       }),
     );
   },
   async getCourse(id: string): Promise<Course> {
     ensureConfigured();
-    return unwrap(await Courses.getCourse({ path: { id }, ...(await cookieHeader()) }));
+    return unwrap(await Courses.getCourse({ path: { id }, ...(await authHeaders()) }));
   },
   async listModules(courseId: string): Promise<Module[]> {
     ensureConfigured();
     return unwrap(
-      await Courses.listModules({ path: { courseId }, ...(await cookieHeader()) }),
+      await Courses.listModules({ path: { courseId }, ...(await authHeaders()) }),
     );
   },
   async coursesLite(): Promise<{ id: string; title: string }[]> {
     ensureConfigured();
     const page = unwrap(
-      await Courses.listCourses({ query: { pageSize: 100, sort: "title" }, ...(await cookieHeader()) }),
+      await Courses.listCourses({ query: { pageSize: 100, sort: "title" }, ...(await authHeaders()) }),
     );
     return page.rows.map((c) => ({ id: c.id, title: c.title }));
   },
@@ -100,19 +83,19 @@ export const serverApi = {
   async listStudents(params: ListParams): Promise<Paginated<Student>> {
     ensureConfigured();
     return unwrap(
-      await Students.listStudents({ query: toQuery(params, []), ...(await cookieHeader()) }),
+      await Students.listStudents({ query: toQuery(params, []), ...(await authHeaders()) }),
     );
   },
   async getStudent(id: string): Promise<Student> {
     ensureConfigured();
-    return unwrap(await Students.getStudent({ path: { id }, ...(await cookieHeader()) }));
+    return unwrap(await Students.getStudent({ path: { id }, ...(await authHeaders()) }));
   },
   async studentEntitlements(studentId: string): Promise<Entitlement[]> {
     ensureConfigured();
     const page = unwrap(
       await Entitlements.listEntitlements({
         query: { studentId, pageSize: 100 },
-        ...(await cookieHeader()),
+        ...(await authHeaders()),
       }),
     );
     return page.rows;
@@ -122,7 +105,7 @@ export const serverApi = {
     const page = unwrap(
       await Students.listStudents({
         query: { pageSize: 100, search: search || undefined, sort: "name" },
-        ...(await cookieHeader()),
+        ...(await authHeaders()),
       }),
     );
     return page.rows.map((s) => ({ id: s.id, name: s.name, email: s.email }));
@@ -134,7 +117,7 @@ export const serverApi = {
     return unwrap(
       await Entitlements.listEntitlements({
         query: toQuery(params, ["status", "source"]),
-        ...(await cookieHeader()),
+        ...(await authHeaders()),
       }),
     );
   },
@@ -145,14 +128,14 @@ export const serverApi = {
     return unwrap(
       await Organizations.listMembers({
         query: toQuery(params, ["role", "status"]),
-        ...(await cookieHeader()),
+        ...(await authHeaders()),
       }),
     );
   },
   async instructorsLite(): Promise<{ id: string; name: string }[]> {
     ensureConfigured();
     const page = unwrap(
-      await Organizations.listMembers({ query: { pageSize: 100 }, ...(await cookieHeader()) }),
+      await Organizations.listMembers({ query: { pageSize: 100 }, ...(await authHeaders()) }),
     );
     return page.rows
       .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "instructor")
@@ -163,13 +146,13 @@ export const serverApi = {
   async listAssets(params: ListParams): Promise<Paginated<Asset>> {
     ensureConfigured();
     return unwrap(
-      await Assets.listAssets({ query: toQuery(params, ["kind"]), ...(await cookieHeader()) }),
+      await Assets.listAssets({ query: toQuery(params, ["kind"]), ...(await authHeaders()) }),
     );
   },
 
   // connected apps
   async listConnectedApps(): Promise<ConnectedApp[]> {
     ensureConfigured();
-    return unwrap(await ConnectedApps.listConnectedApps(await cookieHeader()));
+    return unwrap(await ConnectedApps.listConnectedApps(await authHeaders()));
   },
 };

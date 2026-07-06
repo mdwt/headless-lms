@@ -15,33 +15,20 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { Courses, configureSdk } from "@headless-lms/sdk";
+import { Courses } from "@headless-lms/sdk";
 
-import { unwrap } from "@/lib/api/shared";
+import { ensureConfigured, authHeaders, unwrap } from "@/lib/api/server-call";
 import type { Course, Module, SaveActivityInput } from "@/lib/api/types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-/** Per-call header bag forwarding the caller's session cookie to the API. */
-async function auth(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
-}
-
 /**
- * Revalidate the builder route. The literal `[courseId]` segment + "page"
- * scope revalidates the dynamic detail page regardless of which course is open.
+ * Revalidate the builder route AND the courses list. The `[courseId]` + "page"
+ * scope revalidates the dynamic detail page for any course; module/activity
+ * counts and course status/title also surface on the list, so revalidate both
+ * to avoid cross-route staleness.
  */
 function revalidateBuilder(): void {
   revalidatePath("/courses/[courseId]", "page");
+  revalidatePath("/courses");
 }
 
 // --- modules ---------------------------------------------------------------
@@ -52,7 +39,7 @@ export async function reorderModulesAction(
 ): Promise<Module[]> {
   ensureConfigured();
   const modules = unwrap(
-    await Courses.reorderModules({ path: { courseId }, body: { orderedIds }, ...(await auth()) }),
+    await Courses.reorderModules({ path: { courseId }, body: { orderedIds }, ...(await authHeaders()) }),
   );
   revalidateBuilder();
   return modules;
@@ -61,7 +48,7 @@ export async function reorderModulesAction(
 export async function createModuleAction(courseId: string, title: string): Promise<Module[]> {
   ensureConfigured();
   const modules = unwrap(
-    await Courses.createModule({ path: { courseId }, body: { title }, ...(await auth()) }),
+    await Courses.createModule({ path: { courseId }, body: { title }, ...(await authHeaders()) }),
   );
   revalidateBuilder();
   return modules;
@@ -77,7 +64,7 @@ export async function updateModuleAction(
     await Courses.updateModule({
       path: { courseId, moduleId },
       body: { title },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
   revalidateBuilder();
@@ -87,7 +74,7 @@ export async function updateModuleAction(
 export async function deleteModuleAction(courseId: string, moduleId: string): Promise<Module[]> {
   ensureConfigured();
   const modules = unwrap(
-    await Courses.deleteModule({ path: { courseId, moduleId }, ...(await auth()) }),
+    await Courses.deleteModule({ path: { courseId, moduleId }, ...(await authHeaders()) }),
   );
   revalidateBuilder();
   return modules;
@@ -105,7 +92,7 @@ export async function reorderActivitiesAction(
     await Courses.reorderActivities({
       path: { courseId, moduleId },
       body: { orderedIds },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
   revalidateBuilder();
@@ -125,11 +112,11 @@ export async function saveActivityAction(
         await Courses.updateActivity({
           path: { courseId, moduleId, activityId: activity.id },
           body,
-          ...(await auth()),
+          ...(await authHeaders()),
         }),
       )
     : unwrap(
-        await Courses.createActivity({ path: { courseId, moduleId }, body, ...(await auth()) }),
+        await Courses.createActivity({ path: { courseId, moduleId }, body, ...(await authHeaders()) }),
       );
   revalidateBuilder();
   return modules;
@@ -144,7 +131,7 @@ export async function deleteActivityAction(
   const modules = unwrap(
     await Courses.deleteActivity({
       path: { courseId, moduleId, activityId },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
   revalidateBuilder();
@@ -160,7 +147,7 @@ export async function setCoursePublishedAction(
 ): Promise<Course> {
   ensureConfigured();
   const course = unwrap(
-    await Courses.updateCourse({ path: { id: courseId }, body: { status }, ...(await auth()) }),
+    await Courses.updateCourse({ path: { id: courseId }, body: { status }, ...(await authHeaders()) }),
   );
   revalidateBuilder();
   return course;
@@ -180,7 +167,7 @@ export async function updateCourseDetailsAction(
         category: patch.category,
         description: patch.description,
       },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
   revalidateBuilder();

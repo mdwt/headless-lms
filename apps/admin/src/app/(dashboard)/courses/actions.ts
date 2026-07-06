@@ -10,25 +10,15 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { Courses, configureSdk } from "@headless-lms/sdk";
+import { Courses } from "@headless-lms/sdk";
 
-import { unwrap, expectOk } from "@/lib/api/shared";
+import { ensureConfigured, authHeaders, unwrap, expectOk } from "@/lib/api/server-call";
 import type { Course } from "@/lib/api/types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-/** Per-call header bag forwarding the caller's session cookie to the API. */
-async function auth(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
+/** Course-level writes surface on both the list and that course's builder page. */
+function revalidateCourse(): void {
+  revalidatePath("/courses");
+  revalidatePath("/courses/[courseId]", "page");
 }
 
 export interface CourseInput {
@@ -42,10 +32,10 @@ export async function createCourseAction(input: CourseInput): Promise<Course> {
   const course = unwrap(
     await Courses.createCourse({
       body: { title: input.title, description: input.description, category: input.category },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
-  revalidatePath("/courses");
+  revalidateCourse();
   return course;
 }
 
@@ -63,10 +53,10 @@ export async function updateCourseAction(
         category: patch.category,
         status: patch.status,
       },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
-  revalidatePath("/courses");
+  revalidateCourse();
   return course;
 }
 
@@ -76,12 +66,12 @@ export async function setCoursePublishedAction(
   status: Course["status"],
 ): Promise<void> {
   ensureConfigured();
-  unwrap(await Courses.updateCourse({ path: { id }, body: { status }, ...(await auth()) }));
-  revalidatePath("/courses");
+  unwrap(await Courses.updateCourse({ path: { id }, body: { status }, ...(await authHeaders()) }));
+  revalidateCourse();
 }
 
 export async function deleteCourseAction(id: string): Promise<void> {
   ensureConfigured();
-  expectOk(await Courses.deleteCourse({ path: { id }, ...(await auth()) }));
-  revalidatePath("/courses");
+  expectOk(await Courses.deleteCourse({ path: { id }, ...(await authHeaders()) }));
+  revalidateCourse();
 }

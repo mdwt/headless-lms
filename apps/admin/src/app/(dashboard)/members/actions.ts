@@ -10,31 +10,16 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { Organizations, configureSdk } from "@headless-lms/sdk";
+import { Organizations } from "@headless-lms/sdk";
 
-import { unwrap, expectOk } from "@/lib/api/shared";
+import { ensureConfigured, authHeaders, unwrap, expectOk } from "@/lib/api/server-call";
 import type { Member, Role } from "@/lib/api/types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-/** Per-call header bag forwarding the caller's session cookie to the API. */
-async function auth(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
-}
 
 export async function inviteMemberAction(input: { email: string; role: Role }): Promise<Member> {
   ensureConfigured();
   const member = unwrap(
-    await Organizations.inviteMember({ body: input, ...(await auth()) }),
+    await Organizations.inviteMember({ body: input, ...(await authHeaders()) }),
   );
   revalidatePath("/members");
   return member;
@@ -43,12 +28,12 @@ export async function inviteMemberAction(input: { email: string; role: Role }): 
 /** Change a member's role — targeted write for the inline role control + optimism. */
 export async function updateMemberRoleAction(id: string, role: Role): Promise<void> {
   ensureConfigured();
-  unwrap(await Organizations.updateMemberRole({ path: { id }, body: { role }, ...(await auth()) }));
+  unwrap(await Organizations.updateMemberRole({ path: { id }, body: { role }, ...(await authHeaders()) }));
   revalidatePath("/members");
 }
 
 export async function removeMemberAction(id: string): Promise<void> {
   ensureConfigured();
-  expectOk(await Organizations.removeMember({ path: { id }, ...(await auth()) }));
+  expectOk(await Organizations.removeMember({ path: { id }, ...(await authHeaders()) }));
   revalidatePath("/members");
 }

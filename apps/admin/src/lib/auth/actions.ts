@@ -10,32 +10,18 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { Organizations, configureSdk } from "@headless-lms/sdk";
+import { Organizations } from "@headless-lms/sdk";
 
-import { unwrap } from "@/lib/api/shared";
+import { ensureConfigured, authHeaders, unwrap } from "@/lib/api/server-call";
 import type { Organization } from "@/lib/api/types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-async function auth(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
-}
 
 export async function createOrganizationAction(input: {
   name: string;
   slug: string;
 }): Promise<Organization> {
   ensureConfigured();
-  const org = unwrap(await Organizations.createOrganization({ body: input, ...(await auth()) }));
+  const org = unwrap(await Organizations.createOrganization({ body: input, ...(await authHeaders()) }));
   // The active-org selection now lives on the session server-side; bust the
   // layout so the next resolve renders the dashboard for the new org.
   revalidatePath("/", "layout");

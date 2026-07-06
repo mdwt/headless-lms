@@ -13,26 +13,11 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { Entitlements, configureSdk } from "@headless-lms/sdk";
+import { Entitlements } from "@headless-lms/sdk";
 
-import { unwrap } from "@/lib/api/shared";
+import { ensureConfigured, authHeaders, unwrap } from "@/lib/api/server-call";
 import type { Entitlement } from "@/lib/api/types";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-let configured = false;
-function ensureConfigured(): void {
-  if (configured) return;
-  configureSdk({ baseUrl: API_URL });
-  configured = true;
-}
-
-/** Per-call header bag forwarding the caller's session cookie to the API. */
-async function auth(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
-}
 
 export interface GrantEntitlementInput {
   studentId: string;
@@ -45,7 +30,7 @@ export async function grantEntitlementAction(
 ): Promise<Entitlement> {
   ensureConfigured();
   const entitlement = unwrap(
-    await Entitlements.grantEntitlement({ body: input, ...(await auth()) }),
+    await Entitlements.grantEntitlement({ body: input, ...(await authHeaders()) }),
   );
   revalidatePath("/entitlements");
   return entitlement;
@@ -66,7 +51,7 @@ export async function setEntitlementStatusAction(
     await Entitlements.setEntitlementStatus({
       path: { id },
       body: { status },
-      ...(await auth()),
+      ...(await authHeaders()),
     }),
   );
   revalidatePath("/entitlements");

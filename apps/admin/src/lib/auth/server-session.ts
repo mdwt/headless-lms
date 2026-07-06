@@ -17,9 +17,8 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { API_URL } from "../api/server-call";
 
-const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type ServerRole = "owner" | "admin" | "instructor";
 
