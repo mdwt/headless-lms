@@ -71,7 +71,10 @@ export function CourseFormSheet({
     },
   });
 
-  // Re-seed the form whenever the sheet opens (for the active course or a blank create).
+  // Re-seed the form whenever the sheet opens (for the active course or a blank
+  // create). Key on the stable `course?.id`, NOT the whole `course` object — a
+  // list revalidation while the sheet is open streams a new `course` reference
+  // with identical data, and depending on it would wipe in-progress edits.
   React.useEffect(() => {
     if (!open) return;
     reset({
@@ -79,7 +82,8 @@ export function CourseFormSheet({
       category: course?.category ?? "",
       description: course?.description ?? "",
     });
-  }, [open, course, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, course?.id]);
 
   const category = watch("category");
 

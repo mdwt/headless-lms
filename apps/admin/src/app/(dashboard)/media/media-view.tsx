@@ -73,7 +73,11 @@ function MediaViewInner({
   // Navigation in flight: URL is ahead of the rows the server rendered.
   const isStale = !sameParams(state.params, params);
 
-  const [isPending, startTransition] = React.useTransition();
+  const [isDeleting, startDelete] = React.useTransition();
+  // Uploads run in their own transition so a long-running upload doesn't make
+  // the delete dialog spin or dim pagination; per-file progress lives in the
+  // `uploads` state / UploadTray, so this transition's pending flag is unused.
+  const [, startUpload] = React.useTransition();
 
   const [preview, setPreview] = React.useState<Asset | null>(null);
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -100,9 +104,9 @@ function MediaViewInner({
     for (const file of Array.from(files)) {
       const id = `u${seq.current++}`;
       setUploads((list) => [...list, { id, name: file.name, progress: 0, status: "uploading" }]);
-      // Presign (server) → PUT bytes straight to storage over XHR (browser,
-      // with progress) → confirm (server, revalidates the list).
-      startTransition(async () => {
+      // Presign (server) -> PUT bytes straight to storage over XHR (browser,
+      // with progress) -> confirm (server, revalidates the list).
+      startUpload(async () => {
         try {
           const ticket = await requestUploadAction({
             filename: file.name,
@@ -135,7 +139,7 @@ function MediaViewInner({
   const confirmDelete = React.useCallback(() => {
     if (!toDelete) return;
     const asset = toDelete;
-    startTransition(async () => {
+    startDelete(async () => {
       try {
         await deleteAssetAction(asset.id);
         toast.success("File deleted");
@@ -247,7 +251,7 @@ function MediaViewInner({
             total={total}
             onPageChange={state.setPage}
             onPageSizeChange={state.setPageSize}
-            isFetching={isStale || isPending}
+            isFetching={isStale || isDeleting}
           />
         </>
       ) : hasFilters ? (
@@ -292,7 +296,7 @@ function MediaViewInner({
           </>
         }
         confirmLabel="Delete file"
-        pending={isPending}
+        pending={isDeleting}
         onConfirm={confirmDelete}
       />
     </div>

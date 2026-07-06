@@ -1,3 +1,5 @@
+"use client";
+
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { EntitlementStatusBadge } from "@/components/status-badge";

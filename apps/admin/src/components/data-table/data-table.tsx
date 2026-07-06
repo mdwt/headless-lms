@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type RowData,
+} from "@tanstack/react-table";
 import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -13,6 +19,17 @@ import { FacetedFilter, type FacetOption } from "./faceted-filter";
 import { ViewOptions } from "./view-options";
 import { Pagination } from "./pagination";
 import { TableEmpty, TableError, TableForbidden, TableSkeleton } from "./states";
+
+// Type the custom `meta.align` used by right-aligned columns so consumers get
+// `meta: { align: "right" }` checked and the render sites need no cast.
+declare module "@tanstack/react-table" {
+  // Type param names must match the base declaration for interface merging, so
+  // they can't be `_`-prefixed to satisfy no-unused-vars — disable it here.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    align?: "right";
+  }
+}
 
 export interface FacetConfig {
   columnId: string;
@@ -156,7 +173,7 @@ export function DataTable<TData>({
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       className={cn(
                         "px-3 pb-2 text-left text-xs font-medium whitespace-nowrap text-ink-3",
-                        (header.column.columnDef.meta as { align?: string })?.align === "right" &&
+                        header.column.columnDef.meta?.align === "right" &&
                           "text-right",
                       )}
                     >
@@ -191,7 +208,7 @@ export function DataTable<TData>({
                         key={cell.id}
                         className={cn(
                           "px-3 py-2.5 align-middle text-ink-2",
-                          (cell.column.columnDef.meta as { align?: string })?.align === "right" &&
+                          cell.column.columnDef.meta?.align === "right" &&
                             "text-right",
                         )}
                       >
