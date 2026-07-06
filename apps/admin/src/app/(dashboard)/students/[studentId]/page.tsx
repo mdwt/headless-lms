@@ -1,8 +1,5 @@
-import { notFound, redirect } from "next/navigation";
-
 import { serverApi } from "@/lib/api/server";
-import { getServerSession } from "@/lib/auth/server-session";
-import { isManager } from "@/lib/roles";
+import { requireManager } from "@/lib/auth/server-session";
 
 import { StudentDetailView } from "./student-detail-view";
 
@@ -26,12 +23,7 @@ export default async function StudentDetailPage({
     serverApi.getStudent(studentId),
     serverApi.studentEntitlements(studentId),
   ]);
-  const session = await getServerSession();
-  if (!session || !isManager(session.role)) {
-    void dataPromise.catch(() => {});
-    if (!session) redirect("/login");
-    notFound();
-  }
+  await requireManager(dataPromise);
   const [student, entitlements] = await dataPromise;
 
   return <StudentDetailView student={student} entitlements={entitlements} />;

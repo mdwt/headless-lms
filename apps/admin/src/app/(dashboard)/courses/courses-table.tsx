@@ -35,19 +35,7 @@ function sameParams(a: ListParams, b: ListParams): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/**
- * Courses list client island (option 2). Rows arrive as PROPS from the Server
- * Component — no `useCourses`, no client query cache. `useDataTable` still owns
- * the URL state (page/sort/filter/search), so changing it re-runs the RSC and
- * new rows stream back down. Writes go through Server Actions:
- *   - publish: `useOptimistic` flips the status instantly, reconciled when the
- *     action's `revalidatePath` streams fresh rows back as props;
- *   - delete: `useTransition` drives the confirm dialog's pending state;
- *   - create/edit: the sheet calls the actions directly.
- * The "dim while loading" that react-query gave via `isFetching` is derived
- * here from staleness: the URL (`table.params`) has moved ahead of the
- * server-rendered `params` until the RSC catches up.
- */
+// Courses table (client): rows come in as props; edits go through server actions.
 function CoursesTableInner({
   rows,
   total,

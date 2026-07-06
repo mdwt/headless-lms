@@ -44,21 +44,7 @@ function sameParams(a: ListParams, b: ListParams): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/**
- * Client island for the media library (option 2). Rows arrive as PROPS from the
- * Server Component — no `useAssets`, no client query cache. `useDataTable` still
- * owns the URL state (page/pageSize/search/kind filter), so changing it re-runs
- * the RSC and new rows stream back down. The "dim while loading" react-query
- * gave via `isFetching` is derived from staleness: the URL (`state.params`) has
- * moved ahead of the server-rendered `params` until the RSC catches up.
- *
- * The browser-only flows stay client-side and drive `useTransition`/`useState`:
- *  - upload: `requestUploadAction` (presign) → XHR PUT with progress
- *    (`putToStorage`) → `confirmAssetAction` (revalidate);
- *  - delete: `deleteAssetAction`;
- *  - presigned preview/copy-link/download URLs: `getAssetUrlAction`, fetched on
- *    demand (see AssetCard / AssetPreviewSheet).
- */
+// Media view (client): rows come in as props; upload and delete go through server actions.
 function MediaViewInner({
   rows,
   total,
@@ -179,7 +165,6 @@ function MediaViewInner({
 
       <PageHeader
         title="Media library"
-        description="Upload and manage the images, video, and files used across your courses."
         actions={
           <Button variant="primary" onClick={() => inputRef.current?.click()}>
             <Upload />

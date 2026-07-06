@@ -31,11 +31,7 @@ interface OverviewViewProps {
   stats: OverviewStats;
 }
 
-/**
- * Overview page (option 2). Role/user/org and the overview stats are all
- * server-resolved and arrive as PROPS — no `useOverview`, no client query
- * cache. Purely presentational, so this is a Server Component.
- */
+// Overview view: role/user/org and stats come in as props; presentational Server Component.
 export function OverviewView({ role, user, organization, stats: overview }: OverviewViewProps) {
   const manager = isManager(role);
 
@@ -52,11 +48,6 @@ export function OverviewView({ role, user, organization, stats: overview }: Over
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`${greeting()}, ${firstName}`}
-        description={
-          manager
-            ? `Here's what's happening across ${organization.name} today.`
-            : `Your teaching at ${organization.name} at a glance.`
-        }
         actions={
           can.createCourse(sessionUser) ? (
             <Button asChild variant="primary">

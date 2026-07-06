@@ -1,19 +1,6 @@
 "use server";
 
-/**
- * Media (assets) mutations + presigned-URL brokering as Server Actions — the
- * write/side-effect half of the pure-RSC (BFF) model. Each runs on the server,
- * calls the API via the generated SDK with the incoming request's cookie
- * forwarded per-call (never mutating the shared SDK singleton — same rule as
- * `lib/api/server.ts`), then `revalidatePath("/media")`s the list so the next
- * render streams fresh rows. No client-side cache, no react-query.
- *
- * The one irreducibly client-side step — the direct-to-storage PUT with upload
- * progress — is NOT here: `requestUploadAction` hands the client a presigned
- * ticket, the browser PUTs the bytes over XHR (see `upload-to-storage.ts`), and
- * `confirmAssetAction` captures the result. Presigned preview/download URLs are
- * brokered by `getAssetUrlAction` and fetched on demand (never long-cached).
- */
+// Server actions for media (asset) mutations and presigned-URL brokering.
 
 import { revalidatePath } from "next/cache";
 import { Assets } from "@headless-lms/sdk";

@@ -16,8 +16,10 @@ import "server-only";
  */
 
 import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { API_URL } from "../api/server-call";
+import { isManager } from "../roles";
 
 
 export type ServerRole = "owner" | "admin" | "instructor";
@@ -101,3 +103,43 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
     status,
   };
 });
+
+/** An authenticated session with a resolved active org (`organization` non-null). */
+export type AuthenticatedSession = ServerSession & {
+  status: "authenticated";
+  organization: NonNullable<ServerSession["organization"]>;
+};
+
+/**
+ * Gate a Server Component on an authenticated session with an active org,
+ * returning it with `organization` narrowed non-null; `redirect("/login")`
+ * otherwise. Free per request — it wraps the `React.cache`'d resolver, so the
+ * layout and every page in the request share a single auth resolution.
+ *
+ * Pass any fetches you kicked off *before* the gate (to overlap them with auth)
+ * as `pending`: on the redirect path they're discarded so a late rejection
+ * doesn't surface as an unhandled rejection while the request unwinds.
+ */
+export async function requireAuth(...pending: Promise<unknown>[]): Promise<AuthenticatedSession> {
+  const session = await getServerSession();
+  if (!session || session.status !== "authenticated" || !session.organization) {
+    for (const p of pending) void p.catch(() => {});
+    redirect("/login");
+  }
+  return session as AuthenticatedSession;
+}
+
+/**
+ * Like {@link requireAuth}, but also requires a manager (owner|admin): serves
+ * `notFound()` to authenticated non-managers (and `redirect("/login")` when
+ * there's no session). Same `pending` contract as `requireAuth`.
+ */
+export async function requireManager(...pending: Promise<unknown>[]): Promise<AuthenticatedSession> {
+  const session = await getServerSession();
+  if (!session || !isManager(session.role)) {
+    for (const p of pending) void p.catch(() => {});
+    if (!session) redirect("/login");
+    notFound();
+  }
+  return session as AuthenticatedSession;
+}

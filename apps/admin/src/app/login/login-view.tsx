@@ -32,7 +32,7 @@ export function LoginView() {
   const router = useRouter();
   const params = useSearchParams();
   const denied = params.get("denied") === "1";
-  // Where the middleware wanted the user to land before it bounced them here.
+  // Where the proxy wanted the user to land before it bounced them here.
   // Only accept in-app absolute paths to avoid an open-redirect.
   const nextParam = params.get("next");
   const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";

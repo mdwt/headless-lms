@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "@/lib/auth/server-session";
@@ -8,17 +9,17 @@ import { CreateOrganization } from "@/lib/auth/create-organization";
 import { OrgActivator } from "@/lib/auth/org-activator";
 import { AppShell } from "@/components/app-shell/app-shell";
 
-/**
- * Server-first auth gate for the entire back office. The session/org/role is
- * resolved on the server (cookie forwarded to the API), so there is no client
- * loading flash and no client-side session stitching.
- *
- * - No session → `/login` (belt-and-suspenders with the edge middleware).
- * - `no-organization` → org-creation client island.
- * - `no-active-org` → org-activator client island (sets active, refreshes).
- * - `authenticated` → app shell + a thin client `SessionProvider` seeded with
- *   the server-resolved `{ user, organization, role }`.
- */
+// Title reflects the active organization rather than a hardcoded brand. Reuses
+// the request-cached session resolution, so this adds no extra fetch. Falls back
+// to a neutral title before an org is resolved.
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await getServerSession();
+  const org = session?.organization?.name?.trim();
+  return { title: org ? `${org} - headless-lms` : "headless-lms" };
+}
+
+// Server-side auth gate for the back office. Gate states: no session → /login,
+// no-organization → org creation, no-active-org → org activator, else app shell.
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   if (!session) redirect("/login");

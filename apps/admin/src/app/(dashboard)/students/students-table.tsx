@@ -13,14 +13,7 @@ import type { ListParams, Student } from "@/lib/api/types";
 
 import { studentColumns } from "./_components/student-columns";
 
-/**
- * Students list client island (option 2). Rows arrive as PROPS from the Server
- * Component — no `useStudents`, no client query cache. `useDataTable` still owns
- * the URL state (page/sort/filter/search), so changing it re-runs the RSC and
- * new rows stream back down. The "dim while loading" that react-query gave via
- * `isFetching` is derived here from staleness: the URL (`table.params`) has moved
- * ahead of the server-rendered `params` until the RSC catches up.
- */
+// Students table (client): rows come in as props.
 function StudentsTableInner({
   rows,
   total,
@@ -52,7 +45,6 @@ function StudentsTableInner({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Students"
-        description="Everyone enrolled across your organization's courses, with progress and activity at a glance."
       />
 
       <DataTable<Student>

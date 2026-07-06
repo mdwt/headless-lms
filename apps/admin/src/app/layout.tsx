@@ -12,8 +12,10 @@ const pretendard = localFont({
   variable: "--font-pretendard",
 });
 
+// Neutral fallback. Authenticated pages resolve the org name via the
+// `(dashboard)` layout's `generateMetadata`; the login page sets its own title.
 export const metadata: Metadata = {
-  title: "Atelier — Management",
+  title: "Management",
   description: "Back-office dashboard for the headless LMS.",
 };
 

@@ -13,13 +13,7 @@ import { formatDate } from "@/lib/format";
 
 import { revokeConnectedAppAction } from "./actions";
 
-/**
- * Connected apps client island (option 2). The apps arrive as PROPS from the
- * Server Component — no `useConnectedApps`, no client query cache. The revoke
- * write goes through a Server Action; `useTransition` drives the confirm
- * dialog's pending state, and the action's `revalidatePath` streams the fresh
- * list back down as props.
- */
+// Connected apps view (client): apps come in as props; revoke goes through a server action.
 export function ConnectedAppsView({ apps }: { apps: ConnectedApp[] }) {
   const [revokeTarget, setRevokeTarget] = React.useState<ConnectedApp | null>(null);
   const [isPending, startTransition] = React.useTransition();
@@ -42,7 +36,6 @@ export function ConnectedAppsView({ apps }: { apps: ConnectedApp[] }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Connected Apps"
-        description="Apps and MCP clients you have authorized to access your account. Revoking removes their access immediately."
       />
 
       {apps.length === 0 && (

@@ -10,7 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
  * cache — reads are RSC (Server Components fetch via the SDK) and writes are
  * Server Actions with `revalidatePath` — so there is no QueryClient here.
  *
- * Auth is enforced entirely server-side: the Next middleware + the `(dashboard)`
+ * Auth is enforced entirely server-side: the Next proxy + the `(dashboard)`
  * server session gate (`getServerSession`) redirect unauthenticated or expired
  * sessions to `/login`, and Server Actions surface failures as toasts. This
  * wrapper just provides tooltips and the toast portal.

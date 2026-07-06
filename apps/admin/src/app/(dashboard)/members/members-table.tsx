@@ -36,19 +36,7 @@ function sameParams(a: ListParams, b: ListParams): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/**
- * Members list client island (option 2). Rows arrive as PROPS from the Server
- * Component — no `useMembers`, no client query cache. `useDataTable` still owns
- * the URL state (page/sort/filter/search), so changing it re-runs the RSC and
- * new rows stream back down. Writes go through Server Actions:
- *   - role change: `useOptimistic` flips the role instantly, reconciled when the
- *     action's `revalidatePath` streams fresh rows back as props;
- *   - remove: `useTransition` drives the confirm dialog's pending state;
- *   - invite: the sheet calls the action directly.
- * The "dim while loading" that react-query gave via `isFetching` is derived
- * here from staleness: the URL (`table.params`) has moved ahead of the
- * server-rendered `params` until the RSC catches up.
- */
+// Members table (client): rows come in as props; edits go through server actions.
 function MembersTableInner({
   rows,
   total,
@@ -130,7 +118,6 @@ function MembersTableInner({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Members"
-        description="Manage who can access the back office and what they can do."
       />
 
       <DataTable<Member>

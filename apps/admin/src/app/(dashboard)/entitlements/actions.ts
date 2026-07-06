@@ -1,16 +1,6 @@
 "use server";
 
-/**
- * Entitlements mutations as Server Actions — the write half of the pure-RSC
- * (BFF) model. Each runs on the server, calls the API via the generated SDK
- * with the incoming request's cookie forwarded per-call (never mutating the
- * shared SDK singleton — same rule as `lib/api/server.ts`), then
- * `revalidatePath`s the list so the next render streams fresh rows. No
- * client-side cache, no react-query: the server owns the data, `revalidatePath`
- * is the refresh.
- *
- * These are exported so the students detail view can grant/revoke inline too.
- */
+// Server actions for entitlement mutations (also used by the student detail view).
 
 import { revalidatePath } from "next/cache";
 import { Entitlements } from "@headless-lms/sdk";

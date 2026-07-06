@@ -1,18 +1,6 @@
 "use server";
 
-/**
- * Course Builder mutations as Server Actions — the write half of the pure-RSC
- * (BFF) model for the detail/builder route. Each runs on the server, calls the
- * API via the generated SDK with the incoming request's cookie forwarded
- * per-call (never mutating the shared SDK singleton — same rule as
- * `lib/api/server.ts`), then `revalidatePath`s the builder route so the next
- * render streams fresh course + module data down as props. No client-side
- * cache, no react-query.
- *
- * The module/activity write endpoints return the full, reordered module list;
- * we return it too (handy for callers), but correctness relies on
- * `revalidatePath`, not the return value.
- */
+// Server actions for course-builder (detail) mutations.
 
 import { revalidatePath } from "next/cache";
 import { Courses } from "@headless-lms/sdk";

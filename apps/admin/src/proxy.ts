@@ -19,7 +19,7 @@ const SESSION_COOKIE_HINTS = [
   "__Secure-better-auth.session_token",
 ];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const hasSession = SESSION_COOKIE_HINTS.some((name) => req.cookies.has(name));
   if (!hasSession) {
     const url = req.nextUrl.clone();

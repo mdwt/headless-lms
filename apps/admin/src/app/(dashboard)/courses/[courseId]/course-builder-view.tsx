@@ -19,15 +19,7 @@ import { ModuleList } from "./_components/module-list";
 import { CourseDetailsSheet } from "./_components/course-details-sheet";
 import { setCoursePublishedAction } from "./actions";
 
-/**
- * Course Builder client island (option 2). `course` + `modules` arrive as PROPS
- * from the Server Component — no `useCourse`/`useModules`, no client query
- * cache. Writes go through Server Actions:
- *   - publish toggle: `useTransition` drives the button's pending state; the
- *     header reconciles when the action's `revalidatePath` streams fresh props;
- *   - modules/activities (add, rename, reorder, delete, edit) live in the
- *     nested `ModuleList` island, which keeps drag-and-drop optimistic.
- */
+// Course builder view (client): course + modules come in as props; edits go through server actions.
 export function CourseBuilderView({
   courseId,
   role,
