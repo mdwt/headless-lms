@@ -680,6 +680,43 @@ export type SetEntitlementStatusResponses = {
 export type SetEntitlementStatusResponse =
   SetEntitlementStatusResponses[keyof SetEntitlementStatusResponses];
 
+export type UpdateOrganizationData = {
+  body: {
+    name: string;
+    slug: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations";
+};
+
+export type UpdateOrganizationErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type UpdateOrganizationError = UpdateOrganizationErrors[keyof UpdateOrganizationErrors];
+
+export type UpdateOrganizationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: string;
+  };
+};
+
+export type UpdateOrganizationResponse =
+  UpdateOrganizationResponses[keyof UpdateOrganizationResponses];
+
 export type CreateOrganizationData = {
   body: {
     name: string;

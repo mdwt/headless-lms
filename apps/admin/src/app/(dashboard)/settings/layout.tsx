@@ -4,12 +4,13 @@ import { requireAuth } from "@/lib/auth/server-session";
 import { isManager } from "@/lib/roles";
 import { PageHeader } from "@/components/page-header";
 
-import { SettingsTabs } from "./settings-tabs";
+import { SettingsNav } from "./settings-nav";
 
 /**
- * Settings shell: a single "Settings" heading with a route-based tab bar. Team,
- * Apps, and Account each render as a tab panel below. The Team tab is
- * manager-only, so the role is resolved here and passed to the client tabs.
+ * Settings shell: a "Settings" heading over a two-column layout — a grouped
+ * sub-nav (Organization / Account) on the left, the active panel on the right.
+ * The Organization group is manager-only, so the role is resolved here and
+ * passed to the client nav.
  */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const session = await requireAuth();
@@ -18,8 +19,12 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Settings" />
-      <SettingsTabs manager={manager} />
-      <div>{children}</div>
+      <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
+        <aside className="lg:w-56 lg:shrink-0">
+          <SettingsNav manager={manager} />
+        </aside>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@ export type {
   InvitationId,
   CreateOrganizationInput,
   NewOrganizationInput,
+  UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,

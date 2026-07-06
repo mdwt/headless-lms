@@ -15,6 +15,7 @@ import {
   MembersQuery,
   Organization,
   UpdateMemberRole,
+  UpdateOrganization,
 } from "@headless-lms/api-contract";
 import { OrganizationRuleError, type MemberWriteContext } from "../../core/organizations/index.js";
 import type { Container } from "../../composition/container.js";
@@ -51,6 +52,37 @@ export async function organizationsRoutes(
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
       });
+    },
+  });
+
+  // Update the caller's active organization (name/slug). Writes go through Better
+  // Auth, which enforces the caller's org-update permission (owner/admin).
+  r.route({
+    method: "PATCH",
+    url: "/api/organizations",
+    preHandler: app.requireSession,
+    schema: {
+      operationId: "updateOrganization",
+      tags,
+      summary: "Update the active organization",
+      body: UpdateOrganization,
+      response: { 200: Organization, 409: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      try {
+        const org = await organizations.updateOrganization(req.headers, scope.authOrgId, req.body);
+        return reply.send({
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          createdAt: org.createdAt.toISOString(),
+        });
+      } catch (err) {
+        if (err instanceof OrganizationRuleError)
+          return reply.code(409).send({ error: "conflict", message: err.message });
+        throw err;
+      }
     },
   });
 

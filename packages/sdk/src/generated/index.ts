@@ -146,4 +146,9 @@ export type {
   UpdateModuleData,
   UpdateModuleResponse,
   UpdateModuleResponses,
+  UpdateOrganizationData,
+  UpdateOrganizationError,
+  UpdateOrganizationErrors,
+  UpdateOrganizationResponse,
+  UpdateOrganizationResponses,
 } from "./types.gen";

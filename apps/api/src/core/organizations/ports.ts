@@ -5,6 +5,7 @@ import type { Role } from "./roles.js";
 import type {
   CreateOrganizationInput,
   NewOrganizationInput,
+  UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
@@ -35,6 +36,13 @@ export interface OrganizationService extends OrganizationProvisioner {
   // active org. Drives Better Auth (via OrgAdmin); its hooks mirror the org into
   // the domain, which this method then returns.
   createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<Organization>;
+  // Updates the caller's active org (name/slug) via Better Auth, then returns the
+  // re-read domain org. `authOrgId` is the Better Auth organization id.
+  updateOrganization(
+    headers: AuthHeaders,
+    authOrgId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<Organization>;
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
@@ -50,6 +58,10 @@ export interface OrganizationService extends OrganizationProvisioner {
 // Outbound port (persistence contract the repository fulfils).
 export interface OrganizationsRepository {
   create(input: CreateOrganizationInput): Promise<Organization>;
+  updateByExternalId(
+    externalId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<Organization | null>;
   findByExternalId(externalId: string): Promise<Organization | null>;
   insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership>;
   deleteMembershipByExternalId(externalId: string): Promise<void>;
@@ -91,6 +103,13 @@ export interface OrgAdmin {
   ): Promise<{ externalId: string }>;
   // Marks an org as the session's active organization.
   setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void>;
+  // Updates an org's profile (name/slug). Throws OrganizationRuleError on a
+  // conflict (e.g. slug already taken) so the route can map it to 409.
+  updateOrganization(
+    headers: AuthHeaders,
+    externalId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<void>;
   invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;
   updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
   removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;

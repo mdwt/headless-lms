@@ -33,6 +33,7 @@ const stubOrgAdmin = (): OrgAdmin => ({
     return { externalId: "org_stub" };
   },
   async setActiveOrganization() {},
+  async updateOrganization() {},
   async invite() {},
   async updateRole() {},
   async removeMember() {},
@@ -56,6 +57,13 @@ function fakeRepo() {
       const row: Organization = { id: `o${++n}`, createdAt: new Date(0), ...input };
       orgs.push(row);
       return row;
+    },
+    async updateByExternalId(externalId, input) {
+      const i = orgs.findIndex((o) => o.externalId === externalId);
+      if (i < 0) return null;
+      const updated: Organization = { ...orgs[i]!, name: input.name, slug: input.slug };
+      orgs[i] = updated;
+      return updated;
     },
     async findByExternalId(externalId: string) {
       return orgs.find((o) => o.externalId === externalId) ?? null;
@@ -294,6 +302,33 @@ describe("OrganizationService", () => {
       /did not propagate/,
     );
   });
+
+  it("updates the active org via OrgAdmin, then returns the re-read mirror row", async () => {
+    const { repo } = fakeRepo();
+    await repo.create({ externalId: "org_1", name: "Old", slug: "old", ownerId: "s1" });
+    const calls: string[] = [];
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async updateOrganization(_headers, externalId) {
+        calls.push(`update:${externalId}`);
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const org = await svc.updateOrganization({}, "org_1", { name: "New", slug: "new" });
+    expect(calls).toEqual(["update:org_1"]);
+    expect(org.name).toBe("New");
+    expect(org.slug).toBe("new");
+    // The mirror row reflects the update.
+    expect(await repo.findByExternalId("org_1")).toMatchObject({ name: "New", slug: "new" });
+  });
+
+  it("throws when the org to update is missing from the domain mirror", async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    await expect(
+      svc.updateOrganization({}, "ghost", { name: "New", slug: "new" }),
+    ).rejects.toThrow(/did not propagate/);
+  });
 });
 
 // Member-management operations (formerly the `team` context). Writes go through
@@ -336,6 +371,9 @@ describe("OrganizationService — member management", () => {
         return { externalId: "org_stub" };
       },
       async setActiveOrganization() {},
+      async updateOrganization() {
+        calls.push("updateOrganization");
+      },
       async invite() {
         calls.push("invite");
       },

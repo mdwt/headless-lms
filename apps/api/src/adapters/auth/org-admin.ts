@@ -3,13 +3,16 @@
 // of truth); its hooks mirror the change into the domain tables, which the
 // organizations members repo reads.
 import { fromNodeHeaders } from "better-auth/node";
-import type {
-  OrgAdmin,
-  MemberWriteContext,
-  Role,
-  InviteMemberInput,
-  NewOrganizationInput,
-  AuthHeaders,
+import { APIError } from "better-auth/api";
+import {
+  OrganizationRuleError,
+  type OrgAdmin,
+  type MemberWriteContext,
+  type Role,
+  type InviteMemberInput,
+  type NewOrganizationInput,
+  type UpdateOrganizationInput,
+  type AuthHeaders,
 } from "../../core/organizations/index.js";
 import type { Auth } from "./index.js";
 
@@ -32,6 +35,24 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
         body: { organizationId: externalId },
         headers: fromNodeHeaders(headers),
       });
+    },
+    async updateOrganization(
+      headers: AuthHeaders,
+      externalId: string,
+      input: UpdateOrganizationInput,
+    ): Promise<void> {
+      try {
+        await auth.api.updateOrganization({
+          body: { organizationId: externalId, data: { name: input.name, slug: input.slug } },
+          headers: fromNodeHeaders(headers),
+        });
+      } catch (err) {
+        // Surface Better Auth validation/permission failures (e.g. slug taken) as
+        // a domain rule error the route maps to 409 rather than a raw 500.
+        if (err instanceof APIError)
+          throw new OrganizationRuleError(err.message || "Could not update organization");
+        throw err;
+      }
     },
     async invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void> {
       await auth.api.createInvitation({

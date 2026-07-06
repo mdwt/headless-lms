@@ -91,6 +91,9 @@ import type {
   UpdateMemberRoleResponses,
   UpdateModuleData,
   UpdateModuleResponses,
+  UpdateOrganizationData,
+  UpdateOrganizationErrors,
+  UpdateOrganizationResponses,
 } from "./types.gen";
 
 export type Options<
@@ -395,6 +398,26 @@ export class Entitlements {
 }
 
 export class Organizations {
+  /**
+   * Update the active organization
+   */
+  public static updateOrganization<ThrowOnError extends boolean = false>(
+    options: Options<UpdateOrganizationData, ThrowOnError>,
+  ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateOrganizationResponses,
+      UpdateOrganizationErrors,
+      ThrowOnError
+    >({
+      url: "/api/organizations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
   /**
    * Create an organization and make it active
    */

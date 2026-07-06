@@ -16,3 +16,15 @@ export const CreateOrganization = z.object({
   slug: z.string().min(1),
 });
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
+
+// Update the active organization's profile. Slug must stay URL-safe (Better Auth
+// enforces uniqueness); both fields are sent together from the settings form.
+export const UpdateOrganization = z.object({
+  name: z.string().min(1).max(100),
+  slug: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and hyphens only"),
+});
+export type UpdateOrganization = z.infer<typeof UpdateOrganization>;

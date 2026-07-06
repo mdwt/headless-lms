@@ -20,6 +20,7 @@ import {
 import type {
   CreateOrganizationInput,
   NewOrganizationInput,
+  UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AcceptInvitationInput,
@@ -66,6 +67,19 @@ export class OrganizationServiceImpl implements OrganizationService {
     const { externalId } = await this.orgAdmin().createOrganization(headers, input);
     await this.orgAdmin().setActiveOrganization(headers, externalId);
     const org = await this.repo.findByExternalId(externalId);
+    if (!org) throw new Error("organization did not propagate to the domain mirror");
+    return org;
+  }
+
+  // User-facing update: drive Better Auth to update the active org, then mirror
+  // the new name/slug into the domain row and return it. Mirrors createOrganization.
+  async updateOrganization(
+    headers: AuthHeaders,
+    authOrgId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<Organization> {
+    await this.orgAdmin().updateOrganization(headers, authOrgId, input);
+    const org = await this.repo.updateByExternalId(authOrgId, input);
     if (!org) throw new Error("organization did not propagate to the domain mirror");
     return org;
   }

@@ -11,6 +11,7 @@ import type {
 import { parseRole, normalizeRole } from "../../../core/organizations/index.js";
 import type {
   CreateOrganizationInput,
+  UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AssignCourseInput,
@@ -42,6 +43,18 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .returning();
     if (!row) throw new Error("failed to insert organization");
     return row;
+  }
+
+  async updateByExternalId(
+    externalId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<Organization | null> {
+    const [row] = await this.db
+      .update(organizations)
+      .set({ name: input.name, slug: input.slug })
+      .where(eq(organizations.externalId, externalId))
+      .returning();
+    return row ?? null;
   }
 
   async findByExternalId(externalId: string): Promise<Organization | null> {

@@ -22,6 +22,13 @@ export interface NewOrganizationInput {
   slug: string;
 }
 
+// A user-facing request to update the active organization's profile. Applied
+// via Better Auth (the source of truth), then mirrored into the domain org row.
+export interface UpdateOrganizationInput {
+  name: string;
+  slug: string;
+}
+
 export interface AddMembershipInput {
   // The owning org's better-auth id (used to locate the domain org).
   orgExternalId: string;
