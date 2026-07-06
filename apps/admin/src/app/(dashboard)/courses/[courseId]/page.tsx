@@ -21,13 +21,19 @@ export default async function CourseBuilderPage({
 }) {
   const { courseId } = await params;
 
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-
-  const [course, modules] = await Promise.all([
+  // Start the data fetches immediately, await the session gate, then await them
+  // — all API round-trips run in parallel instead of sequentially.
+  const dataPromise = Promise.all([
     serverApi.getCourse(courseId),
     serverApi.listModules(courseId),
   ]);
+  const session = await getServerSession();
+  if (!session) {
+    void dataPromise.catch(() => {});
+    redirect("/login");
+  }
+
+  const [course, modules] = await dataPromise;
 
   return (
     <CourseBuilderView

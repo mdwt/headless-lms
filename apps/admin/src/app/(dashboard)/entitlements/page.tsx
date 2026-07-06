@@ -24,21 +24,26 @@ export default async function EntitlementsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-  if (!isManager(session.role)) notFound();
-
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 10,
     initialSort: [{ id: "grantedAt", desc: true }],
   });
 
-  const [{ rows, total }, students, courses] = await Promise.all([
+  // Start the data fetches immediately, gate on session/role, then await them —
+  // all API round-trips run in parallel instead of sequentially.
+  const dataPromise = Promise.all([
     serverApi.listEntitlements(params),
     serverApi.studentsLite(),
     serverApi.coursesLite(),
   ]);
+  const session = await getServerSession();
+  if (!session || !isManager(session.role)) {
+    void dataPromise.catch(() => {});
+    if (!session) redirect("/login");
+    notFound();
+  }
+  const [{ rows, total }, students, courses] = await dataPromise;
 
   return (
     <EntitlementsTable

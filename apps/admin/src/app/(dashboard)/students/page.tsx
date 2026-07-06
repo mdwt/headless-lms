@@ -23,17 +23,22 @@ export default async function StudentsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-  if (!isManager(session.role)) notFound();
-
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 10,
     initialSort: [{ id: "lastActiveAt", desc: true }],
   });
 
-  const { rows, total } = await serverApi.listStudents(params);
+  // Start the data fetch immediately, gate on session/role, then await it — the
+  // two API round-trips run in parallel instead of sequentially.
+  const dataPromise = serverApi.listStudents(params);
+  const session = await getServerSession();
+  if (!session || !isManager(session.role)) {
+    void dataPromise.catch(() => {});
+    if (!session) redirect("/login");
+    notFound();
+  }
+  const { rows, total } = await dataPromise;
 
   return <StudentsTable rows={rows} total={total} params={params} />;
 }

@@ -18,16 +18,21 @@ export default async function StudentDetailPage({
 }: {
   params: Promise<{ studentId: string }>;
 }) {
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-  if (!isManager(session.role)) notFound();
-
   const { studentId } = await params;
 
-  const [student, entitlements] = await Promise.all([
+  // Start the data fetches immediately, gate on session/role, then await them —
+  // all API round-trips run in parallel instead of sequentially.
+  const dataPromise = Promise.all([
     serverApi.getStudent(studentId),
     serverApi.studentEntitlements(studentId),
   ]);
+  const session = await getServerSession();
+  if (!session || !isManager(session.role)) {
+    void dataPromise.catch(() => {});
+    if (!session) redirect("/login");
+    notFound();
+  }
+  const [student, entitlements] = await dataPromise;
 
   return <StudentDetailView student={student} entitlements={entitlements} />;
 }
