@@ -3,7 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   // Transpile-only: mirror the src/ tree into dist/ file-for-file rather than
   // bundling into one file. Keeps the hexagonal layout intact and preserves
-  // dist/http/server.js as the entry (main + start script + import.meta guard).
+  // dist/http/main.js as the process entry (main field + start script).
   bundle: false,
   entry: ["src/**/*.ts", "!src/**/*.test.ts"],
   outDir: "dist",

@@ -59,6 +59,11 @@ export const modules = pgTable(
     courseId: text("course_id").notNull(),
     title: text("title").notNull(),
     seq: integer("seq").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),

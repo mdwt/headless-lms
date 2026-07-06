@@ -1,11 +1,20 @@
 // Reads container configuration from the environment. Used by every entry point.
 import type { Config } from "./container.js";
 
-export function loadConfigFromEnv(): Config {
-  const clientOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
+/**
+ * Browser app origins (student web app + admin dashboard) from `CLIENT_ORIGIN`,
+ * a comma-separated list. Each is allowed for CORS and registered as a trusted
+ * origin so better-auth accepts its requests and sets cookies for it.
+ */
+export function parseClientOrigins(): string[] {
+  return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+}
+
+export function loadConfigFromEnv(): Config {
+  const clientOrigins = parseClientOrigins();
   const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
   const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   return {
