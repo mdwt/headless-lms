@@ -1,5 +1,5 @@
 {
-  "id": "3a0db4c1-284f-4696-998d-0e3ae9d922f5",
+  "id": "b72323c5-fe9e-4260-88e8-627ffdabcd6b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -46,8 +46,12 @@
           "name": "course_assignments_org_id_organizations_id_fk",
           "tableFrom": "course_assignments",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -55,8 +59,14 @@
           "name": "course_assignments_org_id_membership_id_memberships_org_id_id_fk",
           "tableFrom": "course_assignments",
           "tableTo": "memberships",
-          "columnsFrom": ["org_id", "membership_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "membership_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -64,8 +74,14 @@
           "name": "course_assignments_org_id_course_id_courses_org_id_id_fk",
           "tableFrom": "course_assignments",
           "tableTo": "courses",
-          "columnsFrom": ["org_id", "course_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -73,14 +89,21 @@
       "compositePrimaryKeys": {
         "course_assignments_org_id_id_pk": {
           "name": "course_assignments_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "course_assignments_org_id_membership_id_course_id_unique": {
           "name": "course_assignments_org_id_membership_id_course_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "membership_id", "course_id"]
+          "columns": [
+            "org_id",
+            "membership_id",
+            "course_id"
+          ]
         }
       },
       "policies": {},
@@ -153,8 +176,12 @@
           "name": "invitations_org_id_organizations_id_fk",
           "tableFrom": "invitations",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -162,8 +189,12 @@
           "name": "invitations_invited_by_users_id_fk",
           "tableFrom": "invitations",
           "tableTo": "users",
-          "columnsFrom": ["invited_by"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "invited_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -171,14 +202,19 @@
       "compositePrimaryKeys": {
         "invitations_org_id_id_pk": {
           "name": "invitations_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "invitations_auth_invitation_id_unique": {
           "name": "invitations_auth_invitation_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["auth_invitation_id"]
+          "columns": [
+            "auth_invitation_id"
+          ]
         }
       },
       "policies": {},
@@ -233,8 +269,12 @@
           "name": "memberships_org_id_organizations_id_fk",
           "tableFrom": "memberships",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -242,8 +282,12 @@
           "name": "memberships_user_id_users_id_fk",
           "tableFrom": "memberships",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -251,14 +295,19 @@
       "compositePrimaryKeys": {
         "memberships_org_id_id_pk": {
           "name": "memberships_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "memberships_external_id_unique": {
           "name": "memberships_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         }
       },
       "policies": {},
@@ -313,8 +362,12 @@
           "name": "organizations_owner_id_users_id_fk",
           "tableFrom": "organizations",
           "tableTo": "users",
-          "columnsFrom": ["owner_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -324,12 +377,16 @@
         "organizations_external_id_unique": {
           "name": "organizations_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         },
         "organizations_slug_unique": {
           "name": "organizations_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -391,8 +448,12 @@
           "name": "activities_org_id_organizations_id_fk",
           "tableFrom": "activities",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -400,8 +461,14 @@
           "name": "activities_org_id_module_id_modules_org_id_id_fk",
           "tableFrom": "activities",
           "tableTo": "modules",
-          "columnsFrom": ["org_id", "module_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "module_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -409,14 +476,21 @@
       "compositePrimaryKeys": {
         "activities_org_id_id_pk": {
           "name": "activities_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "activities_org_id_module_id_seq_unique": {
           "name": "activities_org_id_module_id_seq_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "module_id", "seq"]
+          "columns": [
+            "org_id",
+            "module_id",
+            "seq"
+          ]
         }
       },
       "policies": {},
@@ -465,8 +539,12 @@
           "name": "activity_assets_org_id_organizations_id_fk",
           "tableFrom": "activity_assets",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -474,8 +552,14 @@
           "name": "activity_assets_org_id_activity_id_activities_org_id_id_fk",
           "tableFrom": "activity_assets",
           "tableTo": "activities",
-          "columnsFrom": ["org_id", "activity_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "activity_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -483,8 +567,14 @@
           "name": "activity_assets_org_id_asset_id_assets_org_id_id_fk",
           "tableFrom": "activity_assets",
           "tableTo": "assets",
-          "columnsFrom": ["org_id", "asset_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "asset_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -492,14 +582,21 @@
       "compositePrimaryKeys": {
         "activity_assets_org_id_id_pk": {
           "name": "activity_assets_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "activity_assets_org_id_activity_id_asset_id_unique": {
           "name": "activity_assets_org_id_activity_id_asset_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "activity_id", "asset_id"]
+          "columns": [
+            "org_id",
+            "activity_id",
+            "asset_id"
+          ]
         }
       },
       "policies": {},
@@ -576,8 +673,12 @@
           "name": "courses_org_id_organizations_id_fk",
           "tableFrom": "courses",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -585,14 +686,20 @@
       "compositePrimaryKeys": {
         "courses_org_id_id_pk": {
           "name": "courses_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "courses_org_id_slug_unique": {
           "name": "courses_org_id_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "slug"]
+          "columns": [
+            "org_id",
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -632,6 +739,20 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -640,8 +761,12 @@
           "name": "modules_org_id_organizations_id_fk",
           "tableFrom": "modules",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -649,8 +774,14 @@
           "name": "modules_org_id_course_id_courses_org_id_id_fk",
           "tableFrom": "modules",
           "tableTo": "courses",
-          "columnsFrom": ["org_id", "course_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -658,7 +789,10 @@
       "compositePrimaryKeys": {
         "modules_org_id_id_pk": {
           "name": "modules_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -728,8 +862,12 @@
           "name": "enrollments_org_id_organizations_id_fk",
           "tableFrom": "enrollments",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -737,8 +875,12 @@
           "name": "enrollments_student_id_students_id_fk",
           "tableFrom": "enrollments",
           "tableTo": "students",
-          "columnsFrom": ["student_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "student_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -746,8 +888,14 @@
           "name": "enrollments_org_id_course_id_courses_org_id_id_fk",
           "tableFrom": "enrollments",
           "tableTo": "courses",
-          "columnsFrom": ["org_id", "course_id"],
-          "columnsTo": ["org_id", "id"],
+          "columnsFrom": [
+            "org_id",
+            "course_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -755,14 +903,21 @@
       "compositePrimaryKeys": {
         "enrollments_org_id_id_pk": {
           "name": "enrollments_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "enrollments_org_id_student_id_course_id_unique": {
           "name": "enrollments_org_id_student_id_course_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "student_id", "course_id"]
+          "columns": [
+            "org_id",
+            "student_id",
+            "course_id"
+          ]
         }
       },
       "policies": {},
@@ -836,8 +991,12 @@
           "name": "progress_records_org_id_organizations_id_fk",
           "tableFrom": "progress_records",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -845,14 +1004,22 @@
       "compositePrimaryKeys": {
         "progress_records_org_id_id_pk": {
           "name": "progress_records_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {
         "progress_records_org_id_student_id_target_type_target_id_unique": {
           "name": "progress_records_org_id_student_id_target_type_target_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["org_id", "student_id", "target_type", "target_id"]
+          "columns": [
+            "org_id",
+            "student_id",
+            "target_type",
+            "target_id"
+          ]
         }
       },
       "policies": {},
@@ -915,12 +1082,16 @@
         "students_external_id_unique": {
           "name": "students_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         },
         "students_email_unique": {
           "name": "students_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
@@ -977,12 +1148,16 @@
         "users_external_id_unique": {
           "name": "users_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         },
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
@@ -1063,8 +1238,12 @@
           "name": "assets_org_id_organizations_id_fk",
           "tableFrom": "assets",
           "tableTo": "organizations",
-          "columnsFrom": ["org_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1072,7 +1251,10 @@
       "compositePrimaryKeys": {
         "assets_org_id_id_pk": {
           "name": "assets_org_id_id_pk",
-          "columns": ["org_id", "id"]
+          "columns": [
+            "org_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1169,8 +1351,12 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1241,8 +1427,12 @@
           "name": "invitation_organization_id_organization_id_fk",
           "tableFrom": "invitation",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1250,8 +1440,12 @@
           "name": "invitation_inviter_id_user_id_fk",
           "tableFrom": "invitation",
           "tableTo": "user",
-          "columnsFrom": ["inviter_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "inviter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1304,8 +1498,12 @@
           "name": "member_organization_id_organization_id_fk",
           "tableFrom": "member",
           "tableTo": "organization",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1313,8 +1511,12 @@
           "name": "member_user_id_user_id_fk",
           "tableFrom": "member",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1427,8 +1629,12 @@
           "name": "oauth_access_token_user_id_user_id_fk",
           "tableFrom": "oauth_access_token",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1438,12 +1644,16 @@
         "oauth_access_token_access_token_unique": {
           "name": "oauth_access_token_access_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["access_token"]
+          "columns": [
+            "access_token"
+          ]
         },
         "oauth_access_token_refresh_token_unique": {
           "name": "oauth_access_token_refresh_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["refresh_token"]
+          "columns": [
+            "refresh_token"
+          ]
         }
       },
       "policies": {},
@@ -1550,8 +1760,12 @@
           "name": "oauth_application_user_id_user_id_fk",
           "tableFrom": "oauth_application",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1561,7 +1775,9 @@
         "oauth_application_client_id_unique": {
           "name": "oauth_application_client_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["client_id"]
+          "columns": [
+            "client_id"
+          ]
         }
       },
       "policies": {},
@@ -1652,8 +1868,12 @@
           "name": "oauth_consent_user_id_user_id_fk",
           "tableFrom": "oauth_consent",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1718,7 +1938,9 @@
         "organization_slug_unique": {
           "name": "organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": [
+            "slug"
+          ]
         }
       },
       "policies": {},
@@ -1790,8 +2012,12 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1801,7 +2027,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -1862,7 +2090,9 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
