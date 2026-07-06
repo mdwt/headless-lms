@@ -23,13 +23,18 @@ export default async function MediaPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-
   const sp = await searchParams;
   const params = parseListParams(sp, { pageSize: 24 });
 
-  const { rows, total } = await serverApi.listAssets(params);
+  // Start the data fetch immediately, await the session gate, then await the
+  // data — the two API round-trips run in parallel instead of sequentially.
+  const dataPromise = serverApi.listAssets(params);
+  const session = await getServerSession();
+  if (!session) {
+    void dataPromise.catch(() => {});
+    redirect("/login");
+  }
+  const { rows, total } = await dataPromise;
 
   return <MediaView rows={rows} total={total} params={params} />;
 }

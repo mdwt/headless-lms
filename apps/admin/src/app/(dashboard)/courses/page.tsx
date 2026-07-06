@@ -23,16 +23,22 @@ export default async function CoursesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession();
-  if (!session) redirect("/login");
-
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 10,
     initialSort: [{ id: "updatedAt", desc: true }],
   });
 
-  const { rows, total } = await serverApi.listCourses(params);
+  // Start the data fetch immediately, await the session gate, then await the
+  // data. The fetch only needs the forwarded cookie (not the session result),
+  // so the two API round-trips run in parallel instead of sequentially.
+  const dataPromise = serverApi.listCourses(params);
+  const session = await getServerSession();
+  if (!session) {
+    void dataPromise.catch(() => {}); // discard the in-flight fetch on redirect
+    redirect("/login");
+  }
+  const { rows, total } = await dataPromise;
 
   return <CoursesTable rows={rows} total={total} params={params} />;
 }

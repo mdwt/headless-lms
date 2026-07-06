@@ -14,10 +14,15 @@ import { ConnectedAppsView } from "./connected-apps-view";
  * component and streams the fresh list down.
  */
 export default async function ConnectedAppsPage() {
+  // Start the data fetch immediately, await the session gate, then await the
+  // data — the two API round-trips run in parallel instead of sequentially.
+  const dataPromise = serverApi.listConnectedApps();
   const session = await getServerSession();
-  if (!session) redirect("/login");
-
-  const apps = await serverApi.listConnectedApps();
+  if (!session) {
+    void dataPromise.catch(() => {});
+    redirect("/login");
+  }
+  const apps = await dataPromise;
 
   return <ConnectedAppsView apps={apps} />;
 }

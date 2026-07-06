@@ -12,12 +12,16 @@ import { OverviewView } from "./_components/overview-view";
  * HydrationBoundary: the server is the single source of truth.
  */
 export default async function OverviewPage() {
+  // Start the stats fetch immediately, await the session gate, then await the
+  // stats — the two API round-trips run in parallel instead of sequentially.
+  const dataPromise = serverApi.overview();
   const session = await getServerSession();
   if (!session || session.status !== "authenticated" || !session.organization) {
+    void dataPromise.catch(() => {});
     redirect("/login");
   }
 
-  const stats = await serverApi.overview();
+  const stats = await dataPromise;
 
   return (
     <OverviewView
