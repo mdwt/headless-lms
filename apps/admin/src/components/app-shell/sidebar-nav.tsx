@@ -25,8 +25,8 @@ export function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate
               "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none transition-colors",
               "focus-visible:ring-2 focus-visible:ring-ring/40",
               active
-                ? "bg-selected font-medium text-ink"
-                : "text-ink-2 hover:bg-hover hover:text-ink",
+                ? "bg-surface font-medium text-ink shadow-sm ring-1 ring-ink/5"
+                : "text-ink-2 hover:bg-hover-2 hover:text-ink",
             )}
           >
             <Icon

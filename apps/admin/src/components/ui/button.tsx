@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Button — the single button system for the whole app.
- * Flat, structural, one disciplined indigo for the primary action. Two
+ * Flat, structural, one solid ink fill for the primary action. Two
  * heights only (sm 32px, default 36px) per the back-office density rules.
  */
 const buttonVariants = cva(
@@ -14,8 +14,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // one filled primary, solid ring matching the fill
-        primary: "bg-brand text-brand-contrast hover:bg-brand-strong focus-visible:ring-brand/40",
+        // one filled primary — solid ink fill, ring matching the fill
+        primary: "bg-ink text-white hover:bg-ink/90 focus-visible:ring-ink/30",
         // secondary: bordered surface
         secondary: "border border-line-strong bg-surface text-ink-2 hover:bg-hover hover:text-ink",
         // ghost: text-only

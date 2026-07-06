@@ -3,17 +3,7 @@
 import * as React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  ClipboardList,
-  Code2,
-  Download,
-  FileText,
-  GripVertical,
-  Headphones,
-  Pencil,
-  Trash2,
-  Video,
-} from "lucide-react";
+import { FileText, GripVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -30,37 +20,12 @@ function settingsOf(activity: Activity): ActivitySettings {
   return (activity.settings ?? {}) as ActivitySettings;
 }
 
-function ActivityGlyph({ type }: { type?: string }) {
-  const cls = "size-4";
-  switch (type) {
-    case "video":
-      return <Video className={cls} />;
-    case "audio":
-      return <Headphones className={cls} />;
-    case "download":
-      return <Download className={cls} />;
-    case "embed":
-      return <Code2 className={cls} />;
-    case "quiz":
-      return <ClipboardList className={cls} />;
-    case "pdf":
-    case "text":
-    default:
-      return <FileText className={cls} />;
-  }
-}
-
-function ActivityIcon({ type }: { type?: string }) {
+function ActivityIcon() {
   return (
     <span className="grid size-7 shrink-0 place-items-center rounded-md bg-surface-2 text-ink-3">
-      <ActivityGlyph type={type} />
+      <FileText className="size-4" />
     </span>
   );
-}
-
-function typeLabel(type?: string): string {
-  if (!type) return "Activity";
-  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 export function ItemRow({
@@ -122,12 +87,12 @@ export function ItemRow({
         <span className="w-7 shrink-0" aria-hidden />
       )}
 
-      <ActivityIcon type={settings.type} />
+      <ActivityIcon />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm font-medium text-ink">{title}</span>
         <div className="flex items-center gap-1.5 text-xs text-ink-4">
-          <span>{typeLabel(settings.type)}</span>
+          <span>{settings.published ? "Published" : "Draft"}</span>
         </div>
       </div>
 

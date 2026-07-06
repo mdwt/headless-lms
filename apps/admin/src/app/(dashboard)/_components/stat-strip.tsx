@@ -24,7 +24,7 @@ export function StatStrip({ stats }: { stats: Stat[] }) {
     <div className="@container">
       <dl
         className={cn(
-          "grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line",
+          "grid grid-cols-2 gap-px overflow-hidden rounded-card bg-line shadow-card ring-1 ring-ink/[0.06]",
           colsClass(stats.length),
         )}
       >
@@ -46,7 +46,7 @@ export function StatStripSkeleton({ count = 6 }: { count?: number }) {
     <div className="@container">
       <dl
         className={cn(
-          "grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line",
+          "grid grid-cols-2 gap-px overflow-hidden rounded-card bg-line shadow-card ring-1 ring-ink/[0.06]",
           colsClass(count),
         )}
       >

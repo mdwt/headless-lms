@@ -30,7 +30,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:bg-hover">
+      <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors hover:bg-hover-2 focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:bg-hover-2">
         <NameAvatar name={user.name} image={user.image} className="size-8" />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium text-ink">{user.name}</span>

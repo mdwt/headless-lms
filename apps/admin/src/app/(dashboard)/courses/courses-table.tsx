@@ -145,7 +145,6 @@ function CoursesTableInner({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Courses"
-        description="Create, publish, and manage the courses in your organization."
       />
 
       <DataTable<Course>

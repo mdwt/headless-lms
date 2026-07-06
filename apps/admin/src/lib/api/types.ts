@@ -42,13 +42,9 @@ export type Activity = Module["activities"][number];
  */
 export interface ActivitySettings {
   title?: string;
-  type?: string;
   body?: string;
   published?: boolean;
 }
-
-/** Type options the activity editor offers (kept from the former lesson types). */
-export type ActivityType = "video" | "text" | "pdf" | "audio" | "download" | "embed" | "quiz";
 
 /**
  * Form payload for creating/updating an activity. Maps onto the SDK's

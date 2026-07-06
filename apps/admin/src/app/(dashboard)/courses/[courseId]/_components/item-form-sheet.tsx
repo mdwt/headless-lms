@@ -10,35 +10,9 @@ import { FormSheet } from "@/components/forms/form-sheet";
 import { Field } from "@/components/forms/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Activity, ActivitySettings, ActivityType, SaveActivityInput } from "@/lib/api/types";
+import type { Activity, ActivitySettings, SaveActivityInput } from "@/lib/api/types";
 
 import { saveActivityAction } from "../actions";
-
-const ACTIVITY_TYPES: ActivityType[] = [
-  "video",
-  "text",
-  "pdf",
-  "audio",
-  "download",
-  "embed",
-  "quiz",
-];
-const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
-  video: "Video",
-  text: "Text / article",
-  pdf: "PDF",
-  audio: "Audio",
-  download: "Download",
-  embed: "Embed",
-  quiz: "Quiz",
-};
 
 const schema = z.object({
   title: z
@@ -46,7 +20,6 @@ const schema = z.object({
     .trim()
     .min(1, "Give this activity a title")
     .max(120, "Keep the title under 120 characters"),
-  type: z.enum(["video", "text", "pdf", "audio", "download", "embed", "quiz"]),
   published: z.boolean(),
 });
 
@@ -61,10 +34,8 @@ function settingsOf(activity: Activity | null): ActivitySettings {
 
 function toDefaults(item: Activity | null): FormValues {
   const s = settingsOf(item);
-  const type = (s.type ?? "video") as ActivityType;
   return {
     title: s.title ?? "",
-    type: ACTIVITY_TYPES.includes(type) ? type : "video",
     published: s.published ?? false,
   };
 }
@@ -107,7 +78,6 @@ export function ItemFormSheet({
     const settings: ActivitySettings = {
       ...settingsOf(item),
       title: values.title,
-      type: values.type,
       published: values.published,
     };
     const payload: SaveActivityInput = {
@@ -144,27 +114,6 @@ export function ItemFormSheet({
       <form id={FORM_ID} onSubmit={handleSubmit(onValid)} className="flex flex-col gap-5">
         <Field id="title" label="Title" required error={errors.title?.message}>
           <Input id="title" placeholder="Welcome & overview" autoFocus {...register("title")} />
-        </Field>
-
-        <Field id="type" label="Activity type" error={errors.type?.message}>
-          <Controller
-            control={control}
-            name="type"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACTIVITY_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {ACTIVITY_TYPE_LABEL[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
         </Field>
 
         <Field

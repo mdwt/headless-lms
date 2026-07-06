@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import { serverApi } from "@/lib/api/server";
 import { getServerSession } from "@/lib/auth/server-session";
 
@@ -12,16 +10,20 @@ import { OverviewView } from "./_components/overview-view";
  * HydrationBoundary: the server is the single source of truth.
  */
 export default async function OverviewPage() {
-  // Start the stats fetch immediately, await the session gate, then await the
-  // stats — the two API round-trips run in parallel instead of sequentially.
-  const dataPromise = serverApi.overview();
+  // Resolve the session BEFORE fetching. The overview endpoint is org-scoped and
+  // 403s ("no active organization in session") for a user without an active org
+  // — the exact state a freshly signed-up user is in. The `(dashboard)` layout
+  // already gates those states (no session → /login, no-organization →
+  // CreateOrganization, no-active-org → OrgActivator) and renders its own UI
+  // instead of this page, so here we simply render nothing and never fire the
+  // doomed request. `getServerSession` is React.cache'd, so this is free (the
+  // layout already resolved it) — no round-trip is lost by not parallelizing.
   const session = await getServerSession();
   if (!session || session.status !== "authenticated" || !session.organization) {
-    void dataPromise.catch(() => {});
-    redirect("/login");
+    return null;
   }
 
-  const stats = await dataPromise;
+  const stats = await serverApi.overview();
 
   return (
     <OverviewView

@@ -3,16 +3,17 @@
 
 /* =========================================================================
    Headless LMS — Management dashboard (back-office).
-   A crisp, cool-neutral grayscale ramp with a single disciplined indigo
-   accent (shared with the student "course platform" so the product family
-   reads as one). Flat and structural: borders + dividers over heavy shadows.
-   shadcn semantic tokens are mapped onto these primitives so restyled
-   shadcn primitives inherit the design automatically.
+   A crisp, cool-neutral grayscale ramp, fully monochrome: the accent resolves
+   to the ink ramp (no brand hue) so primary actions and accents read as
+   high-contrast neutral. Depth comes from a recessed frame + lifted cards on a
+   white sheet, structured with borders + dividers over heavy shadows. shadcn
+   semantic tokens are mapped onto these primitives so restyled shadcn
+   primitives inherit the design automatically.
    ========================================================================= */
 
 :root {
   /* neutral ramp — cool gray, content-first */
-  --page: #f7f8f9;
+  --page: #ffffff; /* white content canvas — structure comes from borders/dividers, not a gray fill */
   --surface: #ffffff;
   --surface-2: #f4f5f7; /* recessed wells, nested panels */
   --surface-3: #eef0f2;
@@ -21,17 +22,18 @@
   --ink-3: #70707b; /* muted labels */
   --ink-4: #9395a1; /* faint / placeholder */
   --ink-faint: #b6b8c0;
-  --line: #ececef; /* hairline borders */
+  --line: #e6e7eb; /* hairline borders — a touch stronger so cards/dividers read on white */
   --line-strong: #e2e3e7; /* emphasized dividers / inputs */
   --hover: #f3f4f6; /* row / ghost hover surface */
   --hover-2: #eceef0;
   --selected: #f0f1f4;
 
-  /* accent — indigo (shared family accent) */
-  --brand: #4f46e5;
-  --brand-strong: #4338ca;
-  --brand-soft: #eef0fe;
-  --brand-soft-2: #e5e7fd;
+  /* accent — ink/neutral (de-blued). Primary actions, focus rings, checked
+     fills and accent text all resolve to the ink ramp via these tokens. */
+  --brand: #18181b;
+  --brand-strong: #000000;
+  --brand-soft: #f0f1f3;
+  --brand-soft-2: #e4e4e7;
   --brand-contrast: #ffffff;
 
   /* semantic status (calm, single-hue families) */
@@ -140,6 +142,11 @@
   --radius-lg: 0.625rem;
   --radius-card: var(--radius-card);
   --radius-xl: 1rem;
+
+  /* elevation — depth on the white sheet comes from soft shadow + a faint ring,
+     never a gray fill. Overlays (dialog/popover) keep their own heavier shadows. */
+  --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 4px 12px -4px rgb(24 24 27 / 0.06);
+  --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.05), 0 8px 20px -6px rgb(24 24 27 / 0.1);
 
   /* motion — calm, not flashy */
   --animate-shimmer: shimmer 1.5s ease-in-out infinite;

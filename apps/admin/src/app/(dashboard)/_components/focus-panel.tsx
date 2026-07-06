@@ -24,7 +24,7 @@ export function FocusPanel({
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between gap-4 rounded-card border border-line bg-surface px-5 py-4 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+      className="group flex items-center justify-between gap-4 rounded-card bg-surface px-5 py-4 shadow-card ring-1 ring-ink/[0.06] outline-none transition-shadow hover:shadow-card-hover focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-page"
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm font-medium text-ink">{title}</span>
