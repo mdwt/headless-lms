@@ -151,6 +151,16 @@ export function createAuth(opts: CreateAuthOptions) {
     baseURL: opts.baseURL,
     secret: opts.secret,
     trustedOrigins: opts.trustedOrigins,
+    session: {
+      // Signed short-lived cookie cache: avoids a Postgres session lookup on
+      // every request. The BFF verifies the session per request (each API call
+      // + every SSR getSession), so without this each one is a DB round-trip.
+      // The cache holds for maxAge; sign-out / expiry still invalidate it.
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60,
+      },
+    },
     advanced: {
       database: {
         // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).

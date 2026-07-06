@@ -20,6 +20,7 @@ import { dashboardRoutes } from "./routes/dashboard.js";
 import { assetsRoutes } from "./routes/assets.js";
 import { mcpRoutes } from "./mcp/route.js";
 import { connectedAppsRoutes } from "./routes/connected-apps.js";
+import { NoActiveOrgError } from "./scope.js";
 
 function loadConfig() {
   // CLIENT_ORIGIN is a comma-separated list of browser app origins (web app +
@@ -160,8 +161,11 @@ export function buildServer() {
     await bridgeWebResponse(await protectedResourceHandler(req), reply);
   });
 
-  // preHandler that resolves the current session; 401 when absent.
+  // Resolves the current session; 401 when absent. Idempotent — if the session
+  // is already resolved on this request (e.g. the scoped onRequest hook ran, and
+  // a route also lists it as a preHandler) it returns without a second lookup.
   app.decorate("requireSession", async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.authUser) return;
     const sessionData = await auth.api.getSession({
       headers: fromNodeHeaders(request.headers),
     });
@@ -175,10 +179,32 @@ export function buildServer() {
       null;
   });
 
+  // Central error handler. Without this, `resolveScope` throwing `NoActiveOrgError`
+  // (authenticated session but no resolvable active org / domain user) surfaces
+  // as a 500. Map it to 403; pass through 4xx errors that already carry a status
+  // (validation, etc.); log and generically 500 anything unexpected.
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof NoActiveOrgError) {
+      return reply.status(403).send({ error: "forbidden", message: error.message });
+    }
+    const err = error as { statusCode?: number; code?: string; message?: string };
+    if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500) {
+      return reply
+        .status(err.statusCode)
+        .send({ error: err.code ?? "bad_request", message: err.message ?? "Bad request" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "internal_error" });
+  });
+
   app.get("/health", async () => ({ status: "ok" }));
 
-  // Domain routes (validated against the shared contract).
+  // Back-office routes (validated against the shared contract). A scoped
+  // onRequest hook enforces the session on EVERY route in this plugin, so a new
+  // route cannot accidentally be public; the per-route `requireSession`
+  // preHandlers remain as explicit, idempotent belt-and-suspenders.
   app.register(async (instance) => {
+    instance.addHook("onRequest", instance.requireSession);
     await coursesRoutes(instance, container);
     await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);
@@ -187,6 +213,11 @@ export function buildServer() {
     await dashboardRoutes(instance, container);
     await assetsRoutes(instance, container);
     await connectedAppsRoutes(instance, container);
+  });
+
+  // MCP endpoint authenticates via OAuth bearer tokens (withMcpAuth), NOT the
+  // session cookie — registered outside the session-guarded plugin above.
+  app.register(async (instance) => {
     await mcpRoutes(instance, container);
   });
 
