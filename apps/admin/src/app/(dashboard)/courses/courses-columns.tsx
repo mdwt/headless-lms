@@ -65,7 +65,7 @@ export function coursesColumns(opts: {
       header: ({ column }) => <ColumnHeader column={column} title="Modules" align="right" />,
       meta: { align: "right" },
       cell: ({ row }) => (
-        <span className="text-ink-2">{formatNumber(row.original.moduleCount)}</span>
+        <span className="tabular-nums text-ink-2">{formatNumber(row.original.moduleCount)}</span>
       ),
     },
     {
@@ -73,7 +73,7 @@ export function coursesColumns(opts: {
       header: ({ column }) => <ColumnHeader column={column} title="Activities" align="right" />,
       meta: { align: "right" },
       cell: ({ row }) => (
-        <span className="text-ink-2">{formatNumber(row.original.activityCount)}</span>
+        <span className="tabular-nums text-ink-2">{formatNumber(row.original.activityCount)}</span>
       ),
     },
     {

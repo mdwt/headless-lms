@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/page-header";
 import { ForbiddenView } from "@/components/full-page-states";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -116,10 +115,6 @@ function MembersTableInner({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Members"
-      />
-
       <DataTable<Member>
         columns={columns}
         rows={optimisticRows}

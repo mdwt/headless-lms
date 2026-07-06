@@ -12,7 +12,7 @@ export default async function CoursesPage({
 }) {
   const sp = await searchParams;
   const params = parseListParams(sp, {
-    pageSize: 10,
+    pageSize: 20,
     initialSort: [{ id: "updatedAt", desc: true }],
   });
 

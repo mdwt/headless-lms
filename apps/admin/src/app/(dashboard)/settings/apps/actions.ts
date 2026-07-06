@@ -11,5 +11,5 @@ import { ensureConfigured, authHeaders, expectOk } from "@/lib/api/server-call";
 export async function revokeConnectedAppAction(id: string): Promise<void> {
   ensureConfigured();
   expectOk(await ConnectedApps.revokeConnectedApp({ path: { id }, ...(await authHeaders()) }));
-  revalidatePath("/connected-apps");
+  revalidatePath("/settings/apps");
 }

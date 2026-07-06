@@ -5,9 +5,9 @@
    Headless LMS — Management dashboard (back-office).
    A crisp, cool-neutral grayscale ramp, fully monochrome: the accent resolves
    to the ink ramp (no brand hue) so primary actions and accents read as
-   high-contrast neutral. Depth comes from a recessed frame + lifted cards on a
-   white sheet, structured with borders + dividers over heavy shadows. shadcn
-   semantic tokens are mapped onto these primitives so restyled shadcn
+   high-contrast neutral. Depth comes from lifted cards on a white sheet: a
+   clearly-visible hairline border plus a real layered shadow, never a gray fill.
+   shadcn semantic tokens are mapped onto these primitives so restyled shadcn
    primitives inherit the design automatically.
    ========================================================================= */
 
@@ -15,18 +15,18 @@
   /* neutral ramp — cool gray, content-first */
   --page: #ffffff; /* white content canvas — structure comes from borders/dividers, not a gray fill */
   --surface: #ffffff;
-  --surface-2: #f4f5f7; /* recessed wells, nested panels */
-  --surface-3: #eef0f2;
+  --surface-2: #eff1f4; /* recessed wells, nested panels — deep enough to read against white */
+  --surface-3: #e6e8ed;
   --ink: #18181b; /* primary text / headings */
   --ink-2: #51525c; /* secondary text */
   --ink-3: #70707b; /* muted labels */
   --ink-4: #9395a1; /* faint / placeholder */
   --ink-faint: #b6b8c0;
-  --line: #e6e7eb; /* hairline borders — a touch stronger so cards/dividers read on white */
-  --line-strong: #e2e3e7; /* emphasized dividers / inputs */
-  --hover: #f3f4f6; /* row / ghost hover surface */
-  --hover-2: #eceef0;
-  --selected: #f0f1f4;
+  --line: #d7d9e0; /* hairline borders — clearly visible on white so card edges/dividers read */
+  --line-strong: #c6c9d2; /* emphasized dividers / inputs */
+  --hover: #f0f1f4; /* row / ghost hover surface */
+  --hover-2: #e8eaee;
+  --selected: #e9ebf0;
 
   /* accent — ink/neutral (de-blued). Primary actions, focus rings, checked
      fills and accent text all resolve to the ink ramp via these tokens. */
@@ -143,10 +143,13 @@
   --radius-card: var(--radius-card);
   --radius-xl: 1rem;
 
-  /* elevation — depth on the white sheet comes from soft shadow + a faint ring,
-     never a gray fill. Overlays (dialog/popover) keep their own heavier shadows. */
-  --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 4px 12px -4px rgb(24 24 27 / 0.06);
-  --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.05), 0 8px 20px -6px rgb(24 24 27 / 0.1);
+  /* elevation — depth on the white sheet comes from a real, layered shadow plus
+     the visible border, never a gray fill. Overlays (dialog/popover) keep their
+     own heavier shadows. */
+  --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.06), 0 2px 5px -1px rgb(24 24 27 / 0.08),
+    0 6px 16px -5px rgb(24 24 27 / 0.1);
+  --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.07), 0 6px 14px -3px rgb(24 24 27 / 0.12),
+    0 14px 28px -8px rgb(24 24 27 / 0.16);
 
   /* motion — calm, not flashy */
   --animate-shimmer: shimmer 1.5s ease-in-out infinite;

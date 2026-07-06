@@ -4,7 +4,6 @@ import * as React from "react";
 import { Plug } from "lucide-react";
 import { toast } from "sonner";
 
-import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -34,10 +33,6 @@ export function ConnectedAppsView({ apps }: { apps: ConnectedApp[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Connected Apps"
-      />
-
       {apps.length === 0 && (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
           <div className="grid size-11 place-items-center rounded-full bg-surface-2 text-ink-3">

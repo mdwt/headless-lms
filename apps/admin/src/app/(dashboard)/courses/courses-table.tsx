@@ -133,6 +133,14 @@ function CoursesTableInner({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Courses"
+        subtitle={`${total} ${total === 1 ? "course" : "courses"}`}
+        actions={
+          canCreate ? (
+            <Button variant="primary" onClick={openCreate}>
+              New course
+            </Button>
+          ) : undefined
+        }
       />
 
       <DataTable<Course>
@@ -162,13 +170,6 @@ function CoursesTableInner({
             options: CATEGORY_OPTIONS,
           },
         ]}
-        toolbarActions={
-          canCreate ? (
-            <Button variant="primary" size="sm" onClick={openCreate}>
-              New course
-            </Button>
-          ) : undefined
-        }
         emptyTitle="No courses found"
         emptyDescription={
           canCreate

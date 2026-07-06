@@ -3,9 +3,7 @@ import {
   LayoutDashboard,
   Image,
   Library,
-  Plug,
-  Ticket,
-  Users,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/lib/api/types";
@@ -23,9 +21,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/courses", label: "Courses", icon: Library, key: "courses" },
   { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
-  { href: "/entitlements", label: "Entitlements", icon: Ticket, key: "entitlements" },
-  { href: "/members", label: "Members", icon: Users, key: "members" },
-  { href: "/connected-apps", label: "Connected Apps", icon: Plug, key: "connectedApps" },
+  { href: "/settings", label: "Settings", icon: Settings, key: "settings" },
 ];
 
 /** Filter nav by what the role is allowed to see. */

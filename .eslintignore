@@ -6,3 +6,4 @@ apps/api/drizzle/
 apps/student/
 apps/admin/
 packages/sdk/src/generated/
+.playwright-mcp

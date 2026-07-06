@@ -22,9 +22,9 @@ export function ViewOptions<TData>({ table }: { table: Table<TData> }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="secondary" size="sm">
+        <Button variant="ghost" size="icon-sm" aria-label="Toggle columns" title="Columns">
           <SlidersHorizontal />
-          <span className="max-sm:sr-only">Columns</span>
+          <span className="sr-only">Columns</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">

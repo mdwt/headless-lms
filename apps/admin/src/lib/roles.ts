@@ -55,9 +55,7 @@ export function visibleNav(role: Role): {
   courses: boolean;
   media: boolean;
   students: boolean;
-  entitlements: boolean;
-  members: boolean;
-  connectedApps: boolean;
+  settings: boolean;
 } {
   const manager = isManager(role);
   return {
@@ -66,9 +64,8 @@ export function visibleNav(role: Role): {
     // Anyone who builds course content can manage media.
     media: true,
     students: manager,
-    entitlements: manager,
-    members: manager,
-    // All dashboard users can see and revoke their own connected apps.
-    connectedApps: true,
+    // Settings is visible to everyone: the Account and Apps tabs are available
+    // to all roles; the Team tab inside is manager-only (gated in the layout).
+    settings: true,
   };
 }

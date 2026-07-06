@@ -14,7 +14,7 @@ export async function inviteMemberAction(input: { email: string; role: Role }): 
   const member = unwrap(
     await Organizations.inviteMember({ body: input, ...(await authHeaders()) }),
   );
-  revalidatePath("/members");
+  revalidatePath("/settings/team");
   return member;
 }
 
@@ -22,11 +22,11 @@ export async function inviteMemberAction(input: { email: string; role: Role }): 
 export async function updateMemberRoleAction(id: string, role: Role): Promise<void> {
   ensureConfigured();
   unwrap(await Organizations.updateMemberRole({ path: { id }, body: { role }, ...(await authHeaders()) }));
-  revalidatePath("/members");
+  revalidatePath("/settings/team");
 }
 
 export async function removeMemberAction(id: string): Promise<void> {
   ensureConfigured();
   expectOk(await Organizations.removeMember({ path: { id }, ...(await authHeaders()) }));
-  revalidatePath("/members");
+  revalidatePath("/settings/team");
 }
