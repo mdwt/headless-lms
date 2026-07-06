@@ -15,12 +15,15 @@ import {
   Video,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useDeleteActivity } from "@/lib/api/hooks";
 import type { Activity, ActivitySettings } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+
+import { deleteActivityAction } from "../actions";
 
 /** Read the opaque settings blob as the admin-side shape. */
 function settingsOf(activity: Activity): ActivitySettings {
@@ -73,8 +76,8 @@ export function ItemRow({
   canEdit: boolean;
   onEdit: (item: Activity) => void;
 }) {
-  const del = useDeleteActivity(courseId);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [isPending, startTransition] = React.useTransition();
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -84,13 +87,16 @@ export function ItemRow({
   const settings = settingsOf(item);
   const title = settings.title?.trim() || "Untitled activity";
 
-  async function confirmDelete() {
-    try {
-      await del.mutateAsync({ moduleId, activityId: item.id });
-      setConfirmOpen(false);
-    } catch {
-      /* toast handled by hook */
-    }
+  function confirmDelete() {
+    startTransition(async () => {
+      try {
+        await deleteActivityAction(courseId, moduleId, item.id);
+        toast.success("Activity deleted");
+        setConfirmOpen(false);
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+      }
+    });
   }
 
   return (
@@ -149,7 +155,7 @@ export function ItemRow({
           </>
         }
         confirmLabel="Delete activity"
-        pending={del.isPending}
+        pending={isPending}
         onConfirm={confirmDelete}
       />
     </div>

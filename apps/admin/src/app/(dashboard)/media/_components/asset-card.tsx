@@ -3,12 +3,12 @@
 import * as React from "react";
 import { Copy, FileText, Film, ImageIcon, Loader2, Trash2 } from "lucide-react";
 
-import { useAssetUrl } from "@/lib/api/hooks";
 import type { Asset } from "@/lib/api/types";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getAssetUrlAction } from "../actions";
 
 function isImage(a: Asset) {
   return a.contentType.startsWith("image/");
@@ -36,7 +36,23 @@ export function AssetCard({
   onDelete: (asset: Asset) => void;
 }) {
   const previewable = (isImage(asset) || isVideo(asset)) && asset.status === "ready";
-  const { data: url } = useAssetUrl(asset.id, previewable);
+
+  // Lazily broker a short-lived presigned thumbnail URL via a Server Action when
+  // this tile is previewable. Not cached long-term — these URLs expire quickly.
+  const [url, setUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!previewable) return;
+    let cancelled = false;
+    void getAssetUrlAction(asset.id)
+      .then((u) => {
+        if (!cancelled) setUrl(u);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [previewable, asset.id]);
+
   const meta = kindMeta(asset);
   const pending = asset.status === "pending";
 

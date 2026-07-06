@@ -4,6 +4,7 @@ import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 
 import { FormSheet } from "@/components/forms/form-sheet";
 import { Field } from "@/components/forms/field";
@@ -16,8 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSaveActivity } from "@/lib/api/hooks";
 import type { Activity, ActivitySettings, ActivityType, SaveActivityInput } from "@/lib/api/types";
+
+import { saveActivityAction } from "../actions";
 
 const ACTIVITY_TYPES: ActivityType[] = [
   "video",
@@ -81,7 +83,7 @@ export function ItemFormSheet({
   item: Activity | null;
 }) {
   const isEdit = item != null;
-  const save = useSaveActivity(courseId);
+  const [isPending, startTransition] = React.useTransition();
 
   const {
     control,
@@ -100,7 +102,7 @@ export function ItemFormSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item]);
 
-  async function onValid(values: FormValues) {
+  function onValid(values: FormValues) {
     // Preserve any settings fields the editor doesn't surface (e.g. body).
     const settings: ActivitySettings = {
       ...settingsOf(item),
@@ -114,12 +116,15 @@ export function ItemFormSheet({
       assetIds: item?.assetIds,
     };
 
-    try {
-      await save.mutateAsync({ moduleId, activity: payload });
-      onOpenChange(false);
-    } catch {
-      // toast handled by the mutation hook
-    }
+    startTransition(async () => {
+      try {
+        await saveActivityAction(courseId, moduleId, payload);
+        toast.success("Saved");
+        onOpenChange(false);
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+      }
+    });
   }
 
   return (
@@ -134,7 +139,7 @@ export function ItemFormSheet({
       }
       formId={FORM_ID}
       submitLabel={isEdit ? "Save changes" : "Add activity"}
-      pending={save.isPending}
+      pending={isPending}
     >
       <form id={FORM_ID} onSubmit={handleSubmit(onValid)} className="flex flex-col gap-5">
         <Field id="title" label="Title" required error={errors.title?.message}>

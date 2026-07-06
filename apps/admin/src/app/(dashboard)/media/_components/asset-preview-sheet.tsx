@@ -4,7 +4,6 @@ import * as React from "react";
 import { Copy, Download, FileText, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useAssetUrl } from "@/lib/api/hooks";
 import type { Asset } from "@/lib/api/types";
 import { formatBytes, formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { getAssetUrlAction } from "../actions";
 
 function isImage(a: Asset) {
   return a.contentType.startsWith("image/");
@@ -38,7 +38,30 @@ export function AssetPreviewSheet({
   onOpenChange: (open: boolean) => void;
   onDelete: (asset: Asset) => void;
 }) {
-  const { data: url, isLoading } = useAssetUrl(asset?.id ?? "", open && !!asset);
+  // Presigned URLs are short-lived, so fetch on demand when the sheet opens
+  // (via a Server Action) rather than caching long-term.
+  const [url, setUrl] = React.useState<string | null>(null);
+  const [isLoading, startTransition] = React.useTransition();
+  const assetId = asset?.id;
+
+  React.useEffect(() => {
+    if (!open || !assetId) return;
+    let cancelled = false;
+    startTransition(async () => {
+      // Clear any prior asset's URL and resolve this one — all inside the
+      // transition so no state is set synchronously in the effect body.
+      setUrl(null);
+      try {
+        const next = await getAssetUrlAction(assetId);
+        if (!cancelled) setUrl(next);
+      } catch {
+        if (!cancelled) setUrl(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, assetId]);
 
   async function copyLink() {
     if (!url) return;

@@ -1,261 +1,38 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import type { ColumnDef } from "@tanstack/react-table";
+import { getServerSession } from "@/lib/auth/server-session";
+import { serverApi } from "@/lib/api/server";
+import { parseListParams } from "@/lib/table/parse-list-params";
 
-import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { CourseStatusBadge } from "@/components/status-badge";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DataTable } from "@/components/data-table/data-table";
-import { useDataTable } from "@/components/data-table/use-data-table";
-import { ColumnHeader } from "@/components/data-table/column-header";
-import { RowActions } from "@/components/data-table/row-actions";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { useCourses, useToggleCoursePublish, useDeleteCourse } from "@/lib/api/hooks";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
-import { relativeTime, formatNumber } from "@/lib/format";
-import type { Course } from "@/lib/api/types";
+import { CoursesTable } from "./courses-table";
 
-import { CourseFormSheet } from "./_components/course-form-sheet";
+/**
+ * Courses list — pure-RSC (option 2). The Server Component reads the URL state,
+ * fetches the exact page from the API via the SDK (cookie-forwarded), and hands
+ * the rows to the client island as PROPS. No react-query, no HydrationBoundary:
+ * the server is the single source of truth. Navigating (page/sort/filter/search
+ * changes the URL) re-runs THIS component and streams new rows down; mutations
+ * are Server Actions that `revalidatePath("/courses")` (see `actions.ts`).
+ *
+ * Contrast the react-query version in git history: there, this file prefetched
+ * into a QueryClient and wrapped the island in `<HydrationBoundary>`, and the
+ * island fetched with `useCourses`. Here it's a plain `await` + props.
+ */
+export default async function CoursesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const session = await getServerSession();
+  if (!session) redirect("/login");
 
-const CATEGORY_OPTIONS = [
-  "Design",
-  "Engineering",
-  "Product",
-  "Marketing",
-  "Data",
-  "Leadership",
-  "Finance",
-  "Operations",
-].map((c) => ({ label: c, value: c }));
+  const sp = await searchParams;
+  const params = parseListParams(sp, {
+    pageSize: 10,
+    initialSort: [{ id: "updatedAt", desc: true }],
+  });
 
-export default function CoursesPage() {
-  const router = useRouter();
-  const user = useCurrentUser();
+  const { rows, total } = await serverApi.listCourses(params);
 
-  const state = useDataTable({ pageSize: 10, initialSort: [{ id: "updatedAt", desc: true }] });
-  const query = useCourses(state.params);
-  const rows = query.data?.rows;
-  const total = query.data?.total ?? 0;
-
-  const togglePublish = useToggleCoursePublish();
-  const deleteCourse = useDeleteCourse();
-
-  // Sheet state: undefined course = create, a course = edit.
-  const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<Course | undefined>(undefined);
-
-  // Delete confirmation target.
-  const [toDelete, setToDelete] = React.useState<Course | null>(null);
-
-  const canCreate = can.createCourse(user);
-  const canPublish = can.publishCourse(user);
-  const canDelete = can.deleteCourse(user);
-
-  const openCreate = React.useCallback(() => {
-    setEditing(undefined);
-    setSheetOpen(true);
-  }, []);
-
-  const openEdit = React.useCallback((course: Course) => {
-    setEditing(course);
-    setSheetOpen(true);
-  }, []);
-
-  const goToBuilder = React.useCallback(
-    (course: Course) => router.push(`/courses/${course.id}`),
-    [router],
-  );
-
-  const columns = React.useMemo<ColumnDef<Course, unknown>[]>(() => {
-    const cols: ColumnDef<Course, unknown>[] = [
-      {
-        accessorKey: "title",
-        header: ({ column }) => <ColumnHeader column={column} title="Course" />,
-        enableHiding: false,
-        cell: ({ row }) => {
-          const course = row.original;
-          return (
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToBuilder(course);
-                }}
-                className="text-left font-medium text-ink underline-offset-4 outline-none hover:text-brand hover:underline focus-visible:ring-2 focus-visible:ring-ring/40 rounded-sm"
-              >
-                {course.title}
-              </button>
-              <span className="text-xs text-ink-4">{course.slug}</span>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "category",
-        header: ({ column }) => <ColumnHeader column={column} title="Category" />,
-        cell: ({ row }) => <span className="text-ink-2">{row.original.category}</span>,
-      },
-      {
-        accessorKey: "status",
-        header: ({ column }) => <ColumnHeader column={column} title="Status" />,
-        cell: ({ row }) => <CourseStatusBadge status={row.original.status} />,
-      },
-      {
-        accessorKey: "moduleCount",
-        header: ({ column }) => <ColumnHeader column={column} title="Modules" align="right" />,
-        meta: { align: "right" },
-        cell: ({ row }) => (
-          <span className="text-ink-2">{formatNumber(row.original.moduleCount)}</span>
-        ),
-      },
-      {
-        accessorKey: "activityCount",
-        header: ({ column }) => <ColumnHeader column={column} title="Activities" align="right" />,
-        meta: { align: "right" },
-        cell: ({ row }) => (
-          <span className="text-ink-2">{formatNumber(row.original.activityCount)}</span>
-        ),
-      },
-      {
-        accessorKey: "enrolledCount",
-        header: ({ column }) => <ColumnHeader column={column} title="Enrolled" align="right" />,
-        meta: { align: "right" },
-        cell: ({ row }) => (
-          <span className="tabular-nums text-ink">{formatNumber(row.original.enrolledCount)}</span>
-        ),
-      },
-      {
-        accessorKey: "updatedAt",
-        header: ({ column }) => <ColumnHeader column={column} title="Updated" align="right" />,
-        meta: { align: "right" },
-        cell: ({ row }) => (
-          <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>
-        ),
-      },
-      {
-        id: "actions",
-        enableHiding: false,
-        cell: ({ row }) => {
-          const course = row.original;
-          const canEdit = can.editCourse(user, course.id);
-          // Nothing actionable beyond View → still show View for everyone.
-          return (
-            <div className="flex justify-end">
-              <RowActions>
-                <DropdownMenuItem onClick={() => goToBuilder(course)}>View</DropdownMenuItem>
-                {canEdit && (
-                  <DropdownMenuItem onClick={() => openEdit(course)}>Edit</DropdownMenuItem>
-                )}
-                {canPublish && (
-                  <DropdownMenuItem onClick={() => togglePublish.mutate({ course })}>
-                    {course.status === "published" ? "Unpublish" : "Publish"}
-                  </DropdownMenuItem>
-                )}
-                {canDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="danger" onClick={() => setToDelete(course)}>
-                      Delete
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </RowActions>
-            </div>
-          );
-        },
-      },
-    ];
-    return cols;
-  }, [user, canPublish, canDelete, goToBuilder, openEdit, togglePublish]);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Courses"
-        description="Create, publish, and manage the courses in your organization."
-      />
-
-      <DataTable<Course>
-        columns={columns}
-        rows={rows}
-        total={total}
-        state={state}
-        isLoading={query.isLoading}
-        isFetching={query.isFetching}
-        isError={query.isError}
-        error={query.error ?? undefined}
-        refetch={query.refetch}
-        getRowId={(c) => c.id}
-        searchPlaceholder="Search courses…"
-        onRowClick={goToBuilder}
-        facets={[
-          {
-            columnId: "status",
-            title: "Status",
-            options: [
-              { label: "Draft", value: "draft" },
-              { label: "Published", value: "published" },
-            ],
-          },
-          {
-            columnId: "category",
-            title: "Category",
-            options: CATEGORY_OPTIONS,
-          },
-        ]}
-        toolbarActions={
-          canCreate ? (
-            <Button variant="primary" size="sm" onClick={openCreate}>
-              New course
-            </Button>
-          ) : undefined
-        }
-        emptyTitle="No courses found"
-        emptyDescription={
-          canCreate
-            ? "Get started by creating your first course."
-            : "There are no courses assigned to you yet."
-        }
-        emptyAction={
-          canCreate ? (
-            <Button variant="secondary" size="sm" onClick={openCreate}>
-              New course
-            </Button>
-          ) : undefined
-        }
-      />
-
-      {/* Opened only via gated triggers (create button / Edit menu item). */}
-      <CourseFormSheet open={sheetOpen} onOpenChange={setSheetOpen} course={editing} />
-
-      <ConfirmDialog
-        open={toDelete !== null}
-        onOpenChange={(o) => {
-          if (!o) setToDelete(null);
-        }}
-        title="Delete course?"
-        description={
-          toDelete ? (
-            <>
-              This permanently deletes{" "}
-              <span className="font-medium text-ink">{toDelete.title}</span>, along with its modules
-              and lessons. This can&apos;t be undone.
-            </>
-          ) : null
-        }
-        confirmLabel="Delete course"
-        destructive
-        pending={deleteCourse.isPending}
-        onConfirm={() => {
-          if (!toDelete) return;
-          deleteCourse.mutate(toDelete.id, { onSuccess: () => setToDelete(null) });
-        }}
-      />
-    </div>
-  );
+  return <CoursesTable rows={rows} total={total} params={params} />;
 }

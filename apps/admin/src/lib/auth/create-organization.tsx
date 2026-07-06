@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { signOut } from "@/lib/auth/client";
-import { api } from "@/lib/api/sdk";
+import { createOrganizationAction } from "@/lib/auth/actions";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,12 @@ const schema = z.object({
 });
 type Values = z.infer<typeof schema>;
 
-/** Shown when a signed-in user isn't yet a member of any organization. */
+/**
+ * Client island rendered by the `(dashboard)` server layout when the resolved
+ * session has status `no-organization` (signed in, not a member of any org).
+ * Creates the org — which the API also makes the session's active org — then
+ * hard-reloads so the server session resolver picks up the new active org.
+ */
 export function CreateOrganization() {
   const router = useRouter();
   const {
@@ -34,16 +39,15 @@ export function CreateOrganization() {
     const slug = uniqueOrgSlug(values.name);
     try {
       // Creates the org and makes it the session's active org, server-side.
-      await api.createOrganization({ name: values.name, slug });
+      await createOrganizationAction({ name: values.name, slug });
     } catch (e) {
       toast.error("Couldn't create organization", {
         description: e instanceof Error ? e.message : undefined,
       });
       return;
     }
-    // The new org and active-org selection live on the session server-side; a
-    // full reload lets the Better Auth client session pick them up so the
-    // dashboard renders the new org (a soft refresh keeps the stale org store).
+    // The new org + active-org selection live on the session server-side; a full
+    // reload lets the server session resolver re-run and render the dashboard.
     window.location.assign("/");
   }
 

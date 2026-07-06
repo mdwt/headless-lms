@@ -1,53 +1,39 @@
-"use client";
+import { notFound, redirect } from "next/navigation";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-
-import { PageHeader } from "@/components/page-header";
-import { ForbiddenView } from "@/components/full-page-states";
-import { DataTable } from "@/components/data-table/data-table";
-import { useDataTable } from "@/components/data-table/use-data-table";
-import { useStudents } from "@/lib/api/hooks";
-import { useCurrentUser } from "@/lib/auth/session-context";
+import { getServerSession } from "@/lib/auth/server-session";
+import { serverApi } from "@/lib/api/server";
+import { parseListParams } from "@/lib/table/parse-list-params";
 import { isManager } from "@/lib/roles";
 
-import { studentColumns } from "./_components/student-columns";
+import { StudentsTable } from "./students-table";
 
-export default function StudentsPage() {
-  const user = useCurrentUser();
-  const router = useRouter();
-  const table = useDataTable({ initialSort: [{ id: "lastActiveAt", desc: true }] });
-  const { data, isLoading, isFetching, isError, error, refetch } = useStudents(table.params);
+/**
+ * Students list — pure-RSC (option 2). The Server Component reads the URL state,
+ * fetches the exact page from the API via the SDK (cookie-forwarded), and hands
+ * the rows to the client island as PROPS. No react-query, no HydrationBoundary:
+ * the server is the single source of truth. Navigating (page/sort/filter/search
+ * changes the URL) re-runs THIS component and streams new rows down.
+ *
+ * The session/role is validated server-side (defense-in-depth; the client island
+ * also renders ForbiddenView for non-managers): missing session → login, a
+ * non-manager → 404.
+ */
+export default async function StudentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const session = await getServerSession();
+  if (!session) redirect("/login");
+  if (!isManager(session.role)) notFound();
 
-  const goToStudent = React.useCallback((id: string) => router.push(`/students/${id}`), [router]);
+  const sp = await searchParams;
+  const params = parseListParams(sp, {
+    pageSize: 10,
+    initialSort: [{ id: "lastActiveAt", desc: true }],
+  });
 
-  const columns = React.useMemo(() => studentColumns(goToStudent), [goToStudent]);
+  const { rows, total } = await serverApi.listStudents(params);
 
-  if (!isManager(user.role)) return <ForbiddenView />;
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Students"
-        description="Everyone enrolled across your organization's courses, with progress and activity at a glance."
-      />
-
-      <DataTable
-        columns={columns}
-        rows={data?.rows}
-        total={data?.total ?? 0}
-        state={table}
-        isLoading={isLoading}
-        isFetching={isFetching}
-        isError={isError}
-        error={error}
-        refetch={refetch}
-        getRowId={(s) => s.id}
-        searchPlaceholder="Search students…"
-        onRowClick={(s) => goToStudent(s.id)}
-        emptyTitle="No students yet"
-        emptyDescription="Students appear here once they're enrolled in a course."
-      />
-    </div>
-  );
+  return <StudentsTable rows={rows} total={total} params={params} />;
 }

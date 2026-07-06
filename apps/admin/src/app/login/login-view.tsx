@@ -8,7 +8,7 @@ import { z } from "zod";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { signIn, signUp, useSession } from "@/lib/auth/client";
-import { api } from "@/lib/api/sdk";
+import { createOrganizationAction } from "@/lib/auth/actions";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,13 +32,17 @@ export function LoginView() {
   const router = useRouter();
   const params = useSearchParams();
   const denied = params.get("denied") === "1";
+  // Where the middleware wanted the user to land before it bounced them here.
+  // Only accept in-app absolute paths to avoid an open-redirect.
+  const nextParam = params.get("next");
+  const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
   const { data: session } = useSession();
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
   const [formError, setFormError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (session) router.replace("/");
-  }, [session, router]);
+    if (session) router.replace(next);
+  }, [session, router, next]);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
@@ -75,9 +79,9 @@ export function LoginView() {
             )}
 
             {mode === "signin" ? (
-              <SignInForm onError={setFormError} onDone={() => router.replace("/")} />
+              <SignInForm onError={setFormError} onDone={() => router.replace(next)} />
             ) : (
-              <SignUpForm onError={setFormError} onDone={() => router.replace("/")} />
+              <SignUpForm onError={setFormError} onDone={() => router.replace(next)} />
             )}
 
             <p className="mt-6 text-center text-sm text-ink-3">
@@ -223,7 +227,7 @@ function SignUpForm({
     const slug = uniqueOrgSlug(values.organizationName);
     try {
       // Creates the org and makes it the session's active org, server-side.
-      await api.createOrganization({ name: values.organizationName, slug });
+      await createOrganizationAction({ name: values.organizationName, slug });
     } catch (e) {
       onError(
         e instanceof Error ? e.message : "Account created, but the organization couldn't be set up",

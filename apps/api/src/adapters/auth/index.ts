@@ -156,6 +156,22 @@ export function createAuth(opts: CreateAuthOptions) {
         // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).
         generateId: ({ model }) => prefixId(AUTH_ID_PREFIXES[model] ?? "id"),
       },
+      // Cross-subdomain shared session cookie for admin/api/web on one parent
+      // domain (e.g. `.example.com` in prod). Left unset in local dev so the
+      // host-only `localhost` cookie is used, which is already shared across
+      // ports (cookies are not port-scoped).
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+      },
+      // Same-site cookie for the shared-parent-domain plan. Only switch to
+      // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
+      // (different registrable domains).
+      defaultCookieAttributes: {
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        httpOnly: true,
+      },
     },
     database: drizzleAdapter(opts.db, {
       provider: "pg",

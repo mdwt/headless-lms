@@ -4,6 +4,7 @@ import * as React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 
 import { FormSheet } from "@/components/forms/form-sheet";
 import { Field } from "@/components/forms/field";
@@ -15,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useInviteMember } from "@/lib/api/hooks";
+import { inviteMemberAction } from "../actions";
 
 const FORM_ID = "invite-member-form";
 
@@ -39,7 +40,7 @@ export function InviteSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const invite = useInviteMember();
+  const [pending, startTransition] = React.useTransition();
   const {
     register,
     control,
@@ -56,9 +57,16 @@ export function InviteSheet({
     if (open) reset({ email: "", role: "instructor" });
   }, [open, reset]);
 
-  const onSubmit = handleSubmit(async (values) => {
-    await invite.mutateAsync(values);
-    onOpenChange(false);
+  const onSubmit = handleSubmit((values) => {
+    startTransition(async () => {
+      try {
+        const member = await inviteMemberAction(values);
+        toast.success("Invitation sent", { description: member.email });
+        onOpenChange(false);
+      } catch (e) {
+        toast.error("Couldn't send invite", { description: (e as Error).message });
+      }
+    });
   });
 
   return (
@@ -69,7 +77,7 @@ export function InviteSheet({
       description="Send an invitation to join this organization. They'll receive an email to accept."
       formId={FORM_ID}
       submitLabel="Send invitation"
-      pending={invite.isPending}
+      pending={pending}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
         <Field

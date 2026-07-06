@@ -16,7 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateCourse, useUpdateCourse } from "@/lib/api/hooks";
+import { toast } from "sonner";
+
+import { createCourseAction, updateCourseAction } from "../actions";
 import type { Course } from "@/lib/api/types";
 
 const CATEGORIES = [
@@ -51,9 +53,7 @@ export function CourseFormSheet({
   course?: Course;
 }) {
   const isEdit = Boolean(course);
-  const create = useCreateCourse();
-  const update = useUpdateCourse();
-  const pending = create.isPending || update.isPending;
+  const [pending, startTransition] = React.useTransition();
 
   const {
     register,
@@ -84,16 +84,23 @@ export function CourseFormSheet({
   const category = watch("category");
 
   const onSubmit = handleSubmit((values) => {
-    const patch: Partial<Course> = {
+    const input = {
       title: values.title.trim(),
       category: values.category,
       description: values.description?.trim() ?? "",
     };
-    if (isEdit && course) {
-      update.mutate({ id: course.id, patch }, { onSuccess: () => onOpenChange(false) });
-    } else {
-      create.mutate(patch, { onSuccess: () => onOpenChange(false) });
-    }
+    startTransition(async () => {
+      try {
+        if (isEdit && course) await updateCourseAction(course.id, input);
+        else await createCourseAction(input);
+        toast.success(isEdit ? "Changes saved" : "Course created");
+        onOpenChange(false);
+      } catch (e) {
+        toast.error(isEdit ? "Couldn't save changes" : "Couldn't create course", {
+          description: (e as Error).message,
+        });
+      }
+    });
   });
 
   return (

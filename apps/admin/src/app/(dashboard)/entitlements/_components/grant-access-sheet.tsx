@@ -4,6 +4,7 @@ import * as React from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 
 import { FormSheet } from "@/components/forms/form-sheet";
 import { Field } from "@/components/forms/field";
@@ -15,9 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCoursesLite, useGrantEntitlement, useStudentsLite } from "@/lib/api/hooks";
+
+import { grantEntitlementAction } from "../actions";
 
 const FORM_ID = "grant-access-form";
+
+/** Static lookup option sources fetched by the Server Component and passed in. */
+export type LiteStudent = { id: string; name: string; email: string };
+export type LiteCourse = { id: string; title: string };
 
 const schema = z
   .object({
@@ -36,13 +42,15 @@ type FormValues = z.infer<typeof schema>;
 export function GrantAccessSheet({
   open,
   onOpenChange,
+  students,
+  courses,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  students: LiteStudent[];
+  courses: LiteCourse[];
 }) {
-  const students = useStudentsLite();
-  const courses = useCoursesLite();
-  const grant = useGrantEntitlement();
+  const [pending, startTransition] = React.useTransition();
 
   const {
     control,
@@ -62,16 +70,24 @@ export function GrantAccessSheet({
 
   const expiryMode = useWatch({ control, name: "expiryMode" });
 
-  const onSubmit = handleSubmit(async (values) => {
-    await grant.mutateAsync({
+  const onSubmit = handleSubmit((values) => {
+    const input = {
       studentId: values.studentId,
       courseId: values.courseId,
       expiresAt:
         values.expiryMode === "never" || !values.expiresAt
           ? null
           : new Date(values.expiresAt).toISOString(),
+    };
+    startTransition(async () => {
+      try {
+        await grantEntitlementAction(input);
+        toast.success("Access granted");
+        onOpenChange(false);
+      } catch (err) {
+        toast.error("Couldn't grant access", { description: (err as Error).message });
+      }
     });
-    onOpenChange(false);
   });
 
   return (
@@ -82,7 +98,7 @@ export function GrantAccessSheet({
       description="Grant a student access to a course manually. They'll get immediate access."
       formId={FORM_ID}
       submitLabel="Grant access"
-      pending={grant.isPending}
+      pending={pending}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
         <Controller
@@ -95,7 +111,7 @@ export function GrantAccessSheet({
                   <SelectValue placeholder="Select a student" />
                 </SelectTrigger>
                 <SelectContent>
-                  {students.data?.map((s) => (
+                  {students.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} · {s.email}
                     </SelectItem>
@@ -116,7 +132,7 @@ export function GrantAccessSheet({
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.data?.map((c) => (
+                  {courses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.title}
                     </SelectItem>

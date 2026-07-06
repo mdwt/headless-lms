@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   KeyboardSensor,
@@ -20,24 +21,25 @@ import {
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Plus, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import {
-  useCreateModule,
-  useDeleteModule,
-  useReorderActivities,
-  useReorderModules,
-  useUpdateModule,
-} from "@/lib/api/hooks";
 import type { Activity, Module } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 import { ItemRow } from "./item-row";
 import { ItemFormSheet } from "./item-form-sheet";
+import {
+  createModuleAction,
+  deleteModuleAction,
+  reorderActivitiesAction,
+  reorderModulesAction,
+  updateModuleAction,
+} from "../actions";
 
 function useDndSensors() {
   return useSensors(
@@ -63,10 +65,9 @@ function SortableModule({
   index: number;
   canEdit: boolean;
 }) {
-  const updateModule = useUpdateModule(courseId);
-  const deleteModule = useDeleteModule(courseId);
-  const reorderActivities = useReorderActivities(courseId);
+  const router = useRouter();
   const sensors = useDndSensors();
+  const [isPending, startTransition] = React.useTransition();
 
   const [items, setItems] = React.useState<Activity[]>(module.activities);
   const [serverItems, setServerItems] = React.useState<Activity[]>(module.activities);
@@ -95,8 +96,17 @@ function SortableModule({
     const newIndex = items.findIndex((i) => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const next = arrayMove(items, oldIndex, newIndex);
+    // Optimistic: reflect the new order immediately, persist in the background.
     setItems(next);
-    reorderActivities.mutate({ moduleId: module.id, orderedIds: next.map((i) => i.id) });
+    const orderedIds = next.map((i) => i.id);
+    startTransition(async () => {
+      try {
+        await reorderActivitiesAction(courseId, module.id, orderedIds);
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+        router.refresh(); // reconcile local order with the server
+      }
+    });
   }
 
   function saveTitle() {
@@ -106,7 +116,15 @@ function SortableModule({
       setTitleDraft(module.title);
       return;
     }
-    updateModule.mutate({ moduleId: module.id, title: next });
+    startTransition(async () => {
+      try {
+        await updateModuleAction(courseId, module.id, next);
+        toast.success("Module renamed");
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+        setTitleDraft(module.title);
+      }
+    });
   }
 
   function openCreate() {
@@ -268,14 +286,17 @@ function SortableModule({
               </>
             }
             confirmLabel="Delete module"
-            pending={deleteModule.isPending}
-            onConfirm={async () => {
-              try {
-                await deleteModule.mutateAsync(module.id);
-                setConfirmOpen(false);
-              } catch {
-                /* toast handled by hook */
-              }
+            pending={isPending}
+            onConfirm={() => {
+              startTransition(async () => {
+                try {
+                  await deleteModuleAction(courseId, module.id);
+                  toast.success("Module deleted");
+                  setConfirmOpen(false);
+                } catch (err) {
+                  toast.error("Something went wrong", { description: (err as Error).message });
+                }
+              });
             }}
           />
         </>
@@ -289,18 +310,22 @@ function SortableModule({
 // ---------------------------------------------------------------------------
 
 function ModuleComposer({ courseId }: { courseId: string }) {
-  const createModule = useCreateModule(courseId);
   const [open, setOpen] = React.useState(false);
   const [title, setTitle] = React.useState("");
+  const [isPending, startTransition] = React.useTransition();
 
   function submit() {
     const next = title.trim();
     if (!next) return;
-    createModule.mutate(next, {
-      onSuccess: () => {
+    startTransition(async () => {
+      try {
+        await createModuleAction(courseId, next);
+        toast.success("Module added");
         setTitle("");
         setOpen(false);
-      },
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+      }
     });
   }
 
@@ -328,11 +353,7 @@ function ModuleComposer({ courseId }: { courseId: string }) {
           }
         }}
       />
-      <Button
-        variant="secondary"
-        onClick={submit}
-        disabled={!title.trim() || createModule.isPending}
-      >
+      <Button variant="secondary" onClick={submit} disabled={!title.trim() || isPending}>
         Add
       </Button>
       <Button
@@ -341,7 +362,7 @@ function ModuleComposer({ courseId }: { courseId: string }) {
           setTitle("");
           setOpen(false);
         }}
-        disabled={createModule.isPending}
+        disabled={isPending}
       >
         Cancel
       </Button>
@@ -362,12 +383,14 @@ export function ModuleList({
   modules: Module[];
   canEdit: boolean;
 }) {
-  const reorderModules = useReorderModules(courseId);
+  const router = useRouter();
   const sensors = useDndSensors();
+  const [, startTransition] = React.useTransition();
   const [ordered, setOrdered] = React.useState<Module[]>(modules);
   const [serverModules, setServerModules] = React.useState<Module[]>(modules);
 
-  // Re-sync local ordering when the server returns a new module set.
+  // Re-sync local ordering when the server returns a new module set (e.g. after
+  // a revalidated Server Action streams fresh props down).
   if (modules !== serverModules) {
     setServerModules(modules);
     setOrdered(modules);
@@ -380,8 +403,17 @@ export function ModuleList({
     const newIndex = ordered.findIndex((m) => m.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const next = arrayMove(ordered, oldIndex, newIndex);
+    // Optimistic: reflect the new order immediately, persist in the background.
     setOrdered(next);
-    reorderModules.mutate(next.map((m) => m.id));
+    const orderedIds = next.map((m) => m.id);
+    startTransition(async () => {
+      try {
+        await reorderModulesAction(courseId, orderedIds);
+      } catch (err) {
+        toast.error("Something went wrong", { description: (err as Error).message });
+        router.refresh(); // reconcile local order with the server
+      }
+    });
   }
 
   if (ordered.length === 0) {

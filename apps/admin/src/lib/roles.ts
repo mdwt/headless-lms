@@ -1,7 +1,9 @@
 /**
  * Authorization helpers. The API is the source of truth; this is UI gating —
- * hide/disable what a role can't do, and redirect students out of the
- * dashboard entirely. Mirrors the better-auth org roles.
+ * hide/disable what a role can't do. The `role` these take is now
+ * **server-resolved** (`getServerSession` → org plugin active member) and
+ * threaded down via `SessionProvider`/AppShell props, not a live client hook.
+ * Mirrors the better-auth org roles (owner/admin/instructor).
  */
 
 import type { Role, SessionUser } from "./api/types";
@@ -18,7 +20,11 @@ export const ROLE_RANK: Record<Role, number> = {
   instructor: 1,
 };
 
-/** Every org role has back-office access. */
+/**
+ * Every org role (owner/admin/instructor) has back-office access. Non-members
+ * never reach here: the server resolver yields `no-organization` for them, and
+ * the layout renders the org-creation island rather than the shell.
+ */
 export function canAccessDashboard(_role: Role): boolean {
   return true;
 }
