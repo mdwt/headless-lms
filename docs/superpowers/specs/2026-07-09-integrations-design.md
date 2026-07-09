@@ -16,7 +16,7 @@ Three tables, following the repo's existing conventions (text ids via `genId`, c
 
 | column | type | notes |
 |---|---|---|
-| `key` | text PK | e.g. `"slack"` |
+| `id` | text PK | e.g. `"slack"` |
 | `name` | text | display name |
 | `description` | text | shown on the admin page |
 | `enabled` | boolean, default true | hidden from the catalog when false |
@@ -29,13 +29,13 @@ Seeded with Slack in the migration that creates it.
 |---|---|---|
 | `org_id` | text, FK → `organizations.id` | composite PK part |
 | `id` | text, `genId("connection")` | composite PK part |
-| `integration_key` | text, FK → `integrations.key` | |
+| `integration_id` | text, FK → `integrations.id` | |
 | `config` | jsonb | non-secret config (Slack: `{ channel }`) |
 | `secret_id` | text | reference into the secret store |
 | `status` | text enum `active \| disabled`, default `active` | |
 | `created_at`, `updated_at` | timestamp | |
 
-Unique `(org_id, integration_key)` — one connection per integration per org.
+Unique `(org_id, integration_id)` — one connection per integration per org.
 
 **`secrets`** — org-scoped, owned exclusively by the SecretStore adapter. Nothing else reads or writes it.
 
@@ -75,7 +75,7 @@ Standard context file contract: `model.ts`, `ports.ts`, `service.ts`, `index.ts`
 
 ```ts
 export interface Integration {
-  key: string;
+  id: string;
   name: string;
   description: string;
 }
@@ -84,7 +84,7 @@ export type ConnectionStatus = "active" | "disabled";
 
 export interface Connection {
   readonly id: string;
-  integrationKey: string;
+  integrationId: string;
   config: Record<string, unknown>;
   status: ConnectionStatus;
   secretId: string;
@@ -93,7 +93,7 @@ export interface Connection {
 }
 
 export interface ConnectInput {
-  integrationKey: string;
+  integrationId: string;
   config: Record<string, unknown>;
   secrets: Record<string, unknown>;
 }
@@ -114,11 +114,11 @@ Core holds config and secrets as opaque records; per-integration shapes are vali
 - `connect(orgId, input)` — verifies the integration exists and the org isn't already connected to it; `SecretStore.put` the secrets; insert the connection; publish `connection.created`.
 - `update(orgId, id, input)` — patch config/status; if `secrets` present, rotate (put new → repoint `secretId` → remove old); publish `connection.updated`.
 - `disconnect(orgId, id)` — delete the connection, then `SecretStore.remove` its secret; publish `connection.removed`.
-- `getConnection(orgId, integrationKey)` — connection **with decrypted secrets**, for internal callers (billing, automations, workers). Never exposed over HTTP. The caller builds its own adapter from it; this domain never calls the external service.
+- `getConnection(orgId, integrationId)` — connection **with decrypted secrets**, for internal callers (billing, automations, workers). Never exposed over HTTP. The caller builds its own adapter from it; this domain never calls the external service.
 
 **Outbound port** (`IntegrationsRepository`): reads on `integrations`, CRUD on `connections`. `SecretStore` and `EventBus` are injected separately (constructor: `repo`, `secretStore`, `eventBus`, `now`).
 
-**Events** (per the domain spec): `connection.created`, `connection.updated`, `connection.removed`, published on the shared `EventBus`, carrying `orgId`, `connectionId`, `integrationKey` — never secrets.
+**Events** (per the domain spec): `connection.created`, `connection.updated`, `connection.removed`, published on the shared `EventBus`, carrying `orgId`, `connectionId`, `integrationId` — never secrets.
 
 **Wiring:** `composition/container.ts` gains `secretStore` (adapter) and `integrations` (service); `SECRETS_ENCRYPTION_KEY` joins `Config` and the server's env reading.
 
@@ -126,21 +126,21 @@ Core holds config and secrets as opaque records; per-integration shapes are vali
 
 **Contract** (`packages/api-contract/src/integrations.ts`), tag `Integrations`:
 
-- `Integration` — `{ key, name, description }`.
-- `Connection` — `{ id, integrationKey, config, status, createdAt, updatedAt }`. **No secrets, ever** — secrets are write-only over HTTP.
-- Per-integration Zod shapes, discriminated on `integration` so the SDK gives admin typed forms:
+- `Integration` — `{ id, name, description }`.
+- `Connection` — `{ id, integrationId, config, status, createdAt, updatedAt }`. **No secrets, ever** — secrets are write-only over HTTP.
+- Per-integration Zod shapes, discriminated on `integrationId` so the SDK gives admin typed forms:
 
 ```ts
 export const SlackConfig = z.object({ channel: z.string().min(1) });
 export const SlackSecrets = z.object({ botToken: z.string().min(1) });
 
-export const ConnectConnection = z.discriminatedUnion("integration", [
-  z.object({ integration: z.literal("slack"), config: SlackConfig, secrets: SlackSecrets }),
+export const ConnectConnection = z.discriminatedUnion("integrationId", [
+  z.object({ integrationId: z.literal("slack"), config: SlackConfig, secrets: SlackSecrets }),
 ]);
 
-export const UpdateConnection = z.discriminatedUnion("integration", [
+export const UpdateConnection = z.discriminatedUnion("integrationId", [
   z.object({
-    integration: z.literal("slack"),
+    integrationId: z.literal("slack"),
     config: SlackConfig.optional(),
     secrets: SlackSecrets.optional(), // omitted = keep existing token
     status: z.enum(["active", "disabled"]).optional(),
@@ -175,8 +175,8 @@ Forms are per-integration by design — good UX now, no generic form machinery. 
 
 ## 6. Error handling
 
-- Connect against an unknown/disabled integration key → 400 (contract union already rejects unknown keys; core re-checks against the catalog).
-- Connect when already connected → 409 (`already_connected`), backed by the unique `(org_id, integration_key)` index.
+- Connect against an unknown/disabled integration id → 400 (contract union already rejects unknown ids; core re-checks against the catalog).
+- Connect when already connected → 409 (`already_connected`), backed by the unique `(org_id, integration_id)` index.
 - Update/disconnect a missing connection → 404.
 - `SECRETS_ENCRYPTION_KEY` missing or not 32 bytes → the SecretStore adapter throws at construction; the server fails to boot rather than running unencrypted.
 - Decrypt failure (tamper/wrong key) → surfaces as an error to the internal caller; never silently returns partial data.
