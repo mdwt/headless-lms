@@ -130,7 +130,7 @@ function CoursesTableInner({
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <PageHeader
         title="Courses"
         subtitle={`${total} ${total === 1 ? "course" : "courses"}`}

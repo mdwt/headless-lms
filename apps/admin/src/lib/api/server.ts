@@ -121,6 +121,16 @@ export const serverApi = {
       }),
     );
   },
+  async courseEntitlements(courseId: string): Promise<Entitlement[]> {
+    ensureConfigured();
+    const page = unwrap(
+      await Entitlements.listEntitlements({
+        query: { courseId, pageSize: 100 },
+        ...(await authHeaders()),
+      }),
+    );
+    return page.rows;
+  },
 
   // members
   async listMembers(params: ListParams): Promise<Paginated<Member>> {

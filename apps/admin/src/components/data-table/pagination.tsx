@@ -33,7 +33,7 @@ export function Pagination({
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex flex-col gap-3 px-1 pt-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-2 flex flex-col gap-3 border-t border-line px-1 pt-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-ink-3" aria-live="polite">
         {isFetching ? (
           <span className="inline-flex items-center gap-1.5">

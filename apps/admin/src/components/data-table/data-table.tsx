@@ -110,7 +110,7 @@ export function DataTable<TData>({
   return (
     <div className="flex flex-col">
       {/* Toolbar — search + facets + view options + page actions */}
-      <div className="flex flex-col gap-3 pb-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-4" />
@@ -172,7 +172,7 @@ export function DataTable<TData>({
                       scope="col"
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       className={cn(
-                        "px-3 pb-2 text-left text-xs font-medium whitespace-nowrap text-ink-3",
+                        "px-3 pb-3 text-left text-xs font-medium whitespace-nowrap text-ink-3",
                         header.column.columnDef.meta?.align === "right" &&
                           "text-right",
                       )}
@@ -207,7 +207,7 @@ export function DataTable<TData>({
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-3 py-2.5 align-middle text-ink-2",
+                          "px-3 py-3.5 align-middle text-ink-2",
                           cell.column.columnDef.meta?.align === "right" &&
                             "text-right",
                         )}
