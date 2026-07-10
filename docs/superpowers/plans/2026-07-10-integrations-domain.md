@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the `integrations` core context (spec: `docs/superpowers/specs/2026-07-09-integrations-design.md`): a seeded integration catalog, org-scoped connections, an encrypted shared secret store, the HTTP/contract/SDK surface, and an admin `/settings/integrations` page — seeded with Slack (a bot that posts to a channel).
+**Goal:** Implement integrations management (spec: `docs/superpowers/specs/2026-07-09-integrations-design.md`): a seeded integration catalog, org-scoped connections, an encrypted shared secret store, the HTTP/contract/SDK surface, and an admin `/settings/integrations` page — seeded with Slack (a bot that posts to a channel).
 
-**Architecture:** Hexagonal, matching the six existing contexts in `apps/api/src`. New core context `core/integrations/` (framework-free), a generic `SecretStore` port in `core/shared/ports.ts` with an AES-256-GCM Drizzle adapter, three new tables (`integrations`, `connections`, `secrets`), Zod contract + Fastify routes + generated SDK, and a server-loaded Next.js settings page in `apps/admin`.
+**Architecture:** Hexagonal, matching the six existing contexts in `apps/api/src`. New core context `core/integrations/` (framework-free), a generic `SecretStore` port in `core/shared/ports.ts` implemented by `adapters/db/secrets.ts` (AES-256-GCM), three new tables (`integrations`, `connections`, `secrets`) added to the regenerated baseline migration, Zod contract + Fastify routes + generated SDK, and a server-loaded Next.js settings page in `apps/admin`.
 
 **Tech Stack:** Node 22 ESM, strict TS, Fastify 5 + fastify-type-provider-zod, Drizzle/Postgres, zod 4, Next.js (admin), vitest.
 
@@ -13,7 +13,8 @@
 - Work in the worktree at `/Users/mdwt/dev/headless-lms/headless-lms/.claude/worktrees/integrations-domain` (branch `worktree-integrations-domain`). All paths below are relative to it.
 - `core/` may not import `adapters/`, `http/`, `composition/`, `reporting/`, `fastify`, `pg`, or `drizzle-orm` — ESLint enforces this; run `pnpm lint` after wiring changes.
 - Org-scoped tables use the composite `(org_id, id)` PK pattern (see `apps/api/src/adapters/db/schema/entitlements.ts`).
-- Secrets are write-only over HTTP: no response schema ever includes secret values. Events never carry config or secrets.
+- **No new migration files.** The project keeps a single `0000_baseline` migration; new tables are added by regenerating the baseline (Task 1) and resetting the dev database.
+- Secrets are write-only over HTTP: no response schema ever includes secret values.
 - Secrets are immutable in the store: rotation = put new → repoint reference → remove old. The `SecretStore` port has no `update`.
 - Naming: `integration_id` / `integrationId` (never `integration_key`). Env var: `SECRETS_ENCRYPTION_KEY` (base64, 32 bytes decoded).
 - ESM specifiers: intra-repo imports end in `.js` even from `.ts` files.
@@ -22,109 +23,193 @@
 
 ---
 
-### Task 1: Implement `InMemoryEventBus.publish`
+### Task 1: Schema — `secrets`, `integrations`, `connections` tables in the baseline
 
-The bus's `publish` currently throws `"not implemented"`; the integrations service publishes domain events through it, so every connect would 500. Make it dispatch to subscribed handlers (no-op when none).
+Two new schema files (the `secrets` table is a shared facility owned by the SecretStore adapter, so it gets its own file; `integrations` + `connections` belong to the integrations context), the id prefixes their `genId` defaults need, and a regenerated `0000_baseline` carrying the new tables plus the Slack catalog row.
 
 **Files:**
-- Modify: `apps/api/src/adapters/events/index.ts`
-- Test: `apps/api/src/adapters/events/index.test.ts` (create)
+- Create: `apps/api/src/adapters/db/schema/secrets.ts`
+- Create: `apps/api/src/adapters/db/schema/integrations.ts`
+- Modify: `apps/api/src/adapters/db/schema/index.ts` (add exports)
+- Modify: `apps/api/src/core/shared/id.ts` (add `secret` + `connection` prefixes)
+- Regenerated: `apps/api/drizzle/0000_baseline.sql`, `apps/api/drizzle/meta/` (then hand-append the Slack seed)
 
 **Interfaces:**
-- Consumes: `EventBus`, `DomainEvent` from `core/shared/ports.ts` (existing).
-- Produces: a working `InMemoryEventBus.publish(event)` that awaits each handler subscribed to `event.type`, in subscription order; resolves silently when no handler is subscribed.
+- Produces (consumed by Tasks 2 and 4): Drizzle tables `secrets` (`orgId`, `id`, `ciphertext`, `iv`, `authTag`, `createdAt`), `integrations` (`id`, `name`, `description`, `enabled`), `connections` (`orgId`, `id`, `integrationId`, `config`, `secretId`, `status`, `createdAt`, `updatedAt`), exported from `schema/index.ts`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Add the id prefixes**
 
-Create `apps/api/src/adapters/events/index.test.ts`:
+In `apps/api/src/core/shared/id.ts`, add to `ID_PREFIXES` (after `progress: "prg",`):
 
 ```ts
-import { describe, it, expect, vi } from "vitest";
-import { InMemoryEventBus } from "./index.js";
-import type { DomainEvent } from "../../core/shared/ports.js";
+  connection: "con",
+  secret: "sec",
+```
 
-describe("InMemoryEventBus", () => {
-  it("dispatches a published event to every handler subscribed to its type", async () => {
-    const bus = new InMemoryEventBus();
-    const a = vi.fn().mockResolvedValue(undefined);
-    const b = vi.fn().mockResolvedValue(undefined);
-    const other = vi.fn().mockResolvedValue(undefined);
-    bus.subscribe("connection.created", a);
-    bus.subscribe("connection.created", b);
-    bus.subscribe("connection.removed", other);
+- [ ] **Step 2: Create the secrets schema file**
 
-    const event: DomainEvent = { type: "connection.created" };
-    await bus.publish(event);
+Create `apps/api/src/adapters/db/schema/secrets.ts`:
 
-    expect(a).toHaveBeenCalledWith(event);
-    expect(b).toHaveBeenCalledWith(event);
-    expect(other).not.toHaveBeenCalled();
-  });
+```ts
+// Encrypted secrets, org-scoped. Owned EXCLUSIVELY by the SecretStore adapter
+// (adapters/db/secrets.ts) — AES-256-GCM columns, decrypted only there;
+// nothing else reads or writes this table. Rows are immutable: rotation is
+// insert-new + delete-old, never update.
+import { pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
+import { organizations } from "./organizations.js";
 
-  it("resolves silently when nothing is subscribed", async () => {
-    const bus = new InMemoryEventBus();
-    await expect(bus.publish({ type: "connection.created" })).resolves.toBeUndefined();
-  });
+export const secrets = pgTable(
+  "secrets",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("secret")),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+  }),
+);
+```
+
+- [ ] **Step 3: Create the integrations schema file**
+
+Create `apps/api/src/adapters/db/schema/integrations.ts`:
+
+```ts
+// integrations catalog + org connections.
+// `integrations` is the global, seeded catalog (id is a slug like "slack") —
+// rows are pre-built; adding one is a seed change, not runtime writes.
+// `connections` is an org's link to one integration: non-secret config only;
+// the credential lives in `secrets` behind `secret_id`.
+import {
+  boolean,
+  foreignKey,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
+import { genId } from "../../../core/shared/id.js";
+import { organizations } from "./organizations.js";
+import { secrets } from "./secrets.js";
+
+export const integrations = pgTable("integrations", {
+  id: text("id").primaryKey(), // catalog slug, e.g. "slack"
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
 });
+
+export const connections = pgTable(
+  "connections",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("connection")),
+    integrationId: text("integration_id")
+      .notNull()
+      .references(() => integrations.id),
+    config: jsonb("config").notNull().$type<Record<string, unknown>>(),
+    secretId: text("secret_id").notNull(),
+    status: text("status", { enum: ["active", "disabled"] })
+      .notNull()
+      .default("active"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    secretFk: foreignKey({
+      columns: [t.orgId, t.secretId],
+      foreignColumns: [secrets.orgId, secrets.id],
+    }),
+    // One connection per (org, integration).
+    integrationUq: unique().on(t.orgId, t.integrationId),
+  }),
+);
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @headless-lms/api test src/adapters/events/index.test.ts`
-Expected: FAIL — `Error: not implemented` from `publish`.
-
-- [ ] **Step 3: Implement publish**
-
-In `apps/api/src/adapters/events/index.ts`, replace the whole file with:
+In `apps/api/src/adapters/db/schema/index.ts`, add after `export * from "./assets.js";`:
 
 ```ts
-// In-process event bus. Implements the shared EventBus port.
-import type { DomainEvent, EventBus } from "../../core/shared/ports.js";
-
-export class InMemoryEventBus implements EventBus {
-  private readonly handlers = new Map<string, Array<(e: DomainEvent) => Promise<void>>>();
-
-  async publish(event: DomainEvent): Promise<void> {
-    const list = this.handlers.get(event.type) ?? [];
-    for (const handler of list) await handler(event);
-  }
-
-  subscribe(type: string, handler: (e: DomainEvent) => Promise<void>): void {
-    const list = this.handlers.get(type) ?? [];
-    list.push(handler);
-    this.handlers.set(type, list);
-  }
-}
+export * from "./secrets.js";
+export * from "./integrations.js";
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @headless-lms/api test src/adapters/events/index.test.ts`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Regenerate the baseline (no new migration files)**
 
 ```bash
-git add apps/api/src/adapters/events/index.ts apps/api/src/adapters/events/index.test.ts
-git commit -m "feat(api): implement InMemoryEventBus.publish
+rm apps/api/drizzle/0000_baseline.sql
+rm -rf apps/api/drizzle/meta
+pnpm --filter @headless-lms/api db:generate -- --name=baseline
+```
+
+Expected: a fresh `apps/api/drizzle/0000_baseline.sql` containing ALL tables (the existing ones plus `integrations`, `secrets`, `connections`) and a fresh `meta/` (`_journal.json` with the single `0000_baseline` entry).
+
+- [ ] **Step 5: Append the Slack catalog row to the baseline**
+
+At the end of `apps/api/drizzle/0000_baseline.sql`, append:
+
+```sql
+--> statement-breakpoint
+INSERT INTO "integrations" ("id", "name", "description", "enabled")
+VALUES ('slack', 'Slack', 'Post messages to a Slack channel with a bot.', true);
+```
+
+- [ ] **Step 6: Reset the dev database and re-migrate (dev Postgres must be running)**
+
+The baseline changed, so the dev DB must be rebuilt from it:
+
+```bash
+export $(grep -m1 '^DATABASE_URL' .env | tr -d '"')
+psql "$DATABASE_URL" -c 'drop schema public cascade; create schema public;'
+pnpm --filter @headless-lms/api db:migrate
+pnpm --filter @headless-lms/api seed
+```
+
+Expected: migrate exits 0; `psql "$DATABASE_URL" -c "select id, name from integrations"` shows the `slack` row; the seed script repopulates dev data.
+
+- [ ] **Step 7: Typecheck and commit**
+
+Run: `pnpm --filter @headless-lms/api typecheck`
+Expected: exits 0.
+
+```bash
+git add apps/api/src/adapters/db/schema apps/api/src/core/shared/id.ts apps/api/drizzle
+git commit -m "feat(api): integrations/connections/secrets tables in baseline + slack seed
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 2: SecretStore port + AES-256-GCM crypto module
+### Task 2: SecretStore port + `adapters/db/secrets.ts` (crypto + store)
 
-The generic encrypted-storage port (any domain may store any JSON value; credentials are just this context's use of it), plus the pure crypto functions the Drizzle adapter will compose. Crypto is fully unit-tested with no DB.
+The generic encrypted-storage port (any domain may store any JSON value; credentials are just this context's use of it), and its single adapter file `adapters/db/secrets.ts`: pure AES-256-GCM crypto functions (fully unit-tested, no DB) plus the thin `DrizzleSecretStore` that composes them with the `secrets` table. Also plumbs `SECRETS_ENCRYPTION_KEY` into the root `.env`, `.env.example`, and the api vitest config (server-boot tests construct the container, and the store fail-fasts on a bad key).
 
 **Files:**
 - Modify: `apps/api/src/core/shared/ports.ts` (append `SecretStore`)
-- Modify: `apps/api/src/core/shared/id.ts` (add `secret` prefix)
-- Create: `apps/api/src/adapters/db/secret-crypto.ts`
-- Test: `apps/api/src/adapters/db/secret-crypto.test.ts` (create)
+- Create: `apps/api/src/adapters/db/secrets.ts`
+- Test: `apps/api/src/adapters/db/secrets.test.ts` (create)
+- Modify: `apps/api/vitest.config.ts`
+- Modify: `.env` and `.env.example` (repo root)
 
 **Interfaces:**
-- Produces (port, consumed by Tasks 4, 5, 7):
+- Consumes: `secrets` table (Task 1).
+- Produces (port, consumed by Tasks 3 and 5):
 
 ```ts
 export interface SecretStore {
@@ -134,15 +219,15 @@ export interface SecretStore {
 }
 ```
 
-- Produces (crypto, consumed by Task 4): `parseSecretsKey(base64: string | undefined): Buffer`, `encryptJson(key: Buffer, value: Record<string, unknown>): EncryptedSecret`, `decryptJson(key: Buffer, secret: EncryptedSecret): Record<string, unknown>`, `interface EncryptedSecret { ciphertext: string; iv: string; authTag: string }`.
+- Produces (adapter, consumed by Task 5): `class DrizzleSecretStore implements SecretStore` with `constructor(db: NodePgDatabase, keyBase64: string | undefined)` — the constructor throws on a missing/invalid key so the server fails to boot rather than running unencrypted. Also exports `parseSecretsKey`, `encryptJson`, `decryptJson`, `interface EncryptedSecret { ciphertext: string; iv: string; authTag: string }`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `apps/api/src/adapters/db/secret-crypto.test.ts`:
+Create `apps/api/src/adapters/db/secrets.test.ts`:
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { decryptJson, encryptJson, parseSecretsKey } from "./secret-crypto.js";
+import { decryptJson, encryptJson, parseSecretsKey } from "./secrets.js";
 
 // base64 of the 32 ascii bytes "0123456789abcdef0123456789abcdef"
 const KEY_B64 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
@@ -197,19 +282,47 @@ describe("encryptJson / decryptJson", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @headless-lms/api test src/adapters/db/secret-crypto.test.ts`
-Expected: FAIL — cannot resolve `./secret-crypto.js`.
+Run: `pnpm --filter @headless-lms/api test src/adapters/db/secrets.test.ts`
+Expected: FAIL — cannot resolve `./secrets.js`.
 
-- [ ] **Step 3: Implement the crypto module and the port**
+- [ ] **Step 3: Implement the port and the adapter**
 
-Create `apps/api/src/adapters/db/secret-crypto.ts`:
+Append to `apps/api/src/core/shared/ports.ts` (after the `ObjectStorage` block):
 
 ```ts
-// AES-256-GCM primitives for the SecretStore adapter. Pure functions — no DB,
-// no env reads — so encryption is unit-testable in isolation. GCM gives
-// confidentiality + integrity in one mode: a tampered ciphertext or a wrong
-// key throws on decrypt instead of returning garbage.
+// --- Secret store (encrypted at rest) ----------------------------------------
+// Outbound port for org-scoped encrypted JSON storage. Values are encrypted at
+// rest and decrypted only inside `get`, at the point of use. Secrets are
+// immutable: rotation is put-new → repoint the caller's reference → remove-old.
+// Integrations stores connection credentials through it; any domain may store
+// any JSON value.
+
+export interface SecretStore {
+  /** Encrypt and persist a value; returns the secret id. */
+  put(orgId: string, value: Record<string, unknown>): Promise<string>;
+  /** Decrypt at point of use. Null if absent. */
+  get(orgId: string, id: string): Promise<Record<string, unknown> | null>;
+  /** Permanently remove. */
+  remove(orgId: string, id: string): Promise<void>;
+}
+```
+
+Create `apps/api/src/adapters/db/secrets.ts`:
+
+```ts
+// SecretStore — Drizzle adapter + AES-256-GCM primitives, in one module.
+// The crypto functions are pure (no DB, no env reads) so they unit-test in
+// isolation; DrizzleSecretStore composes them with the org-scoped `secrets`
+// table, which this adapter owns exclusively. GCM gives confidentiality +
+// integrity in one mode: a tampered ciphertext or a wrong key throws on
+// decrypt instead of returning garbage. The key is validated at construction:
+// a missing or malformed SECRETS_ENCRYPTION_KEY fails the boot instead of
+// running unencrypted.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { SecretStore } from "../../core/shared/ports.js";
+import { secrets } from "./schema/index.js";
 
 /** The three base64 columns persisted per secret. */
 export interface EncryptedSecret {
@@ -246,219 +359,6 @@ export function decryptJson(key: Buffer, secret: EncryptedSecret): Record<string
   ]);
   return JSON.parse(plaintext.toString("utf8")) as Record<string, unknown>;
 }
-```
-
-Append to `apps/api/src/core/shared/ports.ts` (after the `ObjectStorage` block):
-
-```ts
-// --- Secret store (encrypted at rest) ----------------------------------------
-// Outbound port for org-scoped encrypted JSON storage. Values are encrypted at
-// rest and decrypted only inside `get`, at the point of use. Secrets are
-// immutable: rotation is put-new → repoint the caller's reference → remove-old.
-// Integrations stores connection credentials through it; any domain may store
-// any JSON value.
-
-export interface SecretStore {
-  /** Encrypt and persist a value; returns the secret id. */
-  put(orgId: string, value: Record<string, unknown>): Promise<string>;
-  /** Decrypt at point of use. Null if absent. */
-  get(orgId: string, id: string): Promise<Record<string, unknown> | null>;
-  /** Permanently remove. */
-  remove(orgId: string, id: string): Promise<void>;
-}
-```
-
-In `apps/api/src/core/shared/id.ts`, add to `ID_PREFIXES` (after `progress: "prg",`):
-
-```ts
-  secret: "sec",
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @headless-lms/api test src/adapters/db/secret-crypto.test.ts`
-Expected: PASS (6 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/api/src/core/shared/ports.ts apps/api/src/core/shared/id.ts apps/api/src/adapters/db/secret-crypto.ts apps/api/src/adapters/db/secret-crypto.test.ts
-git commit -m "feat(api): SecretStore shared port + AES-256-GCM crypto module
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 3: Schema — `integrations`, `connections`, `secrets` tables + migration with Slack seed
-
-**Files:**
-- Create: `apps/api/src/adapters/db/schema/integrations.ts`
-- Modify: `apps/api/src/adapters/db/schema/index.ts` (add export)
-- Modify: `apps/api/src/core/shared/id.ts` (add `connection` prefix)
-- Generated: `apps/api/drizzle/0001_integrations.sql` (+ `meta/` updates), then hand-append the seed row
-
-**Interfaces:**
-- Produces (consumed by Tasks 4 and 6): Drizzle tables `integrations` (`id`, `name`, `description`, `enabled`), `connections` (`orgId`, `id`, `integrationId`, `config`, `secretId`, `status`, `createdAt`, `updatedAt`), `secrets` (`orgId`, `id`, `ciphertext`, `iv`, `authTag`, `createdAt`), exported from `schema/index.ts`.
-
-- [ ] **Step 1: Add the `connection` id prefix**
-
-In `apps/api/src/core/shared/id.ts`, add to `ID_PREFIXES` (after `progress: "prg",`, alongside `secret` from Task 2):
-
-```ts
-  connection: "con",
-```
-
-- [ ] **Step 2: Create the schema file**
-
-Create `apps/api/src/adapters/db/schema/integrations.ts`:
-
-```ts
-// integrations catalog + org connections + encrypted secrets.
-// `integrations` is the global, seeded catalog (id is a slug like "slack") —
-// rows are pre-built; adding one is a seed change, not runtime writes.
-// `connections` is an org's link to one integration: non-secret config only;
-// the credential lives in `secrets` behind `secret_id`.
-// `secrets` is owned EXCLUSIVELY by the SecretStore adapter (AES-256-GCM
-// columns, decrypted only there); nothing else reads or writes it.
-import {
-  boolean,
-  foreignKey,
-  jsonb,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  unique,
-} from "drizzle-orm/pg-core";
-import { genId } from "../../../core/shared/id.js";
-import { organizations } from "./organizations.js";
-
-export const integrations = pgTable("integrations", {
-  id: text("id").primaryKey(), // catalog slug, e.g. "slack"
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  enabled: boolean("enabled").notNull().default(true),
-});
-
-export const secrets = pgTable(
-  "secrets",
-  {
-    orgId: text("org_id")
-      .notNull()
-      .references(() => organizations.id),
-    id: text("id")
-      .notNull()
-      .$defaultFn(() => genId("secret")),
-    ciphertext: text("ciphertext").notNull(),
-    iv: text("iv").notNull(),
-    authTag: text("auth_tag").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.id] }),
-  }),
-);
-
-export const connections = pgTable(
-  "connections",
-  {
-    orgId: text("org_id")
-      .notNull()
-      .references(() => organizations.id),
-    id: text("id")
-      .notNull()
-      .$defaultFn(() => genId("connection")),
-    integrationId: text("integration_id")
-      .notNull()
-      .references(() => integrations.id),
-    config: jsonb("config").notNull().$type<Record<string, unknown>>(),
-    secretId: text("secret_id").notNull(),
-    status: text("status", { enum: ["active", "disabled"] })
-      .notNull()
-      .default("active"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.id] }),
-    secretFk: foreignKey({
-      columns: [t.orgId, t.secretId],
-      foreignColumns: [secrets.orgId, secrets.id],
-    }),
-    // One connection per (org, integration).
-    integrationUq: unique().on(t.orgId, t.integrationId),
-  }),
-);
-```
-
-In `apps/api/src/adapters/db/schema/index.ts`, add after `export * from "./assets.js";`:
-
-```ts
-export * from "./integrations.js";
-```
-
-- [ ] **Step 3: Generate the migration**
-
-Run: `pnpm --filter @headless-lms/api db:generate -- --name=integrations`
-Expected: creates `apps/api/drizzle/0001_integrations.sql` with `CREATE TABLE` for `integrations`, `secrets`, `connections`, plus FK/unique constraints, and updates `apps/api/drizzle/meta/`.
-
-- [ ] **Step 4: Append the Slack seed to the migration**
-
-At the end of `apps/api/drizzle/0001_integrations.sql`, append:
-
-```sql
---> statement-breakpoint
-INSERT INTO "integrations" ("id", "name", "description", "enabled")
-VALUES ('slack', 'Slack', 'Post messages to a Slack channel with a bot.', true);
-```
-
-- [ ] **Step 5: Apply the migration (dev Postgres must be running)**
-
-Run: `pnpm --filter @headless-lms/api db:migrate`
-Expected: exits 0. Verify the seed: the table now has the `slack` row (optional check: `psql "$DATABASE_URL" -c "select id, name from integrations"`).
-
-- [ ] **Step 6: Typecheck and commit**
-
-Run: `pnpm --filter @headless-lms/api typecheck`
-Expected: exits 0.
-
-```bash
-git add apps/api/src/adapters/db/schema/integrations.ts apps/api/src/adapters/db/schema/index.ts apps/api/src/core/shared/id.ts apps/api/drizzle
-git commit -m "feat(api): integrations/connections/secrets schema + slack seed migration
-
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
-```
-
----
-
-### Task 4: DrizzleSecretStore adapter + env key plumbing
-
-The Drizzle-backed `SecretStore` implementation (thin composition of Task 2's crypto with Task 3's `secrets` table — the crypto is already fully tested), plus the `SECRETS_ENCRYPTION_KEY` env var everywhere it's needed: root `.env`, `.env.example`, and the api vitest config (server-boot tests construct the container, and the adapter fail-fasts on a bad key).
-
-**Files:**
-- Create: `apps/api/src/adapters/db/secret-store.ts`
-- Modify: `apps/api/vitest.config.ts`
-- Modify: `.env` and `.env.example` (repo root)
-
-**Interfaces:**
-- Consumes: `SecretStore` port (Task 2), `secrets` table (Task 3), crypto module (Task 2).
-- Produces (consumed by Task 7): `class DrizzleSecretStore implements SecretStore` with `constructor(db: NodePgDatabase, keyBase64: string | undefined)` — the constructor throws on a missing/invalid key so the server fails to boot rather than running unencrypted.
-
-- [ ] **Step 1: Implement the adapter**
-
-Create `apps/api/src/adapters/db/secret-store.ts`:
-
-```ts
-// SecretStore — Drizzle adapter. Encrypts with AES-256-GCM (see secret-crypto)
-// and persists to the org-scoped `secrets` table, which this adapter owns
-// exclusively. The key is validated at construction: a missing or malformed
-// SECRETS_ENCRYPTION_KEY fails the boot instead of running unencrypted.
-import { and, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { SecretStore } from "../../core/shared/ports.js";
-import { decryptJson, encryptJson, parseSecretsKey } from "./secret-crypto.js";
-import { secrets } from "./schema/index.js";
 
 export class DrizzleSecretStore implements SecretStore {
   private readonly key: Buffer;
@@ -496,7 +396,12 @@ export class DrizzleSecretStore implements SecretStore {
 }
 ```
 
-- [ ] **Step 2: Add the key to the test environment**
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm --filter @headless-lms/api test src/adapters/db/secrets.test.ts`
+Expected: PASS (6 tests).
+
+- [ ] **Step 5: Add the key to the test environment**
 
 Replace `apps/api/vitest.config.ts` with:
 
@@ -517,7 +422,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Add the key to the env files**
+- [ ] **Step 6: Add the key to the env files**
 
 Append to `.env.example` (repo root):
 
@@ -531,29 +436,28 @@ Append to `.env` (repo root) with a real generated value:
 Run: `echo "SECRETS_ENCRYPTION_KEY=\"$(openssl rand -base64 32)\"" >> .env`
 Expected: `.env` now ends with a `SECRETS_ENCRYPTION_KEY="..."` line (44-char base64 value).
 
-- [ ] **Step 4: Typecheck and run the api suite**
+- [ ] **Step 7: Typecheck and run the api suite**
 
 Run: `pnpm --filter @headless-lms/api typecheck && pnpm --filter @headless-lms/api test`
-Expected: both exit 0 (nothing constructs the store yet; this guards against regressions).
+Expected: both exit 0.
 
-- [ ] **Step 5: Commit** (never commit `.env`)
+- [ ] **Step 8: Commit** (never commit `.env`)
 
 ```bash
-git add apps/api/src/adapters/db/secret-store.ts apps/api/vitest.config.ts .env.example
-git commit -m "feat(api): DrizzleSecretStore adapter + SECRETS_ENCRYPTION_KEY plumbing
+git add apps/api/src/core/shared/ports.ts apps/api/src/adapters/db/secrets.ts apps/api/src/adapters/db/secrets.test.ts apps/api/vitest.config.ts .env.example
+git commit -m "feat(api): SecretStore port + AES-256-GCM secrets adapter
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 5: Core context `core/integrations/`
+### Task 3: Core context `core/integrations/`
 
 The seventh context, standard file contract. Service owns the connection lifecycle; it never calls the external service. Also registers the context with the ESLint boundary rules.
 
 **Files:**
 - Create: `apps/api/src/core/integrations/model.ts`
-- Create: `apps/api/src/core/integrations/events.ts`
 - Create: `apps/api/src/core/integrations/ports.ts`
 - Create: `apps/api/src/core/integrations/service.ts`
 - Create: `apps/api/src/core/integrations/index.ts`
@@ -561,10 +465,10 @@ The seventh context, standard file contract. Service owns the connection lifecyc
 - Modify: `.eslintrc.cjs` (add `"integrations"` to `CONTEXTS`)
 
 **Interfaces:**
-- Consumes: `SecretStore`, `EventBus`, `DomainEvent` from `core/shared/ports.ts`.
-- Produces (consumed by Tasks 6, 7, 8): everything exported from `core/integrations/index.ts` — `IntegrationsServiceImpl` (constructor `(repo: IntegrationsRepository, secretStore: SecretStore, events: EventBus)`), the `IntegrationsService` / `IntegrationsRepository` ports, models `Integration`, `Connection`, `ConnectionStatus`, `ConnectInput`, `UpdateConnectionInput`, `ResolvedConnection`, errors `IntegrationNotFoundError`, `AlreadyConnectedError`, and `ConnectionEvent`.
+- Consumes: `SecretStore` from `core/shared/ports.ts` (Task 2).
+- Produces (consumed by Tasks 4, 5, 6): everything exported from `core/integrations/index.ts` — `IntegrationsServiceImpl` (constructor `(repo: IntegrationsRepository, secretStore: SecretStore)`), the `IntegrationsService` / `IntegrationsRepository` ports, models `Integration`, `Connection`, `ConnectionStatus`, `ConnectInput`, `UpdateConnectionInput`, `ResolvedConnection`, errors `IntegrationNotFoundError`, `AlreadyConnectedError`.
 
-- [ ] **Step 1: Write the models, events, and ports**
+- [ ] **Step 1: Write the models and ports**
 
 Create `apps/api/src/core/integrations/model.ts`:
 
@@ -615,26 +519,6 @@ export interface UpdateConnectionInput {
 export class IntegrationNotFoundError extends Error {}
 /** Connect targeted an integration the org is already connected to. */
 export class AlreadyConnectedError extends Error {}
-```
-
-Create `apps/api/src/core/integrations/events.ts`:
-
-```ts
-// integrations context — domain events published on the shared EventBus.
-// Payloads identify the connection; they never carry config or secrets.
-import type { DomainEvent } from "../shared/ports.js";
-
-export type ConnectionEventType =
-  | "connection.created"
-  | "connection.updated"
-  | "connection.removed";
-
-export interface ConnectionEvent extends DomainEvent {
-  readonly type: ConnectionEventType;
-  readonly orgId: string;
-  readonly connectionId: string;
-  readonly integrationId: string;
-}
 ```
 
 Create `apps/api/src/core/integrations/ports.ts`:
@@ -697,7 +581,7 @@ import { IntegrationsServiceImpl } from "./service.js";
 import type { IntegrationsRepository } from "./ports.js";
 import type { Connection, Integration } from "./model.js";
 import { AlreadyConnectedError, IntegrationNotFoundError } from "./model.js";
-import type { DomainEvent, EventBus, SecretStore } from "../shared/ports.js";
+import type { SecretStore } from "../shared/ports.js";
 
 const SLACK: Integration = { id: "slack", name: "Slack", description: "Post to a channel." };
 
@@ -731,18 +615,6 @@ function fakeSecretStore(): FakeSecretStore {
   };
 }
 
-type CapturingBus = EventBus & { events: DomainEvent[] };
-function capturingBus(): CapturingBus {
-  const events: DomainEvent[] = [];
-  return {
-    events,
-    publish: vi.fn(async (e: DomainEvent) => {
-      events.push(e);
-    }),
-    subscribe: vi.fn(),
-  };
-}
-
 function fakeRepo(over?: Partial<IntegrationsRepository>): IntegrationsRepository {
   return {
     listIntegrations: vi.fn().mockResolvedValue([SLACK]),
@@ -760,9 +632,8 @@ function fakeRepo(over?: Partial<IntegrationsRepository>): IntegrationsRepositor
 function build(over?: Partial<IntegrationsRepository>) {
   const repo = fakeRepo(over);
   const secretStore = fakeSecretStore();
-  const bus = capturingBus();
-  const svc = new IntegrationsServiceImpl(repo, secretStore, bus);
-  return { repo, secretStore, bus, svc };
+  const svc = new IntegrationsServiceImpl(repo, secretStore);
+  return { repo, secretStore, svc };
 }
 
 describe("IntegrationsService", () => {
@@ -778,8 +649,8 @@ describe("IntegrationsService", () => {
   });
 
   describe("connect", () => {
-    it("stores the secret, inserts the connection, and publishes connection.created", async () => {
-      const { repo, secretStore, bus, svc } = build();
+    it("stores the secret and inserts the connection", async () => {
+      const { repo, secretStore, svc } = build();
       const result = await svc.connect("org-1", {
         integrationId: "slack",
         config: { channel: "#general" },
@@ -792,9 +663,6 @@ describe("IntegrationsService", () => {
         secretId: "sec_101",
       });
       expect(result).toEqual(CONN);
-      expect(bus.events).toEqual([
-        { type: "connection.created", orgId: "org-1", connectionId: "con_1", integrationId: "slack" },
-      ]);
     });
 
     it("rejects an unknown integration without touching the secret store", async () => {
@@ -818,7 +686,7 @@ describe("IntegrationsService", () => {
 
   describe("update", () => {
     it("patches config/status without touching secrets when none are given", async () => {
-      const { repo, secretStore, bus, svc } = build();
+      const { repo, secretStore, svc } = build();
       const result = await svc.update("org-1", "con_1", {
         config: { channel: "#alerts" },
         status: "disabled",
@@ -830,9 +698,6 @@ describe("IntegrationsService", () => {
       expect(secretStore.put).not.toHaveBeenCalled();
       expect(secretStore.remove).not.toHaveBeenCalled();
       expect(result).toEqual(CONN);
-      expect(bus.events).toEqual([
-        { type: "connection.updated", orgId: "org-1", connectionId: "con_1", integrationId: "slack" },
-      ]);
     });
 
     it("rotates the secret when secrets are given: put new, repoint, remove old", async () => {
@@ -844,22 +709,19 @@ describe("IntegrationsService", () => {
       expect(secretStore.remove).toHaveBeenCalledWith("org-1", "sec_1");
     });
 
-    it("returns null (and publishes nothing) for a missing connection", async () => {
-      const { bus, svc } = build({ findConnectionById: vi.fn().mockResolvedValue(null) });
+    it("returns null for a missing connection", async () => {
+      const { secretStore, svc } = build({ findConnectionById: vi.fn().mockResolvedValue(null) });
       expect(await svc.update("org-1", "nope", { status: "disabled" })).toBeNull();
-      expect(bus.events).toEqual([]);
+      expect(secretStore.put).not.toHaveBeenCalled();
     });
   });
 
   describe("disconnect", () => {
-    it("deletes the connection, removes its secret, and publishes connection.removed", async () => {
-      const { repo, secretStore, bus, svc } = build();
+    it("deletes the connection and removes its secret", async () => {
+      const { repo, secretStore, svc } = build();
       expect(await svc.disconnect("org-1", "con_1")).toBe(true);
       expect(repo.deleteConnection).toHaveBeenCalledWith("org-1", "con_1");
       expect(secretStore.remove).toHaveBeenCalledWith("org-1", "sec_1");
-      expect(bus.events).toEqual([
-        { type: "connection.removed", orgId: "org-1", connectionId: "con_1", integrationId: "slack" },
-      ]);
     });
 
     it("returns false for a missing connection", async () => {
@@ -905,7 +767,7 @@ Create `apps/api/src/core/integrations/service.ts`:
 // integrations context — service implementation (inbound port).
 // Owns the connection lifecycle. Never calls the external service; callers
 // take the resolved connection and construct their own adapter.
-import type { EventBus, SecretStore } from "../shared/ports.js";
+import type { SecretStore } from "../shared/ports.js";
 import { AlreadyConnectedError, IntegrationNotFoundError } from "./model.js";
 import type {
   ConnectInput,
@@ -915,14 +777,12 @@ import type {
   ResolvedConnection,
   UpdateConnectionInput,
 } from "./model.js";
-import type { ConnectionEvent, ConnectionEventType } from "./events.js";
 import type { IntegrationsRepository, IntegrationsService } from "./ports.js";
 
 export class IntegrationsServiceImpl implements IntegrationsService {
   constructor(
     private readonly repo: IntegrationsRepository,
     private readonly secretStore: SecretStore,
-    private readonly events: EventBus,
   ) {}
 
   listIntegrations(): Promise<Integration[]> {
@@ -940,13 +800,11 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     const existing = await this.repo.findConnectionByIntegration(orgId, input.integrationId);
     if (existing) throw new AlreadyConnectedError(`already connected to ${input.integrationId}`);
     const secretId = await this.secretStore.put(orgId, input.secrets);
-    const connection = await this.repo.insertConnection(orgId, {
+    return this.repo.insertConnection(orgId, {
       integrationId: input.integrationId,
       config: input.config,
       secretId,
     });
-    await this.publish("connection.created", orgId, connection);
-    return connection;
   }
 
   async update(orgId: string, id: string, input: UpdateConnectionInput): Promise<Connection | null> {
@@ -961,7 +819,6 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     const updated = await this.repo.updateConnection(orgId, id, patch);
     if (!updated) return null;
     if (input.secrets !== undefined) await this.secretStore.remove(orgId, existing.secretId);
-    await this.publish("connection.updated", orgId, updated);
     return updated;
   }
 
@@ -971,7 +828,6 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     // Connection first (it references the secret), then the secret.
     await this.repo.deleteConnection(orgId, id);
     await this.secretStore.remove(orgId, existing.secretId);
-    await this.publish("connection.removed", orgId, existing);
     return true;
   }
 
@@ -981,16 +837,6 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     const secrets = await this.secretStore.get(orgId, connection.secretId);
     if (!secrets) throw new Error(`secret missing for connection ${connection.id}`);
     return { ...connection, secrets };
-  }
-
-  private async publish(type: ConnectionEventType, orgId: string, connection: Connection): Promise<void> {
-    const event: ConnectionEvent = {
-      type,
-      orgId,
-      connectionId: connection.id,
-      integrationId: connection.integrationId,
-    };
-    await this.events.publish(event);
   }
 }
 ```
@@ -1010,7 +856,6 @@ export type {
   ResolvedConnection,
   UpdateConnectionInput,
 } from "./model.js";
-export type { ConnectionEvent, ConnectionEventType } from "./events.js";
 ```
 
 In `.eslintrc.cjs`, extend the contexts list:
@@ -1046,16 +891,16 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Drizzle integrations repository
+### Task 4: Drizzle integrations repository
 
-Implements `IntegrationsRepository` against the Task 3 tables. Matches the repo convention: repositories have no unit tests (they're exercised through the running app); logic-free row mapping only.
+Implements `IntegrationsRepository` against the Task 1 tables. Matches the repo convention: repositories have no unit tests (they're exercised through the running app); logic-free row mapping only.
 
 **Files:**
 - Create: `apps/api/src/adapters/db/repositories/integrations.ts`
 
 **Interfaces:**
-- Consumes: `IntegrationsRepository` port and models (Task 5), `integrations`/`connections` tables (Task 3).
-- Produces (consumed by Task 7): `class DrizzleIntegrationsRepository implements IntegrationsRepository` with `constructor(db: NodePgDatabase)`.
+- Consumes: `IntegrationsRepository` port and models (Task 3), `integrations`/`connections` tables (Task 1).
+- Produces (consumed by Task 5): `class DrizzleIntegrationsRepository implements IntegrationsRepository` with `constructor(db: NodePgDatabase)`.
 
 - [ ] **Step 1: Implement the repository**
 
@@ -1216,15 +1061,15 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Container + config wiring
+### Task 5: Container + config wiring
 
 **Files:**
 - Modify: `apps/api/src/composition/container.ts`
 - Modify: `apps/api/src/composition/config.ts`
 
 **Interfaces:**
-- Consumes: `DrizzleSecretStore` (Task 4), `IntegrationsServiceImpl` (Task 5), `DrizzleIntegrationsRepository` (Task 6).
-- Produces (consumed by Task 8): `Container.integrations: IntegrationsServiceImpl`, `Container.secretStore: DrizzleSecretStore`, `Config.secretsEncryptionKey: string`.
+- Consumes: `DrizzleSecretStore` (Task 2), `IntegrationsServiceImpl` (Task 3), `DrizzleIntegrationsRepository` (Task 4).
+- Produces (consumed by Task 6): `Container.integrations: IntegrationsServiceImpl`, `Container.secretStore: DrizzleSecretStore`, `Config.secretsEncryptionKey: string`.
 
 - [ ] **Step 1: Wire config**
 
@@ -1242,7 +1087,7 @@ Add imports (with the other core/adapters imports):
 
 ```ts
 import { IntegrationsServiceImpl } from "../core/integrations/index.js";
-import { DrizzleSecretStore } from "../adapters/db/secret-store.js";
+import { DrizzleSecretStore } from "../adapters/db/secrets.js";
 import { DrizzleIntegrationsRepository } from "../adapters/db/repositories/integrations.js";
 ```
 
@@ -1262,7 +1107,7 @@ In `interface Container`, add `integrations` to the domains block (after `assets
   secretStore: DrizzleSecretStore;
 ```
 
-In `buildContainer`, delete the line `void eventBus;` and add after the `assets` service construction:
+In `buildContainer`, add after the `assets` service construction:
 
 ```ts
   // Fail-fast: an invalid SECRETS_ENCRYPTION_KEY aborts the boot rather than
@@ -1271,7 +1116,6 @@ In `buildContainer`, delete the line `void eventBus;` and add after the `assets`
   const integrations = new IntegrationsServiceImpl(
     new DrizzleIntegrationsRepository(db),
     secretStore,
-    eventBus,
   );
 ```
 
@@ -1280,7 +1124,7 @@ Add `integrations,` and `secretStore,` to the returned object.
 - [ ] **Step 3: Verify the whole api suite (server-boot tests now construct the store)**
 
 Run: `pnpm --filter @headless-lms/api typecheck && pnpm --filter @headless-lms/api test`
-Expected: both exit 0 — the vitest `env` key from Task 4 satisfies the fail-fast constructor.
+Expected: both exit 0 — the vitest `env` key from Task 2 satisfies the fail-fast constructor.
 
 - [ ] **Step 4: Commit**
 
@@ -1293,7 +1137,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Contract, routes, SDK
+### Task 6: Contract, routes, SDK
 
 Schema-first HTTP surface, tag `Integrations`. Secrets are write-only: request unions carry them; `Connection` responses never do.
 
@@ -1305,8 +1149,8 @@ Schema-first HTTP surface, tag `Integrations`. Secrets are write-only: request u
 - Generated: `packages/sdk/openapi.json`, `packages/sdk/src/generated/**` (committed)
 
 **Interfaces:**
-- Consumes: `Container.integrations` (Task 7), core errors (Task 5), `resolveScope` (existing).
-- Produces (consumed by Task 9): SDK class `Integrations` with `listIntegrations`, `listConnections`, `createConnection`, `updateConnection`, `deleteConnection`; contract schemas `Integration`, `IntegrationsList`, `Connection`, `ConnectionsList`, `ConnectionStatus`, `CreateConnection`, `UpdateConnection`, `ConnectionIdParam`.
+- Consumes: `Container.integrations` (Task 5), core errors (Task 3), `resolveScope` (existing).
+- Produces (consumed by Task 7): SDK class `Integrations` with `listIntegrations`, `listConnections`, `createConnection`, `updateConnection`, `deleteConnection`; contract schemas `Integration`, `IntegrationsList`, `Connection`, `ConnectionsList`, `ConnectionStatus`, `CreateConnection`, `UpdateConnection`, `ConnectionIdParam`.
 
 - [ ] **Step 1: Write the contract**
 
@@ -1533,7 +1377,7 @@ and inside the session-guarded plugin, after `await connectedAppsRoutes(instance
 Run: `pnpm --filter @headless-lms/api typecheck && pnpm --filter @headless-lms/api lint && pnpm --filter @headless-lms/api test`
 Expected: all exit 0.
 
-- [ ] **Step 5: Regenerate the SDK (dev Postgres must be running; `.env` must have `SECRETS_ENCRYPTION_KEY` from Task 4)**
+- [ ] **Step 5: Regenerate the SDK (dev Postgres must be running; `.env` must have `SECRETS_ENCRYPTION_KEY` from Task 2)**
 
 Run: `pnpm gen:sdk`
 Expected: exits 0; `packages/sdk/openapi.json` gains the five `Integrations`-tagged operations; `packages/sdk/src/generated/` gains an `Integrations` class with `listIntegrations`, `listConnections`, `createConnection`, `updateConnection`, `deleteConnection`.
@@ -1549,7 +1393,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: Admin — `/settings/integrations`
+### Task 7: Admin — `/settings/integrations`
 
 Manager-only settings page: the catalog with each integration's connection state; connect/manage via a Slack-specific sheet (typed, no generic form machinery); disconnect via confirm dialog. Follows the settings pages' server-loaded + server-actions pattern.
 
@@ -1563,7 +1407,7 @@ Manager-only settings page: the catalog with each integration's connection state
 - Create: `apps/admin/src/app/(dashboard)/settings/integrations/slack-sheet.tsx`
 
 **Interfaces:**
-- Consumes: SDK `Integrations` class (Task 8); existing admin helpers `serverApi` pattern, `ensureConfigured`/`authHeaders`/`unwrap`/`expectOk` (`@/lib/api/server-call`), `requireManager` (`@/lib/auth/server-session`), `FormSheet`, `Field`, `ConfirmDialog`, `Button`, `Badge`, `Input`.
+- Consumes: SDK `Integrations` class (Task 6); existing admin helpers `serverApi` pattern, `ensureConfigured`/`authHeaders`/`unwrap`/`expectOk` (`@/lib/api/server-call`), `requireManager` (`@/lib/auth/server-session`), `FormSheet`, `Field`, `ConfirmDialog`, `Button`, `Badge`, `Input`.
 - Produces: types `Integration`, `IntegrationConnection`; `serverApi.listIntegrations()`, `serverApi.listIntegrationConnections()`; actions `createConnectionAction`, `updateConnectionAction`, `deleteConnectionAction`.
 
 - [ ] **Step 1: Add the SDK-derived types**
@@ -2009,7 +1853,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 10: Full verification
+### Task 8: Full verification
 
 **Files:** none new.
 
@@ -2021,7 +1865,7 @@ Run, from the repo root of the worktree:
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
 
-Expected: all exit 0. If `gen:sdk` output drifted (someone changed a route after Step 8.5), re-run `pnpm gen:sdk` and commit the diff — a stale generated diff is an error by convention.
+Expected: all exit 0. If `gen:sdk` output drifted (someone changed a route after Task 6), re-run `pnpm gen:sdk` and commit the diff — a stale generated diff is an error by convention.
 
 - [ ] **Step 2: Commit any stragglers**
 

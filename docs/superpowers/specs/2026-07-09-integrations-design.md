@@ -21,7 +21,7 @@ Three tables, following the repo's existing conventions (text ids via `genId`, c
 | `description` | text | shown on the admin page |
 | `enabled` | boolean, default true | hidden from the catalog when false |
 
-Seeded with Slack in the migration that creates it.
+Seeded with Slack in the baseline migration (the project keeps a single regenerated `0000_baseline`; no incremental migration files).
 
 **`connections`** — org-scoped.
 
@@ -65,7 +65,7 @@ export interface SecretStore {
 
 Secrets are immutable — no update. Rotation = `put` new + repoint caller's reference + `remove` old.
 
-**Adapter:** `adapters/db/secret-store.ts` (Drizzle-backed, like the other db adapters). AES-256-GCM; 32-byte key from env `SECRETS_ENCRYPTION_KEY` (base64); fresh random IV per secret; auth tag verified on decrypt, so a wrong key or tampered ciphertext throws rather than returning garbage. Decryption happens only inside `get`. Org scoping is structural: every operation keys on `(org_id, id)`.
+**Adapter:** `adapters/db/secrets.ts` (Drizzle-backed, like the other db adapters; the pure crypto functions and the store live in this one module). AES-256-GCM; 32-byte key from env `SECRETS_ENCRYPTION_KEY` (base64); fresh random IV per secret; auth tag verified on decrypt, so a wrong key or tampered ciphertext throws rather than returning garbage. Decryption happens only inside `get`. Org scoping is structural: every operation keys on `(org_id, id)`.
 
 ## 3. Core context — `core/integrations/`
 
@@ -111,14 +111,12 @@ Core holds config and secrets as opaque records; per-integration shapes are vali
 
 - `listIntegrations()` — enabled catalog entries.
 - `listConnections(orgId)` — the org's connections (no secrets).
-- `connect(orgId, input)` — verifies the integration exists and the org isn't already connected to it; `SecretStore.put` the secrets; insert the connection; publish `connection.created`.
-- `update(orgId, id, input)` — patch config/status; if `secrets` present, rotate (put new → repoint `secretId` → remove old); publish `connection.updated`.
-- `disconnect(orgId, id)` — delete the connection, then `SecretStore.remove` its secret; publish `connection.removed`.
+- `connect(orgId, input)` — verifies the integration exists and the org isn't already connected to it; `SecretStore.put` the secrets; insert the connection.
+- `update(orgId, id, input)` — patch config/status; if `secrets` present, rotate (put new → repoint `secretId` → remove old).
+- `disconnect(orgId, id)` — delete the connection, then `SecretStore.remove` its secret.
 - `getConnection(orgId, integrationId)` — connection **with decrypted secrets**, for internal callers (billing, automations, workers). Never exposed over HTTP. The caller builds its own adapter from it; this domain never calls the external service.
 
-**Outbound port** (`IntegrationsRepository`): reads on `integrations`, CRUD on `connections`. `SecretStore` and `EventBus` are injected separately (constructor: `repo`, `secretStore`, `eventBus`, `now`).
-
-**Events** (per the domain spec): `connection.created`, `connection.updated`, `connection.removed`, published on the shared `EventBus`, carrying `orgId`, `connectionId`, `integrationId` — never secrets.
+**Outbound port** (`IntegrationsRepository`): reads on `integrations`, CRUD on `connections`. `SecretStore` is injected separately (constructor: `repo`, `secretStore`).
 
 **Wiring:** `composition/container.ts` gains `secretStore` (adapter) and `integrations` (service); `SECRETS_ENCRYPTION_KEY` joins `Config` and the server's env reading.
 
@@ -184,14 +182,14 @@ Forms are per-integration by design — good UX now, no generic form machinery. 
 
 ## 7. Testing
 
-- `core/integrations/service.test.ts` — in-memory repo + fake SecretStore + capturing EventBus: connect happy path; duplicate connect rejected; update with/without secret rotation (old secret removed, new referenced); disconnect removes connection and secret; `getConnection` returns decrypted secrets; events published with no secret material.
-- `adapters/db/secret-store.test.ts` — crypto unit tests with no DB (in-memory rows): put/get roundtrip; tampered ciphertext and wrong key throw; distinct IVs per put; invalid key length rejected at construction.
+- `core/integrations/service.test.ts` — in-memory repo + fake SecretStore: connect happy path; duplicate connect rejected; update with/without secret rotation (old secret removed, new referenced); disconnect removes connection and secret; `getConnection` returns decrypted secrets.
+- `adapters/db/secrets.test.ts` — crypto unit tests with no DB: encrypt/decrypt roundtrip; tampered ciphertext and wrong key throw; distinct IVs per encryption; invalid key length rejected.
 - Contract shapes are exercised by Fastify's request/response validation; no separate route tests, matching the repo (only service-level tests exist per context).
 
 ## 8. Delivery checkpoints
 
-1. SecretStore port + adapter + tests.
-2. Schema (3 tables) + migration with Slack seed row.
+1. Schema (3 tables) in the regenerated baseline, with the Slack seed row.
+2. SecretStore port + adapter + tests.
 3. Core context + repository + container wiring + tests.
 4. Contract + routes + `pnpm gen:sdk`.
 5. Admin `/settings/integrations` page.
