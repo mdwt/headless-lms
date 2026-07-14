@@ -11,3 +11,4 @@ export * from "./members.js";
 export * from "./dashboard.js";
 export * from "./assets.js";
 export * from "./connected-apps.js";
+export * from "./integrations.js";

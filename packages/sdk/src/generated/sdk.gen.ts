@@ -3,9 +3,15 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  ConfigureConnectionData,
+  ConfigureConnectionErrors,
+  ConfigureConnectionResponses,
   ConfirmAssetData,
   ConfirmAssetErrors,
   ConfirmAssetResponses,
+  ConnectServiceData,
+  ConnectServiceErrors,
+  ConnectServiceResponses,
   CreateActivityData,
   CreateActivityResponses,
   CreateCourseData,
@@ -26,9 +32,15 @@ import type {
   DeleteMcpResponses,
   DeleteModuleData,
   DeleteModuleResponses,
+  DisconnectServiceData,
+  DisconnectServiceErrors,
+  DisconnectServiceResponses,
   GetAssetData,
   GetAssetErrors,
   GetAssetResponses,
+  GetConnectionData,
+  GetConnectionErrors,
+  GetConnectionResponses,
   GetCourseData,
   GetCourseErrors,
   GetCourseResponses,
@@ -50,6 +62,9 @@ import type {
   ListConnectedAppsData,
   ListConnectedAppsErrors,
   ListConnectedAppsResponses,
+  ListConnectionsData,
+  ListConnectionsErrors,
+  ListConnectionsResponses,
   ListCoursesData,
   ListCoursesResponses,
   ListEntitlementsData,
@@ -62,6 +77,9 @@ import type {
   ListStudentsResponses,
   PostMcpData,
   PostMcpResponses,
+  ReconnectServiceData,
+  ReconnectServiceErrors,
+  ReconnectServiceResponses,
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
@@ -625,6 +643,107 @@ export class ConnectedApps {
       RevokeConnectedAppErrors,
       ThrowOnError
     >({ url: "/api/connected-apps/{id}", ...options });
+  }
+}
+
+export class Integrations {
+  /**
+   * List the organization's service connections
+   */
+  public static listConnections<ThrowOnError extends boolean = false>(
+    options?: Options<ListConnectionsData, ThrowOnError>,
+  ): RequestResult<ListConnectionsResponses, ListConnectionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListConnectionsResponses,
+      ListConnectionsErrors,
+      ThrowOnError
+    >({ url: "/api/integrations", ...options });
+  }
+
+  /**
+   * Connect a service (stores its credential encrypted)
+   */
+  public static connectService<ThrowOnError extends boolean = false>(
+    options: Options<ConnectServiceData, ThrowOnError>,
+  ): RequestResult<ConnectServiceResponses, ConnectServiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ConnectServiceResponses,
+      ConnectServiceErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Disconnect a service (destroys its stored credential)
+   */
+  public static disconnectService<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectServiceData, ThrowOnError>,
+  ): RequestResult<DisconnectServiceResponses, DisconnectServiceErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DisconnectServiceResponses,
+      DisconnectServiceErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/{id}", ...options });
+  }
+
+  /**
+   * Get a connection
+   */
+  public static getConnection<ThrowOnError extends boolean = false>(
+    options: Options<GetConnectionData, ThrowOnError>,
+  ): RequestResult<GetConnectionResponses, GetConnectionErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetConnectionResponses,
+      GetConnectionErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/{id}", ...options });
+  }
+
+  /**
+   * Change a connection's configuration or active flag
+   */
+  public static configureConnection<ThrowOnError extends boolean = false>(
+    options: Options<ConfigureConnectionData, ThrowOnError>,
+  ): RequestResult<ConfigureConnectionResponses, ConfigureConnectionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      ConfigureConnectionResponses,
+      ConfigureConnectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Replace a connection's credential (re-authenticate)
+   */
+  public static reconnectService<ThrowOnError extends boolean = false>(
+    options: Options<ReconnectServiceData, ThrowOnError>,
+  ): RequestResult<ReconnectServiceResponses, ReconnectServiceErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ReconnectServiceResponses,
+      ReconnectServiceErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations/{id}/reconnect",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 }
 

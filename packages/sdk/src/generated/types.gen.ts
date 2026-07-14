@@ -1318,6 +1318,316 @@ export type RevokeConnectedAppResponses = {
   204: unknown;
 };
 
+export type ListConnectionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/integrations";
+};
+
+export type ListConnectionsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ListConnectionsError = ListConnectionsErrors[keyof ListConnectionsErrors];
+
+export type ListConnectionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    service: string;
+    config: {
+      [key: string]: unknown;
+    };
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
+export type ListConnectionsResponse = ListConnectionsResponses[keyof ListConnectionsResponses];
+
+export type ConnectServiceData = {
+  body: {
+    service: string;
+    credential: string;
+    config?: {
+      [key: string]: unknown;
+    };
+  };
+  path?: never;
+  query?: never;
+  url: "/api/integrations";
+};
+
+export type ConnectServiceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ConnectServiceError = ConnectServiceErrors[keyof ConnectServiceErrors];
+
+export type ConnectServiceResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    service: string;
+    config: {
+      [key: string]: unknown;
+    };
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type ConnectServiceResponse = ConnectServiceResponses[keyof ConnectServiceResponses];
+
+export type DisconnectServiceData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/integrations/{id}";
+};
+
+export type DisconnectServiceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type DisconnectServiceError = DisconnectServiceErrors[keyof DisconnectServiceErrors];
+
+export type DisconnectServiceResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetConnectionData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/integrations/{id}";
+};
+
+export type GetConnectionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type GetConnectionError = GetConnectionErrors[keyof GetConnectionErrors];
+
+export type GetConnectionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    service: string;
+    config: {
+      [key: string]: unknown;
+    };
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type GetConnectionResponse = GetConnectionResponses[keyof GetConnectionResponses];
+
+export type ConfigureConnectionData = {
+  body: {
+    config?: {
+      [key: string]: unknown;
+    };
+    active?: boolean;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/integrations/{id}";
+};
+
+export type ConfigureConnectionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ConfigureConnectionError = ConfigureConnectionErrors[keyof ConfigureConnectionErrors];
+
+export type ConfigureConnectionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    service: string;
+    config: {
+      [key: string]: unknown;
+    };
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type ConfigureConnectionResponse =
+  ConfigureConnectionResponses[keyof ConfigureConnectionResponses];
+
+export type ReconnectServiceData = {
+  body: {
+    credential: string;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/integrations/{id}/reconnect";
+};
+
+export type ReconnectServiceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ReconnectServiceError = ReconnectServiceErrors[keyof ReconnectServiceErrors];
+
+export type ReconnectServiceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    service: string;
+    config: {
+      [key: string]: unknown;
+    };
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type ReconnectServiceResponse = ReconnectServiceResponses[keyof ReconnectServiceResponses];
+
 export type DeleteMcpData = {
   body?: never;
   path?: never;

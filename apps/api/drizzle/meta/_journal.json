@@ -15,6 +15,13 @@
       "when": 1784031123685,
       "tag": "0001_special_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784032652544,
+      "tag": "0002_supreme_paibok",
+      "breakpoints": true
     }
   ]
 }

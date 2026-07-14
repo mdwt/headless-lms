@@ -8,3 +8,4 @@ export * from "./progress.js";
 export * from "./identity.js";
 export * from "./assets.js";
 export * from "./credentials.js";
+export * from "./integrations.js";
