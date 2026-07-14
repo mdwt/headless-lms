@@ -28,6 +28,23 @@ export interface EmailSender {
   send(message: EmailMessage): Promise<void>;
 }
 
+// --- Secure credential store -------------------------------------------------
+// Org-scoped storage for secrets (integration credentials, API keys, tokens).
+// Values are encrypted at rest and decrypted only when a caller `reveal`s them
+// at point of use. Domains hold the returned ref, never the plaintext.
+// Implemented by the Drizzle credential store adapter (AES-256-GCM).
+
+export interface CredentialStore {
+  /** Encrypt and persist a secret for an org. Returns the ref the domain stores. */
+  store(orgId: string, plaintext: string): Promise<string>;
+  /** Decrypt a secret at point of use, or null if the ref doesn't exist in the org. */
+  reveal(orgId: string, ref: string): Promise<string | null>;
+  /** Replace a secret's value in place (e.g. reconnect / token refresh). */
+  update(orgId: string, ref: string, plaintext: string): Promise<void>;
+  /** Permanently delete a secret (e.g. disconnect). */
+  destroy(orgId: string, ref: string): Promise<void>;
+}
+
 // --- Object storage (uploads + content) ------------------------------------
 // Outbound port for an S3-compatible object store. Operates on opaque keys;
 // callers (e.g. the uploads context) build org-scoped keys and authorize

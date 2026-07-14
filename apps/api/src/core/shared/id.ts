@@ -22,6 +22,7 @@ export const ID_PREFIXES = {
   asset: "ast",
   enrollment: "enr",
   progress: "prg",
+  credential: "crd",
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;

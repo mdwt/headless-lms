@@ -7,3 +7,4 @@ export * from "./entitlements.js";
 export * from "./progress.js";
 export * from "./identity.js";
 export * from "./assets.js";
+export * from "./credentials.js";

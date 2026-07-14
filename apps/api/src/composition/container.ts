@@ -29,6 +29,8 @@ import { DrizzleContentStructureRepository } from "../adapters/db/repositories/s
 import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
 import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
+import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
+import type { CredentialStore } from "../core/shared/ports.js";
 
 export interface Config {
   databaseUrl: string;
@@ -38,6 +40,8 @@ export interface Config {
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
   storage: MinioStorageConfig;
+  /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
+  credentialStoreKey: string;
 }
 
 export interface Container {
@@ -56,6 +60,8 @@ export interface Container {
   };
   storage: MinioStorageAdapter;
   connectedApps: ConnectedAppsRepo;
+  /** Shared secure credential store — encrypted at rest, org-scoped, decrypt at point of use. */
+  credentials: CredentialStore;
 }
 
 export function buildContainer(config: Config): Container {
@@ -100,6 +106,7 @@ export function buildContainer(config: Config): Container {
   };
 
   const connectedApps = createConnectedAppsRepo(db);
+  const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
 
   // Auth adapter — depends on core ports (email, identity, organizations);
   // composition only injects the implementations.
@@ -129,5 +136,6 @@ export function buildContainer(config: Config): Container {
     reporting,
     storage,
     connectedApps,
+    credentials: credentialStore,
   };
 }

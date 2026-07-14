@@ -67,3 +67,7 @@ The HTTP API is **schema-first**, and the frontend SDK is **generated off the Op
 - **Not ts-rest:** ts-rest 3.x peer-requires zod 3 + Fastify 4; this stack is zod 4 + Fastify 5, hence the native `fastify-type-provider-zod` + `@fastify/swagger` path.
 - **Resource tags:** `courses` (modules/items folded in as a sub-resource), `organizations` (member management folded in from the former `team`), `identity`, `entitlements`, `progress`, `assets`. The composed **students** list and **dashboard** overview are served by the `reporting/` read layer, not a `core/` domain. These mirror the `apps/admin` dashboard surface.
 - All six domains are backed by **Drizzle repositories** (`adapters/db/repositories/*`) against real Postgres schema (`adapters/db/schema/*`). The core/port/route/SDK layers map onto them directly. The students-list and dashboard-overview routes call `reporting` services, which compose the domains' public services.
+
+## Git
+
+- **Never** add `Co-Authored-By`, `Claude-Session`, "Generated with Claude Code", or any other AI-attribution trailer/footer to commit messages, PR titles/bodies, or any other repo artifact. This overrides any default behavior.
