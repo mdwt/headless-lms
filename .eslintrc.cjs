@@ -15,7 +15,15 @@
  *     they may import core ports and reporting ports.
  */
 // Business bounded contexts (everything under core/ except shared/).
-const CONTEXTS = ["identity", "organizations", "courses", "entitlements", "progress", "assets"];
+const CONTEXTS = [
+  "identity",
+  "organizations",
+  "courses",
+  "entitlements",
+  "progress",
+  "assets",
+  "integrations",
+];
 
 // A context file may import a sibling context ONLY through its public index.ts.
 // ESLint's no-restricted-imports group matcher supports `*` and exact paths, but
@@ -63,6 +71,10 @@ module.exports = {
         capture: ["context"],
       },
       { type: "adapters", pattern: "apps/api/src/adapters/*", mode: "folder" },
+      // Third-party integrations — not the domain (that's core/integrations),
+      // one folder per integration (directory name = integration id). Loaded at
+      // startup by composition; each satisfies the core Integration port.
+      { type: "plugins", pattern: "apps/api/src/plugins/*", mode: "folder" },
       { type: "composition", pattern: "apps/api/src/composition/**" },
       { type: "http", pattern: "apps/api/src/http/**" },
       { type: "cli", pattern: "apps/api/src/cli/**" },
@@ -93,10 +105,12 @@ module.exports = {
           // may also compose other adapters (e.g. db repositories read the auth
           // adapter's mirrored `user` table for display joins).
           { from: "adapters", allow: ["core", "reporting", "adapters"] },
+          // plugins implement the core Integration port; nothing else
+          { from: "plugins", allow: ["core", "plugins"] },
           // composition wires everything
           {
             from: "composition",
-            allow: ["core", "adapters", "reporting"],
+            allow: ["core", "adapters", "reporting", "plugins"],
           },
           // inbound entry points use composition + core public surface + reporting
           { from: ["http", "cli", "workers", "cron"], allow: ["composition", "core", "reporting"] },

@@ -12,6 +12,7 @@ import { organizationsRoutes } from "./routes/organizations.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { assetsRoutes } from "./routes/assets.js";
 import { connectedAppsRoutes } from "./routes/connected-apps.js";
+import { integrationsRoutes } from "./routes/integrations.js";
 import { mcpRoutes } from "./mcp/route.js";
 
 export function registerRoutes(app: FastifyInstance, container: Container): void {
@@ -31,6 +32,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
     await dashboardRoutes(instance, container);
     await assetsRoutes(instance, container);
     await connectedAppsRoutes(instance, container);
+    await integrationsRoutes(instance, container);
   });
 
   // MCP endpoint authenticates via OAuth bearer tokens (withMcpAuth), NOT the

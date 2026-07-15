@@ -3,9 +3,15 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  ConfigureConnectionData,
+  ConfigureConnectionErrors,
+  ConfigureConnectionResponses,
   ConfirmAssetData,
   ConfirmAssetErrors,
   ConfirmAssetResponses,
+  ConnectIntegrationData,
+  ConnectIntegrationErrors,
+  ConnectIntegrationResponses,
   CreateActivityData,
   CreateActivityResponses,
   CreateCourseData,
@@ -26,9 +32,15 @@ import type {
   DeleteMcpResponses,
   DeleteModuleData,
   DeleteModuleResponses,
+  DisconnectIntegrationData,
+  DisconnectIntegrationErrors,
+  DisconnectIntegrationResponses,
   GetAssetData,
   GetAssetErrors,
   GetAssetResponses,
+  GetConnectionData,
+  GetConnectionErrors,
+  GetConnectionResponses,
   GetCourseData,
   GetCourseErrors,
   GetCourseResponses,
@@ -47,9 +59,15 @@ import type {
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAvailableIntegrationsData,
+  ListAvailableIntegrationsErrors,
+  ListAvailableIntegrationsResponses,
   ListConnectedAppsData,
   ListConnectedAppsErrors,
   ListConnectedAppsResponses,
+  ListConnectionsData,
+  ListConnectionsErrors,
+  ListConnectionsResponses,
   ListCoursesData,
   ListCoursesResponses,
   ListEntitlementsData,
@@ -62,6 +80,9 @@ import type {
   ListStudentsResponses,
   PostMcpData,
   PostMcpResponses,
+  ReconnectIntegrationData,
+  ReconnectIntegrationErrors,
+  ReconnectIntegrationResponses,
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
@@ -625,6 +646,124 @@ export class ConnectedApps {
       RevokeConnectedAppErrors,
       ThrowOnError
     >({ url: "/api/connected-apps/{id}", ...options });
+  }
+}
+
+export class Integrations {
+  /**
+   * List the integrations this deployment supports, with their config schemas
+   */
+  public static listAvailableIntegrations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAvailableIntegrationsData, ThrowOnError>,
+  ): RequestResult<
+    ListAvailableIntegrationsResponses,
+    ListAvailableIntegrationsErrors,
+    ThrowOnError
+  > {
+    return (options?.client ?? client).get<
+      ListAvailableIntegrationsResponses,
+      ListAvailableIntegrationsErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/available", ...options });
+  }
+
+  /**
+   * List the organization's integration connections
+   */
+  public static listConnections<ThrowOnError extends boolean = false>(
+    options?: Options<ListConnectionsData, ThrowOnError>,
+  ): RequestResult<ListConnectionsResponses, ListConnectionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<
+      ListConnectionsResponses,
+      ListConnectionsErrors,
+      ThrowOnError
+    >({ url: "/api/integrations", ...options });
+  }
+
+  /**
+   * Connect an integration (stores its secrets encrypted)
+   */
+  public static connectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<ConnectIntegrationData, ThrowOnError>,
+  ): RequestResult<ConnectIntegrationResponses, ConnectIntegrationErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ConnectIntegrationResponses,
+      ConnectIntegrationErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Disconnect an integration (destroys its stored secrets)
+   */
+  public static disconnectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectIntegrationData, ThrowOnError>,
+  ): RequestResult<DisconnectIntegrationResponses, DisconnectIntegrationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DisconnectIntegrationResponses,
+      DisconnectIntegrationErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/{id}", ...options });
+  }
+
+  /**
+   * Get a connection
+   */
+  public static getConnection<ThrowOnError extends boolean = false>(
+    options: Options<GetConnectionData, ThrowOnError>,
+  ): RequestResult<GetConnectionResponses, GetConnectionErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetConnectionResponses,
+      GetConnectionErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/{id}", ...options });
+  }
+
+  /**
+   * Change a connection's configuration or active flag
+   */
+  public static configureConnection<ThrowOnError extends boolean = false>(
+    options: Options<ConfigureConnectionData, ThrowOnError>,
+  ): RequestResult<ConfigureConnectionResponses, ConfigureConnectionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      ConfigureConnectionResponses,
+      ConfigureConnectionErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Replace a connection's secrets (re-authenticate)
+   */
+  public static reconnectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<ReconnectIntegrationData, ThrowOnError>,
+  ): RequestResult<ReconnectIntegrationResponses, ReconnectIntegrationErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ReconnectIntegrationResponses,
+      ReconnectIntegrationErrors,
+      ThrowOnError
+    >({
+      url: "/api/integrations/{id}/reconnect",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 }
 

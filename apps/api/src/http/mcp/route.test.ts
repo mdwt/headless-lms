@@ -7,9 +7,9 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { buildServer } from "../server.js";
 
-describe("MCP HTTP route — /mcp", () => {
-  const app = buildServer();
+const app = await buildServer();
 
+describe("MCP HTTP route — /mcp", () => {
   afterAll(async () => {
     await app.close();
   });

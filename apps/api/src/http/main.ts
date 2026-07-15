@@ -5,7 +5,7 @@ import { buildServer } from "./server.js";
 import { loadServerConfig } from "./config.js";
 
 const config = loadServerConfig();
-const app = buildServer(config);
+const app = await buildServer(config);
 
 app.listen({ port: config.port, host: config.host }).catch((err) => {
   app.log.error(err);

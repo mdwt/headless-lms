@@ -16,6 +16,8 @@ import { ProgressServiceImpl } from "../core/progress/index.js";
 import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
 import { AssetsServiceImpl } from "../core/assets/index.js";
+import { IntegrationsServiceImpl } from "../core/integrations/index.js";
+import { loadIntegrations } from "./integrations.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
 
@@ -30,6 +32,7 @@ import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
 import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
 import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
+import { DrizzleConnectionsRepository } from "../adapters/db/repositories/integrations.js";
 import type { CredentialStore } from "../core/shared/ports.js";
 
 export interface Config {
@@ -53,6 +56,7 @@ export interface Container {
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
   assets: AssetsServiceImpl;
+  integrations: IntegrationsServiceImpl;
   // Reporting read layer (composed cross-context reads; owns no domain rules).
   reporting: {
     students: StudentsReportServiceImpl;
@@ -64,13 +68,12 @@ export interface Container {
   credentials: CredentialStore;
 }
 
-export function buildContainer(config: Config): Container {
+export async function buildContainer(config: Config): Promise<Container> {
   // Outbound adapters
   const db = createDb(config.databaseUrl);
   const eventBus = new InMemoryEventBus();
   const email = new EmailAdapter();
   const storage = new MinioStorageAdapter(config.storage);
-  void eventBus;
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
@@ -107,6 +110,17 @@ export function buildContainer(config: Config): Container {
 
   const connectedApps = createConnectedAppsRepo(db);
   const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
+  // The integrations this deployment supports: everything under src/plugins/
+  // (directory name = integration id), loaded at startup. Connect/configure
+  // reject undeclared ids and validate config with the integration's own schema.
+  const integrationsRegistry = await loadIntegrations();
+  const integrations = new IntegrationsServiceImpl(
+    integrationsRegistry,
+    new DrizzleConnectionsRepository(db),
+    credentialStore,
+    eventBus,
+    () => new Date().toISOString(),
+  );
 
   // Auth adapter — depends on core ports (email, identity, organizations);
   // composition only injects the implementations.
@@ -133,6 +147,7 @@ export function buildContainer(config: Config): Container {
     entitlements,
     progress,
     assets,
+    integrations,
     reporting,
     storage,
     connectedApps,

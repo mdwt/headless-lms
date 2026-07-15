@@ -1,9 +1,9 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { buildServer } from "./server.js";
 
-describe("OAuth discovery endpoints", () => {
-  const app = buildServer();
+const app = await buildServer();
 
+describe("OAuth discovery endpoints", () => {
   afterAll(async () => {
     await app.close();
   });

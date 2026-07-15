@@ -9,7 +9,7 @@ import { buildServer } from "../src/http/server.js";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const outPath = join(repoRoot, "packages", "sdk", "openapi.json");
 
-const app = buildServer();
+const app = await buildServer();
 await app.ready();
 const document = app.swagger();
 writeFileSync(outPath, `${JSON.stringify(document, null, 2)}\n`);

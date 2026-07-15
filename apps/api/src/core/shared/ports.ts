@@ -30,18 +30,20 @@ export interface EmailSender {
 
 // --- Secure credential store -------------------------------------------------
 // Org-scoped storage for secrets (integration credentials, API keys, tokens).
-// Values are encrypted at rest and decrypted only when a caller `reveal`s them
-// at point of use. Domains hold the returned ref, never the plaintext.
-// Implemented by the Drizzle credential store adapter (AES-256-GCM).
+// Values are JSON documents, encrypted at rest and decrypted only when a
+// caller `reveal`s them at point of use — the store (de)serializes internally,
+// so callers pass and receive plain objects. Domains hold the returned ref,
+// never the secrets. Implemented by the Drizzle credential store adapter
+// (AES-256-GCM).
 
 export interface CredentialStore {
-  /** Encrypt and persist a secret for an org. Returns the ref the domain stores. */
-  store(orgId: string, plaintext: string): Promise<string>;
-  /** Decrypt a secret at point of use, or null if the ref doesn't exist in the org. */
-  reveal(orgId: string, ref: string): Promise<string | null>;
-  /** Replace a secret's value in place (e.g. reconnect / token refresh). */
-  update(orgId: string, ref: string, plaintext: string): Promise<void>;
-  /** Permanently delete a secret (e.g. disconnect). */
+  /** Encrypt and persist an org's secrets. Returns the ref the domain stores. */
+  store(orgId: string, secrets: Record<string, unknown>): Promise<string>;
+  /** Decrypt secrets at point of use, or null if the ref doesn't exist in the org. */
+  reveal(orgId: string, ref: string): Promise<Record<string, unknown> | null>;
+  /** Replace stored secrets in place (e.g. reconnect / token refresh). */
+  update(orgId: string, ref: string, secrets: Record<string, unknown>): Promise<void>;
+  /** Permanently delete stored secrets (e.g. disconnect). */
   destroy(orgId: string, ref: string): Promise<void>;
 }
 

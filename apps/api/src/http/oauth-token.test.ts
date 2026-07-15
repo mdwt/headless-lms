@@ -1,9 +1,9 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { buildServer } from "./server.js";
 
-describe("OAuth token endpoint — form-encoded body", () => {
-  const app = buildServer();
+const app = await buildServer();
 
+describe("OAuth token endpoint — form-encoded body", () => {
   afterAll(async () => {
     await app.close();
   });

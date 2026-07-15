@@ -25,7 +25,7 @@ Per-workspace: `pnpm --filter @headless-lms/api <script>`.
 
 Hexagonal. The api (`apps/api/src/`) is layered:
 
-- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Six bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets` (+ `shared/` for cross-cutting ports).
+- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations (`stripe`, `slack`) live in `src/plugins/` (outside `core/` and `adapters/` — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the core `Integration` port. Composition scans that directory at startup (`loadIntegrations`) — adding an integration is adding a folder; nothing else to register.
 - `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `composition/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
 - `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).
@@ -41,7 +41,7 @@ Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`, `
 
 ### Import boundaries (enforced by ESLint — `.eslintrc.cjs`)
 
-- The six contexts are `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`.
+- The seven contexts are `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations`.
 - A context imports another context **only** through its `index.ts` (no deep imports). `core/shared/ports` is the exception (cross-cutting, allowed).
 - `core/` may not import `adapters/`, `http/`, `composition/`, `reporting/`, frameworks (`fastify`, `pg`), or `drizzle-orm`.
 - `reporting/` may import any `core/<ctx>/index.ts`; it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`.
