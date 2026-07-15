@@ -196,6 +196,11 @@ describe("IntegrationsService", () => {
     expect(ok).toBe(true);
     expect(credentials.destroy).toHaveBeenCalledWith("org-1", "crd_1");
     expect(repo.delete).toHaveBeenCalledWith("org-1", "con_1");
+    // The connection row holds an FK onto the credential row — it must go first.
+    const deleteOrder = (repo.delete as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    const destroyOrder = (credentials.destroy as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0]!;
+    expect(deleteOrder).toBeLessThan(destroyOrder);
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "connection.removed" }),
     );
