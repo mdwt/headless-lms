@@ -1,15 +1,16 @@
-// Builds the IntegrationsRegistry by scanning src/integrations/ — the home of
-// integrations that are not part of the core system. Each subdirectory is one
-// integration: its name IS the integration id, and its index module's default
-// export must satisfy the core Integration port. Loaded once at startup;
-// anything malformed fails the boot, not a request.
+// Builds the IntegrationsRegistry by scanning src/plugins/ — the home of
+// third-party integrations, deliberately outside core (not the domain) and
+// outside adapters. Each subdirectory is one integration: its name IS the
+// integration id, and its index module's default export must satisfy the core
+// Integration port. Loaded once at startup; anything malformed fails the boot,
+// not a request.
 import { readdir } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { createIntegrationsRegistry } from "../core/integrations/index.js";
 import type { Integration, IntegrationsRegistry } from "../core/integrations/index.js";
 
-const INTEGRATIONS_DIR = fileURLToPath(new URL("../integrations/", import.meta.url));
+const PLUGINS_DIR = fileURLToPath(new URL("../plugins/", import.meta.url));
 
 function isIntegration(value: unknown): value is Integration {
   const it = value as Integration | undefined;
@@ -30,9 +31,7 @@ function isIntegration(value: unknown): value is Integration {
   );
 }
 
-export async function loadIntegrations(
-  dir: string = INTEGRATIONS_DIR,
-): Promise<IntegrationsRegistry> {
+export async function loadIntegrations(dir: string = PLUGINS_DIR): Promise<IntegrationsRegistry> {
   const entries = await readdir(dir, { withFileTypes: true });
   const integrations: Integration[] = [];
   for (const entry of entries.filter((e) => e.isDirectory())) {

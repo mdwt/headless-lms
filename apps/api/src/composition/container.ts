@@ -110,10 +110,9 @@ export async function buildContainer(config: Config): Promise<Container> {
 
   const connectedApps = createConnectedAppsRepo(db);
   const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
-  // The integrations this deployment supports: everything under
-  // src/integrations/ (directory name = integration id), loaded at startup.
-  // Connect/configure reject undeclared ids and validate config with the
-  // integration's own schema.
+  // The integrations this deployment supports: everything under src/plugins/
+  // (directory name = integration id), loaded at startup. Connect/configure
+  // reject undeclared ids and validate config with the integration's own schema.
   const integrationsRegistry = await loadIntegrations();
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,

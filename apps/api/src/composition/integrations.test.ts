@@ -13,7 +13,7 @@ async function fakeIntegrationsDir(name: string, body: string): Promise<string> 
 }
 
 describe("loadIntegrations", () => {
-  it("loads every integration under src/integrations/ keyed by directory name", async () => {
+  it("loads every integration under src/plugins/ keyed by directory name", async () => {
     const registry = await loadIntegrations();
     expect(registry.list().map((i) => i.id)).toEqual(["slack", "stripe"]);
     expect(registry.get("stripe")?.validateConfig({ mode: "test" }).ok).toBe(true);

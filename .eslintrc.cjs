@@ -71,10 +71,10 @@ module.exports = {
         capture: ["context"],
       },
       { type: "adapters", pattern: "apps/api/src/adapters/*", mode: "folder" },
-      // Integrations that are not part of the core system, one folder per
-      // integration (directory name = integration id). Loaded at startup by
-      // composition; each satisfies the core Integration port.
-      { type: "integrations", pattern: "apps/api/src/integrations/*", mode: "folder" },
+      // Third-party integrations — not the domain (that's core/integrations),
+      // one folder per integration (directory name = integration id). Loaded at
+      // startup by composition; each satisfies the core Integration port.
+      { type: "plugins", pattern: "apps/api/src/plugins/*", mode: "folder" },
       { type: "composition", pattern: "apps/api/src/composition/**" },
       { type: "http", pattern: "apps/api/src/http/**" },
       { type: "cli", pattern: "apps/api/src/cli/**" },
@@ -105,12 +105,12 @@ module.exports = {
           // may also compose other adapters (e.g. db repositories read the auth
           // adapter's mirrored `user` table for display joins).
           { from: "adapters", allow: ["core", "reporting", "adapters"] },
-          // integrations implement the core Integration port; nothing else
-          { from: "integrations", allow: ["core", "integrations"] },
+          // plugins implement the core Integration port; nothing else
+          { from: "plugins", allow: ["core", "plugins"] },
           // composition wires everything
           {
             from: "composition",
-            allow: ["core", "adapters", "reporting", "integrations"],
+            allow: ["core", "adapters", "reporting", "plugins"],
           },
           // inbound entry points use composition + core public surface + reporting
           { from: ["http", "cli", "workers", "cron"], allow: ["composition", "core", "reporting"] },
