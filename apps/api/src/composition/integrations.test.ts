@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadIntegrationsRegistry } from "./integrations.js";
+import { loadIntegrations } from "./integrations.js";
 
 /** Write a fake integration dir whose index.js (CJS) default-exports `body`. */
 async function fakeIntegrationsDir(name: string, body: string): Promise<string> {
@@ -12,9 +12,9 @@ async function fakeIntegrationsDir(name: string, body: string): Promise<string> 
   return dir;
 }
 
-describe("loadIntegrationsRegistry", () => {
+describe("loadIntegrations", () => {
   it("loads every integration under src/integrations/ keyed by directory name", async () => {
-    const registry = await loadIntegrationsRegistry();
+    const registry = await loadIntegrations();
     expect(registry.list().map((i) => i.id)).toEqual(["slack", "stripe"]);
     expect(registry.get("stripe")?.validateConfig({ mode: "test" }).ok).toBe(true);
     expect(registry.get("strope")).toBeNull();
@@ -25,7 +25,7 @@ describe("loadIntegrationsRegistry", () => {
       "mailchimp",
       `{ id: "mailchomp", configSchema: () => ({}), validateConfig: () => ({ ok: true }), actions: [] }`,
     );
-    await expect(loadIntegrationsRegistry(dir)).rejects.toThrow(/must match its directory name/);
+    await expect(loadIntegrations(dir)).rejects.toThrow(/must match its directory name/);
   });
 
   it("rejects an integration with a malformed action", async () => {
@@ -34,6 +34,6 @@ describe("loadIntegrationsRegistry", () => {
       `{ id: "mailchimp", configSchema: () => ({}), validateConfig: () => ({ ok: true }),
          actions: [{ id: "sendCampaign", inputSchema: () => ({}) }] }`,
     );
-    await expect(loadIntegrationsRegistry(dir)).rejects.toThrow(/Integration port/);
+    await expect(loadIntegrations(dir)).rejects.toThrow(/Integration port/);
   });
 });

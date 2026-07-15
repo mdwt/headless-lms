@@ -17,7 +17,7 @@ import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
 import { AssetsServiceImpl } from "../core/assets/index.js";
 import { IntegrationsServiceImpl } from "../core/integrations/index.js";
-import { loadIntegrationsRegistry } from "./integrations.js";
+import { loadIntegrations } from "./integrations.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
 
@@ -114,7 +114,7 @@ export async function buildContainer(config: Config): Promise<Container> {
   // src/integrations/ (directory name = integration id), loaded at startup.
   // Connect/configure reject undeclared ids and validate config with the
   // integration's own schema.
-  const integrationsRegistry = await loadIntegrationsRegistry();
+  const integrationsRegistry = await loadIntegrations();
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
     new DrizzleConnectionsRepository(db),

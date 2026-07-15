@@ -30,7 +30,7 @@ function isIntegration(value: unknown): value is Integration {
   );
 }
 
-export async function loadIntegrationsRegistry(
+export async function loadIntegrations(
   dir: string = INTEGRATIONS_DIR,
 ): Promise<IntegrationsRegistry> {
   const entries = await readdir(dir, { withFileTypes: true });
