@@ -1,5 +1,27 @@
 // integrations context — ports.
-import type { ConfigValidation, ConfigureInput, ConnectInput, Connection } from "./model.js";
+import type { Validation, ConfigureInput, ConnectInput, Connection } from "./model.js";
+
+/** What an action receives when invoked: the connection's secrets (revealed by
+ *  the caller at point of use) and its configuration. */
+export interface ActionContext {
+  secrets: Record<string, unknown>;
+  config: Record<string, unknown>;
+}
+
+/**
+ * A named capability an integration exposes (e.g. slack's postMessageToChannel).
+ * Callers (automations) discover actions by id and input/output definitions,
+ * then invoke them; the action's code makes the external call.
+ */
+export interface Action {
+  id: string;
+  /** The input the action accepts, as JSON Schema. */
+  inputSchema(): Record<string, unknown>;
+  /** The output the action resolves with, as JSON Schema. */
+  outputSchema(): Record<string, unknown>;
+  /** Run the action against the external service. */
+  invoke(ctx: ActionContext, input: unknown): Promise<unknown>;
+}
 
 /**
  * An available integration. Each integration is a module (one folder per
@@ -12,7 +34,9 @@ export interface Integration {
   /** The config this integration accepts, as JSON Schema (drives clients/forms). */
   configSchema(): Record<string, unknown>;
   /** Validate a connection's config against this integration's schema. */
-  validateConfig(config: unknown): ConfigValidation;
+  validateConfig(config: unknown): Validation;
+  /** The actions this integration can be invoked with (may be empty). */
+  actions: Action[];
 }
 
 /** The integrations declared at startup. Unknown ids are rejected by the service. */
@@ -21,10 +45,15 @@ export interface IntegrationsRegistry {
   list(): Integration[];
 }
 
-/** A declared integration as surfaced to clients: its id and config schema. */
+/** A declared integration as surfaced to clients: id, config schema, actions. */
 export interface AvailableIntegration {
   id: string;
   configSchema: Record<string, unknown>;
+  actions: {
+    id: string;
+    inputSchema: Record<string, unknown>;
+    outputSchema: Record<string, unknown>;
+  }[];
 }
 
 // Inbound port (use cases the service exposes).

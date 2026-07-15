@@ -22,9 +22,15 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   ) {}
 
   available() {
-    return this.registry
-      .list()
-      .map((integration) => ({ id: integration.id, configSchema: integration.configSchema() }));
+    return this.registry.list().map((integration) => ({
+      id: integration.id,
+      configSchema: integration.configSchema(),
+      actions: integration.actions.map((action) => ({
+        id: action.id,
+        inputSchema: action.inputSchema(),
+        outputSchema: action.outputSchema(),
+      })),
+    }));
   }
 
   private validate(integrationId: string, config: Record<string, unknown>): void {

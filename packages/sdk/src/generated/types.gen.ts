@@ -1347,6 +1347,15 @@ export type ListAvailableIntegrationsResponses = {
     configSchema: {
       [key: string]: unknown;
     };
+    actions: Array<{
+      id: string;
+      inputSchema: {
+        [key: string]: unknown;
+      };
+      outputSchema: {
+        [key: string]: unknown;
+      };
+    }>;
   }>;
 };
 

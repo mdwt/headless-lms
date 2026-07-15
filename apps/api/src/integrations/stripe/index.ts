@@ -11,9 +11,12 @@ const StripeConfig = z.object({
   statementDescriptor: z.string().max(22).optional(),
 });
 
+// No actions: billing consumes this connection synchronously (checkout), not
+// through invoked actions.
 const stripe: Integration = {
   id: "stripe",
   ...zodConfig(StripeConfig),
+  actions: [],
 };
 
 export default stripe;

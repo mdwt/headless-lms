@@ -4,7 +4,7 @@ Integrations owns an org's connections to external services — Stripe, a CRM, a
 
 Every service authenticates differently — OAuth for one, an API key for another — so the domain doesn't fix a single auth shape. It holds a connection's credentials generically, whatever their form. Credentials are stored through the shared secure credential store: encrypted at rest, decrypted only at the point a caller uses them, and scoped to the owning org.
 
-Two kinds of caller consume a connection. Billing reads an org's Stripe connection synchronously when it runs a checkout. Automations reads a connection when an automation action acts on an external service. In both cases the caller takes the connection and its credentials and constructs its own adapter to make the external call — integrations returns the connection, never a ready client, and never makes the call itself.
+Two kinds of caller consume a connection. Billing reads an org's Stripe connection synchronously when it runs a checkout. Automations invokes an integration's action when a system event calls for it. An integration declares named actions — each with an input and output definition — so callers know what it can do (slack exposes postMessageToChannel); the caller invokes the action with the connection's credentials, and the action makes the external call. The domain itself owns connections and action declarations, never the decision to run one.
 
 ## Models
 
@@ -20,7 +20,7 @@ Two kinds of caller consume a connection. Billing reads an org's Stripe connecti
 
 ## Boundaries
 
-1. **integrations ↔ the adapters that call out** — the domain returns a connection and its credentials; the caller's adapter uses them to talk to the external service. The domain never makes the external call.
+1. **integrations ↔ the callers that act** — an integration exposes named actions with input and output definitions; a caller invokes an action with the connection's credentials, and the integration's action makes the external call. The domain itself never calls out — it owns connections and declares actions.
 2. **integrations ↔ billing** — billing gets an org's payment connection to run a checkout synchronously. Integrations owns the connection; billing owns the checkout.
 3. **integrations ↔ automations** — an automation action names a connection to act on; automations gets it from this domain and its adapter makes the call. Automations decides an integration runs; integrations owns the connection.
 4. **integrations ↔ organizations** — a connection belongs to an org and is scoped to it; one org's connections and credentials are never visible to another.

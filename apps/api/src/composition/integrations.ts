@@ -16,7 +16,16 @@ function isIntegration(value: unknown): value is Integration {
   return (
     typeof it?.id === "string" &&
     typeof it?.configSchema === "function" &&
-    typeof it?.validateConfig === "function"
+    typeof it?.validateConfig === "function" &&
+    Array.isArray(it?.actions) &&
+    it.actions.every(
+      (action) =>
+        typeof action?.id === "string" &&
+        typeof action?.inputSchema === "function" &&
+        typeof action?.outputSchema === "function" &&
+        typeof action?.invoke === "function",
+    ) &&
+    new Set(it.actions.map((action) => action.id)).size === it.actions.length
   );
 }
 
@@ -35,7 +44,8 @@ export async function loadIntegrationsRegistry(
     };
     if (!isIntegration(mod.default)) {
       throw new Error(
-        `integration "${entry.name}" must default-export an object satisfying the Integration port`,
+        `integration "${entry.name}" must default-export an object satisfying the Integration port ` +
+          `(id, configSchema, validateConfig, actions[] with unique ids and input/output schemas)`,
       );
     }
     if (mod.default.id !== entry.name) {

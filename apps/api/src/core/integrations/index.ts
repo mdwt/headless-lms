@@ -1,7 +1,7 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from "./service.js";
 export { createIntegrationsRegistry } from "./registry.js";
-export { zodConfig } from "./validation.js";
+export { zodConfig, zodAction } from "./validation.js";
 export {
   AlreadyConnectedError,
   UnknownIntegrationError,
@@ -13,6 +13,8 @@ export type {
   Integration,
   IntegrationsRegistry,
   AvailableIntegration,
+  Action,
+  ActionContext,
 } from "./ports.js";
-export type { Connection, ConnectInput, ConfigureInput, ConfigValidation } from "./model.js";
+export type { Connection, ConnectInput, ConfigureInput, Validation } from "./model.js";
 export type { ConnectionCreated, ConnectionUpdated, ConnectionRemoved } from "./events.js";

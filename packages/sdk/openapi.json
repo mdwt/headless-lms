@@ -4081,11 +4081,37 @@
                       "configSchema": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "actions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "inputSchema": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "outputSchema": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "inputSchema",
+                            "outputSchema"
+                          ],
+                          "additionalProperties": false
+                        }
                       }
                     },
                     "required": [
                       "id",
-                      "configSchema"
+                      "configSchema",
+                      "actions"
                     ],
                     "additionalProperties": false
                   }

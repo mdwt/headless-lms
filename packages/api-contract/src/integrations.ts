@@ -4,10 +4,19 @@
 // response — responses carry configuration and state only.
 import { z } from "zod";
 
+/** An action an integration can be invoked with; schemas are JSON Schema. */
+export const IntegrationActionInfo = z.object({
+  id: z.string(),
+  inputSchema: z.record(z.string(), z.unknown()),
+  outputSchema: z.record(z.string(), z.unknown()),
+});
+export type IntegrationActionInfo = z.infer<typeof IntegrationActionInfo>;
+
 /** An integration this deployment supports; configSchema is JSON Schema for its config. */
 export const AvailableIntegration = z.object({
   id: z.string(),
   configSchema: z.record(z.string(), z.unknown()),
+  actions: z.array(IntegrationActionInfo),
 });
 export type AvailableIntegration = z.infer<typeof AvailableIntegration>;
 

@@ -15,6 +15,7 @@ import type { CredentialStore, EventBus } from "../shared/ports.js";
 const stripe: Integration = {
   id: "stripe",
   configSchema: () => ({ type: "object", properties: { mode: { enum: ["live", "test"] } } }),
+  actions: [],
   validateConfig: (config) => {
     const mode = (config as Record<string, unknown>)?.mode;
     return mode === undefined || mode === "live" || mode === "test"
@@ -26,6 +27,14 @@ const slack: Integration = {
   id: "slack",
   configSchema: () => ({ type: "object" }),
   validateConfig: () => ({ ok: true }),
+  actions: [
+    {
+      id: "postMessageToChannel",
+      inputSchema: () => ({ type: "object" }),
+      outputSchema: () => ({ type: "object" }),
+      invoke: async () => ({}),
+    },
+  ],
 };
 
 const SAMPLE: Connection = {
@@ -87,11 +96,19 @@ describe("IntegrationsRegistry", () => {
 });
 
 describe("IntegrationsService", () => {
-  it("available exposes each declared integration's id and config schema", () => {
+  it("available exposes each declared integration's id, config schema, and actions", () => {
     const { svc } = build();
     const available = svc.available();
     expect(available.map((a) => a.id)).toEqual(["stripe", "slack"]);
     expect(available[0]?.configSchema).toHaveProperty("type", "object");
+    expect(available[0]?.actions).toEqual([]);
+    expect(available[1]?.actions).toEqual([
+      {
+        id: "postMessageToChannel",
+        inputSchema: { type: "object" },
+        outputSchema: { type: "object" },
+      },
+    ]);
   });
 
   it("connect stores the credential, inserts the connection, emits created", async () => {
