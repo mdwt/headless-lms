@@ -24,6 +24,13 @@ export function zodConfig(schema: z.ZodType): {
   };
 }
 
+/** Derive the Integration port's secretsSchema getter from a zod schema. */
+export function zodSecrets(schema: z.ZodType): {
+  secretsSchema: () => Record<string, unknown>;
+} {
+  return { secretsSchema: () => z.toJSONSchema(schema) as Record<string, unknown> };
+}
+
 /**
  * Build an Action from zod schemas + a run function. `invoke` parses the input
  * first (defaults applied, throws on mismatch), so `run` always sees typed,

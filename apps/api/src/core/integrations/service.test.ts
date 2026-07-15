@@ -15,6 +15,7 @@ import type { CredentialStore, EventBus } from "../shared/ports.js";
 const stripe: Integration = {
   id: "stripe",
   configSchema: () => ({ type: "object", properties: { mode: { enum: ["live", "test"] } } }),
+  secretsSchema: () => ({ type: "object", required: ["apiKey"] }),
   actions: [],
   validateConfig: (config) => {
     const mode = (config as Record<string, unknown>)?.mode;
@@ -26,6 +27,7 @@ const stripe: Integration = {
 const slack: Integration = {
   id: "slack",
   configSchema: () => ({ type: "object" }),
+  secretsSchema: () => ({ type: "object", required: ["botToken"] }),
   validateConfig: () => ({ ok: true }),
   actions: [
     {
@@ -102,6 +104,7 @@ describe("IntegrationsService", () => {
     const available = svc.available();
     expect(available.map((a) => a.id)).toEqual(["stripe", "slack"]);
     expect(available[0]?.configSchema).toHaveProperty("type", "object");
+    expect(available[0]?.secretsSchema).toHaveProperty("required", ["apiKey"]);
     expect(available[0]?.actions).toEqual([]);
     expect(available[1]?.actions).toEqual([
       {

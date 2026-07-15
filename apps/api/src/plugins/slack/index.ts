@@ -3,7 +3,12 @@
 // invoke. The credential (bot token) is opaque to the domain; actions receive
 // it revealed, at point of use, via the ActionContext.
 import { z } from "zod";
-import { zodConfig, zodAction, type Integration } from "../../core/integrations/index.js";
+import { zodConfig, zodSecrets, zodAction, type Integration } from "../../core/integrations/index.js";
+
+const SlackSecrets = z.object({
+  /** Slack bot token (xoxb-…). */
+  botToken: z.string().min(1),
+});
 
 const SlackConfig = z.object({
   /** Channel to post to when an action doesn't name one (e.g. "#general"). */
@@ -44,6 +49,7 @@ const postMessageToChannel = zodAction({
 const slack: Integration = {
   id: "slack",
   ...zodConfig(SlackConfig),
+  ...zodSecrets(SlackSecrets),
   actions: [postMessageToChannel],
 };
 

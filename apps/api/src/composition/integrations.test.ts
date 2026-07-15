@@ -23,7 +23,7 @@ describe("loadIntegrations", () => {
   it("rejects an integration whose id does not match its directory name", async () => {
     const dir = await fakeIntegrationsDir(
       "mailchimp",
-      `{ id: "mailchomp", configSchema: () => ({}), validateConfig: () => ({ ok: true }), actions: [] }`,
+      `{ id: "mailchomp", configSchema: () => ({}), secretsSchema: () => ({}), validateConfig: () => ({ ok: true }), actions: [] }`,
     );
     await expect(loadIntegrations(dir)).rejects.toThrow(/must match its directory name/);
   });
@@ -31,7 +31,7 @@ describe("loadIntegrations", () => {
   it("rejects an integration with a malformed action", async () => {
     const dir = await fakeIntegrationsDir(
       "mailchimp",
-      `{ id: "mailchimp", configSchema: () => ({}), validateConfig: () => ({ ok: true }),
+      `{ id: "mailchimp", configSchema: () => ({}), secretsSchema: () => ({}), validateConfig: () => ({ ok: true }),
          actions: [{ id: "sendCampaign", inputSchema: () => ({}) }] }`,
     );
     await expect(loadIntegrations(dir)).rejects.toThrow(/Integration port/);

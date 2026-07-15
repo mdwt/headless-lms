@@ -25,6 +25,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return this.registry.list().map((integration) => ({
       id: integration.id,
       configSchema: integration.configSchema(),
+      secretsSchema: integration.secretsSchema(),
       actions: integration.actions.map((action) => ({
         id: action.id,
         description: action.description,
