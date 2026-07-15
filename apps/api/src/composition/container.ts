@@ -16,12 +16,9 @@ import { ProgressServiceImpl } from "../core/progress/index.js";
 import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
 import { AssetsServiceImpl } from "../core/assets/index.js";
-import {
-  IntegrationsServiceImpl,
-  createIntegrationsRegistry,
-  stripe,
-  slack,
-} from "../core/integrations/index.js";
+import { IntegrationsServiceImpl, createIntegrationsRegistry } from "../core/integrations/index.js";
+import { stripe } from "../adapters/integrations/stripe/index.js";
+import { slack } from "../adapters/integrations/slack/index.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
 

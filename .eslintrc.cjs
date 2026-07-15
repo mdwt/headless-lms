@@ -15,7 +15,15 @@
  *     they may import core ports and reporting ports.
  */
 // Business bounded contexts (everything under core/ except shared/).
-const CONTEXTS = ["identity", "organizations", "courses", "entitlements", "progress", "assets"];
+const CONTEXTS = [
+  "identity",
+  "organizations",
+  "courses",
+  "entitlements",
+  "progress",
+  "assets",
+  "integrations",
+];
 
 // A context file may import a sibling context ONLY through its public index.ts.
 // ESLint's no-restricted-imports group matcher supports `*` and exact paths, but

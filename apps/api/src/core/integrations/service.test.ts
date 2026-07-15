@@ -1,16 +1,27 @@
 import { describe, it, expect, vi } from "vitest";
 import { IntegrationsServiceImpl } from "./service.js";
 import { createIntegrationsRegistry } from "./registry.js";
-import { stripe } from "./stripe/index.js";
-import { slack } from "./slack/index.js";
 import {
   AlreadyConnectedError,
   InvalidConfigError,
   UnknownIntegrationError,
 } from "./model.js";
 import type { Connection } from "./model.js";
-import type { ConnectionsRepository } from "./ports.js";
+import type { ConnectionsRepository, Integration } from "./ports.js";
 import type { CredentialStore, EventBus } from "../shared/ports.js";
+
+// Inline integrations — the real ones (adapters/integrations/*) are adapter
+// concerns; the core service only needs modules satisfying the port.
+const stripe: Integration = {
+  id: "stripe",
+  validateConfig: (config) => {
+    const mode = (config as Record<string, unknown>)?.mode;
+    return mode === undefined || mode === "live" || mode === "test"
+      ? { ok: true }
+      : { ok: false, errors: ["mode: invalid"] };
+  },
+};
+const slack: Integration = { id: "slack", validateConfig: () => ({ ok: true }) };
 
 const SAMPLE: Connection = {
   id: "con_1",

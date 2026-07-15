@@ -1,8 +1,6 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from "./service.js";
 export { createIntegrationsRegistry } from "./registry.js";
-export { stripe } from "./stripe/index.js";
-export { slack } from "./slack/index.js";
 export {
   AlreadyConnectedError,
   UnknownIntegrationError,

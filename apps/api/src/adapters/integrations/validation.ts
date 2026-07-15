@@ -1,8 +1,8 @@
-// integrations context — shared helper for integrations that define their
-// config schema with zod: adapts a zod schema to the Integration port's
+// integrations adapters — shared helper for integrations that define their
+// config schema with zod: adapts a zod schema to the core Integration port's
 // validateConfig shape.
 import type { z } from "zod";
-import type { ConfigValidation } from "./model.js";
+import type { ConfigValidation } from "../../core/integrations/model.js";
 
 export function zodConfigValidator(schema: z.ZodType): (config: unknown) => ConfigValidation {
   return (config) => {
