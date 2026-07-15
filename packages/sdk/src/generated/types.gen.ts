@@ -1349,6 +1349,7 @@ export type ListAvailableIntegrationsResponses = {
     };
     actions: Array<{
       id: string;
+      description: string;
       inputSchema: {
         [key: string]: unknown;
       };

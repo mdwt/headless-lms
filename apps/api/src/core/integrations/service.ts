@@ -27,6 +27,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       configSchema: integration.configSchema(),
       actions: integration.actions.map((action) => ({
         id: action.id,
+        description: action.description,
         inputSchema: action.inputSchema(),
         outputSchema: action.outputSchema(),
       })),

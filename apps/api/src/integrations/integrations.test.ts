@@ -52,6 +52,10 @@ describe("slack postMessageToChannel action", () => {
     return fetchMock;
   }
 
+  it("has a human-readable description", () => {
+    expect(action.description.length).toBeGreaterThan(0);
+  });
+
   it("declares its input/output as JSON Schema", () => {
     expect(action.inputSchema()).toMatchObject({ type: "object", required: ["text"] });
     expect(action.outputSchema()).toMatchObject({

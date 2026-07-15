@@ -12,6 +12,7 @@ const SlackConfig = z.object({
 
 const postMessageToChannel = zodAction({
   id: "postMessageToChannel",
+  description: "Post a message to a Slack channel (defaults to the connection's configured channel).",
   input: z.object({
     /** Falls back to the connection's configured defaultChannel. */
     channel: z.string().min(1).optional(),

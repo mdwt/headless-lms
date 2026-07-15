@@ -4090,6 +4090,9 @@
                             "id": {
                               "type": "string"
                             },
+                            "description": {
+                              "type": "string"
+                            },
                             "inputSchema": {
                               "type": "object",
                               "additionalProperties": {}
@@ -4101,6 +4104,7 @@
                           },
                           "required": [
                             "id",
+                            "description",
                             "inputSchema",
                             "outputSchema"
                           ],

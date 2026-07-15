@@ -30,6 +30,7 @@ const slack: Integration = {
   actions: [
     {
       id: "postMessageToChannel",
+      description: "Post a message to a channel.",
       inputSchema: () => ({ type: "object" }),
       outputSchema: () => ({ type: "object" }),
       invoke: async () => ({}),
@@ -105,6 +106,7 @@ describe("IntegrationsService", () => {
     expect(available[1]?.actions).toEqual([
       {
         id: "postMessageToChannel",
+        description: "Post a message to a channel.",
         inputSchema: { type: "object" },
         outputSchema: { type: "object" },
       },

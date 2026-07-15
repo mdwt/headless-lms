@@ -21,6 +21,7 @@ function isIntegration(value: unknown): value is Integration {
     it.actions.every(
       (action) =>
         typeof action?.id === "string" &&
+        typeof action?.description === "string" &&
         typeof action?.inputSchema === "function" &&
         typeof action?.outputSchema === "function" &&
         typeof action?.invoke === "function",

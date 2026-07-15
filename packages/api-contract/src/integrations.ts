@@ -7,6 +7,7 @@ import { z } from "zod";
 /** An action an integration can be invoked with; schemas are JSON Schema. */
 export const IntegrationActionInfo = z.object({
   id: z.string(),
+  description: z.string(),
   inputSchema: z.record(z.string(), z.unknown()),
   outputSchema: z.record(z.string(), z.unknown()),
 });

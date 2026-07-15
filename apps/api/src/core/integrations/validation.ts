@@ -32,12 +32,14 @@ export function zodConfig(schema: z.ZodType): {
  */
 export function zodAction<I extends z.ZodType, O extends z.ZodType>(def: {
   id: string;
+  description: string;
   input: I;
   output: O;
   run(ctx: ActionContext, input: z.infer<I>): Promise<z.infer<O>>;
 }): Action {
   return {
     id: def.id,
+    description: def.description,
     inputSchema: () => z.toJSONSchema(def.input) as Record<string, unknown>,
     outputSchema: () => z.toJSONSchema(def.output) as Record<string, unknown>,
     invoke: async (ctx, input) => def.run(ctx, def.input.parse(input ?? {}) as z.infer<I>),

@@ -15,6 +15,8 @@ export interface ActionContext {
  */
 export interface Action {
   id: string;
+  /** One line, human-readable: what invoking this action does. */
+  description: string;
   /** The input the action accepts, as JSON Schema. */
   inputSchema(): Record<string, unknown>;
   /** The output the action resolves with, as JSON Schema. */
@@ -51,6 +53,7 @@ export interface AvailableIntegration {
   configSchema: Record<string, unknown>;
   actions: {
     id: string;
+    description: string;
     inputSchema: Record<string, unknown>;
     outputSchema: Record<string, unknown>;
   }[];
