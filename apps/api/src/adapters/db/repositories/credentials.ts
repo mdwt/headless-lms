@@ -1,8 +1,10 @@
 // credentials — Drizzle-backed secure credential store (implements the shared
-// core port). AES-256-GCM via node:crypto with a single 32-byte key from the
-// environment. The AAD binds each ciphertext to its (org, id) row, so moving a
-// ciphertext to another row or org makes it undecryptable. Plaintext exists
-// only inside store/reveal — it is never logged, listed, or returned elsewhere.
+// core port). Secrets are JSON documents: serialized here, encrypted with
+// AES-256-GCM via node:crypto (single 32-byte key from the environment), and
+// parsed back to objects on reveal — callers never (de)serialize. The AAD
+// binds each ciphertext to its (org, id) row, so moving a ciphertext to
+// another row or org makes it undecryptable. Plaintext exists only inside
+// store/reveal — it is never logged, listed, or returned elsewhere.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -62,25 +64,26 @@ export class DrizzleCredentialStore implements CredentialStore {
     return this.key;
   }
 
-  async store(orgId: string, plaintext: string): Promise<string> {
+  async store(orgId: string, secrets: Record<string, unknown>): Promise<string> {
     const id = genId("credential");
-    const ciphertext = encryptSecret(this.getKey(), plaintext, aad(orgId, id));
+    const ciphertext = encryptSecret(this.getKey(), JSON.stringify(secrets), aad(orgId, id));
     await this.db.insert(credentials).values({ orgId, id, ciphertext, keyVersion: KEY_VERSION });
     return id;
   }
 
-  async reveal(orgId: string, ref: string): Promise<string | null> {
+  async reveal(orgId: string, ref: string): Promise<Record<string, unknown> | null> {
     const [row] = await this.db
       .select()
       .from(credentials)
       .where(and(eq(credentials.orgId, orgId), eq(credentials.id, ref)))
       .limit(1);
     if (!row) return null;
-    return decryptSecret(this.getKey(), row.ciphertext, aad(orgId, ref));
+    const plaintext = decryptSecret(this.getKey(), row.ciphertext, aad(orgId, ref));
+    return JSON.parse(plaintext) as Record<string, unknown>;
   }
 
-  async update(orgId: string, ref: string, plaintext: string): Promise<void> {
-    const ciphertext = encryptSecret(this.getKey(), plaintext, aad(orgId, ref));
+  async update(orgId: string, ref: string, secrets: Record<string, unknown>): Promise<void> {
+    const ciphertext = encryptSecret(this.getKey(), JSON.stringify(secrets), aad(orgId, ref));
     await this.db
       .update(credentials)
       .set({ ciphertext, keyVersion: KEY_VERSION, updatedAt: new Date() })

@@ -65,7 +65,7 @@ function fakeRepo(over?: Partial<ConnectionsRepository>): ConnectionsRepository 
 function fakeCredentials(over?: Partial<CredentialStore>): CredentialStore {
   return {
     store: vi.fn().mockResolvedValue("crd_1"),
-    reveal: vi.fn().mockResolvedValue("sk_live_x"),
+    reveal: vi.fn().mockResolvedValue({ apiKey: "sk_live_x" }),
     update: vi.fn().mockResolvedValue(undefined),
     destroy: vi.fn().mockResolvedValue(undefined),
     ...over,
@@ -120,7 +120,7 @@ describe("IntegrationsService", () => {
       secrets: { apiKey: "sk_live_x" },
       config: { mode: "live" },
     });
-    expect(credentials.store).toHaveBeenCalledWith("org-1", JSON.stringify({ apiKey: "sk_live_x" }));
+    expect(credentials.store).toHaveBeenCalledWith("org-1", { apiKey: "sk_live_x" });
     expect(conn.credentialRef).toBe("crd_1");
     expect(conn.active).toBe(true);
     expect(repo.insert).toHaveBeenCalled();
@@ -162,11 +162,7 @@ describe("IntegrationsService", () => {
   it("reconnect replaces the secrets in place (same ref), emits updated", async () => {
     const { svc, credentials, events } = build();
     await svc.reconnect("org-1", "con_1", { apiKey: "sk_live_new" });
-    expect(credentials.update).toHaveBeenCalledWith(
-      "org-1",
-      "crd_1",
-      JSON.stringify({ apiKey: "sk_live_new" }),
-    );
+    expect(credentials.update).toHaveBeenCalledWith("org-1", "crd_1", { apiKey: "sk_live_new" });
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "connection.updated", changed: "credentials" }),
     );
