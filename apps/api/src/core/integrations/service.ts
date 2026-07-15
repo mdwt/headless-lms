@@ -39,7 +39,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     this.validate(input.integrationId, config);
     const existing = await this.repo.findByIntegration(orgId, input.integrationId);
     if (existing) throw new AlreadyConnectedError(input.integrationId);
-    const credentialRef = await this.credentials.store(orgId, input.credential);
+    const credentialRef = await this.credentials.store(orgId, JSON.stringify(input.secrets));
     const at = this.now();
     const connection = await this.repo.insert(orgId, {
       id: genId("connection"),
@@ -60,10 +60,14 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return connection;
   }
 
-  async reconnect(orgId: string, id: string, credential: string): Promise<Connection | null> {
+  async reconnect(
+    orgId: string,
+    id: string,
+    secrets: Record<string, unknown>,
+  ): Promise<Connection | null> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return null;
-    await this.credentials.update(orgId, connection.credentialRef, credential);
+    await this.credentials.update(orgId, connection.credentialRef, JSON.stringify(secrets));
     const updated = await this.repo.update(orgId, id, { updatedAt: this.now() });
     const updatedEvent: ConnectionUpdated = {
       type: "connection.updated",

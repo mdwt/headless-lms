@@ -33,8 +33,12 @@ export interface IntegrationsService {
   available(): AvailableIntegration[];
   /** Establish a connection for an org; stores its credential and configuration. */
   connect(orgId: string, input: ConnectInput): Promise<Connection>;
-  /** Replace a connection's stored credential (re-auth / token refresh). */
-  reconnect(orgId: string, id: string, credential: string): Promise<Connection | null>;
+  /** Replace a connection's stored secrets (re-auth / token refresh). */
+  reconnect(
+    orgId: string,
+    id: string,
+    secrets: Record<string, unknown>,
+  ): Promise<Connection | null>;
   /** Set or change a connection's configuration and/or active flag. */
   configure(orgId: string, id: string, input: ConfigureInput): Promise<Connection | null>;
   /** Remove a connection and destroy its credential. */

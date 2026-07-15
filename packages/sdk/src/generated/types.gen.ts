@@ -1400,7 +1400,9 @@ export type ListConnectionsResponse = ListConnectionsResponses[keyof ListConnect
 export type ConnectIntegrationData = {
   body: {
     integrationId: string;
-    credential: string;
+    secrets: {
+      [key: string]: unknown;
+    };
     config?: {
       [key: string]: unknown;
     };
@@ -1612,7 +1614,9 @@ export type ConfigureConnectionResponse =
 
 export type ReconnectIntegrationData = {
   body: {
-    credential: string;
+    secrets: {
+      [key: string]: unknown;
+    };
   };
   path: {
     id: string;

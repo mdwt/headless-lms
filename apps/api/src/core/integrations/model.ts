@@ -19,8 +19,8 @@ export interface Connection {
 
 export interface ConnectInput {
   integrationId: string;
-  /** The secret to hold for this connection (API key, token, …), any shape. */
-  credential: string;
+  /** The connection's secrets (API keys, tokens, …) — encrypted as one JSON document. */
+  secrets: Record<string, unknown>;
   config?: Record<string, unknown> | undefined;
 }
 

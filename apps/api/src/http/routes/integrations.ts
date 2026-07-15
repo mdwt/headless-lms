@@ -91,7 +91,7 @@ export async function integrationsRoutes(
     schema: {
       operationId: "connectIntegration",
       tags,
-      summary: "Connect an integration (stores its credential encrypted)",
+      summary: "Connect an integration (stores its secrets encrypted)",
       body: ConnectRequest,
       response: { 201: Connection, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
     },
@@ -173,7 +173,7 @@ export async function integrationsRoutes(
     schema: {
       operationId: "reconnectIntegration",
       tags,
-      summary: "Replace a connection's credential (re-authenticate)",
+      summary: "Replace a connection's secrets (re-authenticate)",
       params: ConnectionIdParam,
       body: ReconnectRequest,
       response: { 200: Connection, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
@@ -181,7 +181,7 @@ export async function integrationsRoutes(
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
       if (!orgId) return;
-      const connection = await integrations.reconnect(orgId, req.params.id, req.body.credential);
+      const connection = await integrations.reconnect(orgId, req.params.id, req.body.secrets);
       if (!connection)
         return reply.code(404).send({ error: "not_found", message: "Connection not found" });
       return toApi(connection);
@@ -195,7 +195,7 @@ export async function integrationsRoutes(
     schema: {
       operationId: "disconnectIntegration",
       tags,
-      summary: "Disconnect an integration (destroys its stored credential)",
+      summary: "Disconnect an integration (destroys its stored secrets)",
       params: ConnectionIdParam,
       response: { 204: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
     },

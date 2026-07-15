@@ -681,7 +681,7 @@ export class Integrations {
   }
 
   /**
-   * Connect an integration (stores its credential encrypted)
+   * Connect an integration (stores its secrets encrypted)
    */
   public static connectIntegration<ThrowOnError extends boolean = false>(
     options: Options<ConnectIntegrationData, ThrowOnError>,
@@ -701,7 +701,7 @@ export class Integrations {
   }
 
   /**
-   * Disconnect an integration (destroys its stored credential)
+   * Disconnect an integration (destroys its stored secrets)
    */
   public static disconnectIntegration<ThrowOnError extends boolean = false>(
     options: Options<DisconnectIntegrationData, ThrowOnError>,
@@ -747,7 +747,7 @@ export class Integrations {
   }
 
   /**
-   * Replace a connection's credential (re-authenticate)
+   * Replace a connection's secrets (re-authenticate)
    */
   public static reconnectIntegration<ThrowOnError extends boolean = false>(
     options: Options<ReconnectIntegrationData, ThrowOnError>,

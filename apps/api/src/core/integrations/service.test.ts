@@ -98,10 +98,10 @@ describe("IntegrationsService", () => {
     const { svc, repo, credentials, events } = build();
     const conn = await svc.connect("org-1", {
       integrationId: "stripe",
-      credential: "sk_live_x",
+      secrets: { apiKey: "sk_live_x" },
       config: { mode: "live" },
     });
-    expect(credentials.store).toHaveBeenCalledWith("org-1", "sk_live_x");
+    expect(credentials.store).toHaveBeenCalledWith("org-1", JSON.stringify({ apiKey: "sk_live_x" }));
     expect(conn.credentialRef).toBe("crd_1");
     expect(conn.active).toBe(true);
     expect(repo.insert).toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("IntegrationsService", () => {
 
   it("connect rejects an undeclared integration id", async () => {
     const { svc, credentials } = build();
-    await expect(svc.connect("org-1", { integrationId: "strope", credential: "x" })).rejects.toThrow(
+    await expect(svc.connect("org-1", { integrationId: "strope", secrets: { apiKey: "x" } })).rejects.toThrow(
       UnknownIntegrationError,
     );
     expect(credentials.store).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe("IntegrationsService", () => {
     await expect(
       svc.connect("org-1", {
         integrationId: "stripe",
-        credential: "x",
+        secrets: { apiKey: "x" },
         config: { mode: "sandbox" },
       }),
     ).rejects.toThrow(InvalidConfigError);
@@ -134,16 +134,20 @@ describe("IntegrationsService", () => {
     const { svc, credentials } = build(
       fakeRepo({ findByIntegration: vi.fn().mockResolvedValue(SAMPLE) }),
     );
-    await expect(svc.connect("org-1", { integrationId: "stripe", credential: "x" })).rejects.toThrow(
+    await expect(svc.connect("org-1", { integrationId: "stripe", secrets: { apiKey: "x" } })).rejects.toThrow(
       AlreadyConnectedError,
     );
     expect(credentials.store).not.toHaveBeenCalled();
   });
 
-  it("reconnect replaces the credential in place (same ref), emits updated", async () => {
+  it("reconnect replaces the secrets in place (same ref), emits updated", async () => {
     const { svc, credentials, events } = build();
-    await svc.reconnect("org-1", "con_1", "sk_live_new");
-    expect(credentials.update).toHaveBeenCalledWith("org-1", "crd_1", "sk_live_new");
+    await svc.reconnect("org-1", "con_1", { apiKey: "sk_live_new" });
+    expect(credentials.update).toHaveBeenCalledWith(
+      "org-1",
+      "crd_1",
+      JSON.stringify({ apiKey: "sk_live_new" }),
+    );
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "connection.updated", changed: "credentials" }),
     );
@@ -183,7 +187,7 @@ describe("IntegrationsService", () => {
     const { svc, credentials, events } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
     );
-    expect(await svc.reconnect("org-1", "nope", "x")).toBeNull();
+    expect(await svc.reconnect("org-1", "nope", { apiKey: "x" })).toBeNull();
     expect(await svc.disconnect("org-1", "nope")).toBe(false);
     expect(credentials.update).not.toHaveBeenCalled();
     expect(credentials.destroy).not.toHaveBeenCalled();

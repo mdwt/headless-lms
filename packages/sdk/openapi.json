@@ -4217,7 +4217,7 @@
       },
       "post": {
         "operationId": "connectIntegration",
-        "summary": "Connect an integration (stores its credential encrypted)",
+        "summary": "Connect an integration (stores its secrets encrypted)",
         "tags": [
           "Integrations"
         ],
@@ -4232,9 +4232,9 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "credential": {
-                    "type": "string",
-                    "minLength": 1
+                  "secrets": {
+                    "type": "object",
+                    "additionalProperties": {}
                   },
                   "config": {
                     "type": "object",
@@ -4243,7 +4243,7 @@
                 },
                 "required": [
                   "integrationId",
-                  "credential"
+                  "secrets"
                 ]
               }
             }
@@ -4631,7 +4631,7 @@
       },
       "delete": {
         "operationId": "disconnectIntegration",
-        "summary": "Disconnect an integration (destroys its stored credential)",
+        "summary": "Disconnect an integration (destroys its stored secrets)",
         "tags": [
           "Integrations"
         ],
@@ -4726,7 +4726,7 @@
     "/api/integrations/{id}/reconnect": {
       "post": {
         "operationId": "reconnectIntegration",
-        "summary": "Replace a connection's credential (re-authenticate)",
+        "summary": "Replace a connection's secrets (re-authenticate)",
         "tags": [
           "Integrations"
         ],
@@ -4737,13 +4737,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "credential": {
-                    "type": "string",
-                    "minLength": 1
+                  "secrets": {
+                    "type": "object",
+                    "additionalProperties": {}
                   }
                 },
                 "required": [
-                  "credential"
+                  "secrets"
                 ]
               }
             }

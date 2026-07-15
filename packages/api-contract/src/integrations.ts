@@ -1,6 +1,6 @@
 // Integrations resource schemas. A Connection is an org's link to one external
-// service (Stripe, Slack, …). The credential is WRITE-ONLY: it is accepted on
-// connect/reconnect, stored encrypted server-side, and never appears in any
+// service (Stripe, Slack, …). Secrets are WRITE-ONLY: accepted on
+// connect/reconnect, stored encrypted server-side, and never appear in any
 // response — responses carry configuration and state only.
 import { z } from "zod";
 
@@ -33,14 +33,15 @@ export type ConnectionIdParam = z.infer<typeof ConnectionIdParam>;
 
 export const ConnectRequest = z.object({
   integrationId: z.string().min(1),
-  /** The secret to store (API key, token, …). Write-only, never returned. */
-  credential: z.string().min(1),
+  /** The connection's secrets (API keys, tokens, …). Write-only, never returned;
+   *  stored as one encrypted JSON document. */
+  secrets: z.record(z.string(), z.unknown()),
   config: z.record(z.string(), z.unknown()).optional(),
 });
 export type ConnectRequest = z.infer<typeof ConnectRequest>;
 
 export const ReconnectRequest = z.object({
-  credential: z.string().min(1),
+  secrets: z.record(z.string(), z.unknown()),
 });
 export type ReconnectRequest = z.infer<typeof ReconnectRequest>;
 
