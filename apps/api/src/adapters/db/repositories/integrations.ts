@@ -10,7 +10,7 @@ type Row = typeof connections.$inferSelect;
 function toConnection(row: Row): Connection {
   return {
     id: row.id,
-    service: row.service,
+    integrationId: row.integrationId,
     config: row.config,
     active: row.active,
     credentialRef: row.credentialRef,
@@ -28,7 +28,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
       .values({
         orgId,
         id: connection.id,
-        service: connection.service,
+        integrationId: connection.integrationId,
         config: connection.config,
         active: connection.active,
         credentialRef: connection.credentialRef,
@@ -49,11 +49,11 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
     return row ? toConnection(row) : null;
   }
 
-  async findByService(orgId: string, service: string): Promise<Connection | null> {
+  async findByIntegration(orgId: string, integrationId: string): Promise<Connection | null> {
     const [row] = await this.db
       .select()
       .from(connections)
-      .where(and(eq(connections.orgId, orgId), eq(connections.service, service)))
+      .where(and(eq(connections.orgId, orgId), eq(connections.integrationId, integrationId)))
       .limit(1);
     return row ? toConnection(row) : null;
   }
@@ -63,7 +63,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
       .select()
       .from(connections)
       .where(eq(connections.orgId, orgId))
-      .orderBy(asc(connections.service));
+      .orderBy(asc(connections.integrationId));
     return rows.map(toConnection);
   }
 

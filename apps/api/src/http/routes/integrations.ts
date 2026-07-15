@@ -14,7 +14,12 @@ import {
   ErrorBody,
   ReconnectRequest,
 } from "@headless-lms/api-contract";
-import { AlreadyConnectedError, type Connection as DomainConnection } from "../../core/integrations/index.js";
+import {
+  AlreadyConnectedError,
+  InvalidConfigError,
+  UnknownIntegrationError,
+  type Connection as DomainConnection,
+} from "../../core/integrations/index.js";
 import type { Container } from "../../composition/container.js";
 
 function toApi(connection: DomainConnection): Connection {
@@ -55,7 +60,7 @@ export async function integrationsRoutes(
     schema: {
       operationId: "listConnections",
       tags,
-      summary: "List the organization's service connections",
+      summary: "List the organization's integration connections",
       response: { 200: ConnectionsList, 400: ErrorBody, 401: ErrorBody },
     },
     handler: async (req, reply) => {
@@ -70,9 +75,9 @@ export async function integrationsRoutes(
     url: "/api/integrations",
     preHandler: app.requireSession,
     schema: {
-      operationId: "connectService",
+      operationId: "connectIntegration",
       tags,
-      summary: "Connect a service (stores its credential encrypted)",
+      summary: "Connect an integration (stores its credential encrypted)",
       body: ConnectRequest,
       response: { 201: Connection, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
     },
@@ -83,6 +88,12 @@ export async function integrationsRoutes(
         const connection = await integrations.connect(orgId, req.body);
         return reply.code(201).send(toApi(connection));
       } catch (err) {
+        if (err instanceof UnknownIntegrationError) {
+          return reply.code(400).send({ error: "unknown_integration", message: err.message });
+        }
+        if (err instanceof InvalidConfigError) {
+          return reply.code(400).send({ error: "invalid_config", message: err.message });
+        }
         if (err instanceof AlreadyConnectedError) {
           return reply.code(409).send({ error: "already_connected", message: err.message });
         }
@@ -127,10 +138,17 @@ export async function integrationsRoutes(
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
       if (!orgId) return;
-      const connection = await integrations.configure(orgId, req.params.id, req.body);
-      if (!connection)
-        return reply.code(404).send({ error: "not_found", message: "Connection not found" });
-      return toApi(connection);
+      try {
+        const connection = await integrations.configure(orgId, req.params.id, req.body);
+        if (!connection)
+          return reply.code(404).send({ error: "not_found", message: "Connection not found" });
+        return toApi(connection);
+      } catch (err) {
+        if (err instanceof InvalidConfigError) {
+          return reply.code(400).send({ error: "invalid_config", message: err.message });
+        }
+        throw err;
+      }
     },
   });
 
@@ -139,7 +157,7 @@ export async function integrationsRoutes(
     url: "/api/integrations/:id/reconnect",
     preHandler: app.requireSession,
     schema: {
-      operationId: "reconnectService",
+      operationId: "reconnectIntegration",
       tags,
       summary: "Replace a connection's credential (re-authenticate)",
       params: ConnectionIdParam,
@@ -161,9 +179,9 @@ export async function integrationsRoutes(
     url: "/api/integrations/:id",
     preHandler: app.requireSession,
     schema: {
-      operationId: "disconnectService",
+      operationId: "disconnectIntegration",
       tags,
-      summary: "Disconnect a service (destroys its stored credential)",
+      summary: "Disconnect an integration (destroys its stored credential)",
       params: ConnectionIdParam,
       response: { 204: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
     },

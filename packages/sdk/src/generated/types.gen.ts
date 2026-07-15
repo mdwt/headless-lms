@@ -1350,7 +1350,7 @@ export type ListConnectionsResponses = {
    */
   200: Array<{
     id: string;
-    service: string;
+    integrationId: string;
     config: {
       [key: string]: unknown;
     };
@@ -1362,9 +1362,9 @@ export type ListConnectionsResponses = {
 
 export type ListConnectionsResponse = ListConnectionsResponses[keyof ListConnectionsResponses];
 
-export type ConnectServiceData = {
+export type ConnectIntegrationData = {
   body: {
-    service: string;
+    integrationId: string;
     credential: string;
     config?: {
       [key: string]: unknown;
@@ -1375,7 +1375,7 @@ export type ConnectServiceData = {
   url: "/api/integrations";
 };
 
-export type ConnectServiceErrors = {
+export type ConnectIntegrationErrors = {
   /**
    * Default Response
    */
@@ -1399,15 +1399,15 @@ export type ConnectServiceErrors = {
   };
 };
 
-export type ConnectServiceError = ConnectServiceErrors[keyof ConnectServiceErrors];
+export type ConnectIntegrationError = ConnectIntegrationErrors[keyof ConnectIntegrationErrors];
 
-export type ConnectServiceResponses = {
+export type ConnectIntegrationResponses = {
   /**
    * Default Response
    */
   201: {
     id: string;
-    service: string;
+    integrationId: string;
     config: {
       [key: string]: unknown;
     };
@@ -1417,9 +1417,10 @@ export type ConnectServiceResponses = {
   };
 };
 
-export type ConnectServiceResponse = ConnectServiceResponses[keyof ConnectServiceResponses];
+export type ConnectIntegrationResponse =
+  ConnectIntegrationResponses[keyof ConnectIntegrationResponses];
 
-export type DisconnectServiceData = {
+export type DisconnectIntegrationData = {
   body?: never;
   path: {
     id: string;
@@ -1428,7 +1429,7 @@ export type DisconnectServiceData = {
   url: "/api/integrations/{id}";
 };
 
-export type DisconnectServiceErrors = {
+export type DisconnectIntegrationErrors = {
   /**
    * Default Response
    */
@@ -1452,9 +1453,10 @@ export type DisconnectServiceErrors = {
   };
 };
 
-export type DisconnectServiceError = DisconnectServiceErrors[keyof DisconnectServiceErrors];
+export type DisconnectIntegrationError =
+  DisconnectIntegrationErrors[keyof DisconnectIntegrationErrors];
 
-export type DisconnectServiceResponses = {
+export type DisconnectIntegrationResponses = {
   /**
    * Default Response
    */
@@ -1502,7 +1504,7 @@ export type GetConnectionResponses = {
    */
   200: {
     id: string;
-    service: string;
+    integrationId: string;
     config: {
       [key: string]: unknown;
     };
@@ -1560,7 +1562,7 @@ export type ConfigureConnectionResponses = {
    */
   200: {
     id: string;
-    service: string;
+    integrationId: string;
     config: {
       [key: string]: unknown;
     };
@@ -1573,7 +1575,7 @@ export type ConfigureConnectionResponses = {
 export type ConfigureConnectionResponse =
   ConfigureConnectionResponses[keyof ConfigureConnectionResponses];
 
-export type ReconnectServiceData = {
+export type ReconnectIntegrationData = {
   body: {
     credential: string;
   };
@@ -1584,7 +1586,7 @@ export type ReconnectServiceData = {
   url: "/api/integrations/{id}/reconnect";
 };
 
-export type ReconnectServiceErrors = {
+export type ReconnectIntegrationErrors = {
   /**
    * Default Response
    */
@@ -1608,15 +1610,16 @@ export type ReconnectServiceErrors = {
   };
 };
 
-export type ReconnectServiceError = ReconnectServiceErrors[keyof ReconnectServiceErrors];
+export type ReconnectIntegrationError =
+  ReconnectIntegrationErrors[keyof ReconnectIntegrationErrors];
 
-export type ReconnectServiceResponses = {
+export type ReconnectIntegrationResponses = {
   /**
    * Default Response
    */
   200: {
     id: string;
-    service: string;
+    integrationId: string;
     config: {
       [key: string]: unknown;
     };
@@ -1626,7 +1629,8 @@ export type ReconnectServiceResponses = {
   };
 };
 
-export type ReconnectServiceResponse = ReconnectServiceResponses[keyof ReconnectServiceResponses];
+export type ReconnectIntegrationResponse =
+  ReconnectIntegrationResponses[keyof ReconnectIntegrationResponses];
 
 export type DeleteMcpData = {
   body?: never;

@@ -6,9 +6,9 @@
 
 export interface Connection {
   readonly id: string;
-  /** The external service this connection links to (e.g. "stripe", "slack"). */
-  service: string;
-  /** Service-specific configuration (e.g. field mappings). Never secret. */
+  /** Which integration this connection links to (an Integration id, e.g. "stripe"). */
+  integrationId: string;
+  /** Integration-specific configuration (e.g. field mappings). Never secret. */
   config: Record<string, unknown>;
   active: boolean;
   /** Reference into the secure credential store; callers reveal at point of use. */
@@ -18,7 +18,7 @@ export interface Connection {
 }
 
 export interface ConnectInput {
-  service: string;
+  integrationId: string;
   /** The secret to hold for this connection (API key, token, …), any shape. */
   credential: string;
   config?: Record<string, unknown> | undefined;
@@ -29,10 +29,32 @@ export interface ConfigureInput {
   active?: boolean | undefined;
 }
 
-/** An org already has a connection for this service (one per service per org). */
+/** Result of an Integration validating a connection's config. */
+export type ConfigValidation = { ok: true } | { ok: false; errors: string[] };
+
+/** An org already has a connection for this integration (one per integration per org). */
 export class AlreadyConnectedError extends Error {
-  constructor(readonly service: string) {
-    super(`a connection for "${service}" already exists`);
+  constructor(readonly integrationId: string) {
+    super(`a connection for "${integrationId}" already exists`);
     this.name = "AlreadyConnectedError";
+  }
+}
+
+/** The named integration is not declared in the registry. */
+export class UnknownIntegrationError extends Error {
+  constructor(readonly integrationId: string) {
+    super(`unknown integration "${integrationId}"`);
+    this.name = "UnknownIntegrationError";
+  }
+}
+
+/** The config was rejected by the integration's validator. */
+export class InvalidConfigError extends Error {
+  constructor(
+    readonly integrationId: string,
+    readonly errors: string[],
+  ) {
+    super(`invalid config for "${integrationId}": ${errors.join("; ")}`);
+    this.name = "InvalidConfigError";
   }
 }

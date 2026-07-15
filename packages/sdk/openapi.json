@@ -4061,7 +4061,7 @@
     "/api/integrations": {
       "get": {
         "operationId": "listConnections",
-        "summary": "List the organization's service connections",
+        "summary": "List the organization's integration connections",
         "tags": [
           "Integrations"
         ],
@@ -4078,7 +4078,7 @@
                       "id": {
                         "type": "string"
                       },
-                      "service": {
+                      "integrationId": {
                         "type": "string"
                       },
                       "config": {
@@ -4097,7 +4097,7 @@
                     },
                     "required": [
                       "id",
-                      "service",
+                      "integrationId",
                       "config",
                       "active",
                       "createdAt",
@@ -4156,8 +4156,8 @@
         }
       },
       "post": {
-        "operationId": "connectService",
-        "summary": "Connect a service (stores its credential encrypted)",
+        "operationId": "connectIntegration",
+        "summary": "Connect an integration (stores its credential encrypted)",
         "tags": [
           "Integrations"
         ],
@@ -4168,7 +4168,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "service": {
+                  "integrationId": {
                     "type": "string",
                     "minLength": 1
                   },
@@ -4182,7 +4182,7 @@
                   }
                 },
                 "required": [
-                  "service",
+                  "integrationId",
                   "credential"
                 ]
               }
@@ -4200,7 +4200,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "service": {
+                    "integrationId": {
                       "type": "string"
                     },
                     "config": {
@@ -4219,7 +4219,7 @@
                   },
                   "required": [
                     "id",
-                    "service",
+                    "integrationId",
                     "config",
                     "active",
                     "createdAt",
@@ -4327,7 +4327,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "service": {
+                    "integrationId": {
                       "type": "string"
                     },
                     "config": {
@@ -4346,7 +4346,7 @@
                   },
                   "required": [
                     "id",
-                    "service",
+                    "integrationId",
                     "config",
                     "active",
                     "createdAt",
@@ -4471,7 +4471,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "service": {
+                    "integrationId": {
                       "type": "string"
                     },
                     "config": {
@@ -4490,7 +4490,7 @@
                   },
                   "required": [
                     "id",
-                    "service",
+                    "integrationId",
                     "config",
                     "active",
                     "createdAt",
@@ -4570,8 +4570,8 @@
         }
       },
       "delete": {
-        "operationId": "disconnectService",
-        "summary": "Disconnect a service (destroys its stored credential)",
+        "operationId": "disconnectIntegration",
+        "summary": "Disconnect an integration (destroys its stored credential)",
         "tags": [
           "Integrations"
         ],
@@ -4665,7 +4665,7 @@
     },
     "/api/integrations/{id}/reconnect": {
       "post": {
-        "operationId": "reconnectService",
+        "operationId": "reconnectIntegration",
         "summary": "Replace a connection's credential (re-authenticate)",
         "tags": [
           "Integrations"
@@ -4710,7 +4710,7 @@
                     "id": {
                       "type": "string"
                     },
-                    "service": {
+                    "integrationId": {
                       "type": "string"
                     },
                     "config": {
@@ -4729,7 +4729,7 @@
                   },
                   "required": [
                     "id",
-                    "service",
+                    "integrationId",
                     "config",
                     "active",
                     "createdAt",

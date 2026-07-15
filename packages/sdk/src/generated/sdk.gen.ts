@@ -9,9 +9,9 @@ import type {
   ConfirmAssetData,
   ConfirmAssetErrors,
   ConfirmAssetResponses,
-  ConnectServiceData,
-  ConnectServiceErrors,
-  ConnectServiceResponses,
+  ConnectIntegrationData,
+  ConnectIntegrationErrors,
+  ConnectIntegrationResponses,
   CreateActivityData,
   CreateActivityResponses,
   CreateCourseData,
@@ -32,9 +32,9 @@ import type {
   DeleteMcpResponses,
   DeleteModuleData,
   DeleteModuleResponses,
-  DisconnectServiceData,
-  DisconnectServiceErrors,
-  DisconnectServiceResponses,
+  DisconnectIntegrationData,
+  DisconnectIntegrationErrors,
+  DisconnectIntegrationResponses,
   GetAssetData,
   GetAssetErrors,
   GetAssetResponses,
@@ -77,9 +77,9 @@ import type {
   ListStudentsResponses,
   PostMcpData,
   PostMcpResponses,
-  ReconnectServiceData,
-  ReconnectServiceErrors,
-  ReconnectServiceResponses,
+  ReconnectIntegrationData,
+  ReconnectIntegrationErrors,
+  ReconnectIntegrationResponses,
   RemoveMemberData,
   RemoveMemberErrors,
   RemoveMemberResponses,
@@ -648,7 +648,7 @@ export class ConnectedApps {
 
 export class Integrations {
   /**
-   * List the organization's service connections
+   * List the organization's integration connections
    */
   public static listConnections<ThrowOnError extends boolean = false>(
     options?: Options<ListConnectionsData, ThrowOnError>,
@@ -661,14 +661,14 @@ export class Integrations {
   }
 
   /**
-   * Connect a service (stores its credential encrypted)
+   * Connect an integration (stores its credential encrypted)
    */
-  public static connectService<ThrowOnError extends boolean = false>(
-    options: Options<ConnectServiceData, ThrowOnError>,
-  ): RequestResult<ConnectServiceResponses, ConnectServiceErrors, ThrowOnError> {
+  public static connectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<ConnectIntegrationData, ThrowOnError>,
+  ): RequestResult<ConnectIntegrationResponses, ConnectIntegrationErrors, ThrowOnError> {
     return (options.client ?? client).post<
-      ConnectServiceResponses,
-      ConnectServiceErrors,
+      ConnectIntegrationResponses,
+      ConnectIntegrationErrors,
       ThrowOnError
     >({
       url: "/api/integrations",
@@ -681,14 +681,14 @@ export class Integrations {
   }
 
   /**
-   * Disconnect a service (destroys its stored credential)
+   * Disconnect an integration (destroys its stored credential)
    */
-  public static disconnectService<ThrowOnError extends boolean = false>(
-    options: Options<DisconnectServiceData, ThrowOnError>,
-  ): RequestResult<DisconnectServiceResponses, DisconnectServiceErrors, ThrowOnError> {
+  public static disconnectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectIntegrationData, ThrowOnError>,
+  ): RequestResult<DisconnectIntegrationResponses, DisconnectIntegrationErrors, ThrowOnError> {
     return (options.client ?? client).delete<
-      DisconnectServiceResponses,
-      DisconnectServiceErrors,
+      DisconnectIntegrationResponses,
+      DisconnectIntegrationErrors,
       ThrowOnError
     >({ url: "/api/integrations/{id}", ...options });
   }
@@ -729,12 +729,12 @@ export class Integrations {
   /**
    * Replace a connection's credential (re-authenticate)
    */
-  public static reconnectService<ThrowOnError extends boolean = false>(
-    options: Options<ReconnectServiceData, ThrowOnError>,
-  ): RequestResult<ReconnectServiceResponses, ReconnectServiceErrors, ThrowOnError> {
+  public static reconnectIntegration<ThrowOnError extends boolean = false>(
+    options: Options<ReconnectIntegrationData, ThrowOnError>,
+  ): RequestResult<ReconnectIntegrationResponses, ReconnectIntegrationErrors, ThrowOnError> {
     return (options.client ?? client).post<
-      ReconnectServiceResponses,
-      ReconnectServiceErrors,
+      ReconnectIntegrationResponses,
+      ReconnectIntegrationErrors,
       ThrowOnError
     >({
       url: "/api/integrations/{id}/reconnect",

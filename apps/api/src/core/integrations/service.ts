@@ -1,32 +1,44 @@
 // integrations context — service implementation (inbound port). Owns the
 // connection lifecycle; credentials live in the shared secure credential store
-// (this service holds only the ref). It never calls the external service —
-// consumers take the connection, reveal the credential at point of use, and
-// build their own adapter.
+// (this service holds only the ref). The integrations the system supports are
+// declared at startup via the IntegrationsRegistry: connect/configure reject
+// unknown integration ids and validate config with the integration's own
+// validator. The domain never calls the external service — consumers take the
+// connection, reveal the credential at point of use, and build their own adapter.
 import { genId } from "../shared/id.js";
 import type { CredentialStore, EventBus } from "../shared/ports.js";
-import { AlreadyConnectedError } from "./model.js";
+import { AlreadyConnectedError, InvalidConfigError, UnknownIntegrationError } from "./model.js";
 import type { ConfigureInput, ConnectInput, Connection } from "./model.js";
+import type { ConnectionsRepository, IntegrationsRegistry, IntegrationsService } from "./ports.js";
 import type { ConnectionCreated, ConnectionRemoved, ConnectionUpdated } from "./events.js";
-import type { ConnectionsRepository, IntegrationsService } from "./ports.js";
 
 export class IntegrationsServiceImpl implements IntegrationsService {
   constructor(
+    private readonly registry: IntegrationsRegistry,
     private readonly repo: ConnectionsRepository,
     private readonly credentials: CredentialStore,
     private readonly events: EventBus,
     private readonly now: () => string,
   ) {}
 
+  private validate(integrationId: string, config: Record<string, unknown>): void {
+    const integration = this.registry.get(integrationId);
+    if (!integration) throw new UnknownIntegrationError(integrationId);
+    const result = integration.validateConfig(config);
+    if (!result.ok) throw new InvalidConfigError(integrationId, result.errors);
+  }
+
   async connect(orgId: string, input: ConnectInput): Promise<Connection> {
-    const existing = await this.repo.findByService(orgId, input.service);
-    if (existing) throw new AlreadyConnectedError(input.service);
+    const config = input.config ?? {};
+    this.validate(input.integrationId, config);
+    const existing = await this.repo.findByIntegration(orgId, input.integrationId);
+    if (existing) throw new AlreadyConnectedError(input.integrationId);
     const credentialRef = await this.credentials.store(orgId, input.credential);
     const at = this.now();
     const connection = await this.repo.insert(orgId, {
       id: genId("connection"),
-      service: input.service,
-      config: input.config ?? {},
+      integrationId: input.integrationId,
+      config,
       active: true,
       credentialRef,
       createdAt: at,
@@ -36,7 +48,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       type: "connection.created",
       orgId,
       connectionId: connection.id,
-      service: connection.service,
+      integrationId: connection.integrationId,
     };
     await this.events.publish(created);
     return connection;
@@ -51,7 +63,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       type: "connection.updated",
       orgId,
       connectionId: id,
-      service: connection.service,
+      integrationId: connection.integrationId,
       changed: "credentials",
     };
     await this.events.publish(updatedEvent);
@@ -61,6 +73,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   async configure(orgId: string, id: string, input: ConfigureInput): Promise<Connection | null> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return null;
+    if (input.config !== undefined) this.validate(connection.integrationId, input.config);
     const updated = await this.repo.update(orgId, id, {
       ...(input.config !== undefined ? { config: input.config } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
@@ -70,7 +83,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       type: "connection.updated",
       orgId,
       connectionId: id,
-      service: connection.service,
+      integrationId: connection.integrationId,
       changed: "configuration",
     };
     await this.events.publish(configuredEvent);
@@ -86,7 +99,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       type: "connection.removed",
       orgId,
       connectionId: id,
-      service: connection.service,
+      integrationId: connection.integrationId,
     };
     await this.events.publish(removed);
     return deleted;
@@ -100,7 +113,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return this.repo.findById(orgId, id);
   }
 
-  getByService(orgId: string, service: string): Promise<Connection | null> {
-    return this.repo.findByService(orgId, service);
+  getByIntegration(orgId: string, integrationId: string): Promise<Connection | null> {
+    return this.repo.findByIntegration(orgId, integrationId);
   }
 }

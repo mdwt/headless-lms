@@ -1,6 +1,6 @@
 // integrations tables — an org's connections to external services. One
-// connection per service per org; the secret itself lives in the credentials
-// table (secure credential store), referenced by credential_ref.
+// connection per integration per org; the secret itself lives in the
+// credentials table (secure credential store), referenced by credential_ref.
 import {
   pgTable,
   text,
@@ -21,7 +21,7 @@ export const connections = pgTable(
       .notNull()
       .references(() => organizations.id),
     id: text("id").notNull(),
-    service: text("service").notNull(),
+    integrationId: text("integration_id").notNull(),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
     active: boolean("active").notNull().default(true),
     credentialRef: text("credential_ref").notNull(),
@@ -30,7 +30,7 @@ export const connections = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
-    onesPerService: unique().on(t.orgId, t.service),
+    onePerIntegration: unique().on(t.orgId, t.integrationId),
     credentialFk: foreignKey({
       columns: [t.orgId, t.credentialRef],
       foreignColumns: [credentials.orgId, credentials.id],

@@ -5,14 +5,14 @@ export interface ConnectionCreated extends DomainEvent {
   type: "connection.created";
   orgId: string;
   connectionId: string;
-  service: string;
+  integrationId: string;
 }
 
 export interface ConnectionUpdated extends DomainEvent {
   type: "connection.updated";
   orgId: string;
   connectionId: string;
-  service: string;
+  integrationId: string;
   /** What changed: the stored credential or the configuration/active flag. */
   changed: "credentials" | "configuration";
 }
@@ -21,5 +21,5 @@ export interface ConnectionRemoved extends DomainEvent {
   type: "connection.removed";
   orgId: string;
   connectionId: string;
-  service: string;
+  integrationId: string;
 }

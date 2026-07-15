@@ -1,13 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
 import { IntegrationsServiceImpl } from "./service.js";
-import { AlreadyConnectedError } from "./model.js";
+import { createIntegrationsRegistry } from "./registry.js";
+import { stripe } from "./stripe/index.js";
+import { slack } from "./slack/index.js";
+import {
+  AlreadyConnectedError,
+  InvalidConfigError,
+  UnknownIntegrationError,
+} from "./model.js";
 import type { Connection } from "./model.js";
 import type { ConnectionsRepository } from "./ports.js";
 import type { CredentialStore, EventBus } from "../shared/ports.js";
 
 const SAMPLE: Connection = {
   id: "con_1",
-  service: "stripe",
+  integrationId: "stripe",
   config: { mode: "test" },
   active: true,
   credentialRef: "crd_1",
@@ -15,11 +22,13 @@ const SAMPLE: Connection = {
   updatedAt: "2026-01-01T00:00:00Z",
 };
 
+const registry = createIntegrationsRegistry([stripe, slack]);
+
 function fakeRepo(over?: Partial<ConnectionsRepository>): ConnectionsRepository {
   return {
     insert: vi.fn().mockImplementation((_org, c) => Promise.resolve(c)),
     findById: vi.fn().mockResolvedValue(SAMPLE),
-    findByService: vi.fn().mockResolvedValue(null),
+    findByIntegration: vi.fn().mockResolvedValue(null),
     list: vi.fn().mockResolvedValue([SAMPLE]),
     update: vi.fn().mockResolvedValue(SAMPLE),
     delete: vi.fn().mockResolvedValue(true),
@@ -42,26 +51,67 @@ function fakeEvents(): EventBus {
 }
 
 function build(repo = fakeRepo(), credentials = fakeCredentials(), events = fakeEvents()) {
-  const svc = new IntegrationsServiceImpl(repo, credentials, events, () => "2026-01-02T00:00:00Z");
+  const svc = new IntegrationsServiceImpl(
+    registry,
+    repo,
+    credentials,
+    events,
+    () => "2026-01-02T00:00:00Z",
+  );
   return { svc, repo, credentials, events };
 }
+
+describe("IntegrationsRegistry", () => {
+  it("resolves declared integrations and rejects duplicates", () => {
+    expect(registry.get("stripe")?.id).toBe("stripe");
+    expect(registry.get("strope")).toBeNull();
+    expect(registry.list().map((i) => i.id)).toEqual(["stripe", "slack"]);
+    expect(() => createIntegrationsRegistry([stripe, stripe])).toThrow(/duplicate/);
+  });
+});
 
 describe("IntegrationsService", () => {
   it("connect stores the credential, inserts the connection, emits created", async () => {
     const { svc, repo, credentials, events } = build();
-    const conn = await svc.connect("org-1", { service: "stripe", credential: "sk_live_x" });
+    const conn = await svc.connect("org-1", {
+      integrationId: "stripe",
+      credential: "sk_live_x",
+      config: { mode: "live" },
+    });
     expect(credentials.store).toHaveBeenCalledWith("org-1", "sk_live_x");
     expect(conn.credentialRef).toBe("crd_1");
     expect(conn.active).toBe(true);
     expect(repo.insert).toHaveBeenCalled();
     expect(events.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "connection.created", service: "stripe" }),
+      expect.objectContaining({ type: "connection.created", integrationId: "stripe" }),
     );
   });
 
-  it("connect rejects a second connection for the same service", async () => {
-    const { svc, credentials } = build(fakeRepo({ findByService: vi.fn().mockResolvedValue(SAMPLE) }));
-    await expect(svc.connect("org-1", { service: "stripe", credential: "x" })).rejects.toThrow(
+  it("connect rejects an undeclared integration id", async () => {
+    const { svc, credentials } = build();
+    await expect(svc.connect("org-1", { integrationId: "strope", credential: "x" })).rejects.toThrow(
+      UnknownIntegrationError,
+    );
+    expect(credentials.store).not.toHaveBeenCalled();
+  });
+
+  it("connect rejects config the integration's validator refuses", async () => {
+    const { svc, credentials } = build();
+    await expect(
+      svc.connect("org-1", {
+        integrationId: "stripe",
+        credential: "x",
+        config: { mode: "sandbox" },
+      }),
+    ).rejects.toThrow(InvalidConfigError);
+    expect(credentials.store).not.toHaveBeenCalled();
+  });
+
+  it("connect rejects a second connection for the same integration", async () => {
+    const { svc, credentials } = build(
+      fakeRepo({ findByIntegration: vi.fn().mockResolvedValue(SAMPLE) }),
+    );
+    await expect(svc.connect("org-1", { integrationId: "stripe", credential: "x" })).rejects.toThrow(
       AlreadyConnectedError,
     );
     expect(credentials.store).not.toHaveBeenCalled();
@@ -73,6 +123,13 @@ describe("IntegrationsService", () => {
     expect(credentials.update).toHaveBeenCalledWith("org-1", "crd_1", "sk_live_new");
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "connection.updated", changed: "credentials" }),
+    );
+  });
+
+  it("configure validates the new config against the connection's integration", async () => {
+    const { svc } = build();
+    await expect(svc.configure("org-1", "con_1", { config: { mode: "nope" } })).rejects.toThrow(
+      InvalidConfigError,
     );
   });
 
@@ -110,11 +167,11 @@ describe("IntegrationsService", () => {
     expect(events.publish).not.toHaveBeenCalled();
   });
 
-  it("getByService resolves a consumer's connection", async () => {
-    const repo = fakeRepo({ findByService: vi.fn().mockResolvedValue(SAMPLE) });
+  it("getByIntegration resolves a consumer's connection", async () => {
+    const repo = fakeRepo({ findByIntegration: vi.fn().mockResolvedValue(SAMPLE) });
     const { svc } = build(repo);
-    const conn = await svc.getByService("org-1", "stripe");
+    const conn = await svc.getByIntegration("org-1", "stripe");
     expect(conn?.credentialRef).toBe("crd_1");
-    expect(repo.findByService).toHaveBeenCalledWith("org-1", "stripe");
+    expect(repo.findByIntegration).toHaveBeenCalledWith("org-1", "stripe");
   });
 });

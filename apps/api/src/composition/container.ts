@@ -16,7 +16,12 @@ import { ProgressServiceImpl } from "../core/progress/index.js";
 import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
 import { AssetsServiceImpl } from "../core/assets/index.js";
-import { IntegrationsServiceImpl } from "../core/integrations/index.js";
+import {
+  IntegrationsServiceImpl,
+  createIntegrationsRegistry,
+  stripe,
+  slack,
+} from "../core/integrations/index.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
 
@@ -109,7 +114,12 @@ export function buildContainer(config: Config): Container {
 
   const connectedApps = createConnectedAppsRepo(db);
   const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
+  // The integrations this deployment supports, declared once at startup.
+  // Connect/configure reject anything not in this list and validate config
+  // with the integration's own schema.
+  const integrationsRegistry = createIntegrationsRegistry([stripe, slack]);
   const integrations = new IntegrationsServiceImpl(
+    integrationsRegistry,
     new DrizzleConnectionsRepository(db),
     credentialStore,
     eventBus,
