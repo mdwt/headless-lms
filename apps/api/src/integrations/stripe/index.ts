@@ -2,7 +2,7 @@
 // the config shape a Stripe connection carries. The credential (secret key) is
 // opaque to the domain and not validated here.
 import { z } from "zod";
-import { zodConfigValidator, type Integration } from "../../core/integrations/index.js";
+import { zodConfig, type Integration } from "../../core/integrations/index.js";
 
 const StripeConfig = z.object({
   /** Which Stripe environment this connection targets. */
@@ -13,7 +13,7 @@ const StripeConfig = z.object({
 
 const stripe: Integration = {
   id: "stripe",
-  validateConfig: zodConfigValidator(StripeConfig),
+  ...zodConfig(StripeConfig),
 };
 
 export default stripe;

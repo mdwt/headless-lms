@@ -9,6 +9,8 @@ import type { ConfigValidation, ConfigureInput, ConnectInput, Connection } from 
 export interface Integration {
   /** Registry key and Connection.integrationId (e.g. "stripe", "slack"). */
   id: string;
+  /** The config this integration accepts, as JSON Schema (drives clients/forms). */
+  configSchema(): Record<string, unknown>;
   /** Validate a connection's config against this integration's schema. */
   validateConfig(config: unknown): ConfigValidation;
 }
@@ -19,8 +21,16 @@ export interface IntegrationsRegistry {
   list(): Integration[];
 }
 
+/** A declared integration as surfaced to clients: its id and config schema. */
+export interface AvailableIntegration {
+  id: string;
+  configSchema: Record<string, unknown>;
+}
+
 // Inbound port (use cases the service exposes).
 export interface IntegrationsService {
+  /** The integrations declared in this deployment, with their config schemas. */
+  available(): AvailableIntegration[];
   /** Establish a connection for an org; stores its credential and configuration. */
   connect(orgId: string, input: ConnectInput): Promise<Connection>;
   /** Replace a connection's stored credential (re-auth / token refresh). */

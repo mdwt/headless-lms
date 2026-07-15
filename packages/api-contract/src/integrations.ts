@@ -4,6 +4,16 @@
 // response — responses carry configuration and state only.
 import { z } from "zod";
 
+/** An integration this deployment supports; configSchema is JSON Schema for its config. */
+export const AvailableIntegration = z.object({
+  id: z.string(),
+  configSchema: z.record(z.string(), z.unknown()),
+});
+export type AvailableIntegration = z.infer<typeof AvailableIntegration>;
+
+export const AvailableIntegrationsList = z.array(AvailableIntegration);
+export type AvailableIntegrationsList = z.infer<typeof AvailableIntegrationsList>;
+
 export const Connection = z.object({
   id: z.string(),
   /** Which integration this connection links to (e.g. "stripe"). Must be declared server-side. */

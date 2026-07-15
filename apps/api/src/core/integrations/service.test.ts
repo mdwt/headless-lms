@@ -14,6 +14,7 @@ import type { CredentialStore, EventBus } from "../shared/ports.js";
 // concerns; the core service only needs modules satisfying the port.
 const stripe: Integration = {
   id: "stripe",
+  configSchema: () => ({ type: "object", properties: { mode: { enum: ["live", "test"] } } }),
   validateConfig: (config) => {
     const mode = (config as Record<string, unknown>)?.mode;
     return mode === undefined || mode === "live" || mode === "test"
@@ -21,7 +22,11 @@ const stripe: Integration = {
       : { ok: false, errors: ["mode: invalid"] };
   },
 };
-const slack: Integration = { id: "slack", validateConfig: () => ({ ok: true }) };
+const slack: Integration = {
+  id: "slack",
+  configSchema: () => ({ type: "object" }),
+  validateConfig: () => ({ ok: true }),
+};
 
 const SAMPLE: Connection = {
   id: "con_1",
@@ -82,6 +87,13 @@ describe("IntegrationsRegistry", () => {
 });
 
 describe("IntegrationsService", () => {
+  it("available exposes each declared integration's id and config schema", () => {
+    const { svc } = build();
+    const available = svc.available();
+    expect(available.map((a) => a.id)).toEqual(["stripe", "slack"]);
+    expect(available[0]?.configSchema).toHaveProperty("type", "object");
+  });
+
   it("connect stores the credential, inserts the connection, emits created", async () => {
     const { svc, repo, credentials, events } = build();
     const conn = await svc.connect("org-1", {

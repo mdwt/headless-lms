@@ -21,6 +21,12 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     private readonly now: () => string,
   ) {}
 
+  available() {
+    return this.registry
+      .list()
+      .map((integration) => ({ id: integration.id, configSchema: integration.configSchema() }));
+  }
+
   private validate(integrationId: string, config: Record<string, unknown>): void {
     const integration = this.registry.get(integrationId);
     if (!integration) throw new UnknownIntegrationError(integrationId);

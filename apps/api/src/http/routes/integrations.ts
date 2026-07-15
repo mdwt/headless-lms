@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import {
+  AvailableIntegrationsList,
   ConfigureRequest,
   ConnectRequest,
   Connection,
@@ -52,6 +53,19 @@ export async function integrationsRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const integrations = container.integrations;
   const tags = ["Integrations"];
+
+  r.route({
+    method: "GET",
+    url: "/api/integrations/available",
+    preHandler: app.requireSession,
+    schema: {
+      operationId: "listAvailableIntegrations",
+      tags,
+      summary: "List the integrations this deployment supports, with their config schemas",
+      response: { 200: AvailableIntegrationsList, 401: ErrorBody },
+    },
+    handler: async () => integrations.available(),
+  });
 
   r.route({
     method: "GET",

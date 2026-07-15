@@ -59,6 +59,9 @@ import type {
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAvailableIntegrationsData,
+  ListAvailableIntegrationsErrors,
+  ListAvailableIntegrationsResponses,
   ListConnectedAppsData,
   ListConnectedAppsErrors,
   ListConnectedAppsResponses,
@@ -647,6 +650,23 @@ export class ConnectedApps {
 }
 
 export class Integrations {
+  /**
+   * List the integrations this deployment supports, with their config schemas
+   */
+  public static listAvailableIntegrations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAvailableIntegrationsData, ThrowOnError>,
+  ): RequestResult<
+    ListAvailableIntegrationsResponses,
+    ListAvailableIntegrationsErrors,
+    ThrowOnError
+  > {
+    return (options?.client ?? client).get<
+      ListAvailableIntegrationsResponses,
+      ListAvailableIntegrationsErrors,
+      ThrowOnError
+    >({ url: "/api/integrations/available", ...options });
+  }
+
   /**
    * List the organization's integration connections
    */

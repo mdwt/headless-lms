@@ -13,7 +13,11 @@ const INTEGRATIONS_DIR = fileURLToPath(new URL("../integrations/", import.meta.u
 
 function isIntegration(value: unknown): value is Integration {
   const it = value as Integration | undefined;
-  return typeof it?.id === "string" && typeof it?.validateConfig === "function";
+  return (
+    typeof it?.id === "string" &&
+    typeof it?.configSchema === "function" &&
+    typeof it?.validateConfig === "function"
+  );
 }
 
 export async function loadIntegrationsRegistry(

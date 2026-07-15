@@ -1318,6 +1318,41 @@ export type RevokeConnectedAppResponses = {
   204: unknown;
 };
 
+export type ListAvailableIntegrationsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/integrations/available";
+};
+
+export type ListAvailableIntegrationsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ListAvailableIntegrationsError =
+  ListAvailableIntegrationsErrors[keyof ListAvailableIntegrationsErrors];
+
+export type ListAvailableIntegrationsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    configSchema: {
+      [key: string]: unknown;
+    };
+  }>;
+};
+
+export type ListAvailableIntegrationsResponse =
+  ListAvailableIntegrationsResponses[keyof ListAvailableIntegrationsResponses];
+
 export type ListConnectionsData = {
   body?: never;
   path?: never;

@@ -7,6 +7,17 @@ describe("integrations directory contract", () => {
     expect(stripe.id).toBe("stripe");
     expect(slack.id).toBe("slack");
   });
+
+  it("each exposes its config as JSON Schema", () => {
+    expect(stripe.configSchema()).toMatchObject({
+      type: "object",
+      properties: { mode: { enum: ["live", "test"] } },
+    });
+    expect(slack.configSchema()).toMatchObject({
+      type: "object",
+      required: ["defaultChannel"],
+    });
+  });
 });
 
 describe("integration config validators", () => {
