@@ -1,6 +1,12 @@
 import { Badge, Dot } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/roles";
-import type { CourseStatus, EntitlementStatus, MemberStatus, Role } from "@/lib/api/types";
+import type {
+  CourseStatus,
+  EntitlementStatus,
+  IntegrationStatus,
+  MemberStatus,
+  Role,
+} from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const DOT: Record<string, string> = {
@@ -62,6 +68,21 @@ export function MemberStatusBadge({ status }: { status: MemberStatus }) {
   ) : (
     <StatusBadge variant="warning" dot>
       Invited
+    </StatusBadge>
+  );
+}
+
+export function IntegrationStatusBadge({ status }: { status: IntegrationStatus }) {
+  if (status === "not_connected") {
+    return <Badge variant="outline">Not connected</Badge>;
+  }
+  return status === "connected" ? (
+    <StatusBadge variant="success" dot>
+      Connected
+    </StatusBadge>
+  ) : (
+    <StatusBadge variant="warning" dot>
+      Inactive
     </StatusBadge>
   );
 }

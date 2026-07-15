@@ -24,6 +24,7 @@ import {
   Courses,
   Dashboard,
   Entitlements,
+  Integrations,
   Organizations,
   Students,
 } from "@headless-lms/sdk";
@@ -32,9 +33,11 @@ import { toQuery, unwrap } from "./shared";
 import { ensureConfigured, authHeaders } from "./server-call";
 import type {
   Asset,
+  AvailableIntegration,
   ConnectedApp,
   Course,
   Entitlement,
+  IntegrationConnection,
   ListParams,
   Member,
   Module,
@@ -164,5 +167,15 @@ export const serverApi = {
   async listConnectedApps(): Promise<ConnectedApp[]> {
     ensureConfigured();
     return unwrap(await ConnectedApps.listConnectedApps(await authHeaders()));
+  },
+
+  // integrations
+  async listAvailableIntegrations(): Promise<AvailableIntegration[]> {
+    ensureConfigured();
+    return unwrap(await Integrations.listAvailableIntegrations(await authHeaders()));
+  },
+  async listConnections(): Promise<IntegrationConnection[]> {
+    ensureConfigured();
+    return unwrap(await Integrations.listConnections(await authHeaders()));
   },
 };
