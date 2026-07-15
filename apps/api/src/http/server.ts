@@ -11,9 +11,11 @@ import { registerAuth } from "./plugins/auth.js";
 import { registerErrorHandler } from "./plugins/error-handler.js";
 import { registerRoutes } from "./routes.js";
 
-export function buildServer(config: ServerConfig = loadServerConfig()): FastifyInstance {
+export async function buildServer(
+  config: ServerConfig = loadServerConfig(),
+): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
-  const container = buildContainer(config.container);
+  const container = await buildContainer(config.container);
 
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);

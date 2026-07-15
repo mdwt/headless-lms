@@ -16,9 +16,8 @@ import { ProgressServiceImpl } from "../core/progress/index.js";
 import { IdentityServiceImpl } from "../core/identity/index.js";
 import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
 import { AssetsServiceImpl } from "../core/assets/index.js";
-import { IntegrationsServiceImpl, createIntegrationsRegistry } from "../core/integrations/index.js";
-import { stripe } from "../adapters/integrations/stripe/index.js";
-import { slack } from "../adapters/integrations/slack/index.js";
+import { IntegrationsServiceImpl } from "../core/integrations/index.js";
+import { loadIntegrationsRegistry } from "./integrations.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
 
@@ -69,7 +68,7 @@ export interface Container {
   credentials: CredentialStore;
 }
 
-export function buildContainer(config: Config): Container {
+export async function buildContainer(config: Config): Promise<Container> {
   // Outbound adapters
   const db = createDb(config.databaseUrl);
   const eventBus = new InMemoryEventBus();
@@ -111,10 +110,11 @@ export function buildContainer(config: Config): Container {
 
   const connectedApps = createConnectedAppsRepo(db);
   const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
-  // The integrations this deployment supports, declared once at startup.
-  // Connect/configure reject anything not in this list and validate config
-  // with the integration's own schema.
-  const integrationsRegistry = createIntegrationsRegistry([stripe, slack]);
+  // The integrations this deployment supports: everything under
+  // src/integrations/ (directory name = integration id), loaded at startup.
+  // Connect/configure reject undeclared ids and validate config with the
+  // integration's own schema.
+  const integrationsRegistry = await loadIntegrationsRegistry();
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
     new DrizzleConnectionsRepository(db),

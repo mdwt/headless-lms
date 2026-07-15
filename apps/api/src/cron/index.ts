@@ -2,7 +2,7 @@
 import { buildContainer } from "../composition/container.js";
 import { loadConfigFromEnv } from "../composition/config.js";
 
-export function startCron(): void {
-  const container = buildContainer(loadConfigFromEnv());
+export async function startCron(): Promise<void> {
+  const container = await buildContainer(loadConfigFromEnv());
   void container;
 }

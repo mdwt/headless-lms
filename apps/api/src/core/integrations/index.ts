@@ -1,6 +1,7 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from "./service.js";
 export { createIntegrationsRegistry } from "./registry.js";
+export { zodConfigValidator } from "./validation.js";
 export {
   AlreadyConnectedError,
   UnknownIntegrationError,
