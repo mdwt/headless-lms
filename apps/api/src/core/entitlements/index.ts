@@ -9,3 +9,10 @@ export type {
   GrantEntitlementInput,
   Page,
 } from "./model.js";
+export type {
+  EntitlementGranted,
+  EntitlementRevoked,
+  EntitlementReinstated,
+  EntitlementExpired,
+  EntitlementEvent,
+} from "./events.js";
