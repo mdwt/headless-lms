@@ -35,6 +35,9 @@ export interface Integration {
   id: string;
   /** The config this integration accepts, as JSON Schema (drives clients/forms). */
   configSchema(): Record<string, unknown>;
+  /** The secrets this integration needs, as JSON Schema. Discovery/form
+   *  rendering only — secrets stay opaque to the domain, never validated. */
+  secretsSchema(): Record<string, unknown>;
   /** Validate a connection's config against this integration's schema. */
   validateConfig(config: unknown): Validation;
   /** The actions this integration can be invoked with (may be empty). */
@@ -51,6 +54,7 @@ export interface IntegrationsRegistry {
 export interface AvailableIntegration {
   id: string;
   configSchema: Record<string, unknown>;
+  secretsSchema: Record<string, unknown>;
   actions: {
     id: string;
     description: string;

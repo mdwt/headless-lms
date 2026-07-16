@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Plug, User, Users, type LucideIcon } from "lucide-react";
+import { Blocks, Building2, Plug, User, Users, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/settings/general", label: "General", icon: Building2 },
       { href: "/settings/team", label: "Team", icon: Users },
+      { href: "/settings/integrations", label: "Integrations", icon: Blocks },
       { href: "/settings/apps", label: "Apps", icon: Plug },
     ],
   },

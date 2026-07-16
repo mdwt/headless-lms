@@ -8,6 +8,11 @@ describe("integrations directory contract", () => {
     expect(slack.id).toBe("slack");
   });
 
+  it("each exposes its secrets as JSON Schema", () => {
+    expect(stripe.secretsSchema()).toMatchObject({ type: "object", required: ["apiKey"] });
+    expect(slack.secretsSchema()).toMatchObject({ type: "object", required: ["botToken"] });
+  });
+
   it("each exposes its config as JSON Schema", () => {
     expect(stripe.configSchema()).toMatchObject({
       type: "object",

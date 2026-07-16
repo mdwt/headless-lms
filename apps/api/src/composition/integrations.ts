@@ -17,6 +17,7 @@ function isIntegration(value: unknown): value is Integration {
   return (
     typeof it?.id === "string" &&
     typeof it?.configSchema === "function" &&
+    typeof it?.secretsSchema === "function" &&
     typeof it?.validateConfig === "function" &&
     Array.isArray(it?.actions) &&
     it.actions.every(

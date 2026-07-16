@@ -1347,6 +1347,9 @@ export type ListAvailableIntegrationsResponses = {
     configSchema: {
       [key: string]: unknown;
     };
+    secretsSchema: {
+      [key: string]: unknown;
+    };
     actions: Array<{
       id: string;
       description: string;

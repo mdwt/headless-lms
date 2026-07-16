@@ -13,7 +13,9 @@ import type {
   GetOverviewResponse,
   GetStudentResponse,
   ListAssetsResponse,
+  ListAvailableIntegrationsResponse,
   ListConnectedAppsResponse,
+  ListConnectionsResponse,
   ListCoursesResponse,
   ListEntitlementsResponse,
   ListMembersResponse,
@@ -70,6 +72,12 @@ export type OverviewStats = GetOverviewResponse;
 // --- media library (assets) ------------------------------------------------
 
 export type ConnectedApp = ListConnectedAppsResponse[number];
+
+// --- integrations -----------------------------------------------------------
+
+export type AvailableIntegration = ListAvailableIntegrationsResponse[number];
+export type IntegrationConnection = ListConnectionsResponse[number];
+export type IntegrationStatus = "connected" | "inactive" | "not_connected";
 
 export type Asset = GetAssetResponse;
 export type AssetKind = Asset["kind"];

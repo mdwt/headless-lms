@@ -17,6 +17,8 @@ export type IntegrationActionInfo = z.infer<typeof IntegrationActionInfo>;
 export const AvailableIntegration = z.object({
   id: z.string(),
   configSchema: z.record(z.string(), z.unknown()),
+  /** JSON Schema of the secrets the integration needs (form rendering only). */
+  secretsSchema: z.record(z.string(), z.unknown()),
   actions: z.array(IntegrationActionInfo),
 });
 export type AvailableIntegration = z.infer<typeof AvailableIntegration>;

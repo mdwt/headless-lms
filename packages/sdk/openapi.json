@@ -4082,6 +4082,10 @@
                         "type": "object",
                         "additionalProperties": {}
                       },
+                      "secretsSchema": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
                       "actions": {
                         "type": "array",
                         "items": {
@@ -4115,6 +4119,7 @@
                     "required": [
                       "id",
                       "configSchema",
+                      "secretsSchema",
                       "actions"
                     ],
                     "additionalProperties": false

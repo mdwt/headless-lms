@@ -25,6 +25,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return this.registry.list().map((integration) => ({
       id: integration.id,
       configSchema: integration.configSchema(),
+      secretsSchema: integration.secretsSchema(),
       actions: integration.actions.map((action) => ({
         id: action.id,
         description: action.description,
@@ -110,8 +111,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   async disconnect(orgId: string, id: string): Promise<boolean> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return false;
-    await this.credentials.destroy(orgId, connection.credentialRef);
+    // Connection first: it holds the FK onto the credential row.
     const deleted = await this.repo.delete(orgId, id);
+    await this.credentials.destroy(orgId, connection.credentialRef);
     const removed: ConnectionRemoved = {
       type: "connection.removed",
       orgId,
