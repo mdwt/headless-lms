@@ -10,7 +10,7 @@
  *   pnpm --filter @headless-lms/api seed
  */
 import { faker } from "@faker-js/faker";
-import { createDb, schema } from "../adapters/db/index.js";
+import { createDb, schema } from "../composition/db.js";
 import { genId, ksuid } from "../core/shared/id.js";
 
 const times = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));

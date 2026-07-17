@@ -33,7 +33,16 @@ function isIntegration(value: unknown): value is Integration {
 
 export async function loadIntegrations(dir?: string): Promise<IntegrationsRegistry> {
   if (!dir) return createIntegrationsRegistry([]);
-  const entries = await readdir(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (err) {
+    // A fresh installation's plugins/ dir has no .ts files yet (just a
+    // README), so the build never creates dist/plugins/ — that's zero
+    // installed integrations, not a boot failure.
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return createIntegrationsRegistry([]);
+    throw err;
+  }
   const integrations: Integration[] = [];
   for (const entry of entries.filter((e) => e.isDirectory())) {
     // index.ts when running from source (tsx/vitest), index.js from dist.

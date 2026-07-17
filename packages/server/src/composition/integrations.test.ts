@@ -18,6 +18,11 @@ describe("loadIntegrations", () => {
     expect(registry.list()).toEqual([]);
   });
 
+  it("returns an empty registry when the plugins dir does not exist on disk", async () => {
+    const registry = await loadIntegrations(join(tmpdir(), "does-not-exist-integrations-dir"));
+    expect(registry.list()).toEqual([]);
+  });
+
   it("rejects an integration whose id does not match its directory name", async () => {
     const dir = await fakeIntegrationsDir(
       "mailchimp",
