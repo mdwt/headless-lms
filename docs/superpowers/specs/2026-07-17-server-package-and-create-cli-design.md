@@ -5,11 +5,17 @@
 
 ## Context
 
-Headless LMS lives entirely inside a private pnpm monorepo. Everything server-side — domain (`core/`), infra (`adapters/`), read layer (`reporting/`), HTTP (`http/`), wiring (`composition/`) — sits in `apps/api`, so there is no way to run an *installation* of the product separate from the library's source. The goal is the Medusa/Payload model: the product ships as npm packages, and an installation is a thin project folder — entry file, config, env, plugins folder — scaffolded by an `npm create` wizard. `apps/api` becomes the reference installation and stays the day-to-day dev environment.
+Headless LMS lives entirely inside a pnpm monorepo. Everything server-side — domain (`core/`), infra (`adapters/`), read layer (`reporting/`), HTTP (`http/`), wiring (`composition/`) — sits in `apps/api`,
+so there is no way to run an *installation* of the product separate from the library's source. 
+The goal is to ship the product as npm packages, and an installation is a thin project folder 
+— entry file, config, env, plugins folder — scaffolded by an `npm create` wizard. `apps/api` becomes the reference
+installation and stays the day-to-day dev environment.
 
-The type/plugin groundwork already exists on this branch: `@headless-lms/types` (domain entities, DTOs, events, the `Integration` contract — pure types), `@headless-lms/utils` (runtime helpers for integrations), and the `plugins/` workspace (`@headless-lms/plugin-slack`). All packages build with tsdown. This spec builds on that.
+The type/plugin groundwork already exists on this branch: `@headless-lms/types` (domain entities, DTOs, events, the `Integration` contract — pure types),
+`@headless-lms/utils` (runtime helpers for integrations), 
+and the `plugins/` workspace (`@headless-lms/plugin-slack`). All packages build with tsdown. This spec builds on that.
 
-Backend only for now: `apps/admin` and `apps/student` are untouched by this work (deferring them was an explicit decision, not an oversight). Publishing to npm is likewise a later, separate step — until then everything resolves via `workspace:*`.
+Backend only. no Publishing to npm for now. everything resolves via `workspace:*`.
 
 ## Target structure
 
@@ -19,10 +25,10 @@ packages/
   create-headless-lms   create-headless-lms         the scaffolding wizard (`npm create headless-lms`)
   api-contract          @headless-lms/api-contract  unchanged
   sdk                   @headless-lms/sdk           unchanged
-  types                 @headless-lms/types         unchanged (this branch)
-  utils                 @headless-lms/utils         unchanged (this branch)
+  types                 @headless-lms/types         unchanged
+  utils                 @headless-lms/utils         unchanged 
 plugins/
-  slack                 @headless-lms/plugin-slack  unchanged (this branch)
+  slack                 @headless-lms/plugin-slack  unchanged 
 apps/
   api                   reference installation (thin), depends on @headless-lms/server via workspace:*
   admin / student       untouched
@@ -37,18 +43,25 @@ Absorbs `apps/api/src/{core,adapters,reporting,http,composition}` unchanged in i
 ```ts
 createContainer(config: ServerConfig, options?: {
   pluginsDir?: string,            // installation's plugins folder, scanned by loadIntegrations
-  overrides?: AdapterOverrides,   // swap deployment-specific adapters
+  adapters?: AdapterOverrides,   // swap deployment-specific adapters
 }): Promise<Container>
 buildServer(config: ServerConfig, container: Container): Promise<FastifyInstance>
 // + ServerConfig / AdapterOverrides types, and the outbound port interfaces
 //   needed to implement overrides (EmailSender, StorageClient, …)
 ```
 
-Composition stays **inside** the package: `createContainer` wires all default Drizzle adapters into services. Installations do not own wiring — they extend it. `AdapterOverrides` starts minimal, covering only the ports that are stubs or deployment-specific today: `email`, `storage`, `video`, `payment`. Repositories, auth, and events remain internal. The package never reads `process.env`; it receives a `ServerConfig` object.
+Composition stays **inside** the package: `createContainer` wires all default Drizzle adapters into services. 
+Installations do not own wiring — they extend it. `AdapterOverrides` starts minimal, 
+covering only the ports that are stubs or deployment-specific today: `email`, `storage`, `video`, `payment`.
+Repositories, auth, and events remain internal. The package never reads `process.env`; it receives a `ServerConfig` object.
 
 ### Plugins in an installation
 
-The existing mechanism is kept exactly as it works on this branch: `loadIntegrations(dir)` scans a plugins directory; each subdirectory is one integration (directory name = integration id) whose index module default-exports an object satisfying the `Integration` contract from `@headless-lms/types`. The only change is that the directory becomes installation-owned, passed as `pluginsDir` — the loader moves into the server package, the folder does not.
+The existing mechanism is kept exactly as it works on this branch: `loadIntegrations(dir)` 
+scans a plugins directory; each subdirectory is one integration (directory name = integration id) whose 
+index module default-exports an object satisfying the `Integration` contract from `@headless-lms/types`. 
+The only change is that the directory becomes installation-owned, passed as `pluginsDir` — 
+the loader moves into the server package, the folder does not.
 
 Two ways an installation fills that folder, both already proven on this branch:
 
@@ -70,7 +83,7 @@ The empty `apps/api/src/cli/index.ts` stub is replaced by this real CLI, living 
 
 ```
 my-lms/
-  src/main.ts          ~10 lines: loadConfig → createContainer(config, { pluginsDir, overrides? }) → buildServer → listen
+  src/main.ts          ~10 lines: loadConfig → createContainer(config, { pluginsDir, adapters? }) → buildServer → listen
   plugins/             integration folders, one per integration id (re-exports of plugin packages, or custom)
   .env                 all runtime config, secrets included
   .env.example         same keys, secrets blanked
@@ -105,7 +118,8 @@ The scaffolded `plugins/` folder starts empty except for a README explaining the
 
 ### Constraint until publishing
 
-A generated project's `@headless-lms/server` dependency only resolves inside this workspace. The wizard is developed and E2E-tested by scaffolding into a temp dir with the dependency pointed at a locally packed tarball (`pnpm pack` of the server package). The generated `package.json` template carries a real semver range so nothing changes at publish time except availability.
+A generated project's `@headless-lms/server` dependency only resolves inside this workspace. 
+The wizard is developed and E2E-tested by scaffolding into a temp dir with the dependency pointed at a locally packed tarball (`pnpm pack` of the server package). The generated `package.json` template carries a real semver range so nothing changes at publish time except availability.
 
 ## Error handling
 
