@@ -54,43 +54,43 @@ describe("EntitlementsService", () => {
     });
   });
 
-  it("publishes entitlement.granted with the org and full snapshot", async () => {
+  it("publishes enrollment.created with the org and full snapshot", async () => {
     const events = fakeEvents();
     const svc = new EntitlementsServiceImpl(fakeRepo(), events);
     await svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null });
     expect(events.publish).toHaveBeenCalledWith({
-      type: "entitlement.granted",
+      type: "enrollment.created",
       orgId: "org-1",
-      entitlement: SAMPLE,
+      enrollment: SAMPLE,
     });
   });
 
-  it("sets status (revoke/reinstate) via the repository", async () => {
+  it("sets status (revoke/reactivate) via the repository", async () => {
     const repo = fakeRepo();
     const svc = new EntitlementsServiceImpl(repo, fakeEvents());
     await svc.setStatus("org-1", "e1", "revoked");
     expect(repo.setStatus).toHaveBeenCalledWith("org-1", "e1", "revoked");
   });
 
-  it("publishes entitlement.revoked on revoke", async () => {
+  it("publishes enrollment.deleted on revoke", async () => {
     const events = fakeEvents();
     const svc = new EntitlementsServiceImpl(fakeRepo(), events);
     await svc.setStatus("org-1", "e1", "revoked");
     expect(events.publish).toHaveBeenCalledWith({
-      type: "entitlement.revoked",
+      type: "enrollment.deleted",
       orgId: "org-1",
-      entitlement: SAMPLE,
+      enrollment: SAMPLE,
     });
   });
 
-  it("publishes entitlement.reinstated on reactivation", async () => {
+  it("publishes enrollment.updated on reactivation", async () => {
     const events = fakeEvents();
     const svc = new EntitlementsServiceImpl(fakeRepo(), events);
     await svc.setStatus("org-1", "e1", "active");
     expect(events.publish).toHaveBeenCalledWith({
-      type: "entitlement.reinstated",
+      type: "enrollment.updated",
       orgId: "org-1",
-      entitlement: SAMPLE,
+      enrollment: SAMPLE,
     });
   });
 

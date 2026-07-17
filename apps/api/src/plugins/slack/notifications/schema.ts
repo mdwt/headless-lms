@@ -19,9 +19,10 @@ export type EnrollmentEventPayload = z.infer<typeof EnrollmentEventPayload>;
 
 export const EventNotification = z
   .discriminatedUnion("type", [
-    z.object({ type: z.literal("entitlement.granted"), entitlement: EnrollmentEventPayload }),
-    z.object({ type: z.literal("entitlement.revoked"), entitlement: EnrollmentEventPayload }),
-    z.object({ type: z.literal("entitlement.expired"), entitlement: EnrollmentEventPayload }),
+    z.object({ type: z.literal("enrollment.created"), enrollment: EnrollmentEventPayload }),
+    z.object({ type: z.literal("enrollment.updated"), enrollment: EnrollmentEventPayload }),
+    z.object({ type: z.literal("enrollment.deleted"), enrollment: EnrollmentEventPayload }),
+    z.object({ type: z.literal("enrollment.expired"), enrollment: EnrollmentEventPayload }),
   ])
   .describe("A domain event to announce. Type strings mirror the platform's domain events.");
 export type EventNotification = z.infer<typeof EventNotification>;

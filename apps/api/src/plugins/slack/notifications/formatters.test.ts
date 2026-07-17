@@ -13,12 +13,12 @@ const PAYLOAD: EnrollmentEventPayload = {
 };
 
 function event(type: EventNotification["type"], over?: Partial<EnrollmentEventPayload>) {
-  return { type, entitlement: { ...PAYLOAD, ...over } } as EventNotification;
+  return { type, enrollment: { ...PAYLOAD, ...over } } as EventNotification;
 }
 
 describe("formatNotification", () => {
-  it("formats entitlement.granted", () => {
-    const message = formatNotification(event("entitlement.granted"));
+  it("formats enrollment.created", () => {
+    const message = formatNotification(event("enrollment.created"));
     expect(message.text).toBe("✅ Ada Lovelace enrolled in Calculus 101");
     expect(message.blocks[0]).toMatchObject({
       type: "header",
@@ -26,20 +26,26 @@ describe("formatNotification", () => {
     });
   });
 
-  it("formats entitlement.revoked", () => {
-    const message = formatNotification(event("entitlement.revoked"));
-    expect(message.text).toBe("🚫 Ada Lovelace's enrollment in Calculus 101 was revoked");
-    expect(message.blocks[0]).toMatchObject({ text: { text: "🚫 Enrollment revoked" } });
+  it("formats enrollment.updated", () => {
+    const message = formatNotification(event("enrollment.updated"));
+    expect(message.text).toBe("🔄 Ada Lovelace's enrollment in Calculus 101 was updated");
+    expect(message.blocks[0]).toMatchObject({ text: { text: "🔄 Enrollment updated" } });
   });
 
-  it("formats entitlement.expired", () => {
-    const message = formatNotification(event("entitlement.expired"));
+  it("formats enrollment.deleted", () => {
+    const message = formatNotification(event("enrollment.deleted"));
+    expect(message.text).toBe("🚫 Ada Lovelace was unenrolled from Calculus 101");
+    expect(message.blocks[0]).toMatchObject({ text: { text: "🚫 Enrollment removed" } });
+  });
+
+  it("formats enrollment.expired", () => {
+    const message = formatNotification(event("enrollment.expired"));
     expect(message.text).toBe("⏳ Ada Lovelace's access to Calculus 101 has expired");
     expect(message.blocks[0]).toMatchObject({ text: { text: "⏳ Enrollment expired" } });
   });
 
   it("includes student, email, course and enrolment date fields", () => {
-    const message = formatNotification(event("entitlement.granted"));
+    const message = formatNotification(event("enrollment.created"));
     const fields = (message.blocks[1] as { fields: Array<{ text: string }> }).fields;
     const texts = fields.map((f) => f.text);
     expect(texts).toEqual([
@@ -51,11 +57,11 @@ describe("formatNotification", () => {
   });
 
   it("adds an Expires field only when expiresAt is set", () => {
-    const without = formatNotification(event("entitlement.granted"));
+    const without = formatNotification(event("enrollment.created"));
     expect(JSON.stringify(without.blocks)).not.toContain("*Expires*");
 
     const withExpiry = formatNotification(
-      event("entitlement.granted", { expiresAt: "2026-12-31T00:00:00Z" }),
+      event("enrollment.created", { expiresAt: "2026-12-31T00:00:00Z" }),
     );
     expect(JSON.stringify(withExpiry.blocks)).toContain("*Expires*\\n2026-12-31T00:00:00Z");
   });

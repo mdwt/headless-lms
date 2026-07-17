@@ -10,9 +10,9 @@ export type {
   Page,
 } from "./model.js";
 export type {
-  EntitlementGranted,
-  EntitlementRevoked,
-  EntitlementReinstated,
-  EntitlementExpired,
-  EntitlementEvent,
+  EnrollmentCreated,
+  EnrollmentUpdated,
+  EnrollmentDeleted,
+  EnrollmentExpired,
+  EnrollmentEvent,
 } from "./events.js";

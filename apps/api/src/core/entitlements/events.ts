@@ -1,39 +1,44 @@
 // entitlements context — domain events (published on the shared EventBus).
-// Each event carries the full Entitlement snapshot (the repository denormalises
-// student and course display fields), so consumers need no cross-context lookups.
+// Event names use the merchant-facing vocabulary (an enrollment in a course),
+// not the internal model name. Each event carries the full Entitlement
+// snapshot (the repository denormalises student and course display fields),
+// so consumers need no cross-context lookups.
 import type { DomainEvent } from "../shared/ports.js";
 import type { Entitlement } from "./model.js";
 
-export interface EntitlementGranted extends DomainEvent {
-  type: "entitlement.granted";
+/** A student enrolled in a course (including an upsert re-grant). */
+export interface EnrollmentCreated extends DomainEvent {
+  type: "enrollment.created";
   orgId: string;
-  entitlement: Entitlement;
+  enrollment: Entitlement;
 }
 
-export interface EntitlementRevoked extends DomainEvent {
-  type: "entitlement.revoked";
+/** An existing enrollment changed — currently a revoked one reactivated. */
+export interface EnrollmentUpdated extends DomainEvent {
+  type: "enrollment.updated";
   orgId: string;
-  entitlement: Entitlement;
+  enrollment: Entitlement;
 }
 
-export interface EntitlementReinstated extends DomainEvent {
-  type: "entitlement.reinstated";
+/** A student was unenrolled (the enrollment's status set to revoked). */
+export interface EnrollmentDeleted extends DomainEvent {
+  type: "enrollment.deleted";
   orgId: string;
-  entitlement: Entitlement;
+  enrollment: Entitlement;
 }
 
 /**
  * Not published yet: "expired" is derived from expires_at at read time, so no
  * code path observes the transition. A future scheduled sweep will publish it.
  */
-export interface EntitlementExpired extends DomainEvent {
-  type: "entitlement.expired";
+export interface EnrollmentExpired extends DomainEvent {
+  type: "enrollment.expired";
   orgId: string;
-  entitlement: Entitlement;
+  enrollment: Entitlement;
 }
 
-export type EntitlementEvent =
-  | EntitlementGranted
-  | EntitlementRevoked
-  | EntitlementReinstated
-  | EntitlementExpired;
+export type EnrollmentEvent =
+  | EnrollmentCreated
+  | EnrollmentUpdated
+  | EnrollmentDeleted
+  | EnrollmentExpired;

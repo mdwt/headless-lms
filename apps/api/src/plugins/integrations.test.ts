@@ -123,9 +123,9 @@ describe("slack postEventNotification action", () => {
     secrets: { botToken: "xoxb-token" },
     config: { defaultChannel: "#general" },
   };
-  const grantedEvent = {
-    type: "entitlement.granted",
-    entitlement: {
+  const createdEvent = {
+    type: "enrollment.created",
+    enrollment: {
       firstName: "Ada",
       lastName: "Lovelace",
       studentEmail: "ada@example.com",
@@ -151,12 +151,12 @@ describe("slack postEventNotification action", () => {
     };
     expect(schema.required).toContain("event");
     const variants = schema.properties.event.anyOf ?? schema.properties.event.oneOf;
-    expect(variants).toHaveLength(3);
+    expect(variants).toHaveLength(4);
   });
 
   it("posts the formatted message (fallback text + blocks) with the bot token", async () => {
     const fetchMock = stubSlackOk();
-    const out = await action.invoke(ctx, { channel: "#alerts", event: grantedEvent });
+    const out = await action.invoke(ctx, { channel: "#alerts", event: createdEvent });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://slack.com/api/chat.postMessage");
     expect(init.headers).toMatchObject({ authorization: "Bearer xoxb-token" });
@@ -173,7 +173,7 @@ describe("slack postEventNotification action", () => {
 
   it("falls back to the connection's defaultChannel", async () => {
     const fetchMock = stubSlackOk();
-    await action.invoke(ctx, { event: grantedEvent });
+    await action.invoke(ctx, { event: createdEvent });
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as { channel: string };
     expect(body.channel).toBe("#general");
   });
@@ -181,7 +181,7 @@ describe("slack postEventNotification action", () => {
   it("rejects an unknown event type before any external call", async () => {
     const fetchMock = stubSlackOk();
     await expect(
-      action.invoke(ctx, { event: { ...grantedEvent, type: "course.published" } }),
+      action.invoke(ctx, { event: { ...createdEvent, type: "course.published" } }),
     ).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -39,7 +39,7 @@ type Formatter<T extends EventNotification["type"]> = (
   event: Extract<EventNotification, { type: T }>,
 ) => SlackMessage;
 
-const formatGranted: Formatter<"entitlement.granted"> = ({ entitlement: e }) => ({
+const formatCreated: Formatter<"enrollment.created"> = ({ enrollment: e }) => ({
   text: `✅ ${studentName(e)} enrolled in ${e.courseTitle}`,
   blocks: [
     header("✅ New enrollment"),
@@ -48,16 +48,25 @@ const formatGranted: Formatter<"entitlement.granted"> = ({ entitlement: e }) => 
   ],
 });
 
-const formatRevoked: Formatter<"entitlement.revoked"> = ({ entitlement: e }) => ({
-  text: `🚫 ${studentName(e)}'s enrollment in ${e.courseTitle} was revoked`,
+const formatUpdated: Formatter<"enrollment.updated"> = ({ enrollment: e }) => ({
+  text: `🔄 ${studentName(e)}'s enrollment in ${e.courseTitle} was updated`,
   blocks: [
-    header("🚫 Enrollment revoked"),
+    header("🔄 Enrollment updated"),
     enrollmentFields(e),
     context(`Originally enrolled ${e.grantedAt}`),
   ],
 });
 
-const formatExpired: Formatter<"entitlement.expired"> = ({ entitlement: e }) => ({
+const formatDeleted: Formatter<"enrollment.deleted"> = ({ enrollment: e }) => ({
+  text: `🚫 ${studentName(e)} was unenrolled from ${e.courseTitle}`,
+  blocks: [
+    header("🚫 Enrollment removed"),
+    enrollmentFields(e),
+    context(`Originally enrolled ${e.grantedAt}`),
+  ],
+});
+
+const formatExpired: Formatter<"enrollment.expired"> = ({ enrollment: e }) => ({
   text: `⏳ ${studentName(e)}'s access to ${e.courseTitle} has expired`,
   blocks: [
     header("⏳ Enrollment expired"),
@@ -67,9 +76,10 @@ const formatExpired: Formatter<"entitlement.expired"> = ({ entitlement: e }) => 
 });
 
 const formatters = {
-  "entitlement.granted": formatGranted,
-  "entitlement.revoked": formatRevoked,
-  "entitlement.expired": formatExpired,
+  "enrollment.created": formatCreated,
+  "enrollment.updated": formatUpdated,
+  "enrollment.deleted": formatDeleted,
+  "enrollment.expired": formatExpired,
 } satisfies { [T in EventNotification["type"]]: Formatter<T> };
 
 export function formatNotification(event: EventNotification): SlackMessage {
