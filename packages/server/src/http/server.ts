@@ -3,8 +3,8 @@
 // error handling, routes) so this file stays a readable table of contents.
 import Fastify, { type FastifyInstance } from "fastify";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import { buildContainer } from "../composition/container.js";
-import { loadServerConfig, type ServerConfig } from "./config.js";
+import type { Container } from "../composition/container.js";
+import type { ServerConfig } from "./config.js";
 import { registerCors } from "./plugins/cors.js";
 import { registerOpenApi } from "./plugins/openapi.js";
 import { registerAuth } from "./plugins/auth.js";
@@ -12,10 +12,10 @@ import { registerErrorHandler } from "./plugins/error-handler.js";
 import { registerRoutes } from "./routes.js";
 
 export async function buildServer(
-  config: ServerConfig = loadServerConfig(),
+  config: ServerConfig,
+  container: Container,
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
-  const container = await buildContainer(config.container);
 
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);

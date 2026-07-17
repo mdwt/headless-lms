@@ -33,7 +33,19 @@ import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.
 import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
 import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
 import { DrizzleConnectionsRepository } from "../adapters/db/repositories/integrations.js";
-import type { CredentialStore } from "../core/shared/ports.js";
+import type { CredentialStore, EmailSender, ObjectStorage } from "../core/shared/ports.js";
+
+/** Deployment-specific ports an installation may swap. */
+export interface AdapterOverrides {
+  email?: EmailSender;
+  storage?: ObjectStorage;
+}
+
+export interface BuildContainerOptions {
+  /** Installation's plugins folder, scanned by loadIntegrations. Absent → no integrations. */
+  pluginsDir?: string;
+  adapters?: AdapterOverrides;
+}
 
 export interface Config {
   databaseUrl: string;
@@ -62,18 +74,21 @@ export interface Container {
     students: StudentsReportServiceImpl;
     dashboard: DashboardReportServiceImpl;
   };
-  storage: MinioStorageAdapter;
+  storage: ObjectStorage;
   connectedApps: ConnectedAppsRepo;
   /** Shared secure credential store — encrypted at rest, org-scoped, decrypt at point of use. */
   credentials: CredentialStore;
 }
 
-export async function buildContainer(config: Config): Promise<Container> {
+export async function buildContainer(
+  config: Config,
+  options?: BuildContainerOptions,
+): Promise<Container> {
   // Outbound adapters
   const db = createDb(config.databaseUrl);
   const eventBus = new InMemoryEventBus();
-  const email = new EmailAdapter();
-  const storage = new MinioStorageAdapter(config.storage);
+  const email = options?.adapters?.email ?? new EmailAdapter();
+  const storage: ObjectStorage = options?.adapters?.storage ?? new MinioStorageAdapter(config.storage);
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
@@ -110,10 +125,11 @@ export async function buildContainer(config: Config): Promise<Container> {
 
   const connectedApps = createConnectedAppsRepo(db);
   const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
-  // The integrations this deployment supports: everything under src/plugins/
-  // (directory name = integration id), loaded at startup. Connect/configure
-  // reject undeclared ids and validate config with the integration's own schema.
-  const integrationsRegistry = await loadIntegrations();
+  // The integrations this deployment supports: the installation's declared
+  // plugins folder (directory name = integration id), loaded at startup.
+  // Connect/configure reject undeclared ids and validate config with the
+  // integration's own schema. No folder → no integrations.
+  const integrationsRegistry = await loadIntegrations(options?.pluginsDir);
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
     new DrizzleConnectionsRepository(db),

@@ -1,7 +1,40 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { buildServer } from "./server.js";
+import { buildContainer, type Config } from "../composition/container.js";
+import type { ServerConfig } from "./config.js";
 
-const app = await buildServer();
+// DB-less unit env: no live Postgres/MinIO, matching the defaults the process
+// entry point would otherwise read from an unset environment.
+const containerConfig: Config = {
+  databaseUrl: "",
+  authBaseURL: "http://localhost:8000",
+  authSecret: "",
+  trustedOrigins: ["http://localhost:8001", "http://localhost:8002", "http://localhost:8000"],
+  mcpLoginPage: "http://localhost:8001/login",
+  credentialStoreKey: "",
+  storage: {
+    endPoint: "localhost",
+    port: 8006,
+    useSSL: false,
+    accessKey: "minioadmin",
+    secretKey: "minioadmin",
+    region: "us-east-1",
+    bucket: "headless-lms",
+    uploadExpirySeconds: 300,
+    downloadExpirySeconds: 300,
+  },
+};
+
+const serverConfig: ServerConfig = {
+  port: 8000,
+  host: "0.0.0.0",
+  publicUrl: containerConfig.authBaseURL,
+  clientOrigins: ["http://localhost:8001", "http://localhost:8002"],
+  container: containerConfig,
+};
+
+const container = await buildContainer(containerConfig);
+const app = await buildServer(serverConfig, container);
 
 describe("OAuth token endpoint — form-encoded body", () => {
   afterAll(async () => {

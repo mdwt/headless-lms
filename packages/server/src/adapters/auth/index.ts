@@ -8,9 +8,10 @@
 // adapter resolves better-auth user ids to domain student ids before calling
 // core, so core contexts never import the auth schema. Composition only injects
 // the port implementations.
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink, organization, mcp } from "better-auth/plugins";
+import type { OAuthAccessToken } from "better-auth/plugins";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import type { EmailSender } from "../../core/shared/ports.js";
@@ -138,7 +139,7 @@ function getConsentHTML(p: {
 </html>`;
 }
 
-export function createAuth(opts: CreateAuthOptions) {
+export function createAuth(opts: CreateAuthOptions): Auth {
   // Resolve a better-auth user id to its mirrored domain staff User. The User is
   // provisioned on user creation, so it exists by the time org hooks fire.
   const requireUser = async (externalId: string) => {
@@ -294,7 +295,53 @@ export function createAuth(opts: CreateAuthOptions) {
         },
       },
     },
-  });
+  }) as unknown as Auth;
 }
 
-export type Auth = ReturnType<typeof createAuth>;
+// Hand-declared instead of `ReturnType<typeof betterAuth>`: better-auth infers
+// that return type from the literal `plugins` array above, and the mcp
+// plugin's shape embeds an internal (non-exported) `MCPOptions` type that
+// TypeScript's declaration emitter cannot name when this package builds its
+// own .d.ts — see the mcp plugin in better-auth/plugins. This interface
+// covers exactly the surface the package touches (the web handler, session
+// lookup, the MCP OAuth hooks, and organization member-writes); the object
+// `createAuth` returns is the real better-auth instance underneath, just
+// narrowed to this shape at the boundary.
+export interface Auth {
+  handler: (request: Request) => Promise<Response>;
+  options: BetterAuthOptions;
+  api: {
+    getSession: (input: { headers: Headers }) => Promise<{
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        emailVerified: boolean;
+        image?: string | null;
+      };
+      session: Record<string, unknown>;
+    } | null>;
+    // Consumed only structurally by better-auth's own mcp helpers
+    // (withMcpAuth, oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata).
+    getMcpSession: (...args: any[]) => Promise<OAuthAccessToken | null>;
+    getMcpOAuthConfig: (...args: any[]) => any;
+    getMCPProtectedResource: (...args: any[]) => any;
+    // Organization member-writes (see org-admin.ts).
+    createOrganization: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<{ id: string } | null>;
+    setActiveOrganization: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>;
+    updateOrganization: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>;
+    createInvitation: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+    updateMemberRole: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+    removeMember: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+    cancelInvitation: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+  };
+}

@@ -13,11 +13,9 @@ async function fakeIntegrationsDir(name: string, body: string): Promise<string> 
 }
 
 describe("loadIntegrations", () => {
-  it("loads every integration under src/plugins/ keyed by directory name", async () => {
+  it("returns an empty registry when no plugins dir is given", async () => {
     const registry = await loadIntegrations();
-    expect(registry.list().map((i) => i.id)).toEqual(["slack", "stripe"]);
-    expect(registry.get("stripe")?.validateConfig({ mode: "test" }).ok).toBe(true);
-    expect(registry.get("strope")).toBeNull();
+    expect(registry.list()).toEqual([]);
   });
 
   it("rejects an integration whose id does not match its directory name", async () => {
