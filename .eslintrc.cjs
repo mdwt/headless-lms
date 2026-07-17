@@ -1,11 +1,11 @@
 /* Boundary enforcement for the hexagonal architecture.
  *
  * Element types (by folder):
- *   core      apps/api/src/core/<context>/**   — framework-free domain
- *   reporting apps/api/src/reporting/**         — read layer (composed cross-context reads)
- *   adapters  apps/api/src/adapters/**          — outbound infra
- *   composition apps/api/src/composition/**     — wiring
- *   inbound   apps/api/src/{http,cli,workers,cron}/**
+ *   core      packages/server/src/core/<context>/**   — framework-free domain
+ *   reporting packages/server/src/reporting/**         — read layer (composed cross-context reads)
+ *   adapters  packages/server/src/adapters/**          — outbound infra
+ *   composition packages/server/src/composition/**     — wiring
+ *   inbound   packages/server/src/{http,cli,workers,cron}/**
  *
  * Rules:
  *   - A context may import another context ONLY via its index.ts (no deep imports).
@@ -18,7 +18,7 @@
 const CONTEXTS = [
   "identity",
   "organizations",
-  "courses",
+  "content",
   "entitlements",
   "progress",
   "assets",
@@ -123,7 +123,7 @@ module.exports = {
     {
       // core must stay framework-free, runtime-free, and persistence-free, and a
       // context may reach another context ONLY through its public index.ts.
-      files: ["apps/api/src/core/**/*.ts"],
+      files: ["packages/server/src/core/**/*.ts"],
       rules: {
         "no-restricted-imports": [
           "error",
