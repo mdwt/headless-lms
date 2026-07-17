@@ -2,6 +2,8 @@
   "files": [],
   "references": [
     { "path": "./packages/shared-types" },
-    { "path": "./packages/api-contract" }
+    { "path": "./packages/api-contract" },
+    { "path": "./packages/integration-sdk" },
+    { "path": "./packages/plugin-slack" }
   ]
 }

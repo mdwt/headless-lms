@@ -29,9 +29,6 @@ export interface ConfigureInput {
   active?: boolean | undefined;
 }
 
-/** Result of an Integration validating a connection's config or an action's input. */
-export type Validation = { ok: true } | { ok: false; errors: string[] };
-
 /** An org already has a connection for this integration (one per integration per org). */
 export class AlreadyConnectedError extends Error {
   constructor(readonly integrationId: string) {
