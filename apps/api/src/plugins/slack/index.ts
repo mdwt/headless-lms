@@ -7,15 +7,14 @@
 // under actions/, and event formatting under notifications/.
 import { zodConfig, zodSecrets, type Integration } from "../../core/integrations/index.js";
 import { SlackConfig, SlackSecrets } from "./schemas.js";
-import { postMessageToChannel } from "./actions/post-message-to-channel.js";
-import { postEventNotification } from "./actions/post-event-notification.js";
+import { postToChannel } from "./actions/post-to-channel.js";
 import { listChannels } from "./actions/list-channels.js";
 
 const slack: Integration = {
   id: "slack",
   ...zodConfig(SlackConfig),
   ...zodSecrets(SlackSecrets),
-  actions: [postMessageToChannel, postEventNotification, listChannels],
+  actions: [postToChannel, listChannels],
 };
 
 export default slack;

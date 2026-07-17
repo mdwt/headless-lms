@@ -1,10 +1,18 @@
-// slack integration — the plugin's own input contract for domain-event
-// notifications. Type strings mirror the platform's domain events verbatim so
-// a future automations bridge can pass an event straight through (zod strips
-// unknown keys such as orgId). The producing contexts own the domain events;
-// this plugin owns only what it needs to format a post.
+// slack integration — input contract for posting domain events. The body is
+// any domain event: a required `type` plus whatever metadata the event
+// carries (unknown keys pass through). Known event types get rich formatting
+// (see formatters.ts); anything else falls back to a generic post, so new
+// domain events work immediately and earn a bespoke formatter later.
 import { z } from "zod";
 
+export const EventBody = z
+  .looseObject({
+    type: z.string().min(1).describe('Domain event type, e.g. "enrollment.created".'),
+  })
+  .describe("A domain event: its type plus the metadata the event carries.");
+export type EventBody = z.infer<typeof EventBody>;
+
+/** The metadata enrollment.* events carry (mirrors the domain event snapshot). */
 export const EnrollmentEventPayload = z.object({
   entitlementId: z.string().optional(),
   firstName: z.string(),
@@ -17,12 +25,5 @@ export const EnrollmentEventPayload = z.object({
 });
 export type EnrollmentEventPayload = z.infer<typeof EnrollmentEventPayload>;
 
-export const EventNotification = z
-  .discriminatedUnion("type", [
-    z.object({ type: z.literal("enrollment.created"), enrollment: EnrollmentEventPayload }),
-    z.object({ type: z.literal("enrollment.updated"), enrollment: EnrollmentEventPayload }),
-    z.object({ type: z.literal("enrollment.deleted"), enrollment: EnrollmentEventPayload }),
-    z.object({ type: z.literal("enrollment.expired"), enrollment: EnrollmentEventPayload }),
-  ])
-  .describe("A domain event to announce. Type strings mirror the platform's domain events.");
-export type EventNotification = z.infer<typeof EventNotification>;
+/** Validates an enrollment.* body's metadata before rich formatting. */
+export const EnrollmentEventBody = z.looseObject({ enrollment: EnrollmentEventPayload });
