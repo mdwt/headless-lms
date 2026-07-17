@@ -18,6 +18,7 @@
       "@headless-lms/types": ["./packages/types/src/index.ts"],
       "@headless-lms/utils": ["./packages/utils/src/index.ts"],
       "@headless-lms/api-contract": ["./packages/api-contract/src/index.ts"],
+      "@headless-lms/server": ["./packages/server/src/index.ts"],
       "@headless-lms/plugin-slack": ["./plugins/slack/src/index.ts"]
     }
   }
