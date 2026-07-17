@@ -1,10 +1,12 @@
 {
-  "name": "@headless-lms/plugin-slack",
+  "name": "@headless-lms/utils",
   "version": "0.0.0",
   "private": true,
+  "description": "Runtime helpers for integration packages: adapt zod schemas to the @headless-lms/types integration contract.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,17 +15,16 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b",
-    "test": "vitest run"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@headless-lms/types": "workspace:*",
-    "@headless-lms/utils": "workspace:*",
-    "zod": "4.4.3"
+    "@headless-lms/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "zod": "4.4.3"
   }
 }

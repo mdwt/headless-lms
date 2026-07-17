@@ -138,15 +138,15 @@ importers:
       '@headless-lms/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
-      '@headless-lms/integration-sdk':
-        specifier: workspace:*
-        version: link:../../packages/integration-sdk
       '@headless-lms/plugin-slack':
         specifier: workspace:*
         version: link:../../packages/plugin-slack
-      '@headless-lms/shared-types':
+      '@headless-lms/types':
         specifier: workspace:*
-        version: link:../../packages/shared-types
+        version: link:../../packages/types
+      '@headless-lms/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -268,21 +268,14 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/integration-sdk:
-    dependencies:
-      zod:
-        specifier: 4.4.3
-        version: 4.4.3
-    devDependencies:
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
   packages/plugin-slack:
     dependencies:
-      '@headless-lms/integration-sdk':
+      '@headless-lms/types':
         specifier: workspace:*
-        version: link:../integration-sdk
+        version: link:../types
+      '@headless-lms/utils':
+        specifier: workspace:*
+        version: link:../utils
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -310,11 +303,24 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/shared-types:
+  packages/types:
     devDependencies:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/utils:
+    dependencies:
+      '@headless-lms/types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
 packages:
 

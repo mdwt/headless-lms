@@ -52,7 +52,7 @@ module.exports = {
         project: [
           "apps/api/tsconfig.json",
           "apps/web/tsconfig.json",
-          "packages/shared-types/tsconfig.json",
+          "packages/types/tsconfig.json",
         ],
       },
     },

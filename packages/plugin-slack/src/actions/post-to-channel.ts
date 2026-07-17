@@ -1,7 +1,7 @@
 // slack integration — the posting action: takes a channel and a domain-event
 // body, formats the message by event type, posts it.
 import { z } from "zod";
-import { zodAction } from "@headless-lms/integration-sdk";
+import { zodAction } from "@headless-lms/utils";
 import { postMessage } from "../client.js";
 import { formatMessage } from "../notifications/formatters.js";
 import { EventBody } from "../notifications/schema.js";

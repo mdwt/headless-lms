@@ -120,7 +120,7 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 - **apps/admin** — Next.js admin/instructor dashboard.
 - **apps/student** — Next.js student course platform (dashboard + course player).
 - **apps/web** — older Vite student shell; overlaps `apps/student` (one should eventually be retired).
-- **packages/** — `api-contract` (Zod contract), `sdk` (generated client), `shared-types`.
+- **packages/** — `api-contract` (Zod contract), `sdk` (generated client), `types` (domain types, events & integration contract), `utils` (integration runtime helpers), `plugin-slack` (Slack integration). See `project-structure.md`.
 
 ### Dependency direction
 

@@ -1,3 +1,2 @@
-// content context — domain events this context emits. Empty placeholders.
-
-export type ContentEvent = never;
+// content context — domain events, owned by @headless-lms/types.
+export type { ContentEvent } from "@headless-lms/types";

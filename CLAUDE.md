@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. Apps: `apps/api` (Fastify + Drizzle/Postgres), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI), `apps/web` (older React + Vite student UI, overlaps `apps/student`). Packages: `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/shared-types` (shared types).
+Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. Apps: `apps/api` (Fastify + Drizzle/Postgres), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI), `apps/web` (older React + Vite student UI, overlaps `apps/student`). Packages: `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/types` (`@headless-lms/types`, the published type surface: domain entities, DTOs, domain events, integration contract — pure types, zero deps), `packages/utils` (`@headless-lms/utils`, runtime helpers for integrations; zod peer dep), `packages/plugin-slack` (the Slack integration). See `docs/project-structure.md`.
 
 ## Commands
 
@@ -25,7 +25,7 @@ Per-workspace: `pnpm --filter @headless-lms/api <script>`.
 
 Hexagonal. The api (`apps/api/src/`) is layered:
 
-- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations (`stripe`, `slack`) live in `src/plugins/` (outside `core/` and `adapters/` — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the core `Integration` port. Composition scans that directory at startup (`loadIntegrations`) — adding an integration is adding a folder; nothing else to register.
+- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations (`stripe`, `slack`) live in `src/plugins/` (outside `core/` and `adapters/` — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the `Integration` contract from `@headless-lms/types` (a plugin folder may be a thin re-export of a workspace package — slack → `packages/plugin-slack`). Composition scans that directory at startup (`loadIntegrations`) — adding an integration is adding a folder; nothing else to register.
 - `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `composition/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
 - `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).
@@ -34,6 +34,8 @@ Hexagonal. The api (`apps/api/src/`) is layered:
 - Inbound entry points: `http/`, `cli/`, `workers/`, `cron/`.
 
 Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`, `events.ts`, `ports.ts`, `index.ts`, `service.test.ts`. The outbound port interface (e.g. `CoursesRepository`) lives in the context's `ports.ts`; its Drizzle implementation lives in `adapters/db/repositories/`.
+
+**Type ownership:** domain entities, DTOs, and domain events are declared once in `@headless-lms/types` (one file per context); a context's `model.ts`/`types.ts`/`events.ts` re-export them — never re-declare. Runtime domain code (error classes, the roles matrix) stays in core. Integration packages depend only on `@headless-lms/types` (+ `@headless-lms/utils` for the zod helpers), never on the api.
 
 ### Multi-tenancy
 

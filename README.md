@@ -32,7 +32,9 @@ apps/
 packages/
   api-contract/   Zod schemas — single source of truth for the HTTP API
   sdk/            @headless-lms/sdk — generated, resource-based client (off the spec)
-  shared-types/   types shared between packages
+  types/          @headless-lms/types — domain types, events & integration contract (pure types)
+  utils/          @headless-lms/utils — runtime helpers for integrations (zod adapters)
+  plugin-slack/   @headless-lms/plugin-slack — the Slack integration
 ```
 
 ### Bounded contexts

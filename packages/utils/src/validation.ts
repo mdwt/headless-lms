@@ -2,7 +2,7 @@
 // each action's input/output as zod schemas once; these adapt them to the
 // contract's JSON-Schema getters and validators.
 import { z } from "zod";
-import type { Action, ActionContext, Validation } from "./ports.js";
+import type { Action, ActionContext, Validation } from "@headless-lms/types";
 
 function toErrors(error: z.ZodError): string[] {
   return error.issues.map((issue) =>

@@ -5,7 +5,8 @@
 //
 // Assembly only — schemas live in schemas.ts, transport in client.ts, actions
 // under actions/, and event formatting under notifications/.
-import { zodConfig, zodSecrets, type Integration } from "@headless-lms/integration-sdk";
+import type { Integration } from "@headless-lms/types";
+import { zodConfig, zodSecrets } from "@headless-lms/utils";
 import { SlackConfig, SlackSecrets } from "./schemas.js";
 import { postToChannel } from "./actions/post-to-channel.js";
 import { listChannels } from "./actions/list-channels.js";

@@ -1,25 +1,2 @@
-// integrations context — domain events (published on the shared EventBus).
-import type { DomainEvent } from "../shared/ports.js";
-
-export interface ConnectionCreated extends DomainEvent {
-  type: "connection.created";
-  orgId: string;
-  connectionId: string;
-  integrationId: string;
-}
-
-export interface ConnectionUpdated extends DomainEvent {
-  type: "connection.updated";
-  orgId: string;
-  connectionId: string;
-  integrationId: string;
-  /** What changed: the stored credential or the configuration/active flag. */
-  changed: "credentials" | "configuration";
-}
-
-export interface ConnectionRemoved extends DomainEvent {
-  type: "connection.removed";
-  orgId: string;
-  connectionId: string;
-  integrationId: string;
-}
+// integrations context — domain events, owned by @headless-lms/types.
+export type { ConnectionCreated, ConnectionUpdated, ConnectionRemoved } from "@headless-lms/types";

@@ -1,7 +1,7 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from "./service.js";
 export { createIntegrationsRegistry } from "./registry.js";
-export { zodConfig, zodSecrets, zodAction } from "@headless-lms/integration-sdk";
+export { zodConfig, zodSecrets, zodAction } from "@headless-lms/utils";
 export {
   AlreadyConnectedError,
   UnknownIntegrationError,

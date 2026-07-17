@@ -24,7 +24,8 @@ object (student name/email, course title, granted/expires timestamps).
 
 ## Wiring
 
-Implements the `Integration` contract from `@headless-lms/integration-sdk`.
+Implements the `Integration` contract from `@headless-lms/types`, using the
+zod helpers from `@headless-lms/utils`.
 The api loads it through the plugin folder convention:
 `apps/api/src/plugins/slack/index.ts` re-exports this package's default export.
 

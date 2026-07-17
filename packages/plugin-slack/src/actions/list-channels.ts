@@ -1,6 +1,6 @@
 // slack integration — channel listing for pickers (select a channel to post to).
 import { z } from "zod";
-import { zodAction } from "@headless-lms/integration-sdk";
+import { zodAction } from "@headless-lms/utils";
 import { listChannels as fetchChannels } from "../client.js";
 
 export const listChannels = zodAction({

@@ -1,3 +1,2 @@
-// organizations context — domain events this context emits. Empty placeholders.
-
-export type OrganizationEvent = never;
+// organizations context — domain events, owned by @headless-lms/types.
+export type { OrganizationEvent } from "@headless-lms/types";

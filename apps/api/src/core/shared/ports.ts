@@ -1,11 +1,12 @@
 // Cross-cutting ports shared by all contexts. Framework-free, runtime-free.
+// DomainEvent is owned by @headless-lms/types (the published type surface);
+// re-exported here so contexts keep one import path for cross-cutting ports.
+import type { DomainEvent } from "@headless-lms/types";
+
+export type { DomainEvent };
 
 export interface Clock {
   now(): Date;
-}
-
-export interface DomainEvent {
-  readonly type: string;
 }
 
 export interface EventBus {
