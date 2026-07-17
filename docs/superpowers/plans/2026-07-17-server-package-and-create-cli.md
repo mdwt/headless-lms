@@ -448,6 +448,8 @@ function loadContainerConfig(): ContainerConfig {
     trustedOrigins,
     mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:8001/login",
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
+    cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+    secureCookies: process.env.NODE_ENV === "production",
     storage: {
       endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
       port: Number(process.env.STORAGE_PORT ?? 8006),
