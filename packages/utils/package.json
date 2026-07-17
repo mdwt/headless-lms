@@ -14,8 +14,8 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
-    "typecheck": "tsc -b"
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@headless-lms/types": "workspace:*"
@@ -24,6 +24,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "tsdown": "^0.22.9",
     "typescript": "^5.7.2",
     "zod": "4.4.3"
   }

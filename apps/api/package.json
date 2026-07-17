@@ -6,7 +6,7 @@
   "main": "dist/http/main.js",
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/http/main.ts",
-    "build": "tsup",
+    "build": "tsdown",
     "start": "node --env-file=../../.env dist/http/main.js",
     "seed": "tsx --env-file=../../.env scripts/seed.ts",
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
@@ -39,7 +39,7 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.31.10",
-    "tsup": "^8.5.0",
+    "tsdown": "^0.22.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

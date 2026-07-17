@@ -2,17 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. Apps: `apps/api` (Fastify + Drizzle/Postgres), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI), `apps/web` (older React + Vite student UI, overlaps `apps/student`). Packages: `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/types` (`@headless-lms/types`, the published type surface: domain entities, DTOs, domain events, integration contract — pure types, zero deps), `packages/utils` (`@headless-lms/utils`, runtime helpers for integrations; zod peer dep), `packages/plugin-slack` (the Slack integration). See `docs/project-structure.md`.
+Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. Apps: `apps/api` (Fastify + Drizzle/Postgres), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI), `apps/web` (older React + Vite student UI, overlaps `apps/student`). Packages: `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/types` (`@headless-lms/types`, the published type surface: domain entities, DTOs, domain events, integration contract — pure types, zero deps), `packages/utils` (`@headless-lms/utils`, runtime helpers for integrations; zod peer dep). Plugins: `plugins/slack` (`@headless-lms/plugin-slack`, the Slack integration). See `docs/project-structure.md`.
 
 ## Commands
 
 ```bash
 pnpm dev              # pnpm --parallel --filter "./apps/*" dev — runs all four apps (api, admin, student, web)
-pnpm build            # build all workspaces
+pnpm build            # build all workspaces (tsdown for api + packages/plugins; next/vite for frontends)
 pnpm test             # vitest run, all workspaces
 pnpm test:watch
 pnpm lint             # eslint incl. architecture boundary rules
-pnpm typecheck        # tsc -b
+pnpm typecheck        # tsc --noEmit per workspace (tsc never emits — tsdown owns builds)
 pnpm db:generate      # drizzle-kit generate (api)
 pnpm db:migrate       # drizzle-kit migrate (api)
 pnpm gen:sdk          # regenerate OpenAPI spec + typed client SDK from the routes
@@ -25,7 +25,7 @@ Per-workspace: `pnpm --filter @headless-lms/api <script>`.
 
 Hexagonal. The api (`apps/api/src/`) is layered:
 
-- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations (`stripe`, `slack`) live in `src/plugins/` (outside `core/` and `adapters/` — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the `Integration` contract from `@headless-lms/types` (a plugin folder may be a thin re-export of a workspace package — slack → `packages/plugin-slack`). Composition scans that directory at startup (`loadIntegrations`) — adding an integration is adding a folder; nothing else to register.
+- `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `courses`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations (`stripe`, `slack`) live in `src/plugins/` (outside `core/` and `adapters/` — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the `Integration` contract from `@headless-lms/types` (a plugin folder may be a thin re-export of a workspace package — slack → `plugins/slack`). Composition scans that directory at startup (`loadIntegrations`) — adding an integration is adding a folder; nothing else to register.
 - `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `composition/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
 - `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `payment`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).

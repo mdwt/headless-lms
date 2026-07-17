@@ -14,10 +14,11 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
-    "typecheck": "tsc -b --noEmit"
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "tsdown": "^0.22.9",
     "typescript": "^5.7.2"
   }
 }

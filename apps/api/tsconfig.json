@@ -1,8 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
     "types": ["node"],
     // Transpile-only build (tsup bundle:false) emits file-for-file ESM that
     // Node resolves natively, so relative imports MUST carry .js extensions.
@@ -16,11 +14,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../../packages/types" },
-    { "path": "../../packages/utils" },
-    { "path": "../../packages/api-contract" },
-    { "path": "../../packages/plugin-slack" }
-  ]
+  "include": ["src/**/*.ts"]
 }

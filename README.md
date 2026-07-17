@@ -10,7 +10,7 @@ Monorepo scaffold for a headless LMS. Hexagonal architecture, framework-free dom
 - **API contract:** Zod schemas → request/response validation (`fastify-type-provider-zod`) → OpenAPI (`@fastify/swagger`) → generated SDK (`@hey-api/openapi-ts`)
 - **Frontends:** Next.js (`apps/admin`, `apps/student`) · TanStack Query · plus `apps/web` (older Vite student UI)
 - **Tests:** Vitest
-- **Build:** `tsup` (api) via `pnpm -r build`
+- **Build:** `tsdown` (api + packages/plugins) via `pnpm -r build`; `tsc` is typecheck-only
 
 ## Layout
 
@@ -34,7 +34,8 @@ packages/
   sdk/            @headless-lms/sdk — generated, resource-based client (off the spec)
   types/          @headless-lms/types — domain types, events & integration contract (pure types)
   utils/          @headless-lms/utils — runtime helpers for integrations (zod adapters)
-  plugin-slack/   @headless-lms/plugin-slack — the Slack integration
+plugins/
+  slack/          @headless-lms/plugin-slack — the Slack integration
 ```
 
 ### Bounded contexts
@@ -98,7 +99,7 @@ See `packages/api-contract/README.md` and `packages/sdk/README.md` for details.
 | Script | Action |
 | --- | --- |
 | `pnpm dev` | `pnpm --parallel --filter "./apps/*" dev` — runs all four apps (api, admin, student, web) |
-| `pnpm build` | `pnpm -r build` (api builds with `tsup`) |
+| `pnpm build` | `pnpm -r build` (api + packages/plugins build with `tsdown`) |
 | `pnpm test` | `vitest run` across workspaces |
 | `pnpm test:watch` | watch mode |
 | `pnpm lint` | eslint incl. boundary rules |

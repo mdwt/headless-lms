@@ -12,13 +12,14 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
-    "typecheck": "tsc -b --noEmit"
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "tsdown": "^0.22.9",
     "typescript": "^5.7.2"
   }
 }

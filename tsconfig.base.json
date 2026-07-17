@@ -11,16 +11,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    // tsc is typecheck-only (emit is tsdown's job); declaration stays on so
+    // isolatedDeclarations is valid in the packages that opt into it.
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "composite": true,
-    "incremental": true,
     "paths": {
       "@headless-lms/types": ["./packages/types/src/index.ts"],
       "@headless-lms/utils": ["./packages/utils/src/index.ts"],
       "@headless-lms/api-contract": ["./packages/api-contract/src/index.ts"],
-      "@headless-lms/plugin-slack": ["./packages/plugin-slack/src/index.ts"]
+      "@headless-lms/plugin-slack": ["./plugins/slack/src/index.ts"]
     }
   }
 }

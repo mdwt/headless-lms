@@ -1,9 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src"
+    // Exports carry explicit annotations, so tsdown generates .d.ts via oxc
+    // (fast path) instead of tsc.
+    "isolatedDeclarations": true
   },
-  "include": ["src/**/*.ts"],
-  "references": [{ "path": "../types" }]
+  "include": ["src/**/*.ts"]
 }
