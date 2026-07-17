@@ -177,7 +177,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       // ports (cookies are not port-scoped).
       crossSubDomainCookies: {
         enabled: true,
-        domain: opts.cookieDomain ?? undefined,
+        domain: opts.cookieDomain || undefined,
       },
       // Same-site cookie for the shared-parent-domain plan. Only switch to
       // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
