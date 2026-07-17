@@ -1,0 +1,24 @@
+{
+  "name": "{{NAME}}",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/main.ts",
+    "build": "tsdown",
+    "start": "node --env-file=.env dist/main.js",
+    "migrate": "headless-lms migrate",
+    "seed": "headless-lms seed",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@headless-lms/server": "^0.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsdown": "^0.22.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
