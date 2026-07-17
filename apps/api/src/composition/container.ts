@@ -95,7 +95,7 @@ export async function buildContainer(config: Config): Promise<Container> {
     new DrizzleContentRepository(db),
     new DrizzleContentStructureRepository(db),
   );
-  const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db));
+  const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db), eventBus);
   const progress = new ProgressServiceImpl(new DrizzleProgressRepository(db), () =>
     new Date().toISOString(),
   );

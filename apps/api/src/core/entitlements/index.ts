@@ -9,3 +9,10 @@ export type {
   GrantEntitlementInput,
   Page,
 } from "./model.js";
+export type {
+  EnrollmentCreated,
+  EnrollmentUpdated,
+  EnrollmentDeleted,
+  EnrollmentExpired,
+  EnrollmentEvent,
+} from "./events.js";
