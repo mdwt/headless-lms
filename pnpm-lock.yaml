@@ -229,6 +229,25 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/cli:
+    dependencies:
+      '@headless-lms/server':
+        specifier: workspace:*
+        version: link:../server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      tsdown:
+        specifier: ^0.22.9
+        version: 0.22.9(tsx@4.22.4)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)
+
   packages/create-headless-lms:
     dependencies:
       '@clack/prompts':

@@ -5,7 +5,7 @@
  *   reporting packages/server/src/reporting/**         — read layer (composed cross-context reads)
  *   adapters  packages/server/src/adapters/**          — outbound infra
  *   composition packages/server/src/composition/**     — wiring
- *   inbound   packages/server/src/{http,cli,workers,cron}/**
+ *   inbound   packages/server/src/{http,workers,cron}/**
  *
  * Rules:
  *   - A context may import another context ONLY via its index.ts (no deep imports).
@@ -78,7 +78,6 @@ module.exports = {
       { type: "plugins", pattern: "apps/api/src/plugins/*", mode: "folder" },
       { type: "composition", pattern: "packages/server/src/composition/**" },
       { type: "http", pattern: "packages/server/src/http/**" },
-      { type: "cli", pattern: "packages/server/src/cli/**" },
       { type: "workers", pattern: "packages/server/src/workers/**" },
       { type: "cron", pattern: "packages/server/src/cron/**" },
     ],
@@ -114,7 +113,7 @@ module.exports = {
             allow: ["core", "adapters", "reporting", "plugins"],
           },
           // inbound entry points use composition + core public surface + reporting
-          { from: ["http", "cli", "workers", "cron"], allow: ["composition", "core", "reporting"] },
+          { from: ["http", "workers", "cron"], allow: ["composition", "core", "reporting"] },
         ],
       },
     ],

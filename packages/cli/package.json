@@ -1,0 +1,25 @@
+{
+  "name": "@headless-lms/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "headless-lms": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@headless-lms/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsdown": "^0.22.9",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

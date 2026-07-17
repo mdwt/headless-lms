@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { migrationsFolder, runMigrations } from "./migrate.js";
 
-describe("cli migrate", () => {
+describe("migrate", () => {
   it("resolves the packaged migrations folder", () => {
     expect(existsSync(migrationsFolder())).toBe(true);
   });

@@ -5,8 +5,6 @@ import { loadServerConfig } from "./config.js";
 
 const config = loadServerConfig();
 const container = await createContainer(config, {
-  // One folder per integration (directory name = integration id). Compiled
-  // to dist/plugins/ by the standard build, so this resolves in dev and prod.
   pluginsDir: fileURLToPath(new URL("./plugins/", import.meta.url)),
 });
 const app = await buildServer(config, container);

@@ -11,9 +11,6 @@
       "default": "./dist/index.js"
     }
   },
-  "bin": {
-    "headless-lms": "./dist/cli/index.js"
-  },
   "files": ["dist", "drizzle"],
   "scripts": {
     "build": "tsdown",

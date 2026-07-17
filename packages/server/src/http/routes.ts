@@ -1,5 +1,5 @@
 // Mounts every route on the server, grouped by auth model:
-//   - /health: public liveness check
+//   - /health
 //   - back-office routes: guarded by a session on EVERY route (see below)
 //   - MCP: guarded by OAuth bearer tokens, so it sits outside the session plugin
 import type { FastifyInstance } from "fastify";
