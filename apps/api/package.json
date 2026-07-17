@@ -12,8 +12,8 @@
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "seed": "headless-lms seed",
-    "db:migrate": "headless-lms migrate"
+    "seed": "tsx --env-file=../../.env ../../packages/server/src/cli/index.ts seed",
+    "db:migrate": "tsx --env-file=../../.env ../../packages/server/src/cli/index.ts migrate"
   },
   "dependencies": {
     "@headless-lms/plugin-slack": "workspace:*",
