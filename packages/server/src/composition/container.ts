@@ -57,6 +57,10 @@ export interface Config {
   storage: MinioStorageConfig;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
+  cookieDomain?: string;
+  /** Mark session cookies Secure (set behind HTTPS / in production). */
+  secureCookies?: boolean;
 }
 
 export interface Container {
@@ -149,6 +153,8 @@ export async function buildContainer(
     email,
     identity,
     organizations,
+    cookieDomain: config.cookieDomain,
+    secureCookies: config.secureCookies,
   });
 
   // Resolve the lazy OrgAdmin now that auth exists — organizations' member-write

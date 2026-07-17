@@ -51,6 +51,10 @@ export interface CreateAuthOptions {
   organizations: OrganizationProvisioner;
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
+  cookieDomain?: string;
+  /** Mark session cookies Secure (set behind HTTPS / in production). */
+  secureCookies?: boolean;
 }
 
 function htmlEscape(s: string): string {
@@ -173,14 +177,14 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       // ports (cookies are not port-scoped).
       crossSubDomainCookies: {
         enabled: true,
-        domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+        domain: opts.cookieDomain ?? undefined,
       },
       // Same-site cookie for the shared-parent-domain plan. Only switch to
       // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
       // (different registrable domains).
       defaultCookieAttributes: {
         sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        secure: opts.secureCookies ?? false,
         httpOnly: true,
       },
     },
