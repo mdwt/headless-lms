@@ -77,6 +77,32 @@ describe("scaffold", () => {
     expect(env).not.toContain("STORAGE_ENDPOINT");
   });
 
+  it("s3 storage: .env carries real credentials, .env.example blanks them", async () => {
+    const target = join(await scratch(), "my-lms");
+    const answers = {
+      ...defaultAnswers("my-lms"),
+      storage: {
+        mode: "s3" as const,
+        endPoint: "s3.amazonaws.com",
+        port: 443,
+        useSSL: true,
+        accessKey: "AKIAREALLOOKINGACCESSKEY",
+        secretKey: "wJalrXUtnFEMIrealLookingSecretKeyEXAMPLE",
+        region: "us-east-1",
+        bucket: "my-lms",
+      },
+    };
+    await scaffold(answers, target);
+    const env = await readFile(join(target, ".env"), "utf8");
+    const example = await readFile(join(target, ".env.example"), "utf8");
+    expect(env).toContain("STORAGE_ACCESS_KEY=AKIAREALLOOKINGACCESSKEY");
+    expect(env).toContain("STORAGE_SECRET_KEY=wJalrXUtnFEMIrealLookingSecretKeyEXAMPLE");
+    expect(example).toMatch(/^STORAGE_ACCESS_KEY=$/m);
+    expect(example).toMatch(/^STORAGE_SECRET_KEY=$/m);
+    expect(example).not.toContain("AKIAREALLOOKINGACCESSKEY");
+    expect(example).not.toContain("wJalrXUtnFEMIrealLookingSecretKeyEXAMPLE");
+  });
+
   it("refuses a non-empty target directory", async () => {
     const target = join(await scratch(), "occupied");
     await mkdir(target, { recursive: true });

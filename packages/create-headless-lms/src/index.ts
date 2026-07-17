@@ -22,6 +22,15 @@ function got<T>(value: T | symbol): T {
 
 p.intro("create-headless-lms");
 
+/** Reject non-integer or out-of-range (1-65535) port input; undefined/empty passes through (Enter keeps the default). */
+function validatePort(v: string | undefined): string | undefined {
+  if (!v) return undefined;
+  if (!/^\d+$/.test(v)) return "Port must be a whole number.";
+  const n = Number(v);
+  if (n < 1 || n > 65535) return "Port must be between 1 and 65535.";
+  return undefined;
+}
+
 let name = args.name;
 if (!name) {
   if (args.yes) bail("--yes needs a project name: create-headless-lms <name> --yes");
@@ -69,7 +78,9 @@ if (!args.yes) {
     storage = {
       mode: "s3",
       endPoint: got(await p.text({ message: "Endpoint host", placeholder: "s3.amazonaws.com" })),
-      port: Number(got(await p.text({ message: "Port", initialValue: "443" }))),
+      port: Number(
+        got(await p.text({ message: "Port", initialValue: "443", validate: validatePort })),
+      ),
       useSSL: got(await p.confirm({ message: "Use SSL?", initialValue: true })),
       accessKey: got(await p.text({ message: "Access key" })),
       secretKey: got(await p.text({ message: "Secret key" })),
@@ -78,7 +89,9 @@ if (!args.yes) {
     };
   }
 
-  const port = Number(got(await p.text({ message: "API port", initialValue: "8000" })));
+  const port = Number(
+    got(await p.text({ message: "API port", initialValue: "8000", validate: validatePort })),
+  );
   const clientOrigins = got(
     await p.text({
       message: "Client origins (comma-separated, for CORS + auth)",

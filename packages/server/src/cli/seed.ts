@@ -225,5 +225,9 @@ export async function runSeed(databaseUrl: string): Promise<void> {
     throw new Error("DATABASE_URL is not set. Put it in your .env and re-run.");
   }
   const db = createDb(databaseUrl);
-  await main(db);
+  try {
+    await main(db);
+  } finally {
+    await db.$client.end();
+  }
 }

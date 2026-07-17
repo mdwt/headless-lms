@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { fileURLToPath } from "node:url";
+import { loadIntegrations } from "@headless-lms/server";
 import stripe from "./stripe/index.js";
 import slack from "./slack/index.js";
 
@@ -34,6 +36,13 @@ describe("integrations directory contract", () => {
       expect(new Set(ids).size).toBe(ids.length);
     }
     expect(slack.actions.map((a) => a.id)).toEqual(["postToChannel", "listChannels"]);
+  });
+});
+
+describe("loadIntegrations over the real plugins directory", () => {
+  it("discovers exactly the slack and stripe integrations", async () => {
+    const registry = await loadIntegrations(fileURLToPath(new URL("./", import.meta.url)));
+    expect(registry.list().map((i) => i.id).sort()).toEqual(["slack", "stripe"]);
   });
 });
 

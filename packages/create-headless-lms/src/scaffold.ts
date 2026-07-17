@@ -62,6 +62,17 @@ STORAGE_BUCKET=${s.bucket}
 `;
 }
 
+/** Same keys as s3Env, blanked — s3 credentials are real secrets and must never land in .env.example. */
+const S3_ENV_EXAMPLE = `
+STORAGE_ENDPOINT=
+STORAGE_PORT=
+STORAGE_USE_SSL=
+STORAGE_ACCESS_KEY=
+STORAGE_SECRET_KEY=
+STORAGE_REGION=
+STORAGE_BUCKET=
+`;
+
 export async function scaffold(answers: Answers, targetDir: string): Promise<string[]> {
   try {
     const existing = await readdir(targetDir);
@@ -111,6 +122,7 @@ export async function scaffold(answers: Answers, targetDir: string): Promise<str
       BETTER_AUTH_SECRET: "",
       CREDENTIAL_STORE_KEY: "",
       DATABASE_URL: answers.db.mode === "docker" ? databaseUrl : "",
+      ...(answers.storage.mode === "s3" ? { STORAGE_ENV: S3_ENV_EXAMPLE } : {}),
     });
     await cp(join(TEMPLATES, "tsconfig.json"), join(targetDir, "tsconfig.json"));
     await cp(join(TEMPLATES, "tsdown.config.ts"), join(targetDir, "tsdown.config.ts"));
