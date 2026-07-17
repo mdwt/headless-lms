@@ -5,7 +5,7 @@ The platform's published type surface: domain entities, DTOs, domain events
 (`Integration`, `Action`, `ActionContext`, `Validation`).
 
 Pure type declarations — no runtime code, no dependencies. One file per bounded
-context, mirroring `apps/api/src/core/`. The api's core imports these types
+context, mirroring `packages/server/src/core/`. The server's core imports these types
 rather than declaring its own, so an integration package and the platform always
 share one definition.
 

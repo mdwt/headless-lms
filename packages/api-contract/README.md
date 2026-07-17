@@ -24,7 +24,7 @@ src/
 1. Add `src/<resource>.ts` exporting the schemas (entity, create/update inputs,
    list query, page) — reuse `ListQuery` / `paginated()` from `shared.ts`.
 2. Re-export it from `src/index.ts`.
-3. Use the schemas in a route file under `apps/api/src/http/routes/`, then run
+3. Use the schemas in a route file under `packages/server/src/http/routes/`, then run
    `pnpm gen:sdk` from the repo root.
 
 ## Notes

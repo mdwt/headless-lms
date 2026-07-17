@@ -4,7 +4,10 @@
 
 A headless LMS: student UI + (eventual) checkout, bring-your-own-funnel. REST API, TypeScript, Postgres. No website builder.
 
-All six domains are built and Drizzle-persisted against real Postgres schema.
+The backend ships as a library — `@headless-lms/server` (`packages/server`). An
+installation composes it with its own config and integration plugins; `apps/api`
+is this repo's installation, and `create-headless-lms` scaffolds standalone ones.
+All seven contexts are built and Drizzle-persisted against real Postgres schema.
 
 ## Architecture
 
@@ -13,8 +16,8 @@ All six domains are built and Drizzle-persisted against real Postgres schema.
 - The **core** holds all business logic and depends on nothing outward. It is framework-free **and persistence-free** (the boundary linter forbids `drizzle-orm` in `core/`).
 - The core is split into **bounded contexts** (not technical layers). Each is self-contained and exposes one public surface.
 - Contexts talk to each other **service-to-service**, through public surfaces only — never reaching into another context's internals.
-- External dependencies (Postgres, Better Auth, object storage, email, payment, video) sit **outside** the core as adapters, behind ports the core defines.
-- Inbound entry points (HTTP; CLI/workers/cron are placeholders) call into context services; they own no business logic.
+- External dependencies (Postgres, Better Auth, object storage, email, video) sit **outside** the core as adapters, behind ports the core defines.
+- The inbound entry point (HTTP, including the MCP endpoint) calls into context services; it owns no business logic. The `headless-lms` CLI lives in its own package (`@headless-lms/cli`) and calls the server's exported operational functions.
 
 ### Ports
 
@@ -40,28 +43,29 @@ A context never defines a port into another context's internals — only its pub
 
 ## Contexts
 
-Six domains.
+Seven domains.
 
 - **identity** — user identity and authentication only. Owns the domain user record other contexts reference by id; mirrors Better Auth (the credentials/session system of record) via hooks. No org/membership/roles.
 - **organizations** — the tenant root every org-scoped context FKs to. Owns Organization, Membership, Invitation, the role/permission matrix (`owner | admin | instructor | student`; instructor course-scoped), course assignments, and the member-management operations (invite / change-role / remove / list). Better Auth's organization plugin is the source of truth, mirrored read-only via `organizationHooks`; writes go through Better Auth via the `OrgAdmin` port.
-- **courses** — the curriculum aggregate: Course (root) → Module → Item → Lesson, drip/unlock rules, and the module/item editor write surface. Lessons are `video | text | pdf | audio | download | embed`; assessment items are typed authoring slots (`quiz | assignment`). References assets by `assetId`.
+- **content** — the org's authored content, home of all content types. Today one type: **course** — Course (root) → Module → Activity, drip/unlock rules, and the authoring write surface. An activity is a unit of content with a settings blob and asset links. See `docs/domain/content.md`.
 - **entitlements** — access grants: a student↔course access grant, its status (`active | expired | revoked`) and source (`manual | import`). Use cases `grant` / `list` / `setStatus`. The grant references the course by id directly. Access ≠ completion.
-- **progress** — per-student completion records and derived percentage against the course's current structure. Direct (presentational lessons) and event-driven (an optional future outcome-event source) completion. References courses items + identity user by id.
+- **progress** — per-student completion records and derived percentage against the content's current structure. References content activities + identity user by id.
 - **assets** — the org media library: a registry row per stored object, served via short-lived presigned URLs over the object-storage (MinIO/S3) adapter. Org-scoped.
+- **integrations** — third-party integration connections: which integrations an org has connected, their validated config/secrets, and dispatching domain events + actions to them. The integration *implementations* are plugins outside core (see Layout). See `docs/domain/integrations.md`.
 
 **Cross-cutting**
 - **shared** — cross-cutting ports (Clock, EventBus, Logger, EmailSender, ObjectStorage).
 
 ### Reporting read layer
 
-`apps/api/src/reporting/` — a read-side outside the domains that composes cross-context reads. It calls each context's public service and assembles views (`reporting/students/`, `reporting/dashboard/`); it owns no data and no rules. It lives outside `core/` because a domain depends on nothing outward, whereas reporting reads many domains' public surfaces — the one privilege domains can't have. See `docs/domain/reporting.md`.
+`packages/server/src/reporting/` — a read-side outside the domains that composes cross-context reads. It calls each context's public service and assembles views (`reporting/students/`, `reporting/dashboard/`); it owns no data and no rules. It lives outside `core/` because a domain depends on nothing outward, whereas reporting reads many domains' public surfaces — the one privilege domains can't have. See `docs/domain/reporting.md`.
 
 ## Layout
 
 ```
-apps/api/src/
+packages/server/src/
   core/                 # framework- and persistence-free domain, one folder per context
-    identity/  organizations/  courses/  entitlements/  progress/  assets/
+    identity/  organizations/  content/  entitlements/  progress/  assets/  integrations/
     shared/             # cross-cutting ports
     # each context: service.ts model.ts types.ts events.ts ports.ts index.ts service.test.ts
 
@@ -75,16 +79,26 @@ apps/api/src/
       repositories/     # Drizzle repository implementations
     auth/               # Better Auth: user SoR, org plugin, OAuth/OIDC provider
     storage/            # MinIO / S3-compatible object storage (presigned URLs)
-    email/  payment/  video/   # stubs
+    email/  video/      # stubs
     events/             # event bus impl
 
   composition/
     container.ts        # wires adapters + services; starts nothing
-    config.ts           # reads env into the container config
+    integrations.ts     # loadIntegrations — scans the installation's pluginsDir
+    migrate.ts seed.ts  # operational functions, wrapped by @headless-lms/cli
 
-  http/                 # fastify: server.ts + routes/ per context (Zod-validated)
-  cli/  workers/  cron/  # placeholders
+  http/                 # fastify: server.ts + routes/ per resource (Zod-validated)
+    mcp/                # MCP endpoint (OAuth bearer auth, outside the session guard)
+    plugins/            # fastify plugins: auth/session, cors, error handler, openapi
+
+  index.ts              # public surface: createContainer, buildServer, runMigrations, runSeed, types
 ```
+
+An installation (`apps/api/src/`) adds only `config.ts`, `main.ts`, and
+`plugins/` — one folder per third-party integration (directory name =
+integration id), each default-exporting the `Integration` contract from
+`@headless-lms/types`; `slack/` is a thin re-export of `plugins/slack`
+(the workspace package).
 
 Better Auth's own tables (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`, `oauth_*`) live in `adapters/auth/schema.ts` and are scanned by drizzle-kit alongside the domain schema.
 
@@ -102,30 +116,31 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 
 ## Adapters
 
-- **auth** (Better Auth) — the user **system of record**. Email/password + magic link; an organization plugin (roles, members, invitations); and an **OAuth/OIDC provider** (dynamic client registration, scopes, `/.well-known/oauth-*` discovery endpoints). It mirrors users → `identity` and orgs → `organizations` via hooks, resolving auth ids → domain student ids before calling core. *(MCP tools over this provider are specced but not built.)*
+- **auth** (Better Auth) — the user **system of record**. Email/password + magic link; an organization plugin (roles, members, invitations); and an **OAuth/OIDC provider** (dynamic client registration, scopes, `/.well-known/oauth-*` discovery endpoints). It mirrors users → `identity` and orgs → `organizations` via hooks, resolving auth ids → domain student ids before calling core. The MCP endpoint (`http/mcp/`) authenticates against this provider via OAuth bearer tokens.
 - **db** — Drizzle + Postgres; owns the connection pool.
 - **storage** — MinIO / S3-compatible; presigned upload/download for `assets`.
-- **email / payment / video** — stub adapters (no real transport yet).
+- **email / video** — stub adapters (no real transport yet).
 - **events** — in-process event bus.
 
 ## Inbound & API surface
 
-- **Fastify** HTTP server; one route module per context under `http/routes/`.
-- Request/response shapes come from a **shared Zod contract** (`packages/api-contract`). `@fastify/swagger` turns those schemas into an **OpenAPI** document, from which the typed client (`packages/sdk`) is generated (`pnpm gen:sdk`). The `admin` and `student`/`web` apps consume the SDK.
+- **Fastify** HTTP server; one route module per resource under `http/routes/`, all mounted inside a session-guarded plugin (`http/routes.ts`) so a new route cannot accidentally ship public.
+- Request/response shapes come from a **shared Zod contract** (`packages/api-contract`). `@fastify/swagger` turns those schemas into an **OpenAPI** document, from which the typed client (`packages/sdk`) is generated (`pnpm gen:sdk`). The `admin` and `student` apps consume the SDK.
+- The **MCP endpoint** (`http/mcp/`) sits outside the session guard and authenticates via OAuth bearer tokens.
 - Better Auth is mounted at `/api/auth/*`; OAuth discovery lives at the root `/.well-known/*`.
 
 ## Apps & packages
 
-- **apps/api** — the Fastify backend (this document).
+- **packages/server** — the backend as a library (this document).
+- **apps/api** — this repo's installation of the server (config, entry point, plugins).
 - **apps/admin** — Next.js admin/instructor dashboard.
 - **apps/student** — Next.js student course platform (dashboard + course player).
-- **apps/web** — older Vite student shell; overlaps `apps/student` (one should eventually be retired).
-- **packages/** — `api-contract` (Zod contract), `sdk` (generated client), `types` (domain types, events & integration contract), `utils` (integration runtime helpers). See `project-structure.md`.
+- **packages/** — `cli` (the `headless-lms` bin), `create-headless-lms` (installation scaffolder), `api-contract` (Zod contract), `sdk` (generated client), `types` (domain types, events & integration contract), `utils` (integration runtime helpers). See `project-structure.md`.
 - **plugins/** — integration workspace packages: `slack` (`@headless-lms/plugin-slack`).
 
 ### Dependency direction
 
-- entry points (`http`, `cli`, `workers`, `cron`) → `composition` → `core`
+- entry points (`http`; the cli package via the server's public surface) → `composition` → `core`
 - `adapters` → `core` (via ports)
 - core points nowhere outward
 
