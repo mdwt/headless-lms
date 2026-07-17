@@ -11,7 +11,9 @@
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
     "test": "vitest run",
     "lint": "eslint src",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "seed": "headless-lms seed",
+    "db:migrate": "headless-lms migrate"
   },
   "dependencies": {
     "@headless-lms/plugin-slack": "workspace:*",

@@ -10,10 +10,8 @@
  *   pnpm --filter @headless-lms/api seed
  */
 import { faker } from "@faker-js/faker";
-import { createDb, schema } from "../src/adapters/db/index.js";
-import { genId, ksuid } from "../src/core/shared/id.js";
-
-const db = createDb(process.env.DATABASE_URL ?? "");
+import { createDb, schema } from "../adapters/db/index.js";
+import { genId, ksuid } from "../core/shared/id.js";
 
 const times = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 const chance = (p: number) => faker.number.float() < p;
@@ -23,7 +21,7 @@ const uEmail = (firstName?: string, lastName?: string) =>
     .email({ firstName, lastName, provider: `${ksuid().slice(-8)}.example.com` })
     .toLowerCase();
 
-async function main() {
+async function main(db: ReturnType<typeof createDb>) {
   const users: (typeof schema.users.$inferInsert)[] = [];
   const students: (typeof schema.students.$inferInsert)[] = [];
   const organizations: (typeof schema.organizations.$inferInsert)[] = [];
@@ -220,10 +218,12 @@ async function main() {
       `${courses.length} courses, ${modules.length} modules, ${activities.length} activities, ` +
       `${assets.length} assets, ${enrollments.length} enrollments, ${progress.length} progress records.`,
   );
-  process.exit(0);
 }
 
-main().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+export async function runSeed(databaseUrl: string): Promise<void> {
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set. Put it in your .env and re-run.");
+  }
+  const db = createDb(databaseUrl);
+  await main(db);
+}
