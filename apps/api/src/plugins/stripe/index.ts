@@ -2,7 +2,8 @@
 // the config shape a Stripe connection carries. The credential (secret key) is
 // opaque to the domain and not validated here.
 import { z } from "zod";
-import { zodConfig, zodSecrets, type Integration } from "../../core/integrations/index.js";
+import type { Integration } from "@headless-lms/types";
+import { zodConfig, zodSecrets } from "@headless-lms/utils";
 
 const StripeSecrets = z.object({
   /** Stripe secret key (sk_live_… / sk_test_…). */

@@ -15,8 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
-    "db:generate": "pnpm --filter @headless-lms/api db:generate",
-    "db:migrate": "pnpm --filter @headless-lms/api db:migrate",
+    "db:generate": "pnpm --filter @headless-lms/server db:generate",
+    "db:migrate": "pnpm --filter @headless-lms/server db:migrate",
     "gen:sdk": "pnpm --filter @headless-lms/api gen:openapi && pnpm --filter @headless-lms/sdk gen"
   },
   "devDependencies": {

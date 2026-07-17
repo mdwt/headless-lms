@@ -327,9 +327,9 @@ export interface Auth {
     } | null>;
     // Consumed only structurally by better-auth's own mcp helpers
     // (withMcpAuth, oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata).
-    getMcpSession: (...args: any[]) => Promise<OAuthAccessToken | null>;
-    getMcpOAuthConfig: (...args: any[]) => any;
-    getMCPProtectedResource: (...args: any[]) => any;
+    getMcpSession: (...args: unknown[]) => Promise<OAuthAccessToken | null>;
+    getMcpOAuthConfig: (...args: unknown[]) => unknown;
+    getMCPProtectedResource: (...args: unknown[]) => unknown;
     // Organization member-writes (see org-admin.ts).
     createOrganization: (input: {
       body: Record<string, unknown>;
