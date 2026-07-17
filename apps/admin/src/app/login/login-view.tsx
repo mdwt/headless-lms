@@ -97,15 +97,6 @@ export function LoginView() {
                 {mode === "signin" ? "Create an organization" : "Sign in"}
               </button>
             </p>
-
-            {mode === "signin" && (
-              <div className="mt-8 rounded-lg border border-line bg-surface-2 p-3">
-                <p className="text-xs font-medium text-ink-3">Seeded demo owner</p>
-                <p className="mt-1 text-sm text-ink-2">
-                  <span className="font-medium text-ink">mira@atelier.academy</span> · password123
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
