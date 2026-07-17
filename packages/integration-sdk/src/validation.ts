@@ -1,9 +1,8 @@
-// integrations context — zod helpers for integration modules. An integration
-// declares its config and each action's input/output as zod schemas once;
-// these adapt them to the port's JSON-Schema getters and validators.
+// Zod helpers for integration modules. An integration declares its config and
+// each action's input/output as zod schemas once; these adapt them to the
+// contract's JSON-Schema getters and validators.
 import { z } from "zod";
-import type { Validation } from "./model.js";
-import type { Action, ActionContext } from "./ports.js";
+import type { Action, ActionContext, Validation } from "./ports.js";
 
 function toErrors(error: z.ZodError): string[] {
   return error.issues.map((issue) =>
@@ -24,7 +23,7 @@ export function zodConfig(schema: z.ZodType): {
   };
 }
 
-/** Derive the Integration port's secretsSchema getter from a zod schema. */
+/** Derive the Integration contract's secretsSchema getter from a zod schema. */
 export function zodSecrets(schema: z.ZodType): {
   secretsSchema: () => Record<string, unknown>;
 } {

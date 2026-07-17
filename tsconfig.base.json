@@ -18,7 +18,9 @@
     "incremental": true,
     "paths": {
       "@headless-lms/shared-types": ["./packages/shared-types/src/index.ts"],
-      "@headless-lms/api-contract": ["./packages/api-contract/src/index.ts"]
+      "@headless-lms/api-contract": ["./packages/api-contract/src/index.ts"],
+      "@headless-lms/integration-sdk": ["./packages/integration-sdk/src/index.ts"],
+      "@headless-lms/plugin-slack": ["./packages/plugin-slack/src/index.ts"]
     }
   }
 }

@@ -1,7 +1,7 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from "./service.js";
 export { createIntegrationsRegistry } from "./registry.js";
-export { zodConfig, zodSecrets, zodAction } from "./validation.js";
+export { zodConfig, zodSecrets, zodAction } from "@headless-lms/integration-sdk";
 export {
   AlreadyConnectedError,
   UnknownIntegrationError,
@@ -15,6 +15,7 @@ export type {
   AvailableIntegration,
   Action,
   ActionContext,
+  Validation,
 } from "./ports.js";
-export type { Connection, ConnectInput, ConfigureInput, Validation } from "./model.js";
+export type { Connection, ConnectInput, ConfigureInput } from "./model.js";
 export type { ConnectionCreated, ConnectionUpdated, ConnectionRemoved } from "./events.js";
