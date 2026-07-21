@@ -668,6 +668,44 @@
         }
       }
     },
+    "/api/learn/org": {
+      "get": {
+        "operationId": "getLearnOrg",
+        "summary": "Get the portal org's public identity (branding)",
+        "tags": [
+          "Learn"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/learn/courses/{courseId}": {
       "get": {
         "operationId": "getLearnCourse",

@@ -221,6 +221,26 @@ export type ListLearnCoursesResponses = {
 
 export type ListLearnCoursesResponse = ListLearnCoursesResponses[keyof ListLearnCoursesResponses];
 
+export type GetLearnOrgData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/learn/org";
+};
+
+export type GetLearnOrgResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+};
+
+export type GetLearnOrgResponse = GetLearnOrgResponses[keyof GetLearnOrgResponses];
+
 export type GetLearnCourseData = {
   body?: never;
   path: {

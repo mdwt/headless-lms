@@ -47,6 +47,8 @@ import type {
   GetLearnCourseData,
   GetLearnCourseErrors,
   GetLearnCourseResponses,
+  GetLearnOrgData,
+  GetLearnOrgResponses,
   GetMcpData,
   GetMcpResponses,
   GetOverviewData,
@@ -359,6 +361,18 @@ export class Learn {
   ): RequestResult<ListLearnCoursesResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<ListLearnCoursesResponses, unknown, ThrowOnError>({
       url: "/api/learn/courses",
+      ...options,
+    });
+  }
+
+  /**
+   * Get the portal org's public identity (branding)
+   */
+  public static getLearnOrg<ThrowOnError extends boolean = false>(
+    options?: Options<GetLearnOrgData, ThrowOnError>,
+  ): RequestResult<GetLearnOrgResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetLearnOrgResponses, unknown, ThrowOnError>({
+      url: "/api/learn/org",
       ...options,
     });
   }
