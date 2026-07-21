@@ -62,7 +62,11 @@ export function CoursePlayer({
   const [mobileSidebar, setMobileSidebar] = React.useState(false);
 
   const curLesson = findLesson(course, lessonId) ?? flat[0];
-  const curIdx = flat.findIndex((l) => l.id === curLesson?.id);
+  // A course may have no student-visible lessons (every activity a draft). Keep a
+  // safe id so hooks/derived values never dereference an undefined lesson; the
+  // render falls back to an empty state below.
+  const curLessonId = curLesson?.id ?? "";
+  const curIdx = flat.findIndex((l) => l.id === curLessonId);
 
   const goToLesson = React.useCallback(
     (id: string) => {
@@ -75,48 +79,48 @@ export function CoursePlayer({
 
   const selectLesson = React.useCallback(
     (id: string) => {
-      const locked = isLessonLocked(course, id, completion, curLesson.id, sequentialLocking);
+      const locked = isLessonLocked(course, id, completion, curLessonId, sequentialLocking);
       if (locked) return;
       goToLesson(id);
       setMobileSidebar(false);
     },
-    [course, completion, curLesson.id, sequentialLocking, goToLesson],
+    [course, completion, curLessonId, sequentialLocking, goToLesson],
   );
 
   const goNext = React.useCallback(
     (fromComplete: boolean) => {
-      const nxt = adjacentLesson(course, curLesson.id, 1);
+      const nxt = adjacentLesson(course, curLessonId, 1);
       if (nxt) {
         goToLesson(nxt.id);
       } else if (fromComplete) {
         showToast("Course complete — nicely done");
       }
     },
-    [course, curLesson.id, goToLesson, showToast],
+    [course, curLessonId, goToLesson, showToast],
   );
 
   const goPrev = React.useCallback(() => {
-    const prv = adjacentLesson(course, curLesson.id, -1);
+    const prv = adjacentLesson(course, curLessonId, -1);
     if (prv) goToLesson(prv.id);
-  }, [course, curLesson.id, goToLesson]);
+  }, [course, curLessonId, goToLesson]);
 
   const markComplete = React.useCallback(() => {
-    const wasDone = lessonStatus(completion, curLesson.id) === "completed";
-    toggleComplete(course.id, curLesson.id);
+    const wasDone = lessonStatus(completion, curLessonId) === "completed";
+    toggleComplete(course.id, curLessonId);
     if (!wasDone) {
       showToast("Lesson completed");
       if (autoAdvance) {
         window.setTimeout(() => goNext(true), AUTO_ADVANCE_MS);
       }
     }
-  }, [completion, curLesson.id, toggleComplete, course.id, showToast, autoAdvance, goNext]);
+  }, [completion, curLessonId, toggleComplete, course.id, showToast, autoAdvance, goNext]);
 
   // ---- derived ----
   const coursePct = coursePercent(course, completion);
   const doneCount = completedCount(course, completion);
   const total = totalLessons(course);
   const courseCompleted = isCourseCompleted(course, completion);
-  const curStatus = lessonStatus(completion, curLesson.id);
+  const curStatus = lessonStatus(completion, curLessonId);
   const isCompleted = curStatus === "completed";
 
   const sidebarShownDesktop = !isNarrow && sidebarOpen;
@@ -144,6 +148,13 @@ export function CoursePlayer({
         onToggleSidebar={toggleSidebar}
       />
 
+      {flat.length === 0 ? (
+        <div className="grid flex-1 place-items-center px-6 text-center">
+          <p className="max-w-sm text-[14px] text-ink-3">
+            This course has no published lessons yet.
+          </p>
+        </div>
+      ) : (
       <div className="relative flex min-h-0 flex-1">
         {showSidebar && sidebarShownMobile && (
           <div
@@ -158,7 +169,7 @@ export function CoursePlayer({
           <CurriculumSidebar
             course={course}
             completion={completion}
-            currentLessonId={curLesson.id}
+            currentLessonId={curLessonId}
             sidebarStyle={sidebarStyle}
             sequentialLocking={sequentialLocking}
             expanded={expanded}
@@ -185,7 +196,7 @@ export function CoursePlayer({
                 </span>
               </div>
             )}
-            <ContentArea node={curLesson ? renderedContent[curLesson.id] : null} />
+            <ContentArea node={curLesson ? renderedContent[curLessonId] : null} />
           </div>
 
           <FooterNav
@@ -198,6 +209,7 @@ export function CoursePlayer({
           />
         </main>
       </div>
+      )}
     </div>
   );
 }
