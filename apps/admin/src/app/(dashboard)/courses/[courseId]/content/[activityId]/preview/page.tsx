@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, PenLine } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
 import { serverApi } from "@/lib/api/server";
 import type { ActivitySettings } from "@/lib/api/types";
 import { formatContentType } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import editorModule from "@/editor.config";
 
 // Server-rendered preview of an activity's saved content, via the contract's
@@ -33,16 +35,21 @@ export default async function ActivityPreviewPage({
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-ink-2">
-          {settings.title?.trim() || "Untitled activity"} · Preview
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="icon-sm" aria-label="Back to editor">
+          <Link href={`/courses/${courseId}/content/${activityId}/editor`}>
+            <ArrowLeft />
+          </Link>
+        </Button>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+          {settings.title?.trim() || "Untitled activity"}
         </h2>
-        <Link
-          className="text-sm text-ink-3 underline-offset-4 hover:underline"
-          href={`/courses/${courseId}/content/${activityId}/editor`}
-        >
-          Edit content
-        </Link>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/courses/${courseId}/content/${activityId}/editor`}>
+            <PenLine />
+            Edit
+          </Link>
+        </Button>
       </div>
 
       {stored == null ? (
@@ -55,9 +62,7 @@ export default async function ActivityPreviewPage({
           editor renders <code>{formatContentType(meta)}</code>. It can&apos;t be displayed.
         </p>
       ) : (
-        <div className="rounded-md border border-line bg-surface px-4 py-4">
-          <Renderer config={stored.config} />
-        </div>
+        <Renderer config={stored.config} />
       )}
     </section>
   );

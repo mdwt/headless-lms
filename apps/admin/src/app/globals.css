@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* The content editor (@headless-lms/content-plate) ships Tailwind-styled TS
+   source from the workspace; scan it so its utilities are generated. */
+@source "../../../../plugins/content-plate/src";
+
 /* =========================================================================
    Headless LMS — Management dashboard (back-office).
    A crisp, cool-neutral grayscale ramp, fully monochrome: the accent resolves
@@ -72,6 +76,12 @@
   --border: var(--line);
   --input: var(--line-strong);
   --ring: var(--brand);
+
+  /* ---- content-editor tokens, on the same palette ---- */
+  --brand-foreground: var(--brand-contrast);
+  --brand-active: var(--brand-strong);
+  --highlight: #ffd500; /* text highlight mark */
+  --subtle-foreground: var(--ink-3);
 }
 
 /* =========================================================================
@@ -153,6 +163,49 @@
 
   /* motion — calm, not flashy */
   --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+
+  /* ---- content editor ---- */
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-active: var(--brand-active);
+  --color-highlight: var(--highlight);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --shadow-floating:
+    rgba(16, 16, 16, 0.06) 0px 0px 0px 1px, rgba(16, 16, 16, 0.11) 0px 3px 7px,
+    rgba(16, 16, 16, 0.21) 0px 9px 25px;
+  --shadow-toolbar:
+    rgba(0, 0, 0, 0.08) 0px 16px 24px 0px, rgba(0, 0, 0, 0.1) 0px 2px 6px 0px,
+    rgba(0, 0, 0, 0.1) 0px 0px 1px 0px;
+  --animate-popover: popover 100ms ease-in;
+  --animate-zoom: zoom 100ms ease-in;
+}
+
+@keyframes popover {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes zoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Hide scrollbars (the editor's floating toolbar overflows horizontally). */
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes shimmer {

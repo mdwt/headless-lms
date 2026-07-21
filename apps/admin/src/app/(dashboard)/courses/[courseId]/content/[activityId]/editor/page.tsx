@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireAuth } from "@/lib/auth/server-session";
@@ -8,6 +7,7 @@ import { formatContentType } from "@/lib/format";
 import editorModule from "@/editor.config";
 
 import { ActivityEditorProvider } from "./editor-context";
+import { EditorHeader } from "./editor-header";
 import { EditorShell } from "./editor-shell";
 
 // Content editor for one activity. RSC: loads the stored config blob and hands
@@ -41,44 +41,22 @@ export default async function ActivityEditorPage({
 
   return (
     <section className="editor-container flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-sm font-medium text-ink-2">
-            {settings.title?.trim() || "Untitled activity"}
-          </h2>
-          <p className="text-xs text-ink-4">
-            Content editor · {formatContentType(meta)}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <Link
-            className="text-ink-3 underline-offset-4 hover:underline"
-            href={`/courses/${courseId}/content/${activityId}/preview`}
-          >
-            Preview
-          </Link>
-          <Link
-            className="text-ink-3 underline-offset-4 hover:underline"
-            href={`/courses/${courseId}/content`}
-          >
-            Back to curriculum
-          </Link>
-        </div>
-      </div>
-
-      {foreignFormat ? (
-        <p className="rounded-md border border-line bg-surface-2 px-3 py-2 text-xs text-ink-3">
-          This activity has content saved as <code>{formatContentType(stored!)}</code>, which the
-          installed editor ({formatContentType(meta)}) can&apos;t open. Saving will replace it.
-        </p>
-      ) : null}
-
       <ActivityEditorProvider
         courseId={courseId}
         moduleId={parent.id}
         activityId={activityId}
         initialConfig={initialConfig}
       >
+        <EditorHeader title={settings.title?.trim() || "Untitled activity"} />
+
+        {foreignFormat ? (
+          <p className="rounded-md border border-line bg-surface-2 px-3 py-2 text-xs text-ink-3">
+            This activity has content saved as <code>{formatContentType(stored!)}</code>, which
+            the installed editor ({formatContentType(meta)}) can&apos;t open. Saving will replace
+            it.
+          </p>
+        ) : null}
+
         <EditorShell />
       </ActivityEditorProvider>
     </section>
