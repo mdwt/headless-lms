@@ -4,17 +4,20 @@
  * presigned PUT ticket) → PUT the bytes to storage (XHR, real progress) →
  * POST /api/assets/:id/confirm.
  *
- * The URL embedded into content is the STABLE serve route
- * (`/api/assets/:id/file`), which redirects to a fresh presigned URL on every
- * request — never the presigned URL itself, which expires within minutes.
+ * The returned URL is a short-lived presigned URL (for immediate display in
+ * the editing session). The durable reference is the returned asset `id`,
+ * which the editor persists on the media node — pages re-sign fresh URLs for
+ * it at render time (see `lib/api/resolve-asset-urls.ts`).
  */
 
 import type { UploadedEditorFile } from "@headless-lms/editor-contract";
 
-import { confirmAssetAction, requestUploadAction } from "@/app/(dashboard)/media/actions";
+import {
+  confirmAssetAction,
+  getAssetUrlAction,
+  requestUploadAction,
+} from "@/app/(dashboard)/media/actions";
 import { kindForFile, putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function uploadEditorFile(
   file: File,
@@ -29,11 +32,13 @@ export async function uploadEditorFile(
   await putToStorage(ticket.uploadUrl, ticket.headers, file, opts.onProgress);
   await confirmAssetAction(ticket.asset.id);
 
+  const url = await getAssetUrlAction(ticket.asset.id, file.name);
+
   return {
     id: ticket.asset.id,
     name: file.name,
     size: file.size,
     type: file.type,
-    url: `${API_URL}/api/assets/${ticket.asset.id}/file`,
+    url,
   };
 }

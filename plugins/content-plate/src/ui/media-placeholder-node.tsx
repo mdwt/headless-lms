@@ -226,6 +226,10 @@ function MediaPlaceholderPopover({ children }: { children: React.ReactNode }) {
 
     const path = editor.api.findPath(element);
 
+    // `assetId` is the stable reference persisted with the node — the host
+    // re-signs a fresh short-lived URL for it whenever content is rendered.
+    const assetRef = uploadedFile.id ? { assetId: uploadedFile.id } : {};
+
     setMediaNode(
       editor,
       {
@@ -237,6 +241,7 @@ function MediaPlaceholderPopover({ children }: { children: React.ReactNode }) {
         placeholderId: element.id as string,
         type: mediaType!,
         url: uploadedFile.url,
+        ...assetRef,
       },
       { at: path }
     );

@@ -4,6 +4,7 @@ import { ArrowLeft, PenLine } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
 import { serverApi } from "@/lib/api/server";
+import { resolveAssetUrls } from "@/lib/api/resolve-asset-urls";
 import type { ActivitySettings } from "@/lib/api/types";
 import { formatContentType } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ export default async function ActivityPreviewPage({
           editor renders <code>{formatContentType(meta)}</code>. It can&apos;t be displayed.
         </p>
       ) : (
-        <Renderer config={stored.config} />
+        <Renderer config={await resolveAssetUrls(stored.config)} />
       )}
     </section>
   );
