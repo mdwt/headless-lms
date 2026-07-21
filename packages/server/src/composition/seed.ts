@@ -12,6 +12,7 @@
 import { faker } from "@faker-js/faker";
 import { createDb, schema } from "./db.js";
 import { genId, ksuid } from "../core/shared/id.js";
+import { seedDevStudent } from "./seed-dev-student.js";
 
 const times = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 const chance = (p: number) => faker.number.float() < p;
@@ -227,7 +228,10 @@ export async function runSeed(databaseUrl: string): Promise<void> {
   const db = createDb(databaseUrl);
   try {
     await main(db);
+    await seedDevStudent(db);
   } finally {
     await db.$client.end();
   }
 }
+
+export { runSeedDevStudent } from "./seed-dev-student.js";

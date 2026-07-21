@@ -13,6 +13,7 @@
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "tsx --env-file=../../.env ../../packages/cli/src/index.ts seed",
+    "seed:dev": "tsx --env-file=../../.env scripts/seed-dev-student.ts",
     "db:migrate": "tsx --env-file=../../.env ../../packages/cli/src/index.ts migrate"
   },
   "dependencies": {

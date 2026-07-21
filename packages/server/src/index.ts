@@ -8,7 +8,7 @@ export { buildServer } from "./http/server.js";
 export { loadIntegrations } from "./composition/integrations.js";
 // Operational functions consumed by the @headless-lms/cli bin.
 export { runMigrations } from "./composition/migrate.js";
-export { runSeed } from "./composition/seed.js";
+export { runSeed, runSeedDevStudent } from "./composition/seed.js";
 export type { ServerConfig } from "./http/config.js";
 // Re-exporting AuthUser also pulls its module into any program that imports
 // this file (directly or via the workspace path mapping), which is what
