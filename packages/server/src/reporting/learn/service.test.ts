@@ -13,8 +13,9 @@ function course(id: string, status: "draft" | "published" = "published"): Course
 
 function fakeReader(refs: CourseRef[]): LearnEnrollmentReader {
   return {
-    activeRefs: async () => refs,
-    activeRef: async (_s, courseId) => refs.find((r) => r.courseId === courseId) ?? null,
+    activeRefs: async (orgId) => refs.filter((r) => r.orgId === orgId),
+    activeRef: async (orgId, _s, courseId) =>
+      refs.find((r) => r.orgId === orgId && r.courseId === courseId) ?? null,
   };
 }
 
@@ -38,7 +39,7 @@ describe("LearnReportServiceImpl", () => {
       ]),
       fakeContent({ c1: course("c1", "published"), c2: course("c2", "draft") }, {}),
     );
-    const rows = await svc.listCourses("stu_1");
+    const rows = await svc.listCourses("o1", "stu_1");
     expect(rows.map((c) => c.id)).toEqual(["c1"]);
   });
 
@@ -47,8 +48,17 @@ describe("LearnReportServiceImpl", () => {
       fakeReader([{ orgId: "o1", courseId: "c1" }]),
       fakeContent({ c1: course("c1") }, {}),
     );
-    expect(await svc.getCourse("stu_1", "cX")).toBeNull();
-    expect(await svc.listModules("stu_1", "cX")).toBeNull();
+    expect(await svc.getCourse("o1", "stu_1", "cX")).toBeNull();
+    expect(await svc.listModules("o1", "stu_1", "cX")).toBeNull();
+  });
+
+  it("does not return a course enrolled in another org", async () => {
+    const svc = new LearnReportServiceImpl(
+      fakeReader([{ orgId: "o2", courseId: "c1" }]),
+      fakeContent({ c1: course("c1") }, {}),
+    );
+    expect(await svc.listCourses("o1", "stu_1")).toEqual([]);
+    expect(await svc.getCourse("o1", "stu_1", "c1")).toBeNull();
   });
 
   it("filters unpublished activities out of the module tree", async () => {
@@ -66,7 +76,7 @@ describe("LearnReportServiceImpl", () => {
       fakeReader([{ orgId: "o1", courseId: "c1" }]),
       fakeContent({ c1: course("c1") }, { c1: modules }),
     );
-    const result = await svc.listModules("stu_1", "c1");
+    const result = await svc.listModules("o1", "stu_1", "c1");
     expect(result?.[0]?.activities.map((a) => a.id)).toEqual(["a1", "a3"]);
   });
 });

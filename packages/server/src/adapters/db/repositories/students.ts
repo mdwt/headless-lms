@@ -60,7 +60,10 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     const [totals] = await this.db
       .select({ total: sql<number>`count(distinct ${students.id})` })
       .from(enrollments)
-      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .innerJoin(
+        students,
+        and(eq(students.orgId, enrollments.orgId), eq(students.id, enrollments.studentId)),
+      )
       .where(where);
 
     const rows = await this.db
@@ -74,7 +77,10 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         avgProgress: avgProgressExpr,
       })
       .from(enrollments)
-      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .innerJoin(
+        students,
+        and(eq(students.orgId, enrollments.orgId), eq(students.id, enrollments.studentId)),
+      )
       .leftJoin(user, eq(user.id, students.externalId))
       .where(where)
       .groupBy(students.id, user.image)
@@ -102,7 +108,10 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         avgProgress: avgProgressExpr,
       })
       .from(enrollments)
-      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .innerJoin(
+        students,
+        and(eq(students.orgId, enrollments.orgId), eq(students.id, enrollments.studentId)),
+      )
       .leftJoin(user, eq(user.id, students.externalId))
       .where(and(eq(enrollments.orgId, orgId), eq(students.id, id)))
       .groupBy(students.id, user.image)

@@ -15,3 +15,11 @@ export type LearnModules = z.infer<typeof LearnModules>;
 
 export const LearnCourseIdParam = z.object({ courseId: z.string() });
 export type LearnCourseIdParam = z.infer<typeof LearnCourseIdParam>;
+
+/** The portal org's public identity — the student surface themes against it. */
+export const LearnOrg = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+});
+export type LearnOrg = z.infer<typeof LearnOrg>;

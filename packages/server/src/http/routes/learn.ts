@@ -9,9 +9,11 @@ import {
   LearnCourseIdParam,
   LearnCourses,
   LearnModules,
+  LearnOrg,
 } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
 import { resolveStudentScope } from "../student-scope.js";
+import { resolvePortalOrgRecord } from "../portal-org.js";
 
 export async function learnRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -29,7 +31,26 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
     },
     handler: async (req) => {
       const scope = await resolveStudentScope(container, req);
-      return learn.listCourses(scope.studentId);
+      return learn.listCourses(scope.orgId, scope.studentId);
+    },
+  });
+
+  r.route({
+    method: "GET",
+    url: "/api/learn/org",
+    preHandler: app.requireSession,
+    schema: {
+      operationId: "getLearnOrg",
+      tags: ["Learn"],
+      summary: "Get the portal org's public identity (branding)",
+      response: { 200: LearnOrg },
+    },
+    handler: async (req) => {
+      // Guard: the caller must be a student in the portal org, then surface the
+      // org's display identity for the portal brand.
+      const scope = await resolveStudentScope(container, req);
+      const org = await resolvePortalOrgRecord(container, req);
+      return { id: scope.orgId, name: org.name, slug: org.slug };
     },
   });
 
@@ -46,7 +67,7 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
     },
     handler: async (req, reply) => {
       const scope = await resolveStudentScope(container, req);
-      const course = await learn.getCourse(scope.studentId, req.params.courseId);
+      const course = await learn.getCourse(scope.orgId, scope.studentId, req.params.courseId);
       if (!course)
         return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return course;
@@ -66,7 +87,7 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
     },
     handler: async (req, reply) => {
       const scope = await resolveStudentScope(container, req);
-      const modules = await learn.listModules(scope.studentId, req.params.courseId);
+      const modules = await learn.listModules(scope.orgId, scope.studentId, req.params.courseId);
       if (!modules)
         return reply.code(404).send({ error: "not_found", message: "Course not found" });
       return modules;

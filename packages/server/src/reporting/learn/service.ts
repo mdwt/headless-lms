@@ -16,23 +16,23 @@ export class LearnReportServiceImpl implements LearnReportService {
     private readonly content: ContentService,
   ) {}
 
-  async listCourses(studentId: string): Promise<Course[]> {
-    const refs = await this.reader.activeRefs(studentId);
+  async listCourses(orgId: string, studentId: string): Promise<Course[]> {
+    const refs = await this.reader.activeRefs(orgId, studentId);
     const courses = await Promise.all(
       refs.map((ref) => this.content.get(ref.orgId, ref.courseId)),
     );
     return courses.filter((c): c is Course => c !== null && c.status === "published");
   }
 
-  async getCourse(studentId: string, courseId: string): Promise<Course | null> {
-    const ref = await this.reader.activeRef(studentId, courseId);
+  async getCourse(orgId: string, studentId: string, courseId: string): Promise<Course | null> {
+    const ref = await this.reader.activeRef(orgId, studentId, courseId);
     if (!ref) return null;
     const course = await this.content.get(ref.orgId, courseId);
     return course && course.status === "published" ? course : null;
   }
 
-  async listModules(studentId: string, courseId: string): Promise<Module[] | null> {
-    const ref = await this.reader.activeRef(studentId, courseId);
+  async listModules(orgId: string, studentId: string, courseId: string): Promise<Module[] | null> {
+    const ref = await this.reader.activeRef(orgId, studentId, courseId);
     if (!ref) return null;
     const modules = await this.content.listForCourse(ref.orgId, courseId);
     return modules.map((m) => ({
