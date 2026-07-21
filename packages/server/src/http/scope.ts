@@ -9,7 +9,7 @@ export interface OrgScope {
   /** Domain `organizations.id` (uuid) for the session's active org. */
   orgId: string;
   /** Domain `users.id` (uuid) of the acting staff user. */
-  actorUserId: string;
+  userId: string;
   /** Better-auth organization id (for writes that go through the auth provider). */
   authOrgId: string;
 }
@@ -26,5 +26,5 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
   if (!org) throw new NoActiveOrgError("active organization not found");
   const user = await container.identity.getUserByExternalId(authUser.id);
   if (!user) throw new NoActiveOrgError("no domain user for the current user");
-  return { orgId: org.id, actorUserId: user.id, authOrgId };
+  return { orgId: org.id, userId: user.id, authOrgId };
 }

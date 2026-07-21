@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveStudentScope, NotAStudentError } from "./student-scope.js";
+import { resolveStudentScope, NoStudentError } from "./student-scope.js";
 import { UnknownPortalOrgError } from "./portal-org.js";
 import type { Container } from "../composition/container.js";
 import type { FastifyRequest } from "fastify";
@@ -26,10 +26,10 @@ describe("resolveStudentScope", () => {
     expect(scope).toEqual({ studentId: "stu_1", orgId: "org_1" });
   });
 
-  it("throws NotAStudentError when there is no session user", async () => {
+  it("throws NoStudentError when there is no session user", async () => {
     await expect(
       resolveStudentScope(container({ org: { id: "org_1" } }), req(undefined)),
-    ).rejects.toBeInstanceOf(NotAStudentError);
+    ).rejects.toBeInstanceOf(NoStudentError);
   });
 
   it("throws UnknownPortalOrgError when the portal org does not resolve", async () => {
@@ -38,9 +38,9 @@ describe("resolveStudentScope", () => {
     ).rejects.toBeInstanceOf(UnknownPortalOrgError);
   });
 
-  it("throws NotAStudentError when the user is not a student in the org", async () => {
+  it("throws NoStudentError when the user is not a student in the org", async () => {
     await expect(
       resolveStudentScope(container({ student: null, org: { id: "org_1" } }), req({ id: "ext_x" })),
-    ).rejects.toBeInstanceOf(NotAStudentError);
+    ).rejects.toBeInstanceOf(NoStudentError);
   });
 });

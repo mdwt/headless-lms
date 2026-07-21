@@ -4,7 +4,7 @@
 // (validation, etc.); log and generically 500 anything unexpected.
 import type { FastifyInstance } from "fastify";
 import { NoActiveOrgError } from "../scope.js";
-import { NotAStudentError } from "../student-scope.js";
+import { NoStudentError } from "../student-scope.js";
 import { UnknownPortalOrgError } from "../portal-org.js";
 
 export function registerErrorHandler(app: FastifyInstance): void {
@@ -12,7 +12,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof NoActiveOrgError) {
       return reply.status(403).send({ error: "forbidden", message: error.message });
     }
-    if (error instanceof NotAStudentError) {
+    if (error instanceof NoStudentError) {
       return reply.status(403).send({ error: "forbidden", message: error.message });
     }
     if (error instanceof UnknownPortalOrgError) {

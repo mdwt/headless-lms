@@ -15,16 +15,16 @@ export interface StudentScope {
 }
 
 /** Thrown when the session's user is not a provisioned student. Mapped to 403. */
-export class NotAStudentError extends Error {}
+export class NoStudentError extends Error {}
 
 export async function resolveStudentScope(
   container: Container,
   req: FastifyRequest,
 ): Promise<StudentScope> {
   const authUser = req.authUser;
-  if (!authUser) throw new NotAStudentError("no authenticated user");
+  if (!authUser) throw new NoStudentError("no authenticated user");
   const orgId = await resolvePortalOrg(container, req);
   const student = await container.identity.getStudentByExternalId(orgId, authUser.id);
-  if (!student) throw new NotAStudentError("no student for the current user");
+  if (!student) throw new NoStudentError("no student for the current user");
   return { studentId: student.id, orgId };
 }
