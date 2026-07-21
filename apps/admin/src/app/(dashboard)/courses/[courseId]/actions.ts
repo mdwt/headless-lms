@@ -6,7 +6,13 @@ import { revalidatePath } from "next/cache";
 import { Courses } from "@headless-lms/sdk";
 
 import { ensureConfigured, authHeaders, unwrap } from "@/lib/api/server-call";
-import type { Course, Module, SaveActivityInput } from "@/lib/api/types";
+import type {
+  ActivityContent,
+  ActivitySettings,
+  Course,
+  Module,
+  SaveActivityInput,
+} from "@/lib/api/types";
 
 /**
  * Revalidate the builder route AND the courses list. The `[courseId]` + "page"
@@ -108,6 +114,41 @@ export async function saveActivityAction(
       );
   revalidateBuilder();
   return modules;
+}
+
+/**
+ * Persist the content editor's output for one activity. The blob is stored
+ * verbatim under `settings.content`; every other settings field (title,
+ * published, …) is preserved by re-reading the activity and merging. This
+ * action knows nothing about the editor's format — it just stores the blob.
+ */
+export async function saveActivityContentAction(
+  courseId: string,
+  moduleId: string,
+  activityId: string,
+  content: ActivityContent,
+): Promise<void> {
+  ensureConfigured();
+  const modules = unwrap(
+    await Courses.listModules({ path: { courseId }, ...(await authHeaders()) }),
+  );
+  const activity = modules
+    .find((m) => m.id === moduleId)
+    ?.activities.find((a) => a.id === activityId);
+  if (!activity) throw new Error("Activity not found");
+
+  const settings: ActivitySettings = {
+    ...((activity.settings ?? {}) as ActivitySettings),
+    content,
+  };
+  unwrap(
+    await Courses.updateActivity({
+      path: { courseId, moduleId, activityId },
+      body: { settings, assetIds: activity.assetIds },
+      ...(await authHeaders()),
+    }),
+  );
+  revalidateBuilder();
 }
 
 export async function deleteActivityAction(

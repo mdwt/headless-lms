@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, GripVertical, Pencil, Trash2 } from "lucide-react";
@@ -101,6 +102,12 @@ export function ItemRow({
           <DropdownMenuItem onClick={() => onEdit(item)}>
             <Pencil className="size-4" />
             Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/courses/${courseId}/content/${item.id}/editor`}>
+              <FileText className="size-4" />
+              Edit content
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="danger" onClick={() => setConfirmOpen(true)}>

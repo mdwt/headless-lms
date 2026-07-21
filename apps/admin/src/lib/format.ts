@@ -53,3 +53,8 @@ export function formatBytes(bytes: number): string {
   const value = bytes / Math.pow(1024, i);
   return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
 }
+
+/** Human label for a content-editor format tag, e.g. "plate v1". */
+export function formatContentType(tag: { type: string; version?: number }): string {
+  return tag.version != null ? `${tag.type} v${tag.version}` : tag.type;
+}

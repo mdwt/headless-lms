@@ -39,6 +39,18 @@ export type Module = ListModulesResponse[number];
 export type Activity = Module["activities"][number];
 
 /**
+ * The activity's authored content, stored inside `settings.content`. `config`
+ * is the installed editor's opaque output blob; `type` (+ optional `version`)
+ * tags which editor format produced it, so renderers can refuse foreign blobs.
+ * Deliberately editor-agnostic — no editor types leak into the store or here.
+ */
+export interface ActivityContent {
+  config: unknown;
+  type: string;
+  version?: number;
+}
+
+/**
  * Admin-side view of the opaque `settings` blob. The API stores it as `unknown`;
  * the editor reads/writes these fields, defaulting anything missing.
  */
@@ -46,6 +58,7 @@ export interface ActivitySettings {
   title?: string;
   body?: string;
   published?: boolean;
+  content?: ActivityContent;
 }
 
 /**
