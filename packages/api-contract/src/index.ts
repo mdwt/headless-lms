@@ -4,6 +4,7 @@
 export * from "./shared.js";
 export * from "./content.js";
 export * from "./activities.js";
+export * from "./learn.js";
 export * from "./students.js";
 export * from "./entitlements.js";
 export * from "./organizations.js";
