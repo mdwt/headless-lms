@@ -193,6 +193,118 @@ export type UpdateCourseResponses = {
 
 export type UpdateCourseResponse = UpdateCourseResponses[keyof UpdateCourseResponses];
 
+export type ListLearnCoursesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/learn/courses";
+};
+
+export type ListLearnCoursesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    description: string;
+    status: "draft" | "published";
+    category: string;
+    moduleCount: number;
+    activityCount: number;
+    enrolledCount: number;
+    updatedAt: string;
+    createdAt: string;
+  }>;
+};
+
+export type ListLearnCoursesResponse = ListLearnCoursesResponses[keyof ListLearnCoursesResponses];
+
+export type GetLearnCourseData = {
+  body?: never;
+  path: {
+    courseId: string;
+  };
+  query?: never;
+  url: "/api/learn/courses/{courseId}";
+};
+
+export type GetLearnCourseErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type GetLearnCourseError = GetLearnCourseErrors[keyof GetLearnCourseErrors];
+
+export type GetLearnCourseResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    title: string;
+    slug: string;
+    description: string;
+    status: "draft" | "published";
+    category: string;
+    moduleCount: number;
+    activityCount: number;
+    enrolledCount: number;
+    updatedAt: string;
+    createdAt: string;
+  };
+};
+
+export type GetLearnCourseResponse = GetLearnCourseResponses[keyof GetLearnCourseResponses];
+
+export type ListLearnModulesData = {
+  body?: never;
+  path: {
+    courseId: string;
+  };
+  query?: never;
+  url: "/api/learn/courses/{courseId}/modules";
+};
+
+export type ListLearnModulesErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ListLearnModulesError = ListLearnModulesErrors[keyof ListLearnModulesErrors];
+
+export type ListLearnModulesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    courseId: string;
+    title: string;
+    seq: number;
+    activities: Array<{
+      id: string;
+      moduleId: string;
+      seq: number;
+      settings: unknown;
+      assetIds: Array<string>;
+    }>;
+  }>;
+};
+
+export type ListLearnModulesResponse = ListLearnModulesResponses[keyof ListLearnModulesResponses];
+
 export type ListModulesData = {
   body?: never;
   path: {

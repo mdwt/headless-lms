@@ -44,6 +44,9 @@ import type {
   GetCourseData,
   GetCourseErrors,
   GetCourseResponses,
+  GetLearnCourseData,
+  GetLearnCourseErrors,
+  GetLearnCourseResponses,
   GetMcpData,
   GetMcpResponses,
   GetOverviewData,
@@ -72,6 +75,11 @@ import type {
   ListCoursesResponses,
   ListEntitlementsData,
   ListEntitlementsResponses,
+  ListLearnCoursesData,
+  ListLearnCoursesResponses,
+  ListLearnModulesData,
+  ListLearnModulesErrors,
+  ListLearnModulesResponses,
   ListMembersData,
   ListMembersResponses,
   ListModulesData,
@@ -339,6 +347,46 @@ export class Courses {
         ...options.headers,
       },
     });
+  }
+}
+
+export class Learn {
+  /**
+   * List the student's enrolled courses
+   */
+  public static listLearnCourses<ThrowOnError extends boolean = false>(
+    options?: Options<ListLearnCoursesData, ThrowOnError>,
+  ): RequestResult<ListLearnCoursesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLearnCoursesResponses, unknown, ThrowOnError>({
+      url: "/api/learn/courses",
+      ...options,
+    });
+  }
+
+  /**
+   * Get one enrolled course
+   */
+  public static getLearnCourse<ThrowOnError extends boolean = false>(
+    options: Options<GetLearnCourseData, ThrowOnError>,
+  ): RequestResult<GetLearnCourseResponses, GetLearnCourseErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetLearnCourseResponses,
+      GetLearnCourseErrors,
+      ThrowOnError
+    >({ url: "/api/learn/courses/{courseId}", ...options });
+  }
+
+  /**
+   * List an enrolled course's module/activity tree
+   */
+  public static listLearnModules<ThrowOnError extends boolean = false>(
+    options: Options<ListLearnModulesData, ThrowOnError>,
+  ): RequestResult<ListLearnModulesResponses, ListLearnModulesErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      ListLearnModulesResponses,
+      ListLearnModulesErrors,
+      ThrowOnError
+    >({ url: "/api/learn/courses/{courseId}/modules", ...options });
   }
 }
 
