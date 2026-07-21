@@ -20,6 +20,7 @@ import { IntegrationsServiceImpl } from "../core/integrations/index.js";
 import { loadIntegrations } from "./integrations.js";
 import { StudentsReportServiceImpl } from "../reporting/students/index.js";
 import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
+import { LearnReportServiceImpl } from "../reporting/learn/index.js";
 
 import { DrizzleEntitlementsRepository } from "../adapters/db/repositories/entitlements.js";
 import { DrizzleProgressRepository } from "../adapters/db/repositories/progress.js";
@@ -31,6 +32,7 @@ import { DrizzleContentStructureRepository } from "../adapters/db/repositories/s
 import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
 import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
 import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
+import { DrizzleLearnRepository } from "../adapters/db/repositories/learn.js";
 import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
 import { DrizzleConnectionsRepository } from "../adapters/db/repositories/integrations.js";
 import type { CredentialStore, EmailSender, ObjectStorage } from "../core/shared/ports.js";
@@ -77,6 +79,7 @@ export interface Container {
   reporting: {
     students: StudentsReportServiceImpl;
     dashboard: DashboardReportServiceImpl;
+    learn: LearnReportServiceImpl;
   };
   storage: ObjectStorage;
   connectedApps: ConnectedAppsRepo;
@@ -125,6 +128,7 @@ export async function buildContainer(
   const reporting = {
     students: new StudentsReportServiceImpl(new DrizzleStudentsRepository(db)),
     dashboard: new DashboardReportServiceImpl(new DrizzleDashboardRepository(db)),
+    learn: new LearnReportServiceImpl(new DrizzleLearnRepository(db), content),
   };
 
   const connectedApps = createConnectedAppsRepo(db);
