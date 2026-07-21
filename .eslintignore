@@ -7,3 +7,9 @@ apps/student/
 apps/admin/
 packages/sdk/src/generated/
 .playwright-mcp
+# Plate editor component trees (registry-style) — not held to repo lint rules.
+# The package's own entry files (src/*.ts[x]) are still linted.
+plugins/content-plate/src/editor/
+plugins/content-plate/src/ui/
+plugins/content-plate/src/hooks/
+plugins/content-plate/src/lib/
