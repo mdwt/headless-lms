@@ -28,6 +28,8 @@ import { useIsNarrow } from "./use-viewport";
 export interface CoursePlayerProps {
   course: Course;
   studentName: string;
+  /** Server-rendered activity content, keyed by lesson id (see render-activity). */
+  renderedContent: Record<string, React.ReactNode>;
   sidebarStyle?: SidebarStyle;
   sequentialLocking?: boolean;
   autoAdvance?: boolean;
@@ -38,6 +40,7 @@ const AUTO_ADVANCE_MS = 420;
 export function CoursePlayer({
   course,
   studentName,
+  renderedContent,
   sidebarStyle = "detailed",
   sequentialLocking = true,
   autoAdvance = true,
@@ -182,7 +185,7 @@ export function CoursePlayer({
                 </span>
               </div>
             )}
-            <ContentArea content={curLesson?.content ?? null} />
+            <ContentArea node={curLesson ? renderedContent[curLesson.id] : null} />
           </div>
 
           <FooterNav

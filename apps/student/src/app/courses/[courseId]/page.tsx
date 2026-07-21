@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { requireAuth } from "@/lib/auth/server-session";
 import { learnApi } from "@/lib/api/server";
 import { adaptCourse } from "@/lib/adapt";
+import { renderActivityContent } from "@/components/player/content/render-activity";
 import { CoursePlayer } from "@/components/player/course-player";
 
 export default async function CoursePlayerPage({
@@ -17,5 +19,22 @@ export default async function CoursePlayerPage({
     learnApi.listModules(courseId),
   ]);
   if (!course || !modules) notFound();
-  return <CoursePlayer course={adaptCourse(course, modules)} studentName={session.user.name} />;
+
+  const adapted = adaptCourse(course, modules);
+  // Render each activity's Plate content on the server so the client player
+  // receives ready-made nodes (no client re-execution → no hydration mismatch).
+  const renderedContent: Record<string, ReactNode> = {};
+  for (const mod of adapted.modules) {
+    for (const lesson of mod.lessons) {
+      renderedContent[lesson.id] = renderActivityContent(lesson.content);
+    }
+  }
+
+  return (
+    <CoursePlayer
+      course={adapted}
+      studentName={session.user.name}
+      renderedContent={renderedContent}
+    />
+  );
 }
