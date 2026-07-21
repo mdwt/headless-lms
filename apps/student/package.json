@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@headless-lms/content-plate": "workspace:*",
+    "@headless-lms/editor-contract": "workspace:*",
     "@headless-lms/sdk": "workspace:*",
     "better-auth": "^1.6.22",
     "class-variance-authority": "^0.7.1",

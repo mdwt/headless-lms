@@ -4,7 +4,6 @@ import { Check, ChevronDown, Lock, X } from "lucide-react";
 
 import { LESSON_ICON } from "@/components/icons";
 import { ProgressBar } from "@/components/primitives/progress-bar";
-import { durationLabel } from "@/lib/format";
 import {
   coursePercent,
   isLessonLocked,
@@ -15,25 +14,6 @@ import type { Completion, Course, Lesson } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type SidebarStyle = "detailed" | "compact" | "numbered";
-
-/** Short sidebar meta label per lesson type (handoff §9 / prototype durShort). */
-function metaLabel(lesson: Lesson): string {
-  switch (lesson.type) {
-    case "video":
-    case "audio":
-      return durationLabel(lesson.durationSeconds);
-    case "text":
-      return `${Math.round(lesson.durationSeconds / 60)} min`;
-    case "quiz":
-      return "Quiz";
-    case "pdf":
-      return "PDF";
-    case "download":
-      return "Files";
-    default:
-      return "";
-  }
-}
 
 export function CurriculumSidebar({
   course,
@@ -95,7 +75,6 @@ export function CurriculumSidebar({
             <h2 className="mb-[3px] text-[19px] font-semibold leading-[1.18]">
               {course.title}
             </h2>
-            <div className="text-[12.5px] text-ink-3">with {course.instructor}</div>
           </div>
           {isNarrow && (
             <button
@@ -202,8 +181,7 @@ function LessonRow({
   locked: boolean;
   onSelect: () => void;
 }) {
-  const Icon = LESSON_ICON[lesson.type];
-  const showMeta = sidebarStyle !== "compact";
+  const Icon = LESSON_ICON;
   const showNumber = sidebarStyle === "numbered";
 
   const titleColor = locked ? "#a8a499" : isCurrent ? "#1b1b19" : "#403e38";
@@ -251,14 +229,6 @@ function LessonRow({
         >
           {lesson.title}
         </span>
-        {showMeta && (
-          <span
-            className="mt-0.5 block text-[10.5px]"
-            style={{ color: "#a8a499" }}
-          >
-            {metaLabel(lesson)}
-          </span>
-        )}
       </span>
 
       <span className="flex size-5 flex-none items-center justify-center">

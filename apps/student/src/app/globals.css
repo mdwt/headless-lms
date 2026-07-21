@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* The content editor (@headless-lms/content-plate) ships Tailwind-styled TS
+   source from the workspace; scan it so its utilities are generated. */
+@source "../../../../plugins/content-plate/src";
+
 /* =========================================================================
    Design tokens — Headless LMS "Course Platform" handoff (high-fidelity).
    The handoff's brand accent is exposed as `--brand` (utilities: brand,

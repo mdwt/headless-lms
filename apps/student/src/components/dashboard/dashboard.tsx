@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { courses as allCourses, enrollments, student, monthlyHoursLabel } from "@/lib/mock-data";
-import { coursePercent, completedCount, totalLessons, findLesson, moduleOfLesson } from "@/lib/progress";
+
+import type { Completion, CourseSummaryVM } from "@/lib/types";
 import { dateLabel, greeting, firstName } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { DashboardHeader } from "./dashboard-header";
@@ -12,16 +12,31 @@ import { ContinueHero } from "./continue-hero";
 import { Toolbar, type FilterValue, type SortValue, type LayoutValue } from "./toolbar";
 import { CourseCard, type CourseState } from "./course-card";
 import { CourseListRow } from "./course-list-row";
-import { FilterEmpty } from "./empty-states";
+import { FilterEmpty, LibraryEmpty } from "./empty-states";
 
-function stateOf(status: string, percent: number): CourseState {
-  if (status === "expired") return "expired";
+/** Completed / in-progress counts + a percent from local completion, using the
+ *  course's activity count as the denominator (in-progress counts as half). */
+function progressOf(completion: Completion, lessonCount: number) {
+  const statuses = Object.values(completion);
+  const done = statuses.filter((s) => s === "completed").length;
+  const half = statuses.filter((s) => s === "in-progress").length;
+  const percent = lessonCount === 0 ? 0 : Math.round((100 * (done + 0.5 * half)) / lessonCount);
+  return { done, percent };
+}
+
+function stateOf(percent: number, done: number, half: number): CourseState {
   if (percent >= 100) return "completed";
-  if (percent === 0) return "not-started";
+  if (done === 0 && half === 0) return "not-started";
   return "in-progress";
 }
 
-export function Dashboard() {
+export function Dashboard({
+  courses,
+  studentName,
+}: {
+  courses: CourseSummaryVM[];
+  studentName: string;
+}) {
   const router = useRouter();
   const { completionByCourse } = useApp();
   const [filter, setFilter] = React.useState<FilterValue>("all");
@@ -30,37 +45,31 @@ export function Dashboard() {
 
   const open = (courseId: string) => router.push(`/courses/${courseId}`);
 
-  // View model per enrolled course (enrollment order = "recently accessed").
-  const items = enrollments.map((e) => {
-    const course = allCourses.find((c) => c.id === e.courseId)!;
-    const completion = completionByCourse[e.courseId] ?? {};
-    const percent = coursePercent(course, completion);
-    return { course, enrollment: e, percent, state: stateOf(e.status, percent) };
+  const items = courses.map((course) => {
+    const completion = completionByCourse[course.id] ?? {};
+    const statuses = Object.values(completion);
+    const half = statuses.filter((s) => s === "in-progress").length;
+    const { done, percent } = progressOf(completion, course.lessonCount);
+    return { course, completion, percent, done, state: stateOf(percent, done, half) };
   });
 
-  const inProgressCount = items.filter((i) => i.state === "in-progress").length;
+  const inProgressTotal = items.filter((i) => i.state === "in-progress").length;
   const completedTotal = items.filter((i) => i.state === "completed").length;
 
-  // Hero = most-recently-accessed active, in-progress course.
-  const heroItem = items.find((i) => i.enrollment.status === "active" && i.state === "in-progress");
+  // Hero = first in-progress course.
+  const heroItem = items.find((i) => i.state === "in-progress");
   let heroProps: React.ComponentProps<typeof ContinueHero> | null = null;
   if (heroItem) {
-    const { course, enrollment, percent } = heroItem;
-    const lessonId = enrollment.lastAccessedLessonId;
-    const lesson = lessonId ? findLesson(course, lessonId) : undefined;
-    const mod = lessonId ? moduleOfLesson(course, lessonId) : undefined;
-    const resumeLabel = mod && lesson ? `Module ${mod.order} · ${lesson.title}` : course.title;
-    const lessonsLeft = totalLessons(course) - completedCount(course, completionByCourse[course.id] ?? {});
+    const { course, percent, done } = heroItem;
     heroProps = {
       course,
       percent,
-      resumeLabel,
-      lessonsLeft,
+      resumeLabel: `${done} of ${course.lessonCount} lessons complete`,
+      lessonsLeft: Math.max(0, course.lessonCount - done),
       onContinue: () => open(course.id),
     };
   }
 
-  // Filter + sort.
   let visible = items.filter((i) => {
     if (filter === "inprogress") return i.state === "in-progress";
     if (filter === "completed") return i.state === "completed";
@@ -78,11 +87,10 @@ export function Dashboard() {
       <div className="mx-auto max-w-[1180px] px-7 pb-[70px] pt-[30px]">
         <GreetingStats
           eyebrow={dateLabel()}
-          heading={`${greeting()}, ${firstName(student.name)}`}
+          heading={`${greeting()}, ${firstName(studentName)}`}
           stats={[
-            { value: String(inProgressCount), label: "in progress" },
+            { value: String(inProgressTotal), label: "in progress" },
             { value: String(completedTotal), label: "completed" },
-            { value: monthlyHoursLabel, label: "this month" },
           ]}
         />
 
@@ -97,7 +105,9 @@ export function Dashboard() {
           onLayout={setLayout}
         />
 
-        {visible.length === 0 ? (
+        {courses.length === 0 ? (
+          <LibraryEmpty />
+        ) : visible.length === 0 ? (
           <FilterEmpty onShowAll={() => setFilter("all")} />
         ) : layout === "grid" ? (
           <div className="grid grid-cols-1 gap-[18px] min-[900px]:grid-cols-2 min-[1080px]:grid-cols-3">

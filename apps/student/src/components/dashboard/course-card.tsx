@@ -2,7 +2,7 @@
 
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Course } from "@/lib/types";
+import type { CourseSummaryVM } from "@/lib/types";
 import { CourseCover } from "@/components/primitives/course-cover";
 import { coverLetter } from "@/lib/covers";
 import { ProgressBar } from "@/components/primitives/progress-bar";
@@ -31,7 +31,7 @@ export function CourseCard({
   state,
   onOpen,
 }: {
-  course: Course;
+  course: CourseSummaryVM;
   percent: number;
   state: CourseState;
   onOpen: () => void;
@@ -63,7 +63,7 @@ export function CourseCard({
         <h3 className="mb-1 text-[18.5px] font-semibold leading-[1.2] tracking-[-0.005em]">
           {course.title}
         </h3>
-        <div className="mb-4 text-[13px] text-ink-3">{course.instructor}</div>
+        <div className="mb-4 text-[13px] text-ink-3">{course.category}</div>
 
         <div className="mt-auto">
           <div className="mb-3.5 flex items-center gap-[11px]">

@@ -2,7 +2,7 @@
 
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Course } from "@/lib/types";
+import type { CourseSummaryVM } from "@/lib/types";
 import { CourseCover } from "@/components/primitives/course-cover";
 import { coverLetter } from "@/lib/covers";
 import { ProgressBar } from "@/components/primitives/progress-bar";
@@ -30,7 +30,7 @@ export function CourseListRow({
   state,
   onOpen,
 }: {
-  course: Course;
+  course: CourseSummaryVM;
   percent: number;
   state: CourseState;
   onOpen: () => void;
@@ -62,9 +62,7 @@ export function CourseListRow({
             {state === "completed" && <StatusChip status="completed" />}
             {expired && <ExpiredPill className="!bg-[#e8e5de] !text-ink-3 !backdrop-blur-none" />}
           </div>
-          <div className="truncate text-[13px] text-ink-3">
-            {course.instructor} · {course.category}
-          </div>
+          <div className="truncate text-[13px] text-ink-3">{course.category}</div>
         </div>
         <div className="w-[160px] flex-none">
           <div className="flex items-center gap-[9px]">

@@ -5,7 +5,6 @@
 // Swap markLessonComplete for a real mutation when wiring the API.
 import * as React from "react";
 import type { Completion, LessonStatus } from "./types";
-import { initialCompletion } from "./mock-data";
 
 export type Accent = "indigo" | "emerald" | "orange" | "ink";
 
@@ -27,7 +26,7 @@ interface AppState {
 const AppContext = React.createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [completionByCourse, setCompletion] = React.useState(initialCompletion);
+  const [completionByCourse, setCompletion] = React.useState<Record<string, Completion>>({});
   const [toast, setToast] = React.useState<ToastState | null>(null);
   const [accent, setAccent] = React.useState<Accent>("indigo");
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);

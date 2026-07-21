@@ -169,6 +169,12 @@ importers:
 
   apps/student:
     dependencies:
+      '@headless-lms/content-plate':
+        specifier: workspace:*
+        version: link:../../plugins/content-plate
+      '@headless-lms/editor-contract':
+        specifier: workspace:*
+        version: link:../../packages/editor-contract
       '@headless-lms/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
