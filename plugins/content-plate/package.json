@@ -1,0 +1,30 @@
+{
+  "name": "@headless-lms/content-plate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@headless-lms/editor-contract": "workspace:*",
+    "@platejs/basic-nodes": "^53.0.0",
+    "platejs": "^53.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
