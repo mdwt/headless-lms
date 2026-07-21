@@ -80,12 +80,13 @@ async function main(db: ReturnType<typeof createDb>) {
       });
     });
 
-    // Students (global identities).
+    // Students (org-scoped: each belongs to this org).
     const orgStudents = times(faker.number.int({ min: 5, max: 12 }), () => {
       const sid = genId("student");
       const first = faker.person.firstName();
       const last = faker.person.lastName();
       students.push({
+        orgId,
         id: sid,
         externalId: ksuid(),
         email: uEmail(first, last),
@@ -202,8 +203,8 @@ async function main(db: ReturnType<typeof createDb>) {
   // Insert respecting FK order — all-or-nothing so a failure leaves no partial data.
   await db.transaction(async (tx) => {
     await tx.insert(schema.users).values(users);
-    await tx.insert(schema.students).values(students);
     await tx.insert(schema.organizations).values(organizations);
+    await tx.insert(schema.students).values(students);
     await tx.insert(schema.memberships).values(memberships);
     await tx.insert(schema.assets).values(assets);
     await tx.insert(schema.courses).values(courses);

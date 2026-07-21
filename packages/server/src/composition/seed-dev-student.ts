@@ -17,6 +17,41 @@ const STUDENT_PASSWORD = "password123";
 const ORG_ID = "org_dev_academy";
 const OWNER_USER_ID = "usr_dev_owner";
 const COURSE_ID = "crs_dev_welcome";
+const FOUNDATIONS_COURSE_ID = "crs_dev_foundations";
+
+// Authored "Foundations" content captured from the editor (Plate blob verbatim).
+// The activity's `settings` is embedded as-is (published:true), including the
+// file node — its backing asset row is wiped on reseed, so the download 404s but
+// the node still renders. Fine for a dev baseline.
+const foundationsActivitySettings = {
+  title: "Welcome",
+  content: {
+    type: "plate",
+    config: [
+      { id: "gCe3sJNvcZ", type: "h1", children: [{ text: "Welcome" }] },
+      { id: "NrLjMCOdoP", type: "p", children: [{ text: "" }] },
+      {
+        id: "zdMcmvyTO6",
+        type: "code_block",
+        children: [{ text: "This is some coolf", type: "code_line" }],
+      },
+      { id: "Y1XpEJs8X-", type: "p", children: [{ text: "" }] },
+      {
+        id: "0-XoFMfgzP-bjej6wJ6vz",
+        url: "http://localhost:8000/api/assets/ast_3GoLQlmZfBdenLuHiFTuiVNwzPR/file",
+        name: "Meiring de Wet — Cover Letter.pdf",
+        type: "file",
+        children: [{ text: "" }],
+        isUpload: true,
+        mediaType: "file",
+        placeholderId: "ZOip5QgOjV",
+      },
+      { id: "s6H7Pm7Zmg", type: "p", children: [{ text: "" }] },
+    ],
+    version: 1,
+  },
+  published: true,
+};
 
 // A small Plate value the RSC Renderer can display (nodes the BaseEditorKit
 // renders: h1/h2, paragraphs with marks, blockquote).
@@ -109,10 +144,12 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
       })
       .onConflictDoNothing();
 
-    // Domain student — externalId links the session user to this student.
+    // Domain student — org-scoped; externalId links the session user to this
+    // student within the dev org.
     await tx
       .insert(schema.students)
       .values({
+        orgId: ORG_ID,
         id: "stu_dev_student",
         externalId: AUTH_USER_ID,
         email: STUDENT_EMAIL,
@@ -166,6 +203,53 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
         id: "enr_dev_student",
         studentId: "stu_dev_student",
         courseId: COURSE_ID,
+        status: "active",
+        source: "manual",
+        expiresAt: null,
+      })
+      .onConflictDoNothing();
+
+    // "Foundations" — a deterministic course carrying the captured authored
+    // Plate content, in the same dev org, with the dev student enrolled.
+    await tx
+      .insert(schema.courses)
+      .values({
+        orgId: ORG_ID,
+        id: FOUNDATIONS_COURSE_ID,
+        title: "Foundations",
+        slug: "foundations",
+        description: "",
+        status: "published",
+        category: "",
+      })
+      .onConflictDoNothing();
+    await tx
+      .insert(schema.modules)
+      .values({
+        orgId: ORG_ID,
+        id: "mod_dev_foundations",
+        courseId: FOUNDATIONS_COURSE_ID,
+        title: "This is my cool course",
+        seq: 0,
+      })
+      .onConflictDoNothing();
+    await tx
+      .insert(schema.activities)
+      .values({
+        orgId: ORG_ID,
+        id: "act_dev_foundations",
+        moduleId: "mod_dev_foundations",
+        seq: 0,
+        settings: foundationsActivitySettings,
+      })
+      .onConflictDoNothing();
+    await tx
+      .insert(schema.enrollments)
+      .values({
+        orgId: ORG_ID,
+        id: "enr_dev_foundations2",
+        studentId: "stu_dev_student",
+        courseId: FOUNDATIONS_COURSE_ID,
         status: "active",
         source: "manual",
         expiresAt: null,
