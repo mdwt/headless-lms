@@ -1,20 +1,23 @@
-// Resolves a request's session + portal org into the org-scoped student the
-// learn read layer expects. Students are org-scoped: the session user is a
-// global login; the portal org (header/env, via `resolvePortalOrg`) selects the
-// org, and `(orgId, externalId)` resolves the one student row. `req.authUser` is
-// set by `requireSession`.
+// Resolves a request's session into the org-scoped student the learn read layer
+// expects. Students are org-scoped: the org rides in the session (better-auth
+// `activeOrganizationId`, stamped at login and exposed as `req.orgId` by
+// `requireSession`) — no per-request header. `(orgId, externalId)` resolves the
+// one student row. A session that doesn't resolve to a portal student is an
+// authentication failure (→ 401).
 import type { FastifyRequest } from "fastify";
 import type { Container } from "../composition/container.js";
-import { resolvePortalOrg } from "./portal-org.js";
+import type { Organization } from "../core/organizations/index.js";
 
 export interface StudentScope {
   /** Domain `students.id` for the session's user in the portal org. */
   studentId: string;
   /** The portal org's `organizations.id` the request is scoped to. */
   orgId: string;
+  /** The portal org record (for branding surfaces). */
+  org: Organization;
 }
 
-/** Thrown when the session's user is not a provisioned student. Mapped to 403. */
+/** Thrown when the session doesn't resolve to a portal student. An auth failure → 401. */
 export class NoStudentError extends Error {}
 
 export async function resolveStudentScope(
@@ -22,9 +25,11 @@ export async function resolveStudentScope(
   req: FastifyRequest,
 ): Promise<StudentScope> {
   const authUser = req.authUser;
-  if (!authUser) throw new NoStudentError("no authenticated user");
-  const orgId = await resolvePortalOrg(container, req);
-  const student = await container.identity.getStudentByExternalId(orgId, authUser.id);
-  if (!student) throw new NoStudentError("no student for the current user");
-  return { studentId: student.id, orgId };
+  const authOrgId = req.orgId ?? null;
+  if (!authUser || !authOrgId) throw new NoStudentError("no authenticated student session");
+  const org = await container.organizations.getByExternalId(authOrgId);
+  if (!org) throw new NoStudentError("session organization not found");
+  const student = await container.identity.getStudentByExternalId(org.id, authUser.id);
+  if (!student) throw new NoStudentError("no student for the current session");
+  return { studentId: student.id, orgId: org.id, org };
 }

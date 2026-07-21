@@ -25,4 +25,8 @@ export class IdentityServiceImpl implements IdentityService {
   async getStudentByExternalId(orgId: string, externalId: string): Promise<Student | null> {
     return this.repo.findStudentByExternalId(orgId, externalId);
   }
+
+  async studentOrgExternalId(externalId: string): Promise<string | null> {
+    return this.repo.findStudentOrgExternalId(externalId);
+  }
 }

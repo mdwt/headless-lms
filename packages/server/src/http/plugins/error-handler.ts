@@ -5,18 +5,16 @@
 import type { FastifyInstance } from "fastify";
 import { NoActiveOrgError } from "../scope.js";
 import { NoStudentError } from "../student-scope.js";
-import { UnknownPortalOrgError } from "../portal-org.js";
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof NoActiveOrgError) {
       return reply.status(403).send({ error: "forbidden", message: error.message });
     }
+    // A session that doesn't resolve to a portal student is an auth failure —
+    // 401 so the portal bounces to login, not a generic 403.
     if (error instanceof NoStudentError) {
-      return reply.status(403).send({ error: "forbidden", message: error.message });
-    }
-    if (error instanceof UnknownPortalOrgError) {
-      return reply.status(400).send({ error: "bad_request", message: error.message });
+      return reply.status(401).send({ error: "unauthorized", message: error.message });
     }
     const err = error as { statusCode?: number; code?: string; message?: string };
     if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500) {

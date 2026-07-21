@@ -298,6 +298,19 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           },
         },
       },
+      session: {
+        create: {
+          before: async (session) => {
+            // Org-scoped students: stamp the student's org onto their session at
+            // login, so the API scopes reads by the session (`req.orgId`) instead
+            // of a per-request header. Staff logins have no student row → left
+            // untouched (their active org comes from the organization plugin).
+            const orgExternalId = await opts.identity.studentOrgExternalId(session.userId);
+            if (!orgExternalId) return;
+            return { data: { ...session, activeOrganizationId: orgExternalId } };
+          },
+        },
+      },
     },
   }) as unknown as Auth;
 }

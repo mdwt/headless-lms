@@ -18,6 +18,10 @@ export interface IdentityService extends UserProvisioner, StudentProvisioner {
   // Students are org-scoped: the same login (externalId) resolves independently
   // per org, so the portal org is required to pick the right row.
   getStudentByExternalId(orgId: string, externalId: string): Promise<Student | null>;
+  // The org (as its better-auth external id) a login belongs to as a student, so
+  // the auth layer can stamp it onto the session at login. Null when the login is
+  // not a student (e.g. staff) or the row is ambiguous across orgs.
+  studentOrgExternalId(externalId: string): Promise<string | null>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -26,4 +30,5 @@ export interface IdentityRepository {
   findUserByExternalId(externalId: string): Promise<User | null>;
   insertStudent(input: RegisterStudentInput): Promise<Student>;
   findStudentByExternalId(orgId: string, externalId: string): Promise<Student | null>;
+  findStudentOrgExternalId(externalId: string): Promise<string | null>;
 }

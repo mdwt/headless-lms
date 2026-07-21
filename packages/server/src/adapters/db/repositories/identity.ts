@@ -5,6 +5,7 @@ import type { IdentityRepository } from "../../../core/identity/ports.js";
 import type { User, Student } from "../../../core/identity/model.js";
 import type { RegisterUserInput, RegisterStudentInput } from "../../../core/identity/types.js";
 import { users, students } from "../schema/identity.js";
+import { organizations } from "../schema/organizations.js";
 
 export class DrizzleIdentityRepository implements IdentityRepository {
   constructor(private readonly db: NodePgDatabase) {}
@@ -53,5 +54,18 @@ export class DrizzleIdentityRepository implements IdentityRepository {
       .where(and(eq(students.orgId, orgId), eq(students.externalId, externalId)))
       .limit(1);
     return row ?? null;
+  }
+
+  // The org (as its better-auth external id) a login is a student in — for
+  // stamping the portal org onto the session at login. Only resolves when the
+  // externalId maps to exactly one student row (the common, single-org case).
+  async findStudentOrgExternalId(externalId: string): Promise<string | null> {
+    const rows = await this.db
+      .select({ orgExternalId: organizations.externalId })
+      .from(students)
+      .innerJoin(organizations, eq(organizations.id, students.orgId))
+      .where(eq(students.externalId, externalId))
+      .limit(2);
+    return rows.length === 1 ? (rows[0]?.orgExternalId ?? null) : null;
   }
 }

@@ -30,6 +30,10 @@ function fakeRepo() {
     async findStudentByExternalId(orgId: string, externalId: string) {
       return students.find((r) => r.orgId === orgId && r.externalId === externalId) ?? null;
     },
+    async findStudentOrgExternalId(externalId: string) {
+      const matches = students.filter((r) => r.externalId === externalId);
+      return matches.length === 1 ? (matches[0]?.orgId ?? null) : null;
+    },
   };
   return { repo, rows: students };
 }

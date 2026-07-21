@@ -13,7 +13,6 @@ import {
 } from "@headless-lms/api-contract";
 import type { Container } from "../../composition/container.js";
 import { resolveStudentScope } from "../student-scope.js";
-import { resolvePortalOrgRecord } from "../portal-org.js";
 
 export async function learnRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -46,11 +45,10 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
       response: { 200: LearnOrg },
     },
     handler: async (req) => {
-      // Guard: the caller must be a student in the portal org, then surface the
+      // The session's student + org (from `activeOrganizationId`) — surface the
       // org's display identity for the portal brand.
-      const scope = await resolveStudentScope(container, req);
-      const org = await resolvePortalOrgRecord(container, req);
-      return { id: scope.orgId, name: org.name, slug: org.slug };
+      const { org } = await resolveStudentScope(container, req);
+      return { id: org.id, name: org.name, slug: org.slug };
     },
   });
 
