@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, PanelLeft } from "lucide-react";
 
 import { ProgressRing } from "@/components/primitives/progress-ring";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 /** Sticky course-player header (handoff §8). */
 export function PlayerHeader({
@@ -72,6 +73,7 @@ export function PlayerHeader({
         <div className="flex size-[34px] items-center justify-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">
           {studentInitials}
         </div>
+        <SignOutButton className="grid size-[34px] place-items-center rounded-full border border-line bg-surface text-ink-2 transition-colors hover:bg-hover-surface-2 disabled:opacity-50" />
       </div>
     </header>
   );

@@ -1,7 +1,10 @@
 import { Bell, Search } from "lucide-react";
 
-/** Sticky dashboard header (handoff §1): brand · search · bell · avatar. */
-export function DashboardHeader() {
+import { initials } from "@/lib/format";
+import { SignOutButton } from "@/components/auth/sign-out-button";
+
+/** Sticky dashboard header (handoff §1): brand · search · bell · avatar · sign out. */
+export function DashboardHeader({ studentName }: { studentName: string }) {
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line-strong px-7 py-4 backdrop-blur-[10px] [background:rgba(247,246,243,0.86)]">
       <div className="flex items-center gap-[11px]">
@@ -22,9 +25,13 @@ export function DashboardHeader() {
         >
           <Bell className="size-[18px]" strokeWidth={1.7} />
         </button>
-        <div className="grid size-[38px] place-items-center rounded-full bg-brand-soft text-[12.5px] font-bold text-brand">
-          MV
+        <div
+          className="grid size-[38px] place-items-center rounded-full bg-brand-soft text-[12.5px] font-bold text-brand"
+          title={studentName}
+        >
+          {initials(studentName)}
         </div>
+        <SignOutButton />
       </div>
     </header>
   );

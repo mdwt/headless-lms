@@ -83,7 +83,7 @@ export function Dashboard({
 
   return (
     <>
-      <DashboardHeader />
+      <DashboardHeader studentName={studentName} />
       <div className="mx-auto max-w-[1180px] px-7 pb-[70px] pt-[30px]">
         <GreetingStats
           eyebrow={dateLabel()}
