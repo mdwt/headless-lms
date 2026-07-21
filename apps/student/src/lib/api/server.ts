@@ -12,12 +12,16 @@ import { Learn } from "@headless-lms/sdk";
 
 import { unwrap } from "./shared";
 import { ensureConfigured, authHeaders } from "./server-call";
-import type { Course, CourseSummary, Module } from "./types";
+import type { Course, CourseSummary, Module, Org } from "./types";
 
 export const learnApi = {
   async listCourses(): Promise<CourseSummary[]> {
     ensureConfigured();
     return unwrap(await Learn.listLearnCourses(await authHeaders()));
+  },
+  async org(): Promise<Org> {
+    ensureConfigured();
+    return unwrap(await Learn.getLearnOrg(await authHeaders()));
   },
   async getCourse(courseId: string): Promise<Course | null> {
     ensureConfigured();

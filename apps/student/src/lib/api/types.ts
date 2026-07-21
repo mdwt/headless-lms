@@ -1,10 +1,13 @@
 import type {
   GetLearnCourseResponse,
+  GetLearnOrgResponse,
   ListLearnCoursesResponse,
   ListLearnModulesResponse,
 } from "@headless-lms/sdk";
 
 export type Course = GetLearnCourseResponse;
+/** The portal org's public identity (branding). */
+export type Org = GetLearnOrgResponse;
 export type CourseSummary = ListLearnCoursesResponse[number];
 export type Module = ListLearnModulesResponse[number];
 export type Activity = Module["activities"][number];

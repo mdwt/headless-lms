@@ -28,6 +28,8 @@ import { useIsNarrow } from "./use-viewport";
 export interface CoursePlayerProps {
   course: Course;
   studentName: string;
+  /** Portal org name — the header brand. */
+  orgName: string;
   /** Server-rendered activity content, keyed by lesson id (see render-activity). */
   renderedContent: Record<string, React.ReactNode>;
   sidebarStyle?: SidebarStyle;
@@ -40,6 +42,7 @@ const AUTO_ADVANCE_MS = 420;
 export function CoursePlayer({
   course,
   studentName,
+  orgName,
   renderedContent,
   sidebarStyle = "detailed",
   sequentialLocking = true,
@@ -143,6 +146,7 @@ export function CoursePlayer({
         doneCount={doneCount}
         total={total}
         studentInitials={initials(studentName)}
+        orgName={orgName}
         sidebarActive={sidebarToggleActive}
         onBack={onBack}
         onToggleSidebar={toggleSidebar}

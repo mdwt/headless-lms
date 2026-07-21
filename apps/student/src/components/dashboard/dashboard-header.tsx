@@ -3,15 +3,22 @@ import { Bell, Search } from "lucide-react";
 import { initials } from "@/lib/format";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
-/** Sticky dashboard header (handoff §1): brand · search · bell · avatar · sign out. */
-export function DashboardHeader({ studentName }: { studentName: string }) {
+/** Sticky dashboard header (handoff §1): brand · search · bell · avatar · sign out.
+ *  Brand is the portal org's name/initial (per-org, not hardcoded). */
+export function DashboardHeader({
+  studentName,
+  orgName,
+}: {
+  studentName: string;
+  orgName: string;
+}) {
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line-strong px-7 py-4 backdrop-blur-[10px] [background:rgba(247,246,243,0.86)]">
       <div className="flex items-center gap-[11px]">
         <div className="grid size-7 place-items-center rounded-[8px] bg-brand text-[16px] font-semibold text-brand-contrast">
-          A
+          {initials(orgName).charAt(0)}
         </div>
-        <span className="text-[20px] font-semibold tracking-[-0.01em]">Atelier</span>
+        <span className="text-[20px] font-semibold tracking-[-0.01em]">{orgName}</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex w-[210px] items-center gap-2 rounded-full border border-line bg-surface px-[15px] py-2 text-[13.5px] text-ink-4">

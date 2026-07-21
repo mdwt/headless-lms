@@ -21,7 +21,21 @@ export function ensureConfigured(): void {
   configured = true;
 }
 
-/** Per-call header bag forwarding the incoming request's session cookie. */
-export async function authHeaders(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
+/**
+ * The portal org slug forwarded to the API on every Learn call. Students are
+ * org-scoped: the API resolves this slug to the org whose "world" the request
+ * belongs to. Baseline resolves it from env with a `dev-academy` fallback;
+ * host/subdomain resolution is a later layer.
+ */
+export function portalOrgSlug(): string {
+  return process.env.NEXT_PUBLIC_PORTAL_ORG_SLUG ?? "dev-academy";
+}
+
+/** Per-call header bag: forwards the session cookie + the portal org slug. */
+export async function authHeaders(): Promise<{
+  headers: { cookie: string; "x-portal-org": string };
+}> {
+  return {
+    headers: { cookie: (await cookies()).toString(), "x-portal-org": portalOrgSlug() },
+  };
 }

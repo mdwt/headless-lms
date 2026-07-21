@@ -14,9 +14,10 @@ export default async function CoursePlayerPage({
 }) {
   const { courseId } = await params;
   const session = await requireAuth();
-  const [course, modules] = await Promise.all([
+  const [course, modules, org] = await Promise.all([
     learnApi.getCourse(courseId),
     learnApi.listModules(courseId),
+    learnApi.org(),
   ]);
   if (!course || !modules) notFound();
 
@@ -34,6 +35,7 @@ export default async function CoursePlayerPage({
     <CoursePlayer
       course={adapted}
       studentName={session.user.name}
+      orgName={org.name}
       renderedContent={renderedContent}
     />
   );

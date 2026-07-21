@@ -5,14 +5,16 @@ import { ArrowLeft, PanelLeft } from "lucide-react";
 
 import { ProgressRing } from "@/components/primitives/progress-ring";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { initials } from "@/lib/format";
 
-/** Sticky course-player header (handoff §8). */
+/** Sticky course-player header (handoff §8). Brand initial is the portal org's. */
 export function PlayerHeader({
   courseTitle,
   coursePercent,
   doneCount,
   total,
   studentInitials,
+  orgName,
   sidebarActive,
   onBack,
   onToggleSidebar,
@@ -22,6 +24,7 @@ export function PlayerHeader({
   doneCount: number;
   total: number;
   studentInitials: string;
+  orgName: string;
   sidebarActive: boolean;
   onBack: () => void;
   onToggleSidebar: () => void;
@@ -32,6 +35,12 @@ export function PlayerHeader({
       style={{ background: "#fbfaf8" }}
     >
       <div className="flex min-w-0 items-center gap-1.5">
+        <div
+          className="grid size-7 flex-none place-items-center rounded-[8px] bg-brand text-[15px] font-semibold text-brand-contrast"
+          title={orgName}
+        >
+          {initials(orgName).charAt(0)}
+        </div>
         <Link
           href="/"
           onClick={onBack}
