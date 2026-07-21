@@ -1,0 +1,16 @@
+{
+  "name": "@headless-lms/editor-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5.7.2"
+  }
+}
