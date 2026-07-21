@@ -19,7 +19,9 @@
       "@headless-lms/utils": ["./packages/utils/src/index.ts"],
       "@headless-lms/api-contract": ["./packages/api-contract/src/index.ts"],
       "@headless-lms/server": ["./packages/server/src/index.ts"],
-      "@headless-lms/plugin-slack": ["./plugins/slack/src/index.ts"]
+      "@headless-lms/plugin-slack": ["./plugins/slack/src/index.ts"],
+      "@headless-lms/editor-contract": ["./packages/editor-contract/src/index.ts"],
+      "@headless-lms/content-plate": ["./plugins/content-plate/src/index.ts"]
     }
   }
 }
