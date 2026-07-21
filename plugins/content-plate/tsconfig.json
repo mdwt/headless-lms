@@ -3,7 +3,13 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "noEmit": true
+    "noEmit": true,
+    // Ships TS source (no build), so declaration emit is irrelevant — and
+    // with pnpm it triggers TS2742 "type cannot be named" on vendored files.
+    "declaration": false,
+    // The ui/ + editor/ component trees are written without this flag
+    // (standard Plate registry style); don't fight them.
+    "noUncheckedIndexedAccess": false
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
