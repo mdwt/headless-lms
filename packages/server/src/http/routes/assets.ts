@@ -147,6 +147,29 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     },
   });
 
+  // Stable, embeddable asset URL: content (e.g. editor media nodes) stores
+  // THIS route, and every request redirects to a freshly presigned URL — so
+  // embedded media never breaks when presigned URLs expire.
+  r.route({
+    method: "GET",
+    url: "/api/assets/:id/file",
+    preHandler: app.requireSession,
+    schema: {
+      operationId: "serveAsset",
+      tags,
+      summary: "Serve an asset inline (redirects to a fresh presigned URL)",
+      params: AssetIdParam,
+      response: { 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const orgId = await resolveOrgId(req, reply, container);
+      if (!orgId) return;
+      const url = await assets.serveUrl(orgId, req.params.id);
+      if (!url) return reply.code(404).send({ error: "not_found", message: "Asset not found" });
+      return reply.redirect(url, 302);
+    },
+  });
+
   r.route({
     method: "DELETE",
     url: "/api/assets/:id",
