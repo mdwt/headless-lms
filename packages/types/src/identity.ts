@@ -14,6 +14,8 @@ export interface User {
 
 export interface Student {
   readonly id: string;
+  // The org this student belongs to (students are org-scoped tenants).
+  readonly orgId: string;
   readonly externalId: string;
   readonly email: string;
   readonly firstName: string;
@@ -32,6 +34,7 @@ export interface RegisterUserInput {
 }
 
 export interface RegisterStudentInput {
+  orgId: string;
   externalId: string;
   email: string;
   firstName: string;

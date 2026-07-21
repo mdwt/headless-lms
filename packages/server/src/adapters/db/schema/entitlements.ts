@@ -18,9 +18,7 @@ export const enrollments = pgTable(
     id: text("id")
       .notNull()
       .$defaultFn(() => genId("enrollment")),
-    studentId: text("student_id")
-      .notNull()
-      .references(() => students.id),
+    studentId: text("student_id").notNull(),
     courseId: text("course_id").notNull(),
     status: text("status", { enum: ["active", "revoked"] })
       .notNull()
@@ -36,6 +34,11 @@ export const enrollments = pgTable(
     courseFk: foreignKey({
       columns: [t.orgId, t.courseId],
       foreignColumns: [courses.orgId, courses.id],
+    }),
+    // students is org-scoped (composite PK) — the FK must match both columns.
+    studentFk: foreignKey({
+      columns: [t.orgId, t.studentId],
+      foreignColumns: [students.orgId, students.id],
     }),
     // One grant per (org, student, course).
     studentCourseUq: unique().on(t.orgId, t.studentId, t.courseId),
