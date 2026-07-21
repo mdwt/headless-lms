@@ -88,17 +88,6 @@ export class AssetsServiceImpl implements AssetsService {
     return { url, asset };
   }
 
-  /**
-   * Presigned URL for inline display (no attachment disposition). Backs the
-   * stable `/api/assets/:id/file` redirect that editor content embeds —
-   * content stores the stable route, never the expiring presigned URL.
-   */
-  async serveUrl(orgId: string, id: string): Promise<string | null> {
-    const asset = await this.repo.findById(orgId, id);
-    if (!asset) return null;
-    return this.storage.presignDownload({ key: asset.key });
-  }
-
   async remove(orgId: string, id: string): Promise<boolean> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) return false;

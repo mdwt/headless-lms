@@ -1248,41 +1248,6 @@ export type RequestAssetDownloadResponses = {
 export type RequestAssetDownloadResponse =
   RequestAssetDownloadResponses[keyof RequestAssetDownloadResponses];
 
-export type ServeAssetData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/assets/{id}/file";
-};
-
-export type ServeAssetErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type ServeAssetError = ServeAssetErrors[keyof ServeAssetErrors];
-
 export type ListConnectedAppsData = {
   body?: never;
   path?: never;

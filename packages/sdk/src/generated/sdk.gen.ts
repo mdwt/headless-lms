@@ -99,8 +99,6 @@ import type {
   RevokeConnectedAppData,
   RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
-  ServeAssetData,
-  ServeAssetErrors,
   SetEntitlementStatusData,
   SetEntitlementStatusErrors,
   SetEntitlementStatusResponses,
@@ -619,18 +617,6 @@ export class Assets {
         "Content-Type": "application/json",
         ...options.headers,
       },
-    });
-  }
-
-  /**
-   * Serve an asset inline (redirects to a fresh presigned URL)
-   */
-  public static serveAsset<ThrowOnError extends boolean = false>(
-    options: Options<ServeAssetData, ThrowOnError>,
-  ): RequestResult<unknown, ServeAssetErrors, ThrowOnError> {
-    return (options.client ?? client).get<unknown, ServeAssetErrors, ThrowOnError>({
-      url: "/api/assets/{id}/file",
-      ...options,
     });
   }
 }
