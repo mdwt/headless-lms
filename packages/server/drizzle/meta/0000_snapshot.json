@@ -1,5 +1,5 @@
 {
-  "id": "38e08ac3-b3aa-45eb-ac49-d98ecf9af529",
+  "id": "083e98aa-492f-4a7b-aee7-82fd447e0ccf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -871,19 +871,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "enrollments_student_id_students_id_fk": {
-          "name": "enrollments_student_id_students_id_fk",
-          "tableFrom": "enrollments",
-          "tableTo": "students",
-          "columnsFrom": [
-            "student_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "enrollments_org_id_course_id_courses_org_id_id_fk": {
           "name": "enrollments_org_id_course_id_courses_org_id_id_fk",
           "tableFrom": "enrollments",
@@ -891,6 +878,21 @@
           "columnsFrom": [
             "org_id",
             "course_id"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "enrollments_org_id_student_id_students_org_id_id_fk": {
+          "name": "enrollments_org_id_student_id_students_org_id_id_fk",
+          "tableFrom": "enrollments",
+          "tableTo": "students",
+          "columnsFrom": [
+            "org_id",
+            "student_id"
           ],
           "columnsTo": [
             "org_id",
@@ -1030,10 +1032,16 @@
       "name": "students",
       "schema": "",
       "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "external_id": {
@@ -1076,21 +1084,45 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "foreignKeys": {
+        "students_org_id_organizations_id_fk": {
+          "name": "students_org_id_organizations_id_fk",
+          "tableFrom": "students",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "students_org_id_id_pk": {
+          "name": "students_org_id_id_pk",
+          "columns": [
+            "org_id",
+            "id"
+          ]
+        }
+      },
       "uniqueConstraints": {
-        "students_external_id_unique": {
-          "name": "students_external_id_unique",
+        "students_org_id_email_unique": {
+          "name": "students_org_id_email_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "external_id"
+            "org_id",
+            "email"
           ]
         },
-        "students_email_unique": {
-          "name": "students_email_unique",
+        "students_org_id_external_id_unique": {
+          "name": "students_org_id_external_id_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "org_id",
+            "external_id"
           ]
         }
       },
