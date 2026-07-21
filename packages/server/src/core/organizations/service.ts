@@ -106,6 +106,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findByExternalId(externalId);
   }
 
+  async getBySlug(slug: string): Promise<Organization | null> {
+    return this.repo.findBySlug(slug);
+  }
+
   async assignCourse(input: AssignCourseInput): Promise<CourseAssignment> {
     const org = await this.requireOrg(input.orgExternalId);
     return this.repo.insertCourseAssignment(org.id, input);

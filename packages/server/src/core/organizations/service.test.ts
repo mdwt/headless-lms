@@ -65,6 +65,9 @@ function fakeRepo() {
       orgs[i] = updated;
       return updated;
     },
+    async findBySlug(slug: string) {
+      return orgs.find((o) => o.slug === slug) ?? null;
+    },
     async findByExternalId(externalId: string) {
       return orgs.find((o) => o.externalId === externalId) ?? null;
     },

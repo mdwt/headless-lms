@@ -66,6 +66,15 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return row ?? null;
   }
 
+  async findBySlug(slug: string): Promise<Organization | null> {
+    const [row] = await this.db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, slug))
+      .limit(1);
+    return row ?? null;
+  }
+
   async insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership> {
     const [row] = await this.db
       .insert(memberships)

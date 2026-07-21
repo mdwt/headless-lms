@@ -5,6 +5,7 @@
 import type { FastifyInstance } from "fastify";
 import { NoActiveOrgError } from "../scope.js";
 import { NotAStudentError } from "../student-scope.js";
+import { UnknownPortalOrgError } from "../portal-org.js";
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
@@ -13,6 +14,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
     if (error instanceof NotAStudentError) {
       return reply.status(403).send({ error: "forbidden", message: error.message });
+    }
+    if (error instanceof UnknownPortalOrgError) {
+      return reply.status(400).send({ error: "bad_request", message: error.message });
     }
     const err = error as { statusCode?: number; code?: string; message?: string };
     if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500) {

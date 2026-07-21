@@ -47,6 +47,9 @@ export interface OrganizationService extends OrganizationProvisioner {
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
   getMembershipByUser(userId: string): Promise<Membership | null>;
+  // Resolve an org by its public slug — used by the student portal boundary to
+  // map the portal org slug to the tenant org id.
+  getBySlug(slug: string): Promise<Organization | null>;
   // Member-management operations (formerly the `team` context). Reads come from
   // the domain mirror; writes go through Better Auth via OrgAdmin.
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
@@ -63,6 +66,7 @@ export interface OrganizationsRepository {
     input: UpdateOrganizationInput,
   ): Promise<Organization | null>;
   findByExternalId(externalId: string): Promise<Organization | null>;
+  findBySlug(slug: string): Promise<Organization | null>;
   insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership>;
   deleteMembershipByExternalId(externalId: string): Promise<void>;
   insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation>;
