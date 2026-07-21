@@ -4,11 +4,38 @@
 // a non-conforming editor fails typecheck at that file.
 import type { ComponentType } from "react";
 
+/** Result of a host-side media upload, referenced from editor content. */
+export interface UploadedEditorFile {
+  /** Host-side asset id ("" if the host doesn't track assets). */
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  /** URL the editor embeds to display the media. */
+  url: string;
+}
+
 export interface PageEditorProps {
   /** The stored editor config blob, verbatim. `null`/invalid → start empty. */
   initialConfig: unknown;
   /** Persist the current config. The editor awaits this for pending state. */
   onSave: (config: unknown) => Promise<void>;
+  /**
+   * Fired with the current config on every edit. Lets the host own the save
+   * UI (header save button, autosave, dirty indicator) instead of the editor
+   * rendering its own chrome.
+   */
+  onChange?: (config: unknown) => void;
+  /**
+   * Host-provided media upload, wired to the host's own media API (for the
+   * LMS admin: POST /api/uploads → presigned PUT → confirm). Editors that
+   * support media call this and embed the returned URL; when absent, editors
+   * may fall back to non-persistent local previews.
+   */
+  uploadFile?: (
+    file: File,
+    opts: { onProgress?: (fraction: number) => void },
+  ) => Promise<UploadedEditorFile>;
 }
 
 export interface EditorModule {
