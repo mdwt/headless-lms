@@ -13,7 +13,7 @@ export class IdentityServiceImpl implements IdentityService {
   }
 
   async registerStudent(input: RegisterStudentInput): Promise<Student> {
-    const existing = await this.repo.findStudentByExternalId(input.externalId);
+    const existing = await this.repo.findStudentByExternalId(input.orgId, input.externalId);
     if (existing) return existing;
     return this.repo.insertStudent(input);
   }
@@ -22,7 +22,7 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findUserByExternalId(externalId);
   }
 
-  async getStudentByExternalId(externalId: string): Promise<Student | null> {
-    return this.repo.findStudentByExternalId(externalId);
+  async getStudentByExternalId(orgId: string, externalId: string): Promise<Student | null> {
+    return this.repo.findStudentByExternalId(orgId, externalId);
   }
 }

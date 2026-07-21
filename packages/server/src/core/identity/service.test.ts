@@ -27,8 +27,8 @@ function fakeRepo() {
       students.push(row);
       return row;
     },
-    async findStudentByExternalId(externalId: string) {
-      return students.find((r) => r.externalId === externalId) ?? null;
+    async findStudentByExternalId(orgId: string, externalId: string) {
+      return students.find((r) => r.orgId === orgId && r.externalId === externalId) ?? null;
     },
   };
   return { repo, rows: students };
@@ -36,6 +36,7 @@ function fakeRepo() {
 
 describe("IdentityService.registerStudent", () => {
   const input: RegisterStudentInput = {
+    orgId: "org_1",
     externalId: "auth_1",
     email: "a@example.com",
     firstName: "Ada",
@@ -46,6 +47,7 @@ describe("IdentityService.registerStudent", () => {
     const { repo, rows } = fakeRepo();
     const student = await new IdentityServiceImpl(repo).registerStudent(input);
     expect(student.externalId).toBe("auth_1");
+    expect(student.orgId).toBe("org_1");
     expect(rows).toHaveLength(1);
   });
 
@@ -56,5 +58,31 @@ describe("IdentityService.registerStudent", () => {
     const second = await svc.registerStudent(input);
     expect(second.id).toBe(first.id);
     expect(rows).toHaveLength(1);
+  });
+
+  it("the same external id in two orgs resolves independently", async () => {
+    const { repo, rows } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    const a = await svc.registerStudent(input);
+    const b = await svc.registerStudent({ ...input, orgId: "org_2" });
+    expect(b.id).not.toBe(a.id);
+    expect(rows).toHaveLength(2);
+    expect((await svc.getStudentByExternalId("org_1", "auth_1"))?.id).toBe(a.id);
+    expect((await svc.getStudentByExternalId("org_2", "auth_1"))?.id).toBe(b.id);
+  });
+});
+
+describe("IdentityService.getStudentByExternalId", () => {
+  it("returns only the matching org's student", async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.registerStudent({
+      orgId: "org_1",
+      externalId: "auth_1",
+      email: "a@example.com",
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+    expect(await svc.getStudentByExternalId("org_other", "auth_1")).toBeNull();
   });
 });

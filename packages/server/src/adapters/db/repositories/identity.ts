@@ -1,5 +1,5 @@
 // identity — Drizzle repository (implements the core outbound port).
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { IdentityRepository } from "../../../core/identity/ports.js";
 import type { User, Student } from "../../../core/identity/model.js";
@@ -35,6 +35,7 @@ export class DrizzleIdentityRepository implements IdentityRepository {
     const [row] = await this.db
       .insert(students)
       .values({
+        orgId: input.orgId,
         externalId: input.externalId,
         email: input.email,
         firstName: input.firstName,
@@ -45,11 +46,11 @@ export class DrizzleIdentityRepository implements IdentityRepository {
     return row;
   }
 
-  async findStudentByExternalId(externalId: string): Promise<Student | null> {
+  async findStudentByExternalId(orgId: string, externalId: string): Promise<Student | null> {
     const [row] = await this.db
       .select()
       .from(students)
-      .where(eq(students.externalId, externalId))
+      .where(and(eq(students.orgId, orgId), eq(students.externalId, externalId)))
       .limit(1);
     return row ?? null;
   }

@@ -15,7 +15,9 @@ export interface StudentProvisioner {
 // Inbound port (use cases the service exposes).
 export interface IdentityService extends UserProvisioner, StudentProvisioner {
   getUserByExternalId(externalId: string): Promise<User | null>;
-  getStudentByExternalId(externalId: string): Promise<Student | null>;
+  // Students are org-scoped: the same login (externalId) resolves independently
+  // per org, so the portal org is required to pick the right row.
+  getStudentByExternalId(orgId: string, externalId: string): Promise<Student | null>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -23,5 +25,5 @@ export interface IdentityRepository {
   insertUser(input: RegisterUserInput): Promise<User>;
   findUserByExternalId(externalId: string): Promise<User | null>;
   insertStudent(input: RegisterStudentInput): Promise<Student>;
-  findStudentByExternalId(externalId: string): Promise<Student | null>;
+  findStudentByExternalId(orgId: string, externalId: string): Promise<Student | null>;
 }
