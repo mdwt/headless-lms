@@ -4,6 +4,6 @@ export type {
   EntitlementSource,
   Entitlement,
   EntitlementsQuery,
-  GrantEntitlementInput,
+  GrantEnrollmentInput,
   Page,
 } from "@headless-lms/types";

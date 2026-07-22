@@ -1,20 +1,14 @@
-// content context — ports.
-// Inbound: the use-case interface the service implements.
-// Outbound: contracts this context needs (repository, other contexts' capabilities).
 import type { Course, Module, SaveActivityInput } from "./model.js";
 import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from "./types.js";
+import type { OutboxAppender, UnitOfWork } from "../shared/ports.js";
 
-// Inbound port (use cases the service exposes). All operations are org-scoped:
-// the leading `orgId` is the domain `organizations.id` for the active tenant.
 export interface ContentService {
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
   get(orgId: string, id: string): Promise<Course | null>;
   create(orgId: string, input: CreateCourseInput): Promise<Course>;
   update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null>;
   remove(orgId: string, id: string): Promise<boolean>;
-
-  // Modules & activities — the content structure under a course. Write operations
-  // return the course's full module list (matching how the editor re-renders).
+  
   listForCourse(orgId: string, courseId: string): Promise<Module[]>;
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;
@@ -41,7 +35,8 @@ export interface ContentService {
   ): Promise<Module[]>;
 }
 
-// Outbound port (persistence contract the course repository fulfils). Org-scoped.
+// TODO
+// Combine repository and structure repo into a single port.
 export interface ContentRepository {
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
   findById(orgId: string, id: string): Promise<Course | null>;
@@ -50,9 +45,14 @@ export interface ContentRepository {
   delete(orgId: string, id: string): Promise<boolean>;
 }
 
-// Outbound port for the content structure (modules + activities) under a course.
-// Org-scoped; every write returns the course's full ordered module list.
-export interface ContentStructureRepository {
+export interface ContentTxScope {
+  courses: ContentRepository;
+  outbox: OutboxAppender;
+}
+
+export type ContentUnitOfWork = UnitOfWork<ContentTxScope>;
+
+export interface CourseRepository {
   listForCourse(orgId: string, courseId: string): Promise<Module[]>;
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;

@@ -6,7 +6,7 @@ export type {
   EntitlementStatus,
   EntitlementSource,
   EntitlementsQuery,
-  GrantEntitlementInput,
+  GrantEnrollmentInput,
   Page,
 } from "./model.js";
 export type {

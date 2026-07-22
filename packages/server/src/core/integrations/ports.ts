@@ -4,7 +4,7 @@
 // re-exports it as part of its public surface.
 import type { Integration } from "@headless-lms/types";
 import type { ConfigureInput, ConnectInput, Connection } from "./model.js";
-import type { CredentialStore, UnitOfWork } from "../shared/ports.js";
+import type { CredentialStore, OutboxAppender, UnitOfWork } from "../shared/ports.js";
 
 export type { Validation, ActionContext, Action, Integration } from "@headless-lms/types";
 
@@ -69,6 +69,7 @@ export interface ConnectionsRepository {
 export interface IntegrationsTxScope {
   connections: ConnectionsRepository;
   credentials: CredentialStore;
+  outbox: OutboxAppender;
 }
 
 export type IntegrationsUnitOfWork = UnitOfWork<IntegrationsTxScope>;

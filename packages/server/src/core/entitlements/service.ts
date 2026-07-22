@@ -4,7 +4,7 @@
 // outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay dispatches committed events to
 // EventBus subscribers at-least-once.
-import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from "./model.js";
+import type { Entitlement, EntitlementsQuery, GrantEnrollmentInput, Page } from "./model.js";
 import type {
   EntitlementsRepository,
   EntitlementsService,
@@ -23,8 +23,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.list(orgId, query);
   }
 
-  // Re-granting an existing enrollment (the repo upserts) also emits created.
-  grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+  grant(orgId: string, input: GrantEnrollmentInput): Promise<Entitlement> {
     return this.uow.run(async ({ entitlements, outbox }) => {
       const enrollment = await entitlements.insert(orgId, input);
       await outbox.append([{ type: "enrollment.created", orgId, enrollment }]);

@@ -1,6 +1,16 @@
 // content context — service implementation (inbound port).
+//
+// Course mutations run inside the context's UnitOfWork: the domain write and
+// the outbox append commit in ONE transaction (transactional outbox). This
+// service never publishes — the outbox relay dispatches committed events to
+// EventBus subscribers at-least-once.
 import type { Course, Module, SaveActivityInput } from "./model.js";
-import type { ContentService, ContentRepository, ContentStructureRepository } from "./ports.js";
+import type {
+  ContentService,
+  ContentRepository,
+  CourseRepository,
+  ContentUnitOfWork,
+} from "./ports.js";
 import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from "./types.js";
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
@@ -14,7 +24,8 @@ function slugify(title: string): string {
 export class ContentServiceImpl implements ContentService {
   constructor(
     private readonly repo: ContentRepository,
-    private readonly structureRepo: ContentStructureRepository,
+    private readonly structureRepo: CourseRepository,
+    private readonly uow: ContentUnitOfWork,
   ) {}
 
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
@@ -26,15 +37,31 @@ export class ContentServiceImpl implements ContentService {
   }
 
   create(orgId: string, input: CreateCourseInput): Promise<Course> {
-    return this.repo.create(orgId, input, slugify(input.title));
+    return this.uow.run(async ({ courses, outbox }) => {
+      const course = await courses.create(orgId, input, slugify(input.title));
+      await outbox.append([{ type: "course.created", orgId, course }]);
+      return course;
+    });
   }
 
   update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {
-    return this.repo.update(orgId, id, patch);
+    return this.uow.run(async ({ courses, outbox }) => {
+      const course = await courses.update(orgId, id, patch);
+      if (!course) return null;
+      await outbox.append([{ type: "course.updated", orgId, course }]);
+      return course;
+    });
   }
 
   remove(orgId: string, id: string): Promise<boolean> {
-    return this.repo.delete(orgId, id);
+    return this.uow.run(async ({ courses, outbox }) => {
+      // Snapshot before the delete — the event carries the last known state.
+      const course = await courses.findById(orgId, id);
+      if (!course) return false;
+      const deleted = await courses.delete(orgId, id);
+      if (deleted) await outbox.append([{ type: "course.deleted", orgId, course }]);
+      return deleted;
+    });
   }
 
   // --- modules & activities (delegated to the structure repository) -------
