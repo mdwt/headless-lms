@@ -11,7 +11,7 @@ import type {
   EntitlementSource,
   EntitlementStatus,
   EntitlementsQuery,
-  GrantEntitlementInput,
+  GrantEnrollmentInput,
   Page,
 } from "../../../core/entitlements/model.js";
 import { enrollments } from "../schema/index.js";
@@ -149,7 +149,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     };
   }
 
-  async insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+  async insert(orgId: string, input: GrantEnrollmentInput): Promise<Entitlement> {
     const [row] = await this.db
       .insert(enrollments)
       .values({

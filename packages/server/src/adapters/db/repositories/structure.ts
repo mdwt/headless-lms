@@ -11,12 +11,12 @@
 // activity), then the activity rows.
 import { eq, and, inArray } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { ContentStructureRepository } from "../../../core/content/ports.js";
+import type { CourseRepository } from "../../../core/content/ports.js";
 import type { Module, Activity, SaveActivityInput } from "../../../core/content/model.js";
 import { modules, activities, activityAssets } from "../schema/content.js";
 import type { Tx } from "../index.js";
 
-export class DrizzleContentStructureRepository implements ContentStructureRepository {
+export class DrizzleContentStructureRepository implements CourseRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   // --- reads -------------------------------------------------------------

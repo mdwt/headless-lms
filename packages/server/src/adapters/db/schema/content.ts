@@ -67,10 +67,11 @@ export const modules = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
+    // Modules are part of the course aggregate: deleting the course deletes them.
     courseFk: foreignKey({
       columns: [t.orgId, t.courseId],
       foreignColumns: [courses.orgId, courses.id],
-    }),
+    }).onDelete("cascade"),
   }),
 );
 
@@ -100,7 +101,7 @@ export const activities = pgTable(
     moduleFk: foreignKey({
       columns: [t.orgId, t.moduleId],
       foreignColumns: [modules.orgId, modules.id],
-    }),
+    }).onDelete("cascade"),
     seqUq: unique().on(t.orgId, t.moduleId, t.seq),
   }),
 );
@@ -122,10 +123,12 @@ export const activityAssets = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
+    // The link cascades with its activity; the asset itself is owned by the
+    // assets domain and survives (assetFk stays restrictive).
     activityFk: foreignKey({
       columns: [t.orgId, t.activityId],
       foreignColumns: [activities.orgId, activities.id],
-    }),
+    }).onDelete("cascade"),
     assetFk: foreignKey({
       columns: [t.orgId, t.assetId],
       foreignColumns: [assets.orgId, assets.id],

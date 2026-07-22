@@ -4,7 +4,7 @@
 // model carries DERIVED fields (module / activity / enrolled counts) computed via
 // correlated subqueries.
 import { eq, and, sql, count, asc, desc, ilike, or, type SQL, type AnyColumn } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { DbExecutor } from "../index.js";
 import type { ContentRepository } from "../../../core/content/ports.js";
 import type { Course, CourseStatus } from "../../../core/content/model.js";
 import type {
@@ -101,7 +101,7 @@ const sortColumns: Record<string, AnyColumn | SQL> = {
 };
 
 export class DrizzleContentRepository implements ContentRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(private readonly db: DbExecutor) {}
 
   async list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
     const conditions: SQL[] = [eq(courses.orgId, orgId)];

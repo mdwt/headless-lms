@@ -7,21 +7,14 @@ const CONFIG: PollingOutboxRelayConfig = {
   enabled: true,
   pollIntervalMs: 1000,
   batchSize: 10,
-  maxAttempts: 10,
-  backoffBaseMs: 1000,
-  backoffMaxMs: 60_000,
-  retentionDays: 7,
-  cleanupIntervalMs: 3_600_000,
 };
 
-function message(id: number, over?: { type?: string; attempts?: number }): OutboxMessage {
-  const type = over?.type ?? "enrollment.created";
+function message(n: number, type = "enrollment.created", attempts = 0): OutboxMessage {
+  const id = `evt_${n}`;
   return {
-    id: String(id),
-    eventId: `evt_${id}`,
-    type,
-    payload: { type, id: `evt_${id}`, occurredAt: "2026-07-22T00:00:00.000Z" },
-    attempts: over?.attempts ?? 0,
+    id,
+    attempts,
+    payload: { type, id, orgId: "org-1", createdAt: "2026-07-22T00:00:00.000Z" },
   };
 }
 
@@ -30,9 +23,8 @@ function fakeStore(batches: OutboxMessage[][]): OutboxStore {
   let call = 0;
   return {
     fetchBatch: vi.fn(async () => batches[call++] ?? []),
-    markPublished: vi.fn(async () => {}),
+    markProcessed: vi.fn(async () => {}),
     markFailed: vi.fn(async () => {}),
-    deletePublishedBefore: vi.fn(async () => 0),
   };
 }
 
@@ -49,7 +41,7 @@ afterEach(() => {
 });
 
 describe("PollingOutboxRelay", () => {
-  it("dispatches each message to bus subscribers and marks it published", async () => {
+  it("dispatches each message to bus subscribers and marks it processed", async () => {
     const store = fakeStore([[message(1)]]);
     const bus = new InMemoryEventBus();
     const seen: string[] = [];
@@ -60,11 +52,11 @@ describe("PollingOutboxRelay", () => {
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
     expect(seen).toEqual(["evt_1"]);
-    expect(store.markPublished).toHaveBeenCalledWith("1");
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_1");
     await relay.stop();
   });
 
-  it("dispatches in commit (id) order within a batch", async () => {
+  it("dispatches in id order within a batch", async () => {
     const order: string[] = [];
     const store = fakeStore([[message(1), message(2), message(3)]]);
     const bus = new InMemoryEventBus();
@@ -78,8 +70,8 @@ describe("PollingOutboxRelay", () => {
     await relay.stop();
   });
 
-  it("marks a failing message failed with exponential backoff and keeps dispatching the rest", async () => {
-    const store = fakeStore([[message(1, { type: "boom.event", attempts: 2 }), message(2)]]);
+  it("records a failure via markFailed (error + backoff), logs it, and keeps dispatching the rest", async () => {
+    const store = fakeStore([[message(1, "boom.event"), message(2)]]);
     const bus = new InMemoryEventBus();
     bus.subscribe("boom.event", async () => {
       throw new Error("handler blew up");
@@ -88,23 +80,27 @@ describe("PollingOutboxRelay", () => {
     const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
-    // attempts=2 → delay = 1000 * 2^2 = 4000ms from now
+    expect(store.markProcessed).toHaveBeenCalledTimes(1);
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_2");
+    // First failure (attempts 0): retry after the 5s backoff base.
     expect(store.markFailed).toHaveBeenCalledWith(
-      "1",
+      "evt_1",
       expect.stringContaining("handler blew up"),
-      new Date(Date.now() + 4000),
+      new Date(Date.now() + 5_000),
     );
-    expect(store.markPublished).toHaveBeenCalledTimes(1);
-    expect(store.markPublished).toHaveBeenCalledWith("2");
     expect(logger.error).toHaveBeenCalledWith(
       "outbox dispatch failed",
-      expect.objectContaining({ id: "1", attempts: 3 }),
+      expect.objectContaining({
+        id: "evt_1",
+        type: "boom.event",
+        error: expect.stringContaining("handler blew up"),
+      }),
     );
     await relay.stop();
   });
 
-  it("caps the backoff at backoffMaxMs", async () => {
-    const store = fakeStore([[message(1, { type: "boom.event", attempts: 8 })]]);
+  it("doubles the backoff per prior attempt: attempts=3 → 5s × 2³ = 40s", async () => {
+    const store = fakeStore([[message(1, "boom.event", 3)]]);
     const bus = new InMemoryEventBus();
     bus.subscribe("boom.event", async () => {
       throw new Error("still broken");
@@ -112,30 +108,43 @@ describe("PollingOutboxRelay", () => {
     const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
-    // 1000 * 2^8 = 256000 → capped at 60000
     expect(store.markFailed).toHaveBeenCalledWith(
-      "1",
-      expect.any(String),
-      new Date(Date.now() + CONFIG.backoffMaxMs),
+      "evt_1",
+      expect.stringContaining("still broken"),
+      new Date(Date.now() + 40_000),
     );
     await relay.stop();
   });
 
-  it("logs a parked dead letter when a failure reaches maxAttempts", async () => {
-    const store = fakeStore([[message(1, { type: "boom.event", attempts: 9 })]]);
+  it("caps the backoff at 15 minutes", async () => {
+    const store = fakeStore([[message(1, "boom.event", 9)]]);
     const bus = new InMemoryEventBus();
     bus.subscribe("boom.event", async () => {
-      throw new Error("poison");
+      throw new Error("still broken");
     });
-    const logger = fakeLogger();
-    const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
-    expect(store.markFailed).toHaveBeenCalledTimes(1);
-    expect(logger.error).toHaveBeenCalledWith(
-      "outbox message parked: max attempts reached",
-      expect.objectContaining({ id: "1", eventId: "evt_1", type: "boom.event", attempts: 10 }),
+    expect(store.markFailed).toHaveBeenCalledWith(
+      "evt_1",
+      expect.stringContaining("still broken"),
+      new Date(Date.now() + 15 * 60_000),
     );
+    await relay.stop();
+  });
+
+  it("retries a failed message on the next tick", async () => {
+    const store = fakeStore([[message(1, "boom.event")], [message(1, "boom.event")]]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("boom.event", async () => {
+      throw new Error("still broken");
+    });
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(store.fetchBatch).toHaveBeenCalledTimes(2);
+    expect(store.markProcessed).not.toHaveBeenCalled();
     await relay.stop();
   });
 
@@ -151,7 +160,7 @@ describe("PollingOutboxRelay", () => {
     await vi.advanceTimersByTimeAsync(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(store.fetchBatch).toHaveBeenCalledTimes(3);
-    expect(store.markPublished).toHaveBeenCalledTimes(2);
+    expect(store.markProcessed).toHaveBeenCalledTimes(2);
     await relay.stop();
   });
 
@@ -197,17 +206,6 @@ describe("PollingOutboxRelay", () => {
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
     expect(store.fetchBatch).toHaveBeenCalledTimes(1);
-    await relay.stop();
-  });
-
-  it("sweeps published rows older than the retention window on the cleanup cadence", async () => {
-    const store = fakeStore([]);
-    const relay = new PollingOutboxRelay(store, new InMemoryEventBus(), CONFIG, fakeLogger());
-    relay.start();
-    await vi.advanceTimersByTimeAsync(CONFIG.cleanupIntervalMs);
-    expect(store.deletePublishedBefore).toHaveBeenCalledWith(
-      new Date(Date.now() - CONFIG.retentionDays * 86_400_000),
-    );
     await relay.stop();
   });
 });

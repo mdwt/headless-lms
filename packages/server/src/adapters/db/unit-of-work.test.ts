@@ -13,13 +13,12 @@ function fakeDb() {
 }
 
 describe("DrizzleUnitOfWork", () => {
-  it("runs the callback inside db.transaction with the tx-bound scope + outbox appender", async () => {
+  it("runs the callback inside db.transaction with the tx-bound scope", async () => {
     const { db, tx, transaction } = fakeDb();
     const makeScope = vi.fn((executor: Tx) => ({ marker: executor }));
     const uow = new DrizzleUnitOfWork(db, makeScope);
     const result = await uow.run(async (scope) => {
       expect(scope.marker).toBe(tx);
-      expect(scope.outbox).toBeInstanceOf(DrizzleOutboxAppender);
       return "done";
     });
     expect(result).toBe("done");
@@ -27,11 +26,11 @@ describe("DrizzleUnitOfWork", () => {
     expect(makeScope).toHaveBeenCalledWith(tx);
   });
 
-  it("appends through the SAME transaction executor as the scope", async () => {
+  it("binds an outbox appender in the scope to the SAME transaction executor", async () => {
     const { db, insert } = fakeDb();
-    const uow = new DrizzleUnitOfWork(db, () => ({}));
+    const uow = new DrizzleUnitOfWork(db, (tx) => ({ outbox: new DrizzleOutboxAppender(tx) }));
     await uow.run(async ({ outbox }) => {
-      await outbox.append([{ type: "test.event" }]);
+      await outbox.append([{ type: "enrollment.created", orgId: "org-1" }]);
     });
     expect(insert).toHaveBeenCalledTimes(1);
   });
