@@ -1,18 +1,22 @@
 // entitlements context — service implementation (inbound port).
 //
-// Events are published after the awaited repo call returns. Repo methods are
-// single auto-committed statements (no transactions in this codebase), so
-// publish always happens after commit. If these writes ever move inside a
-// transaction, switch to a transactional outbox (planned with automations).
-import type { EventBus } from "../shared/ports.js";
-import type { EnrollmentCreated, EnrollmentDeleted, EnrollmentUpdated } from "./events.js";
+// Mutations run inside the context's UnitOfWork: the domain write and the
+// outbox append commit in ONE transaction (transactional outbox). This
+// service never publishes — the outbox relay dispatches committed events to
+// EventBus subscribers at-least-once.
 import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from "./model.js";
-import type { EntitlementsRepository, EntitlementsService } from "./ports.js";
+import type {
+  EntitlementsRepository,
+  EntitlementsService,
+  EntitlementsUnitOfWork,
+} from "./ports.js";
 
 export class EntitlementsServiceImpl implements EntitlementsService {
   constructor(
+    /** Read-only access (list) — runs outside any transaction. */
     private readonly repo: EntitlementsRepository,
-    private readonly events: EventBus,
+    /** Atomic write scope: tx-bound repo + outbox appender. */
+    private readonly uow: EntitlementsUnitOfWork,
   ) {}
 
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>> {
@@ -20,25 +24,28 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   // Re-granting an existing enrollment (the repo upserts) also emits created.
-  async grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
-    const enrollment = await this.repo.insert(orgId, input);
-    const event: EnrollmentCreated = { type: "enrollment.created", orgId, enrollment };
-    await this.events.publish(event);
-    return enrollment;
+  grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+    return this.uow.run(async ({ entitlements, outbox }) => {
+      const enrollment = await entitlements.insert(orgId, input);
+      await outbox.append([{ type: "enrollment.created", orgId, enrollment }]);
+      return enrollment;
+    });
   }
 
-  async setStatus(
+  setStatus(
     orgId: string,
     id: string,
     status: "active" | "revoked",
   ): Promise<Entitlement | null> {
-    const enrollment = await this.repo.setStatus(orgId, id, status);
-    if (!enrollment) return null;
-    const event: EnrollmentDeleted | EnrollmentUpdated =
-      status === "revoked"
-        ? { type: "enrollment.deleted", orgId, enrollment }
-        : { type: "enrollment.updated", orgId, enrollment };
-    await this.events.publish(event);
-    return enrollment;
+    return this.uow.run(async ({ entitlements, outbox }) => {
+      const enrollment = await entitlements.setStatus(orgId, id, status);
+      if (!enrollment) return null;
+      await outbox.append([
+        status === "revoked"
+          ? { type: "enrollment.deleted", orgId, enrollment }
+          : { type: "enrollment.updated", orgId, enrollment },
+      ]);
+      return enrollment;
+    });
   }
 }
