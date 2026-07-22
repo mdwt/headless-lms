@@ -1,11 +1,18 @@
 // Process entry point: env → config → container → server → listen → relay.
 import { fileURLToPath } from "node:url";
 import { createContainer, buildServer } from "@headless-lms/server";
-import { loadServerConfig } from "./config.js";
+import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
+import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
+import { loadServerConfig, loadEmailConfig, loadStorageConfig } from "./config.js";
 
 const config = loadServerConfig();
+const emailConfig = loadEmailConfig();
 const container = await createContainer(config, {
   pluginsDir: fileURLToPath(new URL("./plugins/", import.meta.url)),
+  adapters: {
+    email: emailConfig && new ResendEmailAdapter(emailConfig),
+    storage: new MinioStorageAdapter(loadStorageConfig()),
+  },
 });
 const app = await buildServer(config, container);
 

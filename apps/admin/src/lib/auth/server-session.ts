@@ -28,12 +28,17 @@ export type ServerSession = {
   user: { id: string; name: string; email: string; image: string | null };
   organization: { id: string; name: string; slug: string } | null;
   role: ServerRole;
-  status: "authenticated" | "no-organization" | "no-active-org";
+  status: "authenticated" | "no-organization" | "no-active-org" | "denied";
 };
 
 const KNOWN_ROLES: ServerRole[] = ["owner", "admin", "instructor"];
-function toRole(value: unknown): ServerRole {
-  return KNOWN_ROLES.includes(value as ServerRole) ? (value as ServerRole) : "instructor";
+/**
+ * Strict role parse — anything that isn't a staff role resolves to `null`, and
+ * the caller treats the membership as invalid. Coercing unknowns to a default
+ * role would let non-staff sessions through the dashboard gate.
+ */
+function toRole(value: unknown): ServerRole | null {
+  return KNOWN_ROLES.includes(value as ServerRole) ? (value as ServerRole) : null;
 }
 
 export const getServerSession = cache(async (): Promise<ServerSession | null> => {
@@ -53,7 +58,7 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
 
   const activeOrgId = data.session?.activeOrganizationId ?? null;
 
-  let role: ServerRole = "instructor";
+  let role: ServerRole | null = null;
   let organization: ServerSession["organization"] = null;
   let status: ServerSession["status"] = "no-organization";
 
@@ -77,18 +82,30 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
       const o = (await orgRes.json()) as { id?: string; name?: string; slug?: string } | null;
       if (o?.id) organization = { id: o.id, name: o.name ?? "", slug: o.slug ?? "" };
     }
-    status = "authenticated";
-  } else {
-    // Authenticated but no active org selected yet. Distinguish "has orgs but
-    // none active" (activator can pick one) from "no orgs at all" (prompt to
-    // create). The server can't set a cookie mid-render, so the activation is
-    // handed to a client island.
+    // Authenticated only when the active org resolved AND the user holds a
+    // known staff role in it. Student logins get their org stamped onto the
+    // session (`activeOrganizationId`) with no membership row — without the
+    // role check they'd resolve as dashboard users.
+    if (organization && role) status = "authenticated";
+  }
+
+  if (status !== "authenticated") {
+    // Valid cookie but no usable active org + staff membership. Distinguish:
+    //  - member of ≥1 org, none active → activator can pick one
+    //  - no memberships, but the session carries a stamped org → a student
+    //    (or otherwise non-staff) cookie: deny, the login page force-signs-out
+    //  - no memberships, nothing stamped → fresh staff signup, prompt to create
     const listRes = await fetch(`${API_URL}/api/auth/organization/list`, {
       headers: { cookie },
       cache: "no-store",
     });
     const orgs = listRes.ok ? ((await listRes.json()) as unknown) : [];
-    status = Array.isArray(orgs) && orgs.length > 0 ? "no-active-org" : "no-organization";
+    if (Array.isArray(orgs) && orgs.length > 0) {
+      status = "no-active-org";
+    } else {
+      status = activeOrgId ? "denied" : "no-organization";
+    }
+    organization = null;
   }
 
   return {
@@ -99,7 +116,7 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
       image: data.user.image ?? null,
     },
     organization,
-    role,
+    role: role ?? "instructor",
     status,
   };
 });
@@ -124,7 +141,9 @@ export async function requireAuth(...pending: Promise<unknown>[]): Promise<Authe
   const session = await getServerSession();
   if (!session || session.status !== "authenticated" || !session.organization) {
     for (const p of pending) void p.catch(() => {});
-    redirect("/login");
+    // A denied session (valid cookie, no staff role) is force-signed-out by
+    // the login page; plain unauthenticated just sees the sign-in form.
+    redirect(session?.status === "denied" ? "/login?denied=1" : "/login");
   }
   return session as AuthenticatedSession;
 }
@@ -136,9 +155,11 @@ export async function requireAuth(...pending: Promise<unknown>[]): Promise<Authe
  */
 export async function requireManager(...pending: Promise<unknown>[]): Promise<AuthenticatedSession> {
   const session = await getServerSession();
-  if (!session || !isManager(session.role)) {
+  if (!session || session.status !== "authenticated" || !isManager(session.role)) {
     for (const p of pending) void p.catch(() => {});
     if (!session) redirect("/login");
+    if (session.status === "denied") redirect("/login?denied=1");
+    if (session.status !== "authenticated") redirect("/login");
     notFound();
   }
   return session as AuthenticatedSession;

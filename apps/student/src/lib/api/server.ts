@@ -6,11 +6,12 @@ import "server-only";
  * `server-call.ts`), never the shared SDK client.
  *
  * A 404 means the student isn't enrolled in (or can't see) the course — the
- * reads return `null` so the RSC page can `notFound()`.
+ * reads return `null` so the RSC page can `notFound()`. A 401 means the session
+ * doesn't resolve to a portal student at all → redirect to /no-access.
  */
 import { Learn } from "@headless-lms/sdk";
 
-import { unwrap } from "./shared";
+import { redirectIfNoStudent, unwrap } from "./shared";
 import { ensureConfigured, authHeaders } from "./server-call";
 import type { Course, CourseSummary, Module, Org } from "./types";
 
@@ -27,6 +28,7 @@ export const learnApi = {
     ensureConfigured();
     const res = await Learn.getLearnCourse({ path: { courseId }, ...(await authHeaders()) });
     if (res.error) {
+      redirectIfNoStudent(res.response?.status);
       if ((res.response?.status ?? 0) === 404) return null;
       throw new Error(`getCourse failed: ${res.response?.status}`);
     }
@@ -36,6 +38,7 @@ export const learnApi = {
     ensureConfigured();
     const res = await Learn.listLearnModules({ path: { courseId }, ...(await authHeaders()) });
     if (res.error) {
+      redirectIfNoStudent(res.response?.status);
       if ((res.response?.status ?? 0) === 404) return null;
       throw new Error(`listModules failed: ${res.response?.status}`);
     }

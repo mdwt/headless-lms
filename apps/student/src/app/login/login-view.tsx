@@ -27,13 +27,13 @@ export function LoginView() {
       {/* Form column */}
       <div className="flex flex-col bg-surface">
         <div className="flex h-16 items-center px-6 sm:px-10">
-          <span className="text-lg font-semibold tracking-tight text-ink">Atelier</span>
+          <span className="text-lg font-semibold tracking-tight text-ink">Headless LMS</span>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-xs">
             <div className="flex flex-col gap-1.5">
               <h1 className="text-2xl font-semibold tracking-tight text-ink text-balance">
-                Sign in to Atelier
+                Sign in
               </h1>
               <p className="text-sm text-ink-3 text-pretty">
                 Welcome back. Enter your credentials to continue your courses.
@@ -52,7 +52,7 @@ export function LoginView() {
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
               Your courses, in one calm place. Pick up right where you left off.
             </p>
-            <footer className="mt-4 text-sm text-surface/60">Atelier · Course platform</footer>
+            <footer className="mt-4 text-sm text-surface/60">Headless LMS · Course platform</footer>
           </blockquote>
         </div>
       </div>
@@ -95,7 +95,7 @@ function SignInForm({ onDone }: { onDone: () => void }) {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@atelier.academy"
+          placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}

@@ -15,7 +15,6 @@ The repo's own installation of `@headless-lms/server` — the same shape
 ```bash
 pnpm --filter @headless-lms/api dev          # tsx watch, reads root .env
 pnpm --filter @headless-lms/api db:migrate   # headless-lms CLI via tsx
-pnpm --filter @headless-lms/api seed
 ```
 
 Needs Postgres + MinIO: `docker compose -f docker/docker-compose.yml up -d`.

@@ -19,10 +19,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Server-side auth gate for the back office. Gate states: no session → /login,
-// no-organization → org creation, no-active-org → org activator, else app shell.
+// denied (valid cookie, no staff role — e.g. a student login) → /login?denied=1
+// where the login page force-signs-out, no-organization → org creation,
+// no-active-org → org activator, else app shell.
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   if (!session) redirect("/login");
+  if (session.status === "denied") redirect("/login?denied=1");
   if (session.status === "no-organization") return <CreateOrganization />;
   if (session.status === "no-active-org") return <OrgActivator />;
   // Defense-in-depth role seam (all org roles currently pass).

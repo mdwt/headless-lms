@@ -17,7 +17,7 @@ export function Logo({ org, className }: { org: string; className?: string }) {
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-semibold tracking-tight text-ink">{org}</span>
-        <span className="truncate text-xs text-ink-4">Management</span>
+        <span className="truncate text-xs text-ink-4"></span>
       </span>
     </div>
   );

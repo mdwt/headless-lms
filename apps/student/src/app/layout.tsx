@@ -13,7 +13,7 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Atelier — Your courses",
+  title: "Headless LMS — Your courses",
   description: "Student course platform for a headless LMS.",
 };
 

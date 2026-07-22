@@ -55,7 +55,7 @@ export function CreateOrganization() {
     <div className="grid min-h-dvh place-items-center bg-page px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center">
-          <Logo org="Atelier" />
+          <Logo org="Headless LMS" />
         </div>
         <div className="mt-6 rounded-card border border-line bg-surface p-6">
           <div className="flex flex-col gap-1">
@@ -69,7 +69,7 @@ export function CreateOrganization() {
           </div>
           <form onSubmit={handleSubmit(onSubmit)} className="mt-5 flex flex-col gap-4" noValidate>
             <Field id="org-name" label="Organization name" error={errors.name?.message} required>
-              <Input id="org-name" placeholder="Atelier Academy" {...register("name")} />
+              <Input id="org-name" placeholder="Your organization" {...register("name")} />
             </Field>
             <Button type="submit" variant="primary" disabled={isSubmitting} className="w-full">
               {isSubmitting && <Loader2 className="animate-spin" />}

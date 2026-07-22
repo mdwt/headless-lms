@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
-import { signIn, signUp, useSession } from "@/lib/auth/client";
+import { signIn, signOut, signUp, useSession } from "@/lib/auth/client";
 import { createOrganizationAction } from "@/lib/auth/actions";
 import { uniqueOrgSlug } from "@/lib/slug";
 import { Button } from "@/components/ui/button";
@@ -39,17 +39,34 @@ export function LoginView() {
   const { data: session } = useSession();
   const [mode, setMode] = React.useState<"signin" | "signup">("signin");
   const [formError, setFormError] = React.useState<string | null>(null);
+  // Suppresses the already-signed-in bounce while a form submission is in
+  // flight: signUp sets the session before the org is created, and the live
+  // useSession would otherwise redirect mid-flow.
+  const [busy, setBusy] = React.useState(false);
+  // One-shot guard: useSession can re-emit before the sign-out lands.
+  const forcedSignOut = React.useRef(false);
 
   React.useEffect(() => {
-    if (session) router.replace(next);
-  }, [session, router, next]);
+    if (!session || busy) return;
+    if (denied) {
+      // The dashboard bounced this session here (valid cookie, no staff role —
+      // e.g. a student login on the shared dev cookie). Force-clear it so the
+      // signed-in bounce below can't loop them back into the dashboard.
+      if (!forcedSignOut.current) {
+        forcedSignOut.current = true;
+        void signOut();
+      }
+      return;
+    }
+    router.replace(next);
+  }, [session, busy, denied, router, next]);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       {/* Form column — solid white per login-page rules */}
       <div className="flex flex-col bg-surface">
         <div className="flex h-16 items-center px-6 sm:px-10">
-          <Logo org="Atelier Academy" />
+          <Logo org="Headless LMS" />
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-xs">
@@ -79,13 +96,21 @@ export function LoginView() {
             )}
 
             {mode === "signin" ? (
-              <SignInForm onError={setFormError} onDone={() => router.replace(next)} />
+              <SignInForm
+                onError={setFormError}
+                onBusy={setBusy}
+                onDone={() => router.replace(next)}
+              />
             ) : (
-              <SignUpForm onError={setFormError} onDone={() => router.replace(next)} />
+              <SignUpForm
+                onError={setFormError}
+                onBusy={setBusy}
+                onDone={() => router.replace(next)}
+              />
             )}
 
             <p className="mt-6 text-center text-sm text-ink-3">
-              {mode === "signin" ? "New to Atelier?" : "Already have an account?"}{" "}
+              {mode === "signin" ? "New here?" : "Already have an account?"}{" "}
               <button
                 type="button"
                 onClick={() => {
@@ -111,7 +136,7 @@ export function LoginView() {
               place.
             </p>
             <footer className="mt-4 text-sm text-surface/60">
-              Atelier Academy · Management dashboard
+              Headless LMS · Management dashboard
             </footer>
           </blockquote>
         </div>
@@ -122,9 +147,11 @@ export function LoginView() {
 
 function SignInForm({
   onError,
+  onBusy,
   onDone,
 }: {
   onError: (m: string | null) => void;
+  onBusy: (busy: boolean) => void;
   onDone: () => void;
 }) {
   const {
@@ -138,8 +165,10 @@ function SignInForm({
 
   async function onSubmit(values: SignInValues) {
     onError(null);
+    onBusy(true);
     const { error } = await signIn.email(values);
     if (error) {
+      onBusy(false);
       onError(error.message ?? "Invalid email or password");
       return;
     }
@@ -154,7 +183,7 @@ function SignInForm({
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@atelier.academy"
+          placeholder="you@example.com"
           aria-invalid={!!errors.email}
           {...register("email")}
         />
@@ -190,9 +219,11 @@ function SignInForm({
 
 function SignUpForm({
   onError,
+  onBusy,
   onDone,
 }: {
   onError: (m: string | null) => void;
+  onBusy: (busy: boolean) => void;
   onDone: () => void;
 }) {
   const {
@@ -206,12 +237,15 @@ function SignUpForm({
 
   async function onSubmit(values: SignUpValues) {
     onError(null);
+    onBusy(true);
     const { error } = await signUp.email({
       email: values.email,
       password: values.password,
       name: values.name,
     });
     if (error) {
+      // Not signed in yet, so staying on /login with the error is safe.
+      onBusy(false);
       onError(error.message ?? "Couldn't create your account");
       return;
     }
@@ -219,11 +253,10 @@ function SignUpForm({
     try {
       // Creates the org and makes it the session's active org, server-side.
       await createOrganizationAction({ name: values.organizationName, slug });
-    } catch (e) {
-      onError(
-        e instanceof Error ? e.message : "Account created, but the organization couldn't be set up",
-      );
-      return;
+    } catch {
+      // The account exists and the session is live, so /login is no longer a
+      // valid place to stand — the dashboard's no-organization gate picks up
+      // org creation from here.
     }
     onDone();
   }
@@ -235,7 +268,6 @@ function SignUpForm({
         <Input
           id="name"
           autoComplete="name"
-          placeholder="Mira Okonkwo"
           aria-invalid={!!errors.name}
           {...register("name")}
         />
@@ -247,7 +279,6 @@ function SignUpForm({
           id="su-email"
           type="email"
           autoComplete="email"
-          placeholder="you@atelier.academy"
           aria-invalid={!!errors.email}
           {...register("email")}
         />
@@ -269,7 +300,7 @@ function SignUpForm({
         <Label htmlFor="org">Organization name</Label>
         <Input
           id="org"
-          placeholder="Atelier Academy"
+          placeholder="Your organization"
           aria-invalid={!!errors.organizationName}
           {...register("organizationName")}
         />

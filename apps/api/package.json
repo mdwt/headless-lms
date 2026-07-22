@@ -12,11 +12,11 @@
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "seed": "tsx --env-file=../../.env ../../packages/cli/src/index.ts seed",
-    "seed:dev": "tsx --env-file=../../.env scripts/seed-dev-student.ts",
     "db:migrate": "tsx --env-file=../../.env ../../packages/cli/src/index.ts migrate"
   },
   "dependencies": {
+    "@headless-lms/adapter-email-resend": "workspace:*",
+    "@headless-lms/adapter-storage-minio": "workspace:*",
     "@headless-lms/plugin-slack": "workspace:*",
     "@headless-lms/server": "workspace:*",
     "@headless-lms/types": "workspace:*",
