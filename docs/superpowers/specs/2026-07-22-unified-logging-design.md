@@ -57,18 +57,19 @@ renders `type`/`message`/`stack`.
 
 Every core service, reporting service, Drizzle repository, and adapter (email,
 storage, outbox relay, auth org-admin/hooks where they do meaningful work)
-takes a `Logger` as its last constructor parameter. The container binds each
-one a child with a single `module` key:
+takes a `Logger` as its last constructor parameter (defaulted to `noopLogger`
+so tests stay lean; the container always passes a real child). The container
+binds each one a child with a single `name` key — a context's service and
+repositories share the same binding:
 
-| Component            | Binding                                |
-| -------------------- | -------------------------------------- |
-| Core services        | `{ module: "<context>.service" }`      |
-| Repositories         | `{ module: "<context>.repo" }`         |
-| Reporting services   | `{ module: "reporting.<name>" }`       |
-| Email adapter        | `{ module: "email" }`                  |
-| Storage adapter      | `{ module: "storage" }`                |
-| Outbox relay         | `{ module: "outbox.relay" }`           |
-| Integration loading  | `{ module: "integrations.loader" }`    |
+| Component                        | Binding                       |
+| -------------------------------- | ----------------------------- |
+| Core service + its repositories  | `{ name: "<context>" }`     |
+| Reporting services + repos       | `{ name: "reporting" }`     |
+| Email adapter                    | `{ name: "email" }`         |
+| Storage adapter                  | `{ name: "storage" }`       |
+| Outbox relay + appender + store  | `{ name: "outbox" }`        |
+| Integration loading              | `{ name: "integrations" }`  |
 
 ## Logging baseline
 
