@@ -35,7 +35,7 @@ const jsonLd = {
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="isolate flex min-h-dvh flex-col">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

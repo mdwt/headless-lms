@@ -32,31 +32,22 @@ export function CodeBlock({
   return (
     <div
       className={cn(
-        'group/code overflow-hidden rounded-xl border border-border bg-card',
+        'group/code overflow-hidden rounded-2xl border border-border bg-card',
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-border/70 bg-secondary/40 px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="size-2.5 rounded-full bg-muted-foreground/30" />
-          <span className="size-2.5 rounded-full bg-muted-foreground/30" />
-          <span className="size-2.5 rounded-full bg-muted-foreground/30" />
-          {filename ? (
-            <span className="ml-2 font-mono text-xs text-muted-foreground">
-              {filename}
-            </span>
-          ) : (
-            <span className="ml-2 font-mono text-xs text-muted-foreground">
-              {language}
-            </span>
-          )}
-        </div>
+      <div className="flex items-center justify-between border-b border-border/70 bg-secondary/40 px-4 py-2.5 font-mono text-xs text-muted-foreground">
+        <span>{filename ?? language}</span>
         <button
           type="button"
           onClick={copy}
           aria-label="Copy code to clipboard"
-          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="relative inline-flex size-7 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
         >
+          <span
+            className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+            aria-hidden="true"
+          />
           {copied ? (
             <Check className="size-4 text-primary" />
           ) : (
@@ -64,8 +55,8 @@ export function CodeBlock({
           )}
         </button>
       </div>
-      <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
-        <code className="font-mono text-foreground/90">{code}</code>
+      <pre className="overflow-x-auto p-4 font-mono text-sm/6 text-foreground/90">
+        <code>{code}</code>
       </pre>
     </div>
   )

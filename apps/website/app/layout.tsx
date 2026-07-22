@@ -62,8 +62,11 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#16181d',
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf9f7' },
+    { media: '(prefers-color-scheme: dark)', color: '#171512' },
+  ],
 }
 
 export default function RootLayout({
@@ -74,11 +77,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${geistSans.variable} ${geistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <body className="bg-background font-sans antialiased">
-        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
+        <RootProvider>{children}</RootProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

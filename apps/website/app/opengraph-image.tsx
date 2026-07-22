@@ -16,8 +16,8 @@ export default function OpengraphImage() {
           flexDirection: 'column',
           justifyContent: 'space-between',
           padding: 80,
-          backgroundColor: '#16181d',
-          color: '#f5f6f8',
+          backgroundColor: '#171512',
+          color: '#f4f1ea',
           fontFamily: 'sans-serif',
         }}
       >
@@ -25,14 +25,14 @@ export default function OpengraphImage() {
           <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
             <path
               d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"
-              stroke="#5ee08c"
+              stroke="#ddb15f"
               strokeWidth="1.6"
               strokeLinejoin="round"
               opacity="0.45"
             />
             <path
               d="m8 9.5 3.5 2.5L8 14.5M13 15h3"
-              stroke="#5ee08c"
+              stroke="#ddb15f"
               strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -44,12 +44,12 @@ export default function OpengraphImage() {
           <div style={{ fontSize: 64, fontWeight: 700, lineHeight: 1.1, maxWidth: 950 }}>
             The API-first platform for building learning systems
           </div>
-          <div style={{ fontSize: 28, color: '#9aa0ab', maxWidth: 900 }}>
+          <div style={{ fontSize: 28, color: '#a59d8f', maxWidth: 900 }}>
             Open-source headless LMS in modern TypeScript — typed SDK, composable
             adapters, MCP endpoint.
           </div>
         </div>
-        <div style={{ display: 'flex', fontSize: 24, color: '#5ee08c' }}>
+        <div style={{ display: 'flex', fontSize: 24, color: '#ddb15f' }}>
           headless-lms.dev
         </div>
       </div>

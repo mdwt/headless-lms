@@ -14,18 +14,16 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Logo className="size-6 text-primary" />
-            <span className="text-base font-semibold tracking-tight">
-              Headless LMS
-            </span>
+          <Link href="/" aria-label="Homepage" className="flex items-center gap-2.5">
+            <Logo className="size-6 shrink-0 text-primary" />
+            <span className="font-semibold tracking-tight">Headless LMS</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {primaryNav.map((item) => (
               <Link
                 key={item.title}
                 href={item.href}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 {item.title}
               </Link>
@@ -45,11 +43,15 @@ export function SiteHeader() {
 
         <button
           type="button"
-          className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+          className="relative inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
           aria-expanded={open}
         >
+          <span
+            className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+            aria-hidden="true"
+          />
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
@@ -62,7 +64,7 @@ export function SiteHeader() {
                 key={item.title}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="rounded-md px-3 py-2.5 text-base text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 {item.title}
               </Link>

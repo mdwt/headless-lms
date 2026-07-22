@@ -7,13 +7,13 @@ import { siteConfig } from '@/lib/site'
 
 export function Cta() {
   return (
-    <section className="border-t border-border/70">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <div className="rounded-3xl border border-border bg-card px-6 py-14 text-center sm:px-12">
-          <h2 className="mx-auto max-w-2xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+    <section className="border-t border-border/70 py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="rounded-2xl border border-border bg-card px-6 py-14 text-center sm:px-12">
+          <h2 className="mx-auto max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Spin up your own LMS in one command
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
             Create a standalone installation that owns its config and plugins, and
             deploys anywhere Node and Postgres run.
           </p>

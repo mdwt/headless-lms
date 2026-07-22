@@ -38,18 +38,18 @@ export function SiteFooter() {
     <footer className="border-t border-border/70">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="space-y-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <Logo className="size-6 text-primary" />
-            <span className="text-base font-semibold">Headless LMS</span>
+          <Link href="/" aria-label="Homepage" className="flex items-center gap-2.5">
+            <Logo className="size-6 shrink-0 text-primary" />
+            <span className="font-semibold">Headless LMS</span>
           </Link>
-          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-[48ch] text-sm text-pretty text-muted-foreground">
             An open-source, API-first LMS platform for building learning systems in modern TypeScript.
           </p>
           <a
             href={siteConfig.githubUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <GithubIcon className="size-4" />
             Star on GitHub
@@ -61,12 +61,12 @@ export function SiteFooter() {
             <h3 className="mb-3 text-sm font-medium text-foreground">
               {group.title}
             </h3>
-            <ul className="space-y-2.5">
+            <ul role="list" className="space-y-2.5">
               {group.links.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="text-sm font-normal text-muted-foreground hover:text-foreground"
                   >
                     {link.label}
                   </Link>

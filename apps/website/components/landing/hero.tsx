@@ -25,16 +25,18 @@ await lms.entitlements.grant({
 
 export function Hero() {
   return (
-    <section>
-      <div className="mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-6 lg:pt-28">
-        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
+    <section className="pt-20 pb-16 lg:pt-28">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid items-center gap-x-8 gap-y-12 lg:grid-cols-[21fr_20fr]">
           <div>
-            <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-[24ch] text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
               The API-first LMS for building{' '}
-              <span className="text-primary">learning systems</span>.
+              <span className="text-primary dark:text-foreground">
+                learning systems
+              </span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+            <p className="mt-6 max-w-[48ch] text-lg text-pretty text-muted-foreground">
               A headless, composable learning platform in modern TypeScript.
               Fastify, Drizzle, and Zod under the hood. Org-scoped multi-tenancy,
               a typed SDK, and swappable adapters. Build whatever frontend you want.
@@ -55,21 +57,19 @@ export function Hero() {
               </Button>
             </div>
 
-            <div className="mt-8 flex items-center gap-3">
-              <code className="rounded-lg border border-border bg-card px-4 py-2.5 font-mono text-sm text-foreground/90">
+            <div className="mt-8 font-mono text-sm">
+              <code className="inline-block rounded-lg border border-border bg-card px-4 py-2.5 text-foreground/90">
                 <span className="text-muted-foreground">$</span>{' '}
                 {siteConfig.installCommand}
               </code>
             </div>
           </div>
 
-          <div className="lg:pl-4">
-            <CodeBlock
-              code={sdkSnippet}
-              filename="app/lib/lms.ts"
-              language="typescript"
-            />
-          </div>
+          <CodeBlock
+            code={sdkSnippet}
+            filename="app/lib/lms.ts"
+            language="typescript"
+          />
         </div>
       </div>
     </section>

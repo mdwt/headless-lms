@@ -45,57 +45,55 @@ export function Architecture() {
   return (
     <section
       id="architecture"
-      className="scroll-mt-20 border-t border-border/70 bg-secondary/20"
+      className="scroll-mt-20 border-t border-border/70 bg-secondary/20 py-20"
     >
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid gap-x-8 gap-y-12 lg:grid-cols-2 lg:items-center">
           <div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               A backend that ships as a library
             </h2>
-            <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
+            <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
               The backend ships as{' '}
-              <code className="rounded bg-card px-1.5 py-0.5 font-mono text-sm text-foreground/90">
+              <code className="rounded-md bg-card px-1.5 py-0.5 font-mono text-foreground/90">
                 @headless-lms/server
               </code>
               : a framework-free domain core behind a Fastify HTTP layer. Every
               client — including AI agents — talks to the same domain layer.
             </p>
 
-            <div className="mt-8 space-y-5">
+            <dl className="mt-8 space-y-6">
               {principles.map((p) => (
-                <div key={p.title} className="flex gap-4">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
-                    <p.icon className="size-4.5" />
-                  </div>
+                <div key={p.title} className="flex gap-3">
+                  <p.icon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
                   <div>
-                    <h3 className="text-sm font-medium">{p.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    <dt className="font-medium">{p.title}</dt>
+                    <dd className="mt-1 text-base/7 text-pretty text-muted-foreground sm:text-sm/6">
                       {p.body}
-                    </p>
+                    </dd>
                   </div>
                 </div>
               ))}
-            </div>
+            </dl>
           </div>
 
           <div className="space-y-3">
             {layers.map((layer) => (
               <div
                 key={layer.label}
-                className="rounded-xl border border-border bg-card p-5"
+                className="rounded-2xl border border-border bg-card p-5"
               >
                 <p className={`text-sm font-medium ${layer.tone}`}>
                   {layer.label}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {layer.items.map((item) => (
-                    <span
+                    <div
                       key={item}
                       className="rounded-md border border-border bg-secondary/50 px-2.5 py-1 text-xs text-muted-foreground"
                     >
                       {item}
-                    </span>
+                    </div>
                   ))}
                 </div>
               </div>

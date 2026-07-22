@@ -60,34 +60,29 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="scroll-mt-20 border-t border-border/70">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <div className="max-w-2xl">
-          <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-            A complete learning platform, headless by design
-          </h2>
-          <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-            The full domain of an LMS, exposed as a typed API. Compose the pieces
-            you need and swap the ones you don&apos;t.
-          </p>
-        </div>
+    <section id="features" className="scroll-mt-20 border-t border-border/70 py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <h2 className="max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          A complete learning platform, headless by design
+        </h2>
+        <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
+          The full domain of an LMS, exposed as a typed API. Compose the pieces
+          you need and swap the ones you don&apos;t.
+        </p>
 
-        <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="mt-16 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group bg-card p-6 transition-colors hover:bg-accent/40"
-            >
-              <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-secondary/50 text-primary">
-                <feature.icon className="size-5" />
-              </div>
-              <h3 className="mt-4 text-base font-medium">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <div key={feature.title}>
+              <dt className="flex items-center gap-2.5 font-medium">
+                <feature.icon aria-hidden className="size-5 shrink-0 text-primary" />
+                {feature.title}
+              </dt>
+              <dd className="mt-2 text-base/7 text-pretty text-muted-foreground sm:text-sm/6">
                 {feature.body}
-              </p>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </div>
     </section>
   )
