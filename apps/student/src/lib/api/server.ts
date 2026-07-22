@@ -7,7 +7,8 @@ import "server-only";
  *
  * A 404 means the student isn't enrolled in (or can't see) the course — the
  * reads return `null` so the RSC page can `notFound()`. A 401 means the session
- * doesn't resolve to a portal student at all → redirect to /no-access.
+ * doesn't resolve to a portal student at all → drop it and redirect to
+ * /login?reset=1.
  */
 import { Learn } from "@headless-lms/sdk";
 

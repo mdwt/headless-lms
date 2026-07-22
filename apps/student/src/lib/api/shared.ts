@@ -13,10 +13,11 @@ export interface SdkResult<T> {
  * The Learn API answers 401 when the session doesn't resolve to a portal
  * student — a staff login on the shared dev cookie, or a session whose
  * student/org rows no longer exist. That's a routing concern, not an
- * application error: hand the user to the no-access screen.
+ * application error: the session is stale/unlinked, so drop it and send the
+ * user back to sign in.
  */
 export function redirectIfNoStudent(status: number | undefined): void {
-  if (status === 401) redirect("/no-access");
+  if (status === 401) redirect("/login?reset=1");
 }
 
 export function unwrap<T>(result: SdkResult<T>): T {
