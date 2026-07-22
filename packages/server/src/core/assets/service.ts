@@ -13,6 +13,8 @@ import type {
   UploadTicket,
 } from "./model.js";
 import type { AssetsRepository, AssetsService } from "./ports.js";
+import type { Logger } from "../shared/ports.js";
+import { noopLogger } from "../shared/logger.js";
 
 function orgPrefix(orgId: string): string {
   return `org/${orgId}/`;
@@ -28,6 +30,7 @@ export class AssetsServiceImpl implements AssetsService {
     private readonly storage: ObjectStorage,
     private readonly repo: AssetsRepository,
     private readonly now: () => string,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   async requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket> {
@@ -45,6 +48,7 @@ export class AssetsServiceImpl implements AssetsService {
       uploadedBy: input.uploadedBy,
       createdAt: this.now(),
     });
+    this.logger.info("asset upload requested", { orgId, assetId: id, kind: input.kind });
     return {
       asset,
       uploadUrl: presigned.url,
@@ -58,12 +62,17 @@ export class AssetsServiceImpl implements AssetsService {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) return null;
     const stat = await this.storage.stat(asset.key);
-    if (!stat) return asset; // not uploaded yet — stays pending
-    return this.repo.update(id, {
+    if (!stat) {
+      this.logger.debug("asset not yet uploaded", { orgId, assetId: id });
+      return asset; // not uploaded yet — stays pending
+    }
+    const updated = await this.repo.update(id, {
       size: stat.size,
       contentType: stat.contentType ?? asset.contentType,
       status: "ready",
     });
+    this.logger.info("asset confirmed", { orgId, assetId: id });
+    return updated;
   }
 
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {
@@ -92,6 +101,8 @@ export class AssetsServiceImpl implements AssetsService {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) return false;
     await this.storage.remove(asset.key);
-    return this.repo.delete(id);
+    const deleted = await this.repo.delete(id);
+    this.logger.info("asset removed", { orgId, assetId: id });
+    return deleted;
   }
 }

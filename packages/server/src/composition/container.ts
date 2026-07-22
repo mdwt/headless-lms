@@ -209,11 +209,16 @@ export async function buildContainer(
     entitlementsUow,
     logger.child({ name: "entitlements" }),
   );
-  const progress = new ProgressServiceImpl(new DrizzleProgressRepository(db), () =>
-    new Date().toISOString(),
+  const progress = new ProgressServiceImpl(
+    new DrizzleProgressRepository(db),
+    () => new Date().toISOString(),
+    logger.child({ name: "progress" }),
   );
-  const assets = new AssetsServiceImpl(storage, new DrizzleAssetsRepository(db), () =>
-    new Date().toISOString(),
+  const assets = new AssetsServiceImpl(
+    storage,
+    new DrizzleAssetsRepository(db),
+    () => new Date().toISOString(),
+    logger.child({ name: "assets" }),
   );
 
   const reporting = {

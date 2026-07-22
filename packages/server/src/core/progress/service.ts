@@ -7,17 +7,20 @@ import { genId } from "../shared/id.js";
 import type { ProgressRecord } from "./model.js";
 import type { ProgressRepository, ProgressService } from "./ports.js";
 import type { ProgressTarget, RecordPositionInput } from "./types.js";
+import type { Logger } from "../shared/ports.js";
+import { noopLogger } from "../shared/logger.js";
 
 export class ProgressServiceImpl implements ProgressService {
   constructor(
     private readonly repo: ProgressRepository,
     private readonly now: () => string,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   async recordStart(orgId: string, target: ProgressTarget): Promise<ProgressRecord> {
     const existing = await this.repo.findByTarget(orgId, target);
     if (existing) return existing;
-    return this.repo.insert(orgId, {
+    const record = await this.repo.insert(orgId, {
       id: genId("progress"),
       orgId,
       studentId: target.studentId,
@@ -27,12 +30,20 @@ export class ProgressServiceImpl implements ProgressService {
       position: null,
       completedAt: null,
     });
+    this.logger.info("progress started", {
+      orgId,
+      studentId: target.studentId,
+      targetType: target.targetType,
+      targetId: target.targetId,
+    });
+    return record;
   }
 
   async recordPosition(orgId: string, input: RecordPositionInput): Promise<ProgressRecord> {
     const record = await this.recordStart(orgId, input);
     const updated = await this.repo.update(orgId, record.id, { position: input.position });
     if (!updated) throw new Error("progress record vanished during position update");
+    this.logger.debug("position recorded", { orgId, recordId: record.id });
     return updated;
   }
 
@@ -40,6 +51,7 @@ export class ProgressServiceImpl implements ProgressService {
     const record = await this.recordStart(orgId, target);
     const updated = await this.repo.update(orgId, record.id, { completedAt: this.now() });
     if (!updated) throw new Error("progress record vanished during completion update");
+    this.logger.info("progress completed", { orgId, recordId: record.id });
     return updated;
   }
 
