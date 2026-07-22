@@ -14,9 +14,9 @@ Domains own per-entity facts: progress knows one student's progress through one 
 
 ## Reports
 
-- **Course completion** — for a course, the enrolled count, average completion, and how many have finished, are in progress, or have stalled. Read across enrollments, progress, and the course structure. ("142 enrolled, 61% average completion, 38 finished, 17 stalled.")
+- **Course completion** — for a course, the enrolled count, average completion, and how many have finished, are in progress, or have stalled. Read across entitlements, progress, and the course structure. ("142 enrolled, 61% average completion, 38 finished, 17 stalled.")
 - **Course engagement** — for a course, where students drop off: which lessons or assessments are completed by most and abandoned by most.
-- **Learner record** — for one student, every course they're enrolled in, how far through each, and what they've completed. Read across their enrollments, their progress, and the course structure.
+- **Learner record** — for one student, every course they're enrolled in, how far through each, and what they've completed. Read across their entitlements, their progress, and the course structure.
 - **Learner activity** — for one student, what they've started but not finished, and when they were last active.
 - **Org overview** — across the whole org: total enrolments and trend, active learners, and completions.
 - **Roster** — the students list: each learner with their enrolment count and overall progress, filtered and paged.

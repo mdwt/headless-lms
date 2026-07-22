@@ -34,9 +34,9 @@ export function studentColumns(onView: (id: string) => void): ColumnDef<Student,
       },
     },
     {
-      accessorKey: "enrollmentCount",
+      accessorKey: "entitlementCount",
       header: ({ column }) => <ColumnHeader column={column} title="Entitlements" align="right" />,
-      cell: ({ row }) => <span className="text-ink-2">{row.original.enrollmentCount}</span>,
+      cell: ({ row }) => <span className="text-ink-2">{row.original.entitlementCount}</span>,
       meta: { align: "right" },
     },
     {

@@ -20,7 +20,7 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: bool
   { key: "publishedCourses", label: "Published courses" },
   { key: "draftCourses", label: "Draft courses" },
   { key: "activeStudents", label: "Active students", managerOnly: true },
-  { key: "activeEnrollments", label: "Active entitlements", managerOnly: true },
+  { key: "activeEntitlements", label: "Active entitlements", managerOnly: true },
   { key: "expiringSoon", label: "Expiring soon", managerOnly: true },
 ];
 

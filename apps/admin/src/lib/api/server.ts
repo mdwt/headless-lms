@@ -128,7 +128,7 @@ export const serverApi = {
     ensureConfigured();
     const page = unwrap(
       await Entitlements.listEntitlements({
-        query: { courseId, pageSize: 100 },
+        query: { contentId: courseId, pageSize: 100 },
         ...(await authHeaders()),
       }),
     );

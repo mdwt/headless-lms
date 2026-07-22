@@ -7,23 +7,30 @@ import { z } from "zod";
 
 export const EventBody = z
   .looseObject({
-    type: z.string().min(1).describe('Domain event type, e.g. "enrollment.created".'),
+    type: z.string().min(1).describe('Domain event type, e.g. "entitlement.created".'),
   })
   .describe("A domain event: its type plus the metadata the event carries.");
 export type EventBody = z.infer<typeof EventBody>;
 
-/** The metadata enrollment.* events carry (mirrors the domain event snapshot). */
-export const EnrollmentEventPayload = z.object({
-  entitlementId: z.string().optional(),
+/** The content reference an entitlement carries: identity + display name. */
+export const ContentRefPayload = z.object({
+  id: z.string(),
+  type: z.string().describe('Content type, e.g. "course".'),
+  title: z.string(),
+});
+export type ContentRefPayload = z.infer<typeof ContentRefPayload>;
+
+/** The metadata entitlement.* events carry (mirrors the domain event snapshot). */
+export const EntitlementEventPayload = z.object({
+  id: z.string().optional(),
   firstName: z.string(),
   lastName: z.string(),
   studentEmail: z.string(),
-  courseId: z.string().optional(),
-  courseTitle: z.string(),
+  content: ContentRefPayload,
   grantedAt: z.string().describe("ISO-8601 timestamp"),
   expiresAt: z.string().nullable().optional().describe("ISO-8601 timestamp, if access expires"),
 });
-export type EnrollmentEventPayload = z.infer<typeof EnrollmentEventPayload>;
+export type EntitlementEventPayload = z.infer<typeof EntitlementEventPayload>;
 
-/** Validates an enrollment.* body's metadata before rich formatting. */
-export const EnrollmentEventBody = z.looseObject({ enrollment: EnrollmentEventPayload });
+/** Validates an entitlement.* body's metadata before rich formatting. */
+export const EntitlementEventBody = z.looseObject({ entitlement: EntitlementEventPayload });

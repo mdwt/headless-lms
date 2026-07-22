@@ -66,7 +66,7 @@ export function StudentDetailView({
 
 function StudentHeader({ student }: { student: Student }) {
   const stats: { label: string; value: string }[] = [
-    { label: "Entitlements", value: String(student.enrollmentCount) },
+    { label: "Entitlements", value: String(student.entitlementCount) },
     { label: "Avg. progress", value: `${Math.round(student.avgProgress)}%` },
     { label: "Last active", value: relativeTime(student.lastActiveAt) },
   ];
@@ -103,7 +103,7 @@ function EntitlementRow({ entitlement: e }: { entitlement: Entitlement }) {
     <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="truncate font-medium text-ink">{e.courseTitle}</span>
+          <span className="truncate font-medium text-ink">{e.content.title}</span>
           <EntitlementStatusBadge status={e.status} />
         </div>
         <p className="text-xs text-ink-3">

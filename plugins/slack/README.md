@@ -1,18 +1,20 @@
 # @headless-lms/plugin-slack
 
 Slack integration for the platform: posts domain events (e.g. student
-enrollments) to a Slack channel, formatted per event type.
+entitlements) to a Slack channel, formatted per event type.
 
 ## Actions
 
 | id | What it does |
 | --- | --- |
-| `postToChannel` | Posts a domain event to a channel. Input: `{ channel?, body }` where `body` is the event (`{ type, ...metadata }`). `enrollment.*` events get rich Block Kit formatting; unknown types post generically. `channel` falls back to the connection's `defaultChannel`. |
+| `postToChannel` | Posts a domain event to a channel. Input: `{ channel?, body }` where `body` is the event (`{ type, ...metadata }`). `entitlement.*` events get rich Block Kit formatting; unknown types post generically. `channel` falls back to the connection's `defaultChannel`. |
 | `listChannels` | Lists public channels (for channel pickers). Paginated via `cursor`/`limit`. |
 
-Formatted enrollment events: `enrollment.created`, `enrollment.updated`,
-`enrollment.deleted`, `enrollment.expired` — each carrying an `enrollment`
-object (student name/email, course title, granted/expires timestamps).
+Formatted entitlement events: `entitlement.created`, `entitlement.updated`,
+`entitlement.deleted`, `entitlement.expired` — each carrying an `entitlement`
+object (student name/email, a `content` ref `{ id, type, title }`, and
+granted/expires timestamps). Course grants keep "enrolled" wording; other
+content types read "granted access to".
 
 ## Connecting
 

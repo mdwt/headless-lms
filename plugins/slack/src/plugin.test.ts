@@ -29,12 +29,12 @@ describe("postToChannel action", () => {
     config: { defaultChannel: "#general" },
   };
   const createdEvent = {
-    type: "enrollment.created",
-    enrollment: {
+    type: "entitlement.created",
+    entitlement: {
       firstName: "Ada",
       lastName: "Lovelace",
       studentEmail: "ada@example.com",
-      courseTitle: "Calculus 101",
+      content: { id: "c1", type: "course", title: "Calculus 101" },
       grantedAt: "2026-07-01T09:00:00Z",
     },
   };
@@ -61,7 +61,7 @@ describe("postToChannel action", () => {
     });
   });
 
-  it("posts a formatted enrollment event with the revealed bot token", async () => {
+  it("posts a formatted entitlement event with the revealed bot token", async () => {
     const fetchMock = stubSlackOk();
     const out = await action.invoke(ctx, { channel: "#alerts", body: createdEvent });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -98,10 +98,10 @@ describe("postToChannel action", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects an enrollment event with missing metadata before any external call", async () => {
+  it("rejects an entitlement event with missing metadata before any external call", async () => {
     const fetchMock = stubSlackOk();
     await expect(
-      action.invoke(ctx, { body: { type: "enrollment.created" } }),
+      action.invoke(ctx, { body: { type: "entitlement.created" } }),
     ).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });

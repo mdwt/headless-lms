@@ -53,10 +53,13 @@ export function entitlementColumns(
       },
     },
     {
-      accessorKey: "courseTitle",
-      header: ({ column }) => <ColumnHeader column={column} title="Course" />,
+      id: "contentTitle",
+      accessorFn: (row) => row.content.title,
+      header: ({ column }) => <ColumnHeader column={column} title="Content" />,
       cell: ({ row }) => (
-        <span className="block max-w-[18rem] truncate text-ink-2">{row.original.courseTitle}</span>
+        <span className="block max-w-[18rem] truncate text-ink-2">
+          {row.original.content.title}
+        </span>
       ),
     },
     {

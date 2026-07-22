@@ -4,6 +4,16 @@ Owns the org's authored content: the things a learner consumes. The domain is re
 
 What unites content types is not structure but how they behave at the edges: every type is authored and published here, gated by entitlements, progressed through by progress, and backed by assets. A course is the first and currently only type — not the shape of the domain. Structure is each type's own concern; the domain is defined by being the owner of all content and by the shared boundaries and capabilities its types have, not by any one tree.
 
+## The content registry
+
+Every piece of content, whatever its type, has one row in the **`content_items` registry** (supertype table): `(org_id, id, type)`. The concrete content table (`courses` today) shares its primary key with its registry row — **same id in both** — and references it via a type-pinned composite FK (`(org_id, id, type)`), so a concrete row cannot attach to a registry row of another type.
+
+The registry exists so anything that references "a piece of content, any type" — the entitlements table above all — can hold a real foreign key instead of an unenforced polymorphic id. Rules:
+
+- **Create**: the content repository inserts the registry row and the concrete row in one transaction, same id.
+- **Delete**: always through the registry (`DELETE FROM content_items`) — it cascades to the concrete row and to the content's entitlements. Never delete a concrete content row directly; that would strand its registry row.
+- **Adding a content type**: widen the registry's `type` CHECK and create the new concrete table with its generated `type` column and three-column FK. Nothing else changes — entitlements is untouched.
+
 ## Content types
 
 The domain owns all content types. Each defines its own structure and rules.
@@ -47,7 +57,7 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 
 ### Gating rules
 
-- **Drip rule** — release timing on a module or activity, relative to access start. Content defines it; entitlements evaluates it per learner, since access start lives on the enrollment.
+- **Drip rule** — release timing on a module or activity, relative to access start. Content defines it; entitlements evaluates it per learner, since access start lives on the entitlement.
 - **Unlock rule** — gates a module or activity until another is complete.
 
 ### Other types

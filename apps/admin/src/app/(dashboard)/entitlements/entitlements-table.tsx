@@ -161,7 +161,7 @@ function EntitlementsTableInner({
         title="Revoke access?"
         description={
           revokeTarget
-            ? `${revokeTarget.firstName} ${revokeTarget.lastName} will immediately lose access to ${revokeTarget.courseTitle}. You can reinstate it later.`
+            ? `${revokeTarget.firstName} ${revokeTarget.lastName} will immediately lose access to ${revokeTarget.content.title}. You can reinstate it later.`
             : ""
         }
         confirmLabel="Revoke access"

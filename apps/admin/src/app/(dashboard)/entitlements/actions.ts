@@ -11,7 +11,7 @@ import type { Entitlement } from "@/lib/api/types";
 
 export interface GrantEntitlementInput {
   studentId: string;
-  courseId: string;
+  contentId: string;
   expiresAt: string | null;
 }
 
