@@ -11,7 +11,10 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "drizzle"],
+  "files": [
+    "dist",
+    "drizzle"
+  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",
@@ -36,6 +39,7 @@
     "ksuid": "^3.0.0",
     "minio": "^8.0.7",
     "pg": "^8.13.1",
+    "pino": "^10.3.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
