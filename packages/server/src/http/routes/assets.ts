@@ -20,7 +20,7 @@ import {
   UploadTicket,
 } from '@headless-lms/api-contract';
 import { NotFoundError } from '../../core/shared/errors.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 
 /** Resolve the session's active org to the domain org id, or 400 and return null. */
 async function resolveOrgId(

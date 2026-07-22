@@ -14,7 +14,7 @@ import {
   SaveActivity,
   UpdateModule,
 } from '@headless-lms/api-contract';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
 
 export async function activitiesRoutes(app: FastifyInstance, container: Container): Promise<void> {

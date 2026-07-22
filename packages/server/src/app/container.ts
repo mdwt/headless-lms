@@ -9,7 +9,7 @@ import {
 import { DrizzleOutboxAppender, DrizzleOutboxStore } from '../adapters/db/repositories/outbox.js';
 import { EmailAdapter } from '../adapters/email/index.js';
 import { createRootLogger, type LogLevel, type PinoInstance } from '../adapters/logging/index.js';
-import { MinioStorageAdapter, type MinioStorageConfig } from '../adapters/storage/index.js';
+import { StorageAdapter } from '../adapters/storage/index.js';
 import { createAuth, type Auth } from '../adapters/auth/index.js';
 import { createOrgAdmin } from '../adapters/auth/org-admin.js';
 import {
@@ -50,7 +50,7 @@ import type {
   OutboxRelay,
 } from '../core/shared/ports.js';
 
-/** Deployment-specific ports an installation may swap. */
+/** Installation-supplied ports; an absent slot falls back to a fail-loudly stub. */
 export interface AdapterOverrides {
   email?: EmailSender;
   storage?: ObjectStorage;
@@ -69,7 +69,6 @@ export interface Config {
   trustedOrigins: string[];
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
-  storage: MinioStorageConfig;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
@@ -170,8 +169,7 @@ export async function buildContainer(
   const db = createDb(config.databaseUrl);
   const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: 'email' }));
   const storage: ObjectStorage =
-    options?.adapters?.storage ??
-    new MinioStorageAdapter(config.storage, logger.child({ name: 'storage' }));
+    options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref

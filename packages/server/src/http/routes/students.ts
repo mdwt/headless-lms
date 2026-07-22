@@ -9,7 +9,7 @@ import {
   StudentsQuery,
 } from '@headless-lms/api-contract';
 import { NotFoundError } from '../../core/shared/errors.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
 
 export async function studentsRoutes(app: FastifyInstance, container: Container): Promise<void> {

@@ -1,76 +1,85 @@
 # Headless LMS
 
-A headless LMS shipped as a library. `@headless-lms/server` is the backend —
-hexagonal, framework-free domain core, Drizzle/Postgres adapters, Fastify HTTP
-layer. An installation composes it with its own config and integration
-plugins; `create-headless-lms` scaffolds one, and `apps/api` is this repo's
-own installation.
+An API-first LMS platform for building learning systems.
 
-## Stack
+- Modern TypeScript: Fastify, Drizzle, Zod, strict ESM
+- Composable: swappable adapters for storage and email; integrations plug in
+  as folders
+- Secure by default: authentication, org-scoped multi-tenancy, encrypted
+  credential storage, validated requests and responses
+- Headless: build whatever frontend you want on the typed SDK
 
-- Node 22 LTS · ESM · TypeScript (strict) · pnpm workspaces
-- Fastify · Drizzle + Postgres · better-auth · MinIO
-- Zod contract → validation (`fastify-type-provider-zod`) → OpenAPI (`@fastify/swagger`) → generated SDK (`@hey-api/openapi-ts`)
-- Next.js frontends · Vitest · `tsdown` builds (`tsc` is typecheck-only)
+## Features
 
-## Layout
+- **Course Builder** author structured course content; students work
+  through it activity by activity.
+- **Progress tracking**  per-student, per-activity completion, rolled up
+  into course progress and reporting.
+- **Entitlements**  grant and revoke student access to content.
+- **Multi-tenant**  one deployment serves many orgs; every
+  student, course, and session is org-scoped.
+- **Admin back-office**  a Next.js dashboard for courses, students,
+  entitlements, and reporting, built on the public API.
+- **Student portal**  a Next.js app where students log in and take their
+  courses, built on the SDK.
+- **Media & file assets**  object storage with presigned
+  upload/download URLs.
+- **Integrations**  drop a plugin folder into your installation and it's
+  live at startup. Write your own against the public contract.
+- **MCP endpoint**  AI agents connect over OAuth and operate the LMS
+  through the same domain layer as every other client.
+- **Typed SDK & OpenAPI**  routes validate requests and responses against
+  shared Zod schemas; the SDK is generated from the resulting spec.
+- **Transactional email**  invitation and auth mails, swappable
+  behind an adapter.
 
+## Self-host
+
+```bash
+npm create headless-lms
 ```
-apps/
-  api/            this repo's installation of @headless-lms/server (port 8000)
-  admin/          Next.js back-office (port 8001)
-  student/        Next.js student app (port 8002)
-packages/
-  server/         @headless-lms/server — the backend as a library (core, adapters, http)
-  cli/            @headless-lms/cli — the headless-lms bin (migrate, seed)
-  create-headless-lms/  npm create headless-lms — installation scaffolder
-  types/          @headless-lms/types — domain types, events & integration contract (pure types)
-  utils/          @headless-lms/utils — runtime helpers for integrations (zod adapters)
-  api-contract/   Zod schemas — single source of truth for the HTTP API
-  sdk/            @headless-lms/sdk — generated, resource-based client (off the spec)
-plugins/
-  slack/          @headless-lms/plugin-slack — the Slack integration
-```
 
-Each workspace has its own README; architecture details live in `docs/` and
-`packages/server/README.md`.
+Create a standalone installation using the cli. It creates a small project that
+depends on `@headless-lms/server`, owns its config and plugins, and deploys
+anywhere Node and Postgres run. 
 
-## Architecture in one paragraph
+## Under the hood
 
-`packages/server/src/core/` holds the bounded contexts (`identity`,
-`organizations`, `content`, `entitlements`, `progress`, `assets`,
-`integrations`) — framework-free, persistence-free. `adapters/` implement the
-outbound ports (Drizzle schema + repositories, auth, storage, …),
-`composition/` wires them, `http/` serves routes validated against
-`packages/api-contract`, and `reporting/` composes cross-context reads.
-Integrations are plugins: one folder per integration in an installation's
-`plugins/` dir, each default-exporting the `Integration` contract from
-`@headless-lms/types`. ESLint enforces the layer boundaries (`pnpm lint`).
+The backend ships as a library, `@headless-lms/server`: a framework-free
+domain core behind a Fastify HTTP layer, persisted with Drizzle/Postgres.
 
-## API contract & SDK
+An *installation* composes what it wants with sane defaults. See `apps/api` for an example project.
 
-Schema-first: routes attach the shared Zod schemas, so requests **and**
-responses are validated, and the same schemas produce the OpenAPI doc
-(`/docs`). `pnpm gen:sdk` regenerates `packages/sdk` from the live routes —
-`openapi.json` and `src/generated/` are committed, so a stale diff in review
-means someone forgot to regenerate.
+## Documentation
 
-## Getting started
+- [Architecture](docs/architecture.md)  layers, contexts, and how an
+  installation composes the server
+- [Project structure](docs/project-structure.md)  what each workspace is
+- [`packages/server`](packages/server/README.md)  the backend library
+- [`packages/create-headless-lms`](packages/create-headless-lms/README.md) 
+  the installation scaffolder
+- `/docs` on a running API  interactive OpenAPI reference
+
+## Developing this repo
+
+Requires Node ≥22, pnpm 10, and Docker.
 
 ```bash
 pnpm install
 docker compose -f docker/docker-compose.yml up -d   # Postgres (:8005) + MinIO (:8006/:8007)
 cp .env.example .env        # set BETTER_AUTH_SECRET (openssl rand -base64 32)
 pnpm db:generate && pnpm db:migrate
-pnpm --filter @headless-lms/api seed   # optional random data
 pnpm dev                    # api :8000 · admin :8001 · student :8002
 ```
 
-## Scripts
+`pnpm build` / `test` / `lint` / `typecheck` run across all workspaces;
+`pnpm gen:sdk` regenerates the OpenAPI spec + SDK (database must be up).
 
-| Script | Action |
-| --- | --- |
-| `pnpm dev` | run all apps in parallel |
-| `pnpm build` / `pnpm test` / `pnpm lint` / `pnpm typecheck` | across all workspaces |
-| `pnpm db:generate` / `pnpm db:migrate` | drizzle-kit against the root `.env` |
-| `pnpm gen:sdk` | regenerate OpenAPI spec + SDK (database must be up) |
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)  setup, the checks a PR must pass,
+and where things go in the codebase.
+
+## License
+
+[MIT](LICENSE)

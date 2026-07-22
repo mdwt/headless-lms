@@ -17,7 +17,7 @@ import {
 } from '@headless-lms/api-contract';
 import type { Connection as DomainConnection } from '../../core/integrations/index.js';
 import { NotFoundError } from '../../core/shared/errors.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 
 function toApi(connection: DomainConnection): Connection {
   const { credentialRef: _credentialRef, ...rest } = connection;

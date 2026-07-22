@@ -9,7 +9,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { withMcpAuth } from 'better-auth/plugins';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
 import { buildPrincipal, PrincipalError } from './principal.js';
 import { registerTools } from './tools.js';

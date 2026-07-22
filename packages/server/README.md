@@ -19,9 +19,9 @@ await app.listen({ port: config.port, host: config.host });
 ```
 
 Public surface (`src/index.ts`): `createContainer`, `buildServer`,
-`loadIntegrations`, the operational functions `runMigrations` / `runSeed`
+`loadIntegrations`, the operational function `runMigrations`
 (the `drizzle/` migration assets ship with the package; `@headless-lms/cli`
-wraps them as `headless-lms migrate|seed`), and the types installations need
+wraps it as `headless-lms migrate`), and the types installations need
 (`ServerConfig`, `Container`, `AdapterOverrides`, shared ports like
 `EmailSender` / `ObjectStorage`). Everything else is internal.
 
@@ -31,9 +31,9 @@ wraps them as `headless-lms migrate|seed`), and the types installations need
 src/
   core/         framework-free domain, one folder per bounded context
   reporting/    cross-context read layer (students, dashboard)
-  adapters/     outbound infra: db, auth, email, events, storage, video…
-  composition/  container.ts — wires adapters into services; integration
-                loader; migrate + seed
+  adapters/     outbound infra: db, auth, events, logging + email/storage stubs
+  app/          container.ts — wires adapters into services; integration
+                loader; migrate
   http/         Fastify server, routes validated against @headless-lms/api-contract
 ```
 

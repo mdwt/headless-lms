@@ -1,7 +1,7 @@
 // Translates a better-auth OAuthAccessToken into the McpPrincipal used by the
 // authz layer. Performs minimal I/O: one identity lookup + one membership lookup.
 import type { OAuthAccessToken } from 'better-auth/plugins';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { parseRole } from '../../core/organizations/index.js';
 import type { McpPrincipal } from './authz.js';
 

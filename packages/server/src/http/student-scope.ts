@@ -5,7 +5,7 @@
 // one student row. A session that doesn't resolve to a portal student is an
 // authentication failure (→ 401).
 import type { FastifyRequest } from 'fastify';
-import type { Container } from '../composition/container.js';
+import type { Container } from '../app/container.js';
 import type { Organization } from '../core/organizations/index.js';
 
 export interface StudentScope {

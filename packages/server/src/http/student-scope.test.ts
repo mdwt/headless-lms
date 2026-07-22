@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveStudentScope, NoStudentError } from './student-scope.js';
-import type { Container } from '../composition/container.js';
+import type { Container } from '../app/container.js';
 import type { FastifyRequest } from 'fastify';
 
 function container(opts: {

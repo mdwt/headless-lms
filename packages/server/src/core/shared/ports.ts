@@ -1,6 +1,28 @@
-import type { DomainEvent, NewDomainEvent } from '@headless-lms/types';
+// Deployment-swappable ports live in @headless-lms/types; re-exported so core
+// keeps one import site for every port.
+import type {
+  DomainEvent,
+  NewDomainEvent,
+  Logger,
+  EmailMessage,
+  EmailSender,
+  ObjectStorage,
+  PresignedUpload,
+  StoredObjectInfo,
+  PresignDownloadInput,
+} from '@headless-lms/types';
 
-export type { DomainEvent, NewDomainEvent };
+export type {
+  DomainEvent,
+  NewDomainEvent,
+  Logger,
+  EmailMessage,
+  EmailSender,
+  ObjectStorage,
+  PresignedUpload,
+  StoredObjectInfo,
+  PresignDownloadInput,
+};
 
 export interface Clock {
   now(): Date;
@@ -56,25 +78,6 @@ export interface OutboxRelay {
   stop(): Promise<void>;
 }
 
-export interface Logger {
-  debug(msg: string, meta?: Record<string, unknown>): void;
-  info(msg: string, meta?: Record<string, unknown>): void;
-  warn(msg: string, meta?: Record<string, unknown>): void;
-  error(msg: string, meta?: Record<string, unknown>): void;
-  /** A logger whose every entry carries `bindings` (call-site meta wins on key clash). */
-  child(bindings: Record<string, unknown>): Logger;
-}
-
-export interface EmailMessage {
-  to: string;
-  subject: string;
-  text: string;
-}
-
-export interface EmailSender {
-  send(message: EmailMessage): Promise<void>;
-}
-
 // --- Secure credential store -------------------------------------------------
 // Org-scoped storage for secrets (integration credentials, API keys, tokens).
 // Values are JSON documents, encrypted at rest and decrypted only when a
@@ -92,48 +95,4 @@ export interface CredentialStore {
   update(orgId: string, ref: string, secrets: Record<string, unknown>): Promise<void>;
   /** Permanently delete stored secrets (e.g. disconnect). */
   destroy(orgId: string, ref: string): Promise<void>;
-}
-
-// --- Object storage (uploads + content) ------------------------------------
-// Outbound port for an S3-compatible object store. Operates on opaque keys;
-// callers (e.g. the uploads context) build org-scoped keys and authorize
-// access. Implemented by the MinIO adapter.
-
-/** A presigned URL the browser uses to PUT a file straight to the store. */
-export interface PresignedUpload {
-  url: string;
-  method: 'PUT';
-  key: string;
-  expiresInSeconds: number;
-  /** Headers the client must send on the PUT (e.g. Content-Type). */
-  headers: Record<string, string>;
-}
-
-export interface StoredObjectInfo {
-  key: string;
-  size: number;
-  contentType?: string;
-  lastModified?: string;
-}
-
-export interface PresignDownloadInput {
-  key: string;
-  expiresInSeconds?: number;
-  /** Force a download with this filename (Content-Disposition: attachment). */
-  downloadFilename?: string;
-}
-
-export interface ObjectStorage {
-  /** Presigned URL for a direct browser upload (temporary, expiring). */
-  presignUpload(input: {
-    key: string;
-    contentType?: string;
-    expiresInSeconds?: number;
-  }): Promise<PresignedUpload>;
-  /** Presigned URL to fetch/serve a private object (temporary, expiring). */
-  presignDownload(input: PresignDownloadInput): Promise<string>;
-  /** Object metadata, or null if it does not exist. */
-  stat(key: string): Promise<StoredObjectInfo | null>;
-  /** Permanently remove an object. */
-  remove(key: string): Promise<void>;
 }

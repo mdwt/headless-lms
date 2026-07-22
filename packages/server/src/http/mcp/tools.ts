@@ -3,7 +3,7 @@
 // No business logic lives here: the HTTP/MCP layer only translates + guards.
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { authorize, type McpPrincipal } from './authz.js';
 import { capability } from '../../core/organizations/index.js';
 

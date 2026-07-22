@@ -1,13 +1,3 @@
-// Auth adapter — wraps better-auth. Runtime/infra only; never imported by core.
-//
-// It depends on core ports (an EmailSender, the identity service, and the
-// organizations provisioner) and owns the translation between better-auth's
-// shapes and those ports: the magic-link email body, mapping a new credential
-// user to a domain student, and mirroring the organization plugin's records
-// (org, members, invitations) into the organizations context. Crucially, this
-// adapter resolves better-auth user ids to domain student ids before calling
-// core, so core contexts never import the auth schema. Composition only injects
-// the port implementations.
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, mcp } from 'better-auth/plugins';
@@ -17,7 +7,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { EmailSender } from '../../core/shared/ports.js';
 import type { IdentityService } from '../../core/identity/index.js';
 import type { OrganizationProvisioner } from '../../core/organizations/index.js';
-import { prefixId } from '../../core/shared/id.js';
+import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
 import * as authSchema from './schema.js';
 import { ac, roles } from './access.js';
 
@@ -26,11 +16,11 @@ import { ac, roles } from './access.js';
 // the same human-readable prefixes so a `usr_`/`org_` id reads the same on both
 // sides of the mirror. Unmapped models fall back to a generic `id_` prefix.
 const AUTH_ID_PREFIXES: Record<string, string> = {
-  user: 'usr',
+  user: ID_PREFIXES.user,
   session: 'ses',
   account: 'acc',
   verification: 'ver',
-  organization: 'org',
+  organization: ID_PREFIXES.organization,
   member: 'mem',
   invitation: 'inv',
   oauthApplication: 'oap',

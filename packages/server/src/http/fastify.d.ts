@@ -2,7 +2,7 @@ import 'fastify';
 
 // Minimal shape of the authenticated user attached to a request by
 // `requireSession`. Defined locally so `http` need not import the auth adapter
-// (the boundary linter allows http -> composition/core only).
+// (the boundary linter allows http -> app/core only).
 export interface AuthUser {
   id: string;
   email: string;

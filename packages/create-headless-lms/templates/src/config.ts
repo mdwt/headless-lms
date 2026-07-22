@@ -2,6 +2,26 @@
 // ServerConfig that @headless-lms/server consumes. The only file that
 // touches process.env.
 import type { ServerConfig, ContainerConfig } from "@headless-lms/server";
+import type { MinioStorageConfig } from "@headless-lms/adapter-storage-minio";
+
+/** STORAGE_ENDPOINT unset → no storage adapter; asset operations fail loudly. */
+export function loadStorageConfig(): MinioStorageConfig | undefined {
+  const endPoint = process.env.STORAGE_ENDPOINT;
+  if (!endPoint) {
+    return undefined;
+  }
+  return {
+    endPoint,
+    port: Number(process.env.STORAGE_PORT ?? 9000),
+    useSSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
+    accessKey: process.env.STORAGE_ACCESS_KEY ?? "",
+    secretKey: process.env.STORAGE_SECRET_KEY ?? "",
+    region: process.env.STORAGE_REGION ?? "us-east-1",
+    bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
+    uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
+    downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 300),
+  };
+}
 
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
@@ -24,17 +44,6 @@ function loadContainerConfig(): ContainerConfig {
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
     secureCookies: process.env.NODE_ENV === "production",
-    storage: {
-      endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",
-      port: Number(process.env.STORAGE_PORT ?? 8006),
-      useSSL: (process.env.STORAGE_USE_SSL ?? "false") === "true",
-      accessKey: process.env.STORAGE_ACCESS_KEY ?? "minioadmin",
-      secretKey: process.env.STORAGE_SECRET_KEY ?? "minioadmin",
-      region: process.env.STORAGE_REGION ?? "us-east-1",
-      bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
-      uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
-      downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 300),
-    },
   };
 }
 

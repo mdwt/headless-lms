@@ -5,7 +5,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { fromNodeHeaders } from 'better-auth/node';
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from 'better-auth/plugins';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
 
 export function registerAuth(app: FastifyInstance, container: Container): void {

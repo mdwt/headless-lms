@@ -9,10 +9,10 @@
     "build": "tsdown",
     "start": "node --env-file=.env dist/main.js",
     "migrate": "headless-lms migrate",
-    "seed": "headless-lms seed",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@headless-lms/adapter-storage-minio": "^0.0.0",
     "@headless-lms/cli": "^0.0.0",
     "@headless-lms/server": "^0.0.0"
   },

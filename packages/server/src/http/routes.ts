@@ -3,7 +3,7 @@
 //   - back-office routes: guarded by a session on EVERY route (see below)
 //   - MCP: guarded by OAuth bearer tokens, so it sits outside the session plugin
 import type { FastifyInstance } from 'fastify';
-import type { Container } from '../composition/container.js';
+import type { Container } from '../app/container.js';
 import { coursesRoutes } from './routes/courses.js';
 import { learnRoutes } from './routes/learn.js';
 import { activitiesRoutes } from './routes/activities.js';

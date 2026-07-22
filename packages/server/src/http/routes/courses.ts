@@ -13,7 +13,7 @@ import {
   UpdateCourse,
 } from '@headless-lms/api-contract';
 import { z } from 'zod';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import { NotFoundError } from '../../core/shared/errors.js';
 import { resolveScope } from '../scope.js';
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to agents when working with code in this repository.
 
-Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. The backend ships as a library: `packages/server` (`@headless-lms/server`) holds the hexagonal core; an installation composes it. Apps: `apps/api` (this repo's installation of the server — config, entry point, integration plugins), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI). Packages: `packages/cli` (`@headless-lms/cli`, the `headless-lms` bin — migrate, seed), `packages/create-headless-lms` (`npm create headless-lms` installation scaffolder), `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/types` (`@headless-lms/types`, the published type surface: domain entities, DTOs, domain events, integration contract — pure types, zero deps), `packages/utils` (`@headless-lms/utils`, runtime helpers for integrations; zod peer dep). Plugins: `plugins/slack` (`@headless-lms/plugin-slack`, the Slack integration). See `docs/project-structure.md`.
+Headless LMS — pnpm-workspace monorepo. Node 22, ESM, strict TypeScript. The backend ships as a library: `packages/server` (`@headless-lms/server`) holds the hexagonal core; an installation composes it. Apps: `apps/api` (this repo's installation of the server — config, entry point, integration plugins), `apps/admin` (Next.js back-office), `apps/student` (Next.js student course UI). Packages: `packages/cli` (`@headless-lms/cli`, the `headless-lms` bin — migrate), `packages/create-headless-lms` (`npm create headless-lms` installation scaffolder), `packages/api-contract` (Zod schemas, source of truth for the HTTP API), `packages/sdk` (`@headless-lms/sdk`, generated off the OpenAPI spec), `packages/types` (`@headless-lms/types`, the published type surface: domain entities, DTOs, domain events, integration contract — pure types, zero deps), `packages/utils` (`@headless-lms/utils`, runtime helpers for integrations; zod peer dep). Plugins: `plugins/slack` (`@headless-lms/plugin-slack`, the Slack integration). Adapters: `adapters/email-resend` and `adapters/storage-minio` (`@headless-lms/adapter-*`, vendor implementations of the deployment ports in `@headless-lms/types`; the installation constructs them and injects via `createContainer(config, { adapters })`). See `docs/project-structure.md`.
 
 ## Commands
 
@@ -26,11 +26,12 @@ Per-workspace: `pnpm --filter @headless-lms/server <script>`.
 Hexagonal. The backend is `packages/server/src/`, layered; `apps/api` is a thin installation (env → `ServerConfig` → `createContainer` → `buildServer` → listen) that owns only its config, entry point, and plugins folder.
 
 - `core/<context>/` — framework-free, runtime-free, **persistence-free** domain. Seven bounded contexts, all built and Drizzle-persisted: `identity`, `organizations`, `content`, `entitlements`, `progress`, `assets`, `integrations` (+ `shared/` for cross-cutting ports). Third-party integration implementations live in the **installation's** plugins dir (`apps/api/src/plugins/` here — one folder per integration, **directory name = integration id**), each default-exporting a module satisfying the `Integration` contract from `@headless-lms/types` (a plugin folder may be a thin re-export of a workspace package — slack → `plugins/slack`). Composition scans that directory at startup (`loadIntegrations`, via the `pluginsDir` option) — adding an integration is adding a folder; nothing else to register.
-- `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `composition/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
-- `adapters/` — outbound infra: `db`, `auth`, `email`, `events`, `storage`, `video`. Drizzle schema and repositories live here, **not** in core:
+- `reporting/` — a cross-context read layer **outside `core/`** (sibling of `core/`, `http/`, `app/`). Composes domain public services into views (`reporting/students/`, `reporting/dashboard/`); owns no data and no rules. It is the only place allowed to read multiple contexts.
+- `adapters/` — outbound infra that is structural to the server: `db`, `auth`, `events`, `logging`, plus fail-loudly stubs for `email`/`storage`. Drizzle schema and repositories live here, **not** in core:
   - `adapters/db/schema/<context>.ts` — centralized table definitions, re-exported from `schema/index.ts` (the single source `drizzle.config.ts` points at).
   - `adapters/db/repositories/<context>.ts` — `Drizzle*Repository` classes implementing the core outbound ports.
-- `composition/` — `container.ts` wires adapters into services; also `migrate.ts`/`seed.ts`, the operational functions the server exports and `@headless-lms/cli` wraps as `headless-lms migrate|seed`.
+  - Vendor implementations of the deployment ports (`EmailSender`, `ObjectStorage` — declared in `@headless-lms/types`) live in top-level `adapters/*` workspace packages, never in the server. The installation constructs them from its own env and passes them via `createContainer(config, { adapters: { email, storage } })`; an absent slot falls back to a stub that fails loudly on use.
+- `app/` — `container.ts` wires adapters into services; also `migrate.ts`, the operational function the server exports and `@headless-lms/cli` wraps as `headless-lms migrate`.
 - Inbound entry point: `http/` — Fastify server, session-guarded back-office routes, and the MCP endpoint (`http/mcp/`, authenticated via OAuth bearer tokens, not the session cookie).
 
 Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`, `events.ts`, `ports.ts`, `index.ts`, `service.test.ts`. The outbound port interface (e.g. `ContentRepository`) lives in the context's `ports.ts`; its Drizzle implementation lives in `adapters/db/repositories/`.
@@ -45,10 +46,10 @@ Each context has the same file contract: `service.ts`, `model.ts`, `types.ts`, `
 
 - The seven contexts are `identity`, `organizations`, `content`, `entitlements`, `progress`, `assets`, `integrations`.
 - A context imports another context **only** through its `index.ts` (no deep imports). `core/shared/ports` is the exception (cross-cutting, allowed).
-- `core/` may not import `adapters/`, `http/`, `composition/`, `reporting/`, frameworks (`fastify`, `pg`), or `drizzle-orm`.
+- `core/` may not import `adapters/`, `http/`, `app/`, `reporting/`, frameworks (`fastify`, `pg`), or `drizzle-orm`.
 - `reporting/` may import any `core/<ctx>/index.ts`; it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`.
 - `adapters/` may import `core/` ports only.
-- `composition/` wires `core` + `adapters` + `reporting`; inbound entry points use `composition`, `core`, and `reporting`.
+- `app/` wires `core` + `adapters` + `reporting`; inbound entry points use `app`, `core`, and `reporting`.
 
 These rules are not advisory — run `pnpm lint` after changing imports across layers.
 

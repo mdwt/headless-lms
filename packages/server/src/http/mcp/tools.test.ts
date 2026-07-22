@@ -10,7 +10,7 @@ import { describe, it, expect, vi, type Mock } from 'vitest';
 import { registerTools } from './tools.js';
 import type { McpPrincipal } from './authz.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 import type { Course } from '../../core/content/index.js';
 import type { Entitlement } from '../../core/entitlements/model.js';
 import type { Student } from '../../reporting/students/model.js';

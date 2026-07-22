@@ -6,7 +6,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { ConnectedAppIdParam, ConnectedAppsList, ErrorBody } from '@headless-lms/api-contract';
 import { NotFoundError } from '../../core/shared/errors.js';
-import type { Container } from '../../composition/container.js';
+import type { Container } from '../../app/container.js';
 
 export async function connectedAppsRoutes(
   app: FastifyInstance,

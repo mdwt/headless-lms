@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { buildServer } from './server.js';
-import { buildContainer, type Config } from '../composition/container.js';
+import { buildContainer, type Config } from '../app/container.js';
 import type { ServerConfig } from './config.js';
 
 // DB-less unit env: no live Postgres/MinIO, matching the defaults the process
@@ -12,17 +12,6 @@ const containerConfig: Config = {
   trustedOrigins: ['http://localhost:8001', 'http://localhost:8002', 'http://localhost:8000'],
   mcpLoginPage: 'http://localhost:8001/login',
   credentialStoreKey: '',
-  storage: {
-    endPoint: 'localhost',
-    port: 8006,
-    useSSL: false,
-    accessKey: 'minioadmin',
-    secretKey: 'minioadmin',
-    region: 'us-east-1',
-    bucket: 'headless-lms',
-    uploadExpirySeconds: 300,
-    downloadExpirySeconds: 300,
-  },
 };
 
 const serverConfig: ServerConfig = {

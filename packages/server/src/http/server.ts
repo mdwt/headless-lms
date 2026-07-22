@@ -1,6 +1,6 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
-import type { Container } from '../composition/container.js';
+import type { Container } from '../app/container.js';
 import type { ServerConfig } from './config.js';
 import { registerCors } from './plugins/cors.js';
 import { registerOpenApi } from './plugins/openapi.js';

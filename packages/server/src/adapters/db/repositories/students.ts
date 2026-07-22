@@ -88,7 +88,9 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
       )
       .leftJoin(user, eq(user.id, students.externalId))
       .where(where)
-      .groupBy(students.id, user.image)
+      // Group by the full composite PK (orgId, id): grouping by id alone gives
+      // Postgres no functional dependency for the other students columns.
+      .groupBy(students.orgId, students.id, user.image)
       .orderBy(...this.resolveOrder(query.sort))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
@@ -119,7 +121,7 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
       )
       .leftJoin(user, eq(user.id, students.externalId))
       .where(and(eq(entitlements.orgId, orgId), eq(students.id, id)))
-      .groupBy(students.id, user.image)
+      .groupBy(students.orgId, students.id, user.image)
       .limit(1);
     return row ? toStudent(row) : null;
   }

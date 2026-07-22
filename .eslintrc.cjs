@@ -4,12 +4,12 @@
  *   core      packages/server/src/core/<context>/**   — framework-free domain
  *   reporting packages/server/src/reporting/**         — read layer (composed cross-context reads)
  *   adapters  packages/server/src/adapters/**          — outbound infra
- *   composition packages/server/src/composition/**     — wiring
+ *   app       packages/server/src/app/**               — wiring (composition root)
  *   inbound   packages/server/src/{http,workers,cron}/**
  *
  * Rules:
  *   - A context may import another context ONLY via its index.ts (no deep imports).
- *   - core/ may not import adapters/, composition/, inbound, reporting, frameworks, or drizzle.
+ *   - core/ may not import adapters/, app/, inbound, reporting, frameworks, or drizzle.
  *   - reporting/ may import core context public surfaces; it owns no domain rules.
  *   - adapters/ own the Drizzle schema (adapters/db/schema) and repositories;
  *     they may import core ports and reporting ports.
@@ -76,7 +76,7 @@ module.exports = {
       // one folder per integration (directory name = integration id). Loaded at
       // startup by composition; each satisfies the core Integration port.
       { type: "plugins", pattern: "apps/api/src/plugins/*", mode: "folder" },
-      { type: "composition", pattern: "packages/server/src/composition/**" },
+      { type: "app", pattern: "packages/server/src/app/**" },
       { type: "http", pattern: "packages/server/src/http/**" },
       { type: "workers", pattern: "packages/server/src/workers/**" },
       { type: "cron", pattern: "packages/server/src/cron/**" },
@@ -109,13 +109,13 @@ module.exports = {
           { from: "adapters", allow: ["core", "reporting", "adapters"] },
           // plugins implement the core Integration port; nothing else
           { from: "plugins", allow: ["core", "plugins"] },
-          // composition wires everything
+          // app wires everything
           {
-            from: "composition",
+            from: "app",
             allow: ["core", "adapters", "reporting", "plugins"],
           },
-          // inbound entry points use composition + core public surface + reporting
-          { from: ["http", "workers", "cron"], allow: ["composition", "core", "reporting"] },
+          // inbound entry points use app + core public surface + reporting
+          { from: ["http", "workers", "cron"], allow: ["app", "core", "reporting"] },
         ],
       },
     ],
@@ -144,7 +144,7 @@ module.exports = {
               },
               { group: ["**/adapters/**"], message: "core may not import adapters" },
               {
-                group: ["**/http/**", "**/composition/**"],
+                group: ["**/http/**", "**/app/**"],
                 message: "core may not import inbound or wiring",
               },
               {

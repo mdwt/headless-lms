@@ -3,7 +3,7 @@
 // `req.authUser` the better-auth user — both set by the `requireSession`
 // preHandler. Back-office routes run `requireSession` then `resolveScope`.
 import type { FastifyRequest } from 'fastify';
-import type { Container } from '../composition/container.js';
+import type { Container } from '../app/container.js';
 
 export interface OrgScope {
   /** Domain `organizations.id` (uuid) for the session's active org. */
