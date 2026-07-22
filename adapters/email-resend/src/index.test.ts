@@ -61,4 +61,30 @@ describe("ResendEmailAdapter", () => {
       adapter.send({ to: "student@example.com", subject: "Welcome", text: "Hi" }),
     ).rejects.toThrow(/502/);
   });
+
+  it("includes html in the payload when the message has it", async () => {
+    const { calls, fetchFn } = fakeFetch(200, { id: "email_123" });
+    const adapter = new ResendEmailAdapter(
+      { apiKey: "re_test_key", from: "a@b.c" },
+      undefined,
+      fetchFn,
+    );
+
+    await adapter.send({ to: "s@e.com", subject: "Hi", text: "plain", html: "<p>rich</p>" });
+
+    expect(JSON.parse(String(calls[0]?.init.body)).html).toBe("<p>rich</p>");
+  });
+
+  it("omits the html key when the message has none", async () => {
+    const { calls, fetchFn } = fakeFetch(200, { id: "email_123" });
+    const adapter = new ResendEmailAdapter(
+      { apiKey: "re_test_key", from: "a@b.c" },
+      undefined,
+      fetchFn,
+    );
+
+    await adapter.send({ to: "s@e.com", subject: "Hi", text: "plain" });
+
+    expect("html" in JSON.parse(String(calls[0]?.init.body))).toBe(false);
+  });
 });
