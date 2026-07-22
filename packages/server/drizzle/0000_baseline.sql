@@ -180,18 +180,16 @@ CREATE TABLE "connections" (
 	CONSTRAINT "connections_org_id_integration_id_unique" UNIQUE("org_id","integration_id")
 );
 --> statement-breakpoint
-CREATE TABLE "outbox" (
-	"id" bigserial PRIMARY KEY NOT NULL,
-	"event_id" text NOT NULL,
+CREATE TABLE "event_outbox" (
+	"org_id" text NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
-	"org_id" text,
 	"payload" jsonb NOT NULL,
-	"occurred_at" timestamp DEFAULT now() NOT NULL,
-	"published_at" timestamp,
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"next_attempt_at" timestamp DEFAULT now() NOT NULL,
 	"last_error" text,
-	CONSTRAINT "outbox_event_id_unique" UNIQUE("event_id")
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"processed_at" timestamp
 );
 --> statement-breakpoint
 CREATE TABLE "account" (
@@ -323,13 +321,13 @@ ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_organizations_id_fk
 ALTER TABLE "memberships" ADD CONSTRAINT "memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organizations" ADD CONSTRAINT "organizations_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_module_id_modules_org_id_id_fk" FOREIGN KEY ("org_id","module_id") REFERENCES "public"."modules"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_module_id_modules_org_id_id_fk" FOREIGN KEY ("org_id","module_id") REFERENCES "public"."modules"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_activity_id_activities_org_id_id_fk" FOREIGN KEY ("org_id","activity_id") REFERENCES "public"."activities"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_activity_id_activities_org_id_id_fk" FOREIGN KEY ("org_id","activity_id") REFERENCES "public"."activities"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_asset_id_assets_org_id_id_fk" FOREIGN KEY ("org_id","asset_id") REFERENCES "public"."assets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "courses" ADD CONSTRAINT "courses_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_student_id_students_org_id_id_fk" FOREIGN KEY ("org_id","student_id") REFERENCES "public"."students"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -348,7 +346,7 @@ ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_user_id_user
 ALTER TABLE "oauth_application" ADD CONSTRAINT "oauth_application_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_consent" ADD CONSTRAINT "oauth_consent_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "outbox_unpublished_idx" ON "outbox" USING btree ("next_attempt_at","id") WHERE "outbox"."published_at" is null;--> statement-breakpoint
+CREATE INDEX "event_outbox_pending_idx" ON "event_outbox" USING btree ("id") WHERE "event_outbox"."processed_at" is null;--> statement-breakpoint
 CREATE INDEX "oauth_access_token_client_id_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_user_id_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "oauth_application_user_id_idx" ON "oauth_application" USING btree ("user_id");--> statement-breakpoint
