@@ -7,11 +7,6 @@ describe("resolveOutboxConfig", () => {
       enabled: true,
       pollIntervalMs: 1000,
       batchSize: 100,
-      maxAttempts: 10,
-      backoffBaseMs: 1000,
-      backoffMaxMs: 60_000,
-      retentionDays: 7,
-      cleanupIntervalMs: 3_600_000,
     });
     expect(resolveOutboxConfig()).toEqual(OUTBOX_DEFAULTS);
   });
@@ -21,7 +16,6 @@ describe("resolveOutboxConfig", () => {
     expect(resolved.enabled).toBe(false);
     expect(resolved.batchSize).toBe(5);
     expect(resolved.pollIntervalMs).toBe(1000);
-    expect(resolved.maxAttempts).toBe(10);
   });
 
   it("ignores explicit undefined values (defaults win)", () => {

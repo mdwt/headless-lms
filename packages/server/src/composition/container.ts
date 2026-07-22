@@ -6,7 +6,10 @@ import {
   PollingOutboxRelay,
   type PollingOutboxRelayConfig,
 } from "../adapters/events/outbox-relay.js";
-import { DrizzleOutboxStore } from "../adapters/db/repositories/outbox.js";
+import {
+  DrizzleOutboxAppender,
+  DrizzleOutboxStore,
+} from "../adapters/db/repositories/outbox.js";
 import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
@@ -82,32 +85,18 @@ export interface Config {
 /** Tuning for the transactional-outbox relay. Every field is optional; the
  *  container resolves against OUTBOX_DEFAULTS. */
 export interface OutboxConfig {
-  /** Master switch for the same-process relay (poller + sweep). Default true. */
+  /** Master switch for the same-process relay. Default true. */
   enabled?: boolean;
   /** Idle delay between polls. Default 1000. */
   pollIntervalMs?: number;
   /** Max rows fetched/dispatched per tick. Default 100. */
   batchSize?: number;
-  /** Attempts before a message is parked as a dead letter. Default 10. */
-  maxAttempts?: number;
-  /** Exponential backoff: base * 2^attempts, capped at max. Defaults 1000 / 60000. */
-  backoffBaseMs?: number;
-  backoffMaxMs?: number;
-  /** Published rows older than this many days are swept. Default 7. */
-  retentionDays?: number;
-  /** Sweep cadence. Default 3600000 (1 h). */
-  cleanupIntervalMs?: number;
 }
 
 export const OUTBOX_DEFAULTS: PollingOutboxRelayConfig = {
   enabled: true,
   pollIntervalMs: 1000,
   batchSize: 100,
-  maxAttempts: 10,
-  backoffBaseMs: 1000,
-  backoffMaxMs: 60_000,
-  retentionDays: 7,
-  cleanupIntervalMs: 3_600_000,
 };
 
 export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRelayConfig {
@@ -168,13 +157,20 @@ export async function buildContainer(
     new DrizzleMembersRepository(db),
     orgAdminProvider,
   );
+  // Content: reads on the root db; course writes + outbox append in one tx.
+  const contentUow = new DrizzleUnitOfWork(db, (tx) => ({
+    courses: new DrizzleContentRepository(tx),
+    outbox: new DrizzleOutboxAppender(tx),
+  }));
   const content = new ContentServiceImpl(
     new DrizzleContentRepository(db),
     new DrizzleContentStructureRepository(db),
+    contentUow,
   );
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
     entitlements: new DrizzleEntitlementsRepository(tx),
+    outbox: new DrizzleOutboxAppender(tx),
   }));
   const entitlements = new EntitlementsServiceImpl(
     new DrizzleEntitlementsRepository(db),
@@ -205,6 +201,7 @@ export async function buildContainer(
   const integrationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     connections: new DrizzleConnectionsRepository(tx),
     credentials: new DrizzleCredentialStore(tx, config.credentialStoreKey),
+    outbox: new DrizzleOutboxAppender(tx),
   }));
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
@@ -213,9 +210,7 @@ export async function buildContainer(
     () => new Date().toISOString(),
   );
 
-  // Transactional-outbox relay: drains committed outbox rows and fans them
-  // out to EventBus subscribers — after the UoW migration this is the ONLY
-  // EventBus.publish caller in the codebase.
+
   const eventBus = new InMemoryEventBus();
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const relayLogger: Logger = {
@@ -223,7 +218,7 @@ export async function buildContainer(
     error: (msg, meta) => console.error(msg, meta ?? {}),
   };
   const outboxRelay = new PollingOutboxRelay(
-    new DrizzleOutboxStore(db, outboxConfig.maxAttempts),
+    new DrizzleOutboxStore(db),
     eventBus,
     outboxConfig,
     relayLogger,
