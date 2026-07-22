@@ -16,7 +16,10 @@ export interface Student {
   readonly id: string;
   // The org this student belongs to (students are org-scoped tenants).
   readonly orgId: string;
-  readonly externalId: string;
+  /** better-auth user id once linked; NULL until an invitation is accepted. */
+  readonly externalId: string | null;
+  /** Latest pending better-invite invitation id; cleared on link. */
+  readonly inviteId: string | null;
   readonly email: string;
   readonly firstName: string;
   readonly lastName: string;
@@ -36,6 +39,13 @@ export interface RegisterUserInput {
 export interface RegisterStudentInput {
   orgId: string;
   externalId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface CreateStudentInput {
+  orgId: string;
   email: string;
   firstName: string;
   lastName: string;

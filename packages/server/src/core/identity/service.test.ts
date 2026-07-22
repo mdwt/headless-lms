@@ -22,6 +22,7 @@ function fakeRepo() {
         id: `s${++n}`,
         createdAt: new Date(0),
         updatedAt: new Date(0),
+        inviteId: null,
         ...input,
       };
       students.push(row);
