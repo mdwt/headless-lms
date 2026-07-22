@@ -59,7 +59,16 @@ export class IdentityServiceImpl implements IdentityService {
   }
 
   async recordStudentInvite(orgId: string, email: string, inviteId: string): Promise<void> {
-    await this.repo.setInviteIdByEmail(orgId, email, inviteId);
+    const updated = await this.repo.setInviteIdByEmail(orgId, email, inviteId);
+    if (updated === 0) {
+      // A capture miss is silent data loss (the invite exists but no row points
+      // at it) — this warn is the only trace, so keep it loud.
+      this.logger.warn('student invite NOT recorded: no pending student matched', {
+        orgId,
+        inviteId,
+      });
+      return;
+    }
     this.logger.info('student invite recorded', { orgId, inviteId });
   }
 

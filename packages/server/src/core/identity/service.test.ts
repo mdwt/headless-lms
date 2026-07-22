@@ -55,12 +55,15 @@ function fakeRepo() {
       return row;
     },
     async setInviteIdByEmail(orgId: string, email: string, inviteId: string) {
+      let count = 0;
       for (let i = 0; i < students.length; i++) {
         const row = students[i];
         if (row && row.orgId === orgId && row.email === email && row.externalId === null) {
           students[i] = { ...row, inviteId };
+          count += 1;
         }
       }
+      return count;
     },
     async linkPendingStudents(inviteId: string, email: string, externalId: string) {
       let count = 0;

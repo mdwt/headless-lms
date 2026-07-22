@@ -1,5 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { setSessionCookie } from 'better-auth/cookies';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, mcp } from 'better-auth/plugins';
 import type { OAuthAccessToken } from 'better-auth/plugins';
@@ -310,9 +311,37 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           },
           // One accept path for every auth method: link the student row, or grant
           // the staff membership recorded for this invitation.
-          afterAcceptInvite: async ({ invitation, invitedUser }) => {
+          afterAcceptInvite: async ({ ctx, invitation, invitedUser }) => {
             if (invitation.role === STUDENT_ROLE) {
               await opts.identity.linkStudentByInvite(invitation.id, invitedUser.email, invitedUser.id);
+              // The signup/sign-in session was created BEFORE this hook linked the
+              // row, so the session.create.before org-stamping saw nothing — stamp
+              // the fresh session now or the very first portal load 401s.
+              const orgExternalId = await opts.identity.studentOrgExternalId(invitedUser.id);
+              const liveSession = (
+                ctx.context as {
+                  newSession?: { session?: { token?: string } } | null;
+                  session?: { session?: { token?: string } } | null;
+                }
+              ).newSession?.session ?? (ctx.context as { session?: { session?: { token?: string } } | null }).session?.session;
+              if (orgExternalId && liveSession?.token) {
+                const updated = await ctx.context.internalAdapter.updateSession(liveSession.token, {
+                  activeOrganizationId: orgExternalId,
+                });
+                // Refresh the cookie cache too — consumeInvite already re-issued
+                // it with the pre-stamp session, and getSession trusts the cache
+                // for its maxAge (same pattern as the org plugin's set-active).
+                await setSessionCookie(ctx as Parameters<typeof setSessionCookie>[0], {
+                  session: updated,
+                  user: invitedUser,
+                } as Parameters<typeof setSessionCookie>[1]);
+                opts.logger.info('invite session stamped', { orgExternalId });
+              } else {
+                opts.logger.warn('invite session NOT stamped', {
+                  hasOrg: orgExternalId !== null,
+                  hasToken: Boolean(liveSession?.token),
+                });
+              }
               return;
             }
             const record = await opts.organizations.invitationForAccept(invitation.id);

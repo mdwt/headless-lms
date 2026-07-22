@@ -159,7 +159,10 @@ export const invite = pgTable('invite', {
   redirectToAfterUpgrade: text('redirect_to_after_upgrade'),
   shareInviterName: boolean('share_inviter_name').notNull(),
   email: text('email'),
-  emails: text('emails'),
+  // Native text[] — better-auth's string[] fields round-trip as real arrays
+  // only with an array column; a plain text column comes back as a pg array
+  // literal STRING, breaking every consumer that indexes into it.
+  emails: text('emails').array(),
   role: text('role').notNull(),
   newAccount: boolean('new_account'),
   status: text('status').notNull(),

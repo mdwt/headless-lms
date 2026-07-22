@@ -38,6 +38,7 @@ export interface IdentityRepository {
   findStudentByEmail(orgId: string, email: string): Promise<Student | null>;
   findStudentById(orgId: string, id: string): Promise<Student | null>;
   insertPendingStudent(input: CreateStudentInput): Promise<Student>;
-  setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<void>;
+  /** Returns the number of rows updated — 0 means no pending student matched. */
+  setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<number>;
   linkPendingStudents(inviteId: string, email: string, externalId: string): Promise<number>;
 }

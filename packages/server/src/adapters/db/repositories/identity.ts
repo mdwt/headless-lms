@@ -136,11 +136,13 @@ export class DrizzleIdentityRepository implements IdentityRepository {
     }
   }
 
-  async setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<void> {
-    await this.db
+  async setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<number> {
+    const rows = await this.db
       .update(students)
       .set({ inviteId })
-      .where(and(eq(students.orgId, orgId), eq(students.email, email), isNull(students.externalId)));
+      .where(and(eq(students.orgId, orgId), eq(students.email, email), isNull(students.externalId)))
+      .returning({ id: students.id });
+    return rows.length;
   }
 
   // Link every still-pending row minted for this invite OR carrying the invited
