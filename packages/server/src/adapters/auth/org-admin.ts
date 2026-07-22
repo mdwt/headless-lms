@@ -58,8 +58,11 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
       }
     },
     async invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void> {
-      await auth.api.createInvitation({
-        body: { email: input.email, role: input.role, organizationId: ctx.authOrgId },
+      // One invite system for all populations: mint a better-invite invitation
+      // (role = staff role); its afterCreateInvite hook mirrors it into the
+      // domain, which the members list reads.
+      await auth.api.createInvite({
+        body: { email: input.email, role: input.role },
         headers: headersOf(ctx),
       });
     },
@@ -72,12 +75,6 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
     async removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void> {
       await auth.api.removeMember({
         body: { memberIdOrEmail: authMemberId, organizationId: ctx.authOrgId },
-        headers: headersOf(ctx),
-      });
-    },
-    async cancelInvitation(ctx: MemberWriteContext, authInvitationId: string): Promise<void> {
-      await auth.api.cancelInvitation({
-        body: { invitationId: authInvitationId },
         headers: headersOf(ctx),
       });
     },

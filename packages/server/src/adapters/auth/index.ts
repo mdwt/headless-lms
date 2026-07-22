@@ -2,6 +2,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, mcp } from 'better-auth/plugins';
 import type { OAuthAccessToken } from 'better-auth/plugins';
+import { invite } from 'better-invite';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import type { EmailSender } from '../../core/shared/ports.js';
@@ -10,6 +11,7 @@ import type { OrganizationProvisioner } from '../../core/organizations/index.js'
 import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
 import * as authSchema from './schema.js';
 import { ac, roles } from './access.js';
+import { inviteLinkFor, STUDENT_ROLE } from './invites.js';
 
 // Prefixes for better-auth's own tables. This is a distinct id space from the
 // mirrored domain rows (auth `user.id` → `users.external_id`, etc.), but we reuse
@@ -45,6 +47,10 @@ export interface CreateAuthOptions {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
+  studentPortalUrl: string;
+  /** Admin app origin — invite links for staff. */
+  adminAppUrl: string;
 }
 
 function htmlEscape(s: string): string {
@@ -144,7 +150,11 @@ export function createAuth(opts: CreateAuthOptions): Auth {
     return user;
   };
 
-  return betterAuth({
+  // afterAcceptInvite needs auth.api.addMember, but hooks are defined before
+  // betterAuth() returns — resolved via this ref, assigned right after creation.
+  const authRef: { current: Auth | null } = { current: null };
+
+  const auth = betterAuth({
     baseURL: opts.baseURL,
     secret: opts.secret,
     trustedOrigins: opts.trustedOrigins,
@@ -197,6 +207,87 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           });
         },
       }),
+      invite({
+        invitationTokenExpiresIn: 60 * 60 * 24 * 7, // 7 days
+        defaultMaxUses: 1,
+        // Only staff (users with an org membership) may mint invitations; blocks
+        // authenticated portal students from hitting /invite/create.
+        canCreateInvite: async ({ inviterUser }) => {
+          const domainUser = await opts.identity.getUserByExternalId(inviterUser.id);
+          if (!domainUser) {
+            return false;
+          }
+          const membership = await opts.organizations.getMembershipByUser(domainUser.id);
+          return membership !== null;
+        },
+        sendUserInvitation: async ({ email, role, token }) => {
+          const link = inviteLinkFor(role, token, email, {
+            studentPortalUrl: opts.studentPortalUrl,
+            adminAppUrl: opts.adminAppUrl,
+          });
+          await opts.email.send({
+            to: email,
+            subject:
+              role === STUDENT_ROLE
+                ? "You've been invited to start learning"
+                : "You've been invited to join the team",
+            text: `You've been invited. Accept your invitation: ${link}`,
+          });
+        },
+        inviteHooks: {
+          // Capture which domain record each invitation belongs to, using the
+          // inviter's active org (the surface that minted it).
+          afterCreateInvite: async ({ ctx, invitations }) => {
+            const session = ctx.context.session as {
+              user: { id: string };
+              session: { activeOrganizationId?: string | null };
+            } | null;
+            const orgExternalId = session?.session?.activeOrganizationId ?? null;
+            if (!orgExternalId) {
+              return;
+            }
+            for (const inv of invitations) {
+              const email = (inv.emails?.[0] ?? inv.email) as string | undefined;
+              if (!email) {
+                continue;
+              }
+              if (inv.role === STUDENT_ROLE) {
+                const org = await opts.organizations.getByExternalId(orgExternalId);
+                if (org) {
+                  await opts.identity.recordStudentInvite(org.id, email, inv.id);
+                }
+              } else {
+                const inviter = await requireUser(session!.user.id);
+                await opts.organizations.recordInvitation({
+                  orgExternalId,
+                  authInvitationId: inv.id,
+                  email,
+                  role: inv.role,
+                  status: 'pending',
+                  inviterUserId: inviter.id,
+                  expiresAt: inv.expiresAt ?? null,
+                });
+              }
+            }
+          },
+          // One accept path for every auth method: link the student row, or grant
+          // the staff membership recorded for this invitation.
+          afterAcceptInvite: async ({ invitation, invitedUser }) => {
+            if (invitation.role === STUDENT_ROLE) {
+              await opts.identity.linkStudentByInvite(invitation.id, invitedUser.email, invitedUser.id);
+              return;
+            }
+            const record = await opts.organizations.invitationForAccept(invitation.id);
+            if (!record || record.status !== 'pending') {
+              return; // canceled/unknown → no grant
+            }
+            await authRef.current!.api.addMember({
+              body: { userId: invitedUser.id, organizationId: record.orgExternalId, role: record.role },
+            });
+            await opts.organizations.acceptInvitation({ authInvitationId: invitation.id });
+          },
+        },
+      }),
       organization({
         ac,
         roles,
@@ -237,21 +328,6 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           },
           afterRemoveMember: async ({ member }) => {
             await opts.organizations.removeMembership(member.id);
-          },
-          afterCreateInvitation: async ({ invitation, inviter, organization: org }) => {
-            const inviterUser = await requireUser(inviter.id);
-            await opts.organizations.recordInvitation({
-              orgExternalId: org.id,
-              authInvitationId: invitation.id,
-              email: invitation.email,
-              role: invitation.role,
-              status: invitation.status,
-              inviterUserId: inviterUser.id,
-              expiresAt: invitation.expiresAt ?? null,
-            });
-          },
-          afterAcceptInvitation: async ({ invitation }) => {
-            await opts.organizations.acceptInvitation({ authInvitationId: invitation.id });
           },
         },
       }),
@@ -309,6 +385,8 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       },
     },
   }) as unknown as Auth;
+  authRef.current = auth;
+  return auth;
 }
 
 // Hand-declared instead of `ReturnType<typeof betterAuth>`: better-auth infers
@@ -352,18 +430,17 @@ export interface Auth {
       body: Record<string, unknown>;
       headers: Headers;
     }) => Promise<unknown>;
-    createInvitation: (input: {
-      body: Record<string, unknown>;
-      headers: Headers;
-    }) => Promise<unknown>;
     updateMemberRole: (input: {
       body: Record<string, unknown>;
       headers: Headers;
     }) => Promise<unknown>;
     removeMember: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
-    cancelInvitation: (input: {
-      body: Record<string, unknown>;
-      headers: Headers;
+    // better-invite (see invites.ts + org-admin.ts). Driven by OrgAdmin.invite
+    // for staff roles; the same endpoint mints student invites too.
+    createInvite: (input: { body: { email: string; role: string }; headers: Headers }) => Promise<unknown>;
+    // Grants a membership on an accepted staff invitation (see afterAcceptInvite).
+    addMember: (input: {
+      body: { userId: string; organizationId: string; role: string };
     }) => Promise<unknown>;
   };
 }

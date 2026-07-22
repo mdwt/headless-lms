@@ -147,6 +147,22 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(eq(invitations.authInvitationId, authInvitationId));
   }
 
+  async findInvitationByAuthId(
+    authInvitationId: string,
+  ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
+    const [row] = await this.db
+      .select({
+        orgExternalId: organizations.externalId,
+        role: invitations.role,
+        status: invitations.status,
+      })
+      .from(invitations)
+      .innerJoin(organizations, eq(invitations.orgId, organizations.id))
+      .where(eq(invitations.authInvitationId, authInvitationId))
+      .limit(1);
+    return row ?? null;
+  }
+
   async insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment> {
     const [row] = await this.db
       .insert(courseAssignments)

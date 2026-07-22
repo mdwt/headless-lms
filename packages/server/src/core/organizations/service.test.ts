@@ -37,7 +37,6 @@ const stubOrgAdmin = (): OrgAdmin => ({
   async invite() {},
   async updateRole() {},
   async removeMember() {},
-  async cancelInvitation() {},
 });
 
 function fakeRepo() {
@@ -111,6 +110,17 @@ function fakeRepo() {
       if (inv) {
         (inv as { status: string }).status = status;
       }
+    },
+    async findInvitationByAuthId(authInvitationId: string) {
+      const inv = invitations.find((x) => x.authInvitationId === authInvitationId);
+      if (!inv) {
+        return null;
+      }
+      const org = orgs.find((o) => o.id === inv.orgId);
+      if (!org) {
+        return null;
+      }
+      return { orgExternalId: org.externalId, role: inv.role, status: inv.status };
     },
     async insertCourseAssignment(orgId, input) {
       const row = {
@@ -273,6 +283,29 @@ describe('OrganizationService', () => {
     expect(m).toBeNull();
   });
 
+  it('invitationForAccept returns the mirror record for a pending invitation', async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    await svc.createOrg(orgInput);
+    await svc.recordInvitation({
+      orgExternalId: 'org_1',
+      authInvitationId: 'inv_1',
+      email: 'sam@example.com',
+      role: 'instructor',
+      status: 'pending',
+      inviterUserId: 'user_1',
+      expiresAt: null,
+    });
+    const record = await svc.invitationForAccept('inv_1');
+    expect(record).toMatchObject({ orgExternalId: 'org_1', role: 'instructor', status: 'pending' });
+  });
+
+  it('invitationForAccept returns null for an unknown invitation', async () => {
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    expect(await svc.invitationForAccept('nope')).toBeNull();
+  });
+
   it('creates an org via OrgAdmin, sets it active, then returns the mirrored org', async () => {
     const { repo } = fakeRepo();
     const calls: string[] = [];
@@ -394,13 +427,10 @@ describe('OrganizationService — member management', () => {
       async removeMember() {
         calls.push('removeMember');
       },
-      async cancelInvitation() {
-        calls.push('cancelInvitation');
-      },
     };
-    const { repo } = fakeRepo();
+    const { repo, invitations } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, membersRepo, () => orgAdmin);
-    return { svc, calls };
+    return { svc, calls, repo, invitations };
   }
 
   it('rejects inviting an email that is already a member or invited', async () => {
@@ -429,8 +459,8 @@ describe('OrganizationService — member management', () => {
     expect(calls).toContain('updateRole');
   });
 
-  it('cancels a pending invitation when removing an invited member', async () => {
-    const { svc, calls } = harness([
+  it('removeMember cancels a pending invitation in the mirror only', async () => {
+    const { svc, calls, repo, invitations } = harness([
       memberRecord({
         id: 'i1',
         role: 'instructor',
@@ -440,9 +470,20 @@ describe('OrganizationService — member management', () => {
         authInvitationId: 'auth-inv-1',
       }),
     ]);
+    await repo.insertInvitation('o1', {
+      orgExternalId: 'org_1',
+      authInvitationId: 'auth-inv-1',
+      email: 'x@example.com',
+      role: 'instructor',
+      status: 'pending',
+      inviterUserId: 'user_1',
+      expiresAt: null,
+    });
     const removed = await svc.removeMember(ctx, 'i1');
     expect(removed).toBe(true);
-    expect(calls).toContain('cancelInvitation');
+    expect(invitations.find((i) => i.authInvitationId === 'auth-inv-1')?.status).toBe('canceled');
+    expect(calls).not.toContain('cancelInvitation');
+    expect(calls).not.toContain('removeMember');
   });
 
   it('returns false when removing an unknown member', async () => {

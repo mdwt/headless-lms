@@ -75,6 +75,10 @@ export interface Config {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
+  studentPortalUrl: string;
+  /** Admin app origin — invite links for staff. */
+  adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
@@ -290,6 +294,8 @@ export async function buildContainer(
     organizations,
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
+    studentPortalUrl: config.studentPortalUrl,
+    adminAppUrl: config.adminAppUrl,
   });
 
   // Resolve the lazy OrgAdmin now that auth exists — organizations' member-write

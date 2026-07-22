@@ -12,6 +12,8 @@ const containerConfig: Config = {
   trustedOrigins: ['http://localhost:8001', 'http://localhost:8002', 'http://localhost:8000'],
   mcpLoginPage: 'http://localhost:8001/login',
   credentialStoreKey: '',
+  studentPortalUrl: 'http://localhost:8002',
+  adminAppUrl: 'http://localhost:8001',
 };
 
 const serverConfig: ServerConfig = {
