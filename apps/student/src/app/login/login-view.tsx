@@ -22,14 +22,15 @@ export function LoginView() {
 
   React.useEffect(() => {
     if (reset) {
-      // The API said this session doesn't resolve to a portal student — drop it
-      // and settle on the clean login form. Never fall through to the
-      // next-redirect below: signOut()'s client session signal updates on a
-      // deferred timer, so a stale-truthy session could otherwise bounce us
-      // through next before the sign-out actually lands.
+      // The API said this session doesn't resolve to a portal student — drop it in
+      // the background and stay on ?reset=1 showing the clean form. No navigation:
+      // stripping the param while better-auth's session signal is still stale-truthy
+      // would re-enable the next-redirect below and bounce. Signing in is the exit.
       if (!resetHandled.current) {
         resetHandled.current = true;
-        void signOut().then(() => router.replace("/login"));
+        void signOut().catch(() => {
+          // Best-effort: the form is usable either way; the server already rejected the session.
+        });
       }
       return;
     }
