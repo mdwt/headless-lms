@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerErrorHandler } from './error-handler.js';
-import { NotFoundError } from '../../core/shared/errors.js';
+import { NotFoundError, ConflictError } from '../../core/shared/errors.js';
 import { OrganizationRuleError } from '../../core/organizations/index.js';
 import {
   AlreadyConnectedError,
@@ -30,6 +30,9 @@ beforeAll(async () => {
     'invalid-config': () => {
       throw new InvalidConfigError('slack', ['channel is required']);
     },
+    'conflict': () => {
+      throw new ConflictError('A student with this email already exists');
+    },
   };
   for (const [path, thrower] of Object.entries(throwers)) {
     app.get(`/${path}`, thrower);
@@ -46,6 +49,15 @@ describe('central error handler', () => {
     const res = await app.inject({ method: 'GET', url: '/not-found' });
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({ error: 'not_found', message: 'Course not found' });
+  });
+
+  it('maps ConflictError to 409 conflict', async () => {
+    const res = await app.inject({ method: 'GET', url: '/conflict' });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      error: 'conflict',
+      message: 'A student with this email already exists',
+    });
   });
 
   it('maps OrganizationRuleError to 409 conflict', async () => {

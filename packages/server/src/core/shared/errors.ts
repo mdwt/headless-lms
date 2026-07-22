@@ -14,3 +14,12 @@ export class NotFoundError extends Error {
     this.name = 'NotFoundError';
   }
 }
+
+/** A command conflicts with existing state (duplicate email, already linked,
+ *  …). The HTTP layer maps this to 409. */
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}
