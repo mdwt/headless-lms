@@ -12,6 +12,19 @@ import { users, students } from '../schema/identity.js';
 import { organizations } from '../schema/organizations.js';
 import type { Logger } from '../../../core/shared/ports.js';
 import { noopLogger } from '../../../core/shared/logger.js';
+import { ConflictError } from '../../../core/shared/errors.js';
+
+// Postgres unique_violation. The node-postgres driver sometimes wraps the
+// original error (e.g. behind `cause`), so check both levels.
+function isUniqueViolation(err: unknown): boolean {
+  const code = (err as { code?: unknown } | undefined)?.code;
+  if (code === '23505') {
+    return true;
+  }
+  const cause = (err as { cause?: unknown } | undefined)?.cause;
+  const causeCode = (cause as { code?: unknown } | undefined)?.code;
+  return causeCode === '23505';
+}
 
 export class DrizzleIdentityRepository implements IdentityRepository {
   constructor(
@@ -101,19 +114,26 @@ export class DrizzleIdentityRepository implements IdentityRepository {
   }
 
   async insertPendingStudent(input: CreateStudentInput): Promise<Student> {
-    const [row] = await this.db
-      .insert(students)
-      .values({
-        orgId: input.orgId,
-        email: input.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-      })
-      .returning();
-    if (!row) {
-      throw new Error('failed to insert student');
+    try {
+      const [row] = await this.db
+        .insert(students)
+        .values({
+          orgId: input.orgId,
+          email: input.email,
+          firstName: input.firstName,
+          lastName: input.lastName,
+        })
+        .returning();
+      if (!row) {
+        throw new Error('failed to insert student');
+      }
+      return row;
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictError('A student with this email already exists');
+      }
+      throw err;
     }
-    return row;
   }
 
   async setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<void> {

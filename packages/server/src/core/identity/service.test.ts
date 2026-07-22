@@ -57,7 +57,7 @@ function fakeRepo() {
     async setInviteIdByEmail(orgId: string, email: string, inviteId: string) {
       for (let i = 0; i < students.length; i++) {
         const row = students[i];
-        if (row && row.orgId === orgId && row.email === email) {
+        if (row && row.orgId === orgId && row.email === email && row.externalId === null) {
           students[i] = { ...row, inviteId };
         }
       }
@@ -193,6 +193,22 @@ describe('linkStudentByInvite', () => {
     await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_1');
     await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_2');
     const row = await repo.findStudentById('org1', s.id);
+    expect(row?.externalId).toBe('usr_1');
+  });
+});
+
+describe('recordStudentInvite', () => {
+  it('never touches already-linked students', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    const s = await svc.createStudent({ orgId: 'org1', email: 'a@example.com', firstName: 'A', lastName: 'B' });
+    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_a');
+    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_1');
+
+    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_b');
+
+    const row = await repo.findStudentById('org1', s.id);
+    expect(row?.inviteId).toBeNull();
     expect(row?.externalId).toBe('usr_1');
   });
 });
