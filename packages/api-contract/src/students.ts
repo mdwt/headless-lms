@@ -12,6 +12,7 @@ export const Student = z.object({
   avgProgress: z.number().int(),
   joinedAt: z.string(),
   lastActiveAt: z.string().nullable(),
+  hasAccount: z.boolean(),
 });
 export type Student = z.infer<typeof Student>;
 
@@ -23,3 +24,12 @@ export type StudentsPage = z.infer<typeof StudentsPage>;
 
 export const StudentIdParam = z.object({ id: z.string() });
 export type StudentIdParam = z.infer<typeof StudentIdParam>;
+
+export const CreateStudent = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.email(),
+  /** Create + send a portal invitation on creation. */
+  sendInvite: z.boolean(),
+});
+export type CreateStudent = z.infer<typeof CreateStudent>;

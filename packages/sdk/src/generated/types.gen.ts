@@ -644,6 +644,7 @@ export type ListStudentsResponses = {
       avgProgress: number;
       joinedAt: string;
       lastActiveAt: string | null;
+      hasAccount: boolean;
     }>;
     total: number;
     page: number;
@@ -652,6 +653,49 @@ export type ListStudentsResponses = {
 };
 
 export type ListStudentsResponse = ListStudentsResponses[keyof ListStudentsResponses];
+
+export type CreateStudentData = {
+  body: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    sendInvite: boolean;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/students";
+};
+
+export type CreateStudentErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type CreateStudentError = CreateStudentErrors[keyof CreateStudentErrors];
+
+export type CreateStudentResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+    entitlementCount: number;
+    avgProgress: number;
+    joinedAt: string;
+    lastActiveAt: string | null;
+    hasAccount: boolean;
+  };
+};
+
+export type CreateStudentResponse = CreateStudentResponses[keyof CreateStudentResponses];
 
 export type GetStudentData = {
   body?: never;
@@ -687,10 +731,46 @@ export type GetStudentResponses = {
     avgProgress: number;
     joinedAt: string;
     lastActiveAt: string | null;
+    hasAccount: boolean;
   };
 };
 
 export type GetStudentResponse = GetStudentResponses[keyof GetStudentResponses];
+
+export type ResendStudentInviteData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/students/{id}/invite";
+};
+
+export type ResendStudentInviteErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ResendStudentInviteError = ResendStudentInviteErrors[keyof ResendStudentInviteErrors];
+
+export type ResendStudentInviteResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
 
 export type ListEntitlementsData = {
   body?: never;

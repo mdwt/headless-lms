@@ -2025,6 +2025,9 @@
                           "lastActiveAt": {
                             "nullable": true,
                             "type": "string"
+                          },
+                          "hasAccount": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -2034,7 +2037,8 @@
                           "entitlementCount",
                           "avgProgress",
                           "joinedAt",
-                          "lastActiveAt"
+                          "lastActiveAt",
+                          "hasAccount"
                         ],
                         "additionalProperties": false
                       }
@@ -2060,6 +2064,127 @@
                     "total",
                     "page",
                     "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createStudent",
+        "summary": "Create a student manually",
+        "tags": [
+          "Students"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "sendInvite": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "firstName",
+                  "lastName",
+                  "email",
+                  "sendInvite"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "image": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "entitlementCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "avgProgress": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "joinedAt": {
+                      "type": "string"
+                    },
+                    "lastActiveAt": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "hasAccount": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "email",
+                    "entitlementCount",
+                    "avgProgress",
+                    "joinedAt",
+                    "lastActiveAt",
+                    "hasAccount"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -2123,6 +2248,9 @@
                     "lastActiveAt": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "hasAccount": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -2132,7 +2260,8 @@
                     "entitlementCount",
                     "avgProgress",
                     "joinedAt",
-                    "lastActiveAt"
+                    "lastActiveAt",
+                    "hasAccount"
                   ],
                   "additionalProperties": false
                 }
@@ -2140,6 +2269,79 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/students/{id}/invite": {
+      "post": {
+        "operationId": "resendStudentInvite",
+        "summary": "Resend the portal invitation for a pending student",
+        "tags": [
+          "Students"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {

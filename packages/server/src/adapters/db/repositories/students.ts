@@ -3,7 +3,7 @@
 // student with >=1 entitlement in that org. Rows are aggregated per student and
 // scoped by `entitlements.orgId`. Identity (name/email/joinedAt) comes from the
 // `students` table; the avatar comes from the better-auth `user` table.
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { StudentsReportRepository } from '../../../reporting/students/index.js';
 import type { Page, Student, StudentsQuery } from '../../../reporting/students/index.js';
@@ -17,6 +17,7 @@ const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
 // derives a percentage from entitlements. Placeholder until wired to progress.
 const avgProgressExpr = sql<number>`0`;
+const hasAccountExpr = sql<boolean>`${isNotNull(students.externalId)}`;
 
 interface StudentRow {
   id: string;
@@ -26,6 +27,7 @@ interface StudentRow {
   createdAt: Date;
   entitlementCount: number;
   avgProgress: number;
+  hasAccount: boolean;
 }
 
 function toStudent(row: StudentRow): Student {
@@ -38,6 +40,7 @@ function toStudent(row: StudentRow): Student {
     avgProgress: Number(row.avgProgress),
     joinedAt: row.createdAt.toISOString(),
     lastActiveAt: null,
+    hasAccount: row.hasAccount,
   };
 }
 
@@ -80,6 +83,7 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         createdAt: students.createdAt,
         entitlementCount: entitlementCountExpr,
         avgProgress: avgProgressExpr,
+        hasAccount: hasAccountExpr,
       })
       .from(entitlements)
       .innerJoin(
@@ -113,6 +117,7 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         createdAt: students.createdAt,
         entitlementCount: entitlementCountExpr,
         avgProgress: avgProgressExpr,
+        hasAccount: hasAccountExpr,
       })
       .from(entitlements)
       .innerJoin(
