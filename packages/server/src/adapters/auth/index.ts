@@ -212,13 +212,23 @@ export function createAuth(opts: CreateAuthOptions): Auth {
         defaultMaxUses: 1,
         // Only staff (users with an org membership) may mint invitations; blocks
         // authenticated portal students from hitting /invite/create.
-        canCreateInvite: async ({ inviterUser }) => {
+        canCreateInvite: async ({ inviterUser, ctx }) => {
           const domainUser = await opts.identity.getUserByExternalId(inviterUser.id);
           if (!domainUser) {
             return false;
           }
           const membership = await opts.organizations.getMembershipByUser(domainUser.id);
-          return membership !== null;
+          if (membership === null) {
+            return false;
+          }
+          const session = ctx.context.session as {
+            session: { activeOrganizationId?: string | null };
+          } | null;
+          // No active org → afterCreateInvite couldn't record the invite; refuse before anything is sent.
+          if (!session?.session?.activeOrganizationId) {
+            return false;
+          }
+          return true;
         },
         sendUserInvitation: async ({ email, role, token }) => {
           const link = inviteLinkFor(role, token, email, {
@@ -253,9 +263,10 @@ export function createAuth(opts: CreateAuthOptions): Auth {
               }
               if (inv.role === STUDENT_ROLE) {
                 const org = await opts.organizations.getByExternalId(orgExternalId);
-                if (org) {
-                  await opts.identity.recordStudentInvite(org.id, email, inv.id);
+                if (!org) {
+                  throw new Error('unknown organization for invite');
                 }
+                await opts.identity.recordStudentInvite(org.id, email, inv.id);
               } else {
                 const inviter = await requireUser(session!.user.id);
                 await opts.organizations.recordInvitation({
