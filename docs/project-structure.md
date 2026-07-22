@@ -9,7 +9,7 @@ apps/
   student/      Next.js student course UI
 packages/
   server/       @headless-lms/server — the backend as a library (hexagonal — see architecture.md)
-  cli/          @headless-lms/cli — the headless-lms bin (migrate, seed)
+  cli/          @headless-lms/cli — the headless-lms bin (migrate)
   create-headless-lms/  npm create headless-lms — installation scaffolder
   types/        @headless-lms/types — the published type surface
   utils/        @headless-lms/utils — runtime helpers for integrations
@@ -17,6 +17,9 @@ packages/
   sdk/          @headless-lms/sdk — client generated off the OpenAPI spec
 plugins/
   slack/        @headless-lms/plugin-slack — the Slack integration
+adapters/
+  email-resend/   @headless-lms/adapter-email-resend — EmailSender via Resend
+  storage-minio/  @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
 ```
 
 ## Builds
@@ -41,6 +44,26 @@ file per bounded context, mirroring `packages/server/src/core/`.
 The server's core does not re-declare these: each context's `model.ts`/`types.ts`/
 `events.ts` re-exports from `@headless-lms/types`. Runtime domain code (error
 classes, the roles matrix) stays in core.
+
+The deployment-swappable ports (`Logger`, `EmailSender`, `ObjectStorage`) are
+also declared in `@headless-lms/types` (`ports.ts`) and re-exported by the
+server's `core/shared/ports.ts`, so adapter packages implement them without
+depending on the server.
+
+## Writing an adapter
+
+An `adapters/*` package implements a deployment port from `@headless-lms/types`
+and depends only on it (plus its vendor SDK). The installation parses the
+adapter's env in its `config.ts`, constructs the adapter, and injects it:
+
+```ts
+const container = await createContainer(config, {
+  adapters: { email: new ResendEmailAdapter(emailConfig) },
+});
+```
+
+A slot left absent falls back to a server stub that fails loudly on use. Each
+adapter's README documents the env vars its reference installation reads.
 
 `@headless-lms/utils` holds the code that must exist at runtime — the zod
 adapters (`zodConfig`, `zodSecrets`, `zodAction`) that turn zod schemas into the

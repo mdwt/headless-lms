@@ -82,16 +82,16 @@ packages/server/src/
     email/  video/      # stubs
     events/             # event bus impl
 
-  composition/
+  app/
     container.ts        # wires adapters + services; starts nothing
     integrations.ts     # loadIntegrations — scans the installation's pluginsDir
-    migrate.ts seed.ts  # operational functions, wrapped by @headless-lms/cli
+    migrate.ts          # operational function, wrapped by @headless-lms/cli
 
   http/                 # fastify: server.ts + routes/ per resource (Zod-validated)
     mcp/                # MCP endpoint (OAuth bearer auth, outside the session guard)
     plugins/            # fastify plugins: auth/session, cors, error handler, openapi
 
-  index.ts              # public surface: createContainer, buildServer, runMigrations, runSeed, types
+  index.ts              # public surface: createContainer, buildServer, runMigrations, types
 ```
 
 An installation (`apps/api/src/`) adds only `config.ts`, `main.ts`, and
@@ -140,16 +140,16 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 
 ### Dependency direction
 
-- entry points (`http`; the cli package via the server's public surface) → `composition` → `core`
+- entry points (`http`; the cli package via the server's public surface) → `app` → `core`
 - `adapters` → `core` (via ports)
 - core points nowhere outward
 
 ### Wiring
 
-`composition/container.ts` builds the object graph: instantiate adapters, build each context's service (injecting its repository + any other context's public service), in dependency order. It starts nothing. Each entry point imports the container, pulls services, and starts its own process.
+`app/container.ts` builds the object graph: instantiate adapters, build each context's service (injecting its repository + any other context's public service), in dependency order. It starts nothing. Each entry point imports the container, pulls services, and starts its own process.
 
 ## Boundaries
 
 TypeScript does not enforce module boundaries at runtime. A boundary linter (`.eslintrc.cjs`, `eslint-plugin-boundaries` + scoped `no-restricted-imports`) enforces: a context may import another context only via its public `index.ts`; `core/` may not import `adapters/`, inbound, wiring, `reporting/`, or `drizzle-orm`; `adapters/` may import `core/` ports only. Violations fail CI.
 
-**Reporting rules:** `reporting/` may import any `core/<ctx>/index.ts` public surface (the only place allowed to read multiple contexts); it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`. Inbound (`http/`) and `composition/` may import `reporting/`.
+**Reporting rules:** `reporting/` may import any `core/<ctx>/index.ts` public surface (the only place allowed to read multiple contexts); it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`. Inbound (`http/`) and `app/` may import `reporting/`.
