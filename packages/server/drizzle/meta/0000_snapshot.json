@@ -1,5 +1,5 @@
 {
-  "id": "8e33c60d-2c3b-4b8e-bf4a-4d4bbe54474f",
+  "id": "68fa4a4d-a229-460c-b1c3-4591ceb19aee",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -603,6 +603,81 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.content_items": {
+      "name": "content_items",
+      "schema": "",
+      "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "content_items_org_id_organizations_id_fk": {
+          "name": "content_items_org_id_organizations_id_fk",
+          "tableFrom": "content_items",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "org_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "content_items_org_id_id_pk": {
+          "name": "content_items_org_id_id_pk",
+          "columns": [
+            "org_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "content_items_org_id_id_type_unique": {
+          "name": "content_items_org_id_id_type_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "org_id",
+            "id",
+            "type"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "content_items_type_check": {
+          "name": "content_items_type_check",
+          "value": "\"content_items\".\"type\" in ('course')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.courses": {
       "name": "courses",
       "schema": "",
@@ -618,6 +693,16 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "'course'",
+            "type": "stored"
+          }
         },
         "title": {
           "name": "title",
@@ -680,6 +765,23 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "courses_org_id_id_type_content_items_org_id_id_type_fk": {
+          "name": "courses_org_id_id_type_content_items_org_id_id_type_fk",
+          "tableFrom": "courses",
+          "tableTo": "content_items",
+          "columnsFrom": [
+            "org_id",
+            "id",
+            "type"
+          ],
+          "columnsTo": [
+            "org_id",
+            "id",
+            "type"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -800,8 +902,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.enrollments": {
-      "name": "enrollments",
+    "public.entitlements": {
+      "name": "entitlements",
       "schema": "",
       "columns": {
         "org_id": {
@@ -822,8 +924,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "course_id": {
-          "name": "course_id",
+        "content_id": {
+          "name": "content_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -858,9 +960,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "enrollments_org_id_organizations_id_fk": {
-          "name": "enrollments_org_id_organizations_id_fk",
-          "tableFrom": "enrollments",
+        "entitlements_org_id_organizations_id_fk": {
+          "name": "entitlements_org_id_organizations_id_fk",
+          "tableFrom": "entitlements",
           "tableTo": "organizations",
           "columnsFrom": [
             "org_id"
@@ -871,24 +973,24 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "enrollments_org_id_course_id_courses_org_id_id_fk": {
-          "name": "enrollments_org_id_course_id_courses_org_id_id_fk",
-          "tableFrom": "enrollments",
-          "tableTo": "courses",
+        "entitlements_org_id_content_id_content_items_org_id_id_fk": {
+          "name": "entitlements_org_id_content_id_content_items_org_id_id_fk",
+          "tableFrom": "entitlements",
+          "tableTo": "content_items",
           "columnsFrom": [
             "org_id",
-            "course_id"
+            "content_id"
           ],
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "enrollments_org_id_student_id_students_org_id_id_fk": {
-          "name": "enrollments_org_id_student_id_students_org_id_id_fk",
-          "tableFrom": "enrollments",
+        "entitlements_org_id_student_id_students_org_id_id_fk": {
+          "name": "entitlements_org_id_student_id_students_org_id_id_fk",
+          "tableFrom": "entitlements",
           "tableTo": "students",
           "columnsFrom": [
             "org_id",
@@ -903,8 +1005,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "enrollments_org_id_id_pk": {
-          "name": "enrollments_org_id_id_pk",
+        "entitlements_org_id_id_pk": {
+          "name": "entitlements_org_id_id_pk",
           "columns": [
             "org_id",
             "id"
@@ -912,13 +1014,13 @@
         }
       },
       "uniqueConstraints": {
-        "enrollments_org_id_student_id_course_id_unique": {
-          "name": "enrollments_org_id_student_id_course_id_unique",
+        "entitlements_org_id_student_id_content_id_unique": {
+          "name": "entitlements_org_id_student_id_content_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "student_id",
-            "course_id"
+            "content_id"
           ]
         }
       },

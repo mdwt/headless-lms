@@ -5,7 +5,7 @@
  * against an already-seeded DB without disturbing existing data. Wires the full
  * chain the Learn API needs: better-auth user+credential account → domain
  * student (externalId = the auth user id) → a PUBLISHED course whose activities
- * carry real Plate `settings.content` → an active enrollment.
+ * carry real Plate `settings.content` → an active entitlement.
  */
 import { hashPassword } from 'better-auth/crypto';
 import { createDb, schema } from './db.js';
@@ -159,6 +159,11 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
       .onConflictDoNothing();
 
     // Published course + modules + activities with real Plate content.
+    // Registry row first: courses FK into content_items (same id).
+    await tx
+      .insert(schema.contentItems)
+      .values({ orgId: ORG_ID, id: COURSE_ID, type: 'course' })
+      .onConflictDoNothing();
     await tx
       .insert(schema.courses)
       .values({
@@ -201,14 +206,14 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
       ])
       .onConflictDoNothing();
 
-    // Active enrollment — what the Learn reader scopes to.
+    // Active entitlement — what the Learn reader scopes to.
     await tx
-      .insert(schema.enrollments)
+      .insert(schema.entitlements)
       .values({
         orgId: ORG_ID,
-        id: 'enr_dev_student',
+        id: 'ent_dev_student',
         studentId: 'stu_dev_student',
-        courseId: COURSE_ID,
+        contentId: COURSE_ID,
         status: 'active',
         source: 'manual',
         expiresAt: null,
@@ -216,7 +221,11 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
       .onConflictDoNothing();
 
     // "Foundations" — a deterministic course carrying the captured authored
-    // Plate content, in the same dev org, with the dev student enrolled.
+    // Plate content, in the same dev org, with the dev student entitled.
+    await tx
+      .insert(schema.contentItems)
+      .values({ orgId: ORG_ID, id: FOUNDATIONS_COURSE_ID, type: 'course' })
+      .onConflictDoNothing();
     await tx
       .insert(schema.courses)
       .values({
@@ -250,12 +259,12 @@ export async function seedDevStudent(db: ReturnType<typeof createDb>): Promise<v
       })
       .onConflictDoNothing();
     await tx
-      .insert(schema.enrollments)
+      .insert(schema.entitlements)
       .values({
         orgId: ORG_ID,
-        id: 'enr_dev_foundations2',
+        id: 'ent_dev_foundations2',
         studentId: 'stu_dev_student',
-        courseId: FOUNDATIONS_COURSE_ID,
+        contentId: FOUNDATIONS_COURSE_ID,
         status: 'active',
         source: 'manual',
         expiresAt: null,

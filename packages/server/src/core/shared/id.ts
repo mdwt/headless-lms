@@ -20,7 +20,7 @@ export const ID_PREFIXES = {
   activity: 'act',
   activityAsset: 'aca',
   asset: 'ast',
-  enrollment: 'enr',
+  entitlement: 'ent',
   progress: 'prg',
   credential: 'crd',
   connection: 'con',

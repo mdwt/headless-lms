@@ -107,30 +107,30 @@ export function registerTools(
     },
   );
 
-  // ── list_enrollments ──────────────────────────────────────────────────────
-  // Lists enrollments. Requires enrollments:read scope.
+  // ── list_entitlements ─────────────────────────────────────────────────────
+  // Lists entitlements. Requires entitlements:read scope.
   // Owner/admin/instructor (view_student_progress !== false) can see any student.
-  // A student (consume_content) is restricted to their own enrollments by
+  // A student (consume_content) is restricted to their own entitlements by
   // defaulting studentId to principal.studentId when not provided.
   server.registerTool(
-    'list_enrollments',
+    'list_entitlements',
     {
-      title: 'List Enrollments',
-      description: 'List enrollments for a student',
+      title: 'List Entitlements',
+      description: 'List entitlements for a student',
       inputSchema: z.object({
         studentId: z.string().optional(),
-        courseId: z.string().optional(),
+        contentId: z.string().optional(),
         page: z.number().int().positive().default(1),
         pageSize: z.number().int().positive().max(100).default(20),
       }),
     },
     async (args) => {
       // Owner/admin (cap === true) and instructor (cap === "assigned") may
-      // view all enrollments; false means the role has no grant at all.
-      // Listing enrollments requires the read scope plus a role that may view
+      // view all entitlements; false means the role has no grant at all.
+      // Listing entitlements requires the read scope plus a role that may view
       // student progress (owner/admin/instructor). There is no learner principal.
       const cap = capability(principal.role, 'view_student_progress');
-      const canViewAll = principal.scopes.includes('enrollments:read') && cap !== false;
+      const canViewAll = principal.scopes.includes('entitlements:read') && cap !== false;
 
       if (!canViewAll) {
         return forbidden();
@@ -143,7 +143,7 @@ export function registerTools(
           page: args.page,
           pageSize: args.pageSize,
           studentId: resolvedStudentId,
-          courseId: args.courseId,
+          contentId: args.contentId,
         });
         return json(page);
       } catch {
@@ -152,31 +152,31 @@ export function registerTools(
     },
   );
 
-  // ── enroll_student ────────────────────────────────────────────────────────
-  // Enrolls a student in a course. Requires enrollments:write scope and
-  // manage_users capability (admin or owner).
+  // ── grant_entitlement ─────────────────────────────────────────────────────
+  // Grants a student access to a piece of content. Requires entitlements:write
+  // scope and manage_users capability (admin or owner).
   server.registerTool(
-    'enroll_student',
+    'grant_entitlement',
     {
-      title: 'Enroll Student',
-      description: 'Enroll a student in a course',
+      title: 'Grant Entitlement',
+      description: 'Grant a student access to a piece of content (e.g. a course)',
       inputSchema: z.object({
         studentId: z.string().min(1),
-        courseId: z.string().min(1),
+        contentId: z.string().min(1),
         expiresAt: z.string().nullable().optional(),
       }),
     },
     async (args) => {
-      if (!authorize(principal, 'enrollments:write', 'manage_users')) {
+      if (!authorize(principal, 'entitlements:write', 'manage_users')) {
         return forbidden();
       }
       try {
-        const enrollment = await container.entitlements.grant(principal.orgId, {
+        const entitlement = await container.entitlements.grant(principal.orgId, {
           studentId: args.studentId,
-          courseId: args.courseId,
+          contentId: args.contentId,
           expiresAt: args.expiresAt ?? null,
         });
-        return json(enrollment);
+        return json(entitlement);
       } catch {
         return internalError();
       }
@@ -207,7 +207,7 @@ export function registerTools(
         return json({
           studentId: args.studentId,
           avgProgress: student.avgProgress,
-          enrollmentCount: student.enrollmentCount,
+          entitlementCount: student.entitlementCount,
         });
       } catch {
         return internalError();

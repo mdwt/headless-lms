@@ -7,8 +7,8 @@ export const Student = z.object({
   name: z.string(),
   email: z.string(),
   image: z.string().nullable().optional(),
-  enrollmentCount: z.number().int(),
-  /** 0–100, averaged across active enrollments. */
+  entitlementCount: z.number().int(),
+  /** 0–100, averaged across active entitlements. */
   avgProgress: z.number().int(),
   joinedAt: z.string(),
   lastActiveAt: z.string().nullable(),

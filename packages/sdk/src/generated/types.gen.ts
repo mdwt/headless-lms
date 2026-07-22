@@ -640,7 +640,7 @@ export type ListStudentsResponses = {
       name: string;
       email: string;
       image?: string | null;
-      enrollmentCount: number;
+      entitlementCount: number;
       avgProgress: number;
       joinedAt: string;
       lastActiveAt: string | null;
@@ -683,7 +683,7 @@ export type GetStudentResponses = {
     name: string;
     email: string;
     image?: string | null;
-    enrollmentCount: number;
+    entitlementCount: number;
     avgProgress: number;
     joinedAt: string;
     lastActiveAt: string | null;
@@ -701,9 +701,10 @@ export type ListEntitlementsData = {
     search?: string;
     sort?: string;
     status?: "active" | "expired" | "revoked";
-    source?: "manual" | "import";
+    source?: string;
     studentId?: string;
-    courseId?: string;
+    contentId?: string;
+    type?: "course";
   };
   url: "/api/entitlements";
 };
@@ -719,12 +720,15 @@ export type ListEntitlementsResponses = {
       firstName: string;
       lastName: string;
       studentEmail: string;
-      courseId: string;
-      courseTitle: string;
+      content: {
+        id: string;
+        type: "course";
+        title: string;
+      };
       status: "active" | "expired" | "revoked";
       grantedAt: string;
       expiresAt: string | null;
-      source: "manual" | "import";
+      source: string;
     }>;
     total: number;
     page: number;
@@ -737,7 +741,7 @@ export type ListEntitlementsResponse = ListEntitlementsResponses[keyof ListEntit
 export type GrantEntitlementData = {
   body: {
     studentId: string;
-    courseId: string;
+    contentId: string;
     expiresAt: string | null;
   };
   path?: never;
@@ -755,12 +759,15 @@ export type GrantEntitlementResponses = {
     firstName: string;
     lastName: string;
     studentEmail: string;
-    courseId: string;
-    courseTitle: string;
+    content: {
+      id: string;
+      type: "course";
+      title: string;
+    };
     status: "active" | "expired" | "revoked";
     grantedAt: string;
     expiresAt: string | null;
-    source: "manual" | "import";
+    source: string;
   };
 };
 
@@ -800,12 +807,15 @@ export type SetEntitlementStatusResponses = {
     firstName: string;
     lastName: string;
     studentEmail: string;
-    courseId: string;
-    courseTitle: string;
+    content: {
+      id: string;
+      type: "course";
+      title: string;
+    };
     status: "active" | "expired" | "revoked";
     grantedAt: string;
     expiresAt: string | null;
-    source: "manual" | "import";
+    source: string;
   };
 };
 
@@ -1049,7 +1059,7 @@ export type GetOverviewResponses = {
     publishedCourses: number;
     draftCourses: number;
     activeStudents: number;
-    activeEnrollments: number;
+    activeEntitlements: number;
     expiringSoon: number;
   };
 };

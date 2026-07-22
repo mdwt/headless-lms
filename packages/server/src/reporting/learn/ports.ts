@@ -12,11 +12,12 @@ export interface LearnReportService {
 }
 
 /**
- * Outbound: the student's active, non-expired enrollments in PUBLISHED courses,
- * scoped to the portal org. Implemented by a Drizzle read repo; the service
- * resolves each ref against the content service for the full Course/Module payload.
+ * Outbound: the student's active, non-expired course entitlements in PUBLISHED
+ * courses, scoped to the portal org. Implemented by a Drizzle read repo; the
+ * service resolves each ref against the content service for the full
+ * Course/Module payload.
  */
-export interface LearnEnrollmentReader {
+export interface LearnEntitlementReader {
   activeRefs(orgId: string, studentId: string): Promise<CourseRef[]>;
   activeRef(orgId: string, studentId: string, courseId: string): Promise<CourseRef | null>;
 }

@@ -1,17 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EntitlementsServiceImpl } from './service.js';
 import type { EntitlementsRepository, EntitlementsUnitOfWork } from './ports.js';
-import type { Enrollment } from './model.js';
+import type { Entitlement } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 
-const SAMPLE: Enrollment = {
+const SAMPLE: Entitlement = {
   id: 'e1',
   studentId: 's1',
   firstName: 'Bob',
   lastName: 'Smith',
   studentEmail: 'bob@example.com',
-  courseId: 'c1',
-  courseTitle: 'Intro',
+  content: { id: 'c1', type: 'course', title: 'Intro' },
   status: 'active',
   grantedAt: '2026-01-01T00:00:00Z',
   expiresAt: null,
@@ -58,19 +57,19 @@ describe('EntitlementsService', () => {
 
   it('grants an entitlement (insert) and returns it', async () => {
     const { svc, repo } = build();
-    const result = await svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null });
+    const result = await svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null });
     expect(result.id).toBe('e1');
     expect(repo.insert).toHaveBeenCalledWith('org-1', {
       studentId: 's1',
-      courseId: 'c1',
+      contentId: 'c1',
       expiresAt: null,
     });
   });
 
-  it('appends enrollment.created (org + full snapshot) inside the unit of work', async () => {
+  it('appends entitlement.created (org + full snapshot) inside the unit of work', async () => {
     const { svc, appended } = build();
-    await svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null });
-    expect(appended).toEqual([{ type: 'enrollment.created', orgId: 'org-1', enrollment: SAMPLE }]);
+    await svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null });
+    expect(appended).toEqual([{ type: 'entitlement.created', orgId: 'org-1', entitlement: SAMPLE }]);
   });
 
   it('sets status (revoke/reactivate) via the tx-bound repository', async () => {
@@ -79,16 +78,16 @@ describe('EntitlementsService', () => {
     expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e1', 'revoked');
   });
 
-  it('appends enrollment.deleted on revoke', async () => {
+  it('appends entitlement.deleted on revoke', async () => {
     const { svc, appended } = build();
     await svc.setStatus('org-1', 'e1', 'revoked');
-    expect(appended).toEqual([{ type: 'enrollment.deleted', orgId: 'org-1', enrollment: SAMPLE }]);
+    expect(appended).toEqual([{ type: 'entitlement.deleted', orgId: 'org-1', entitlement: SAMPLE }]);
   });
 
-  it('appends enrollment.updated on reactivation', async () => {
+  it('appends entitlement.updated on reactivation', async () => {
     const { svc, appended } = build();
     await svc.setStatus('org-1', 'e1', 'active');
-    expect(appended).toEqual([{ type: 'enrollment.updated', orgId: 'org-1', enrollment: SAMPLE }]);
+    expect(appended).toEqual([{ type: 'entitlement.updated', orgId: 'org-1', entitlement: SAMPLE }]);
   });
 
   it('appends nothing when setStatus finds no entitlement', async () => {
@@ -103,7 +102,7 @@ describe('EntitlementsService', () => {
       fakeRepo({ insert: vi.fn().mockRejectedValue(new Error('boom')) }),
     );
     await expect(
-      svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null }),
+      svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null }),
     ).rejects.toThrow('boom');
     expect(append).not.toHaveBeenCalled();
   });
@@ -117,26 +116,27 @@ describe('logging', () => {
     const { uow } = fakeUow(repo);
     const svc = new EntitlementsServiceImpl(repo, uow, logger);
 
-    const enrollment = await svc.grant('org-1', {
+    const entitlement = await svc.grant('org-1', {
       studentId: 's1',
-      courseId: 'c1',
+      contentId: 'c1',
       expiresAt: null,
     });
-    await svc.setStatus('org-1', enrollment.id, 'revoked');
+    await svc.setStatus('org-1', entitlement.id, 'revoked');
 
     expect(entries.map((e) => [e.level, e.msg])).toEqual([
-      ['info', 'enrollment granted'],
-      ['info', 'enrollment status changed'],
+      ['info', 'entitlement granted'],
+      ['info', 'entitlement status changed'],
     ]);
     expect(entries[0]?.meta).toMatchObject({
       orgId: 'org-1',
-      enrollmentId: enrollment.id,
+      entitlementId: entitlement.id,
       studentId: 's1',
-      courseId: 'c1',
+      contentId: 'c1',
+      contentType: 'course',
     });
     expect(entries[1]?.meta).toMatchObject({
       orgId: 'org-1',
-      enrollmentId: enrollment.id,
+      entitlementId: entitlement.id,
       status: 'revoked',
     });
   });

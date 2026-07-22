@@ -1,8 +1,8 @@
 // entitlements context — domain events, owned by @headless-lms/types.
 export type {
-  EnrollmentCreated,
-  EnrollmentUpdated,
-  EnrollmentDeleted,
-  EnrollmentExpired,
-  EnrollmentEvent,
+  EntitlementCreated,
+  EntitlementUpdated,
+  EntitlementDeleted,
+  EntitlementExpired,
+  EntitlementEvent,
 } from '@headless-lms/types';

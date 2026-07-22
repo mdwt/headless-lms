@@ -5,7 +5,7 @@ export interface Student {
   name: string;
   email: string;
   image?: string | null;
-  enrollmentCount: number;
+  entitlementCount: number;
   avgProgress: number;
   joinedAt: string;
   lastActiveAt: string | null;

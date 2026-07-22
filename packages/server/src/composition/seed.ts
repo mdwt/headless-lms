@@ -1,7 +1,7 @@
 /**
  * Seed the database with a random, ID-conforming graph across every domain:
  * organizations → users/memberships, students, courses → modules → activities,
- * assets (+ activity links), enrollments, and progress records.
+ * assets (+ activity links), entitlements, and progress records.
  *
  * Values come from faker; ids come from `genId` so they carry the real prefixed
  * KSUID shape (`crs_…`, `mod_…`, …). Hand-written because the schema's composite
@@ -32,7 +32,8 @@ async function main(db: ReturnType<typeof createDb>) {
   const modules: (typeof schema.modules.$inferInsert)[] = [];
   const activities: (typeof schema.activities.$inferInsert)[] = [];
   const activityAssets: (typeof schema.activityAssets.$inferInsert)[] = [];
-  const enrollments: (typeof schema.enrollments.$inferInsert)[] = [];
+  const contentItems: (typeof schema.contentItems.$inferInsert)[] = [];
+  const entitlements: (typeof schema.entitlements.$inferInsert)[] = [];
   const progress: (typeof schema.progressRecords.$inferInsert)[] = [];
 
   times(faker.number.int({ min: 3, max: 6 }), () => {
@@ -116,6 +117,7 @@ async function main(db: ReturnType<typeof createDb>) {
     // Courses → modules → activities, with asset links.
     times(faker.number.int({ min: 2, max: 5 }), () => {
       const courseId = genId('course');
+      contentItems.push({ orgId, id: courseId, type: 'course' });
       const title = faker.helpers.arrayElement([
         faker.company.catchPhrase(),
         faker.commerce.productName(),
@@ -166,16 +168,16 @@ async function main(db: ReturnType<typeof createDb>) {
         return moduleId;
       });
 
-      // Enrollments + progress for a random subset of students.
+      // Entitlements + progress for a random subset of students.
       for (const studentId of orgStudents) {
         if (chance(0.4)) {
           continue;
         }
-        enrollments.push({
+        entitlements.push({
           orgId,
-          id: genId('enrollment'),
+          id: genId('entitlement'),
           studentId,
-          courseId,
+          contentId: courseId,
           status: faker.helpers.arrayElement(['active', 'revoked'] as const),
           source: faker.helpers.arrayElement(['manual', 'import'] as const),
           expiresAt: chance(0.3) ? faker.date.future() : null,
@@ -210,18 +212,19 @@ async function main(db: ReturnType<typeof createDb>) {
     await tx.insert(schema.students).values(students);
     await tx.insert(schema.memberships).values(memberships);
     await tx.insert(schema.assets).values(assets);
+    await tx.insert(schema.contentItems).values(contentItems);
     await tx.insert(schema.courses).values(courses);
     await tx.insert(schema.modules).values(modules);
     await tx.insert(schema.activities).values(activities);
     await tx.insert(schema.activityAssets).values(activityAssets);
-    await tx.insert(schema.enrollments).values(enrollments);
+    await tx.insert(schema.entitlements).values(entitlements);
     await tx.insert(schema.progressRecords).values(progress);
   });
 
   console.log(
     `Seeded ${organizations.length} orgs, ${users.length} users, ${students.length} students, ` +
       `${courses.length} courses, ${modules.length} modules, ${activities.length} activities, ` +
-      `${assets.length} assets, ${enrollments.length} enrollments, ${progress.length} progress records.`,
+      `${assets.length} assets, ${entitlements.length} entitlements, ${progress.length} progress records.`,
   );
 }
 

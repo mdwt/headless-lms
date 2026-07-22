@@ -14,10 +14,36 @@ import {
   primaryKey,
   foreignKey,
   unique,
+  check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { genId } from '../../../core/shared/id.js';
 import { organizations } from './organizations.js';
 import { assets } from './assets.js';
+
+// The content registry (supertype table): one row per piece of content, any
+// type. A concrete content table shares its PK with a registry row (same id)
+// and references it via a type-pinned composite FK; the generic entitlements
+// table FKs here, so it never changes when a content type is added. Deletes go
+// through this table (cascade to the concrete row and the grants).
+export const contentItems = pgTable(
+  'content_items',
+  {
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organizations.id),
+    id: text('id').notNull(),
+    type: text('type', { enum: ['course'] }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    // FK target for type-pinned references from concrete content tables.
+    typeUq: unique().on(t.orgId, t.id, t.type),
+    // Widened per new content type.
+    typeCk: check('content_items_type_check', sql`${t.type} in ('course')`),
+  }),
+);
 
 export const courses = pgTable(
   'courses',
@@ -28,6 +54,11 @@ export const courses = pgTable(
     id: text('id')
       .notNull()
       .$defaultFn(() => genId('course')),
+    // Pinned to 'course' so the composite FK below cannot attach this row to a
+    // registry row of another content type.
+    type: text('type')
+      .notNull()
+      .generatedAlwaysAs(sql`'course'`),
     title: text('title').notNull(),
     slug: text('slug').notNull(),
     description: text('description').notNull().default(''),
@@ -44,6 +75,10 @@ export const courses = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     slugUq: unique().on(t.orgId, t.slug),
+    contentItemFk: foreignKey({
+      columns: [t.orgId, t.id, t.type],
+      foreignColumns: [contentItems.orgId, contentItems.id, contentItems.type],
+    }).onDelete('cascade'),
   }),
 );
 

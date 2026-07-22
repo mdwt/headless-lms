@@ -4,7 +4,7 @@
 // `settings.published === false` is the only draft signal (missing ⇒ published).
 import type { ContentService } from '../../core/content/index.js';
 import type { Course, Module } from './model.js';
-import type { LearnEnrollmentReader, LearnReportService } from './ports.js';
+import type { LearnEntitlementReader, LearnReportService } from './ports.js';
 import type { Logger } from '../../core/shared/ports.js';
 import { noopLogger } from '../../core/shared/logger.js';
 
@@ -14,7 +14,7 @@ function isActivityPublished(settings: unknown): boolean {
 
 export class LearnReportServiceImpl implements LearnReportService {
   constructor(
-    private readonly reader: LearnEnrollmentReader,
+    private readonly reader: LearnEntitlementReader,
     private readonly content: ContentService,
     private readonly logger: Logger = noopLogger,
   ) {}

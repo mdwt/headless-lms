@@ -66,9 +66,20 @@ CREATE TABLE "activity_assets" (
 	CONSTRAINT "activity_assets_org_id_activity_id_asset_id_unique" UNIQUE("org_id","activity_id","asset_id")
 );
 --> statement-breakpoint
+CREATE TABLE "content_items" (
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"type" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "content_items_org_id_id_pk" PRIMARY KEY("org_id","id"),
+	CONSTRAINT "content_items_org_id_id_type_unique" UNIQUE("org_id","id","type"),
+	CONSTRAINT "content_items_type_check" CHECK ("content_items"."type" in ('course'))
+);
+--> statement-breakpoint
 CREATE TABLE "courses" (
 	"org_id" text NOT NULL,
 	"id" text NOT NULL,
+	"type" text GENERATED ALWAYS AS ('course') STORED NOT NULL,
 	"title" text NOT NULL,
 	"slug" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
@@ -91,17 +102,17 @@ CREATE TABLE "modules" (
 	CONSTRAINT "modules_org_id_id_pk" PRIMARY KEY("org_id","id")
 );
 --> statement-breakpoint
-CREATE TABLE "enrollments" (
+CREATE TABLE "entitlements" (
 	"org_id" text NOT NULL,
 	"id" text NOT NULL,
 	"student_id" text NOT NULL,
-	"course_id" text NOT NULL,
+	"content_id" text NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"source" text DEFAULT 'manual' NOT NULL,
 	"granted_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp,
-	CONSTRAINT "enrollments_org_id_id_pk" PRIMARY KEY("org_id","id"),
-	CONSTRAINT "enrollments_org_id_student_id_course_id_unique" UNIQUE("org_id","student_id","course_id")
+	CONSTRAINT "entitlements_org_id_id_pk" PRIMARY KEY("org_id","id"),
+	CONSTRAINT "entitlements_org_id_student_id_content_id_unique" UNIQUE("org_id","student_id","content_id")
 );
 --> statement-breakpoint
 CREATE TABLE "progress_records" (
@@ -325,12 +336,14 @@ ALTER TABLE "activities" ADD CONSTRAINT "activities_org_id_module_id_modules_org
 ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_activity_id_activities_org_id_id_fk" FOREIGN KEY ("org_id","activity_id") REFERENCES "public"."activities"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activity_assets" ADD CONSTRAINT "activity_assets_org_id_asset_id_assets_org_id_id_fk" FOREIGN KEY ("org_id","asset_id") REFERENCES "public"."assets"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "content_items" ADD CONSTRAINT "content_items_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "courses" ADD CONSTRAINT "courses_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "courses" ADD CONSTRAINT "courses_org_id_id_type_content_items_org_id_id_type_fk" FOREIGN KEY ("org_id","id","type") REFERENCES "public"."content_items"("org_id","id","type") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "modules" ADD CONSTRAINT "modules_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_course_id_courses_org_id_id_fk" FOREIGN KEY ("org_id","course_id") REFERENCES "public"."courses"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "enrollments" ADD CONSTRAINT "enrollments_org_id_student_id_students_org_id_id_fk" FOREIGN KEY ("org_id","student_id") REFERENCES "public"."students"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entitlements" ADD CONSTRAINT "entitlements_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entitlements" ADD CONSTRAINT "entitlements_org_id_content_id_content_items_org_id_id_fk" FOREIGN KEY ("org_id","content_id") REFERENCES "public"."content_items"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entitlements" ADD CONSTRAINT "entitlements_org_id_student_id_students_org_id_id_fk" FOREIGN KEY ("org_id","student_id") REFERENCES "public"."students"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "progress_records" ADD CONSTRAINT "progress_records_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "students" ADD CONSTRAINT "students_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assets" ADD CONSTRAINT "assets_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

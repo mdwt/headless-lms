@@ -9,6 +9,10 @@
 
 import type { DomainEvent } from "./shared.js";
 
+/** The registered content types — every row in the content_items registry is
+ *  one of these. Widened per new content type (podcast, membership, …). */
+export type ContentType = "course";
+
 export type CourseStatus = "draft" | "published";
 
 export interface Course {

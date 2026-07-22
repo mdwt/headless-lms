@@ -4,6 +4,6 @@ export interface OverviewStats {
   publishedCourses: number;
   draftCourses: number;
   activeStudents: number;
-  activeEnrollments: number;
+  activeEntitlements: number;
   expiringSoon: number;
 }

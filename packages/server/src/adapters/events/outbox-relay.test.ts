@@ -9,7 +9,7 @@ const CONFIG: PollingOutboxRelayConfig = {
   batchSize: 10,
 };
 
-function message(n: number, type = 'enrollment.created', attempts = 0): OutboxMessage {
+function message(n: number, type = 'entitlement.created', attempts = 0): OutboxMessage {
   const id = `evt_${n}`;
   return {
     id,
@@ -52,7 +52,7 @@ describe('PollingOutboxRelay', () => {
     const store = fakeStore([[message(1)]]);
     const bus = new InMemoryEventBus();
     const seen: string[] = [];
-    bus.subscribe('enrollment.created', async (e) => {
+    bus.subscribe('entitlement.created', async (e) => {
       seen.push(e.id);
     });
     const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
@@ -67,7 +67,7 @@ describe('PollingOutboxRelay', () => {
     const order: string[] = [];
     const store = fakeStore([[message(1), message(2), message(3)]]);
     const bus = new InMemoryEventBus();
-    bus.subscribe('enrollment.created', async (e) => {
+    bus.subscribe('entitlement.created', async (e) => {
       order.push(e.id);
     });
     const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
@@ -221,14 +221,14 @@ describe('PollingOutboxRelay logging baseline', () => {
   it('logs each successful dispatch at info', async () => {
     const store = fakeStore([[message(1)]]);
     const bus = new InMemoryEventBus();
-    bus.subscribe('enrollment.created', async () => {});
+    bus.subscribe('entitlement.created', async () => {});
     const logger = fakeLogger();
     const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
     relay.start();
     await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
     expect(logger.info).toHaveBeenCalledWith('outbox event dispatched', {
       id: 'evt_1',
-      type: 'enrollment.created',
+      type: 'entitlement.created',
     });
     expect(logger.debug).toHaveBeenCalledWith('outbox batch fetched', { count: 1 });
     await relay.stop();

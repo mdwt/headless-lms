@@ -444,7 +444,7 @@ export class Entitlements {
   }
 
   /**
-   * Grant a student access to a course
+   * Grant a student access to a piece of content
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     options: Options<GrantEntitlementData, ThrowOnError>,

@@ -13,8 +13,9 @@ import type {
   Page,
   UpdateCourseInput,
 } from '../../../core/content/types.js';
-import { courses, modules, activities } from '../schema/content.js';
-import { enrollments } from '../schema/entitlements.js';
+import { contentItems, courses, modules, activities } from '../schema/content.js';
+import { entitlements } from '../schema/entitlements.js';
+import { genId } from '../../../core/shared/id.js';
 import type { Logger } from '../../../core/shared/ports.js';
 import { noopLogger } from '../../../core/shared/logger.js';
 
@@ -38,11 +39,11 @@ const activityCountExpr = sql<number>`(
 )`;
 
 const enrolledCountExpr = sql<number>`(
-  select count(*)::int from ${enrollments}
-  where ${enrollments}.org_id = ${courses}.org_id
-    and ${enrollments}.course_id = ${courses}.id
-    and ${enrollments}.status = 'active'
-    and (${enrollments}.expires_at is null or ${enrollments}.expires_at >= now())
+  select count(*)::int from ${entitlements}
+  where ${entitlements}.org_id = ${courses}.org_id
+    and ${entitlements}.content_id = ${courses}.id
+    and ${entitlements}.status = 'active'
+    and (${entitlements}.expires_at is null or ${entitlements}.expires_at >= now())
 )`;
 
 const selection = {
@@ -170,10 +171,16 @@ export class DrizzleContentRepository implements ContentRepository {
   }
 
   async create(orgId: string, input: CreateCourseInput, slug: string): Promise<Course> {
+    // Registry row + concrete row share one id. Both inserts run on the same
+    // executor — mutations reach this repository tx-bound (ContentUnitOfWork),
+    // so they commit or roll back together.
+    const id = genId('course');
+    await this.db.insert(contentItems).values({ orgId, id, type: 'course' });
     const [inserted] = await this.db
       .insert(courses)
       .values({
         orgId,
+        id,
         title: input.title,
         slug,
         description: input.description ?? '',
@@ -217,10 +224,15 @@ export class DrizzleContentRepository implements ContentRepository {
   }
 
   async delete(orgId: string, id: string): Promise<boolean> {
+    // Deletes go through the registry: cascades to the course row and its
+    // entitlements in one statement. Never delete from `courses` directly —
+    // that would strand the registry row.
     const deleted = await this.db
-      .delete(courses)
-      .where(and(eq(courses.orgId, orgId), eq(courses.id, id)))
-      .returning({ id: courses.id });
+      .delete(contentItems)
+      .where(
+        and(eq(contentItems.orgId, orgId), eq(contentItems.id, id), eq(contentItems.type, 'course')),
+      )
+      .returning({ id: contentItems.id });
     return deleted.length > 0;
   }
 }

@@ -1,23 +1,34 @@
 // entitlements context — domain entities, DTOs, and events.
-// An entitlement is a student's access grant to a course: its validity and where
-// it came from. Access is distinct from completion (progress) and from identity.
+// An entitlement is a student's access grant to a piece of content (its
+// validity and where it came from), generic over content types. Access is
+// distinct from completion (progress) and from identity.
 import type { DomainEvent } from "./shared.js";
+import type { ContentType } from "./content.js";
 
 export type EntitlementStatus = "active" | "expired" | "revoked";
-export type EntitlementSource = "manual" | "import";
 
-export interface Enrollment {
+/** Reference to the granted content: identity + display name. NOT the full
+ *  course/podcast/… object — that stays one GET away on its own resource, so
+ *  the entitlements contract never changes when a content type gains fields. */
+export interface ContentRef {
+  id: string;
+  type: ContentType;
+  /** Display name, derived at read time (join to the concrete table), never stored. */
+  title: string;
+}
+
+export interface Entitlement {
   readonly id: string;
   studentId: string;
   firstName: string;
   lastName: string;
   studentEmail: string;
-  courseId: string;
-  courseTitle: string;
+  content: ContentRef;
   status: EntitlementStatus;
   grantedAt: string;
   expiresAt: string | null;
-  source: EntitlementSource;
+  /** Free text: "manual", "import", integration ids, … */
+  source: string;
 }
 
 export interface EntitlementsQuery {
@@ -26,41 +37,41 @@ export interface EntitlementsQuery {
   search?: string | undefined;
   sort?: string | undefined;
   status?: EntitlementStatus | undefined;
-  source?: EntitlementSource | undefined;
+  source?: string | undefined;
   studentId?: string | undefined;
-  courseId?: string | undefined;
+  contentId?: string | undefined;
+  type?: ContentType | undefined;
 }
 
-export interface GrantEnrollmentInput {
+export interface GrantEntitlementInput {
   studentId: string;
-  courseId: string;
+  contentId: string;
   expiresAt: string | null;
 }
 
-/** A student enrolled in a course = */
-export interface EnrollmentCreated extends DomainEvent {
-  type: "enrollment.created";
-  enrollment: Enrollment;
+/** A student was granted access to a piece of content. */
+export interface EntitlementCreated extends DomainEvent {
+  type: "entitlement.created";
+  entitlement: Entitlement;
 }
 
-export interface EnrollmentUpdated extends DomainEvent {
-  type: "enrollment.updated";
-  enrollment: Enrollment;
+export interface EntitlementUpdated extends DomainEvent {
+  type: "entitlement.updated";
+  entitlement: Entitlement;
 }
 
-export interface EnrollmentDeleted extends DomainEvent {
-  type: "enrollment.deleted";
-  enrollment: Enrollment;
+export interface EntitlementDeleted extends DomainEvent {
+  type: "entitlement.deleted";
+  entitlement: Entitlement;
 }
 
-
-export interface EnrollmentExpired extends DomainEvent {
-  type: "enrollment.expired";
-  enrollment: Enrollment;
+export interface EntitlementExpired extends DomainEvent {
+  type: "entitlement.expired";
+  entitlement: Entitlement;
 }
 
-export type EnrollmentEvent =
-  | EnrollmentCreated
-  | EnrollmentUpdated
-  | EnrollmentDeleted
-  | EnrollmentExpired;
+export type EntitlementEvent =
+  | EntitlementCreated
+  | EntitlementUpdated
+  | EntitlementDeleted
+  | EntitlementExpired;

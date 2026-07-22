@@ -12,7 +12,7 @@ import type { McpPrincipal } from './authz.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Container } from '../../composition/container.js';
 import type { Course } from '../../core/content/index.js';
-import type { Enrollment } from '../../core/entitlements/model.js';
+import type { Entitlement } from '../../core/entitlements/model.js';
 import type { Student } from '../../reporting/students/model.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -31,14 +31,13 @@ const COURSE: Course = {
   createdAt: '2026-01-01T00:00:00Z',
 };
 
-const ENROLLMENT: Enrollment = {
-  id: 'enroll-1',
+const ENTITLEMENT: Entitlement = {
+  id: 'ent-1',
   studentId: 'student-1',
   firstName: 'Bob',
   lastName: 'Smith',
   studentEmail: 'bob@example.com',
-  courseId: 'course-1',
-  courseTitle: 'Intro to TypeScript',
+  content: { id: 'course-1', type: 'course', title: 'Intro to TypeScript' },
   status: 'active',
   grantedAt: '2026-01-01T00:00:00Z',
   expiresAt: null,
@@ -49,7 +48,7 @@ const STUDENT: Student = {
   id: 'student-1',
   name: 'Bob',
   email: 'bob@example.com',
-  enrollmentCount: 3,
+  entitlementCount: 3,
   avgProgress: 65,
   joinedAt: '2026-01-01T00:00:00Z',
   lastActiveAt: '2026-06-01T00:00:00Z',
@@ -84,8 +83,8 @@ function makeStubServer(): {
 function makeContainer(overrides?: {
   coursesListResult?: Awaited<ReturnType<Container['content']['list']>>;
   coursesGetResult?: Course | null;
-  enrollmentsListResult?: Awaited<ReturnType<Container['entitlements']['list']>>;
-  enrollmentsGrantResult?: Enrollment;
+  entitlementsListResult?: Awaited<ReturnType<Container['entitlements']['list']>>;
+  entitlementsGrantResult?: Entitlement;
   studentsGetResult?: Student | null;
 }): Container {
   // Use explicit key-presence check so callers can pass null intentionally.
@@ -107,14 +106,14 @@ function makeContainer(overrides?: {
     },
     entitlements: {
       list: vi.fn().mockResolvedValue(
-        overrides?.enrollmentsListResult ?? {
-          rows: [ENROLLMENT],
+        overrides?.entitlementsListResult ?? {
+          rows: [ENTITLEMENT],
           total: 1,
           page: 1,
           pageSize: 20,
         },
       ),
-      grant: vi.fn().mockResolvedValue(overrides?.enrollmentsGrantResult ?? ENROLLMENT),
+      grant: vi.fn().mockResolvedValue(overrides?.entitlementsGrantResult ?? ENTITLEMENT),
       setStatus: vi.fn(),
     },
     reporting: {
@@ -143,8 +142,8 @@ const ADMIN_PRINCIPAL: McpPrincipal = {
   scopes: [
     'courses:read',
     'courses:write',
-    'enrollments:read',
-    'enrollments:write',
+    'entitlements:read',
+    'entitlements:write',
     'progress:read',
   ],
 };
@@ -155,7 +154,7 @@ const STUDENT_PRINCIPAL: McpPrincipal = {
   orgId: 'org-1',
   role: 'instructor',
   assignedCourseIds: [],
-  scopes: ['courses:read', 'enrollments:read'],
+  scopes: ['courses:read', 'entitlements:read'],
 };
 
 /** Instructor principal with read scopes and course assignment. */
@@ -164,7 +163,7 @@ const INSTRUCTOR_PRINCIPAL: McpPrincipal = {
   orgId: 'org-1',
   role: 'instructor',
   assignedCourseIds: ['course-1'],
-  scopes: ['courses:read', 'enrollments:read'],
+  scopes: ['courses:read', 'entitlements:read'],
 };
 
 /** No-scope principal (simulates a token with no scopes granted). */
@@ -279,21 +278,21 @@ describe('registerTools — get_course', () => {
   });
 });
 
-describe('registerTools — enroll_student', () => {
-  it('enrolls a student when called by an admin with enrollments:write scope', async () => {
+describe('registerTools — grant_entitlement', () => {
+  it('grants an entitlement when called by an admin with entitlements:write scope', async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
     registerTools(server, container, ADMIN_PRINCIPAL);
 
-    const enroll = callbacks.get('enroll_student')!;
-    const result = await enroll({ studentId: 'student-1', courseId: 'course-1', expiresAt: null });
+    const grant = callbacks.get('grant_entitlement')!;
+    const result = await grant({ studentId: 'student-1', contentId: 'course-1', expiresAt: null });
 
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0]!.text);
-    expect(parsed.id).toBe('enroll-1');
+    expect(parsed.id).toBe('ent-1');
     expect(container.entitlements.grant as Mock).toHaveBeenCalledWith('org-1', {
       studentId: 'student-1',
-      courseId: 'course-1',
+      contentId: 'course-1',
       expiresAt: null,
     });
   });
@@ -304,70 +303,70 @@ describe('registerTools — enroll_student', () => {
     // Give the instructor the right scope but a role lacking manage_users
     const studentWithWriteScope: McpPrincipal = {
       ...STUDENT_PRINCIPAL,
-      scopes: [...STUDENT_PRINCIPAL.scopes, 'enrollments:write'],
+      scopes: [...STUDENT_PRINCIPAL.scopes, 'entitlements:write'],
     };
     registerTools(server, container, studentWithWriteScope);
 
-    const enroll = callbacks.get('enroll_student')!;
-    const result = await enroll({ studentId: 'student-1', courseId: 'course-1', expiresAt: null });
+    const grant = callbacks.get('grant_entitlement')!;
+    const result = await grant({ studentId: 'student-1', contentId: 'course-1', expiresAt: null });
 
     expect(result.isError).toBe(true);
     expect(result.content[0]!.text).toMatch(/Forbidden/);
     expect(container.entitlements.grant as Mock).not.toHaveBeenCalled();
   });
 
-  it('rejects an admin principal that lacks the enrollments:write scope', async () => {
+  it('rejects an admin principal that lacks the entitlements:write scope', async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
     const adminNoWriteScope: McpPrincipal = {
       ...ADMIN_PRINCIPAL,
-      scopes: ['courses:read', 'enrollments:read'], // no enrollments:write
+      scopes: ['courses:read', 'entitlements:read'], // no entitlements:write
     };
     registerTools(server, container, adminNoWriteScope);
 
-    const enroll = callbacks.get('enroll_student')!;
-    const result = await enroll({ studentId: 'student-1', courseId: 'course-1', expiresAt: null });
+    const grant = callbacks.get('grant_entitlement')!;
+    const result = await grant({ studentId: 'student-1', contentId: 'course-1', expiresAt: null });
 
     expect(result.isError).toBe(true);
     expect(container.entitlements.grant as Mock).not.toHaveBeenCalled();
   });
 });
 
-describe('registerTools — list_enrollments', () => {
-  it('allows admin to list all enrollments', async () => {
+describe('registerTools — list_entitlements', () => {
+  it('allows admin to list all entitlements', async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
     registerTools(server, container, ADMIN_PRINCIPAL);
 
-    const listEnrollments = callbacks.get('list_enrollments')!;
-    const result = await listEnrollments({ studentId: 'student-1', page: 1, pageSize: 20 });
+    const listEntitlements = callbacks.get('list_entitlements')!;
+    const result = await listEntitlements({ studentId: 'student-1', page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
     const parsed = JSON.parse(result.content[0]!.text);
     expect(parsed.rows).toHaveLength(1);
   });
 
-  it('allows instructor to list all enrollments (view_student_progress: assigned)', async () => {
+  it('allows instructor to list all entitlements (view_student_progress: assigned)', async () => {
     // Instructors have capability "assigned" for view_student_progress which is !== false,
-    // so canViewAll is true when enrollments:read scope is present.
+    // so canViewAll is true when entitlements:read scope is present.
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
     registerTools(server, container, INSTRUCTOR_PRINCIPAL);
 
-    const listEnrollments = callbacks.get('list_enrollments')!;
-    const result = await listEnrollments({ page: 1, pageSize: 20 });
+    const listEntitlements = callbacks.get('list_entitlements')!;
+    const result = await listEntitlements({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
     expect(container.entitlements.list as Mock).toHaveBeenCalled();
   });
 
-  it('lists enrollments org-wide (no studentId filter) when studentId not given', async () => {
+  it('lists entitlements org-wide (no studentId filter) when studentId not given', async () => {
     const container = makeContainer();
     const { server, callbacks } = makeStubServer();
     registerTools(server, container, STUDENT_PRINCIPAL);
 
-    const listEnrollments = callbacks.get('list_enrollments')!;
-    const result = await listEnrollments({ page: 1, pageSize: 20 });
+    const listEntitlements = callbacks.get('list_entitlements')!;
+    const result = await listEntitlements({ page: 1, pageSize: 20 });
 
     expect(result.isError).toBeFalsy();
     expect(container.entitlements.list as Mock).toHaveBeenCalledWith(
@@ -390,7 +389,7 @@ describe('registerTools — get_student_progress', () => {
     const parsed = JSON.parse(result.content[0]!.text);
     expect(parsed.studentId).toBe('student-1');
     expect(parsed.avgProgress).toBe(65);
-    expect(parsed.enrollmentCount).toBe(3);
+    expect(parsed.entitlementCount).toBe(3);
     expect(container.reporting.students.get as Mock).toHaveBeenCalledWith('org-1', 'student-1');
   });
 
@@ -411,7 +410,7 @@ describe('registerTools — get_student_progress', () => {
     const { server, callbacks } = makeStubServer();
     const adminNoProgressScope: McpPrincipal = {
       ...ADMIN_PRINCIPAL,
-      scopes: ['courses:read', 'enrollments:read'], // no progress:read
+      scopes: ['courses:read', 'entitlements:read'], // no progress:read
     };
     registerTools(server, container, adminNoProgressScope);
 

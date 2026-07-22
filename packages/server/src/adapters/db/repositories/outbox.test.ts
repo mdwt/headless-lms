@@ -13,14 +13,14 @@ describe('DrizzleOutboxAppender', () => {
   it('inserts one row per event, mirroring type/orgId, with the event as payload', async () => {
     const { tx, values } = fakeTx();
     const events = [
-      { type: 'enrollment.created' as const, orgId: 'org-1' },
+      { type: 'entitlement.created' as const, orgId: 'org-1' },
       { type: 'connection.removed' as const, orgId: 'org-2' },
     ];
     await new DrizzleOutboxAppender(tx).append(events);
     const rows = values.mock.calls[0]![0] as Array<Record<string, unknown>>;
     expect(rows).toHaveLength(2);
     expect(rows[0]).toEqual({
-      type: 'enrollment.created',
+      type: 'entitlement.created',
       orgId: 'org-1',
       payload: events[0],
     });
@@ -29,7 +29,7 @@ describe('DrizzleOutboxAppender', () => {
 
   it('leaves id and createdAt to the column defaults', async () => {
     const { tx, values } = fakeTx();
-    await new DrizzleOutboxAppender(tx).append([{ type: 'enrollment.created', orgId: 'org-1' }]);
+    await new DrizzleOutboxAppender(tx).append([{ type: 'entitlement.created', orgId: 'org-1' }]);
     const rows = values.mock.calls[0]![0] as Array<Record<string, unknown>>;
     expect(rows[0]).not.toHaveProperty('id');
     expect(rows[0]).not.toHaveProperty('createdAt');
@@ -68,9 +68,9 @@ describe('DrizzleOutboxStore', () => {
     const { db } = fakeSelectDb([
       {
         id: 'evt_1',
-        type: 'enrollment.created',
+        type: 'entitlement.created',
         orgId: 'org-1',
-        payload: { type: 'enrollment.created', orgId: 'org-1' },
+        payload: { type: 'entitlement.created', orgId: 'org-1' },
         attempts: 3,
         nextAttemptAt: createdAt,
         lastError: 'boom',
@@ -84,7 +84,7 @@ describe('DrizzleOutboxStore', () => {
         id: 'evt_1',
         attempts: 3,
         payload: {
-          type: 'enrollment.created',
+          type: 'entitlement.created',
           orgId: 'org-1',
           id: 'evt_1',
           createdAt: '2026-07-22T00:00:00.000Z',

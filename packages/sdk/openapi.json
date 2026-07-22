@@ -2009,7 +2009,7 @@
                             "nullable": true,
                             "type": "string"
                           },
-                          "enrollmentCount": {
+                          "entitlementCount": {
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
@@ -2031,7 +2031,7 @@
                           "id",
                           "name",
                           "email",
-                          "enrollmentCount",
+                          "entitlementCount",
                           "avgProgress",
                           "joinedAt",
                           "lastActiveAt"
@@ -2107,7 +2107,7 @@
                       "nullable": true,
                       "type": "string"
                     },
-                    "enrollmentCount": {
+                    "entitlementCount": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
@@ -2129,7 +2129,7 @@
                     "id",
                     "name",
                     "email",
-                    "enrollmentCount",
+                    "entitlementCount",
                     "avgProgress",
                     "joinedAt",
                     "lastActiveAt"
@@ -2225,11 +2225,7 @@
           },
           {
             "schema": {
-              "type": "string",
-              "enum": [
-                "manual",
-                "import"
-              ]
+              "type": "string"
             },
             "in": "query",
             "name": "source",
@@ -2248,7 +2244,18 @@
               "type": "string"
             },
             "in": "query",
-            "name": "courseId",
+            "name": "contentId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "course"
+              ]
+            },
+            "in": "query",
+            "name": "type",
             "required": false
           }
         ],
@@ -2280,11 +2287,28 @@
                           "studentEmail": {
                             "type": "string"
                           },
-                          "courseId": {
-                            "type": "string"
-                          },
-                          "courseTitle": {
-                            "type": "string"
+                          "content": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "course"
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "type",
+                              "title"
+                            ],
+                            "additionalProperties": false
                           },
                           "status": {
                             "type": "string",
@@ -2302,11 +2326,7 @@
                             "type": "string"
                           },
                           "source": {
-                            "type": "string",
-                            "enum": [
-                              "manual",
-                              "import"
-                            ]
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -2315,8 +2335,7 @@
                           "firstName",
                           "lastName",
                           "studentEmail",
-                          "courseId",
-                          "courseTitle",
+                          "content",
                           "status",
                           "grantedAt",
                           "expiresAt",
@@ -2356,7 +2375,7 @@
       },
       "post": {
         "operationId": "grantEntitlement",
-        "summary": "Grant a student access to a course",
+        "summary": "Grant a student access to a piece of content",
         "tags": [
           "Entitlements"
         ],
@@ -2370,7 +2389,7 @@
                   "studentId": {
                     "type": "string"
                   },
-                  "courseId": {
+                  "contentId": {
                     "type": "string"
                   },
                   "expiresAt": {
@@ -2380,7 +2399,7 @@
                 },
                 "required": [
                   "studentId",
-                  "courseId",
+                  "contentId",
                   "expiresAt"
                 ]
               }
@@ -2410,11 +2429,28 @@
                     "studentEmail": {
                       "type": "string"
                     },
-                    "courseId": {
-                      "type": "string"
-                    },
-                    "courseTitle": {
-                      "type": "string"
+                    "content": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "course"
+                          ]
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "title"
+                      ],
+                      "additionalProperties": false
                     },
                     "status": {
                       "type": "string",
@@ -2432,11 +2468,7 @@
                       "type": "string"
                     },
                     "source": {
-                      "type": "string",
-                      "enum": [
-                        "manual",
-                        "import"
-                      ]
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -2445,8 +2477,7 @@
                     "firstName",
                     "lastName",
                     "studentEmail",
-                    "courseId",
-                    "courseTitle",
+                    "content",
                     "status",
                     "grantedAt",
                     "expiresAt",
@@ -2522,11 +2553,28 @@
                     "studentEmail": {
                       "type": "string"
                     },
-                    "courseId": {
-                      "type": "string"
-                    },
-                    "courseTitle": {
-                      "type": "string"
+                    "content": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "course"
+                          ]
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "title"
+                      ],
+                      "additionalProperties": false
                     },
                     "status": {
                       "type": "string",
@@ -2544,11 +2592,7 @@
                       "type": "string"
                     },
                     "source": {
-                      "type": "string",
-                      "enum": [
-                        "manual",
-                        "import"
-                      ]
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -2557,8 +2601,7 @@
                     "firstName",
                     "lastName",
                     "studentEmail",
-                    "courseId",
-                    "courseTitle",
+                    "content",
                     "status",
                     "grantedAt",
                     "expiresAt",
@@ -3280,7 +3323,7 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
                     },
-                    "activeEnrollments": {
+                    "activeEntitlements": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
@@ -3295,7 +3338,7 @@
                     "publishedCourses",
                     "draftCourses",
                     "activeStudents",
-                    "activeEnrollments",
+                    "activeEntitlements",
                     "expiringSoon"
                   ],
                   "additionalProperties": false

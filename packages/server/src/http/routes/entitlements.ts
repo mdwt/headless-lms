@@ -1,4 +1,4 @@
-// HTTP routes for the entitlements context (a student's access grant to a course).
+// HTTP routes for the entitlements context (a student's access grant to a piece of content).
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
@@ -45,7 +45,7 @@ export async function entitlementsRoutes(
     schema: {
       operationId: 'grantEntitlement',
       tags: ['Entitlements'],
-      summary: 'Grant a student access to a course',
+      summary: 'Grant a student access to a piece of content',
       body: GrantEntitlement,
       response: { 201: Entitlement },
     },

@@ -4,7 +4,7 @@
 // outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay dispatches committed events to
 // EventBus subscribers at-least-once.
-import type { Enrollment, EntitlementsQuery, GrantEnrollmentInput, Page } from './model.js';
+import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from './model.js';
 import type {
   EntitlementsRepository,
   EntitlementsService,
@@ -22,45 +22,46 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     private readonly logger: Logger = noopLogger,
   ) {}
 
-  list(orgId: string, query: EntitlementsQuery): Promise<Page<Enrollment>> {
+  list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>> {
     return this.repo.list(orgId, query);
   }
 
-  async grant(orgId: string, input: GrantEnrollmentInput): Promise<Enrollment> {
-    const enrollment = await this.uow.run(async ({ entitlements, outbox }) => {
+  async grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+    const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
       const created = await entitlements.insert(orgId, input);
-      await outbox.append([{ type: 'enrollment.created', orgId, enrollment: created }]);
+      await outbox.append([{ type: 'entitlement.created', orgId, entitlement: created }]);
       return created;
     });
-    this.logger.info('enrollment granted', {
+    this.logger.info('entitlement granted', {
       orgId,
-      enrollmentId: enrollment.id,
-      studentId: enrollment.studentId,
-      courseId: enrollment.courseId,
+      entitlementId: entitlement.id,
+      studentId: entitlement.studentId,
+      contentId: entitlement.content.id,
+      contentType: entitlement.content.type,
     });
-    return enrollment;
+    return entitlement;
   }
 
   async setStatus(
     orgId: string,
     id: string,
     status: 'active' | 'revoked',
-  ): Promise<Enrollment | null> {
-    const enrollment = await this.uow.run(async ({ entitlements, outbox }) => {
+  ): Promise<Entitlement | null> {
+    const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
       const updated = await entitlements.setStatus(orgId, id, status);
       if (!updated) {
         return null;
       }
       await outbox.append([
         status === 'revoked'
-          ? { type: 'enrollment.deleted', orgId, enrollment: updated }
-          : { type: 'enrollment.updated', orgId, enrollment: updated },
+          ? { type: 'entitlement.deleted', orgId, entitlement: updated }
+          : { type: 'entitlement.updated', orgId, entitlement: updated },
       ]);
       return updated;
     });
-    if (enrollment) {
-      this.logger.info('enrollment status changed', { orgId, enrollmentId: id, status });
+    if (entitlement) {
+      this.logger.info('entitlement status changed', { orgId, entitlementId: id, status });
     }
-    return enrollment;
+    return entitlement;
   }
 }

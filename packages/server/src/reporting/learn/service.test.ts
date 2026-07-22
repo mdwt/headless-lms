@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LearnReportServiceImpl } from './service.js';
-import type { LearnEnrollmentReader, CourseRef } from './index.js';
+import type { LearnEntitlementReader, CourseRef } from './index.js';
 import type { ContentService, Course, Module } from '../../core/content/index.js';
 
 function course(id: string, status: 'draft' | 'published' = 'published'): Course {
@@ -19,7 +19,7 @@ function course(id: string, status: 'draft' | 'published' = 'published'): Course
   };
 }
 
-function fakeReader(refs: CourseRef[]): LearnEnrollmentReader {
+function fakeReader(refs: CourseRef[]): LearnEntitlementReader {
   return {
     activeRefs: async (orgId) => refs.filter((r) => r.orgId === orgId),
     activeRef: async (orgId, _s, courseId) =>
