@@ -167,8 +167,8 @@ export const invite = pgTable('invite', {
 
 export const inviteUse = pgTable('invite_use', {
   id: text('id').primaryKey(),
+  // Nullable so the FK's ON DELETE SET NULL can actually fire (upstream declares required-on-write).
   inviteId: text('invite_id')
-    .notNull()
     .references(() => invite.id, { onDelete: 'set null' }),
   usedAt: timestamp('used_at').notNull(),
   usedByUserId: text('used_by_user_id').references(() => user.id, { onDelete: 'set null' }),
