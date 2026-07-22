@@ -179,6 +179,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     return toMember(created);
   }
 
+  async inviteStudent(ctx: MemberWriteContext, email: string): Promise<void> {
+    await this.orgAdmin().inviteStudent(ctx, email);
+    this.logger.info('student invited', { orgId: ctx.orgId });
+  }
+
   async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
     const member = await this.membersRepo.findById(ctx.orgId, id);
     if (!member) {

@@ -15,6 +15,7 @@ import {
   type AuthHeaders,
 } from '../../core/organizations/index.js';
 import type { Auth } from './index.js';
+import { STUDENT_ROLE } from './invites.js';
 
 export function createOrgAdmin(auth: Auth): OrgAdmin {
   const headersOf = (ctx: MemberWriteContext) => fromNodeHeaders(ctx.headers);
@@ -63,6 +64,14 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
       // domain, which the members list reads.
       await auth.api.createInvite({
         body: { email: input.email, role: input.role },
+        headers: headersOf(ctx),
+      });
+    },
+    async inviteStudent(ctx: MemberWriteContext, email: string): Promise<void> {
+      // Same provider, student role: afterCreateInvite records the invite id on
+      // the student row; sendUserInvitation emails the portal welcome link.
+      await auth.api.createInvite({
+        body: { email, role: STUDENT_ROLE },
         headers: headersOf(ctx),
       });
     },

@@ -35,6 +35,7 @@ const stubOrgAdmin = (): OrgAdmin => ({
   async setActiveOrganization() {},
   async updateOrganization() {},
   async invite() {},
+  async inviteStudent() {},
   async updateRole() {},
   async removeMember() {},
 });
@@ -300,6 +301,23 @@ describe('OrganizationService', () => {
     expect(record).toMatchObject({ orgExternalId: 'org_1', role: 'instructor', status: 'pending' });
   });
 
+  it('inviteStudent drives the invite provider with the student email', async () => {
+    const { repo } = fakeRepo();
+    const invites: string[] = [];
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async inviteStudent(_ctx, email) {
+        invites.push(email);
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    await svc.inviteStudent(
+      { orgId: 'org1', authOrgId: 'ext_org1', headers: {} },
+      'jane@example.com',
+    );
+    expect(invites).toEqual(['jane@example.com']);
+  });
+
   it('invitationForAccept returns null for an unknown invitation', async () => {
     const { repo } = fakeRepo();
     const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
@@ -420,6 +438,9 @@ describe('OrganizationService — member management', () => {
       },
       async invite() {
         calls.push('invite');
+      },
+      async inviteStudent() {
+        calls.push('inviteStudent');
       },
       async updateRole() {
         calls.push('updateRole');

@@ -3,7 +3,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { fromNodeHeaders } from 'better-auth/node';
 import {
   CreateStudent,
   ErrorBody,
@@ -78,13 +77,13 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
         lastName: req.body.lastName,
       });
       if (req.body.sendInvite) {
-        // Mint the better-invite invitation as the acting admin; the plugin's
-        // afterCreateInvite hook records the invite id on the student row and
-        // sendUserInvitation emails the portal welcome link.
-        await container.auth.api.createInvite({
-          body: { email: created.email, role: 'student' },
-          headers: fromNodeHeaders(req.headers),
-        });
+        // Invitations are the organizations domain's concern; the service drives
+        // the invite provider, whose hooks record the invite id on the student
+        // row and email the portal welcome link.
+        await container.organizations.inviteStudent(
+          { orgId: scope.orgId, authOrgId: scope.authOrgId, headers: req.headers },
+          created.email,
+        );
       }
       const student = await students.get(scope.orgId, created.id);
       if (!student) {
@@ -114,10 +113,10 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       if (student.externalId !== null) {
         throw new ConflictError('This student already has an account');
       }
-      await container.auth.api.createInvite({
-        body: { email: student.email, role: 'student' },
-        headers: fromNodeHeaders(req.headers),
-      });
+      await container.organizations.inviteStudent(
+        { orgId: scope.orgId, authOrgId: scope.authOrgId, headers: req.headers },
+        student.email,
+      );
       return reply.code(204).send();
     },
   });

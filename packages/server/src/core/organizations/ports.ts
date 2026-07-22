@@ -60,6 +60,9 @@ export interface OrganizationService extends OrganizationProvisioner {
   // the domain mirror; writes go through Better Auth via OrgAdmin.
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
   inviteMember(ctx: MemberWriteContext, input: InviteMemberInput): Promise<Member>;
+  // Invites a student to create their portal account. Invitations are an
+  // organizations-domain concern for every population; only the role differs.
+  inviteStudent(ctx: MemberWriteContext, email: string): Promise<void>;
   updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null>;
   removeMember(ctx: MemberWriteContext, id: string): Promise<boolean>;
 }
@@ -124,6 +127,9 @@ export interface OrgAdmin {
     input: UpdateOrganizationInput,
   ): Promise<void>;
   invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;
+  // Mints a student-role invitation (portal account creation). Same invite
+  // provider as staff invites; the role decides the landing app and the grant.
+  inviteStudent(ctx: MemberWriteContext, email: string): Promise<void>;
   updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
   removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;
 }
