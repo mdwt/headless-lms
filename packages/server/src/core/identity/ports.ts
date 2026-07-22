@@ -1,6 +1,6 @@
 // identity context — ports.
 import type { User, Student } from './model.js';
-import type { RegisterUserInput, RegisterStudentInput } from './types.js';
+import type { RegisterUserInput, RegisterStudentInput, CreateStudentInput } from './types.js';
 
 // Capabilities used by the auth adapter to provision a domain identity when a
 // credential user is created — narrow slices of the identity service.
@@ -22,6 +22,10 @@ export interface IdentityService extends UserProvisioner, StudentProvisioner {
   // the auth layer can stamp it onto the session at login. Null when the login is
   // not a student (e.g. staff) or the row is ambiguous across orgs.
   studentOrgExternalId(externalId: string): Promise<string | null>;
+  createStudent(input: CreateStudentInput): Promise<Student>;
+  getStudentById(orgId: string, id: string): Promise<Student | null>;
+  recordStudentInvite(orgId: string, email: string, inviteId: string): Promise<void>;
+  linkStudentByInvite(inviteId: string, email: string, externalId: string): Promise<void>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -31,4 +35,9 @@ export interface IdentityRepository {
   insertStudent(input: RegisterStudentInput): Promise<Student>;
   findStudentByExternalId(orgId: string, externalId: string): Promise<Student | null>;
   findStudentOrgExternalId(externalId: string): Promise<string | null>;
+  findStudentByEmail(orgId: string, email: string): Promise<Student | null>;
+  findStudentById(orgId: string, id: string): Promise<Student | null>;
+  insertPendingStudent(input: CreateStudentInput): Promise<Student>;
+  setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<void>;
+  linkPendingStudents(inviteId: string, email: string, externalId: string): Promise<number>;
 }

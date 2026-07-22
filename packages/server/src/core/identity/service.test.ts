@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
+import { ConflictError } from '../shared/errors.js';
 import type { IdentityRepository } from './ports.js';
 import type { Student, User } from './model.js';
-import type { RegisterStudentInput, RegisterUserInput } from './types.js';
+import type { CreateStudentInput, RegisterStudentInput, RegisterUserInput } from './types.js';
 
 function fakeRepo() {
   const students: Student[] = [];
@@ -34,6 +35,43 @@ function fakeRepo() {
     async findStudentOrgExternalId(externalId: string) {
       const matches = students.filter((r) => r.externalId === externalId);
       return matches.length === 1 ? (matches[0]?.orgId ?? null) : null;
+    },
+    async findStudentByEmail(orgId: string, email: string) {
+      return students.find((r) => r.orgId === orgId && r.email === email) ?? null;
+    },
+    async findStudentById(orgId: string, id: string) {
+      return students.find((r) => r.orgId === orgId && r.id === id) ?? null;
+    },
+    async insertPendingStudent(input: CreateStudentInput) {
+      const row: Student = {
+        id: `st_${++n}`,
+        externalId: null,
+        inviteId: null,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+        ...input,
+      };
+      students.push(row);
+      return row;
+    },
+    async setInviteIdByEmail(orgId: string, email: string, inviteId: string) {
+      for (let i = 0; i < students.length; i++) {
+        const row = students[i];
+        if (row && row.orgId === orgId && row.email === email) {
+          students[i] = { ...row, inviteId };
+        }
+      }
+    },
+    async linkPendingStudents(inviteId: string, email: string, externalId: string) {
+      let count = 0;
+      for (let i = 0; i < students.length; i++) {
+        const row = students[i];
+        if (row && row.externalId === null && (row.inviteId === inviteId || row.email === email)) {
+          students[i] = { ...row, externalId, inviteId: null };
+          count++;
+        }
+      }
+      return count;
     },
   };
   return { repo, rows: students };
@@ -89,6 +127,73 @@ describe('IdentityService.getStudentByExternalId', () => {
       lastName: 'Lovelace',
     });
     expect(await svc.getStudentByExternalId('org_other', 'auth_1')).toBeNull();
+  });
+});
+
+describe('createStudent', () => {
+  it('inserts a pending student with NULL externalId', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    const student = await svc.createStudent({
+      orgId: 'org1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    });
+    expect(student.externalId).toBeNull();
+    expect(student.email).toBe('jane@example.com');
+  });
+
+  it('throws ConflictError when the org already has that email', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    await expect(
+      svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'J', lastName: 'D' }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('allows the same email in a different org', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    await expect(
+      svc.createStudent({ orgId: 'org2', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' }),
+    ).resolves.toBeTruthy();
+  });
+});
+
+describe('linkStudentByInvite', () => {
+  it('links the row carrying the invite id', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    await svc.recordStudentInvite('org1', 'jane@example.com', 'inv_1');
+    await svc.linkStudentByInvite('inv_1', 'jane@example.com', 'usr_ext_9');
+    const linked = await repo.findStudentByEmail('org1', 'jane@example.com');
+    expect(linked?.externalId).toBe('usr_ext_9');
+  });
+
+  it('falls back to email match for pending rows (resent/old token, second org)', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org2', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    // org2 row has a DIFFERENT invite id recorded
+    await svc.recordStudentInvite('org2', 'jane@example.com', 'inv_other');
+    await svc.linkStudentByInvite('inv_stale', 'jane@example.com', 'usr_ext_9');
+    const linked = await repo.findStudentByEmail('org2', 'jane@example.com');
+    expect(linked?.externalId).toBe('usr_ext_9');
+  });
+
+  it('never touches already-linked rows', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    const s = await svc.createStudent({ orgId: 'org1', email: 'a@example.com', firstName: 'A', lastName: 'B' });
+    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_a');
+    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_1');
+    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_2');
+    const row = await repo.findStudentById('org1', s.id);
+    expect(row?.externalId).toBe('usr_1');
   });
 });
 

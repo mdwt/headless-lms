@@ -1,9 +1,13 @@
 // identity — Drizzle repository (implements the core outbound port).
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { IdentityRepository } from '../../../core/identity/ports.js';
 import type { User, Student } from '../../../core/identity/model.js';
-import type { RegisterUserInput, RegisterStudentInput } from '../../../core/identity/types.js';
+import type {
+  RegisterUserInput,
+  RegisterStudentInput,
+  CreateStudentInput,
+} from '../../../core/identity/types.js';
 import { users, students } from '../schema/identity.js';
 import { organizations } from '../schema/organizations.js';
 import type { Logger } from '../../../core/shared/ports.js';
@@ -76,5 +80,59 @@ export class DrizzleIdentityRepository implements IdentityRepository {
       .where(eq(students.externalId, externalId))
       .limit(2);
     return rows.length === 1 ? (rows[0]?.orgExternalId ?? null) : null;
+  }
+
+  async findStudentByEmail(orgId: string, email: string): Promise<Student | null> {
+    const [row] = await this.db
+      .select()
+      .from(students)
+      .where(and(eq(students.orgId, orgId), eq(students.email, email)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findStudentById(orgId: string, id: string): Promise<Student | null> {
+    const [row] = await this.db
+      .select()
+      .from(students)
+      .where(and(eq(students.orgId, orgId), eq(students.id, id)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async insertPendingStudent(input: CreateStudentInput): Promise<Student> {
+    const [row] = await this.db
+      .insert(students)
+      .values({
+        orgId: input.orgId,
+        email: input.email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+      })
+      .returning();
+    if (!row) {
+      throw new Error('failed to insert student');
+    }
+    return row;
+  }
+
+  async setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<void> {
+    await this.db
+      .update(students)
+      .set({ inviteId })
+      .where(and(eq(students.orgId, orgId), eq(students.email, email), isNull(students.externalId)));
+  }
+
+  // Link every still-pending row minted for this invite OR carrying the invited
+  // email (resent tokens, one login across orgs). Pending guard makes it idempotent.
+  async linkPendingStudents(inviteId: string, email: string, externalId: string): Promise<number> {
+    const rows = await this.db
+      .update(students)
+      .set({ externalId, inviteId: null })
+      .where(
+        and(isNull(students.externalId), or(eq(students.inviteId, inviteId), eq(students.email, email))),
+      )
+      .returning({ id: students.id });
+    return rows.length;
   }
 }

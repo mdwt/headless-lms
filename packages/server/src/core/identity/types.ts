@@ -4,4 +4,5 @@ export type {
   StudentId,
   RegisterUserInput,
   RegisterStudentInput,
+  CreateStudentInput,
 } from '@headless-lms/types';
