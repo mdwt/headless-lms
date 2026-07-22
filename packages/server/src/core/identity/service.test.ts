@@ -90,3 +90,20 @@ describe("IdentityService.getStudentByExternalId", () => {
     expect(await svc.getStudentByExternalId("org_other", "auth_1")).toBeNull();
   });
 });
+
+describe("logging", () => {
+  it("logs registrations at info only when a row is inserted", async () => {
+    const { createCapturingLogger } = await import("../shared/logger.js");
+    const { logger, entries } = createCapturingLogger();
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo, logger);
+
+    const input: RegisterUserInput = { externalId: "auth-1", email: "a@b.c", displayName: "A" };
+    const user = await svc.registerUser(input);
+    await svc.registerUser(input); // idempotent → no second log
+
+    expect(entries).toEqual([
+      { level: "info", msg: "user registered", meta: { userId: user.id, externalId: "auth-1" } },
+    ]);
+  });
+});

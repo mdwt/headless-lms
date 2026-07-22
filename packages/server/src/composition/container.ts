@@ -178,7 +178,10 @@ export async function buildContainer(
   };
 
   // Services (inject repos + peer services in dependency order)
-  const identity = new IdentityServiceImpl(new DrizzleIdentityRepository(db));
+  const identity = new IdentityServiceImpl(
+    new DrizzleIdentityRepository(db),
+    logger.child({ name: "identity" }),
+  );
   const organizations = new OrganizationServiceImpl(
     new DrizzleOrganizationsRepository(db),
     new DrizzleMembersRepository(db),
