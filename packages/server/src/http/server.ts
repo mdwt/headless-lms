@@ -27,5 +27,11 @@ export async function buildServer(
   registerErrorHandler(app);
   registerRoutes(app, container);
 
+  // Drain + stop the outbox relay on shutdown. Harmless when the relay was
+  // never started (gen-openapi boots this app with ready() + close() only).
+  app.addHook("onClose", async () => {
+    await container.outboxRelay.stop();
+  });
+
   return app;
 }

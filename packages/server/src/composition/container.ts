@@ -1,6 +1,12 @@
 // Wires adapters + services in dependency order. Starts nothing.
 import { createDb } from "../adapters/db/index.js";
 import { DrizzleUnitOfWork } from "../adapters/db/unit-of-work.js";
+import { InMemoryEventBus } from "../adapters/events/index.js";
+import {
+  PollingOutboxRelay,
+  type PollingOutboxRelayConfig,
+} from "../adapters/events/outbox-relay.js";
+import { DrizzleOutboxStore } from "../adapters/db/repositories/outbox.js";
 import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
@@ -35,7 +41,13 @@ import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboar
 import { DrizzleLearnRepository } from "../adapters/db/repositories/learn.js";
 import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
 import { DrizzleConnectionsRepository } from "../adapters/db/repositories/integrations.js";
-import type { CredentialStore, EmailSender, ObjectStorage } from "../core/shared/ports.js";
+import type {
+  CredentialStore,
+  EmailSender,
+  Logger,
+  ObjectStorage,
+  OutboxRelay,
+} from "../core/shared/ports.js";
 
 /** Deployment-specific ports an installation may swap. */
 export interface AdapterOverrides {
@@ -63,6 +75,46 @@ export interface Config {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
+  outbox?: OutboxConfig;
+}
+
+/** Tuning for the transactional-outbox relay. Every field is optional; the
+ *  container resolves against OUTBOX_DEFAULTS. */
+export interface OutboxConfig {
+  /** Master switch for the same-process relay (poller + sweep). Default true. */
+  enabled?: boolean;
+  /** Idle delay between polls. Default 1000. */
+  pollIntervalMs?: number;
+  /** Max rows fetched/dispatched per tick. Default 100. */
+  batchSize?: number;
+  /** Attempts before a message is parked as a dead letter. Default 10. */
+  maxAttempts?: number;
+  /** Exponential backoff: base * 2^attempts, capped at max. Defaults 1000 / 60000. */
+  backoffBaseMs?: number;
+  backoffMaxMs?: number;
+  /** Published rows older than this many days are swept. Default 7. */
+  retentionDays?: number;
+  /** Sweep cadence. Default 3600000 (1 h). */
+  cleanupIntervalMs?: number;
+}
+
+export const OUTBOX_DEFAULTS: PollingOutboxRelayConfig = {
+  enabled: true,
+  pollIntervalMs: 1000,
+  batchSize: 100,
+  maxAttempts: 10,
+  backoffBaseMs: 1000,
+  backoffMaxMs: 60_000,
+  retentionDays: 7,
+  cleanupIntervalMs: 3_600_000,
+};
+
+export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRelayConfig {
+  const overrides = Object.fromEntries(
+    Object.entries(config).filter(([, value]) => value !== undefined),
+  );
+  return { ...OUTBOX_DEFAULTS, ...overrides };
 }
 
 export interface Container {
@@ -85,6 +137,10 @@ export interface Container {
   connectedApps: ConnectedAppsRepo;
   /** Shared secure credential store — encrypted at rest, org-scoped, decrypt at point of use. */
   credentials: CredentialStore;
+  /** The outbox relay — constructed but NEVER started by the container; the
+   *  installation's entry point starts it after listen (gen-openapi must not
+   *  poll). buildServer stops it onClose. */
+  outboxRelay: OutboxRelay;
 }
 
 export async function buildContainer(
@@ -157,6 +213,22 @@ export async function buildContainer(
     () => new Date().toISOString(),
   );
 
+  // Transactional-outbox relay: drains committed outbox rows and fans them
+  // out to EventBus subscribers — after the UoW migration this is the ONLY
+  // EventBus.publish caller in the codebase.
+  const eventBus = new InMemoryEventBus();
+  const outboxConfig = resolveOutboxConfig(config.outbox);
+  const relayLogger: Logger = {
+    info: (msg, meta) => console.log(msg, meta ?? {}),
+    error: (msg, meta) => console.error(msg, meta ?? {}),
+  };
+  const outboxRelay = new PollingOutboxRelay(
+    new DrizzleOutboxStore(db, outboxConfig.maxAttempts),
+    eventBus,
+    outboxConfig,
+    relayLogger,
+  );
+
   // Auth adapter — depends on core ports (email, identity, organizations);
   // composition only injects the implementations.
   const auth = createAuth({
@@ -189,5 +261,6 @@ export async function buildContainer(
     storage,
     connectedApps,
     credentials: credentialStore,
+    outboxRelay,
   };
 }
