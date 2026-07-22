@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { ForbiddenView } from "@/components/full-page-states";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { useCurrentUser } from "@/lib/auth/session-context";
@@ -12,6 +14,7 @@ import { isManager } from "@/lib/roles";
 import type { ListParams, Student } from "@/lib/api/types";
 
 import { studentColumns } from "./_components/student-columns";
+import { AddStudentSheet } from "./_components/add-student-sheet";
 
 // Students table (client): rows come in as props.
 function StudentsTableInner({
@@ -25,6 +28,7 @@ function StudentsTableInner({
 }) {
   const user = useCurrentUser();
   const router = useRouter();
+  const [addOpen, setAddOpen] = React.useState(false);
 
   const table = useDataTable({
     pageSize: params.pageSize,
@@ -45,7 +49,14 @@ function StudentsTableInner({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Students"
+        actions={
+          <Button variant="primary" onClick={() => setAddOpen(true)}>
+            <Plus />
+            Add student
+          </Button>
+        }
       />
+      <AddStudentSheet open={addOpen} onOpenChange={setAddOpen} />
 
       <DataTable<Student>
         columns={columns}
@@ -60,7 +71,7 @@ function StudentsTableInner({
         searchPlaceholder="Search students…"
         onRowClick={(s) => goToStudent(s.id)}
         emptyTitle="No students yet"
-        emptyDescription="Students appear here once they're enrolled in a course."
+        emptyDescription="Add a student or wait for enrollments to appear here."
       />
     </div>
   );

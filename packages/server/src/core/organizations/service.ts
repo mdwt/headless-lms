@@ -150,6 +150,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findMembershipByUser(userId);
   }
 
+  async invitationForAccept(
+    authInvitationId: string,
+  ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
+    return this.repo.findInvitationByAuthId(authInvitationId);
+  }
+
   // --- Member management (formerly the `team` context) -----------------------
   // Reads come from the domain mirror; writes go through Better Auth (OrgAdmin),
   // whose hooks then mirror the change back into the domain tables.
@@ -213,7 +219,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (member.kind === 'member' && member.authMemberId) {
       await this.orgAdmin().removeMember(ctx, member.authMemberId);
     } else if (member.kind === 'invitation' && member.authInvitationId) {
-      await this.orgAdmin().cancelInvitation(ctx, member.authInvitationId);
+      // better-invite tokens can only be canceled by their creator; the domain
+      // mirror is authoritative for staff grants (afterAcceptInvite refuses
+      // non-pending mirrors), so canceling the mirror is canceling the invite.
+      await this.repo.setInvitationStatusByAuthId(member.authInvitationId, 'canceled');
     }
     this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;

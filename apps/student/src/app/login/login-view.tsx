@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
-import { signIn, useSession } from "@/lib/auth/client";
+import { signIn, signOut, useSession } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,11 +16,26 @@ export function LoginView() {
   const nextParam = params.get("next");
   const next =
     nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+  const reset = params.get("reset") === "1";
   const { data: session } = useSession();
+  const resetHandled = React.useRef(false);
 
   React.useEffect(() => {
+    if (reset) {
+      // The API said this session doesn't resolve to a portal student — drop it in
+      // the background and stay on ?reset=1 showing the clean form. No navigation:
+      // stripping the param while better-auth's session signal is still stale-truthy
+      // would re-enable the next-redirect below and bounce. Signing in is the exit.
+      if (!resetHandled.current) {
+        resetHandled.current = true;
+        void signOut().catch(() => {
+          // Best-effort: the form is usable either way; the server already rejected the session.
+        });
+      }
+      return;
+    }
     if (session) router.replace(next);
-  }, [session, router, next]);
+  }, [session, reset, router, next]);
 
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">

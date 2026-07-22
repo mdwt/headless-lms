@@ -23,6 +23,7 @@ export async function grantEntitlementAction(
     await Entitlements.grantEntitlement({ body: input, ...(await authHeaders()) }),
   );
   revalidatePath("/entitlements");
+  revalidatePath(`/students/${input.studentId}`);
   return entitlement;
 }
 

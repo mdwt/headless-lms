@@ -74,9 +74,7 @@ export interface Config {
   trustedOrigins: string[];
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
-  /** Admin app origin — invitation links resolve against it. */
-  adminUrl: string;
-  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminUrl. */
+  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl. */
   emailBranding?: TemplateContext;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
@@ -84,6 +82,10 @@ export interface Config {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
+  studentPortalUrl: string;
+  /** Admin app origin — invite links for staff. */
+  adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
@@ -185,7 +187,7 @@ export async function buildContainer(
   const mailer = new Mailer(
     templates,
     email,
-    config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminUrl },
+    config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl },
   );
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
@@ -303,11 +305,13 @@ export async function buildContainer(
     trustedOrigins: config.trustedOrigins,
     mcpLoginPage: config.mcpLoginPage,
     mailer,
-    adminUrl: config.adminUrl,
     identity,
     organizations,
+    logger: logger.child({ name: 'auth' }),
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
+    studentPortalUrl: config.studentPortalUrl,
+    adminAppUrl: config.adminAppUrl,
   });
 
   // Resolve the lazy OrgAdmin now that auth exists — organizations' member-write

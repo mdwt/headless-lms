@@ -2,6 +2,13 @@
 // services expect. `req.orgId` is the better-auth active-organization id and
 // `req.authUser` the better-auth user — both set by the `requireSession`
 // preHandler. Back-office routes run `requireSession` then `resolveScope`.
+//
+// Session + active org alone are not staff-only: every better-auth user
+// (including portal students) gets a mirrored domain `users` row, and a
+// student session carries their org as `activeOrganizationId` too. So a
+// student session would otherwise pass this resolver and drive the back-office
+// API. Requiring an org membership (mirroring the MCP path's principal check
+// in `http/mcp/principal.ts`) closes that hole.
 import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 
@@ -33,6 +40,10 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
   const user = await container.identity.getUserByExternalId(authUser.id);
   if (!user) {
     throw new NoActiveOrgError('no domain user for the current user');
+  }
+  const membership = await container.organizations.getMembershipByUser(user.id);
+  if (!membership) {
+    throw new NoActiveOrgError('not an organization member');
   }
   return { orgId: org.id, userId: user.id, authOrgId };
 }

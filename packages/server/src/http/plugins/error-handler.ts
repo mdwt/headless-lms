@@ -3,7 +3,7 @@
 // this maps. Pass through 4xx errors that already carry a status (validation,
 // etc.); log and generically 500 anything unexpected.
 import type { FastifyInstance } from 'fastify';
-import { NotFoundError } from '../../core/shared/errors.js';
+import { NotFoundError, ConflictError } from '../../core/shared/errors.js';
 import { OrganizationRuleError } from '../../core/organizations/index.js';
 import {
   AlreadyConnectedError,
@@ -17,6 +17,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof NotFoundError) {
       return reply.status(404).send({ error: 'not_found', message: error.message });
+    }
+    if (error instanceof ConflictError) {
+      return reply.status(409).send({ error: 'conflict', message: error.message });
     }
     if (error instanceof OrganizationRuleError) {
       return reply.status(409).send({ error: 'conflict', message: error.message });

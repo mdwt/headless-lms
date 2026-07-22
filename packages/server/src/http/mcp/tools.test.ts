@@ -52,6 +52,7 @@ const STUDENT: Student = {
   avgProgress: 65,
   joinedAt: '2026-01-01T00:00:00Z',
   lastActiveAt: '2026-06-01T00:00:00Z',
+  hasAccount: true,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

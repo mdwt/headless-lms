@@ -44,6 +44,8 @@ function loadContainerConfig(): ContainerConfig {
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
     secureCookies: process.env.NODE_ENV === "production",
+    studentPortalUrl: process.env.STUDENT_PORTAL_URL ?? "http://localhost:8002",
+    adminAppUrl: process.env.ADMIN_APP_URL ?? "http://localhost:8001",
   };
 }
 

@@ -31,7 +31,13 @@ export const students = pgTable(
     id: text('id')
       .notNull()
       .$defaultFn(() => genId('student')),
-    externalId: text('external_id').notNull(),
+    // better-auth user id once the student has accepted an invitation; NULL for
+    // admin-created students who haven't created their account yet. Lookups by
+    // external_id never match NULL, so login/org-stamping ignore pending rows.
+    externalId: text('external_id'),
+    // Latest pending better-invite invitation id (set on create/resend, used by
+    // afterAcceptInvite to link the exact row; cleared on link).
+    inviteId: text('invite_id'),
     email: text('email').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),

@@ -20,6 +20,9 @@ import type {
   CreateModuleResponses,
   CreateOrganizationData,
   CreateOrganizationResponses,
+  CreateStudentData,
+  CreateStudentErrors,
+  CreateStudentResponses,
   DeleteActivityData,
   DeleteActivityResponses,
   DeleteAssetData,
@@ -106,6 +109,9 @@ import type {
   RequestUploadData,
   RequestUploadErrors,
   RequestUploadResponses,
+  ResendStudentInviteData,
+  ResendStudentInviteErrors,
+  ResendStudentInviteResponses,
   RevokeConnectedAppData,
   RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
@@ -418,6 +424,26 @@ export class Students {
   }
 
   /**
+   * Create a student manually
+   */
+  public static createStudent<ThrowOnError extends boolean = false>(
+    options: Options<CreateStudentData, ThrowOnError>,
+  ): RequestResult<CreateStudentResponses, CreateStudentErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateStudentResponses,
+      CreateStudentErrors,
+      ThrowOnError
+    >({
+      url: "/api/students",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Get a student by id
    */
   public static getStudent<ThrowOnError extends boolean = false>(
@@ -427,6 +453,19 @@ export class Students {
       url: "/api/students/{id}",
       ...options,
     });
+  }
+
+  /**
+   * Resend the portal invitation for a pending student
+   */
+  public static resendStudentInvite<ThrowOnError extends boolean = false>(
+    options: Options<ResendStudentInviteData, ThrowOnError>,
+  ): RequestResult<ResendStudentInviteResponses, ResendStudentInviteErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ResendStudentInviteResponses,
+      ResendStudentInviteErrors,
+      ThrowOnError
+    >({ url: "/api/students/{id}/invite", ...options });
   }
 }
 

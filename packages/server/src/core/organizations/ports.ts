@@ -28,6 +28,13 @@ export interface OrganizationProvisioner {
   // Lets the adapter detect whether an org is already mirrored (used to make
   // the creator's membership hook resilient to firing before provisioning).
   getByExternalId(externalId: string): Promise<Organization | null>;
+  // Lets the auth adapter gate invite creation to staff (users with a
+  // membership somewhere), and read back the mirror record an accepted
+  // invitation belongs to, before granting the membership.
+  getMembershipByUser(userId: string): Promise<Membership | null>;
+  invitationForAccept(
+    authInvitationId: string,
+  ): Promise<{ orgExternalId: string; role: string; status: string } | null>;
 }
 
 // Inbound port (use cases the service exposes).
@@ -46,7 +53,6 @@ export interface OrganizationService extends OrganizationProvisioner {
   assignCourse(input: AssignCourseInput): Promise<CourseAssignment>;
   unassignCourse(input: AssignCourseInput): Promise<void>;
   assignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
-  getMembershipByUser(userId: string): Promise<Membership | null>;
   // Resolve an org by its public slug — used by the student portal boundary to
   // map the portal org slug to the tenant org id.
   getBySlug(slug: string): Promise<Organization | null>;
@@ -71,6 +77,9 @@ export interface OrganizationsRepository {
   deleteMembershipByExternalId(externalId: string): Promise<void>;
   insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation>;
   setInvitationStatusByAuthId(authInvitationId: string, status: string): Promise<void>;
+  findInvitationByAuthId(
+    authInvitationId: string,
+  ): Promise<{ orgExternalId: string; role: string; status: string } | null>;
   insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;
@@ -117,5 +126,4 @@ export interface OrgAdmin {
   invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void>;
   updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
   removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;
-  cancelInvitation(ctx: MemberWriteContext, authInvitationId: string): Promise<void>;
 }

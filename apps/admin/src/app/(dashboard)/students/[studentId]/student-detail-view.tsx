@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 
 import { ForbiddenView } from "@/components/full-page-states";
 import { EntitlementStatusBadge } from "@/components/status-badge";
@@ -12,6 +14,9 @@ import { isManager } from "@/lib/roles";
 import { formatDate, relativeTime } from "@/lib/format";
 import type { Entitlement, Student } from "@/lib/api/types";
 
+import { GrantAccessSheet, type LiteCourse } from "../_components/grant-access-sheet";
+import { resendStudentInviteAction } from "../actions";
+
 /**
  * Student detail client view (option 2). The student and their entitlements
  * arrive as PROPS from the Server Component — no `useStudent`/
@@ -21,13 +26,27 @@ import type { Entitlement, Student } from "@/lib/api/types";
 export function StudentDetailView({
   student,
   entitlements,
+  courses,
 }: {
   student: Student;
   entitlements: Entitlement[];
+  courses: LiteCourse[];
 }) {
   const user = useCurrentUser();
+  const [grantOpen, setGrantOpen] = React.useState(false);
+  const [resending, startResend] = React.useTransition();
 
   if (!isManager(user.role)) return <ForbiddenView />;
+
+  const onResendInvite = () =>
+    startResend(async () => {
+      try {
+        await resendStudentInviteAction(student.id);
+        toast.success("Invitation sent");
+      } catch (err) {
+        toast.error("Couldn't resend invite", { description: (err as Error).message });
+      }
+    });
 
   return (
     <div className="flex flex-col gap-8">
@@ -40,14 +59,19 @@ export function StudentDetailView({
         </Button>
       </div>
 
-      <StudentHeader student={student} />
+      <StudentHeader student={student} onResendInvite={onResendInvite} resending={resending} />
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-4">
           <h2 className="text-lg font-semibold tracking-tight text-ink">Entitlements</h2>
-          {entitlements.length > 0 ? (
-            <span className="text-sm text-ink-3">{entitlements.length} total</span>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {entitlements.length > 0 ? (
+              <span className="text-sm text-ink-3">{entitlements.length} total</span>
+            ) : null}
+            <Button variant="primary" size="sm" onClick={() => setGrantOpen(true)}>
+              Grant access
+            </Button>
+          </div>
         </div>
 
         {entitlements.length === 0 ? (
@@ -60,11 +84,26 @@ export function StudentDetailView({
           </ul>
         )}
       </section>
+
+      <GrantAccessSheet
+        open={grantOpen}
+        onOpenChange={setGrantOpen}
+        studentId={student.id}
+        courses={courses}
+      />
     </div>
   );
 }
 
-function StudentHeader({ student }: { student: Student }) {
+function StudentHeader({
+  student,
+  onResendInvite,
+  resending,
+}: {
+  student: Student;
+  onResendInvite: () => void;
+  resending: boolean;
+}) {
   const stats: { label: string; value: string }[] = [
     { label: "Entitlements", value: String(student.entitlementCount) },
     { label: "Avg. progress", value: `${Math.round(student.avgProgress)}%` },
@@ -81,6 +120,21 @@ function StudentHeader({ student }: { student: Student }) {
           </h1>
           <p className="truncate text-sm text-ink-3">{student.email}</p>
           <p className="text-xs text-ink-4">Joined {formatDate(student.joinedAt)}</p>
+          {!student.hasAccount ? (
+            <p className="flex items-center gap-2 text-xs text-ink-4">
+              <span className="inline-flex items-center rounded-full border border-line px-2 py-0.5 font-medium text-ink-3">
+                Invite pending
+              </span>
+              <button
+                type="button"
+                disabled={resending}
+                onClick={onResendInvite}
+                className="underline-offset-4 hover:text-ink hover:underline disabled:pointer-events-none disabled:opacity-50"
+              >
+                Resend invite
+              </button>
+            </p>
+          ) : null}
         </div>
       </div>
 
