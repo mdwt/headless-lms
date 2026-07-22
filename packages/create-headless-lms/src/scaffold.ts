@@ -12,7 +12,9 @@ const TEMPLATES = fileURLToPath(new URL("../templates/", import.meta.url));
 function render(content: string, vars: Record<string, string>): string {
   return content.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
     const v = vars[key];
-    if (v === undefined) throw new Error(`template variable {{${key}}} has no value`);
+    if (v === undefined) {
+      throw new Error(`template variable {{${key}}} has no value`);
+    }
     return v;
   });
 }
@@ -76,9 +78,13 @@ STORAGE_BUCKET=
 export async function scaffold(answers: Answers, targetDir: string): Promise<string[]> {
   try {
     const existing = await readdir(targetDir);
-    if (existing.length > 0) throw new Error(`target directory ${targetDir} is not empty`);
+    if (existing.length > 0) {
+      throw new Error(`target directory ${targetDir} is not empty`);
+    }
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw err;
+    }
   }
 
   const written: string[] = [];
@@ -130,7 +136,14 @@ export async function scaffold(answers: Answers, targetDir: string): Promise<str
     await cp(join(TEMPLATES, "src/main.ts"), join(targetDir, "src/main.ts"));
     await cp(join(TEMPLATES, "src/config.ts"), join(targetDir, "src/config.ts"));
     await cp(join(TEMPLATES, "src/plugins/README.md"), join(targetDir, "src/plugins/README.md"));
-    written.push("tsconfig.json", "tsdown.config.ts", ".gitignore", "src/main.ts", "src/config.ts", "src/plugins/README.md");
+    written.push(
+      "tsconfig.json",
+      "tsdown.config.ts",
+      ".gitignore",
+      "src/main.ts",
+      "src/config.ts",
+      "src/plugins/README.md",
+    );
 
     const services: string[] = [];
     const volumes: string[] = [];

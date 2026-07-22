@@ -59,7 +59,9 @@ export async function listChannels(
     exclude_archived: "true",
     limit: String(args.limit ?? 100),
   });
-  if (args.cursor) query.set("cursor", args.cursor);
+  if (args.cursor) {
+    query.set("cursor", args.cursor);
+  }
   const body = await slackApi<
     SlackEnvelope & {
       channels?: Array<{ id: string; name: string }>;

@@ -104,7 +104,9 @@ function enrollmentFields(e: EnrollmentEventPayload): unknown {
     field("Course", e.courseTitle),
     field("Enrolled at", e.grantedAt),
   ];
-  if (e.expiresAt) fields.push(field("Expires", e.expiresAt));
+  if (e.expiresAt) {
+    fields.push(field("Expires", e.expiresAt));
+  }
   return { type: "section", fields };
 }
 

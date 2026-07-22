@@ -17,7 +17,9 @@ type LogLevel = (typeof LOG_LEVELS)[number];
 /** LOG_LEVEL env → logging.level; unset → server default ("info"). */
 function parseLogLevel(): LogLevel | undefined {
   const raw = process.env.LOG_LEVEL;
-  if (!raw) return undefined;
+  if (!raw) {
+    return undefined;
+  }
   if (!(LOG_LEVELS as readonly string[]).includes(raw)) {
     throw new Error(`invalid LOG_LEVEL "${raw}" (expected one of ${LOG_LEVELS.join(", ")})`);
   }

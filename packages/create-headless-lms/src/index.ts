@@ -16,7 +16,9 @@ function bail(message = "Cancelled."): never {
 }
 /** Unwrap a clack result, exiting cleanly on ctrl-c. */
 function got<T>(value: T | symbol): T {
-  if (p.isCancel(value)) bail();
+  if (p.isCancel(value)) {
+    bail();
+  }
   return value as T;
 }
 
@@ -24,16 +26,24 @@ p.intro("create-headless-lms");
 
 /** Reject non-integer or out-of-range (1-65535) port input; undefined/empty passes through (Enter keeps the default). */
 function validatePort(v: string | undefined): string | undefined {
-  if (!v) return undefined;
-  if (!/^\d+$/.test(v)) return "Port must be a whole number.";
+  if (!v) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(v)) {
+    return "Port must be a whole number.";
+  }
   const n = Number(v);
-  if (n < 1 || n > 65535) return "Port must be between 1 and 65535.";
+  if (n < 1 || n > 65535) {
+    return "Port must be between 1 and 65535.";
+  }
   return undefined;
 }
 
 let name = args.name;
 if (!name) {
-  if (args.yes) bail("--yes needs a project name: create-headless-lms <name> --yes");
+  if (args.yes) {
+    bail("--yes needs a project name: create-headless-lms <name> --yes");
+  }
   name = got(
     await p.text({
       message: "Project name",
@@ -43,7 +53,9 @@ if (!name) {
   );
 }
 const nameError = validateName(name);
-if (nameError) bail(nameError);
+if (nameError) {
+  bail(nameError);
+}
 
 let answers: Answers = defaultAnswers(name);
 
@@ -59,7 +71,15 @@ if (!args.yes) {
   );
   const db =
     dbMode === "url"
-      ? { mode: "url" as const, url: got(await p.text({ message: "DATABASE_URL", placeholder: "postgres://user:pass@host:5432/db" })) }
+      ? {
+          mode: "url" as const,
+          url: got(
+            await p.text({
+              message: "DATABASE_URL",
+              placeholder: "postgres://user:pass@host:5432/db",
+            }),
+          ),
+        }
       : { mode: "docker" as const };
 
   const storageMode = got(
@@ -73,7 +93,9 @@ if (!args.yes) {
     }),
   );
   let storage: StorageAnswer = { mode: "minio" };
-  if (storageMode === "skip") storage = { mode: "skip" };
+  if (storageMode === "skip") {
+    storage = { mode: "skip" };
+  }
   if (storageMode === "s3") {
     storage = {
       mode: "s3",
@@ -118,7 +140,14 @@ const run = (cmd: string, argv: string[]) =>
 
 if (!args.yes && got(await p.confirm({ message: "Run pnpm install now?", initialValue: true }))) {
   run("pnpm", ["install"]);
-  if (got(await p.confirm({ message: "Run migrations now? (database must be reachable)", initialValue: false }))) {
+  if (
+    got(
+      await p.confirm({
+        message: "Run migrations now? (database must be reachable)",
+        initialValue: false,
+      }),
+    )
+  ) {
     run("pnpm", ["migrate"]);
   }
 }
@@ -126,7 +155,9 @@ if (!args.yes && got(await p.confirm({ message: "Run pnpm install now?", initial
 p.note(
   [
     `cd ${name}`,
-    ...(answers.db.mode === "docker" || answers.storage.mode === "minio" ? ["docker compose up -d"] : []),
+    ...(answers.db.mode === "docker" || answers.storage.mode === "minio"
+      ? ["docker compose up -d"]
+      : []),
     "pnpm install        # if you skipped it",
     "pnpm migrate",
     "pnpm dev",

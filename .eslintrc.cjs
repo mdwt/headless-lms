@@ -83,6 +83,8 @@ module.exports = {
     ],
   },
   rules: {
+    // Always brace control-flow bodies — no single-line `if (x) throw y;` guards.
+    curly: ["error", "all"],
     // Placeholder params/vars in bootstrap shells use the conventional underscore prefix.
     "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": [
