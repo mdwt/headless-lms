@@ -196,3 +196,29 @@ describe("ContentServiceImpl", () => {
     );
   });
 });
+
+describe("logging", () => {
+  it("logs course create/update/delete at info with ids", async () => {
+    const { createCapturingLogger } = await import("../shared/logger.js");
+    const { logger, entries } = createCapturingLogger();
+    const repo = makeRepo();
+    const course = makeCourse();
+    (repo.create as ReturnType<typeof vi.fn>).mockResolvedValue(course);
+    (repo.update as ReturnType<typeof vi.fn>).mockResolvedValue(course);
+    (repo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(course);
+    (repo.delete as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    const { uow } = fakeUow(repo);
+    const svc = new ContentServiceImpl(repo, makeStructureRepo(), uow, logger);
+
+    await svc.create("org-1", { title: "Intro" });
+    await svc.update("org-1", course.id, { title: "Intro 2" });
+    await svc.remove("org-1", course.id);
+
+    expect(entries.filter((e) => e.level === "info").map((e) => e.msg)).toEqual([
+      "course created",
+      "course updated",
+      "course deleted",
+    ]);
+    expect(entries[0]?.meta).toMatchObject({ orgId: "org-1", courseId: course.id });
+  });
+});

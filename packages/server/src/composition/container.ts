@@ -193,6 +193,7 @@ export async function buildContainer(
     new DrizzleContentRepository(db),
     new DrizzleContentStructureRepository(db),
     contentUow,
+    logger.child({ name: "content" }),
   );
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({

@@ -12,6 +12,8 @@ import type {
   ContentUnitOfWork,
 } from "./ports.js";
 import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from "./types.js";
+import type { Logger } from "../shared/ports.js";
+import { noopLogger } from "../shared/logger.js";
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
 function slugify(title: string): string {
@@ -26,6 +28,7 @@ export class ContentServiceImpl implements ContentService {
     private readonly repo: ContentRepository,
     private readonly structureRepo: CourseRepository,
     private readonly uow: ContentUnitOfWork,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
@@ -36,32 +39,38 @@ export class ContentServiceImpl implements ContentService {
     return this.repo.findById(orgId, id);
   }
 
-  create(orgId: string, input: CreateCourseInput): Promise<Course> {
-    return this.uow.run(async ({ courses, outbox }) => {
-      const course = await courses.create(orgId, input, slugify(input.title));
-      await outbox.append([{ type: "course.created", orgId, course }]);
-      return course;
+  async create(orgId: string, input: CreateCourseInput): Promise<Course> {
+    const course = await this.uow.run(async ({ courses, outbox }) => {
+      const created = await courses.create(orgId, input, slugify(input.title));
+      await outbox.append([{ type: "course.created", orgId, course: created }]);
+      return created;
     });
+    this.logger.info("course created", { orgId, courseId: course.id });
+    return course;
   }
 
-  update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {
-    return this.uow.run(async ({ courses, outbox }) => {
-      const course = await courses.update(orgId, id, patch);
-      if (!course) return null;
-      await outbox.append([{ type: "course.updated", orgId, course }]);
-      return course;
+  async update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {
+    const course = await this.uow.run(async ({ courses, outbox }) => {
+      const updated = await courses.update(orgId, id, patch);
+      if (!updated) return null;
+      await outbox.append([{ type: "course.updated", orgId, course: updated }]);
+      return updated;
     });
+    if (course) this.logger.info("course updated", { orgId, courseId: id });
+    return course;
   }
 
-  remove(orgId: string, id: string): Promise<boolean> {
-    return this.uow.run(async ({ courses, outbox }) => {
+  async remove(orgId: string, id: string): Promise<boolean> {
+    const deleted = await this.uow.run(async ({ courses, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const course = await courses.findById(orgId, id);
       if (!course) return false;
-      const deleted = await courses.delete(orgId, id);
-      if (deleted) await outbox.append([{ type: "course.deleted", orgId, course }]);
-      return deleted;
+      const ok = await courses.delete(orgId, id);
+      if (ok) await outbox.append([{ type: "course.deleted", orgId, course }]);
+      return ok;
     });
+    if (deleted) this.logger.info("course deleted", { orgId, courseId: id });
+    return deleted;
   }
 
   // --- modules & activities (delegated to the structure repository) -------
@@ -69,46 +78,60 @@ export class ContentServiceImpl implements ContentService {
   listForCourse(orgId: string, courseId: string): Promise<Module[]> {
     return this.structureRepo.listForCourse(orgId, courseId);
   }
-  reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
-    return this.structureRepo.reorderModules(orgId, courseId, orderedIds);
+  async reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
+    const modules = await this.structureRepo.reorderModules(orgId, courseId, orderedIds);
+    this.logger.debug("modules reordered", { orgId, courseId });
+    return modules;
   }
-  createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
-    return this.structureRepo.createModule(orgId, courseId, title);
+  async createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
+    const modules = await this.structureRepo.createModule(orgId, courseId, title);
+    this.logger.info("module created", { orgId, courseId });
+    return modules;
   }
-  updateModule(
+  async updateModule(
     orgId: string,
     courseId: string,
     moduleId: string,
     title: string,
   ): Promise<Module[]> {
-    return this.structureRepo.updateModule(orgId, courseId, moduleId, title);
+    const modules = await this.structureRepo.updateModule(orgId, courseId, moduleId, title);
+    this.logger.info("module updated", { orgId, courseId, moduleId });
+    return modules;
   }
-  deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
-    return this.structureRepo.deleteModule(orgId, courseId, moduleId);
+  async deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
+    const modules = await this.structureRepo.deleteModule(orgId, courseId, moduleId);
+    this.logger.info("module deleted", { orgId, courseId, moduleId });
+    return modules;
   }
-  reorderActivities(
+  async reorderActivities(
     orgId: string,
     courseId: string,
     moduleId: string,
     orderedIds: string[],
   ): Promise<Module[]> {
-    return this.structureRepo.reorderActivities(orgId, courseId, moduleId, orderedIds);
+    const modules = await this.structureRepo.reorderActivities(orgId, courseId, moduleId, orderedIds);
+    this.logger.debug("activities reordered", { orgId, courseId, moduleId });
+    return modules;
   }
-  saveActivity(
+  async saveActivity(
     orgId: string,
     courseId: string,
     moduleId: string,
     input: SaveActivityInput,
     activityId?: string,
   ): Promise<Module[]> {
-    return this.structureRepo.saveActivity(orgId, courseId, moduleId, input, activityId);
+    const modules = await this.structureRepo.saveActivity(orgId, courseId, moduleId, input, activityId);
+    this.logger.info("activity saved", { orgId, courseId, moduleId, activityId: activityId ?? null });
+    return modules;
   }
-  deleteActivity(
+  async deleteActivity(
     orgId: string,
     courseId: string,
     moduleId: string,
     activityId: string,
   ): Promise<Module[]> {
-    return this.structureRepo.deleteActivity(orgId, courseId, moduleId, activityId);
+    const modules = await this.structureRepo.deleteActivity(orgId, courseId, moduleId, activityId);
+    this.logger.info("activity deleted", { orgId, courseId, moduleId, activityId });
+    return modules;
   }
 }
