@@ -1,18 +1,18 @@
 // organizations members — Drizzle read repository. Reads the domain mirror of the
 // org's members (memberships) and pending invitations, joined to the identity user
 // for display. Writes go through the auth provider (see adapters/auth/org-admin.ts).
-import { and, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { MembersRepository, MemberRecord } from "../../../core/organizations/index.js";
-import type { Member, MembersQuery, Page, Role } from "../../../core/organizations/index.js";
-import { memberships, invitations } from "../schema/organizations.js";
-import { users } from "../schema/identity.js";
-import { user } from "../../auth/schema.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, eq } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { MembersRepository, MemberRecord } from '../../../core/organizations/index.js';
+import type { Member, MembersQuery, Page, Role } from '../../../core/organizations/index.js';
+import { memberships, invitations } from '../schema/organizations.js';
+import { users } from '../schema/identity.js';
+import { user } from '../../auth/schema.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
-const ROLES: Role[] = ["owner", "admin", "instructor"];
-const roleOf = (t: string): Role => (ROLES.includes(t as Role) ? (t as Role) : "instructor");
+const ROLES: Role[] = ['owner', 'admin', 'instructor'];
+const roleOf = (t: string): Role => (ROLES.includes(t as Role) ? (t as Role) : 'instructor');
 
 function toMember(r: MemberRecord): Member {
   return {
@@ -58,7 +58,7 @@ export class DrizzleMembersRepository implements MembersRepository {
         authInvitationId: invitations.authInvitationId,
       })
       .from(invitations)
-      .where(and(eq(invitations.orgId, orgId), eq(invitations.status, "pending")));
+      .where(and(eq(invitations.orgId, orgId), eq(invitations.status, 'pending')));
 
     const members: MemberRecord[] = memberRows.map((m) => ({
       id: m.id,
@@ -66,10 +66,10 @@ export class DrizzleMembersRepository implements MembersRepository {
       email: m.email,
       image: m.image ?? null,
       role: roleOf(m.role),
-      status: "active",
+      status: 'active',
       joinedAt: m.joinedAt.toISOString(),
       invitedAt: null,
-      kind: "member",
+      kind: 'member',
       authMemberId: m.authMemberId,
       authInvitationId: null,
     }));
@@ -79,10 +79,10 @@ export class DrizzleMembersRepository implements MembersRepository {
       email: i.email,
       image: null,
       role: roleOf(i.role),
-      status: "invited",
+      status: 'invited',
       joinedAt: null,
       invitedAt: i.invitedAt.toISOString(),
-      kind: "invitation",
+      kind: 'invitation',
       authMemberId: null,
       authInvitationId: i.authInvitationId,
     }));
@@ -91,22 +91,27 @@ export class DrizzleMembersRepository implements MembersRepository {
 
   async list(orgId: string, query: MembersQuery): Promise<Page<Member>> {
     let rows = await this.loadAll(orgId);
-    if (query.role) rows = rows.filter((r) => r.role === query.role);
-    if (query.status) rows = rows.filter((r) => r.status === query.status);
+    if (query.role) {
+      rows = rows.filter((r) => r.role === query.role);
+    }
+    if (query.status) {
+      rows = rows.filter((r) => r.status === query.status);
+    }
     const q = query.search?.trim().toLowerCase();
-    if (q)
+    if (q) {
       rows = rows.filter(
         (r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q),
       );
+    }
 
     const sort = query.sort;
-    const desc = sort?.startsWith("-") ?? false;
+    const desc = sort?.startsWith('-') ?? false;
     const key = (desc ? sort!.slice(1) : sort) as keyof Member | undefined;
     rows.sort((a, b) => {
       const cmp =
-        key === "email"
+        key === 'email'
           ? a.email.localeCompare(b.email)
-          : key === "role"
+          : key === 'role'
             ? a.role.localeCompare(b.role)
             : a.name.localeCompare(b.name);
       return desc ? -cmp : cmp;

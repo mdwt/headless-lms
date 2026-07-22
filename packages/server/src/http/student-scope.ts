@@ -4,9 +4,9 @@
 // `requireSession`) — no per-request header. `(orgId, externalId)` resolves the
 // one student row. A session that doesn't resolve to a portal student is an
 // authentication failure (→ 401).
-import type { FastifyRequest } from "fastify";
-import type { Container } from "../composition/container.js";
-import type { Organization } from "../core/organizations/index.js";
+import type { FastifyRequest } from 'fastify';
+import type { Container } from '../composition/container.js';
+import type { Organization } from '../core/organizations/index.js';
 
 export interface StudentScope {
   /** Domain `students.id` for the session's user in the portal org. */
@@ -26,10 +26,16 @@ export async function resolveStudentScope(
 ): Promise<StudentScope> {
   const authUser = req.authUser;
   const authOrgId = req.orgId ?? null;
-  if (!authUser || !authOrgId) throw new NoStudentError("no authenticated student session");
+  if (!authUser || !authOrgId) {
+    throw new NoStudentError('no authenticated student session');
+  }
   const org = await container.organizations.getByExternalId(authOrgId);
-  if (!org) throw new NoStudentError("session organization not found");
+  if (!org) {
+    throw new NoStudentError('session organization not found');
+  }
   const student = await container.identity.getStudentByExternalId(org.id, authUser.id);
-  if (!student) throw new NoStudentError("no student for the current session");
+  if (!student) {
+    throw new NoStudentError('no student for the current session');
+  }
   return { studentId: student.id, orgId: org.id, org };
 }

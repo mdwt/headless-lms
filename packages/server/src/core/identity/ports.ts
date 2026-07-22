@@ -1,6 +1,6 @@
 // identity context — ports.
-import type { User, Student } from "./model.js";
-import type { RegisterUserInput, RegisterStudentInput } from "./types.js";
+import type { User, Student } from './model.js';
+import type { RegisterUserInput, RegisterStudentInput } from './types.js';
 
 // Capabilities used by the auth adapter to provision a domain identity when a
 // credential user is created — narrow slices of the identity service.

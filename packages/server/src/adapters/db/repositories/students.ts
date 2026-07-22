@@ -3,14 +3,14 @@
 // student with >=1 enrollment in that org. Rows are aggregated per student and
 // scoped by `enrollments.orgId`. Identity (name/email/joinedAt) comes from the
 // `students` table; the avatar comes from the better-auth `user` table.
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { StudentsReportRepository } from "../../../reporting/students/index.js";
-import type { Page, Student, StudentsQuery } from "../../../reporting/students/index.js";
-import { students, enrollments } from "../schema/index.js";
-import { user } from "../../auth/schema.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { StudentsReportRepository } from '../../../reporting/students/index.js';
+import type { Page, Student, StudentsQuery } from '../../../reporting/students/index.js';
+import { students, enrollments } from '../schema/index.js';
+import { user } from '../../auth/schema.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 const nameExpr = sql<string>`${students.firstName} || ' ' || ${students.lastName}`;
 const enrollmentCountExpr = sql<number>`count(${enrollments.id})`;
@@ -125,19 +125,19 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
   }
 
   private resolveOrder(sort?: string): SQL[] {
-    const descending = sort?.startsWith("-") ?? false;
-    const field = sort ? (descending ? sort.slice(1) : sort) : "name";
+    const descending = sort?.startsWith('-') ?? false;
+    const field = sort ? (descending ? sort.slice(1) : sort) : 'name';
     const dir = descending ? desc : asc;
     switch (field) {
-      case "email":
+      case 'email':
         return [dir(students.email)];
-      case "enrollmentCount":
+      case 'enrollmentCount':
         return [dir(enrollmentCountExpr)];
-      case "avgProgress":
+      case 'avgProgress':
         return [dir(avgProgressExpr)];
-      case "joinedAt":
+      case 'joinedAt':
         return [dir(students.createdAt)];
-      case "name":
+      case 'name':
       default:
         return [dir(nameExpr)];
     }

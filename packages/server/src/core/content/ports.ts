@@ -1,14 +1,16 @@
-import type { Course, Module, SaveActivityInput } from "./model.js";
-import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from "./types.js";
-import type { OutboxAppender, UnitOfWork } from "../shared/ports.js";
+import type { Course, Module, SaveActivityInput } from './model.js';
+import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from './types.js';
+import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
 export interface ContentService {
   list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
   get(orgId: string, id: string): Promise<Course | null>;
   create(orgId: string, input: CreateCourseInput): Promise<Course>;
-  update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null>;
-  remove(orgId: string, id: string): Promise<boolean>;
-  
+  /** @throws NotFoundError when no course with this id exists in the org. */
+  update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course>;
+  /** @throws NotFoundError when no course with this id exists in the org. */
+  remove(orgId: string, id: string): Promise<void>;
+
   listForCourse(orgId: string, courseId: string): Promise<Module[]>;
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;

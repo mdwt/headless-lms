@@ -1,13 +1,21 @@
-import { describe, it, expect } from "vitest";
-import { LearnReportServiceImpl } from "./service.js";
-import type { LearnEnrollmentReader, CourseRef } from "./index.js";
-import type { ContentService, Course, Module } from "../../core/content/index.js";
+import { describe, it, expect } from 'vitest';
+import { LearnReportServiceImpl } from './service.js';
+import type { LearnEnrollmentReader, CourseRef } from './index.js';
+import type { ContentService, Course, Module } from '../../core/content/index.js';
 
-function course(id: string, status: "draft" | "published" = "published"): Course {
+function course(id: string, status: 'draft' | 'published' = 'published'): Course {
   return {
-    id, title: `C ${id}`, slug: id, description: "", status, category: "",
-    moduleCount: 0, activityCount: 0, enrolledCount: 0,
-    updatedAt: "2026-01-01T00:00:00.000Z", createdAt: "2026-01-01T00:00:00.000Z",
+    id,
+    title: `C ${id}`,
+    slug: id,
+    description: '',
+    status,
+    category: '',
+    moduleCount: 0,
+    activityCount: 0,
+    enrolledCount: 0,
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    createdAt: '2026-01-01T00:00:00.000Z',
   };
 }
 
@@ -30,53 +38,56 @@ function fakeContent(
   } as unknown as ContentService;
 }
 
-describe("LearnReportServiceImpl", () => {
-  it("lists only published courses the student is enrolled in", async () => {
+describe('LearnReportServiceImpl', () => {
+  it('lists only published courses the student is enrolled in', async () => {
     const svc = new LearnReportServiceImpl(
       fakeReader([
-        { orgId: "o1", courseId: "c1" },
-        { orgId: "o1", courseId: "c2" },
+        { orgId: 'o1', courseId: 'c1' },
+        { orgId: 'o1', courseId: 'c2' },
       ]),
-      fakeContent({ c1: course("c1", "published"), c2: course("c2", "draft") }, {}),
+      fakeContent({ c1: course('c1', 'published'), c2: course('c2', 'draft') }, {}),
     );
-    const rows = await svc.listCourses("o1", "stu_1");
-    expect(rows.map((c) => c.id)).toEqual(["c1"]);
+    const rows = await svc.listCourses('o1', 'stu_1');
+    expect(rows.map((c) => c.id)).toEqual(['c1']);
   });
 
-  it("returns null for a course the student is not enrolled in", async () => {
+  it('returns null for a course the student is not enrolled in', async () => {
     const svc = new LearnReportServiceImpl(
-      fakeReader([{ orgId: "o1", courseId: "c1" }]),
-      fakeContent({ c1: course("c1") }, {}),
+      fakeReader([{ orgId: 'o1', courseId: 'c1' }]),
+      fakeContent({ c1: course('c1') }, {}),
     );
-    expect(await svc.getCourse("o1", "stu_1", "cX")).toBeNull();
-    expect(await svc.listModules("o1", "stu_1", "cX")).toBeNull();
+    expect(await svc.getCourse('o1', 'stu_1', 'cX')).toBeNull();
+    expect(await svc.listModules('o1', 'stu_1', 'cX')).toBeNull();
   });
 
-  it("does not return a course enrolled in another org", async () => {
+  it('does not return a course enrolled in another org', async () => {
     const svc = new LearnReportServiceImpl(
-      fakeReader([{ orgId: "o2", courseId: "c1" }]),
-      fakeContent({ c1: course("c1") }, {}),
+      fakeReader([{ orgId: 'o2', courseId: 'c1' }]),
+      fakeContent({ c1: course('c1') }, {}),
     );
-    expect(await svc.listCourses("o1", "stu_1")).toEqual([]);
-    expect(await svc.getCourse("o1", "stu_1", "c1")).toBeNull();
+    expect(await svc.listCourses('o1', 'stu_1')).toEqual([]);
+    expect(await svc.getCourse('o1', 'stu_1', 'c1')).toBeNull();
   });
 
-  it("filters unpublished activities out of the module tree", async () => {
+  it('filters unpublished activities out of the module tree', async () => {
     const modules: Module[] = [
       {
-        id: "m1", courseId: "c1", title: "M1", seq: 0,
+        id: 'm1',
+        courseId: 'c1',
+        title: 'M1',
+        seq: 0,
         activities: [
-          { id: "a1", moduleId: "m1", seq: 0, settings: { published: true }, assetIds: [] },
-          { id: "a2", moduleId: "m1", seq: 1, settings: { published: false }, assetIds: [] },
-          { id: "a3", moduleId: "m1", seq: 2, settings: { title: "no flag" }, assetIds: [] },
+          { id: 'a1', moduleId: 'm1', seq: 0, settings: { published: true }, assetIds: [] },
+          { id: 'a2', moduleId: 'm1', seq: 1, settings: { published: false }, assetIds: [] },
+          { id: 'a3', moduleId: 'm1', seq: 2, settings: { title: 'no flag' }, assetIds: [] },
         ],
       },
     ];
     const svc = new LearnReportServiceImpl(
-      fakeReader([{ orgId: "o1", courseId: "c1" }]),
-      fakeContent({ c1: course("c1") }, { c1: modules }),
+      fakeReader([{ orgId: 'o1', courseId: 'c1' }]),
+      fakeContent({ c1: course('c1') }, { c1: modules }),
     );
-    const result = await svc.listModules("o1", "stu_1", "c1");
-    expect(result?.[0]?.activities.map((a) => a.id)).toEqual(["a1", "a3"]);
+    const result = await svc.listModules('o1', 'stu_1', 'c1');
+    expect(result?.[0]?.activities.map((a) => a.id)).toEqual(['a1', 'a3']);
   });
 });

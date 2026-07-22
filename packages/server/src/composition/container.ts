@@ -1,61 +1,54 @@
 // Wires adapters + services in dependency order. Starts nothing.
-import { createDb } from "../adapters/db/index.js";
-import { DrizzleUnitOfWork } from "../adapters/db/unit-of-work.js";
-import { InMemoryEventBus } from "../adapters/events/index.js";
+import { createDb } from '../adapters/db/index.js';
+import { DrizzleUnitOfWork } from '../adapters/db/unit-of-work.js';
+import { InMemoryEventBus } from '../adapters/events/index.js';
 import {
   PollingOutboxRelay,
   type PollingOutboxRelayConfig,
-} from "../adapters/events/outbox-relay.js";
-import {
-  DrizzleOutboxAppender,
-  DrizzleOutboxStore,
-} from "../adapters/db/repositories/outbox.js";
-import { EmailAdapter } from "../adapters/email/index.js";
-import {
-  createRootLogger,
-  type LogLevel,
-  type PinoInstance,
-} from "../adapters/logging/index.js";
-import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
-import { createAuth, type Auth } from "../adapters/auth/index.js";
-import { createOrgAdmin } from "../adapters/auth/org-admin.js";
+} from '../adapters/events/outbox-relay.js';
+import { DrizzleOutboxAppender, DrizzleOutboxStore } from '../adapters/db/repositories/outbox.js';
+import { EmailAdapter } from '../adapters/email/index.js';
+import { createRootLogger, type LogLevel, type PinoInstance } from '../adapters/logging/index.js';
+import { MinioStorageAdapter, type MinioStorageConfig } from '../adapters/storage/index.js';
+import { createAuth, type Auth } from '../adapters/auth/index.js';
+import { createOrgAdmin } from '../adapters/auth/org-admin.js';
 import {
   createConnectedAppsRepo,
   type ConnectedAppsRepo,
-} from "../adapters/auth/connected-apps.js";
+} from '../adapters/auth/connected-apps.js';
 
-import { ContentServiceImpl } from "../core/content/index.js";
-import { EntitlementsServiceImpl } from "../core/entitlements/index.js";
-import { ProgressServiceImpl } from "../core/progress/index.js";
-import { IdentityServiceImpl } from "../core/identity/index.js";
-import { OrganizationServiceImpl, type OrgAdmin } from "../core/organizations/index.js";
-import { AssetsServiceImpl } from "../core/assets/index.js";
-import { IntegrationsServiceImpl } from "../core/integrations/index.js";
-import { loadIntegrations } from "./integrations.js";
-import { StudentsReportServiceImpl } from "../reporting/students/index.js";
-import { DashboardReportServiceImpl } from "../reporting/dashboard/index.js";
-import { LearnReportServiceImpl } from "../reporting/learn/index.js";
+import { ContentServiceImpl } from '../core/content/index.js';
+import { EntitlementsServiceImpl } from '../core/entitlements/index.js';
+import { ProgressServiceImpl } from '../core/progress/index.js';
+import { IdentityServiceImpl } from '../core/identity/index.js';
+import { OrganizationServiceImpl, type OrgAdmin } from '../core/organizations/index.js';
+import { AssetsServiceImpl } from '../core/assets/index.js';
+import { IntegrationsServiceImpl } from '../core/integrations/index.js';
+import { loadIntegrations } from './integrations.js';
+import { StudentsReportServiceImpl } from '../reporting/students/index.js';
+import { DashboardReportServiceImpl } from '../reporting/dashboard/index.js';
+import { LearnReportServiceImpl } from '../reporting/learn/index.js';
 
-import { DrizzleEntitlementsRepository } from "../adapters/db/repositories/entitlements.js";
-import { DrizzleProgressRepository } from "../adapters/db/repositories/progress.js";
-import { DrizzleIdentityRepository } from "../adapters/db/repositories/identity.js";
-import { DrizzleOrganizationsRepository } from "../adapters/db/repositories/organizations.js";
-import { DrizzleMembersRepository } from "../adapters/db/repositories/members.js";
-import { DrizzleContentRepository } from "../adapters/db/repositories/content.js";
-import { DrizzleContentStructureRepository } from "../adapters/db/repositories/structure.js";
-import { DrizzleAssetsRepository } from "../adapters/db/repositories/assets.js";
-import { DrizzleStudentsRepository } from "../adapters/db/repositories/students.js";
-import { DrizzleDashboardRepository } from "../adapters/db/repositories/dashboard.js";
-import { DrizzleLearnRepository } from "../adapters/db/repositories/learn.js";
-import { DrizzleCredentialStore } from "../adapters/db/repositories/credentials.js";
-import { DrizzleConnectionsRepository } from "../adapters/db/repositories/integrations.js";
+import { DrizzleEntitlementsRepository } from '../adapters/db/repositories/entitlements.js';
+import { DrizzleProgressRepository } from '../adapters/db/repositories/progress.js';
+import { DrizzleIdentityRepository } from '../adapters/db/repositories/identity.js';
+import { DrizzleOrganizationsRepository } from '../adapters/db/repositories/organizations.js';
+import { DrizzleMembersRepository } from '../adapters/db/repositories/members.js';
+import { DrizzleContentRepository } from '../adapters/db/repositories/content.js';
+import { DrizzleContentStructureRepository } from '../adapters/db/repositories/structure.js';
+import { DrizzleAssetsRepository } from '../adapters/db/repositories/assets.js';
+import { DrizzleStudentsRepository } from '../adapters/db/repositories/students.js';
+import { DrizzleDashboardRepository } from '../adapters/db/repositories/dashboard.js';
+import { DrizzleLearnRepository } from '../adapters/db/repositories/learn.js';
+import { DrizzleCredentialStore } from '../adapters/db/repositories/credentials.js';
+import { DrizzleConnectionsRepository } from '../adapters/db/repositories/integrations.js';
 import type {
   CredentialStore,
   EmailSender,
   Logger,
   ObjectStorage,
   OutboxRelay,
-} from "../core/shared/ports.js";
+} from '../core/shared/ports.js';
 
 /** Deployment-specific ports an installation may swap. */
 export interface AdapterOverrides {
@@ -119,7 +112,7 @@ export interface LoggingConfig {
   level?: LogLevel;
 }
 
-export const LOGGING_DEFAULTS: Required<LoggingConfig> = { level: "info" };
+export const LOGGING_DEFAULTS: Required<LoggingConfig> = { level: 'info' };
 
 export function resolveLoggingConfig(config: LoggingConfig = {}): Required<LoggingConfig> {
   return { level: config.level ?? LOGGING_DEFAULTS.level };
@@ -163,29 +156,31 @@ export async function buildContainer(
     resolveLoggingConfig(config.logging).level,
   );
   // One child per domain — a context's service and repositories share it.
-  const identityLogger = logger.child({ name: "identity" });
-  const organizationsLogger = logger.child({ name: "organizations" });
-  const contentLogger = logger.child({ name: "content" });
-  const entitlementsLogger = logger.child({ name: "entitlements" });
-  const progressLogger = logger.child({ name: "progress" });
-  const assetsLogger = logger.child({ name: "assets" });
-  const integrationsLogger = logger.child({ name: "integrations" });
-  const reportingLogger = logger.child({ name: "reporting" });
-  const outboxLogger = logger.child({ name: "outbox" });
+  const identityLogger = logger.child({ name: 'identity' });
+  const organizationsLogger = logger.child({ name: 'organizations' });
+  const contentLogger = logger.child({ name: 'content' });
+  const entitlementsLogger = logger.child({ name: 'entitlements' });
+  const progressLogger = logger.child({ name: 'progress' });
+  const assetsLogger = logger.child({ name: 'assets' });
+  const integrationsLogger = logger.child({ name: 'integrations' });
+  const reportingLogger = logger.child({ name: 'reporting' });
+  const outboxLogger = logger.child({ name: 'outbox' });
 
   // Outbound adapters
   const db = createDb(config.databaseUrl);
-  const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: "email" }));
+  const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: 'email' }));
   const storage: ObjectStorage =
     options?.adapters?.storage ??
-    new MinioStorageAdapter(config.storage, logger.child({ name: "storage" }));
+    new MinioStorageAdapter(config.storage, logger.child({ name: 'storage' }));
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
   // that composition fills in once auth exists.
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const orgAdminProvider = (): OrgAdmin => {
-    if (!orgAdminRef.current) throw new Error("orgAdmin not initialised");
+    if (!orgAdminRef.current) {
+      throw new Error('orgAdmin not initialised');
+    }
     return orgAdminRef.current;
   };
 

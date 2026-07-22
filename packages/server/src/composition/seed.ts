@@ -9,10 +9,10 @@
  * configuration — every run inserts fresh random data. Run:
  *   pnpm --filter @headless-lms/api seed
  */
-import { faker } from "@faker-js/faker";
-import { createDb, schema } from "./db.js";
-import { genId, ksuid } from "../core/shared/id.js";
-import { seedDevStudent } from "./seed-dev-student.js";
+import { faker } from '@faker-js/faker';
+import { createDb, schema } from './db.js';
+import { genId, ksuid } from '../core/shared/id.js';
+import { seedDevStudent } from './seed-dev-student.js';
 
 const times = <T>(n: number, f: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => f(i));
 const chance = (p: number) => faker.number.float() < p;
@@ -37,7 +37,7 @@ async function main(db: ReturnType<typeof createDb>) {
 
   times(faker.number.int({ min: 3, max: 6 }), () => {
     // Owner user + org.
-    const ownerId = genId("user");
+    const ownerId = genId('user');
     users.push({
       id: ownerId,
       externalId: ksuid(),
@@ -45,26 +45,26 @@ async function main(db: ReturnType<typeof createDb>) {
       displayName: faker.person.fullName(),
     });
 
-    const orgId = genId("organization");
+    const orgId = genId('organization');
     const orgName = faker.company.name();
     organizations.push({
       id: orgId,
       externalId: ksuid(),
       name: orgName,
-      slug: faker.helpers.slugify(orgName).toLowerCase() + "-" + ksuid().slice(-6),
+      slug: faker.helpers.slugify(orgName).toLowerCase() + '-' + ksuid().slice(-6),
       ownerId,
     });
     memberships.push({
       orgId,
-      id: genId("membership"),
+      id: genId('membership'),
       userId: ownerId,
-      role: "owner",
+      role: 'owner',
       externalId: ksuid(),
     });
 
     // Staff.
     times(faker.number.int({ min: 2, max: 4 }), () => {
-      const uid = genId("user");
+      const uid = genId('user');
       users.push({
         id: uid,
         externalId: ksuid(),
@@ -73,16 +73,16 @@ async function main(db: ReturnType<typeof createDb>) {
       });
       memberships.push({
         orgId,
-        id: genId("membership"),
+        id: genId('membership'),
         userId: uid,
-        role: faker.helpers.arrayElement(["admin", "instructor"] as const),
+        role: faker.helpers.arrayElement(['admin', 'instructor'] as const),
         externalId: ksuid(),
       });
     });
 
     // Students (org-scoped: each belongs to this org).
     const orgStudents = times(faker.number.int({ min: 5, max: 12 }), () => {
-      const sid = genId("student");
+      const sid = genId('student');
       const first = faker.person.firstName();
       const last = faker.person.lastName();
       students.push({
@@ -98,16 +98,16 @@ async function main(db: ReturnType<typeof createDb>) {
 
     // Assets.
     const orgAssets = times(faker.number.int({ min: 4, max: 8 }), () => {
-      const id = genId("asset");
+      const id = genId('asset');
       assets.push({
         orgId,
         id,
         key: `${orgId}/${ksuid()}`,
-        kind: faker.helpers.arrayElement(["video", "download", "content"] as const),
+        kind: faker.helpers.arrayElement(['video', 'download', 'content'] as const),
         filename: faker.system.commonFileName(),
         contentType: faker.system.mimeType(),
         size: faker.number.int({ min: 1_000, max: 500_000_000 }),
-        status: "ready",
+        status: 'ready',
         uploadedBy: ownerId,
       });
       return id;
@@ -115,7 +115,7 @@ async function main(db: ReturnType<typeof createDb>) {
 
     // Courses → modules → activities, with asset links.
     times(faker.number.int({ min: 2, max: 5 }), () => {
-      const courseId = genId("course");
+      const courseId = genId('course');
       const title = faker.helpers.arrayElement([
         faker.company.catchPhrase(),
         faker.commerce.productName(),
@@ -125,24 +125,24 @@ async function main(db: ReturnType<typeof createDb>) {
         orgId,
         id: courseId,
         title,
-        slug: faker.helpers.slugify(title).toLowerCase() + "-" + ksuid().slice(-6),
+        slug: faker.helpers.slugify(title).toLowerCase() + '-' + ksuid().slice(-6),
         description: faker.lorem.paragraph(),
-        status: faker.helpers.arrayElement(["draft", "published"] as const),
+        status: faker.helpers.arrayElement(['draft', 'published'] as const),
         category: faker.helpers.arrayElement([
-          "Art",
-          "Design",
-          "Music",
-          "Craft",
-          "Science",
-          "Technology",
+          'Art',
+          'Design',
+          'Music',
+          'Craft',
+          'Science',
+          'Technology',
         ]),
       });
 
       const courseModules = times(faker.number.int({ min: 2, max: 5 }), (m) => {
-        const moduleId = genId("module");
+        const moduleId = genId('module');
         modules.push({ orgId, id: moduleId, courseId, title: faker.commerce.department(), seq: m });
         times(faker.number.int({ min: 2, max: 6 }), (a) => {
-          const activityId = genId("activity");
+          const activityId = genId('activity');
           activities.push({
             orgId,
             id: activityId,
@@ -150,50 +150,53 @@ async function main(db: ReturnType<typeof createDb>) {
             seq: a,
             settings: {
               title: faker.lorem.sentence(3),
-              type: faker.helpers.arrayElement(["lesson", "assessment"]),
+              type: faker.helpers.arrayElement(['lesson', 'assessment']),
             },
           });
-          if (chance(0.5))
+          if (chance(0.5)) {
             activityAssets.push({
               orgId,
-              id: genId("activityAsset"),
+              id: genId('activityAsset'),
               activityId,
               assetId: faker.helpers.arrayElement(orgAssets),
               seq: 0,
             });
+          }
         });
         return moduleId;
       });
 
       // Enrollments + progress for a random subset of students.
       for (const studentId of orgStudents) {
-        if (chance(0.4)) continue;
+        if (chance(0.4)) {
+          continue;
+        }
         enrollments.push({
           orgId,
-          id: genId("enrollment"),
+          id: genId('enrollment'),
           studentId,
           courseId,
-          status: faker.helpers.arrayElement(["active", "revoked"] as const),
-          source: faker.helpers.arrayElement(["manual", "import"] as const),
+          status: faker.helpers.arrayElement(['active', 'revoked'] as const),
+          source: faker.helpers.arrayElement(['manual', 'import'] as const),
           expiresAt: chance(0.3) ? faker.date.future() : null,
         });
         const targetType = faker.helpers.arrayElement([
-          "lesson",
-          "assessment",
-          "module",
-          "course",
+          'lesson',
+          'assessment',
+          'module',
+          'course',
         ] as const);
         progress.push({
           orgId,
-          id: genId("progress"),
+          id: genId('progress'),
           studentId,
           targetType,
           targetId:
-            targetType === "course"
+            targetType === 'course'
               ? courseId
-              : targetType === "module"
+              : targetType === 'module'
                 ? faker.helpers.arrayElement(courseModules)
-                : genId("activity"),
+                : genId('activity'),
           completedAt: chance(0.5) ? faker.date.recent() : null,
         });
       }
@@ -224,7 +227,7 @@ async function main(db: ReturnType<typeof createDb>) {
 
 export async function runSeed(databaseUrl: string): Promise<void> {
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set. Put it in your .env and re-run.");
+    throw new Error('DATABASE_URL is not set. Put it in your .env and re-run.');
   }
   const db = createDb(databaseUrl);
   try {
@@ -235,4 +238,4 @@ export async function runSeed(databaseUrl: string): Promise<void> {
   }
 }
 
-export { runSeedDevStudent } from "./seed-dev-student.js";
+export { runSeedDevStudent } from './seed-dev-student.js';

@@ -1,5 +1,5 @@
 // progress context — public surface. Re-export only what other contexts may use.
-export { ProgressServiceImpl } from "./service.js";
-export type { ProgressService, ProgressRepository } from "./ports.js";
-export type { ProgressRecord, ProgressTargetType } from "./model.js";
-export type { ProgressId, ProgressTarget, RecordPositionInput } from "./types.js";
+export { ProgressServiceImpl } from './service.js';
+export type { ProgressService, ProgressRepository } from './ports.js';
+export type { ProgressRecord, ProgressTargetType } from './model.js';
+export type { ProgressId, ProgressTarget, RecordPositionInput } from './types.js';

@@ -1,18 +1,18 @@
-import { pgTable, text, timestamp, primaryKey, unique } from "drizzle-orm/pg-core";
-import { genId } from "../../../core/shared/id.js";
-import { organizations } from "./organizations.js";
+import { pgTable, text, timestamp, primaryKey, unique } from 'drizzle-orm/pg-core';
+import { genId } from '../../../core/shared/id.js';
+import { organizations } from './organizations.js';
 
-export const users = pgTable("users", {
-  id: text("id")
+export const users = pgTable('users', {
+  id: text('id')
     .primaryKey()
-    .$defaultFn(() => genId("user")),
+    .$defaultFn(() => genId('user')),
   // auth engine's ID - e.g. better-auth
-  externalId: text("external_id").notNull().unique(),
+  externalId: text('external_id').notNull().unique(),
 
-  email: text("email").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at")
+  email: text('email').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at')
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
@@ -23,20 +23,20 @@ export const users = pgTable("users", {
 // (external_id); the portal boundary supplies the org, so (org_id, external_id)
 // resolves the right student row. Email/external_id are unique PER ORG.
 export const students = pgTable(
-  "students",
+  'students',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("student")),
-    externalId: text("external_id").notNull(),
-    email: text("email").notNull(),
-    firstName: text("first_name").notNull(),
-    lastName: text("last_name").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => genId('student')),
+    externalId: text('external_id').notNull(),
+    email: text('email').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

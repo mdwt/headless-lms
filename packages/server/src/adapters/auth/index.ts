@@ -8,34 +8,34 @@
 // adapter resolves better-auth user ids to domain student ids before calling
 // core, so core contexts never import the auth schema. Composition only injects
 // the port implementations.
-import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink, organization, mcp } from "better-auth/plugins";
-import type { OAuthAccessToken } from "better-auth/plugins";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { magicLink, organization, mcp } from 'better-auth/plugins';
+import type { OAuthAccessToken } from 'better-auth/plugins';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import type { EmailSender } from "../../core/shared/ports.js";
-import type { IdentityService } from "../../core/identity/index.js";
-import type { OrganizationProvisioner } from "../../core/organizations/index.js";
-import { prefixId } from "../../core/shared/id.js";
-import * as authSchema from "./schema.js";
-import { ac, roles } from "./access.js";
+import type { EmailSender } from '../../core/shared/ports.js';
+import type { IdentityService } from '../../core/identity/index.js';
+import type { OrganizationProvisioner } from '../../core/organizations/index.js';
+import { prefixId } from '../../core/shared/id.js';
+import * as authSchema from './schema.js';
+import { ac, roles } from './access.js';
 
 // Prefixes for better-auth's own tables. This is a distinct id space from the
 // mirrored domain rows (auth `user.id` → `users.external_id`, etc.), but we reuse
 // the same human-readable prefixes so a `usr_`/`org_` id reads the same on both
 // sides of the mirror. Unmapped models fall back to a generic `id_` prefix.
 const AUTH_ID_PREFIXES: Record<string, string> = {
-  user: "usr",
-  session: "ses",
-  account: "acc",
-  verification: "ver",
-  organization: "org",
-  member: "mem",
-  invitation: "inv",
-  oauthApplication: "oap",
-  oauthAccessToken: "oat",
-  oauthConsent: "oac",
+  user: 'usr',
+  session: 'ses',
+  account: 'acc',
+  verification: 'ver',
+  organization: 'org',
+  member: 'mem',
+  invitation: 'inv',
+  oauthApplication: 'oap',
+  oauthAccessToken: 'oat',
+  oauthConsent: 'oac',
 };
 
 export interface CreateAuthOptions {
@@ -59,11 +59,11 @@ export interface CreateAuthOptions {
 
 function htmlEscape(s: string): string {
   return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -80,13 +80,13 @@ function getConsentHTML(p: {
   clientName: string;
   code: string;
 }): string {
-  const scopeList = p.scopes.map((s) => `<li>${htmlEscape(s)}</li>`).join("");
+  const scopeList = p.scopes.map((s) => `<li>${htmlEscape(s)}</li>`).join('');
   // clientIcon is attacker-controlled under open DCR — escape it in the attribute.
   const icon = p.clientIcon
     ? `<img src="${htmlEscape(p.clientIcon)}" alt="" style="width:48px;height:48px;border-radius:8px;margin-bottom:12px;" /><br />`
-    : "";
+    : '';
   // Escape code for safe embedding in JS string literal
-  const safeCode = p.code.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const safeCode = p.code.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -148,7 +148,9 @@ export function createAuth(opts: CreateAuthOptions): Auth {
   // provisioned on user creation, so it exists by the time org hooks fire.
   const requireUser = async (externalId: string) => {
     const user = await opts.identity.getUserByExternalId(externalId);
-    if (!user) throw new Error(`no domain user for auth user ${externalId}`);
+    if (!user) {
+      throw new Error(`no domain user for auth user ${externalId}`);
+    }
     return user;
   };
 
@@ -169,7 +171,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
     advanced: {
       database: {
         // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).
-        generateId: ({ model }) => prefixId(AUTH_ID_PREFIXES[model] ?? "id"),
+        generateId: ({ model }) => prefixId(AUTH_ID_PREFIXES[model] ?? 'id'),
       },
       // Cross-subdomain shared session cookie for admin/api/web on one parent
       // domain (e.g. `.example.com` in prod). Left unset in local dev so the
@@ -183,13 +185,13 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
       // (different registrable domains).
       defaultCookieAttributes: {
-        sameSite: "lax",
+        sameSite: 'lax',
         secure: opts.secureCookies ?? false,
         httpOnly: true,
       },
     },
     database: drizzleAdapter(opts.db, {
-      provider: "pg",
+      provider: 'pg',
       schema: authSchema,
     }),
     emailAndPassword: {
@@ -200,7 +202,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
         sendMagicLink: async ({ email, url }) => {
           await opts.email.send({
             to: email,
-            subject: "Your sign-in link",
+            subject: 'Your sign-in link',
             text: `Click to sign in: ${url}`,
           });
         },
@@ -208,7 +210,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       organization({
         ac,
         roles,
-        creatorRole: "owner",
+        creatorRole: 'owner',
         organizationHooks: {
           // New org → mirror it plus the creator's owner membership.
           afterCreateOrganization: async ({ organization: org, member, user }) => {
@@ -232,7 +234,9 @@ export function createAuth(opts: CreateAuthOptions): Auth {
             // case skip — the creator's membership is mirrored by
             // afterCreateOrganization. For genuine later adds the org exists.
             const mirrored = await opts.organizations.getByExternalId(org.id);
-            if (!mirrored) return;
+            if (!mirrored) {
+              return;
+            }
             const user_ = await requireUser(user.id);
             await opts.organizations.addMembership({
               orgExternalId: org.id,
@@ -268,18 +272,18 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           // from the outer loginPage option at runtime, so this is consistent.
           loginPage: opts.mcpLoginPage,
           allowDynamicClientRegistration: true,
-          storeClientSecret: "hashed",
+          storeClientSecret: 'hashed',
           scopes: [
-            "openid",
-            "profile",
-            "courses:read",
-            "courses:write",
-            "students:read",
-            "progress:read",
-            "enrollments:read",
-            "enrollments:write",
-            "assessments:read",
-            "org:read",
+            'openid',
+            'profile',
+            'courses:read',
+            'courses:write',
+            'students:read',
+            'progress:read',
+            'enrollments:read',
+            'enrollments:write',
+            'assessments:read',
+            'org:read',
           ],
           getConsentHTML,
         },
@@ -306,7 +310,9 @@ export function createAuth(opts: CreateAuthOptions): Auth {
             // of a per-request header. Staff logins have no student row → left
             // untouched (their active org comes from the organization plugin).
             const orgExternalId = await opts.identity.studentOrgExternalId(session.userId);
-            if (!orgExternalId) return;
+            if (!orgExternalId) {
+              return;
+            }
             return { data: { ...session, activeOrganizationId: orgExternalId } };
           },
         },
@@ -356,9 +362,18 @@ export interface Auth {
       body: Record<string, unknown>;
       headers: Headers;
     }) => Promise<unknown>;
-    createInvitation: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
-    updateMemberRole: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+    createInvitation: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>;
+    updateMemberRole: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>;
     removeMember: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
-    cancelInvitation: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
+    cancelInvitation: (input: {
+      body: Record<string, unknown>;
+      headers: Headers;
+    }) => Promise<unknown>;
   };
 }

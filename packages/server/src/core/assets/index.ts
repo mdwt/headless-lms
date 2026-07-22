@@ -1,6 +1,6 @@
 // assets context — public surface.
-export { AssetsServiceImpl } from "./service.js";
-export type { AssetsService, AssetsRepository } from "./ports.js";
+export { AssetsServiceImpl } from './service.js';
+export type { AssetsService, AssetsRepository } from './ports.js';
 export type {
   Asset,
   AssetKind,
@@ -10,4 +10,4 @@ export type {
   UploadTicket,
   DownloadTicket,
   Page,
-} from "./model.js";
+} from './model.js';

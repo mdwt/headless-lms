@@ -8,4 +8,4 @@ export type {
   DownloadTicket,
   AssetsQuery,
   Page,
-} from "@headless-lms/types";
+} from '@headless-lms/types';

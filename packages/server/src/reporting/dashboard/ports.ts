@@ -1,5 +1,5 @@
 // reporting/dashboard — ports.
-import type { OverviewStats } from "./model.js";
+import type { OverviewStats } from './model.js';
 
 export interface DashboardReportService {
   overview(orgId: string): Promise<OverviewStats>;

@@ -1,4 +1,4 @@
-import type { DomainEvent, NewDomainEvent } from "@headless-lms/types";
+import type { DomainEvent, NewDomainEvent } from '@headless-lms/types';
 
 export type { DomainEvent, NewDomainEvent };
 
@@ -102,7 +102,7 @@ export interface CredentialStore {
 /** A presigned URL the browser uses to PUT a file straight to the store. */
 export interface PresignedUpload {
   url: string;
-  method: "PUT";
+  method: 'PUT';
   key: string;
   expiresInSeconds: number;
   /** Headers the client must send on the PUT (e.g. Content-Type). */

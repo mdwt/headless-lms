@@ -1,5 +1,5 @@
-import { and, asc, eq, isNull, lt, lte, sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { and, asc, eq, isNull, lt, lte, sql } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type {
   DomainEvent,
   NewDomainEvent,
@@ -7,10 +7,10 @@ import type {
   OutboxMessage,
   OutboxStore,
   Logger,
-} from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
-import type { DbExecutor } from "../index.js";
-import { eventOutbox } from "../schema/outbox.js";
+} from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
+import type { DbExecutor } from '../index.js';
+import { eventOutbox } from '../schema/outbox.js';
 
 /** A message that fails this many dispatches is parked: fetchBatch stops
  *  claiming it, leaving the row (with its last_error) for inspection. */
@@ -23,7 +23,9 @@ export class DrizzleOutboxAppender implements OutboxAppender {
   ) {}
 
   async append<E extends NewDomainEvent>(events: E[]): Promise<void> {
-    if (events.length === 0) return;
+    if (events.length === 0) {
+      return;
+    }
     await this.tx.insert(eventOutbox).values(
       events.map((event) => ({
         type: event.type,
@@ -54,7 +56,7 @@ export class DrizzleOutboxStore implements OutboxStore {
         )
         .orderBy(asc(eventOutbox.id))
         .limit(limit)
-        .for("update", { skipLocked: true }),
+        .for('update', { skipLocked: true }),
     );
     return rows.map((row) => ({
       id: row.id,

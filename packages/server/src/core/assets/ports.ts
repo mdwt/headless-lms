@@ -6,7 +6,7 @@ import type {
   Page,
   RequestUploadInput,
   UploadTicket,
-} from "./model.js";
+} from './model.js';
 
 export interface AssetsService {
   /** Register an asset and return a presigned URL to upload its bytes. */
@@ -28,7 +28,7 @@ export interface AssetsRepository {
   findById(orgId: string, id: string): Promise<Asset | null>;
   update(
     id: string,
-    patch: Partial<Pick<Asset, "size" | "contentType" | "status">>,
+    patch: Partial<Pick<Asset, 'size' | 'contentType' | 'status'>>,
   ): Promise<Asset | null>;
   delete(id: string): Promise<boolean>;
 }

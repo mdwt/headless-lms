@@ -9,14 +9,14 @@
 // `saveActivity` upserts the activity row and replaces its asset links;
 // `deleteActivity` / `deleteModule` drop the asset links first (they FK the
 // activity), then the activity rows.
-import { eq, and, inArray } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { CourseRepository } from "../../../core/content/ports.js";
-import type { Module, Activity, SaveActivityInput } from "../../../core/content/model.js";
-import { modules, activities, activityAssets } from "../schema/content.js";
-import type { Tx } from "../index.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { eq, and, inArray } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { CourseRepository } from '../../../core/content/ports.js';
+import type { Module, Activity, SaveActivityInput } from '../../../core/content/model.js';
+import { modules, activities, activityAssets } from '../schema/content.js';
+import type { Tx } from '../index.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 export class DrizzleContentStructureRepository implements CourseRepository {
   constructor(
@@ -101,7 +101,9 @@ export class DrizzleContentStructureRepository implements CourseRepository {
         and(eq(modules.orgId, orgId), eq(modules.id, moduleId), eq(modules.courseId, courseId)),
       )
       .limit(1);
-    if (!row) throw new Error("module not found in course");
+    if (!row) {
+      throw new Error('module not found in course');
+    }
   }
 
   /** Replace an activity's ordered asset links with `assetIds`. */
@@ -267,7 +269,9 @@ export class DrizzleContentStructureRepository implements CourseRepository {
             ),
           )
           .limit(1);
-        if (!existing) throw new Error("activity not found in module");
+        if (!existing) {
+          throw new Error('activity not found in module');
+        }
 
         await tx
           .update(activities)
@@ -287,7 +291,9 @@ export class DrizzleContentStructureRepository implements CourseRepository {
           .insert(activities)
           .values({ orgId, moduleId, seq: nextSeq, settings: input.settings ?? null })
           .returning({ id: activities.id });
-        if (!ins) throw new Error("failed to insert activity");
+        if (!ins) {
+          throw new Error('failed to insert activity');
+        }
         await this.replaceActivityAssets(tx, orgId, ins.id, input.assetIds ?? []);
       }
 

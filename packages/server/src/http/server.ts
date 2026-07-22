@@ -1,15 +1,12 @@
-// Inbound HTTP server. `buildServer` wires the Fastify instance from focused
-// plugins — each concern lives in its own module (config, CORS, OpenAPI, auth,
-// error handling, routes) so this file stays a readable table of contents.
-import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
-import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
-import type { Container } from "../composition/container.js";
-import type { ServerConfig } from "./config.js";
-import { registerCors } from "./plugins/cors.js";
-import { registerOpenApi } from "./plugins/openapi.js";
-import { registerAuth } from "./plugins/auth.js";
-import { registerErrorHandler } from "./plugins/error-handler.js";
-import { registerRoutes } from "./routes.js";
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import type { Container } from '../composition/container.js';
+import type { ServerConfig } from './config.js';
+import { registerCors } from './plugins/cors.js';
+import { registerOpenApi } from './plugins/openapi.js';
+import { registerAuth } from './plugins/auth.js';
+import { registerErrorHandler } from './plugins/error-handler.js';
+import { registerRoutes } from './routes.js';
 
 export async function buildServer(
   config: ServerConfig,
@@ -34,7 +31,7 @@ export async function buildServer(
 
   // Drain + stop the outbox relay on shutdown. Harmless when the relay was
   // never started (gen-openapi boots this app with ready() + close() only).
-  app.addHook("onClose", async () => {
+  app.addHook('onClose', async () => {
     await container.outboxRelay.stop();
   });
 

@@ -2,13 +2,13 @@
 // Back-office overview counts, every figure scoped to the active org. An
 // enrollment is "effective-active" when status='active' and it has not expired
 // (expires_at null or in the future) — expiry is derived at read time.
-import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { DashboardReportRepository } from "../../../reporting/dashboard/index.js";
-import type { OverviewStats } from "../../../reporting/dashboard/index.js";
-import { courses, enrollments } from "../schema/index.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, eq, gte, isNull, or, sql } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { DashboardReportRepository } from '../../../reporting/dashboard/index.js';
+import type { OverviewStats } from '../../../reporting/dashboard/index.js';
+import { courses, enrollments } from '../schema/index.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 export class DrizzleDashboardRepository implements DashboardReportRepository {
   constructor(
@@ -27,7 +27,7 @@ export class DrizzleDashboardRepository implements DashboardReportRepository {
 
     const effectiveActive = and(
       eq(enrollments.orgId, orgId),
-      eq(enrollments.status, "active"),
+      eq(enrollments.status, 'active'),
       or(isNull(enrollments.expiresAt), gte(enrollments.expiresAt, sql`now()`)),
     );
 

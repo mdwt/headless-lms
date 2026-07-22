@@ -1,13 +1,13 @@
 // identity — Drizzle repository (implements the core outbound port).
-import { and, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { IdentityRepository } from "../../../core/identity/ports.js";
-import type { User, Student } from "../../../core/identity/model.js";
-import type { RegisterUserInput, RegisterStudentInput } from "../../../core/identity/types.js";
-import { users, students } from "../schema/identity.js";
-import { organizations } from "../schema/organizations.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, eq } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { IdentityRepository } from '../../../core/identity/ports.js';
+import type { User, Student } from '../../../core/identity/model.js';
+import type { RegisterUserInput, RegisterStudentInput } from '../../../core/identity/types.js';
+import { users, students } from '../schema/identity.js';
+import { organizations } from '../schema/organizations.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 export class DrizzleIdentityRepository implements IdentityRepository {
   constructor(
@@ -24,7 +24,9 @@ export class DrizzleIdentityRepository implements IdentityRepository {
         displayName: input.displayName,
       })
       .returning();
-    if (!row) throw new Error("failed to insert user");
+    if (!row) {
+      throw new Error('failed to insert user');
+    }
     return row;
   }
 
@@ -48,7 +50,9 @@ export class DrizzleIdentityRepository implements IdentityRepository {
         lastName: input.lastName,
       })
       .returning();
-    if (!row) throw new Error("failed to insert student");
+    if (!row) {
+      throw new Error('failed to insert student');
+    }
     return row;
   }
 

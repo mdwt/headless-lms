@@ -5,4 +5,4 @@ export type {
   EnrollmentDeleted,
   EnrollmentExpired,
   EnrollmentEvent,
-} from "@headless-lms/types";
+} from '@headless-lms/types';

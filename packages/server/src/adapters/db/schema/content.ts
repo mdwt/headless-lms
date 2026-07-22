@@ -14,29 +14,29 @@ import {
   primaryKey,
   foreignKey,
   unique,
-} from "drizzle-orm/pg-core";
-import { genId } from "../../../core/shared/id.js";
-import { organizations } from "./organizations.js";
-import { assets } from "./assets.js";
+} from 'drizzle-orm/pg-core';
+import { genId } from '../../../core/shared/id.js';
+import { organizations } from './organizations.js';
+import { assets } from './assets.js';
 
 export const courses = pgTable(
-  "courses",
+  'courses',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("course")),
-    title: text("title").notNull(),
-    slug: text("slug").notNull(),
-    description: text("description").notNull().default(""),
-    status: text("status", { enum: ["draft", "published"] })
+      .$defaultFn(() => genId('course')),
+    title: text('title').notNull(),
+    slug: text('slug').notNull(),
+    description: text('description').notNull().default(''),
+    status: text('status', { enum: ['draft', 'published'] })
       .notNull()
-      .default("draft"),
-    category: text("category").notNull().default(""),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at")
+      .default('draft'),
+    category: text('category').notNull().default(''),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -48,19 +48,19 @@ export const courses = pgTable(
 );
 
 export const modules = pgTable(
-  "modules",
+  'modules',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("module")),
-    courseId: text("course_id").notNull(),
-    title: text("title").notNull(),
-    seq: integer("seq").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => genId('module')),
+    courseId: text('course_id').notNull(),
+    title: text('title').notNull(),
+    seq: integer('seq').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -71,27 +71,27 @@ export const modules = pgTable(
     courseFk: foreignKey({
       columns: [t.orgId, t.courseId],
       foreignColumns: [courses.orgId, courses.id],
-    }).onDelete("cascade"),
+    }).onDelete('cascade'),
   }),
 );
 
 // The leaf, directly in a module. Uniform content: seq + opaque settings blob.
 export const activities = pgTable(
-  "activities",
+  'activities',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("activity")),
-    moduleId: text("module_id").notNull(),
-    seq: integer("seq").notNull(),
+      .$defaultFn(() => genId('activity')),
+    moduleId: text('module_id').notNull(),
+    seq: integer('seq').notNull(),
     // Opaque per-activity blob: title, type, body, completion rule — whatever the
     // content needs. Assets are the one thing kept out of the blob.
-    settings: jsonb("settings"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at")
+    settings: jsonb('settings'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -101,7 +101,7 @@ export const activities = pgTable(
     moduleFk: foreignKey({
       columns: [t.orgId, t.moduleId],
       foreignColumns: [modules.orgId, modules.id],
-    }).onDelete("cascade"),
+    }).onDelete('cascade'),
     seqUq: unique().on(t.orgId, t.moduleId, t.seq),
   }),
 );
@@ -109,17 +109,17 @@ export const activities = pgTable(
 // activity ↔ asset: many-to-many (an activity uses many assets; an asset can be
 // reused by many activities). Assets owned by the assets domain, tracked here.
 export const activityAssets = pgTable(
-  "activity_assets",
+  'activity_assets',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("activityAsset")),
-    activityId: text("activity_id").notNull(),
-    assetId: text("asset_id").notNull(),
-    seq: integer("seq").notNull().default(0),
+      .$defaultFn(() => genId('activityAsset')),
+    activityId: text('activity_id').notNull(),
+    assetId: text('asset_id').notNull(),
+    seq: integer('seq').notNull().default(0),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
@@ -128,7 +128,7 @@ export const activityAssets = pgTable(
     activityFk: foreignKey({
       columns: [t.orgId, t.activityId],
       foreignColumns: [activities.orgId, activities.id],
-    }).onDelete("cascade"),
+    }).onDelete('cascade'),
     assetFk: foreignKey({
       columns: [t.orgId, t.assetId],
       foreignColumns: [assets.orgId, assets.id],

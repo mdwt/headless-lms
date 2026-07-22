@@ -2,9 +2,9 @@
 // All require a session with an active organization. Credentials are
 // write-only: accepted on connect/reconnect, never present in a response —
 // `toApi` strips the credentialRef so not even the reference leaks.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { z } from "zod";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import {
   AvailableIntegrationsList,
   ConfigureRequest,
@@ -14,14 +14,10 @@ import {
   ConnectionsList,
   ErrorBody,
   ReconnectRequest,
-} from "@headless-lms/api-contract";
-import {
-  AlreadyConnectedError,
-  InvalidConfigError,
-  UnknownIntegrationError,
-  type Connection as DomainConnection,
-} from "../../core/integrations/index.js";
-import type { Container } from "../../composition/container.js";
+} from '@headless-lms/api-contract';
+import type { Connection as DomainConnection } from '../../core/integrations/index.js';
+import { NotFoundError } from '../../core/shared/errors.js';
+import type { Container } from '../../composition/container.js';
 
 function toApi(connection: DomainConnection): Connection {
   const { credentialRef: _credentialRef, ...rest } = connection;
@@ -35,12 +31,12 @@ async function resolveOrgId(
   container: Container,
 ): Promise<string | null> {
   if (!req.orgId) {
-    await reply.code(400).send({ error: "no_active_org", message: "No active organization" });
+    await reply.code(400).send({ error: 'no_active_org', message: 'No active organization' });
     return null;
   }
   const org = await container.organizations.getByExternalId(req.orgId);
   if (!org) {
-    await reply.code(400).send({ error: "no_active_org", message: "Organization not provisioned" });
+    await reply.code(400).send({ error: 'no_active_org', message: 'Organization not provisioned' });
     return null;
   }
   return org.id;
@@ -52,97 +48,91 @@ export async function integrationsRoutes(
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const integrations = container.integrations;
-  const tags = ["Integrations"];
+  const tags = ['Integrations'];
 
   r.route({
-    method: "GET",
-    url: "/api/integrations/available",
+    method: 'GET',
+    url: '/api/integrations/available',
     preHandler: app.requireSession,
     schema: {
-      operationId: "listAvailableIntegrations",
+      operationId: 'listAvailableIntegrations',
       tags,
-      summary: "List the integrations this deployment supports, with their config schemas",
+      summary: 'List the integrations this deployment supports, with their config schemas',
       response: { 200: AvailableIntegrationsList, 401: ErrorBody },
     },
     handler: async () => integrations.available(),
   });
 
   r.route({
-    method: "GET",
-    url: "/api/integrations",
+    method: 'GET',
+    url: '/api/integrations',
     preHandler: app.requireSession,
     schema: {
-      operationId: "listConnections",
+      operationId: 'listConnections',
       tags,
       summary: "List the organization's integration connections",
       response: { 200: ConnectionsList, 400: ErrorBody, 401: ErrorBody },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
+      if (!orgId) {
+        return;
+      }
       return (await integrations.list(orgId)).map(toApi);
     },
   });
 
   r.route({
-    method: "POST",
-    url: "/api/integrations",
+    method: 'POST',
+    url: '/api/integrations',
     preHandler: app.requireSession,
     schema: {
-      operationId: "connectIntegration",
+      operationId: 'connectIntegration',
       tags,
-      summary: "Connect an integration (stores its secrets encrypted)",
+      summary: 'Connect an integration (stores its secrets encrypted)',
       body: ConnectRequest,
       response: { 201: Connection, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
-      try {
-        const connection = await integrations.connect(orgId, req.body);
-        return reply.code(201).send(toApi(connection));
-      } catch (err) {
-        if (err instanceof UnknownIntegrationError) {
-          return reply.code(400).send({ error: "unknown_integration", message: err.message });
-        }
-        if (err instanceof InvalidConfigError) {
-          return reply.code(400).send({ error: "invalid_config", message: err.message });
-        }
-        if (err instanceof AlreadyConnectedError) {
-          return reply.code(409).send({ error: "already_connected", message: err.message });
-        }
-        throw err;
+      if (!orgId) {
+        return;
       }
+      const connection = await integrations.connect(orgId, req.body);
+      return reply.code(201).send(toApi(connection));
     },
   });
 
   r.route({
-    method: "GET",
-    url: "/api/integrations/:id",
+    method: 'GET',
+    url: '/api/integrations/:id',
     preHandler: app.requireSession,
     schema: {
-      operationId: "getConnection",
+      operationId: 'getConnection',
       tags,
-      summary: "Get a connection",
+      summary: 'Get a connection',
       params: ConnectionIdParam,
       response: { 200: Connection, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
+      if (!orgId) {
+        return;
+      }
       const connection = await integrations.get(orgId, req.params.id);
-      if (!connection)
-        return reply.code(404).send({ error: "not_found", message: "Connection not found" });
+      if (!connection) {
+        throw new NotFoundError('Connection', req.params.id);
+      }
       return toApi(connection);
     },
   });
 
   r.route({
-    method: "PATCH",
-    url: "/api/integrations/:id",
+    method: 'PATCH',
+    url: '/api/integrations/:id',
     preHandler: app.requireSession,
     schema: {
-      operationId: "configureConnection",
+      operationId: 'configureConnection',
       tags,
       summary: "Change a connection's configuration or active flag",
       params: ConnectionIdParam,
@@ -151,27 +141,23 @@ export async function integrationsRoutes(
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
-      try {
-        const connection = await integrations.configure(orgId, req.params.id, req.body);
-        if (!connection)
-          return reply.code(404).send({ error: "not_found", message: "Connection not found" });
-        return toApi(connection);
-      } catch (err) {
-        if (err instanceof InvalidConfigError) {
-          return reply.code(400).send({ error: "invalid_config", message: err.message });
-        }
-        throw err;
+      if (!orgId) {
+        return;
       }
+      const connection = await integrations.configure(orgId, req.params.id, req.body);
+      if (!connection) {
+        throw new NotFoundError('Connection', req.params.id);
+      }
+      return toApi(connection);
     },
   });
 
   r.route({
-    method: "POST",
-    url: "/api/integrations/:id/reconnect",
+    method: 'POST',
+    url: '/api/integrations/:id/reconnect',
     preHandler: app.requireSession,
     schema: {
-      operationId: "reconnectIntegration",
+      operationId: 'reconnectIntegration',
       tags,
       summary: "Replace a connection's secrets (re-authenticate)",
       params: ConnectionIdParam,
@@ -180,31 +166,37 @@ export async function integrationsRoutes(
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
+      if (!orgId) {
+        return;
+      }
       const connection = await integrations.reconnect(orgId, req.params.id, req.body.secrets);
-      if (!connection)
-        return reply.code(404).send({ error: "not_found", message: "Connection not found" });
+      if (!connection) {
+        throw new NotFoundError('Connection', req.params.id);
+      }
       return toApi(connection);
     },
   });
 
   r.route({
-    method: "DELETE",
-    url: "/api/integrations/:id",
+    method: 'DELETE',
+    url: '/api/integrations/:id',
     preHandler: app.requireSession,
     schema: {
-      operationId: "disconnectIntegration",
+      operationId: 'disconnectIntegration',
       tags,
-      summary: "Disconnect an integration (destroys its stored secrets)",
+      summary: 'Disconnect an integration (destroys its stored secrets)',
       params: ConnectionIdParam,
       response: { 204: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply, container);
-      if (!orgId) return;
+      if (!orgId) {
+        return;
+      }
       const removed = await integrations.disconnect(orgId, req.params.id);
-      if (!removed)
-        return reply.code(404).send({ error: "not_found", message: "Connection not found" });
+      if (!removed) {
+        throw new NotFoundError('Connection', req.params.id);
+      }
       return reply.code(204).send();
     },
   });

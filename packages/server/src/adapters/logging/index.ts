@@ -1,17 +1,12 @@
 // Logging adapter — implements the core Logger port over pino. One root
 // instance per process: the container creates it, Fastify reuses it via
 // `loggerInstance`, and every component gets a child bound with { name }.
-import {
-  pino,
-  stdSerializers,
-  type DestinationStream,
-  type Logger as PinoInstance,
-} from "pino";
-import type { Logger } from "../../core/shared/ports.js";
+import { pino, stdSerializers, type DestinationStream, type Logger as PinoInstance } from 'pino';
+import type { Logger } from '../../core/shared/ports.js';
 
 export type { PinoInstance };
 
-export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export class PinoLogger implements Logger {
   constructor(private readonly instance: PinoInstance) {}

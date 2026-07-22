@@ -1,8 +1,8 @@
 // progress context — ports.
 // Inbound: the use-case interface the service implements.
 // Outbound: the persistence contract the repository fulfils.
-import type { ProgressRecord } from "./model.js";
-import type { ProgressTarget, RecordPositionInput } from "./types.js";
+import type { ProgressRecord } from './model.js';
+import type { ProgressTarget, RecordPositionInput } from './types.js';
 
 // Inbound port (use cases the service exposes).
 export interface ProgressService {
@@ -24,6 +24,6 @@ export interface ProgressRepository {
   update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<ProgressRecord, "position" | "completedAt">>,
+    patch: Partial<Pick<ProgressRecord, 'position' | 'completedAt'>>,
   ): Promise<ProgressRecord | null>;
 }

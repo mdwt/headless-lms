@@ -1,29 +1,29 @@
 // assets table — the org's media library. Org-scoped: composite (org_id, id) PK
 // with org_id → organizations.id, mirroring the multi-tenant table shape.
-import { pgTable, text, bigint, timestamp, primaryKey } from "drizzle-orm/pg-core";
-import { genId } from "../../../core/shared/id.js";
-import { organizations } from "./organizations.js";
+import { pgTable, text, bigint, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { genId } from '../../../core/shared/id.js';
+import { organizations } from './organizations.js';
 
 export const assets = pgTable(
-  "assets",
+  'assets',
   {
-    orgId: text("org_id")
+    orgId: text('org_id')
       .notNull()
       .references(() => organizations.id),
-    id: text("id")
+    id: text('id')
       .notNull()
-      .$defaultFn(() => genId("asset")),
-    key: text("key").notNull(),
-    kind: text("kind", { enum: ["video", "download", "content"] }).notNull(),
-    filename: text("filename").notNull(),
-    contentType: text("content_type").notNull(),
+      .$defaultFn(() => genId('asset')),
+    key: text('key').notNull(),
+    kind: text('kind', { enum: ['video', 'download', 'content'] }).notNull(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
     // Bytes; bigint because media files exceed int4. 0 until upload confirmed.
-    size: bigint("size", { mode: "number" }).notNull().default(0),
-    status: text("status", { enum: ["pending", "ready"] })
+    size: bigint('size', { mode: 'number' }).notNull().default(0),
+    status: text('status', { enum: ['pending', 'ready'] })
       .notNull()
-      .default("pending"),
-    uploadedBy: text("uploaded_by").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+      .default('pending'),
+    uploadedBy: text('uploaded_by').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.orgId, t.id] }) }),
 );

@@ -2,9 +2,9 @@
 // the OAuth access tokens they have issued to MCP clients. Owned by the auth
 // adapter because it directly queries the oauth_access_token, oauth_application,
 // and oauth_consent tables that belong to better-auth.
-import { eq, and, sql } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { oauthAccessToken, oauthConsent } from "./schema.js";
+import { eq, and, sql } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { oauthAccessToken, oauthConsent } from './schema.js';
 
 export interface ConnectedAppRow {
   id: string;
@@ -51,9 +51,9 @@ export function createConnectedAppsRepo(db: NodePgDatabase): ConnectedAppsRepo {
 
       return result.rows.map((row) => ({
         id: row.id,
-        clientName: row.client_name ?? "Unknown",
+        clientName: row.client_name ?? 'Unknown',
         // OAuth2 scopes are stored as a space-separated string (notNull).
-        scopes: row.scopes.split(" ").filter(Boolean),
+        scopes: row.scopes.split(' ').filter(Boolean),
         createdAt: row.created_at.toISOString(),
         expiresAt: row.expires_at.toISOString(),
       }));

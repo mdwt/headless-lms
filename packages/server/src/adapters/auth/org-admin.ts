@@ -2,8 +2,8 @@
 // organization API. Member/invitation writes flow through Better Auth (the source
 // of truth); its hooks mirror the change into the domain tables, which the
 // organizations members repo reads.
-import { fromNodeHeaders } from "better-auth/node";
-import { APIError } from "better-auth/api";
+import { fromNodeHeaders } from 'better-auth/node';
+import { APIError } from 'better-auth/api';
 import {
   OrganizationRuleError,
   type OrgAdmin,
@@ -13,8 +13,8 @@ import {
   type NewOrganizationInput,
   type UpdateOrganizationInput,
   type AuthHeaders,
-} from "../../core/organizations/index.js";
-import type { Auth } from "./index.js";
+} from '../../core/organizations/index.js';
+import type { Auth } from './index.js';
 
 export function createOrgAdmin(auth: Auth): OrgAdmin {
   const headersOf = (ctx: MemberWriteContext) => fromNodeHeaders(ctx.headers);
@@ -27,7 +27,9 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
         body: { name: input.name, slug: input.slug },
         headers: fromNodeHeaders(headers),
       });
-      if (!org) throw new Error("Better Auth did not return the created organization");
+      if (!org) {
+        throw new Error('Better Auth did not return the created organization');
+      }
       return { externalId: org.id };
     },
     async setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void> {
@@ -49,8 +51,9 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
       } catch (err) {
         // Surface Better Auth validation/permission failures (e.g. slug taken) as
         // a domain rule error the route maps to 409 rather than a raw 500.
-        if (err instanceof APIError)
-          throw new OrganizationRuleError(err.message || "Could not update organization");
+        if (err instanceof APIError) {
+          throw new OrganizationRuleError(err.message || 'Could not update organization');
+        }
         throw err;
       }
     },

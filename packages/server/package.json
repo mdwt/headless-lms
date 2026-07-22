@@ -19,6 +19,7 @@
     "build": "tsdown",
     "test": "vitest run",
     "lint": "eslint src",
+    "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "tsx --env-file=../../.env node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "tsx --env-file=../../.env node_modules/drizzle-kit/bin.cjs migrate"

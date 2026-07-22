@@ -1,6 +1,6 @@
 // HTTP routes for the entitlements context (a student's access grant to a course).
-import type { FastifyInstance } from "fastify";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   Entitlement,
   EntitlementIdParam,
@@ -9,9 +9,10 @@ import {
   ErrorBody,
   GrantEntitlement,
   SetEntitlementStatus,
-} from "@headless-lms/api-contract";
-import type { Container } from "../../composition/container.js";
-import { resolveScope } from "../scope.js";
+} from '@headless-lms/api-contract';
+import { NotFoundError } from '../../core/shared/errors.js';
+import type { Container } from '../../composition/container.js';
+import { resolveScope } from '../scope.js';
 
 export async function entitlementsRoutes(
   app: FastifyInstance,
@@ -21,13 +22,13 @@ export async function entitlementsRoutes(
   const entitlements = container.entitlements;
 
   r.route({
-    method: "GET",
-    url: "/api/entitlements",
+    method: 'GET',
+    url: '/api/entitlements',
     preHandler: app.requireSession,
     schema: {
-      operationId: "listEntitlements",
-      tags: ["Entitlements"],
-      summary: "List entitlements",
+      operationId: 'listEntitlements',
+      tags: ['Entitlements'],
+      summary: 'List entitlements',
       querystring: EntitlementsQuery,
       response: { 200: EntitlementsPage },
     },
@@ -38,13 +39,13 @@ export async function entitlementsRoutes(
   });
 
   r.route({
-    method: "POST",
-    url: "/api/entitlements",
+    method: 'POST',
+    url: '/api/entitlements',
     preHandler: app.requireSession,
     schema: {
-      operationId: "grantEntitlement",
-      tags: ["Entitlements"],
-      summary: "Grant a student access to a course",
+      operationId: 'grantEntitlement',
+      tags: ['Entitlements'],
+      summary: 'Grant a student access to a course',
       body: GrantEntitlement,
       response: { 201: Entitlement },
     },
@@ -56,22 +57,23 @@ export async function entitlementsRoutes(
   });
 
   r.route({
-    method: "PATCH",
-    url: "/api/entitlements/:id",
+    method: 'PATCH',
+    url: '/api/entitlements/:id',
     preHandler: app.requireSession,
     schema: {
-      operationId: "setEntitlementStatus",
-      tags: ["Entitlements"],
-      summary: "Revoke or reinstate an entitlement",
+      operationId: 'setEntitlementStatus',
+      tags: ['Entitlements'],
+      summary: 'Revoke or reinstate an entitlement',
       params: EntitlementIdParam,
       body: SetEntitlementStatus,
       response: { 200: Entitlement, 404: ErrorBody },
     },
-    handler: async (req, reply) => {
+    handler: async (req) => {
       const scope = await resolveScope(container, req);
       const entitlement = await entitlements.setStatus(scope.orgId, req.params.id, req.body.status);
-      if (!entitlement)
-        return reply.code(404).send({ error: "not_found", message: "Entitlement not found" });
+      if (!entitlement) {
+        throw new NotFoundError('Entitlement', req.params.id);
+      }
       return entitlement;
     },
   });

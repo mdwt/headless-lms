@@ -1,4 +1,4 @@
-import KSUID from "ksuid";
+import KSUID from 'ksuid';
 
 /**
  * Prefixed, KSUID-bodied string ids — `${prefix}_${ksuid}`, e.g. `org_2QZ4mK...`.
@@ -9,22 +9,22 @@ import KSUID from "ksuid";
  * by core services and used as the Drizzle `.$defaultFn` for every domain id column.
  */
 export const ID_PREFIXES = {
-  organization: "org",
-  user: "usr",
-  student: "stu",
-  membership: "orm",
-  invitation: "ivt",
-  courseAssignment: "asn",
-  course: "crs",
-  module: "mod",
-  activity: "act",
-  activityAsset: "aca",
-  asset: "ast",
-  enrollment: "enr",
-  progress: "prg",
-  credential: "crd",
-  connection: "con",
-  event: "evt",
+  organization: 'org',
+  user: 'usr',
+  student: 'stu',
+  membership: 'orm',
+  invitation: 'ivt',
+  courseAssignment: 'asn',
+  course: 'crs',
+  module: 'mod',
+  activity: 'act',
+  activityAsset: 'aca',
+  asset: 'ast',
+  enrollment: 'enr',
+  progress: 'prg',
+  credential: 'crd',
+  connection: 'con',
+  event: 'evt',
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;

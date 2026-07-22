@@ -2,11 +2,11 @@
 // Action, ActionContext, Validation) is owned by @headless-lms/types so
 // integration packages and the platform share one definition; the context
 // re-exports it as part of its public surface.
-import type { Integration } from "@headless-lms/types";
-import type { ConfigureInput, ConnectInput, Connection } from "./model.js";
-import type { CredentialStore, OutboxAppender, UnitOfWork } from "../shared/ports.js";
+import type { Integration } from '@headless-lms/types';
+import type { ConfigureInput, ConnectInput, Connection } from './model.js';
+import type { CredentialStore, OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
-export type { Validation, ActionContext, Action, Integration } from "@headless-lms/types";
+export type { Validation, ActionContext, Action, Integration } from '@headless-lms/types';
 
 /** The integrations declared at startup. Unknown ids are rejected by the service. */
 export interface IntegrationsRegistry {
@@ -58,7 +58,7 @@ export interface ConnectionsRepository {
   update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<Connection, "config" | "active" | "updatedAt">>,
+    patch: Partial<Pick<Connection, 'config' | 'active' | 'updatedAt'>>,
   ): Promise<Connection | null>;
   delete(orgId: string, id: string): Promise<boolean>;
 }

@@ -5,14 +5,14 @@
 // withMcpAuth validates the Bearer token on every request and provides the
 // verified OAuthAccessToken; buildPrincipal translates it into a domain
 // McpPrincipal that the tool callbacks close over.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { withMcpAuth } from "better-auth/plugins";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { Container } from "../../composition/container.js";
-import { bridgeWebResponse, toWebRequest } from "../web-bridge.js";
-import { buildPrincipal, PrincipalError } from "./principal.js";
-import { registerTools } from "./tools.js";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { withMcpAuth } from 'better-auth/plugins';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import type { Container } from '../../composition/container.js';
+import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
+import { buildPrincipal, PrincipalError } from './principal.js';
+import { registerTools } from './tools.js';
 
 export async function mcpRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const { auth } = container;
@@ -27,7 +27,7 @@ export async function mcpRoutes(app: FastifyInstance, container: Container): Pro
       if (err instanceof PrincipalError) {
         return new Response(JSON.stringify({ error: err.message }), {
           status: err.status,
-          headers: { "content-type": "application/json" },
+          headers: { 'content-type': 'application/json' },
         });
       }
       throw err;
@@ -35,7 +35,7 @@ export async function mcpRoutes(app: FastifyInstance, container: Container): Pro
 
     // Stateless mode: a new McpServer + transport per request so every HTTP
     // call is self-contained. Tool callbacks close over the per-request principal.
-    const mcpServer = new McpServer({ name: "headless-lms", version: "1.0.0" });
+    const mcpServer = new McpServer({ name: 'headless-lms', version: '1.0.0' });
     registerTools(mcpServer, container, principal);
 
     const transport = new WebStandardStreamableHTTPServerTransport({
@@ -47,15 +47,15 @@ export async function mcpRoutes(app: FastifyInstance, container: Container): Pro
   });
 
   app.route({
-    method: ["GET", "POST", "DELETE"],
-    url: "/mcp",
+    method: ['GET', 'POST', 'DELETE'],
+    url: '/mcp',
     handler: async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const response = await mcpHandler(toWebRequest(request));
         await bridgeWebResponse(response, reply);
       } catch (err) {
-        request.log.error({ err }, "mcp unexpected error");
-        await reply.status(500).send({ error: "internal_error" });
+        request.log.error({ err }, 'mcp unexpected error');
+        await reply.status(500).send({ error: 'internal_error' });
       }
     },
   });

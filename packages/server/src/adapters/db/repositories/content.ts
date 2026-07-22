@@ -3,20 +3,20 @@
 // `organizations.id` and constrains its queries to that tenant. The `Course`
 // model carries DERIVED fields (module / activity / enrolled counts) computed via
 // correlated subqueries.
-import { eq, and, sql, count, asc, desc, ilike, or, type SQL, type AnyColumn } from "drizzle-orm";
-import type { DbExecutor } from "../index.js";
-import type { ContentRepository } from "../../../core/content/ports.js";
-import type { Course, CourseStatus } from "../../../core/content/model.js";
+import { eq, and, sql, count, asc, desc, ilike, or, type SQL, type AnyColumn } from 'drizzle-orm';
+import type { DbExecutor } from '../index.js';
+import type { ContentRepository } from '../../../core/content/ports.js';
+import type { Course, CourseStatus } from '../../../core/content/model.js';
 import type {
   CreateCourseInput,
   ListCoursesQuery,
   Page,
   UpdateCourseInput,
-} from "../../../core/content/types.js";
-import { courses, modules, activities } from "../schema/content.js";
-import { enrollments } from "../schema/entitlements.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+} from '../../../core/content/types.js';
+import { courses, modules, activities } from '../schema/content.js';
+import { enrollments } from '../schema/entitlements.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 // Derived counts as correlated subqueries against the current `courses` row.
 // NOTE: Drizzle does NOT table-qualify a Column interpolated into a raw `sql`
@@ -110,31 +110,37 @@ export class DrizzleContentRepository implements ContentRepository {
 
   async list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
     const conditions: SQL[] = [eq(courses.orgId, orgId)];
-    if (query.status) conditions.push(eq(courses.status, query.status));
-    if (query.category) conditions.push(eq(courses.category, query.category));
+    if (query.status) {
+      conditions.push(eq(courses.status, query.status));
+    }
+    if (query.category) {
+      conditions.push(eq(courses.category, query.category));
+    }
 
     const search = query.search?.trim();
     if (search) {
       const like = `%${search}%`;
       const match = or(ilike(courses.title, like), ilike(courses.category, like));
-      if (match) conditions.push(match);
+      if (match) {
+        conditions.push(match);
+      }
     }
 
     const where = and(...conditions);
 
     // Resolve sort: `-` prefix = desc, default createdAt desc.
-    let sortKey = "createdAt";
-    let direction: "asc" | "desc" = "desc";
+    let sortKey = 'createdAt';
+    let direction: 'asc' | 'desc' = 'desc';
     if (query.sort) {
-      const isDesc = query.sort.startsWith("-");
+      const isDesc = query.sort.startsWith('-');
       const key = isDesc ? query.sort.slice(1) : query.sort;
       if (key in sortColumns) {
         sortKey = key;
-        direction = isDesc ? "desc" : "asc";
+        direction = isDesc ? 'desc' : 'asc';
       }
     }
     const sortExpr = sortColumns[sortKey] ?? courses.createdAt;
-    const orderBy = direction === "desc" ? desc(sortExpr) : asc(sortExpr);
+    const orderBy = direction === 'desc' ? desc(sortExpr) : asc(sortExpr);
 
     const rows = await this.db
       .select(selection)
@@ -170,29 +176,43 @@ export class DrizzleContentRepository implements ContentRepository {
         orgId,
         title: input.title,
         slug,
-        description: input.description ?? "",
-        category: input.category ?? "",
+        description: input.description ?? '',
+        category: input.category ?? '',
       })
       .returning({ id: courses.id });
-    if (!inserted) throw new Error("failed to insert course");
+    if (!inserted) {
+      throw new Error('failed to insert course');
+    }
     const created = await this.findById(orgId, inserted.id);
-    if (!created) throw new Error("failed to load created course");
+    if (!created) {
+      throw new Error('failed to load created course');
+    }
     return created;
   }
 
   async update(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null> {
     const set: Record<string, unknown> = { updatedAt: new Date() };
-    if (patch.title !== undefined) set.title = patch.title;
-    if (patch.description !== undefined) set.description = patch.description;
-    if (patch.category !== undefined) set.category = patch.category;
-    if (patch.status !== undefined) set.status = patch.status;
+    if (patch.title !== undefined) {
+      set.title = patch.title;
+    }
+    if (patch.description !== undefined) {
+      set.description = patch.description;
+    }
+    if (patch.category !== undefined) {
+      set.category = patch.category;
+    }
+    if (patch.status !== undefined) {
+      set.status = patch.status;
+    }
 
     const [updated] = await this.db
       .update(courses)
       .set(set)
       .where(and(eq(courses.orgId, orgId), eq(courses.id, id)))
       .returning({ id: courses.id });
-    if (!updated) return null;
+    if (!updated) {
+      return null;
+    }
     return this.findById(orgId, id);
   }
 

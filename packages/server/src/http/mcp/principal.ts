@@ -1,9 +1,9 @@
 // Translates a better-auth OAuthAccessToken into the McpPrincipal used by the
 // authz layer. Performs minimal I/O: one identity lookup + one membership lookup.
-import type { OAuthAccessToken } from "better-auth/plugins";
-import type { Container } from "../../composition/container.js";
-import { parseRole } from "../../core/organizations/index.js";
-import type { McpPrincipal } from "./authz.js";
+import type { OAuthAccessToken } from 'better-auth/plugins';
+import type { Container } from '../../composition/container.js';
+import { parseRole } from '../../core/organizations/index.js';
+import type { McpPrincipal } from './authz.js';
 
 export class PrincipalError extends Error {
   constructor(
@@ -11,7 +11,7 @@ export class PrincipalError extends Error {
     readonly status: 401 | 403,
   ) {
     super(message);
-    this.name = "PrincipalError";
+    this.name = 'PrincipalError';
   }
 }
 
@@ -27,12 +27,12 @@ export async function buildPrincipal(
 ): Promise<McpPrincipal> {
   const user = await container.identity.getUserByExternalId(token.userId);
   if (!user) {
-    throw new PrincipalError("no domain user for auth user", 401);
+    throw new PrincipalError('no domain user for auth user', 401);
   }
 
   const membership = await container.organizations.getMembershipByUser(user.id);
   if (!membership) {
-    throw new PrincipalError("user has no org membership", 403);
+    throw new PrincipalError('user has no org membership', 403);
   }
 
   const assignedCourseIds = await container.organizations.assignedCourseIds(
@@ -41,7 +41,7 @@ export async function buildPrincipal(
   );
 
   // OAuthAccessToken.scopes is a space-separated string per OAuth 2.0 convention.
-  const scopes = token.scopes.split(" ").filter(Boolean);
+  const scopes = token.scopes.split(' ').filter(Boolean);
 
   return {
     // Staff user id (membership-bearing principal); kept under `studentId` for

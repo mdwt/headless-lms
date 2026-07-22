@@ -1,7 +1,7 @@
 // organizations context — ports.
-import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
-import type { Member, MembersQuery, InviteMemberInput, Page } from "./members.js";
-import type { Role } from "./roles.js";
+import type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
+import type { Member, MembersQuery, InviteMemberInput, Page } from './members.js';
+import type { Role } from './roles.js';
 import type {
   CreateOrganizationInput,
   NewOrganizationInput,
@@ -10,7 +10,7 @@ import type {
   RecordInvitationInput,
   AcceptInvitationInput,
   AssignCourseInput,
-} from "./types.js";
+} from './types.js';
 
 /** Inbound HTTP headers carrying the session, forwarded to the auth provider. */
 export type AuthHeaders = Record<string, string | string[] | undefined>;
@@ -79,7 +79,7 @@ export interface OrganizationsRepository {
 
 /** A member row enriched with the auth-provider ids needed to drive writes. */
 export interface MemberRecord extends Member {
-  kind: "member" | "invitation";
+  kind: 'member' | 'invitation';
   authMemberId: string | null;
   authInvitationId: string | null;
 }

@@ -3,33 +3,35 @@
 // it to Role and answers authorization questions here. The Role type itself is
 // owned by @headless-lms/types; RANK/MATRIX below are Record<Role, …>, so the
 // compiler forces this file to cover every role the published type declares.
-import type { Role } from "@headless-lms/types";
+import type { Role } from '@headless-lms/types';
 
 export type { Role };
-export const ROLES = ["owner", "admin", "instructor"] as const satisfies readonly Role[];
+export const ROLES = ['owner', 'admin', 'instructor'] as const satisfies readonly Role[];
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);
 }
 
 export function parseRole(value: string): Role {
-  if (!isRole(value)) throw new Error(`unknown role: ${value}`);
+  if (!isRole(value)) {
+    throw new Error(`unknown role: ${value}`);
+  }
   return value;
 }
 
 export type Permission =
-  | "manage_billing"
-  | "manage_org_settings"
-  | "manage_users"
-  | "create_course"
-  | "edit_assigned_course"
-  | "view_student_progress"
-  | "consume_content";
+  | 'manage_billing'
+  | 'manage_org_settings'
+  | 'manage_users'
+  | 'create_course'
+  | 'edit_assigned_course'
+  | 'view_student_progress'
+  | 'consume_content';
 
 // Unconditional (true), course-scoped ("assigned" — requires the course to be
 // assigned to the member), or enrollment-scoped ("enrolled" — access owned by
 // entitlements). Absent ⇒ denied.
-export type Capability = true | "assigned" | "enrolled";
+export type Capability = true | 'assigned' | 'enrolled';
 
 const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
   owner: {
@@ -48,8 +50,8 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     view_student_progress: true,
   },
   instructor: {
-    edit_assigned_course: "assigned",
-    view_student_progress: "assigned",
+    edit_assigned_course: 'assigned',
+    view_student_progress: 'assigned',
   },
 };
 
@@ -63,8 +65,12 @@ export function canForCourse(
   ctx: { assignedCourseIds: readonly string[]; courseId: string },
 ): boolean {
   const cap = capability(role, permission);
-  if (cap === true) return true;
-  if (cap === "assigned") return ctx.assignedCourseIds.includes(ctx.courseId);
+  if (cap === true) {
+    return true;
+  }
+  if (cap === 'assigned') {
+    return ctx.assignedCourseIds.includes(ctx.courseId);
+  }
   return false;
 }
 
@@ -75,10 +81,10 @@ export function canForCourse(
 const RANK: Record<Role, number> = { owner: 3, admin: 2, instructor: 1 };
 
 export function normalizeRole(raw: string): Role {
-  let best: Role = "instructor";
+  let best: Role = 'instructor';
   let bestRank = -1;
-  for (const token of raw.split(",").map((t) => t.trim())) {
-    const r: Role | null = isRole(token) ? token : token === "member" ? "instructor" : null;
+  for (const token of raw.split(',').map((t) => t.trim())) {
+    const r: Role | null = isRole(token) ? token : token === 'member' ? 'instructor' : null;
     if (r && RANK[r] > bestRank) {
       best = r;
       bestRank = RANK[r];

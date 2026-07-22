@@ -1,9 +1,9 @@
 // organizations context — member-management types (invite / change-role / remove).
 // The operational surface over the org's members and pending invitations. Roles
 // come from ./roles.ts (the single role model); writes go through Better Auth.
-import type { Role } from "./roles.js";
+import type { Role } from './roles.js';
 
-export type MemberStatus = "active" | "invited";
+export type MemberStatus = 'active' | 'invited';
 
 export interface Member {
   readonly id: string;

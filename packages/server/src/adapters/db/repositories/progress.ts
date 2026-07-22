@@ -1,12 +1,12 @@
 // progress — Drizzle repository (implements the core outbound port).
-import { and, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { ProgressRepository } from "../../../core/progress/ports.js";
-import type { ProgressRecord, ProgressTargetType } from "../../../core/progress/model.js";
-import type { ProgressTarget } from "../../../core/progress/types.js";
-import { progressRecords } from "../schema/progress.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, eq } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { ProgressRepository } from '../../../core/progress/ports.js';
+import type { ProgressRecord, ProgressTargetType } from '../../../core/progress/model.js';
+import type { ProgressTarget } from '../../../core/progress/types.js';
+import { progressRecords } from '../schema/progress.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 type Row = typeof progressRecords.$inferSelect;
 
@@ -43,7 +43,9 @@ export class DrizzleProgressRepository implements ProgressRepository {
         completedAt: record.completedAt ? new Date(record.completedAt) : null,
       })
       .returning();
-    if (!row) throw new Error("failed to insert progress record");
+    if (!row) {
+      throw new Error('failed to insert progress record');
+    }
     return toRecord(row);
   }
 
@@ -66,13 +68,13 @@ export class DrizzleProgressRepository implements ProgressRepository {
   async update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<ProgressRecord, "position" | "completedAt">>,
+    patch: Partial<Pick<ProgressRecord, 'position' | 'completedAt'>>,
   ): Promise<ProgressRecord | null> {
     const [row] = await this.db
       .update(progressRecords)
       .set({
-        ...("position" in patch ? { position: patch.position ?? null } : {}),
-        ...("completedAt" in patch
+        ...('position' in patch ? { position: patch.position ?? null } : {}),
+        ...('completedAt' in patch
           ? { completedAt: patch.completedAt ? new Date(patch.completedAt) : null }
           : {}),
       })

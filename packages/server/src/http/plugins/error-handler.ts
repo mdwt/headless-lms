@@ -1,28 +1,50 @@
-// Central error handler. Without this, `resolveScope` throwing `NoActiveOrgError`
-// (authenticated session but no resolvable active org / domain user) surfaces as
-// a 500. Map it to 403; pass through 4xx errors that already carry a status
-// (validation, etc.); log and generically 500 anything unexpected.
-import type { FastifyInstance } from "fastify";
-import { NoActiveOrgError } from "../scope.js";
-import { NoStudentError } from "../student-scope.js";
+// Central error handler — the single place domain and scope errors become HTTP
+// replies. Routes never hand-roll error responses for these: services throw,
+// this maps. Pass through 4xx errors that already carry a status (validation,
+// etc.); log and generically 500 anything unexpected.
+import type { FastifyInstance } from 'fastify';
+import { NotFoundError } from '../../core/shared/errors.js';
+import { OrganizationRuleError } from '../../core/organizations/index.js';
+import {
+  AlreadyConnectedError,
+  InvalidConfigError,
+  UnknownIntegrationError,
+} from '../../core/integrations/index.js';
+import { NoActiveOrgError } from '../scope.js';
+import { NoStudentError } from '../student-scope.js';
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof NotFoundError) {
+      return reply.status(404).send({ error: 'not_found', message: error.message });
+    }
+    if (error instanceof OrganizationRuleError) {
+      return reply.status(409).send({ error: 'conflict', message: error.message });
+    }
+    if (error instanceof AlreadyConnectedError) {
+      return reply.status(409).send({ error: 'already_connected', message: error.message });
+    }
+    if (error instanceof UnknownIntegrationError) {
+      return reply.status(400).send({ error: 'unknown_integration', message: error.message });
+    }
+    if (error instanceof InvalidConfigError) {
+      return reply.status(400).send({ error: 'invalid_config', message: error.message });
+    }
     if (error instanceof NoActiveOrgError) {
-      return reply.status(403).send({ error: "forbidden", message: error.message });
+      return reply.status(403).send({ error: 'forbidden', message: error.message });
     }
     // A session that doesn't resolve to a portal student is an auth failure —
     // 401 so the portal bounces to login, not a generic 403.
     if (error instanceof NoStudentError) {
-      return reply.status(401).send({ error: "unauthorized", message: error.message });
+      return reply.status(401).send({ error: 'unauthorized', message: error.message });
     }
     const err = error as { statusCode?: number; code?: string; message?: string };
-    if (typeof err.statusCode === "number" && err.statusCode >= 400 && err.statusCode < 500) {
+    if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500) {
       return reply
         .status(err.statusCode)
-        .send({ error: err.code ?? "bad_request", message: err.message ?? "Bad request" });
+        .send({ error: err.code ?? 'bad_request', message: err.message ?? 'Bad request' });
     }
     request.log.error(error);
-    return reply.status(500).send({ error: "internal_error" });
+    return reply.status(500).send({ error: 'internal_error' });
   });
 }

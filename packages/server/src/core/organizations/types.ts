@@ -10,4 +10,4 @@ export type {
   RecordInvitationInput,
   AcceptInvitationInput,
   AssignCourseInput,
-} from "@headless-lms/types";
+} from '@headless-lms/types';

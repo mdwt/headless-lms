@@ -2,17 +2,18 @@
 // better-auth (and the MCP transport) speak. Both the auth catch-all and the
 // MCP route hand a Fastify request to a Web-standard handler and forward the
 // Web response back, so the conversion lives here once.
-import type { FastifyReply, FastifyRequest } from "fastify";
-import { fromNodeHeaders } from "better-auth/node";
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { fromNodeHeaders } from 'better-auth/node';
 
 /** Builds a Web `Request` from an incoming Fastify request. */
 export function toWebRequest(request: FastifyRequest): Request {
   const url = new URL(request.url, `http://${request.headers.host}`);
   // GET/HEAD/DELETE never carry a body; passing one to `Request` throws. For the
   // rest, forward a string body verbatim and JSON-encode a parsed object.
-  const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.method !== "DELETE";
+  const hasBody =
+    request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'DELETE';
   const body = hasBody
-    ? typeof request.body === "string"
+    ? typeof request.body === 'string'
       ? request.body
       : request.body
         ? JSON.stringify(request.body)
@@ -34,10 +35,12 @@ export async function bridgeWebResponse(response: Response, reply: FastifyReply)
   // array so each one is forwarded as a separate header.
   const cookies = response.headers.getSetCookie();
   if (cookies.length > 0) {
-    reply.raw.setHeader("set-cookie", cookies);
+    reply.raw.setHeader('set-cookie', cookies);
   }
   response.headers.forEach((value, key) => {
-    if (key.toLowerCase() === "set-cookie") return; // already handled above
+    if (key.toLowerCase() === 'set-cookie') {
+      return;
+    } // already handled above
     reply.header(key, value);
   });
   reply.send(response.body ? await response.text() : null);

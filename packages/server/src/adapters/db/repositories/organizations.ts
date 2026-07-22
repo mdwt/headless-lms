@@ -1,34 +1,34 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { eq, and } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { OrganizationsRepository } from "../../../core/organizations/ports.js";
+import { eq, and } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { OrganizationsRepository } from '../../../core/organizations/ports.js';
 import type {
   Organization,
   Membership,
   Invitation,
   CourseAssignment,
-} from "../../../core/organizations/model.js";
-import { parseRole, normalizeRole } from "../../../core/organizations/index.js";
+} from '../../../core/organizations/model.js';
+import { parseRole, normalizeRole } from '../../../core/organizations/index.js';
 import type {
   CreateOrganizationInput,
   UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
   AssignCourseInput,
-} from "../../../core/organizations/types.js";
+} from '../../../core/organizations/types.js';
 import {
   organizations,
   memberships,
   invitations,
   courseAssignments,
-} from "../schema/organizations.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+} from '../schema/organizations.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
-const INVITATION_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
+const INVITATION_STATUSES = ['pending', 'accepted', 'rejected', 'canceled'] as const;
 type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 const toStatus = (s: string): InvitationStatus =>
-  (INVITATION_STATUSES as readonly string[]).includes(s) ? (s as InvitationStatus) : "pending";
+  (INVITATION_STATUSES as readonly string[]).includes(s) ? (s as InvitationStatus) : 'pending';
 
 export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   constructor(
@@ -46,7 +46,9 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         ownerId: input.ownerId,
       })
       .returning();
-    if (!row) throw new Error("failed to insert organization");
+    if (!row) {
+      throw new Error('failed to insert organization');
+    }
     return row;
   }
 
@@ -91,14 +93,18 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .onConflictDoNothing({ target: memberships.externalId })
       .returning();
-    if (row) return { ...row, role: parseRole(row.role) };
+    if (row) {
+      return { ...row, role: parseRole(row.role) };
+    }
     // Already mirrored (hook fired more than once) — return the existing row.
     const [existing] = await this.db
       .select()
       .from(memberships)
       .where(eq(memberships.externalId, input.externalId))
       .limit(1);
-    if (!existing) throw new Error("failed to insert membership");
+    if (!existing) {
+      throw new Error('failed to insert membership');
+    }
     return { ...existing, role: parseRole(existing.role) };
   }
 
@@ -120,13 +126,17 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .onConflictDoNothing({ target: invitations.authInvitationId })
       .returning();
-    if (row) return row;
+    if (row) {
+      return row;
+    }
     const [existing] = await this.db
       .select()
       .from(invitations)
       .where(eq(invitations.authInvitationId, input.authInvitationId))
       .limit(1);
-    if (!existing) throw new Error("failed to insert invitation");
+    if (!existing) {
+      throw new Error('failed to insert invitation');
+    }
     return existing;
   }
 
@@ -143,7 +153,9 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .values({ orgId, membershipId: input.membershipId, courseId: input.courseId })
       .onConflictDoNothing()
       .returning();
-    if (row) return row;
+    if (row) {
+      return row;
+    }
     const [existing] = await this.db
       .select()
       .from(courseAssignments)
@@ -155,7 +167,9 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         ),
       )
       .limit(1);
-    if (!existing) throw new Error("failed to insert course assignment");
+    if (!existing) {
+      throw new Error('failed to insert course assignment');
+    }
     return existing;
   }
 

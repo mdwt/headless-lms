@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { IdentityServiceImpl } from "./service.js";
-import type { IdentityRepository } from "./ports.js";
-import type { Student, User } from "./model.js";
-import type { RegisterStudentInput, RegisterUserInput } from "./types.js";
+import { describe, it, expect } from 'vitest';
+import { IdentityServiceImpl } from './service.js';
+import type { IdentityRepository } from './ports.js';
+import type { Student, User } from './model.js';
+import type { RegisterStudentInput, RegisterUserInput } from './types.js';
 
 function fakeRepo() {
   const students: Student[] = [];
@@ -38,24 +38,24 @@ function fakeRepo() {
   return { repo, rows: students };
 }
 
-describe("IdentityService.registerStudent", () => {
+describe('IdentityService.registerStudent', () => {
   const input: RegisterStudentInput = {
-    orgId: "org_1",
-    externalId: "auth_1",
-    email: "a@example.com",
-    firstName: "Ada",
-    lastName: "Lovelace",
+    orgId: 'org_1',
+    externalId: 'auth_1',
+    email: 'a@example.com',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
   };
 
-  it("creates a student for a new auth user", async () => {
+  it('creates a student for a new auth user', async () => {
     const { repo, rows } = fakeRepo();
     const student = await new IdentityServiceImpl(repo).registerStudent(input);
-    expect(student.externalId).toBe("auth_1");
-    expect(student.orgId).toBe("org_1");
+    expect(student.externalId).toBe('auth_1');
+    expect(student.orgId).toBe('org_1');
     expect(rows).toHaveLength(1);
   });
 
-  it("is idempotent — a repeat sync does not create a duplicate", async () => {
+  it('is idempotent — a repeat sync does not create a duplicate', async () => {
     const { repo, rows } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
     const first = await svc.registerStudent(input);
@@ -64,46 +64,46 @@ describe("IdentityService.registerStudent", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("the same external id in two orgs resolves independently", async () => {
+  it('the same external id in two orgs resolves independently', async () => {
     const { repo, rows } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
     const a = await svc.registerStudent(input);
-    const b = await svc.registerStudent({ ...input, orgId: "org_2" });
+    const b = await svc.registerStudent({ ...input, orgId: 'org_2' });
     expect(b.id).not.toBe(a.id);
     expect(rows).toHaveLength(2);
-    expect((await svc.getStudentByExternalId("org_1", "auth_1"))?.id).toBe(a.id);
-    expect((await svc.getStudentByExternalId("org_2", "auth_1"))?.id).toBe(b.id);
+    expect((await svc.getStudentByExternalId('org_1', 'auth_1'))?.id).toBe(a.id);
+    expect((await svc.getStudentByExternalId('org_2', 'auth_1'))?.id).toBe(b.id);
   });
 });
 
-describe("IdentityService.getStudentByExternalId", () => {
+describe('IdentityService.getStudentByExternalId', () => {
   it("returns only the matching org's student", async () => {
     const { repo } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
     await svc.registerStudent({
-      orgId: "org_1",
-      externalId: "auth_1",
-      email: "a@example.com",
-      firstName: "Ada",
-      lastName: "Lovelace",
+      orgId: 'org_1',
+      externalId: 'auth_1',
+      email: 'a@example.com',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
     });
-    expect(await svc.getStudentByExternalId("org_other", "auth_1")).toBeNull();
+    expect(await svc.getStudentByExternalId('org_other', 'auth_1')).toBeNull();
   });
 });
 
-describe("logging", () => {
-  it("logs registrations at info only when a row is inserted", async () => {
-    const { createCapturingLogger } = await import("../shared/logger.js");
+describe('logging', () => {
+  it('logs registrations at info only when a row is inserted', async () => {
+    const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
     const { repo } = fakeRepo();
     const svc = new IdentityServiceImpl(repo, logger);
 
-    const input: RegisterUserInput = { externalId: "auth-1", email: "a@b.c", displayName: "A" };
+    const input: RegisterUserInput = { externalId: 'auth-1', email: 'a@b.c', displayName: 'A' };
     const user = await svc.registerUser(input);
     await svc.registerUser(input); // idempotent → no second log
 
     expect(entries).toEqual([
-      { level: "info", msg: "user registered", meta: { userId: user.id, externalId: "auth-1" } },
+      { level: 'info', msg: 'user registered', meta: { userId: user.id, externalId: 'auth-1' } },
     ]);
   });
 });

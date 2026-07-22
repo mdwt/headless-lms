@@ -1,5 +1,5 @@
 // reporting/students — ports.
-import type { Page, Student, StudentsQuery } from "./model.js";
+import type { Page, Student, StudentsQuery } from './model.js';
 
 export interface StudentsReportService {
   list(orgId: string, query: StudentsQuery): Promise<Page<Student>>;

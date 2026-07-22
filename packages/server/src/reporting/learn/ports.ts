@@ -1,5 +1,5 @@
 // reporting/learn — ports.
-import type { Course, Module, CourseRef } from "./model.js";
+import type { Course, Module, CourseRef } from './model.js';
 
 /**
  * Inbound: the student-scoped read use-cases. Scoped by `(orgId, studentId)` —

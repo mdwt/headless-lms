@@ -1,4 +1,4 @@
-import "fastify";
+import 'fastify';
 
 // Minimal shape of the authenticated user attached to a request by
 // `requireSession`. Defined locally so `http` need not import the auth adapter
@@ -11,7 +11,7 @@ export interface AuthUser {
   image?: string | null;
 }
 
-declare module "fastify" {
+declare module 'fastify' {
   interface FastifyInstance {
     requireSession(request: FastifyRequest, reply: FastifyReply): Promise<void>;
   }

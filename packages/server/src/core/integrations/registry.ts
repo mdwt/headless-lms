@@ -1,7 +1,7 @@
 // integrations context — registry. The set of available integrations is
 // declared once at startup (composition passes the modules in); the service
 // consults it to reject unknown integration ids and to validate config.
-import type { Integration, IntegrationsRegistry } from "./ports.js";
+import type { Integration, IntegrationsRegistry } from './ports.js';
 
 export function createIntegrationsRegistry(integrations: Integration[]): IntegrationsRegistry {
   const byId = new Map<string, Integration>();

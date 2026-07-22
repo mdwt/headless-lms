@@ -7,16 +7,16 @@ import type {
   MemberWriteContext,
   OrgAdmin,
   AuthHeaders,
-} from "./ports.js";
-import type { Organization, Membership, Invitation, CourseAssignment } from "./model.js";
-import type { Role } from "./roles.js";
+} from './ports.js';
+import type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
+import type { Role } from './roles.js';
 import {
   OrganizationRuleError,
   type Member,
   type MembersQuery,
   type InviteMemberInput,
   type Page,
-} from "./members.js";
+} from './members.js';
 import type {
   CreateOrganizationInput,
   NewOrganizationInput,
@@ -25,9 +25,9 @@ import type {
   RecordInvitationInput,
   AcceptInvitationInput,
   AssignCourseInput,
-} from "./types.js";
-import type { Logger } from "../shared/ports.js";
-import { noopLogger } from "../shared/logger.js";
+} from './types.js';
+import type { Logger } from '../shared/ports.js';
+import { noopLogger } from '../shared/logger.js';
 
 function toMember(r: MemberRecord): Member {
   return {
@@ -56,9 +56,11 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async createOrg(input: CreateOrganizationInput): Promise<Organization> {
     const existing = await this.repo.findByExternalId(input.externalId);
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
     const created = await this.repo.create(input);
-    this.logger.info("organization mirrored", { orgId: created.id, externalId: input.externalId });
+    this.logger.info('organization mirrored', { orgId: created.id, externalId: input.externalId });
     return created;
   }
 
@@ -72,8 +74,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     const { externalId } = await this.orgAdmin().createOrganization(headers, input);
     await this.orgAdmin().setActiveOrganization(headers, externalId);
     const org = await this.repo.findByExternalId(externalId);
-    if (!org) throw new Error("organization did not propagate to the domain mirror");
-    this.logger.info("organization created", { orgId: org.id, slug: org.slug });
+    if (!org) {
+      throw new Error('organization did not propagate to the domain mirror');
+    }
+    this.logger.info('organization created', { orgId: org.id, slug: org.slug });
     return org;
   }
 
@@ -86,33 +90,35 @@ export class OrganizationServiceImpl implements OrganizationService {
   ): Promise<Organization> {
     await this.orgAdmin().updateOrganization(headers, authOrgId, input);
     const org = await this.repo.updateByExternalId(authOrgId, input);
-    if (!org) throw new Error("organization did not propagate to the domain mirror");
-    this.logger.info("organization updated", { orgId: org.id });
+    if (!org) {
+      throw new Error('organization did not propagate to the domain mirror');
+    }
+    this.logger.info('organization updated', { orgId: org.id });
     return org;
   }
 
   async addMembership(input: AddMembershipInput): Promise<Membership> {
     const org = await this.requireOrg(input.orgExternalId);
     const membership = await this.repo.insertMembership(org.id, input);
-    this.logger.info("membership added", { orgId: org.id });
+    this.logger.info('membership added', { orgId: org.id });
     return membership;
   }
 
   async removeMembership(externalId: string): Promise<void> {
     await this.repo.deleteMembershipByExternalId(externalId);
-    this.logger.info("membership removed", { externalId });
+    this.logger.info('membership removed', { externalId });
   }
 
   async recordInvitation(input: RecordInvitationInput): Promise<Invitation> {
     const org = await this.requireOrg(input.orgExternalId);
     const invitation = await this.repo.insertInvitation(org.id, input);
-    this.logger.info("invitation recorded", { orgId: org.id });
+    this.logger.info('invitation recorded', { orgId: org.id });
     return invitation;
   }
 
   async acceptInvitation(input: AcceptInvitationInput): Promise<void> {
-    await this.repo.setInvitationStatusByAuthId(input.authInvitationId, "accepted");
-    this.logger.info("invitation accepted", { authInvitationId: input.authInvitationId });
+    await this.repo.setInvitationStatusByAuthId(input.authInvitationId, 'accepted');
+    this.logger.info('invitation accepted', { authInvitationId: input.authInvitationId });
   }
 
   async getByExternalId(externalId: string): Promise<Organization | null> {
@@ -126,14 +132,14 @@ export class OrganizationServiceImpl implements OrganizationService {
   async assignCourse(input: AssignCourseInput): Promise<CourseAssignment> {
     const org = await this.requireOrg(input.orgExternalId);
     const assignment = await this.repo.insertCourseAssignment(org.id, input);
-    this.logger.info("course assigned", { orgId: org.id, courseId: input.courseId });
+    this.logger.info('course assigned', { orgId: org.id, courseId: input.courseId });
     return assignment;
   }
 
   async unassignCourse(input: AssignCourseInput): Promise<void> {
     const org = await this.requireOrg(input.orgExternalId);
     await this.repo.deleteCourseAssignment(org.id, input.membershipId, input.courseId);
-    this.logger.info("course unassigned", { orgId: org.id, courseId: input.courseId });
+    this.logger.info('course unassigned', { orgId: org.id, courseId: input.courseId });
   }
 
   async assignedCourseIds(orgId: string, membershipId: string): Promise<string[]> {
@@ -155,61 +161,69 @@ export class OrganizationServiceImpl implements OrganizationService {
   async inviteMember(ctx: MemberWriteContext, input: InviteMemberInput): Promise<Member> {
     const existing = await this.membersRepo.findByEmail(ctx.orgId, input.email);
     if (existing) {
-      this.logger.warn("invite rejected: already a member or invited", { orgId: ctx.orgId });
-      throw new OrganizationRuleError("That email is already a member or invited");
+      this.logger.warn('invite rejected: already a member or invited', { orgId: ctx.orgId });
+      throw new OrganizationRuleError('That email is already a member or invited');
     }
     await this.orgAdmin().invite(ctx, input);
     const created = await this.membersRepo.findByEmail(ctx.orgId, input.email);
-    if (!created) throw new Error("invitation did not propagate to the domain mirror");
-    this.logger.info("member invited", { orgId: ctx.orgId, memberId: created.id });
+    if (!created) {
+      throw new Error('invitation did not propagate to the domain mirror');
+    }
+    this.logger.info('member invited', { orgId: ctx.orgId, memberId: created.id });
     return toMember(created);
   }
 
   async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
     const member = await this.membersRepo.findById(ctx.orgId, id);
-    if (!member) return null;
-    if (member.role === "owner") {
-      this.logger.warn("role change rejected: owner role immutable", {
-        orgId: ctx.orgId,
-        memberId: id,
-      });
-      throw new OrganizationRuleError("The owner role cannot be reassigned");
+    if (!member) {
+      return null;
     }
-    if (member.kind !== "member" || !member.authMemberId) {
-      this.logger.warn("role change rejected: not an active member", {
+    if (member.role === 'owner') {
+      this.logger.warn('role change rejected: owner role immutable', {
         orgId: ctx.orgId,
         memberId: id,
       });
-      throw new OrganizationRuleError("Only active members can have their role changed");
+      throw new OrganizationRuleError('The owner role cannot be reassigned');
+    }
+    if (member.kind !== 'member' || !member.authMemberId) {
+      this.logger.warn('role change rejected: not an active member', {
+        orgId: ctx.orgId,
+        memberId: id,
+      });
+      throw new OrganizationRuleError('Only active members can have their role changed');
     }
     await this.orgAdmin().updateRole(ctx, member.authMemberId, role);
     const updated = await this.membersRepo.findById(ctx.orgId, id);
-    this.logger.info("member role updated", { orgId: ctx.orgId, memberId: id, role });
+    this.logger.info('member role updated', { orgId: ctx.orgId, memberId: id, role });
     return updated ? toMember(updated) : null;
   }
 
   async removeMember(ctx: MemberWriteContext, id: string): Promise<boolean> {
     const member = await this.membersRepo.findById(ctx.orgId, id);
-    if (!member) return false;
-    if (member.role === "owner") {
-      this.logger.warn("member removal rejected: owner cannot be removed", {
+    if (!member) {
+      return false;
+    }
+    if (member.role === 'owner') {
+      this.logger.warn('member removal rejected: owner cannot be removed', {
         orgId: ctx.orgId,
         memberId: id,
       });
-      throw new OrganizationRuleError("The owner cannot be removed");
+      throw new OrganizationRuleError('The owner cannot be removed');
     }
-    if (member.kind === "member" && member.authMemberId) {
+    if (member.kind === 'member' && member.authMemberId) {
       await this.orgAdmin().removeMember(ctx, member.authMemberId);
-    } else if (member.kind === "invitation" && member.authInvitationId) {
+    } else if (member.kind === 'invitation' && member.authInvitationId) {
       await this.orgAdmin().cancelInvitation(ctx, member.authInvitationId);
     }
-    this.logger.info("member removed", { orgId: ctx.orgId, memberId: id });
+    this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;
   }
 
   private async requireOrg(externalId: string): Promise<Organization> {
     const org = await this.repo.findByExternalId(externalId);
-    if (!org) throw new Error(`unknown organization for externalId ${externalId}`);
+    if (!org) {
+      throw new Error(`unknown organization for externalId ${externalId}`);
+    }
     return org;
   }
 }

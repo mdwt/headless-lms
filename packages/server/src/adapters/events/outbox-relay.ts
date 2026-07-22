@@ -13,8 +13,8 @@ import type {
   OutboxMessage,
   OutboxRelay,
   OutboxStore,
-} from "../../core/shared/ports.js";
-import { OUTBOX_MAX_ATTEMPTS } from "../db/repositories/outbox.js";
+} from '../../core/shared/ports.js';
+import { OUTBOX_MAX_ATTEMPTS } from '../db/repositories/outbox.js';
 
 /** Backoff base: first retry 5s after the first failure, doubling per attempt. */
 export const OUTBOX_BACKOFF_BASE_MS = 5_000;
@@ -49,26 +49,34 @@ export class PollingOutboxRelay implements OutboxRelay {
   ) {}
 
   start(): void {
-    if (!this.config.enabled || this.running) return;
+    if (!this.config.enabled || this.running) {
+      return;
+    }
     this.running = true;
     this.schedule(this.config.pollIntervalMs);
-    this.logger.info("outbox relay started", {
+    this.logger.info('outbox relay started', {
       pollIntervalMs: this.config.pollIntervalMs,
       batchSize: this.config.batchSize,
     });
   }
 
   async stop(): Promise<void> {
-    if (this.pollTimer) clearTimeout(this.pollTimer);
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+    }
     this.pollTimer = undefined;
     const wasRunning = this.running;
     this.running = false;
     await this.inFlight;
-    if (wasRunning) this.logger.info("outbox relay stopped");
+    if (wasRunning) {
+      this.logger.info('outbox relay stopped');
+    }
   }
 
   private schedule(delayMs: number): void {
-    if (!this.running) return;
+    if (!this.running) {
+      return;
+    }
     this.pollTimer = setTimeout(() => {
       this.inFlight = this.tick();
     }, delayMs);
@@ -82,12 +90,14 @@ export class PollingOutboxRelay implements OutboxRelay {
     try {
       const batch = await this.store.fetchBatch(this.config.batchSize);
       fetched = batch.length;
-      if (fetched > 0) this.logger.debug("outbox batch fetched", { count: fetched });
+      if (fetched > 0) {
+        this.logger.debug('outbox batch fetched', { count: fetched });
+      }
       for (const message of batch) {
         await this.dispatch(message);
       }
     } catch (err) {
-      this.logger.error("outbox poll failed", { error: String(err) });
+      this.logger.error('outbox poll failed', { error: String(err) });
     }
     this.schedule(fetched >= this.config.batchSize ? 0 : this.config.pollIntervalMs);
   }
@@ -96,7 +106,7 @@ export class PollingOutboxRelay implements OutboxRelay {
     try {
       await this.bus.publish(message.payload);
       await this.store.markProcessed(message.id);
-      this.logger.info("outbox event dispatched", {
+      this.logger.info('outbox event dispatched', {
         id: message.id,
         type: message.payload.type,
       });
@@ -113,8 +123,11 @@ export class PollingOutboxRelay implements OutboxRelay {
         error,
       };
       // The store stops fetching after OUTBOX_MAX_ATTEMPTS — this failure parks the row.
-      if (attempt >= OUTBOX_MAX_ATTEMPTS) this.logger.warn("outbox event parked", meta);
-      else this.logger.error("outbox dispatch failed", meta);
+      if (attempt >= OUTBOX_MAX_ATTEMPTS) {
+        this.logger.warn('outbox event parked', meta);
+      } else {
+        this.logger.error('outbox dispatch failed', meta);
+      }
     }
   }
 }

@@ -1,11 +1,11 @@
 // integrations — Drizzle repository (implements the core outbound port).
-import { and, asc, eq } from "drizzle-orm";
-import type { DbExecutor } from "../index.js";
-import type { ConnectionsRepository } from "../../../core/integrations/ports.js";
-import type { Connection } from "../../../core/integrations/model.js";
-import { connections } from "../schema/integrations.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+import { and, asc, eq } from 'drizzle-orm';
+import type { DbExecutor } from '../index.js';
+import type { ConnectionsRepository } from '../../../core/integrations/ports.js';
+import type { Connection } from '../../../core/integrations/model.js';
+import { connections } from '../schema/integrations.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 type Row = typeof connections.$inferSelect;
 
@@ -41,7 +41,9 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
         updatedAt: new Date(connection.updatedAt),
       })
       .returning();
-    if (!row) throw new Error("failed to insert connection");
+    if (!row) {
+      throw new Error('failed to insert connection');
+    }
     return toConnection(row);
   }
 
@@ -75,7 +77,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
   async update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<Connection, "config" | "active" | "updatedAt">>,
+    patch: Partial<Pick<Connection, 'config' | 'active' | 'updatedAt'>>,
   ): Promise<Connection | null> {
     const [row] = await this.db
       .update(connections)

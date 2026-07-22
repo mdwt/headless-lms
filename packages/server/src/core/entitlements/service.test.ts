@@ -1,21 +1,21 @@
-import { describe, it, expect, vi } from "vitest";
-import { EntitlementsServiceImpl } from "./service.js";
-import type { EntitlementsRepository, EntitlementsUnitOfWork } from "./ports.js";
-import type { Enrollment } from "./model.js";
-import type { NewDomainEvent, OutboxAppender } from "../shared/ports.js";
+import { describe, it, expect, vi } from 'vitest';
+import { EntitlementsServiceImpl } from './service.js';
+import type { EntitlementsRepository, EntitlementsUnitOfWork } from './ports.js';
+import type { Enrollment } from './model.js';
+import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 
 const SAMPLE: Enrollment = {
-  id: "e1",
-  studentId: "s1",
-  firstName: "Bob",
-  lastName: "Smith",
-  studentEmail: "bob@example.com",
-  courseId: "c1",
-  courseTitle: "Intro",
-  status: "active",
-  grantedAt: "2026-01-01T00:00:00Z",
+  id: 'e1',
+  studentId: 's1',
+  firstName: 'Bob',
+  lastName: 'Smith',
+  studentEmail: 'bob@example.com',
+  courseId: 'c1',
+  courseTitle: 'Intro',
+  status: 'active',
+  grantedAt: '2026-01-01T00:00:00Z',
   expiresAt: null,
-  source: "manual",
+  source: 'manual',
 };
 
 function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepository {
@@ -47,87 +47,97 @@ function build(repo = fakeRepo()) {
   return { svc, repo, append, appended };
 }
 
-describe("EntitlementsService", () => {
-  it("lists entitlements via the read repository without appending events", async () => {
+describe('EntitlementsService', () => {
+  it('lists entitlements via the read repository without appending events', async () => {
     const { svc, repo, append } = build();
-    const page = await svc.list("org-1", { page: 1, pageSize: 20 });
+    const page = await svc.list('org-1', { page: 1, pageSize: 20 });
     expect(page.rows).toHaveLength(1);
-    expect(repo.list).toHaveBeenCalledWith("org-1", { page: 1, pageSize: 20 });
+    expect(repo.list).toHaveBeenCalledWith('org-1', { page: 1, pageSize: 20 });
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("grants an entitlement (insert) and returns it", async () => {
+  it('grants an entitlement (insert) and returns it', async () => {
     const { svc, repo } = build();
-    const result = await svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null });
-    expect(result.id).toBe("e1");
-    expect(repo.insert).toHaveBeenCalledWith("org-1", {
-      studentId: "s1",
-      courseId: "c1",
+    const result = await svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null });
+    expect(result.id).toBe('e1');
+    expect(repo.insert).toHaveBeenCalledWith('org-1', {
+      studentId: 's1',
+      courseId: 'c1',
       expiresAt: null,
     });
   });
 
-  it("appends enrollment.created (org + full snapshot) inside the unit of work", async () => {
+  it('appends enrollment.created (org + full snapshot) inside the unit of work', async () => {
     const { svc, appended } = build();
-    await svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null });
-    expect(appended).toEqual([{ type: "enrollment.created", orgId: "org-1", enrollment: SAMPLE }]);
+    await svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null });
+    expect(appended).toEqual([{ type: 'enrollment.created', orgId: 'org-1', enrollment: SAMPLE }]);
   });
 
-  it("sets status (revoke/reactivate) via the tx-bound repository", async () => {
+  it('sets status (revoke/reactivate) via the tx-bound repository', async () => {
     const { svc, repo } = build();
-    await svc.setStatus("org-1", "e1", "revoked");
-    expect(repo.setStatus).toHaveBeenCalledWith("org-1", "e1", "revoked");
+    await svc.setStatus('org-1', 'e1', 'revoked');
+    expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e1', 'revoked');
   });
 
-  it("appends enrollment.deleted on revoke", async () => {
+  it('appends enrollment.deleted on revoke', async () => {
     const { svc, appended } = build();
-    await svc.setStatus("org-1", "e1", "revoked");
-    expect(appended).toEqual([{ type: "enrollment.deleted", orgId: "org-1", enrollment: SAMPLE }]);
+    await svc.setStatus('org-1', 'e1', 'revoked');
+    expect(appended).toEqual([{ type: 'enrollment.deleted', orgId: 'org-1', enrollment: SAMPLE }]);
   });
 
-  it("appends enrollment.updated on reactivation", async () => {
+  it('appends enrollment.updated on reactivation', async () => {
     const { svc, appended } = build();
-    await svc.setStatus("org-1", "e1", "active");
-    expect(appended).toEqual([{ type: "enrollment.updated", orgId: "org-1", enrollment: SAMPLE }]);
+    await svc.setStatus('org-1', 'e1', 'active');
+    expect(appended).toEqual([{ type: 'enrollment.updated', orgId: 'org-1', enrollment: SAMPLE }]);
   });
 
-  it("appends nothing when setStatus finds no entitlement", async () => {
+  it('appends nothing when setStatus finds no entitlement', async () => {
     const { svc, append } = build(fakeRepo({ setStatus: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.setStatus("org-1", "missing", "revoked");
+    const result = await svc.setStatus('org-1', 'missing', 'revoked');
     expect(result).toBeNull();
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not append when the write fails — the error propagates out of run", async () => {
-    const { svc, append } = build(fakeRepo({ insert: vi.fn().mockRejectedValue(new Error("boom")) }));
+  it('does not append when the write fails — the error propagates out of run', async () => {
+    const { svc, append } = build(
+      fakeRepo({ insert: vi.fn().mockRejectedValue(new Error('boom')) }),
+    );
     await expect(
-      svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null }),
-    ).rejects.toThrow("boom");
+      svc.grant('org-1', { studentId: 's1', courseId: 'c1', expiresAt: null }),
+    ).rejects.toThrow('boom');
     expect(append).not.toHaveBeenCalled();
   });
 });
 
-describe("logging", () => {
-  it("logs grant and status changes at info", async () => {
-    const { createCapturingLogger } = await import("../shared/logger.js");
+describe('logging', () => {
+  it('logs grant and status changes at info', async () => {
+    const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
     const repo = fakeRepo();
     const { uow } = fakeUow(repo);
     const svc = new EntitlementsServiceImpl(repo, uow, logger);
 
-    const enrollment = await svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null });
-    await svc.setStatus("org-1", enrollment.id, "revoked");
+    const enrollment = await svc.grant('org-1', {
+      studentId: 's1',
+      courseId: 'c1',
+      expiresAt: null,
+    });
+    await svc.setStatus('org-1', enrollment.id, 'revoked');
 
     expect(entries.map((e) => [e.level, e.msg])).toEqual([
-      ["info", "enrollment granted"],
-      ["info", "enrollment status changed"],
+      ['info', 'enrollment granted'],
+      ['info', 'enrollment status changed'],
     ]);
     expect(entries[0]?.meta).toMatchObject({
-      orgId: "org-1",
+      orgId: 'org-1',
       enrollmentId: enrollment.id,
-      studentId: "s1",
-      courseId: "c1",
+      studentId: 's1',
+      courseId: 'c1',
     });
-    expect(entries[1]?.meta).toMatchObject({ orgId: "org-1", enrollmentId: enrollment.id, status: "revoked" });
+    expect(entries[1]?.meta).toMatchObject({
+      orgId: 'org-1',
+      enrollmentId: enrollment.id,
+      status: 'revoked',
+    });
   });
 });

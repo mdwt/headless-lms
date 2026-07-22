@@ -1,17 +1,17 @@
 // assets — Drizzle repository (implements the core outbound port).
-import { and, eq, ilike, sql, asc, desc, type SQL } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { AssetsRepository } from "../../../core/assets/ports.js";
+import { and, eq, ilike, sql, asc, desc, type SQL } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { AssetsRepository } from '../../../core/assets/ports.js';
 import type {
   Asset,
   AssetKind,
   AssetStatus,
   AssetsQuery,
   Page,
-} from "../../../core/assets/model.js";
-import { assets } from "../schema/assets.js";
-import type { Logger } from "../../../core/shared/ports.js";
-import { noopLogger } from "../../../core/shared/logger.js";
+} from '../../../core/assets/model.js';
+import { assets } from '../schema/assets.js';
+import type { Logger } from '../../../core/shared/ports.js';
+import { noopLogger } from '../../../core/shared/logger.js';
 
 type Row = typeof assets.$inferSelect;
 
@@ -58,20 +58,28 @@ export class DrizzleAssetsRepository implements AssetsRepository {
         createdAt: new Date(asset.createdAt),
       })
       .returning();
-    if (!row) throw new Error("failed to insert asset");
+    if (!row) {
+      throw new Error('failed to insert asset');
+    }
     return toAsset(row);
   }
 
   async list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {
     const filters: (SQL | undefined)[] = [eq(assets.orgId, orgId)];
-    if (query.kind) filters.push(eq(assets.kind, query.kind));
+    if (query.kind) {
+      filters.push(eq(assets.kind, query.kind));
+    }
     const q = query.search?.trim();
-    if (q) filters.push(ilike(assets.filename, `%${q}%`));
+    if (q) {
+      filters.push(ilike(assets.filename, `%${q}%`));
+    }
     const where = and(...filters);
 
     const orderBy = (() => {
-      if (!query.sort) return desc(assets.createdAt);
-      const descending = query.sort.startsWith("-");
+      if (!query.sort) {
+        return desc(assets.createdAt);
+      }
+      const descending = query.sort.startsWith('-');
       const field = descending ? query.sort.slice(1) : query.sort;
       const col = SORT_COLUMNS[field as keyof typeof SORT_COLUMNS] ?? assets.createdAt;
       return descending ? desc(col) : asc(col);
@@ -110,7 +118,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
 
   async update(
     id: string,
-    patch: Partial<Pick<Asset, "size" | "contentType" | "status">>,
+    patch: Partial<Pick<Asset, 'size' | 'contentType' | 'status'>>,
   ): Promise<Asset | null> {
     const [row] = await this.db
       .update(assets)

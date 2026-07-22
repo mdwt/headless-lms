@@ -1,7 +1,7 @@
 // Test/default implementations of the Logger port. The real pino-backed
 // implementation lives in adapters/logging; these exist so constructors can
 // default to a silent logger and tests can assert on emitted entries.
-import type { Logger } from "./ports.js";
+import type { Logger } from './ports.js';
 
 /** Discards everything. The default for constructors the container overrides. */
 export const noopLogger: Logger = {
@@ -13,7 +13,7 @@ export const noopLogger: Logger = {
 };
 
 export interface CapturedLog {
-  level: "debug" | "info" | "warn" | "error";
+  level: 'debug' | 'info' | 'warn' | 'error';
   msg: string;
   meta: Record<string, unknown>;
 }
@@ -24,14 +24,14 @@ export function createCapturingLogger(): { logger: Logger; entries: CapturedLog[
   const entries: CapturedLog[] = [];
   const make = (bindings: Record<string, unknown>): Logger => {
     const record =
-      (level: CapturedLog["level"]) => (msg: string, meta?: Record<string, unknown>) => {
+      (level: CapturedLog['level']) => (msg: string, meta?: Record<string, unknown>) => {
         entries.push({ level, msg, meta: { ...bindings, ...meta } });
       };
     return {
-      debug: record("debug"),
-      info: record("info"),
-      warn: record("warn"),
-      error: record("error"),
+      debug: record('debug'),
+      info: record('info'),
+      warn: record('warn'),
+      error: record('error'),
       child: (more) => make({ ...bindings, ...more }),
     };
   };

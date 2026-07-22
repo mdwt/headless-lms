@@ -9,7 +9,7 @@ point, and integration plugins. The `headless-lms` bin lives in
 ## Usage
 
 ```ts
-import { createContainer, buildServer } from "@headless-lms/server";
+import { createContainer, buildServer } from '@headless-lms/server';
 
 const container = await createContainer(config, {
   pluginsDir, // one folder per integration (directory name = integration id)

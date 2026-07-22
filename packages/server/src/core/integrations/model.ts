@@ -1,12 +1,12 @@
 // integrations context — entities & DTOs are owned by @headless-lms/types;
 // the domain errors below are runtime code and stay in core.
-export type { Connection, ConnectInput, ConfigureInput } from "@headless-lms/types";
+export type { Connection, ConnectInput, ConfigureInput } from '@headless-lms/types';
 
 /** An org already has a connection for this integration (one per integration per org). */
 export class AlreadyConnectedError extends Error {
   constructor(readonly integrationId: string) {
     super(`a connection for "${integrationId}" already exists`);
-    this.name = "AlreadyConnectedError";
+    this.name = 'AlreadyConnectedError';
   }
 }
 
@@ -14,7 +14,7 @@ export class AlreadyConnectedError extends Error {
 export class UnknownIntegrationError extends Error {
   constructor(readonly integrationId: string) {
     super(`unknown integration "${integrationId}"`);
-    this.name = "UnknownIntegrationError";
+    this.name = 'UnknownIntegrationError';
   }
 }
 
@@ -24,7 +24,7 @@ export class InvalidConfigError extends Error {
     readonly integrationId: string,
     readonly errors: string[],
   ) {
-    super(`invalid config for "${integrationId}": ${errors.join("; ")}`);
-    this.name = "InvalidConfigError";
+    super(`invalid config for "${integrationId}": ${errors.join('; ')}`);
+    this.name = 'InvalidConfigError';
   }
 }
