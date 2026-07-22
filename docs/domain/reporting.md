@@ -1,12 +1,12 @@
 # Reporting — Read Domain
 
-A read-only domain for cross-domain aggregation — the reports no single domain can answer. It reads across the other domains' data and aggregates on demand. It owns no tables and no data of its own, writes to nothing, and nothing depends on it.
+A read-only domain for cross-domain aggregation — the reports no single domain can answer. It reads across the other domains' data and aggregates on demand. It owns no data of its own, writes to nothing, and nothing depends on it.
 
 ## Scope
 
 - Owns **composed reads**: cross-domain aggregation for the management dashboard — across students, courses, and the org.
 - Reads the domains' data directly and computes each report on demand.
-- Owns no tables, no records, no writes. It is purely a read side.
+- Owns no records and no writes. It is purely a read side.
 
 ## Why it's a read domain
 
@@ -28,6 +28,6 @@ These are representative — reporting serves whatever cross-domain view the das
 The core's boundaries hold because no domain reaches into another. Reporting is the deliberate exception — it reads across all of them — so it lives apart, a sibling of the core. Enforced by the boundary linter:
 
 - Reporting may read the domains' data for aggregation — the one place allowed to depend on multiple contexts at once.
-- Reporting writes to nothing and owns no tables.
+- Reporting writes to nothing and owns nothing.
 - The core may not depend on reporting.
 - The inbound layer and composition may depend on reporting.

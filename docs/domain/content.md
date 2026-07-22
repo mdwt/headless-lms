@@ -80,4 +80,4 @@ A type's structure changes over time — adding, removing, or reordering parts. 
 
 ## Build state
 
-The course type is built and **persisted** via a Drizzle repository (`adapters/db/repositories/content.ts`). Other types follow as they are implemented.
+The course type is built and **persisted**. Other types follow as they are implemented.

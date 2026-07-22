@@ -13,13 +13,13 @@ Both models are mirrors of a Better Auth user, linked by the provider's user id.
 
 ## Authentication and system of record
 
-Authentication — credentials, sessions, OAuth — is handled by Better Auth, which sits behind an auth port. Better Auth is also the **system of record** for the user table: it owns the real user data, and the domain's User and Student records are mirrors of it.
+Authentication — credentials, sessions, OAuth — is handled by Better Auth. Better Auth is also the **system of record** for users: it owns the real user data, and the domain's User and Student records are mirrors of it.
 
-The mirror is kept in sync by Better Auth's database hooks: when a user is created in Better Auth, a hook creates the corresponding domain record. Because Better Auth is the source of truth rather than an interchangeable adapter, replacing it with another provider (e.g. Clerk) would be a **data migration, not a simple port swap**.
+The mirror is kept in sync from Better Auth: when a user is created there, the corresponding domain record is created. Because Better Auth is the source of truth, replacing it with another provider (e.g. Clerk) would be a **data migration, not a simple swap**.
 
 ## Boundaries
 
-1. **identity ↔ Better Auth** — Better Auth authenticates and is the system of record for users. Identity mirrors the User and Student into the domain through Better Auth's database hooks, and reads authentication through the auth port.
+1. **identity ↔ Better Auth** — Better Auth authenticates and is the system of record for users. Identity mirrors the User and Student into the domain and reads authentication from Better Auth.
 2. **identity ↔ organizations** — organizations owns orgs and memberships, and it is through a membership that a User is given their role. Organizations references the User by id; the role belongs to the User.
 
 ## Events
@@ -33,4 +33,4 @@ The mirror is kept in sync by Better Auth's database hooks: when a user is creat
 
 ## Build state
 
-Persisted via a Drizzle repository (`adapters/db/repositories/identity.ts`).
+Built and **persisted**.

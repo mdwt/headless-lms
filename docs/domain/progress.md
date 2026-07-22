@@ -66,4 +66,4 @@ Progress and access (entitlements) move independently — a student can be enrol
 
 ## Build state
 
-Built and **persisted** via a Drizzle repository (`adapters/db/repositories/progress.ts`).
+Built and **persisted**.

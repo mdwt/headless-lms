@@ -50,4 +50,4 @@ Access (entitlements) and completion (progress) move independently — a student
 
 ## Build state
 
-Built and **persisted** via a Drizzle repository (`adapters/db/repositories/entitlements.ts`).
+Built and **persisted**.

@@ -1,6 +1,6 @@
 # Organizations — Domain Spec
 
-Organizations owns the tenant: the organization itself, the staff who belong to it, and their roles. It is the tenant root that every other context scopes to by `org_id`. Better Auth's organization plugin is the source of truth; core holds a read-only mirror, and all writes go through Better Auth.
+Organizations owns the tenant: the organization itself, the staff who belong to it, and their roles. It is the tenant root that every other context scopes to. Better Auth's organization plugin is the source of truth; core holds a read-only mirror, and all writes go through Better Auth.
 
 Membership here is **staff only** — it links a *User* (the staff identity from the identity domain) to an org. Learners are the separate Student identity and do not hold org memberships or roles; whether someone is a learner is determined by their entitlements, not by anything in this domain.
 
@@ -13,11 +13,11 @@ Membership here is **staff only** — it links a *User* (the staff identity from
 
 ## System of record
 
-Better Auth's **organization plugin** is the source of truth for organizations, members, and invitations. Core holds a **read-only mirror**, populated by Better Auth's organization hooks writing into domain tables. Every member write — invite, reassign, remove — goes **through Better Auth**; core never writes the mirror directly, it reads the mirror and reacts to the hooks. Because Better Auth is the source of truth rather than an interchangeable adapter, replacing it would be a **data migration, not a port swap**.
+Better Auth's **organization plugin** is the source of truth for organizations, members, and invitations. Core holds a **read-only mirror**, populated from Better Auth's organization lifecycle. Every member write — invite, reassign, remove — goes **through Better Auth**; core never writes the mirror directly, it reads the mirror and reacts to those changes. Because Better Auth is the source of truth, replacing it would be a **data migration, not a swap**.
 
 ## Models
 
-- **Organization** — the tenant. The root that every org-scoped table FKs to. Mirrors a Better Auth org.
+- **Organization** — the tenant. The root every org-scoped record belongs to. Mirrors a Better Auth org.
 - **Membership** — links a staff User to an org and carries their role. Mirrors a Better Auth member.
 - **Invitation** — a pending invite to join an org. Mirrors a Better Auth invitation.
 - **Course assignment** — links an instructor's membership to a specific course, which is how an instructor's permissions are scoped to the courses they actually teach.
@@ -51,14 +51,14 @@ Owners and admins manage who belongs to an org: invite staff by email and role, 
 
 ## Boundaries
 
-1. **organizations ↔ Better Auth** — the organization plugin is the source of truth; core holds a read-only mirror via the organization hooks, and all member writes go through Better Auth.
+1. **organizations ↔ Better Auth** — the organization plugin is the source of truth; core holds a read-only mirror, and all member writes go through Better Auth.
 2. **organizations ↔ identity** — identity owns the User record; organizations references the User by id on membership and course assignment. Reference only.
 3. **organizations ↔ courses** — a course assignment references a course by id to scope an instructor; organizations never reads course content. Reference only.
-4. **organizations → all contexts** — provides `org_id` for tenant scoping and answers authorization lookups. Reference plus authorization.
+4. **organizations → all contexts** — provides the tenant scope and answers authorization lookups. Reference plus authorization.
 
 ## Events
 
-Emitted by core when the mirror updates in response to a Better Auth hook (core owns these domain events; Better Auth owns the underlying auth action).
+Emitted by core when the mirror updates in response to a Better Auth change (core owns these domain events; Better Auth owns the underlying auth action).
 
 - `organization.created`
 - `membership.created`, `role.assigned`
@@ -66,8 +66,8 @@ Emitted by core when the mirror updates in response to a Better Auth hook (core 
 
 ## Multi-tenancy
 
-The organization is the tenant root. Every org-scoped table across the system carries a composite `(org_id, id)` key, with `org_id` referencing the mirrored organization. Users are global at the Better Auth level; the link between a user and an org is the membership.
+The organization is the tenant root. Every org-scoped record across the system belongs to exactly one organization. Users are global; the link between a user and an org is the membership.
 
 ## Build state
 
-Built and **persisted** via a Drizzle repository (`adapters/db/repositories/organizations.ts`).
+Built and **persisted**.

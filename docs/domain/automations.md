@@ -22,7 +22,7 @@ The domain stores what an automation is and the history of every time it ran. Wh
 
 ## Boundaries
 
-1. **automations ↔ the contexts that act** — an automation's actions are operations owned by other contexts. Automations doesn't grant access, add tags, send email, or deliver webhooks itself — it runs the action list in order and calls the context or adapter that owns each operation.
+1. **automations ↔ the contexts that act** — an automation's actions are operations owned by other contexts. Automations doesn't grant access, add tags, send email, or deliver webhooks itself — it runs the action list in order and calls the context that owns each operation.
 2. **automations ↔ the contexts that trigger** — automations listens for the events other contexts emit and resolves which automations each event runs. The emitting context doesn't know automations exists.
 3. **automations ↔ execution infrastructure** — automations hands a definition off to be run; the infrastructure orders the steps, retries failures, waits between actions, and resumes after a restart. Automations keeps the definition and none of the running state.
 

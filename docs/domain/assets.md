@@ -5,7 +5,7 @@ Owns the org's media library: tracked objects in storage — video, downloadable
 ## Scope
 
 - Owns the **asset**: a registry entry for one stored object, its lifecycle, and the org-scoped location it lives under.
-- Owns the upload and serve flow through short-lived presigned URLs, so file bytes go straight between the client and storage. The object store itself sits behind a storage port; assets owns the registry and lifecycle and delegates the raw object operations (put, stat, get, delete) to it.
+- Owns the upload and serve flow through short-lived, single-use links, so file bytes go straight between the client and storage. Assets owns the registry and lifecycle; the object store holds the bytes.
 - Owns nothing about the storage backend itself or the domain objects that reference an asset.
 
 ## Model
@@ -16,13 +16,13 @@ Owns the org's media library: tracked objects in storage — video, downloadable
 
 ### Not persisted
 
-- **Upload / download ticket** — a short-lived presigned URL (with its method and any required headers) handed to the client for a single upload or download. Generated on demand, never stored.
+- **Upload / download ticket** — a short-lived link handed to the client for a single upload or download. Generated on demand, never stored.
 
 ## Capabilities
 
-- **Request an upload** — register a pending asset and hand back a presigned upload URL.
+- **Request an upload** — register a pending asset and hand back a short-lived upload link.
 - **Confirm an upload** — once the client has uploaded, capture the object's real size and content type and mark the asset ready.
-- **Request a download** — hand back a short-lived presigned download URL.
+- **Request a download** — hand back a short-lived download link.
 - **Browse the library** — list and read assets, scoped to the org.
 - **Remove an asset** — delete both the stored object and its registry entry.
 
@@ -33,4 +33,4 @@ Owns the org's media library: tracked objects in storage — video, downloadable
 
 ## Build state
 
-Built and **persisted** (`assets` table) with a storage adapter behind the storage port.
+Built and **persisted**.

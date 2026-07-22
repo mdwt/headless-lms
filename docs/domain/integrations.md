@@ -22,7 +22,7 @@ Two kinds of caller consume a connection. Billing reads an org's Stripe connecti
 
 1. **integrations ↔ the callers that act** — an integration exposes named actions with input and output definitions; a caller invokes an action with the connection's credentials, and the integration's action makes the external call. The domain itself never calls out — it owns connections and declares actions.
 2. **integrations ↔ billing** — billing gets an org's payment connection to run a checkout synchronously. Integrations owns the connection; billing owns the checkout.
-3. **integrations ↔ automations** — an automation action names a connection to act on; automations gets it from this domain and its adapter makes the call. Automations decides an integration runs; integrations owns the connection.
+3. **integrations ↔ automations** — an automation action names a connection to act on; automations gets it from this domain, and the integration makes the call. Automations decides an integration runs; integrations owns the connection.
 4. **integrations ↔ organizations** — a connection belongs to an org and is scoped to it; one org's connections and credentials are never visible to another.
 5. **integrations ↔ secure credential store** — credentials are held in the shared secure store; the connection carries a reference, and callers resolve the credential at point of use.
 
