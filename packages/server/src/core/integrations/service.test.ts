@@ -7,8 +7,8 @@ import {
   UnknownIntegrationError,
 } from "./model.js";
 import type { Connection } from "./model.js";
-import type { ConnectionsRepository, Integration } from "./ports.js";
-import type { CredentialStore, EventBus } from "../shared/ports.js";
+import type { ConnectionsRepository, Integration, IntegrationsUnitOfWork } from "./ports.js";
+import type { CredentialStore, NewDomainEvent } from "../shared/ports.js";
 
 // Inline integrations — the real ones (adapters/integrations/*) are adapter
 // concerns; the core service only needs modules satisfying the port.
@@ -74,19 +74,18 @@ function fakeCredentials(over?: Partial<CredentialStore>): CredentialStore {
   };
 }
 
-function fakeEvents(): EventBus {
-  return { publish: vi.fn().mockResolvedValue(undefined), subscribe: vi.fn() };
-}
-
-function build(repo = fakeRepo(), credentials = fakeCredentials(), events = fakeEvents()) {
-  const svc = new IntegrationsServiceImpl(
-    registry,
-    repo,
-    credentials,
-    events,
-    () => "2026-01-02T00:00:00Z",
-  );
-  return { svc, repo, credentials, events };
+/** Pass-through unit of work over the same fakes the service reads with —
+ *  the scope's tx-bound repos ARE the fakes, plus a capturing appender. */
+function build(repo = fakeRepo(), credentials = fakeCredentials()) {
+  const appended: NewDomainEvent[] = [];
+  const append = vi.fn(async (events: NewDomainEvent[]) => {
+    appended.push(...events);
+  });
+  const uow: IntegrationsUnitOfWork = {
+    run: (fn) => fn({ connections: repo, credentials, outbox: { append } }),
+  };
+  const svc = new IntegrationsServiceImpl(registry, repo, uow, () => "2026-01-02T00:00:00Z");
+  return { svc, repo, credentials, append, appended };
 }
 
 describe("IntegrationsRegistry", () => {
@@ -116,8 +115,8 @@ describe("IntegrationsService", () => {
     ]);
   });
 
-  it("connect stores the credential, inserts the connection, emits created", async () => {
-    const { svc, repo, credentials, events } = build();
+  it("connect stores the credential, inserts the connection, appends created — one scope", async () => {
+    const { svc, repo, credentials, appended } = build();
     const conn = await svc.connect("org-1", {
       integrationId: "stripe",
       secrets: { apiKey: "sk_live_x" },
@@ -127,16 +126,16 @@ describe("IntegrationsService", () => {
     expect(conn.credentialRef).toBe("crd_1");
     expect(conn.active).toBe(true);
     expect(repo.insert).toHaveBeenCalled();
-    expect(events.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "connection.created", integrationId: "stripe" }),
-    );
+    expect(appended).toEqual([
+      expect.objectContaining({ type: "connection.created", orgId: "org-1", integrationId: "stripe" }),
+    ]);
   });
 
   it("connect rejects an undeclared integration id", async () => {
     const { svc, credentials } = build();
-    await expect(svc.connect("org-1", { integrationId: "strope", secrets: { apiKey: "x" } })).rejects.toThrow(
-      UnknownIntegrationError,
-    );
+    await expect(
+      svc.connect("org-1", { integrationId: "strope", secrets: { apiKey: "x" } }),
+    ).rejects.toThrow(UnknownIntegrationError);
     expect(credentials.store).not.toHaveBeenCalled();
   });
 
@@ -156,19 +155,31 @@ describe("IntegrationsService", () => {
     const { svc, credentials } = build(
       fakeRepo({ findByIntegration: vi.fn().mockResolvedValue(SAMPLE) }),
     );
-    await expect(svc.connect("org-1", { integrationId: "stripe", secrets: { apiKey: "x" } })).rejects.toThrow(
-      AlreadyConnectedError,
-    );
+    await expect(
+      svc.connect("org-1", { integrationId: "stripe", secrets: { apiKey: "x" } }),
+    ).rejects.toThrow(AlreadyConnectedError);
     expect(credentials.store).not.toHaveBeenCalled();
   });
 
-  it("reconnect replaces the secrets in place (same ref), emits updated", async () => {
-    const { svc, credentials, events } = build();
+  it("connect appends nothing when the credential write fails (atomic scope aborts)", async () => {
+    const { svc, repo, append } = build(
+      fakeRepo(),
+      fakeCredentials({ store: vi.fn().mockRejectedValue(new Error("crypto down")) }),
+    );
+    await expect(
+      svc.connect("org-1", { integrationId: "stripe", secrets: { apiKey: "x" } }),
+    ).rejects.toThrow("crypto down");
+    expect(repo.insert).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("reconnect replaces the secrets in place (same ref), appends updated", async () => {
+    const { svc, credentials, appended } = build();
     await svc.reconnect("org-1", "con_1", { apiKey: "sk_live_new" });
     expect(credentials.update).toHaveBeenCalledWith("org-1", "crd_1", { apiKey: "sk_live_new" });
-    expect(events.publish).toHaveBeenCalledWith(
+    expect(appended).toEqual([
       expect.objectContaining({ type: "connection.updated", changed: "credentials" }),
-    );
+    ]);
   });
 
   it("configure validates the new config against the connection's integration", async () => {
@@ -178,20 +189,20 @@ describe("IntegrationsService", () => {
     );
   });
 
-  it("configure patches config/active, emits updated", async () => {
-    const { svc, repo, events } = build();
+  it("configure patches config/active, appends updated", async () => {
+    const { svc, repo, appended } = build();
     await svc.configure("org-1", "con_1", { active: false });
     expect(repo.update).toHaveBeenCalledWith("org-1", "con_1", {
       active: false,
       updatedAt: "2026-01-02T00:00:00Z",
     });
-    expect(events.publish).toHaveBeenCalledWith(
+    expect(appended).toEqual([
       expect.objectContaining({ type: "connection.updated", changed: "configuration" }),
-    );
+    ]);
   });
 
-  it("disconnect destroys the credential and the connection, emits removed", async () => {
-    const { svc, repo, credentials, events } = build();
+  it("disconnect destroys the credential and the connection, appends removed", async () => {
+    const { svc, repo, credentials, appended } = build();
     const ok = await svc.disconnect("org-1", "con_1");
     expect(ok).toBe(true);
     expect(credentials.destroy).toHaveBeenCalledWith("org-1", "crd_1");
@@ -201,20 +212,18 @@ describe("IntegrationsService", () => {
     const destroyOrder = (credentials.destroy as ReturnType<typeof vi.fn>).mock
       .invocationCallOrder[0]!;
     expect(deleteOrder).toBeLessThan(destroyOrder);
-    expect(events.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "connection.removed" }),
-    );
+    expect(appended).toEqual([expect.objectContaining({ type: "connection.removed" })]);
   });
 
   it("reconnect/disconnect return null/false for an unknown connection", async () => {
-    const { svc, credentials, events } = build(
+    const { svc, credentials, append } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
     );
     expect(await svc.reconnect("org-1", "nope", { apiKey: "x" })).toBeNull();
     expect(await svc.disconnect("org-1", "nope")).toBe(false);
     expect(credentials.update).not.toHaveBeenCalled();
     expect(credentials.destroy).not.toHaveBeenCalled();
-    expect(events.publish).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
   });
 
   it("getByIntegration resolves a consumer's connection", async () => {
