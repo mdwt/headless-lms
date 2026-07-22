@@ -1,6 +1,5 @@
-import { Text } from '@react-email/components';
 import type { EmailTemplateParams, TemplateContext } from '@headless-lms/types';
-import { Layout, PREVIEW_CTX } from './layout.js';
+import { Layout, Paragraph, PREVIEW_CTX } from './layout.js';
 
 type Params = EmailTemplateParams['accessRevoked'];
 
@@ -9,7 +8,9 @@ export const subject = (_ctx: TemplateContext, params: Params) => `Your access t
 export default function AccessRevoked({ ctx, params }: { ctx: TemplateContext; params: Params }) {
   return (
     <Layout ctx={ctx} heading="Access ended">
-      <Text>Your access to {params.contentTitle} has ended. If you think this is a mistake, reply to this email.</Text>
+      <Paragraph>
+        Your access to {params.contentTitle} has ended. If you think this is a mistake, reply to this email.
+      </Paragraph>
     </Layout>
   );
 }

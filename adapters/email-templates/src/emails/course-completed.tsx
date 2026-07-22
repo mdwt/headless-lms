@@ -1,6 +1,5 @@
-import { Text } from '@react-email/components';
 import type { EmailTemplateParams, TemplateContext } from '@headless-lms/types';
-import { Layout, PREVIEW_CTX } from './layout.js';
+import { Layout, Paragraph, PREVIEW_CTX } from './layout.js';
 
 type Params = EmailTemplateParams['courseCompleted'];
 
@@ -9,7 +8,7 @@ export const subject = (_ctx: TemplateContext, params: Params) => `You completed
 export default function CourseCompleted({ ctx, params }: { ctx: TemplateContext; params: Params }) {
   return (
     <Layout ctx={ctx} heading="Congratulations!">
-      <Text>You've completed {params.courseTitle}. Nice work.</Text>
+      <Paragraph>You've completed {params.courseTitle}. Nice work.</Paragraph>
     </Layout>
   );
 }
