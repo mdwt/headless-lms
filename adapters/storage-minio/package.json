@@ -1,0 +1,27 @@
+{
+  "name": "@headless-lms/adapter-storage-minio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@headless-lms/types": "workspace:*",
+    "minio": "^8.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsdown": "^0.22.9",
+    "typescript": "^5.7.2"
+  }
+}
