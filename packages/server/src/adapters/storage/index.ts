@@ -3,11 +3,13 @@
 // through short-lived presigned URLs.
 import { Client } from "minio";
 import type {
+  Logger,
   ObjectStorage,
   PresignDownloadInput,
   PresignedUpload,
   StoredObjectInfo,
 } from "../../core/shared/ports.js";
+import { noopLogger } from "../../core/shared/logger.js";
 
 export interface MinioStorageConfig {
   endPoint: string;
@@ -29,7 +31,10 @@ export class MinioStorageAdapter implements ObjectStorage {
   private readonly downloadExpiry: number;
   private ensured = false;
 
-  constructor(config: MinioStorageConfig) {
+  constructor(
+    config: MinioStorageConfig,
+    private readonly logger: Logger = noopLogger,
+  ) {
     this.client = new Client({
       endPoint: config.endPoint,
       port: config.port,

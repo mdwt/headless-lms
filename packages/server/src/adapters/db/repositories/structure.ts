@@ -15,9 +15,14 @@ import type { CourseRepository } from "../../../core/content/ports.js";
 import type { Module, Activity, SaveActivityInput } from "../../../core/content/model.js";
 import { modules, activities, activityAssets } from "../schema/content.js";
 import type { Tx } from "../index.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 export class DrizzleContentStructureRepository implements CourseRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   // --- reads -------------------------------------------------------------
 

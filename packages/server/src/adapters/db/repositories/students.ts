@@ -9,6 +9,8 @@ import type { StudentsReportRepository } from "../../../reporting/students/index
 import type { Page, Student, StudentsQuery } from "../../../reporting/students/index.js";
 import { students, enrollments } from "../schema/index.js";
 import { user } from "../../auth/schema.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 const nameExpr = sql<string>`${students.firstName} || ' ' || ${students.lastName}`;
 const enrollmentCountExpr = sql<number>`count(${enrollments.id})`;
@@ -40,7 +42,10 @@ function toStudent(row: StudentRow): Student {
 }
 
 export class DrizzleStudentsRepository implements StudentsReportRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async list(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
     const filters: SQL[] = [eq(enrollments.orgId, orgId)];

@@ -22,6 +22,8 @@ import {
   invitations,
   courseAssignments,
 } from "../schema/organizations.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 const INVITATION_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InvitationStatus = (typeof INVITATION_STATUSES)[number];
@@ -29,7 +31,10 @@ const toStatus = (s: string): InvitationStatus =>
   (INVITATION_STATUSES as readonly string[]).includes(s) ? (s as InvitationStatus) : "pending";
 
 export class DrizzleOrganizationsRepository implements OrganizationsRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async create(input: CreateOrganizationInput): Promise<Organization> {
     const [row] = await this.db

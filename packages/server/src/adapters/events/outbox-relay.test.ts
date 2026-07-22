@@ -216,3 +216,39 @@ describe("PollingOutboxRelay", () => {
     await relay.stop();
   });
 });
+
+describe("PollingOutboxRelay logging baseline", () => {
+  it("logs each successful dispatch at info", async () => {
+    const store = fakeStore([[message(1)]]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("enrollment.created", async () => {});
+    const logger = fakeLogger();
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(logger.info).toHaveBeenCalledWith("outbox event dispatched", {
+      id: "evt_1",
+      type: "enrollment.created",
+    });
+    expect(logger.debug).toHaveBeenCalledWith("outbox batch fetched", { count: 1 });
+    await relay.stop();
+  });
+
+  it("warns when a failure exhausts the retry budget", async () => {
+    const store = fakeStore([[message(1, "boom.event", 9)]]); // attempts=9 → this failure parks it
+    const bus = new InMemoryEventBus();
+    bus.subscribe("boom.event", async () => {
+      throw new Error("still broken");
+    });
+    const logger = fakeLogger();
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "outbox event parked",
+      expect.objectContaining({ id: "evt_1", type: "boom.event", attempt: 10 }),
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+    await relay.stop();
+  });
+});

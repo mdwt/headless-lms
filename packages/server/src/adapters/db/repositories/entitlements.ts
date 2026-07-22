@@ -7,7 +7,7 @@ import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../index.js";
 import type { EntitlementsRepository } from "../../../core/entitlements/ports.js";
 import type {
-  Entitlement,
+  Enrollment,
   EntitlementSource,
   EntitlementStatus,
   EntitlementsQuery,
@@ -17,6 +17,8 @@ import type {
 import { enrollments } from "../schema/index.js";
 import { students } from "../schema/identity.js";
 import { courses } from "../schema/content.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.
@@ -67,7 +69,7 @@ interface Row {
   source: string;
 }
 
-function toEntitlement(row: Row): Entitlement {
+function toEntitlement(row: Row): Enrollment {
   return {
     id: row.id,
     studentId: row.studentId,
@@ -84,9 +86,12 @@ function toEntitlement(row: Row): Entitlement {
 }
 
 export class DrizzleEntitlementsRepository implements EntitlementsRepository {
-  constructor(private readonly db: DbExecutor) {}
+  constructor(
+    private readonly db: DbExecutor,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
-  async list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>> {
+  async list(orgId: string, query: EntitlementsQuery): Promise<Page<Enrollment>> {
     const conditions: SQL[] = [eq(enrollments.orgId, orgId)];
     if (query.status) conditions.push(sql`${derivedStatus} = ${query.status}`);
     if (query.source) conditions.push(eq(enrollments.source, query.source));
@@ -149,7 +154,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     };
   }
 
-  async insert(orgId: string, input: GrantEnrollmentInput): Promise<Entitlement> {
+  async insert(orgId: string, input: GrantEnrollmentInput): Promise<Enrollment> {
     const [row] = await this.db
       .insert(enrollments)
       .values({
@@ -181,7 +186,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     orgId: string,
     id: string,
     status: "active" | "revoked",
-  ): Promise<Entitlement | null> {
+  ): Promise<Enrollment | null> {
     const [row] = await this.db
       .update(enrollments)
       .set({ status })
@@ -191,7 +196,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return this.findById(orgId, row.id);
   }
 
-  private async findById(orgId: string, id: string): Promise<Entitlement | null> {
+  private async findById(orgId: string, id: string): Promise<Enrollment | null> {
     const [row] = await this.db
       .select(selection)
       .from(enrollments)

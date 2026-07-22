@@ -6,9 +6,14 @@ import type { User, Student } from "../../../core/identity/model.js";
 import type { RegisterUserInput, RegisterStudentInput } from "../../../core/identity/types.js";
 import { users, students } from "../schema/identity.js";
 import { organizations } from "../schema/organizations.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 export class DrizzleIdentityRepository implements IdentityRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async insertUser(input: RegisterUserInput): Promise<User> {
     const [row] = await this.db

@@ -5,6 +5,8 @@ import type { ProgressRepository } from "../../../core/progress/ports.js";
 import type { ProgressRecord, ProgressTargetType } from "../../../core/progress/model.js";
 import type { ProgressTarget } from "../../../core/progress/types.js";
 import { progressRecords } from "../schema/progress.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 type Row = typeof progressRecords.$inferSelect;
 
@@ -22,7 +24,10 @@ function toRecord(row: Row): ProgressRecord {
 }
 
 export class DrizzleProgressRepository implements ProgressRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async insert(orgId: string, record: ProgressRecord): Promise<ProgressRecord> {
     const [row] = await this.db

@@ -8,6 +8,8 @@ import type { Member, MembersQuery, Page, Role } from "../../../core/organizatio
 import { memberships, invitations } from "../schema/organizations.js";
 import { users } from "../schema/identity.js";
 import { user } from "../../auth/schema.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 const ROLES: Role[] = ["owner", "admin", "instructor"];
 const roleOf = (t: string): Role => (ROLES.includes(t as Role) ? (t as Role) : "instructor");
@@ -26,7 +28,10 @@ function toMember(r: MemberRecord): Member {
 }
 
 export class DrizzleMembersRepository implements MembersRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   private async loadAll(orgId: string): Promise<MemberRecord[]> {
     const memberRows = await this.db

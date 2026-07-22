@@ -8,7 +8,8 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { DbExecutor } from "../index.js";
-import type { CredentialStore } from "../../../core/shared/ports.js";
+import type { CredentialStore, Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 import { genId } from "../../../core/shared/id.js";
 import { credentials } from "../schema/credentials.js";
 
@@ -49,6 +50,7 @@ export class DrizzleCredentialStore implements CredentialStore {
     private readonly db: DbExecutor,
     /** base64-encoded 32-byte key (CREDENTIAL_STORE_KEY). Validated on first use, not at boot. */
     private readonly keyBase64: string,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   private getKey(): Buffer {

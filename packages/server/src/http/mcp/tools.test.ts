@@ -12,7 +12,7 @@ import type { McpPrincipal } from "./authz.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Container } from "../../composition/container.js";
 import type { Course } from "../../core/content/index.js";
-import type { Entitlement } from "../../core/entitlements/model.js";
+import type { Enrollment } from "../../core/entitlements/model.js";
 import type { Student } from "../../reporting/students/model.js";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ const COURSE: Course = {
   createdAt: "2026-01-01T00:00:00Z",
 };
 
-const ENROLLMENT: Entitlement = {
+const ENROLLMENT: Enrollment = {
   id: "enroll-1",
   studentId: "student-1",
   firstName: "Bob",
@@ -85,7 +85,7 @@ function makeContainer(overrides?: {
   coursesListResult?: Awaited<ReturnType<Container["content"]["list"]>>;
   coursesGetResult?: Course | null;
   enrollmentsListResult?: Awaited<ReturnType<Container["entitlements"]["list"]>>;
-  enrollmentsGrantResult?: Entitlement;
+  enrollmentsGrantResult?: Enrollment;
   studentsGetResult?: Student | null;
 }): Container {
   // Use explicit key-presence check so callers can pass null intentionally.

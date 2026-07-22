@@ -10,6 +10,8 @@ import type {
   Page,
 } from "../../../core/assets/model.js";
 import { assets } from "../schema/assets.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 type Row = typeof assets.$inferSelect;
 
@@ -35,7 +37,10 @@ const SORT_COLUMNS = {
 } as const;
 
 export class DrizzleAssetsRepository implements AssetsRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async insert(orgId: string, asset: Asset): Promise<Asset> {
     const [row] = await this.db

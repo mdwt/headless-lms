@@ -7,9 +7,14 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { DashboardReportRepository } from "../../../reporting/dashboard/index.js";
 import type { OverviewStats } from "../../../reporting/dashboard/index.js";
 import { courses, enrollments } from "../schema/index.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 export class DrizzleDashboardRepository implements DashboardReportRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async overview(orgId: string): Promise<OverviewStats> {
     const [courseCounts] = await this.db

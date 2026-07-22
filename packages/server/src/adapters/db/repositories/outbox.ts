@@ -6,7 +6,9 @@ import type {
   OutboxAppender,
   OutboxMessage,
   OutboxStore,
+  Logger,
 } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 import type { DbExecutor } from "../index.js";
 import { eventOutbox } from "../schema/outbox.js";
 
@@ -15,7 +17,10 @@ import { eventOutbox } from "../schema/outbox.js";
 export const OUTBOX_MAX_ATTEMPTS = 10;
 
 export class DrizzleOutboxAppender implements OutboxAppender {
-  constructor(private readonly tx: DbExecutor) {}
+  constructor(
+    private readonly tx: DbExecutor,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async append<E extends NewDomainEvent>(events: E[]): Promise<void> {
     if (events.length === 0) return;
@@ -30,7 +35,10 @@ export class DrizzleOutboxAppender implements OutboxAppender {
 }
 
 export class DrizzleOutboxStore implements OutboxStore {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async fetchBatch(limit: number): Promise<OutboxMessage[]> {
     const rows = await this.db.transaction((tx) =>

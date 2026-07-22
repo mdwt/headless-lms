@@ -15,6 +15,8 @@ import type {
 } from "../../../core/content/types.js";
 import { courses, modules, activities } from "../schema/content.js";
 import { enrollments } from "../schema/entitlements.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 // Derived counts as correlated subqueries against the current `courses` row.
 // NOTE: Drizzle does NOT table-qualify a Column interpolated into a raw `sql`
@@ -101,7 +103,10 @@ const sortColumns: Record<string, AnyColumn | SQL> = {
 };
 
 export class DrizzleContentRepository implements ContentRepository {
-  constructor(private readonly db: DbExecutor) {}
+  constructor(
+    private readonly db: DbExecutor,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async list(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
     const conditions: SQL[] = [eq(courses.orgId, orgId)];

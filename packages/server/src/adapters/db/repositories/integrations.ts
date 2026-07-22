@@ -4,6 +4,8 @@ import type { DbExecutor } from "../index.js";
 import type { ConnectionsRepository } from "../../../core/integrations/ports.js";
 import type { Connection } from "../../../core/integrations/model.js";
 import { connections } from "../schema/integrations.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 type Row = typeof connections.$inferSelect;
 
@@ -20,7 +22,10 @@ function toConnection(row: Row): Connection {
 }
 
 export class DrizzleConnectionsRepository implements ConnectionsRepository {
-  constructor(private readonly db: DbExecutor) {}
+  constructor(
+    private readonly db: DbExecutor,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   async insert(orgId: string, connection: Connection): Promise<Connection> {
     const [row] = await this.db

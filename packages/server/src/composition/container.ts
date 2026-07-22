@@ -162,11 +162,23 @@ export async function buildContainer(
   const { instance: loggerInstance, logger } = createRootLogger(
     resolveLoggingConfig(config.logging).level,
   );
+  // One child per domain — a context's service and repositories share it.
+  const identityLogger = logger.child({ name: "identity" });
+  const organizationsLogger = logger.child({ name: "organizations" });
+  const contentLogger = logger.child({ name: "content" });
+  const entitlementsLogger = logger.child({ name: "entitlements" });
+  const progressLogger = logger.child({ name: "progress" });
+  const assetsLogger = logger.child({ name: "assets" });
+  const integrationsLogger = logger.child({ name: "integrations" });
+  const reportingLogger = logger.child({ name: "reporting" });
+  const outboxLogger = logger.child({ name: "outbox" });
 
   // Outbound adapters
   const db = createDb(config.databaseUrl);
-  const email = options?.adapters?.email ?? new EmailAdapter();
-  const storage: ObjectStorage = options?.adapters?.storage ?? new MinioStorageAdapter(config.storage);
+  const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: "email" }));
+  const storage: ObjectStorage =
+    options?.adapters?.storage ??
+    new MinioStorageAdapter(config.storage, logger.child({ name: "storage" }));
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
@@ -179,85 +191,97 @@ export async function buildContainer(
 
   // Services (inject repos + peer services in dependency order)
   const identity = new IdentityServiceImpl(
-    new DrizzleIdentityRepository(db),
-    logger.child({ name: "identity" }),
+    new DrizzleIdentityRepository(db, identityLogger),
+    identityLogger,
   );
   const organizations = new OrganizationServiceImpl(
-    new DrizzleOrganizationsRepository(db),
-    new DrizzleMembersRepository(db),
+    new DrizzleOrganizationsRepository(db, organizationsLogger),
+    new DrizzleMembersRepository(db, organizationsLogger),
     orgAdminProvider,
-    logger.child({ name: "organizations" }),
+    organizationsLogger,
   );
   // Content: reads on the root db; course writes + outbox append in one tx.
   const contentUow = new DrizzleUnitOfWork(db, (tx) => ({
-    courses: new DrizzleContentRepository(tx),
-    outbox: new DrizzleOutboxAppender(tx),
+    courses: new DrizzleContentRepository(tx, contentLogger),
+    outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
   const content = new ContentServiceImpl(
-    new DrizzleContentRepository(db),
-    new DrizzleContentStructureRepository(db),
+    new DrizzleContentRepository(db, contentLogger),
+    new DrizzleContentStructureRepository(db, contentLogger),
     contentUow,
-    logger.child({ name: "content" }),
+    contentLogger,
   );
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
-    entitlements: new DrizzleEntitlementsRepository(tx),
-    outbox: new DrizzleOutboxAppender(tx),
+    entitlements: new DrizzleEntitlementsRepository(tx, entitlementsLogger),
+    outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
   const entitlements = new EntitlementsServiceImpl(
-    new DrizzleEntitlementsRepository(db),
+    new DrizzleEntitlementsRepository(db, entitlementsLogger),
     entitlementsUow,
-    logger.child({ name: "entitlements" }),
+    entitlementsLogger,
   );
   const progress = new ProgressServiceImpl(
-    new DrizzleProgressRepository(db),
+    new DrizzleProgressRepository(db, progressLogger),
     () => new Date().toISOString(),
-    logger.child({ name: "progress" }),
+    progressLogger,
   );
   const assets = new AssetsServiceImpl(
     storage,
-    new DrizzleAssetsRepository(db),
+    new DrizzleAssetsRepository(db, assetsLogger),
     () => new Date().toISOString(),
-    logger.child({ name: "assets" }),
+    assetsLogger,
   );
 
   const reporting = {
-    students: new StudentsReportServiceImpl(new DrizzleStudentsRepository(db)),
-    dashboard: new DashboardReportServiceImpl(new DrizzleDashboardRepository(db)),
-    learn: new LearnReportServiceImpl(new DrizzleLearnRepository(db), content),
+    students: new StudentsReportServiceImpl(
+      new DrizzleStudentsRepository(db, reportingLogger),
+      reportingLogger,
+    ),
+    dashboard: new DashboardReportServiceImpl(
+      new DrizzleDashboardRepository(db, reportingLogger),
+      reportingLogger,
+    ),
+    learn: new LearnReportServiceImpl(
+      new DrizzleLearnRepository(db, reportingLogger),
+      content,
+      reportingLogger,
+    ),
   };
 
   const connectedApps = createConnectedAppsRepo(db);
-  const credentialStore = new DrizzleCredentialStore(db, config.credentialStoreKey);
+  const credentialStore = new DrizzleCredentialStore(
+    db,
+    config.credentialStoreKey,
+    integrationsLogger,
+  );
   // The integrations this deployment supports: the installation's declared
   // plugins folder (directory name = integration id), loaded at startup.
   // Connect/configure reject undeclared ids and validate config with the
   // integration's own schema. No folder → no integrations.
-  const integrationsLogger = logger.child({ name: "integrations" });
   const integrationsRegistry = await loadIntegrations(options?.pluginsDir, integrationsLogger);
   // Integrations: credential + connection writes + outbox append in one tx
   // (a tx-bound credential store instance shares the scope's transaction).
   const integrationsUow = new DrizzleUnitOfWork(db, (tx) => ({
-    connections: new DrizzleConnectionsRepository(tx),
-    credentials: new DrizzleCredentialStore(tx, config.credentialStoreKey),
-    outbox: new DrizzleOutboxAppender(tx),
+    connections: new DrizzleConnectionsRepository(tx, integrationsLogger),
+    credentials: new DrizzleCredentialStore(tx, config.credentialStoreKey, integrationsLogger),
+    outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
-    new DrizzleConnectionsRepository(db),
+    new DrizzleConnectionsRepository(db, integrationsLogger),
     integrationsUow,
     () => new Date().toISOString(),
     integrationsLogger,
   );
 
-
   const eventBus = new InMemoryEventBus();
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
-    new DrizzleOutboxStore(db),
+    new DrizzleOutboxStore(db, outboxLogger),
     eventBus,
     outboxConfig,
-    logger.child({ name: "outbox" }),
+    outboxLogger,
   );
 
   // Auth adapter — depends on core ports (email, identity, organizations);

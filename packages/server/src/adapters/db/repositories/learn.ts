@@ -7,9 +7,14 @@ import { and, eq, gt, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { LearnEnrollmentReader, CourseRef } from "../../../reporting/learn/index.js";
 import { enrollments, courses } from "../schema/index.js";
+import type { Logger } from "../../../core/shared/ports.js";
+import { noopLogger } from "../../../core/shared/logger.js";
 
 export class DrizzleLearnRepository implements LearnEnrollmentReader {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
 
   private baseFilters(orgId: string, studentId: string): SQL {
     return and(

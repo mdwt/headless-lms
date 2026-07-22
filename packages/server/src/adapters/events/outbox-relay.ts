@@ -14,6 +14,7 @@ import type {
   OutboxRelay,
   OutboxStore,
 } from "../../core/shared/ports.js";
+import { OUTBOX_MAX_ATTEMPTS } from "../db/repositories/outbox.js";
 
 /** Backoff base: first retry 5s after the first failure, doubling per attempt. */
 export const OUTBOX_BACKOFF_BASE_MS = 5_000;
@@ -81,6 +82,7 @@ export class PollingOutboxRelay implements OutboxRelay {
     try {
       const batch = await this.store.fetchBatch(this.config.batchSize);
       fetched = batch.length;
+      if (fetched > 0) this.logger.debug("outbox batch fetched", { count: fetched });
       for (const message of batch) {
         await this.dispatch(message);
       }
@@ -94,17 +96,25 @@ export class PollingOutboxRelay implements OutboxRelay {
     try {
       await this.bus.publish(message.payload);
       await this.store.markProcessed(message.id);
+      this.logger.info("outbox event dispatched", {
+        id: message.id,
+        type: message.payload.type,
+      });
     } catch (err) {
       const error = String(err);
       const nextAttemptAt = new Date(Date.now() + outboxBackoffMs(message.attempts));
       await this.store.markFailed(message.id, error, nextAttemptAt);
-      this.logger.error("outbox dispatch failed", {
+      const attempt = message.attempts + 1;
+      const meta = {
         id: message.id,
         type: message.payload.type,
-        attempt: message.attempts + 1,
+        attempt,
         nextAttemptAt: nextAttemptAt.toISOString(),
         error,
-      });
+      };
+      // The store stops fetching after OUTBOX_MAX_ATTEMPTS — this failure parks the row.
+      if (attempt >= OUTBOX_MAX_ATTEMPTS) this.logger.warn("outbox event parked", meta);
+      else this.logger.error("outbox dispatch failed", meta);
     }
   }
 }

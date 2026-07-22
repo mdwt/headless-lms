@@ -5,6 +5,8 @@
 import type { ContentService } from "../../core/content/index.js";
 import type { Course, Module } from "./model.js";
 import type { LearnEnrollmentReader, LearnReportService } from "./ports.js";
+import type { Logger } from "../../core/shared/ports.js";
+import { noopLogger } from "../../core/shared/logger.js";
 
 function isActivityPublished(settings: unknown): boolean {
   return (settings as { published?: boolean } | null)?.published !== false;
@@ -14,6 +16,7 @@ export class LearnReportServiceImpl implements LearnReportService {
   constructor(
     private readonly reader: LearnEnrollmentReader,
     private readonly content: ContentService,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   async listCourses(orgId: string, studentId: string): Promise<Course[]> {
