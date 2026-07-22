@@ -37,13 +37,6 @@ function loadContainerConfig(): ContainerConfig {
     },
     outbox: {
       enabled: (process.env.OUTBOX_ENABLED ?? "true") !== "false",
-      pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS ?? 1000),
-      batchSize: Number(process.env.OUTBOX_BATCH_SIZE ?? 100),
-      maxAttempts: Number(process.env.OUTBOX_MAX_ATTEMPTS ?? 10),
-      backoffBaseMs: Number(process.env.OUTBOX_BACKOFF_BASE_MS ?? 1000),
-      backoffMaxMs: Number(process.env.OUTBOX_BACKOFF_MAX_MS ?? 60_000),
-      retentionDays: Number(process.env.OUTBOX_RETENTION_DAYS ?? 7),
-      cleanupIntervalMs: Number(process.env.OUTBOX_CLEANUP_INTERVAL_MS ?? 3_600_000),
     },
   };
 }
