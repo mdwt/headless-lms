@@ -1,9 +1,9 @@
 // Cross-cutting ports shared by all contexts. Framework-free, runtime-free.
 // DomainEvent is owned by @headless-lms/types (the published type surface);
 // re-exported here so contexts keep one import path for cross-cutting ports.
-import type { DomainEvent } from "@headless-lms/types";
+import type { DomainEvent, NewDomainEvent } from "@headless-lms/types";
 
-export type { DomainEvent };
+export type { DomainEvent, NewDomainEvent };
 
 export interface Clock {
   now(): Date;
@@ -12,6 +12,59 @@ export interface Clock {
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
   subscribe(type: string, handler: (event: DomainEvent) => Promise<void>): void;
+}
+
+// --- Transactional outbox ----------------------------------------------------
+// Producer side: services append events inside a UnitOfWork — the append and
+// the domain write commit in ONE transaction. Relay side: the poller drains
+// committed rows and publishes them to the EventBus (the ONLY publish caller
+// after this migration). Core never calls the relay-side ports — they live
+// here like EmailSender/ObjectStorage, consumed by adapters + composition.
+
+/** Appends domain events to the transactional outbox. Inside a UnitOfWork
+ *  scope the append shares the scope's transaction — the event becomes
+ *  visible to the relay only when the surrounding write commits. Stamps
+ *  `id` (genId("event")) and `occurredAt` on each event. */
+export interface OutboxAppender {
+  append<E extends NewDomainEvent>(events: E[]): Promise<void>;
+}
+
+/** Runs a callback atomically: every port in the scope (tx-bound context
+ *  repos + the outbox appender) executes in one database transaction; a
+ *  thrown error rolls all of it back. */
+export interface UnitOfWork<Scope> {
+  run<T>(fn: (scope: Scope & { outbox: OutboxAppender }) => Promise<T>): Promise<T>;
+}
+
+/** An outbox row as the relay consumes it. */
+export interface OutboxMessage {
+  /** Outbox position (bigserial as string) — the relay's ordering key. */
+  id: string;
+  /** Stable event identity (idempotency key for consumers). */
+  eventId: string;
+  type: string;
+  /** The full self-contained DomainEvent, as stamped at append time. */
+  payload: DomainEvent;
+  /** Dispatch attempts so far. */
+  attempts: number;
+}
+
+export interface OutboxStore {
+  /** Due, unpublished, unparked messages in commit order; claims them for this reader. */
+  fetchBatch(limit: number): Promise<OutboxMessage[]>;
+  markPublished(id: string): Promise<void>;
+  markFailed(id: string, error: string, nextAttemptAt: Date): Promise<void>;
+  /** Retention sweep: delete published rows older than the cutoff. Returns the count. */
+  deletePublishedBefore(cutoff: Date): Promise<number>;
+}
+
+/** The relay mechanism — how committed outbox rows become dispatched events.
+ *  Swappable: same-process poller today; LISTEN/NOTIFY or an external worker
+ *  later, without touching producers or subscribers. */
+export interface OutboxRelay {
+  start(): void;
+  /** Graceful: resolves after the in-flight batch finishes. Safe if never started. */
+  stop(): Promise<void>;
 }
 
 export interface Logger {

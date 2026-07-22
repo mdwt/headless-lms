@@ -4,6 +4,7 @@
 // re-exports it as part of its public surface.
 import type { Integration } from "@headless-lms/types";
 import type { ConfigureInput, ConnectInput, Connection } from "./model.js";
+import type { CredentialStore, UnitOfWork } from "../shared/ports.js";
 
 export type { Validation, ActionContext, Action, Integration } from "@headless-lms/types";
 
@@ -61,3 +62,13 @@ export interface ConnectionsRepository {
   ): Promise<Connection | null>;
   delete(orgId: string, id: string): Promise<boolean>;
 }
+
+/** Tx-scoped port bundle for this context's mutating use cases. Folding the
+ *  credential store in makes credential + connection writes + outbox append
+ *  one transaction (closes the historical orphan-credential window). */
+export interface IntegrationsTxScope {
+  connections: ConnectionsRepository;
+  credentials: CredentialStore;
+}
+
+export type IntegrationsUnitOfWork = UnitOfWork<IntegrationsTxScope>;
