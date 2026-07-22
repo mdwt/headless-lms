@@ -4,7 +4,7 @@
 // no cron is needed to flip rows; the derived value is used both in the returned
 // payload and for status filtering/sorting.
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { DbExecutor } from "../index.js";
 import type { EntitlementsRepository } from "../../../core/entitlements/ports.js";
 import type {
   Entitlement,
@@ -84,7 +84,7 @@ function toEntitlement(row: Row): Entitlement {
 }
 
 export class DrizzleEntitlementsRepository implements EntitlementsRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(private readonly db: DbExecutor) {}
 
   async list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>> {
     const conditions: SQL[] = [eq(enrollments.orgId, orgId)];

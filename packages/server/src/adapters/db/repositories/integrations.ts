@@ -1,6 +1,6 @@
 // integrations — Drizzle repository (implements the core outbound port).
 import { and, asc, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { DbExecutor } from "../index.js";
 import type { ConnectionsRepository } from "../../../core/integrations/ports.js";
 import type { Connection } from "../../../core/integrations/model.js";
 import { connections } from "../schema/integrations.js";
@@ -20,7 +20,7 @@ function toConnection(row: Row): Connection {
 }
 
 export class DrizzleConnectionsRepository implements ConnectionsRepository {
-  constructor(private readonly db: NodePgDatabase) {}
+  constructor(private readonly db: DbExecutor) {}
 
   async insert(orgId: string, connection: Connection): Promise<Connection> {
     const [row] = await this.db

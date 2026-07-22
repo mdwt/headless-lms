@@ -7,7 +7,7 @@
 // store/reveal — it is never logged, listed, or returned elsewhere.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { DbExecutor } from "../index.js";
 import type { CredentialStore } from "../../../core/shared/ports.js";
 import { genId } from "../../../core/shared/id.js";
 import { credentials } from "../schema/credentials.js";
@@ -46,7 +46,7 @@ export class DrizzleCredentialStore implements CredentialStore {
   private key: Buffer | undefined;
 
   constructor(
-    private readonly db: NodePgDatabase,
+    private readonly db: DbExecutor,
     /** base64-encoded 32-byte key (CREDENTIAL_STORE_KEY). Validated on first use, not at boot. */
     private readonly keyBase64: string,
   ) {}

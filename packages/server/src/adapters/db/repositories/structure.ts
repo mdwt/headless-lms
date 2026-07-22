@@ -14,9 +14,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ContentStructureRepository } from "../../../core/content/ports.js";
 import type { Module, Activity, SaveActivityInput } from "../../../core/content/model.js";
 import { modules, activities, activityAssets } from "../schema/content.js";
-
-/** Transaction executor — the same query surface as the root db. */
-type Tx = Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0];
+import type { Tx } from "../index.js";
 
 export class DrizzleContentStructureRepository implements ContentStructureRepository {
   constructor(private readonly db: NodePgDatabase) {}
