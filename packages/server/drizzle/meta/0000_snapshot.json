@@ -1,5 +1,5 @@
 {
-  "id": "caa411dd-80bd-4ee6-944a-c781a7d3151f",
+  "id": "8e33c60d-2c3b-4b8e-bf4a-4d4bbe54474f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -469,7 +469,7 @@
             "org_id",
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -560,7 +560,7 @@
             "org_id",
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "activity_assets_org_id_asset_id_assets_org_id_id_fk": {
@@ -782,7 +782,7 @@
             "org_id",
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1479,20 +1479,20 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.outbox": {
-      "name": "outbox",
+    "public.event_outbox": {
+      "name": "event_outbox",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "event_id": {
-          "name": "event_id",
+        "org_id": {
+          "name": "org_id",
           "type": "text",
           "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
           "notNull": true
         },
         "type": {
@@ -1501,30 +1501,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "org_id": {
-          "name": "org_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "payload": {
           "name": "payload",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
         },
         "attempts": {
           "name": "attempts",
@@ -1545,18 +1526,25 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "outbox_unpublished_idx": {
-          "name": "outbox_unpublished_idx",
+        "event_outbox_pending_idx": {
+          "name": "event_outbox_pending_idx",
           "columns": [
-            {
-              "expression": "next_attempt_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
             {
               "expression": "id",
               "isExpression": false,
@@ -1565,7 +1553,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"outbox\".\"published_at\" is null",
+          "where": "\"event_outbox\".\"processed_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1573,15 +1561,7 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "outbox_event_id_unique": {
-          "name": "outbox_event_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "event_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
