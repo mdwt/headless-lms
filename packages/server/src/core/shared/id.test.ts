@@ -30,6 +30,10 @@ describe("genId", () => {
     const late = `crs_${KSUID.fromParts(1_500_000_001_000, Buffer.alloc(16, 0x00)).string}`;
     expect([late, early].sort()).toEqual([early, late]);
   });
+
+  it("generates outbox event ids with the evt prefix", () => {
+    expect(genId("event").startsWith("evt_")).toBe(true);
+  });
 });
 
 describe("isId", () => {

@@ -24,6 +24,7 @@ export const ID_PREFIXES = {
   progress: "prg",
   credential: "crd",
   connection: "con",
+  event: "evt",
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;
