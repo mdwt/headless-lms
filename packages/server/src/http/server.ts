@@ -1,7 +1,7 @@
 // Inbound HTTP server. `buildServer` wires the Fastify instance from focused
 // plugins — each concern lives in its own module (config, CORS, OpenAPI, auth,
 // error handling, routes) so this file stays a readable table of contents.
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import type { Container } from "../composition/container.js";
 import type { ServerConfig } from "./config.js";
@@ -15,7 +15,12 @@ export async function buildServer(
   config: ServerConfig,
   container: Container,
 ): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  // One log stream for the whole process: HTTP shares the container's pino root.
+  // Widened to FastifyBaseLogger so the instance keeps the default logger
+  // generic (a concrete pino type would ripple through every plugin signature).
+  const app = Fastify({
+    loggerInstance: container.loggerInstance as FastifyBaseLogger,
+  });
 
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);

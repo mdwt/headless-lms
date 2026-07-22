@@ -21,6 +21,7 @@ export type {
   Container,
   AdapterOverrides,
   BuildContainerOptions,
+  LoggingConfig,
 } from "./composition/container.js";
 export type { EmailSender, EmailMessage, ObjectStorage } from "./core/shared/ports.js";
 export type { MinioStorageConfig } from "./adapters/storage/index.js";

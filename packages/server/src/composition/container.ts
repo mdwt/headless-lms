@@ -11,6 +11,11 @@ import {
   DrizzleOutboxStore,
 } from "../adapters/db/repositories/outbox.js";
 import { EmailAdapter } from "../adapters/email/index.js";
+import {
+  createRootLogger,
+  type LogLevel,
+  type PinoInstance,
+} from "../adapters/logging/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
 import { createOrgAdmin } from "../adapters/auth/org-admin.js";
@@ -80,6 +85,8 @@ export interface Config {
   secureCookies?: boolean;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
   outbox?: OutboxConfig;
+  /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
+  logging?: LoggingConfig;
 }
 
 /** Tuning for the transactional-outbox relay. Every field is optional; the
@@ -106,6 +113,18 @@ export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRel
   return { ...OUTBOX_DEFAULTS, ...overrides };
 }
 
+/** Logging tuning. Optional; resolved against LOGGING_DEFAULTS. */
+export interface LoggingConfig {
+  /** Minimum level emitted. Default "info". */
+  level?: LogLevel;
+}
+
+export const LOGGING_DEFAULTS: Required<LoggingConfig> = { level: "info" };
+
+export function resolveLoggingConfig(config: LoggingConfig = {}): Required<LoggingConfig> {
+  return { level: config.level ?? LOGGING_DEFAULTS.level };
+}
+
 export interface Container {
   auth: Auth;
   // Domains
@@ -130,12 +149,20 @@ export interface Container {
    *  installation's entry point starts it after listen (gen-openapi must not
    *  poll). buildServer stops it onClose. */
   outboxRelay: OutboxRelay;
+  /** Root logger port — components receive children bound with { name }. */
+  logger: Logger;
+  /** The raw pino root; buildServer hands it to Fastify so HTTP shares the stream. */
+  loggerInstance: PinoInstance;
 }
 
 export async function buildContainer(
   config: Config,
   options?: BuildContainerOptions,
 ): Promise<Container> {
+  const { instance: loggerInstance, logger } = createRootLogger(
+    resolveLoggingConfig(config.logging).level,
+  );
+
   // Outbound adapters
   const db = createDb(config.databaseUrl);
   const email = options?.adapters?.email ?? new EmailAdapter();
@@ -213,18 +240,11 @@ export async function buildContainer(
 
   const eventBus = new InMemoryEventBus();
   const outboxConfig = resolveOutboxConfig(config.outbox);
-  const relayLogger: Logger = {
-    debug: (msg, meta) => console.debug(msg, meta ?? {}),
-    info: (msg, meta) => console.log(msg, meta ?? {}),
-    warn: (msg, meta) => console.warn(msg, meta ?? {}),
-    error: (msg, meta) => console.error(msg, meta ?? {}),
-    child: () => relayLogger,
-  };
   const outboxRelay = new PollingOutboxRelay(
     new DrizzleOutboxStore(db),
     eventBus,
     outboxConfig,
-    relayLogger,
+    logger.child({ name: "outbox" }),
   );
 
   // Auth adapter — depends on core ports (email, identity, organizations);
@@ -260,5 +280,7 @@ export async function buildContainer(
     connectedApps,
     credentials: credentialStore,
     outboxRelay,
+    logger,
+    loggerInstance,
   };
 }

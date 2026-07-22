@@ -11,6 +11,19 @@ export function parseClientOrigins(): string[] {
     .filter(Boolean);
 }
 
+const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+type LogLevel = (typeof LOG_LEVELS)[number];
+
+/** LOG_LEVEL env → logging.level; unset → server default ("info"). */
+function parseLogLevel(): LogLevel | undefined {
+  const raw = process.env.LOG_LEVEL;
+  if (!raw) return undefined;
+  if (!(LOG_LEVELS as readonly string[]).includes(raw)) {
+    throw new Error(`invalid LOG_LEVEL "${raw}" (expected one of ${LOG_LEVELS.join(", ")})`);
+  }
+  return raw as LogLevel;
+}
+
 function loadContainerConfig(): ContainerConfig {
   const clientOrigins = parseClientOrigins();
   const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
@@ -37,6 +50,9 @@ function loadContainerConfig(): ContainerConfig {
     },
     outbox: {
       enabled: (process.env.OUTBOX_ENABLED ?? "true") !== "false",
+    },
+    logging: {
+      level: parseLogLevel(),
     },
   };
 }

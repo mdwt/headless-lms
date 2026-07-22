@@ -54,7 +54,7 @@ export async function mcpRoutes(app: FastifyInstance, container: Container): Pro
         const response = await mcpHandler(toWebRequest(request));
         await bridgeWebResponse(response, reply);
       } catch (err) {
-        console.error("[mcp] unexpected error:", err);
+        request.log.error({ err }, "mcp unexpected error");
         await reply.status(500).send({ error: "internal_error" });
       }
     },
