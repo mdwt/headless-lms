@@ -1,12 +1,12 @@
 # Entitlements — Domain Spec
 
-Owns access truth: the student↔content access grant, its validity, and its lifecycle. The grant is **generic over content types** (course today; podcast, membership, … later): it references the content registry (`content_items`), not a concrete content table, so one grant table serves every content type with real referential integrity. Distinct from completion. This context absorbed the former `enrollments` surface.
+Owns access truth: the student↔content access grant, its validity, and its lifecycle. The grant is **generic over content types** (course today; podcast, membership, … later): it references content by its identity, whatever the type, so one grant concept serves all content. Distinct from completion. This context absorbed the former `enrollments` surface.
 
 ## Scope
 
 - Owns the **access grant**: a student↔content grant, its status, and its source.
 - Owns granting access, listing grants, and changing a grant's status (revoke / reinstate).
-- The grant references content via the `content_items` registry (see the content domain spec).
+- The grant references content by its identity (see the content domain spec).
 - Access ≠ completion: a grant and progress move independently.
 - Does **not** own money, content, or completion (progress).
 
@@ -18,12 +18,12 @@ Owns access truth: the student↔content access grant, its validity, and its lif
 
 ## Model
 
-- **Entitlement** — the access grant: the student it is for, a `content` ref (`{ id, type, title }` — identity + display name, join-derived, never stored), its status, its source, when it was granted, and when it expires (nullable = lifetime). Completion is not held here — it belongs to progress.
-- **Status** — `active | expired | revoked`. Stored as `active | revoked`; `expired` is DERIVED at read time from `expiresAt` (no cron flips rows).
+- **Entitlement** — the access grant: the student it is for, a reference to the content it grants (identity, type, and display name), its status, its source, when it was granted, and when it expires (nullable = lifetime). Completion is not held here — it belongs to progress.
+- **Status** — `active | expired | revoked`. `expired` is not a transition anyone performs — it follows from the expiry date having passed.
 - **Source** — free text (`manual`, `import`, integration ids, …). How the grant originated; defaults to `manual`. There is no `purchase` source — entitlements has no billing footprint.
-- **Uniqueness** — one grant per `(org, student, content)`, identical for every content type.
+- **Uniqueness** — one grant per student per piece of content, within an org. Identical for every content type.
 
-Entitlement semantics are uniform across all content types: same lifecycle, same expiry rule, same uniqueness. The only per-type variation in the whole design is which concrete table the content id resolves to.
+Entitlement semantics are uniform across all content types: same lifecycle, same expiry rule, same uniqueness. The only per-type variation is which content type the grant points at.
 
 ## Access resolution
 
@@ -32,7 +32,7 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 ## Boundaries
 
 1. **entitlements ↔ identity** — entitlements references the student it grants access to; identity owns that record.
-2. **entitlements ↔ content** — entitlements references the content it grants (via `content_items`) and reads gating rules during access resolution; content owns the registry, the concrete content, and those rules. Deleting content (through the registry) cascades to its grants.
+2. **entitlements ↔ content** — entitlements references the content it grants and reads its gating rules during access resolution; content owns the content and those rules. Deleting content removes the grants to it.
 3. **entitlements ↔ progress** — entitlements reads completion during access resolution but never owns or stores it; progress owns completion.
 
 ## Events
@@ -42,7 +42,7 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 - `entitlement.deleted`
 - `entitlement.expired`
 
-Each carries the full `entitlement` snapshot; subscribers filter per content type via `entitlement.content.type`.
+Each carries the full entitlement snapshot; subscribers can tell content types apart from the content reference it carries.
 
 ## Relationship to progress
 
@@ -50,4 +50,4 @@ Access (entitlements) and completion (progress) move independently — a student
 
 ## Build state
 
-Built and **persisted** via a Drizzle repository (`adapters/db/repositories/entitlements.ts`): the `entitlements` table FKs `(org_id, content_id)` → `content_items` with `ON DELETE CASCADE`, and `(org_id, student_id)` → `students`.
+Built and **persisted** via a Drizzle repository (`adapters/db/repositories/entitlements.ts`).
