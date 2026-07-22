@@ -57,8 +57,12 @@ export interface OutboxRelay {
 }
 
 export interface Logger {
+  debug(msg: string, meta?: Record<string, unknown>): void;
   info(msg: string, meta?: Record<string, unknown>): void;
+  warn(msg: string, meta?: Record<string, unknown>): void;
   error(msg: string, meta?: Record<string, unknown>): void;
+  /** A logger whose every entry carries `bindings` (call-site meta wins on key clash). */
+  child(bindings: Record<string, unknown>): Logger;
 }
 
 export interface EmailMessage {

@@ -29,7 +29,14 @@ function fakeStore(batches: OutboxMessage[][]): OutboxStore {
 }
 
 function fakeLogger(): Logger {
-  return { info: vi.fn(), error: vi.fn() };
+  const logger: Logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: () => logger,
+  };
+  return logger;
 }
 
 beforeEach(() => {

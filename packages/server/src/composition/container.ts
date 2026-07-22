@@ -214,8 +214,11 @@ export async function buildContainer(
   const eventBus = new InMemoryEventBus();
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const relayLogger: Logger = {
+    debug: (msg, meta) => console.debug(msg, meta ?? {}),
     info: (msg, meta) => console.log(msg, meta ?? {}),
+    warn: (msg, meta) => console.warn(msg, meta ?? {}),
     error: (msg, meta) => console.error(msg, meta ?? {}),
+    child: () => relayLogger,
   };
   const outboxRelay = new PollingOutboxRelay(
     new DrizzleOutboxStore(db),
