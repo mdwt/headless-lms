@@ -203,6 +203,7 @@ export async function buildContainer(
   const entitlements = new EntitlementsServiceImpl(
     new DrizzleEntitlementsRepository(db),
     entitlementsUow,
+    logger.child({ name: "entitlements" }),
   );
   const progress = new ProgressServiceImpl(new DrizzleProgressRepository(db), () =>
     new Date().toISOString(),

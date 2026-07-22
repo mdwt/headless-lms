@@ -2,7 +2,7 @@
 export type {
   EntitlementStatus,
   EntitlementSource,
-  Entitlement,
+  Enrollment,
   EntitlementsQuery,
   GrantEnrollmentInput,
   Page,

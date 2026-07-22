@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { EntitlementsServiceImpl } from "./service.js";
 import type { EntitlementsRepository, EntitlementsUnitOfWork } from "./ports.js";
-import type { Entitlement } from "./model.js";
+import type { Enrollment } from "./model.js";
 import type { NewDomainEvent, OutboxAppender } from "../shared/ports.js";
 
-const SAMPLE: Entitlement = {
+const SAMPLE: Enrollment = {
   id: "e1",
   studentId: "s1",
   firstName: "Bob",
@@ -104,5 +104,30 @@ describe("EntitlementsService", () => {
       svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null }),
     ).rejects.toThrow("boom");
     expect(append).not.toHaveBeenCalled();
+  });
+});
+
+describe("logging", () => {
+  it("logs grant and status changes at info", async () => {
+    const { createCapturingLogger } = await import("../shared/logger.js");
+    const { logger, entries } = createCapturingLogger();
+    const repo = fakeRepo();
+    const { uow } = fakeUow(repo);
+    const svc = new EntitlementsServiceImpl(repo, uow, logger);
+
+    const enrollment = await svc.grant("org-1", { studentId: "s1", courseId: "c1", expiresAt: null });
+    await svc.setStatus("org-1", enrollment.id, "revoked");
+
+    expect(entries.map((e) => [e.level, e.msg])).toEqual([
+      ["info", "enrollment granted"],
+      ["info", "enrollment status changed"],
+    ]);
+    expect(entries[0]?.meta).toMatchObject({
+      orgId: "org-1",
+      enrollmentId: enrollment.id,
+      studentId: "s1",
+      courseId: "c1",
+    });
+    expect(entries[1]?.meta).toMatchObject({ orgId: "org-1", enrollmentId: enrollment.id, status: "revoked" });
   });
 });
