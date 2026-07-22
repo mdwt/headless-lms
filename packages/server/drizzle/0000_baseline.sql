@@ -180,6 +180,20 @@ CREATE TABLE "connections" (
 	CONSTRAINT "connections_org_id_integration_id_unique" UNIQUE("org_id","integration_id")
 );
 --> statement-breakpoint
+CREATE TABLE "outbox" (
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"event_id" text NOT NULL,
+	"type" text NOT NULL,
+	"org_id" text,
+	"payload" jsonb NOT NULL,
+	"occurred_at" timestamp DEFAULT now() NOT NULL,
+	"published_at" timestamp,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"next_attempt_at" timestamp DEFAULT now() NOT NULL,
+	"last_error" text,
+	CONSTRAINT "outbox_event_id_unique" UNIQUE("event_id")
+);
+--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -334,6 +348,7 @@ ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_user_id_user
 ALTER TABLE "oauth_application" ADD CONSTRAINT "oauth_application_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_consent" ADD CONSTRAINT "oauth_consent_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "outbox_unpublished_idx" ON "outbox" USING btree ("next_attempt_at","id") WHERE "outbox"."published_at" is null;--> statement-breakpoint
 CREATE INDEX "oauth_access_token_client_id_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_user_id_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "oauth_application_user_id_idx" ON "oauth_application" USING btree ("user_id");--> statement-breakpoint
