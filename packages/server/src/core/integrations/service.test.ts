@@ -234,3 +234,39 @@ describe("IntegrationsService", () => {
     expect(repo.findByIntegration).toHaveBeenCalledWith("org-1", "stripe");
   });
 });
+
+describe("logging", () => {
+  it("logs the connection lifecycle at info and rejections at warn", async () => {
+    const { createCapturingLogger } = await import("../shared/logger.js");
+    const { logger, entries } = createCapturingLogger();
+    const repo = fakeRepo();
+    const credentials = fakeCredentials();
+    const appended: NewDomainEvent[] = [];
+    const uow: IntegrationsUnitOfWork = {
+      run: (fn) =>
+        fn({ connections: repo, credentials, outbox: { append: async (e) => void appended.push(...e) } }),
+    };
+    const svc = new IntegrationsServiceImpl(registry, repo, uow, () => "2026-01-02T00:00:00Z", logger);
+
+    const connection = await svc.connect("org-1", {
+      integrationId: "slack",
+      config: {},
+      secrets: { botToken: "t" },
+    });
+    await svc.disconnect("org-1", connection.id);
+    await expect(svc.connect("org-1", { integrationId: "nope", secrets: {} })).rejects.toThrow(
+      UnknownIntegrationError,
+    );
+
+    expect(entries.map((e) => [e.level, e.msg])).toEqual([
+      ["info", "integration connected"],
+      ["info", "integration disconnected"],
+      ["warn", "unknown integration rejected"],
+    ]);
+    expect(entries[0]?.meta).toMatchObject({
+      orgId: "org-1",
+      integrationId: "slack",
+      connectionId: connection.id,
+    });
+  });
+});

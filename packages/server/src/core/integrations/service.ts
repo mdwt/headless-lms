@@ -19,6 +19,8 @@ import type {
   IntegrationsService,
   IntegrationsUnitOfWork,
 } from "./ports.js";
+import type { Logger } from "../shared/ports.js";
+import { noopLogger } from "../shared/logger.js";
 
 export class IntegrationsServiceImpl implements IntegrationsService {
   constructor(
@@ -28,6 +30,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     /** Atomic write scope: tx-bound connections repo + credential store + outbox. */
     private readonly uow: IntegrationsUnitOfWork,
     private readonly now: () => string,
+    private readonly logger: Logger = noopLogger,
   ) {}
 
   available() {
@@ -46,20 +49,35 @@ export class IntegrationsServiceImpl implements IntegrationsService {
 
   private validate(integrationId: string, config: Record<string, unknown>): void {
     const integration = this.registry.get(integrationId);
-    if (!integration) throw new UnknownIntegrationError(integrationId);
+    if (!integration) {
+      this.logger.warn("unknown integration rejected", { integrationId });
+      throw new UnknownIntegrationError(integrationId);
+    }
     const result = integration.validateConfig(config);
-    if (!result.ok) throw new InvalidConfigError(integrationId, result.errors);
+    if (!result.ok) {
+      this.logger.warn("invalid integration config rejected", {
+        integrationId,
+        errors: result.errors,
+      });
+      throw new InvalidConfigError(integrationId, result.errors);
+    }
   }
 
   async connect(orgId: string, input: ConnectInput): Promise<Connection> {
     const config = input.config ?? {};
     this.validate(input.integrationId, config);
     const existing = await this.repo.findByIntegration(orgId, input.integrationId);
-    if (existing) throw new AlreadyConnectedError(input.integrationId);
-    return this.uow.run(async ({ connections, credentials, outbox }) => {
+    if (existing) {
+      this.logger.warn("duplicate connection rejected", {
+        orgId,
+        integrationId: input.integrationId,
+      });
+      throw new AlreadyConnectedError(input.integrationId);
+    }
+    const connection = await this.uow.run(async ({ connections, credentials, outbox }) => {
       const credentialRef = await credentials.store(orgId, input.secrets);
       const at = this.now();
-      const connection = await connections.insert(orgId, {
+      const created = await connections.insert(orgId, {
         id: genId("connection"),
         integrationId: input.integrationId,
         config,
@@ -72,12 +90,18 @@ export class IntegrationsServiceImpl implements IntegrationsService {
         {
           type: "connection.created",
           orgId,
-          connectionId: connection.id,
-          integrationId: connection.integrationId,
+          connectionId: created.id,
+          integrationId: created.integrationId,
         },
       ]);
-      return connection;
+      return created;
     });
+    this.logger.info("integration connected", {
+      orgId,
+      integrationId: connection.integrationId,
+      connectionId: connection.id,
+    });
+    return connection;
   }
 
   async reconnect(
@@ -87,9 +111,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   ): Promise<Connection | null> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return null;
-    return this.uow.run(async ({ connections, credentials, outbox }) => {
+    const updated = await this.uow.run(async ({ connections, credentials, outbox }) => {
       await credentials.update(orgId, connection.credentialRef, secrets);
-      const updated = await connections.update(orgId, id, { updatedAt: this.now() });
+      const result = await connections.update(orgId, id, { updatedAt: this.now() });
       await outbox.append([
         {
           type: "connection.updated",
@@ -99,16 +123,22 @@ export class IntegrationsServiceImpl implements IntegrationsService {
           changed: "credentials",
         },
       ]);
-      return updated;
+      return result;
     });
+    this.logger.info("integration credentials rotated", {
+      orgId,
+      connectionId: id,
+      integrationId: connection.integrationId,
+    });
+    return updated;
   }
 
   async configure(orgId: string, id: string, input: ConfigureInput): Promise<Connection | null> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return null;
     if (input.config !== undefined) this.validate(connection.integrationId, input.config);
-    return this.uow.run(async ({ connections, outbox }) => {
-      const updated = await connections.update(orgId, id, {
+    const updated = await this.uow.run(async ({ connections, outbox }) => {
+      const result = await connections.update(orgId, id, {
         ...(input.config !== undefined ? { config: input.config } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
         updatedAt: this.now(),
@@ -122,16 +152,22 @@ export class IntegrationsServiceImpl implements IntegrationsService {
           changed: "configuration",
         },
       ]);
-      return updated;
+      return result;
     });
+    this.logger.info("integration configured", {
+      orgId,
+      connectionId: id,
+      integrationId: connection.integrationId,
+    });
+    return updated;
   }
 
   async disconnect(orgId: string, id: string): Promise<boolean> {
     const connection = await this.repo.findById(orgId, id);
     if (!connection) return false;
-    return this.uow.run(async ({ connections, credentials, outbox }) => {
+    const deleted = await this.uow.run(async ({ connections, credentials, outbox }) => {
       // Connection first: it holds the FK onto the credential row.
-      const deleted = await connections.delete(orgId, id);
+      const ok = await connections.delete(orgId, id);
       await credentials.destroy(orgId, connection.credentialRef);
       await outbox.append([
         {
@@ -141,8 +177,14 @@ export class IntegrationsServiceImpl implements IntegrationsService {
           integrationId: connection.integrationId,
         },
       ]);
-      return deleted;
+      return ok;
     });
+    this.logger.info("integration disconnected", {
+      orgId,
+      connectionId: id,
+      integrationId: connection.integrationId,
+    });
+    return deleted;
   }
 
   list(orgId: string): Promise<Connection[]> {

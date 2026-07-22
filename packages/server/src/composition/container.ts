@@ -224,7 +224,8 @@ export async function buildContainer(
   // plugins folder (directory name = integration id), loaded at startup.
   // Connect/configure reject undeclared ids and validate config with the
   // integration's own schema. No folder → no integrations.
-  const integrationsRegistry = await loadIntegrations(options?.pluginsDir);
+  const integrationsLogger = logger.child({ name: "integrations" });
+  const integrationsRegistry = await loadIntegrations(options?.pluginsDir, integrationsLogger);
   // Integrations: credential + connection writes + outbox append in one tx
   // (a tx-bound credential store instance shares the scope's transaction).
   const integrationsUow = new DrizzleUnitOfWork(db, (tx) => ({
@@ -237,6 +238,7 @@ export async function buildContainer(
     new DrizzleConnectionsRepository(db),
     integrationsUow,
     () => new Date().toISOString(),
+    integrationsLogger,
   );
 
 
