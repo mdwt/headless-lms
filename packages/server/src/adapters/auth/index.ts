@@ -1,4 +1,5 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, mcp } from 'better-auth/plugins';
 import type { OAuthAccessToken } from 'better-auth/plugins';
@@ -11,7 +12,13 @@ import type { OrganizationProvisioner } from '../../core/organizations/index.js'
 import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
 import * as authSchema from './schema.js';
 import { ac, roles } from './access.js';
-import { inviteLinkFor, STUDENT_ROLE } from './invites.js';
+import { inviteAllowsSignup, inviteLinkFor, STUDENT_ROLE, type InviteRecord } from './invites.js';
+
+// better-invite's own cookie name for the staged invite token, set by its
+// activate-invite route. Not re-exported from the package root (only `invite`
+// / `inviteClient` are), so declared here — verified against
+// `better-invite/dist/constants.mjs`.
+const INVITE_COOKIE_NAME = 'invite_token';
 
 // Prefixes for better-auth's own tables. This is a distinct id space from the
 // mirrored domain rows (auth `user.id` → `users.external_id`, etc.), but we reuse
@@ -366,6 +373,32 @@ export function createAuth(opts: CreateAuthOptions): Auth {
         },
       }),
     ],
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-up/email') {
+          return;
+        }
+        // Only the student portal is invite-only; the admin app keeps open
+        // signup (the create-your-org funnel), and invited staff sign up there.
+        const origin = ctx.headers?.get('origin') ?? '';
+        if (origin !== new URL(opts.studentPortalUrl).origin) {
+          return;
+        }
+
+        const cookie = ctx.context.createAuthCookie(INVITE_COOKIE_NAME, { maxAge: 60 * 10 });
+        const token = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+        const email = (ctx.body as { email?: string } | undefined)?.email ?? '';
+        const invite = token
+          ? await ctx.context.adapter.findOne<InviteRecord>({
+              model: 'invite',
+              where: [{ field: 'token', value: token }],
+            })
+          : null;
+        if (!inviteAllowsSignup(invite, email, new Date())) {
+          throw new APIError('FORBIDDEN', { message: 'The student portal is invite-only' });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
