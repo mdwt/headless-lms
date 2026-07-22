@@ -88,7 +88,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       }
       const student = await students.get(scope.orgId, created.id);
       if (!student) {
-        throw new NotFoundError('Student', created.id);
+        throw new Error('created student missing from report');
       }
       return reply.code(201).send(student);
     },

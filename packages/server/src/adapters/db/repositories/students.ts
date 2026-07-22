@@ -1,8 +1,11 @@
 // students — Drizzle repository (implements the core outbound port).
-// A read-model over identity + entitlements: a "student" in an org is a domain
-// student with >=1 entitlement in that org. Rows are aggregated per student and
-// scoped by `entitlements.orgId`. Identity (name/email/joinedAt) comes from the
-// `students` table; the avatar comes from the better-auth `user` table.
+// A read-model over identity + entitlements: a "student" row in the report is
+// any domain student in the org, with or without entitlements (manual creation
+// adds zero-entitlement students). Rooted at `students` and scoped by
+// `students.orgId`, with entitlements LEFT JOINed in for the aggregated count.
+// Identity (name/email/joinedAt) comes from the `students` table; the avatar
+// comes from the better-auth `user` table (LEFT JOINed — `external_id` may be
+// null for students with no account yet, so no avatar in that case).
 import { and, asc, desc, eq, ilike, isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { StudentsReportRepository } from '../../../reporting/students/index.js';
@@ -51,7 +54,7 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
   ) {}
 
   async list(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
-    const filters: SQL[] = [eq(entitlements.orgId, orgId)];
+    const filters: SQL[] = [eq(students.orgId, orgId)];
     const q = query.search?.trim();
     if (q) {
       const like = `%${q}%`;
@@ -66,12 +69,8 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     const where = and(...filters);
 
     const [totals] = await this.db
-      .select({ total: sql<number>`count(distinct ${students.id})` })
-      .from(entitlements)
-      .innerJoin(
-        students,
-        and(eq(students.orgId, entitlements.orgId), eq(students.id, entitlements.studentId)),
-      )
+      .select({ total: sql<number>`count(*)` })
+      .from(students)
       .where(where);
 
     const rows = await this.db
@@ -85,12 +84,12 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         avgProgress: avgProgressExpr,
         hasAccount: hasAccountExpr,
       })
-      .from(entitlements)
-      .innerJoin(
-        students,
-        and(eq(students.orgId, entitlements.orgId), eq(students.id, entitlements.studentId)),
+      .from(students)
+      .leftJoin(
+        entitlements,
+        and(eq(entitlements.orgId, students.orgId), eq(entitlements.studentId, students.id)),
       )
-      .leftJoin(user, eq(user.id, students.externalId))
+      .leftJoin(user, and(isNotNull(students.externalId), eq(user.id, students.externalId)))
       .where(where)
       // Group by the full composite PK (orgId, id): grouping by id alone gives
       // Postgres no functional dependency for the other students columns.
@@ -119,13 +118,13 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
         avgProgress: avgProgressExpr,
         hasAccount: hasAccountExpr,
       })
-      .from(entitlements)
-      .innerJoin(
-        students,
-        and(eq(students.orgId, entitlements.orgId), eq(students.id, entitlements.studentId)),
+      .from(students)
+      .leftJoin(
+        entitlements,
+        and(eq(entitlements.orgId, students.orgId), eq(entitlements.studentId, students.id)),
       )
-      .leftJoin(user, eq(user.id, students.externalId))
-      .where(and(eq(entitlements.orgId, orgId), eq(students.id, id)))
+      .leftJoin(user, and(isNotNull(students.externalId), eq(user.id, students.externalId)))
+      .where(and(eq(students.orgId, orgId), eq(students.id, id)))
       .groupBy(students.orgId, students.id, user.image)
       .limit(1);
     return row ? toStudent(row) : null;
