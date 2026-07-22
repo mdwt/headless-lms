@@ -19,6 +19,7 @@ const footerLinks = [
       { label: 'Self-hosting', href: '/docs/self-hosting' },
       { label: 'Project structure', href: '/docs/project-structure' },
       { label: 'API reference', href: '/docs/api-reference' },
+      { label: 'Blog', href: '/blog' },
     ],
   },
   {

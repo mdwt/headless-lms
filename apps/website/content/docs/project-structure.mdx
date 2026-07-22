@@ -1,0 +1,33 @@
+---
+title: Project structure
+description: How the monorepo is organized and what each workspace is responsible for.
+---
+
+```txt title="workspaces"
+headless-lms/
+├─ packages/
+│  ├─ server/                # @headless-lms/server — the backend library
+│  ├─ sdk/                   # generated typed client
+│  └─ create-headless-lms/   # the installation scaffolder
+├─ apps/
+│  ├─ api/                   # example installation
+│  ├─ admin/                 # Next.js admin back-office
+│  └─ student/               # Next.js student portal
+└─ docker/                   # Postgres + MinIO for local dev
+```
+
+## Packages
+
+- `@headless-lms/server` — a framework-free domain core behind a Fastify HTTP layer, persisted with Drizzle and Postgres. The backend ships as this library.
+- `@headless-lms/sdk` — the typed client, generated from the OpenAPI spec that the server produces.
+- `create-headless-lms` — the scaffolder behind `npm create headless-lms`.
+
+## Apps
+
+- `apps/api` — an example installation that composes the server with sane defaults. Use it as a reference for your own.
+- `apps/admin` — the Next.js admin dashboard for courses, students, entitlements, and reporting.
+- `apps/student` — the Next.js app where students log in and take their courses.
+
+## Composing an installation
+
+An _installation_ composes what it wants with sane defaults — picking storage and email adapters, registering plugins, and owning its config. See `apps/api` for a working example.

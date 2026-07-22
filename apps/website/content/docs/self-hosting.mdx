@@ -1,0 +1,36 @@
+---
+title: Self-hosting
+description: Create a standalone installation, or run the full workspace locally for development.
+---
+
+## Create an installation
+
+The fastest path is the CLI. It creates a small project that depends on `@headless-lms/server`, owns its config and plugins, and deploys anywhere Node and Postgres run.
+
+```bash
+npm create headless-lms
+```
+
+## Run the repo locally
+
+To develop against the source, you'll need **Node ≥ 22**, **pnpm 10**, and **Docker**. The following brings up Postgres and MinIO, applies migrations, and starts every app.
+
+```bash
+pnpm install
+docker compose -f docker/docker-compose.yml up -d   # Postgres (:8005) + MinIO (:8006/:8007)
+cp .env.example .env        # set BETTER_AUTH_SECRET (openssl rand -base64 32)
+pnpm db:generate && pnpm db:migrate
+pnpm dev                    # api :8000 · admin :8001 · student :8002
+```
+
+These commands run across all workspaces:
+
+- `pnpm build` · `pnpm test` · `pnpm lint` · `pnpm typecheck`
+- `pnpm gen:sdk` regenerates the OpenAPI spec and SDK (the database must be running).
+
+### Default ports
+
+- `:8000` — API
+- `:8001` — Admin dashboard
+- `:8002` — Student portal
+- `:8005` — Postgres · `:8006/:8007` — MinIO

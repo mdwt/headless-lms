@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { RootProvider } from 'fumadocs-ui/provider/next'
+import { siteConfig } from '@/lib/site'
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,32 +16,54 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Headless LMS — The API-first platform for building learning systems',
-  description:
-    'An API-first, headless LMS built in modern TypeScript with Fastify, Drizzle, and Zod. Composable adapters, org-scoped multi-tenancy, a typed SDK, and an MCP endpoint. Build any frontend you want.',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: `${siteConfig.name} — ${siteConfig.tagline}`,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  keywords: [
+    'headless LMS',
+    'open source LMS',
+    'LMS API',
+    'learning management system',
+    'TypeScript LMS',
+    'API-first LMS',
+    'self-hosted LMS',
+  ],
+  alternates: {
+    canonical: './',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: siteConfig.name,
+    url: siteConfig.url,
+    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    description: siteConfig.description,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: siteConfig.twitterHandle,
+    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    description: siteConfig.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 }
 
 export const viewport: Viewport = {
   colorScheme: 'dark',
-  themeColor: '#0b0d10',
+  themeColor: '#16181d',
 }
 
 export default function RootLayout({
@@ -51,9 +75,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`dark ${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
       <body className="bg-background font-sans antialiased">
-        {children}
+        <RootProvider theme={{ enabled: false }}>{children}</RootProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

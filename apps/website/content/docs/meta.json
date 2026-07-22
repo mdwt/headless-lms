@@ -1,0 +1,11 @@
+{
+  "title": "Docs",
+  "pages": [
+    "---Getting started---",
+    "index",
+    "self-hosting",
+    "---Concepts---",
+    "project-structure",
+    "api-reference"
+  ]
+}

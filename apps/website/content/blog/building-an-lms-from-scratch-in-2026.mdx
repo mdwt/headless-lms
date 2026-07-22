@@ -1,0 +1,259 @@
+---
+title: Building an LMS from scratch in 2026
+description: Unpacking the business case for a headless LMS using domain-driven design — the domains, their boundaries, and how they were discovered and documented.
+author: Meiring de Wet
+date: 2026-07-01
+---
+
+I recently started building a headless learning management system (LMS), and I'm sharing my experience building it from scratch.
+
+The write-up covers system design and implementation: the design frameworks I'm using, the decisions I'm making, and the technologies and trade-offs I'm considering as I build it. This first post covers unpacking the business case using domain-driven design (DDD), and I'm writing this to reflect on the project, its design, and building process because I want it to be a success.
+
+Ownership is central to any system's success - someone needs to make the decisions, argue about design and architecture, and ultimately own those decisions and the quality of the implementation. Some choose to hand that responsibility over to AI, and sometimes that pays off. But a lot of times it spectacularly doesn't, and they're left with a botched opportunity and a pile of code no one owns or really cares about.
+
+I'm using AI extensively on this project, but I don't want to write about the tools or agentic workflows I'm using. AI's role here is to support reasoning about the system, speed up development, and improve quality; it doesn't own any part of it or make any decisions; the system design should hold regardless of how the code is written.
+
+## So what am I building?
+
+I'm building a Learning Management System (LMS) that lets someone create and distribute online courses and manage the workflows involved in running a learning programme or organisation. It's a well-established business domain that's been around since the 90s, and still very lively and evolving as the market shifts and trends change.
+
+![A headless LMS at a glance - a management back office and a bring-your-own student UI on either side of the core LMS, which owns content, assessments, users, analytics and the data store.](/blog/headless-lms-overview.webp)
+
+I've worked in the creator industry for 7+ years now, and I've seen many LMS platforms grow and evolve. I've never built an online course myself, but I've worked closely with users of these platforms - businesses selling courses - so I understand how they operate and how they sell their products.
+
+So to focus the scope a bit, I'm defining a few traits of the system:
+
+- **It's headless** → it's a back-office system that enables anyone to build and manage learning content. It provides the API, admin UI, user management, access control, analytics, automations and AI enablement. It's client-agnostic, meaning it's bring-your-own-customer-facing-frontend so anyone can use their own apps and websites, and any framework or technology can securely interact with the system.
+- **It's extendable** → the core business logic must be abstract enough to allow extensibility, yet meaningful enough to solve a core set of problems that are easy to understand and reason about. It shouldn't be so abstract that it covers every possible e-learning use case.
+- **It's decoupled** → the technologies and dependencies should be easy to change without affecting the core business logic.
+- **It's modern** → modern stack, modern tools, AI-enabled from the start.
+- **It's easy to operate** → this should hold true for anyone who interacts with the system. The business owners, instructors, and students building and consuming courses (UX), AI agents and systems interacting with the API (AX), and the developers building and deploying the system (DX).
+- **It's quality** - standard non-functional quality attributes of a modern system: scalable, secure, and robust.
+
+## Why?
+
+I want a way for customers of my checkout business to build and sell online courses (I run [checkoutjoy.com](https://checkoutjoy.com), a checkout platform for creators).
+
+I need it headless so I can easily integrate it into my existing product and infrastructure. I already have customer-facing UIs, so I want something generic enough to use with the tech and infrastructure I already have. Starting from scratch means I control the technology and infrastructure choices to fit my needs.
+
+_There are some great open-source projects on GitHub that I considered, but none of them fully meet my needs. [LearnHouse](https://github.com/learnhouse/learnhouse) is one I looked at and really liked, but it's built in Python (not my current focus, so extending it will take longer) and also comes with other tech couplings that are not easy to replace (it uses TinyBird for analytics and TipTap for the UI engine, I want PostgreSQL and Plate.js)_
+
+## Scoping
+
+LMS is a sprawling world of courses, assessments, grading, and certifications for everything from doggy parlour shops and yoga studios to enterprise learning and universities.
+
+On one end, you have institutional LMS that focus on certification and compliance. These are enterprise-level systems that serve hundreds of thousands of students and adhere to strict compliance rules.
+
+On the other end, you have retail-focused LMS - they serve creators and SMEs (I'm not sure where SME sits these days; I know some e-learners scale well into 8-figure businesses). These are the "learn how to cook" and "get ripped in 90 days" types of online courses and memberships that you see advertised on social media.
+
+Because their business is so tightly coupled with the learning content, retail LMS platforms are usually all-in-one, "business in a box" type platforms that include all the bells and whistles - a website builder, sales funnels, email marketing, CRM functionality, integrations, checkouts, invoicing, certification and a lot more.
+
+I'm not here to offer an all-in-one solution, so we need to draw the line somewhere and cut some of the bloat.
+
+The easiest feature to get rid of is the website builder - I don't even have to explain this; it's just too easy to vibe it these days. It's also quite fitting because a "headless" LMS doesn't ship with a website.
+
+The other modules like email marketing, CRM, certification, and checkouts are also outside of the core LMS domain - they're business tools and are add-ons to a core learning platform.
+
+For a first version ("to build and distribute courses"), I need:
+
+- A way to create and store course lessons and content - videos, documents, downloadables, assessments, etc.
+- A way to grant someone access to those courses.
+- Something to track progress and evaluate completion - track the progress of a student based on certain completion rules.
+- A way to trigger business processes when certain events happen.
+- A way for other systems and AI to securely interact with the data.
+- A way to integrate this into my existing UIs using my libraries to design the courses
+
+What it doesn't include for now:
+
+- Any funnels, payments, billing, invoicing, tax, or subscriptions (remember I want to integrate this with my existing checkout platform).
+- Grading, certification - these are downstream use cases.
+- Website builder, email marketing, CRM, or other business-in-a-box tools.
+
+So that's where we draw the line - it's focused enough to solve my immediate need, but extensible enough to add these functions later on without affecting the core of the system.
+
+## Choosing a Design System
+
+Whenever I deal with business models like this, I lean on domain-driven design (DDD). It's an incredible approach that helps translate business concepts into systems and software and ensures that our system logic faithfully represents the actual business.
+
+The core idea is that the **business domain drives the code structure** rather than implementation details like the database, some framework, or UI. It's hard to reason about a system when you start with SQL table definitions.
+
+At its most basic, it helps with things like naming conventions so that everyone uses the same vocabulary (DDD calls this "Ubiquitous Language"). But where it's most powerful is in breaking the system into separate concerns called domains and clearly defining each domain's responsibilities, boundaries, and interactions with the others.
+
+We're designing a system that lets someone build courses and manage students' access and progress. So we'll look at the core functionality to help us answer a few first questions:
+
+- What are the core domains of an LMS?
+- What data does each domain own;
+- and which business processes (behaviour) defines the domain.
+
+## Defining the domains
+
+So how do you define the domains? One of the core philosophies of DDD is collaboration with domain experts - i.e. the model is discovered through ongoing conversation with the people who understand the business.
+
+In practice, I imagine this means someone like a senior dev has a bunch of meetings with BAs and business. In my case, it's me and AI having semi-structured conversations, reading LMS platform documentation and API specs, and inspecting source code of open-source projects on GitHub. A bit of process, a bit of intuition, and a bit of experience mixed in equal parts.
+
+I start small - I look at a simple use case that exposes a few domains, and from there I iterate, discuss, question, refine, and condense until I have a set of well-defined domains that make sense. What is the model? What is the lifecycle of the entities? Does it have invariant rules?
+
+The goal is to condense the core as much as possible - to have the smallest possible set of domains that cover all cases. Can an entity be owned by an existing domain? If not, why? As you go deeper, the ownership, responsibilities and boundaries of each domain become clearer, and everything falls into place.
+
+A bit more technical framing is to think about the model in terms of use cases and how it relates to entities. The resources then become the domain model, and the behaviour becomes the service implementations.
+
+For LMS, almost all end-user use cases span multiple domains, so we can focus on one core use case to show how this helps define the domains and their responsibilities.
+
+## A simple case crossing all domains
+
+Let's look at the most obvious use case for an LMS: enrolling someone in a course. Let's assume an onboarding case where there are no transactions or money flowing, just provisioning a user and granting them access.
+
+**Use case**: A company has onboarding courses, and new employees get free access to knowledge courses as part of their onboarding.
+
+So, when someone joins, HR needs to add the employee to the LMS as a student and grant them access to the training course.
+
+When they've completed the course, HR needs to be notified and review their progress.
+
+### Breaking down the entities
+
+Immediately, we see three entities involved here: **HR** (the system user), the **Employee** (the Student), and the **Course**. They already jump out as independent parts of the system: **Users** and **Students** are independent user profiles with roles, preferences and permissions. A Course is an independent resource with chapters, lessons, assessments, media and some rules and settings.
+
+![The enrollment use case broken into entities - HR creates a Student in Identity, Entitlement enrols them in a Course owned by Content, Progress tracks it, Assets stores the media, and Automation reacts to events.](/blog/headless-lms-enrollment-entities.png)
+
+So, looking at the behavioural aspects of the use case, a student is created in the system, enrolled in a course, their progress is tracked somehow, and HR is notified when they've completed the course.
+
+Reframing it from that point of view:
+
+1. Something needs to manage the **user profiles and authentication**.
+2. Something needs to manage the **course content** and settings.
+3. Something needs to grant students' **access to courses**.
+4. Something needs to evaluate each student's **progress**.
+5. Something needs to **notify** HR when a student completes a course.
+6. Something needs to give **meaningful reports** to all users
+
+### Identity
+
+I call the first domain **Identity** as an abstraction that covers all user roles and entities; it could well have been called "Users," but it's not only responsible for users; it also handles authentication and access control to the system.
+
+### Content
+
+The second one is called **Content**, and it covers all types of content, their structures, rules and settings. I call it Content because a course is only one type of e-learning content served to students. There are also podcasts, newsletters, webinars, e-books, and although they all differ in structure and delivery, they all still share the same common traits - they are authored content with certain rules and settings. So, abstracting the domain to Content covers all future content types the system needs to store and manage.
+
+### Entitlement
+
+The third one is a bit trickier - who owns the enrollment of a student? Something needs to **own the access to the content** - who has access to a course, why, and for how long.
+
+It's the **access record** that links a student to a course. It's not a **Content** concern - it allows building courses. It's also not an **Identity** concern - it owns _who the person is_ and their authentication details.
+
+Access to courses isn't an identity attribute like name or location. It's the same concept that separates your Google Play Store purchases from your Google Login profile. Your login doesn't own what you've bought on the Play Store, it has your email and personal details. Your entitlement to apps and movies is a separate concern managed and owned by something else.
+
+So the third domain is called **Entitlement**.
+
+### Progress
+
+The fourth item on the list relates to progress. Progress tracking is an ongoing process of evaluating domain events, what the student did, whether it satisfies a rule for completion, and whether the student is stuck. It already sounds like a lot, so let's assume it's a separate domain and test it out. It's aptly called **Progress**.
+
+So why is it its own domain and not part of Entitlement? Let's look at the concerns, lifecycles and invariant rules.
+
+Concerns:
+
+- **Entitlements** - "may this student be in this course, and is that access valid?"
+- **Progress** - "How far through this course is this student? When last did they access it?"
+
+Lifecycles:
+
+- **Entitlements** change on access events: a course is granted and revoked. An employee starts at the company or leaves the company. It's a low-frequency, access-driven concern.
+- **Progress** changes during learning events: a student started a lesson; watched 30 seconds of a video; and completed a quiz. It's a higher-frequency lifecycle than entitlement, and it's activity-driven.
+
+Another way is to look at the data model (high-level assumptions for now) and how it relates to the others.
+
+For example:
+
+- **Enrollment** is one record per student → course. It's a grant record with a reason and some rules.
+- **Progress** is measured by the number of records per student. For example, it could be the duration of a video watched, the completion state of a lesson (which may include multiple videos), or aggregated percentages at the chapter and course levels.
+
+So the boundary is pretty clear from this: **Progress** doesn't care why, or for how long, this student has access to the course. It also doesn't care what the student's name is or the validity of their auth token. So our assumption stands, and **Progress** is our fourth domain.
+
+### Automation
+
+The fifth one is about event processing and automation. Something that notifies HR when a student completes a course also means "something needs to handle domain events and do stuff based on rules".
+
+A simple example: when the employee is granted access, they need to receive an email with their login details to the course content. When they complete a lesson, they need to receive a summary of their progress. When they're stuck or haven't logged in for a while, they need nudging to complete their work.
+
+There are literally thousands of use cases that fall under this one, and it's where external integrations and workflows come into play. Automation owns the event handlers, the workflow rules and orchestration.
+
+Let's unpack the last part of the case - when someone completes a course, notify HR (we'll assume a Slack channel).
+
+While the student is working through the course, **Progress** continuously processes activity events and evaluates completion rules defined in **Content**. When the student meets a completion threshold (e.g., 90% of the video watched), it publishes a "Course completed" event.
+
+**Automation** owns a workflow configuration that says that "When someone completes that course, notify this Slack channel". The configuration also includes Slack channel details and message details for what info to post to Slack.
+
+It also has an event handler that listens for "course completed" events and decides whether to start a workflow. It doesn't own the execution of the workflow, but it owns the orchestration, facts like whether it completed, the audit trail, etc.
+
+### Special case - Reporting
+
+There is a special case in which something doesn't cleanly fit into a single domain, or fit into the definition of one. For example, when it doesn't own any entities or behaviours, and it requires data across all domains.
+
+A clear example in our case is reporting, used by the dashboard to track progress and manage the organisation. To get a useful business query like _"What's the completion rate of all students in the January Cohort?"_, the report needs access to data across almost all domains. It needs to join data from Identity to get user details, Content to get course details, Entitlement to see who had access in January, and Progress to see who completed it.
+
+DDD has a rule that each domain owns its data and that no cross-context joins are allowed. That makes sense for our core domains, but for reporting we need to solve this with a special domain type called a Read model. A read model is a read-only context that exists _only_ for composed reads across contexts.
+
+So for now we define **Reporting** as a read model. It might be that the model becomes complex enough to be a domain in its own right, owning denormalised data and processing pipelines, but for now, a read model is more than enough to build all the useful queries we need.
+
+## Putting everything together
+
+Very quickly, it's clear that our "simple" use case isn't simple anymore in terms of system design. Our enrollment case is considered table stakes for any LMS, it's the core definition of what the system must do, so it's as simple as the business domain allows.
+
+Even so, it allowed me to identify 7 of our 9 core domains. The test is simple but needs careful consideration: does something own a model with its own invariant rules and lifecycle?
+
+Here are the core domains we're working with at the moment:
+
+![The nine core domains - Identity, Organizations, Content, Entitlements, Progress, Assets, Automations, Integrations, and Reporting as a read-only model.](/blog/headless-lms-core-domains.png)
+
+Two we didn't touch on in this case is Organizations, Integrations, and Assets, so I'll quickly cover those as well:
+
+**Organization** owns the account settings and user roles of the system users. Like inviting team members, giving them system access, and limiting access based on need. Like user roles - an organization might have an Owner, Instructor, HR, and Students. Each of those roles has different access to data and features in the system. HR can manage students, but can't manage course content.
+
+A quick boundary check with Identity: someone's access to a feature has nothing to do with their name or their auth token; it's derived from their identity but not owned by it.
+
+**Integration** owns the connection details with external systems - like API credentials, OAuth tokens, third-party connections. It's closely related to Automations, but the boundary is technical - **Automations** owns orchestrating workflows; it's not concerned with refreshing auth tokens to external systems. The workflows perform actions using connections that are managed by **Integrations**.
+
+**Assets** owns an organisation's media library. This is the bytes-on-disk stuff like uploads, storage management, the file lifecycle, storing transcoded media versions, transcriptions. It manages uploads, secure access to downloads, and cloud storage. It doesn't care what course a video is used in or why someone accesses it, which is an important boundary to consider between **Content** and **Assets**. **Content** referenced media assets that are owned by **Assets**.
+
+So let's look at the use case again with the complete set of domains:
+
+1. HR creates the Employee in the system (**Organisation** + **Identity**)
+2. HR grants access to a course (**Entitlement**)
+3. Employee consumes the course (**Entitlement** + **Content** + **Assets**)
+4. The system tracks the employee's progress and activity (**Progress**)
+5. Workflows are triggered based on domain events (**Automation** + **Integrations**)
+
+## How I documented the domains
+
+The structure I used is shown below. I didn't know where it would end when I started the process, but with the help of Claude, I explored the use cases, sussed out the details, and the structure eventually settled here.
+
+The core was built in a single back-and-forth conversation, reading docs, blogs, and definitions, and creating Markdown files that I used as the source of truth when things derailed. After a few iterations, it settled into a rhythm, and eventually this framework emerged from the woodwork.
+
+The document's structure made it easy to reason about each domain's responsibilities and boundaries. It covers the core of each domain, making it clear what it does and what it doesn't without being too cumbersome. The most important rule is that it mustn't contain any implementation details. So no hints alluding to tech, languages, data storage, and no assumptions about how it's built.
+
+If the abstraction is pure, you can implement it however you want.
+
+The structure is built around the conversations and the boundary checks we did and makes sense from a DDD standpoint. It's similar to something like [this](https://github.com/ddd-crew/bounded-context-canvas).
+
+![The domain document template - Scope, Capabilities, Model, Boundaries, Events, and Misc sections.](/blog/headless-lms-domain-document.png)
+
+Each document has the following sections:
+
+- Scope - a summary of the core of the domain - what is its domain, what does it do, how does it fit into the system. What does it not do or own?
+- Capabilities - behaviours, actions and outcomes. This defines use case things like "Grants the user access to a course" or "Provides a signed URL to download a file". This ultimately determines the domain service implementations - use cases as methods.
+- Model - the data model - everything from persisted or derived. This defines which database tables the domain owns and how they interact with other data.
+- Boundaries - this further defines the scope but specifically relative to other domains. It makes it clearer where a domain starts and ends - and reasoning about things this way solidifies the domains' responsibilities. E.g., Identity owns authenticated user sessions, while entitlements own the user's access to content.
+- Events - what are the domain events that happen as a result of this domain's capabilities? This is things like "User created" and "Course completed" (note that this is basically which "events" the domain emits, but with heavily abstracted language… simply because we can't assume an event-driven architecture at this point).
+- Misc - any other useful information I can think of - use cases, more context… all high level, domain abstractions, no implementation
+
+## Where this leaves us
+
+With this high-level understanding of the system, we can now move on to the architecture and start thinking about how these domains translate to software. The next set of questions we need to answer is no longer abstract:
+
+- How do we implement these domains we defined - how is the code structured, which technologies and external dependencies are required, and how do we structure the code so that it makes sense and requires the least amount of mental effort to understand?
+- How do domains, modules, and dependencies communicate with each other?
+- How do we ensure extensibility and decouple the core business rules from the technologies we use?
+
+Answering these will determine the structure of the software that we need to build.
+
+One architecture that stands out and fits in impeccably well with DDD and our system traits is Hexagonal architecture. I'll dive more into this in my next write-up, why I chose it and why it's a perfect fit for this project.

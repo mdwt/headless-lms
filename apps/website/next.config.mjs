@@ -1,11 +1,10 @@
+import { createMDX } from 'fumadocs-mdx/next'
+
+const withMDX = createMDX()
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-  },
+  reactStrictMode: true,
 }
 
-export default nextConfig
+export default withMDX(nextConfig)

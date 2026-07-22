@@ -1,0 +1,35 @@
+---
+title: API reference
+description: How the API, OpenAPI spec, and typed SDK relate, and where to find the interactive reference.
+---
+
+Every route validates its request and response against shared Zod schemas. Those schemas produce an OpenAPI spec, and the typed SDK is generated from that spec — so the API, docs, and client never drift.
+
+## Interactive reference
+
+A running API serves an interactive OpenAPI reference at `/docs`. Point it at your installation to explore and try every endpoint against live data.
+
+## Common endpoints
+
+| Method   | Path                     | Description          |
+| -------- | ------------------------ | -------------------- |
+| `POST`   | `/orgs/:orgId/courses`   | Create a course      |
+| `GET`    | `/orgs/:orgId/courses`   | List courses         |
+| `POST`   | `/entitlements`          | Grant student access |
+| `DELETE` | `/entitlements/:id`      | Revoke access        |
+| `GET`    | `/students/:id/progress` | Read progress        |
+| `POST`   | `/mcp`                   | MCP endpoint (OAuth) |
+
+## Using the SDK
+
+The generated SDK mirrors these routes with full type safety, including request payloads and response shapes.
+
+```ts title="usage.ts"
+import { createClient } from "@headless-lms/sdk"
+
+const lms = createClient({ baseUrl, token })
+
+const { data, error } = await lms.students.progress({
+  studentId,
+})
+```

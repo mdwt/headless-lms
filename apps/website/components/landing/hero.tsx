@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Star } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GithubIcon } from '@/components/logo'
 import { CodeBlock } from '@/components/code-block'
@@ -29,12 +29,7 @@ export function Hero() {
       <div className="mx-auto max-w-6xl px-4 pt-20 pb-16 sm:px-6 lg:pt-28">
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
           <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Star className="size-4 text-primary" />
-              Open source and MIT licensed
-            </div>
-
-            <h1 className="mt-6 text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               The API-first LMS for building{' '}
               <span className="text-primary">learning systems</span>.
             </h1>
