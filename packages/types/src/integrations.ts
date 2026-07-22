@@ -88,14 +88,12 @@ export interface ConfigureInput {
 
 export interface ConnectionCreated extends DomainEvent {
   type: "connection.created";
-  orgId: string;
   connectionId: string;
   integrationId: string;
 }
 
 export interface ConnectionUpdated extends DomainEvent {
   type: "connection.updated";
-  orgId: string;
   connectionId: string;
   integrationId: string;
   /** What changed: the stored credential or the configuration/active flag. */
@@ -104,7 +102,6 @@ export interface ConnectionUpdated extends DomainEvent {
 
 export interface ConnectionRemoved extends DomainEvent {
   type: "connection.removed";
-  orgId: string;
   connectionId: string;
   integrationId: string;
 }

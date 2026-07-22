@@ -7,6 +7,8 @@
 //   completion rule, …). Assets are the one thing kept OUT of the blob (owned by
 //   the assets domain) and surfaced here as `Activity.assetIds`.
 
+import type { DomainEvent } from "./shared.js";
+
 export type CourseStatus = "draft" | "published";
 
 export interface Course {
@@ -71,5 +73,23 @@ export interface UpdateCourseInput {
   status?: CourseStatus | undefined;
 }
 
-/** Domain events the content context emits. Empty placeholder. */
-export type ContentEvent = never;
+// --- Domain events (published on the shared EventBus) -----------------------
+
+export interface CourseCreated extends DomainEvent {
+  type: "course.created";
+  course: Course;
+}
+
+export interface CourseUpdated extends DomainEvent {
+  type: "course.updated";
+  course: Course;
+}
+
+/** Carries the pre-delete snapshot — the row is gone once consumers see this. */
+export interface CourseDeleted extends DomainEvent {
+  type: "course.deleted";
+  course: Course;
+}
+
+/** Domain events the content context emits. */
+export type ContentEvent = CourseCreated | CourseUpdated | CourseDeleted;
