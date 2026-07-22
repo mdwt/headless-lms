@@ -292,6 +292,7 @@ export async function buildContainer(
     email,
     identity,
     organizations,
+    logger: logger.child({ name: 'auth' }),
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
     studentPortalUrl: config.studentPortalUrl,

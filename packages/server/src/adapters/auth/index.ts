@@ -6,7 +6,7 @@ import type { OAuthAccessToken } from 'better-auth/plugins';
 import { invite } from 'better-invite';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import type { EmailSender } from '../../core/shared/ports.js';
+import type { EmailSender, Logger } from '../../core/shared/ports.js';
 import type { IdentityService } from '../../core/identity/index.js';
 import type { OrganizationProvisioner } from '../../core/organizations/index.js';
 import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
@@ -44,6 +44,8 @@ export interface CreateAuthOptions {
   trustedOrigins: string[];
   /** Sends transactional auth emails (e.g. the magic-link sign-in email). */
   email: EmailSender;
+  /** Logs failures that must not abort an auth flow (e.g. a failed invite email). */
+  logger: Logger;
   /** Provisions a domain student and resolves auth users to students. */
   identity: IdentityService;
   /** Mirrors the organization plugin's records into the domain. */
@@ -206,6 +208,8 @@ export function createAuth(opts: CreateAuthOptions): Auth {
     },
     plugins: [
       magicLink({
+        // Invite-only: magic links sign in existing accounts, never mint new ones.
+        disableSignUp: true,
         sendMagicLink: async ({ email, url }) => {
           await opts.email.send({
             to: email,
@@ -242,14 +246,24 @@ export function createAuth(opts: CreateAuthOptions): Auth {
             studentPortalUrl: opts.studentPortalUrl,
             adminAppUrl: opts.adminAppUrl,
           });
-          await opts.email.send({
-            to: email,
-            subject:
-              role === STUDENT_ROLE
-                ? "You've been invited to start learning"
-                : "You've been invited to join the team",
-            text: `You've been invited. Accept your invitation: ${link}`,
-          });
+          try {
+            await opts.email.send({
+              to: email,
+              subject:
+                role === STUDENT_ROLE
+                  ? "You've been invited to start learning"
+                  : "You've been invited to join the team",
+              text: `You've been invited. Accept your invitation: ${link}`,
+            });
+          } catch (err) {
+            // A failed email must not abort invite creation: the token is already minted and
+            // afterCreateInvite still records it, so the admin can fix transport and resend.
+            opts.logger.error('failed to send invite email', {
+              email,
+              role,
+              err: err instanceof Error ? err.message : String(err),
+            });
+          }
         },
         inviteHooks: {
           // Capture which domain record each invitation belongs to, using the
@@ -311,6 +325,15 @@ export function createAuth(opts: CreateAuthOptions): Auth {
         roles,
         creatorRole: 'owner',
         organizationHooks: {
+          // The org plugin's own invitation endpoints (createInvitation/acceptInvitation)
+          // are unmirrored on this branch — invites are minted and recorded exclusively
+          // through better-invite (see `invite(...)` above). Block the native endpoint so
+          // it cannot silently create invitations the domain never learns about.
+          beforeCreateInvitation: async () => {
+            throw new APIError('BAD_REQUEST', {
+              message: 'Invitations are managed by the invite system',
+            });
+          },
           // New org → mirror it plus the creator's owner membership.
           afterCreateOrganization: async ({ organization: org, member, user }) => {
             const owner = await requireUser(user.id);
