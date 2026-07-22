@@ -4,24 +4,34 @@ import type {
   DomainEvent,
   NewDomainEvent,
   Logger,
+  EmailContent,
   EmailMessage,
   EmailSender,
+  EmailTemplateId,
+  EmailTemplateParams,
   ObjectStorage,
   PresignedUpload,
   StoredObjectInfo,
   PresignDownloadInput,
+  TemplateContext,
+  TemplateRenderer,
 } from '@headless-lms/types';
 
 export type {
   DomainEvent,
   NewDomainEvent,
   Logger,
+  EmailContent,
   EmailMessage,
   EmailSender,
+  EmailTemplateId,
+  EmailTemplateParams,
   ObjectStorage,
   PresignedUpload,
   StoredObjectInfo,
   PresignDownloadInput,
+  TemplateContext,
+  TemplateRenderer,
 };
 
 export interface Clock {
