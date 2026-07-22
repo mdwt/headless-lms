@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createContainer, buildServer } from "@headless-lms/server";
 import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
 import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
+import { ReactEmailTemplateRenderer } from "@headless-lms/adapter-email-templates";
 import { loadServerConfig, loadEmailConfig, loadStorageConfig } from "./config.js";
 
 const config = loadServerConfig();
@@ -12,6 +13,7 @@ const container = await createContainer(config, {
   adapters: {
     email: emailConfig && new ResendEmailAdapter(emailConfig),
     storage: new MinioStorageAdapter(loadStorageConfig()),
+    templates: new ReactEmailTemplateRenderer(),
   },
 });
 const app = await buildServer(config, container);
