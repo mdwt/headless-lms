@@ -1,0 +1,36 @@
+{
+  "name": "@headless-lms/adapter-email-templates",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "email dev --dir src/emails"
+  },
+  "dependencies": {
+    "@headless-lms/types": "workspace:*",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@react-email/ui": "6.9.0",
+    "@types/node": "^22.20.0",
+    "@types/react": "^19.2.17",
+    "react-email": "^6.9.0",
+    "tsdown": "^0.22.9",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

@@ -28,6 +28,7 @@ export class ResendEmailAdapter implements EmailSender {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        ...(message.html !== undefined && { html: message.html }),
       }),
     });
     if (!response.ok) {

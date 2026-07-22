@@ -27,6 +27,7 @@ export type {
   LoggingConfig,
 } from './app/container.js';
 export type { EmailSender, EmailMessage, ObjectStorage } from './core/shared/ports.js';
+export type { Mailer } from './core/shared/mailer.js';
 
 export async function createContainer(
   config: ServerConfig,

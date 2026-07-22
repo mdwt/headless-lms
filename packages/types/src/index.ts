@@ -4,6 +4,7 @@
 // One file per bounded context, mirroring apps/api/src/core/.
 export * from "./shared.js";
 export * from "./ports.js";
+export * from "./email-templates.js";
 export * from "./identity.js";
 export * from "./organizations.js";
 export * from "./content.js";

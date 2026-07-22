@@ -7,7 +7,7 @@ import {
   type PollingOutboxRelayConfig,
 } from '../adapters/events/outbox-relay.js';
 import { DrizzleOutboxAppender, DrizzleOutboxStore } from '../adapters/db/repositories/outbox.js';
-import { EmailAdapter } from '../adapters/email/index.js';
+import { EmailAdapter, StubTemplateRenderer } from '../adapters/email/index.js';
 import { createRootLogger, type LogLevel, type PinoInstance } from '../adapters/logging/index.js';
 import { StorageAdapter } from '../adapters/storage/index.js';
 import { createAuth, type Auth } from '../adapters/auth/index.js';
@@ -28,6 +28,7 @@ import { loadIntegrations } from './integrations.js';
 import { StudentsReportServiceImpl } from '../reporting/students/index.js';
 import { DashboardReportServiceImpl } from '../reporting/dashboard/index.js';
 import { LearnReportServiceImpl } from '../reporting/learn/index.js';
+import { Mailer } from '../core/shared/mailer.js';
 
 import { DrizzleEntitlementsRepository } from '../adapters/db/repositories/entitlements.js';
 import { DrizzleProgressRepository } from '../adapters/db/repositories/progress.js';
@@ -48,12 +49,16 @@ import type {
   Logger,
   ObjectStorage,
   OutboxRelay,
+  TemplateContext,
+  TemplateRenderer,
 } from '../core/shared/ports.js';
 
 /** Installation-supplied ports; an absent slot falls back to a fail-loudly stub. */
 export interface AdapterOverrides {
   email?: EmailSender;
   storage?: ObjectStorage;
+  /** Resolves email templates to rendered content. Absent → fail-loudly stub. */
+  templates?: TemplateRenderer;
 }
 
 export interface BuildContainerOptions {
@@ -69,6 +74,10 @@ export interface Config {
   trustedOrigins: string[];
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
+  /** Admin app origin — invitation links resolve against it. */
+  adminUrl: string;
+  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminUrl. */
+  emailBranding?: TemplateContext;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
@@ -134,6 +143,7 @@ export interface Container {
     learn: LearnReportServiceImpl;
   };
   storage: ObjectStorage;
+  mailer: Mailer;
   connectedApps: ConnectedAppsRepo;
   /** Shared secure credential store — encrypted at rest, org-scoped, decrypt at point of use. */
   credentials: CredentialStore;
@@ -170,6 +180,13 @@ export async function buildContainer(
   const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: 'email' }));
   const storage: ObjectStorage =
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
+  const templates =
+    options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
+  const mailer = new Mailer(
+    templates,
+    email,
+    config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminUrl },
+  );
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
@@ -285,7 +302,8 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     mcpLoginPage: config.mcpLoginPage,
-    email,
+    mailer,
+    adminUrl: config.adminUrl,
     identity,
     organizations,
     cookieDomain: config.cookieDomain,
@@ -307,6 +325,7 @@ export async function buildContainer(
     integrations,
     reporting,
     storage,
+    mailer,
     connectedApps,
     credentials: credentialStore,
     outboxRelay,

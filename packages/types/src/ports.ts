@@ -13,6 +13,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Optional rendered HTML body; transports fall back to text when absent. */
+  html?: string;
 }
 
 export interface EmailSender {

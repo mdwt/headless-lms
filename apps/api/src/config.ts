@@ -61,6 +61,12 @@ function loadContainerConfig(): ContainerConfig {
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
     trustedOrigins,
     mcpLoginPage: process.env.MCP_LOGIN_PAGE ?? "http://localhost:8001/login",
+    adminUrl: process.env.ADMIN_URL ?? clientOrigins[0] ?? "http://localhost:8001",
+    emailBranding: {
+      brandName: process.env.BRAND_NAME ?? "Headless LMS",
+      baseUrl: process.env.ADMIN_URL ?? clientOrigins[0] ?? "http://localhost:8001",
+      logoUrl: process.env.EMAIL_LOGO_URL || undefined,
+    },
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
     secureCookies: process.env.NODE_ENV === "production",

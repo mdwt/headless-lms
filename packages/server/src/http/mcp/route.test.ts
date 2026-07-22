@@ -17,6 +17,7 @@ const containerConfig: Config = {
   authSecret: '',
   trustedOrigins: ['http://localhost:8001', 'http://localhost:8002', 'http://localhost:8000'],
   mcpLoginPage: 'http://localhost:8001/login',
+  adminUrl: 'http://localhost:8001',
   credentialStoreKey: '',
 };
 
