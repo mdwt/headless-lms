@@ -38,12 +38,16 @@ export function InviteView() {
   const email = params.get("email") ?? "";
   const [stage, setStage] = React.useState<Stage>("activating");
   const [error, setError] = React.useState<string | null>(null);
+  const activateStarted = React.useRef(false);
 
   React.useEffect(() => {
     if (!token) {
       setStage("invalid");
       return;
     }
+    // Strict-mode double-mount fires this effect twice; the token activate must run once.
+    if (activateStarted.current) return;
+    activateStarted.current = true;
     let cancelled = false;
     authClient.invite
       .activate({ token, callbackURL: "/" })

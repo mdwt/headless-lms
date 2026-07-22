@@ -17,6 +17,7 @@ export function WelcomeView() {
   const email = params.get("email") ?? "";
   const [stage, setStage] = React.useState<Stage>("activating");
   const [error, setError] = React.useState<string | null>(null);
+  const activateStarted = React.useRef(false);
 
   // Stage the invite token: logged out → better-invite stores it in a signed
   // cookie and the sign-up/in that follows consumes it; already logged in →
@@ -26,6 +27,9 @@ export function WelcomeView() {
       setStage("invalid");
       return;
     }
+    // Strict-mode double-mount fires this effect twice; the token activate must run once.
+    if (activateStarted.current) return;
+    activateStarted.current = true;
     let cancelled = false;
     authClient.invite
       .activate({ token, callbackURL: "/" })

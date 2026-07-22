@@ -18,16 +18,22 @@ export function LoginView() {
     nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
   const reset = params.get("reset") === "1";
   const { data: session } = useSession();
+  const resetHandled = React.useRef(false);
 
   React.useEffect(() => {
-    if (!session) return;
     if (reset) {
       // The API said this session doesn't resolve to a portal student — drop it
-      // instead of bouncing back and forth.
-      void signOut().then(() => router.replace("/login"));
+      // and settle on the clean login form. Never fall through to the
+      // next-redirect below: signOut()'s client session signal updates on a
+      // deferred timer, so a stale-truthy session could otherwise bounce us
+      // through next before the sign-out actually lands.
+      if (!resetHandled.current) {
+        resetHandled.current = true;
+        void signOut().then(() => router.replace("/login"));
+      }
       return;
     }
-    router.replace(next);
+    if (session) router.replace(next);
   }, [session, reset, router, next]);
 
   return (
