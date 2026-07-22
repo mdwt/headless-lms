@@ -1,6 +1,6 @@
 // Wires adapters + services in dependency order. Starts nothing.
 import { createDb } from "../adapters/db/index.js";
-import { InMemoryEventBus } from "../adapters/events/index.js";
+import { DrizzleUnitOfWork } from "../adapters/db/unit-of-work.js";
 import { EmailAdapter } from "../adapters/email/index.js";
 import { MinioStorageAdapter, type MinioStorageConfig } from "../adapters/storage/index.js";
 import { createAuth, type Auth } from "../adapters/auth/index.js";
@@ -93,7 +93,6 @@ export async function buildContainer(
 ): Promise<Container> {
   // Outbound adapters
   const db = createDb(config.databaseUrl);
-  const eventBus = new InMemoryEventBus();
   const email = options?.adapters?.email ?? new EmailAdapter();
   const storage: ObjectStorage = options?.adapters?.storage ?? new MinioStorageAdapter(config.storage);
 
@@ -117,7 +116,14 @@ export async function buildContainer(
     new DrizzleContentRepository(db),
     new DrizzleContentStructureRepository(db),
   );
-  const entitlements = new EntitlementsServiceImpl(new DrizzleEntitlementsRepository(db), eventBus);
+  // Entitlements: reads on the root db; writes + outbox append in one tx.
+  const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
+    entitlements: new DrizzleEntitlementsRepository(tx),
+  }));
+  const entitlements = new EntitlementsServiceImpl(
+    new DrizzleEntitlementsRepository(db),
+    entitlementsUow,
+  );
   const progress = new ProgressServiceImpl(new DrizzleProgressRepository(db), () =>
     new Date().toISOString(),
   );
@@ -138,11 +144,16 @@ export async function buildContainer(
   // Connect/configure reject undeclared ids and validate config with the
   // integration's own schema. No folder → no integrations.
   const integrationsRegistry = await loadIntegrations(options?.pluginsDir);
+  // Integrations: credential + connection writes + outbox append in one tx
+  // (a tx-bound credential store instance shares the scope's transaction).
+  const integrationsUow = new DrizzleUnitOfWork(db, (tx) => ({
+    connections: new DrizzleConnectionsRepository(tx),
+    credentials: new DrizzleCredentialStore(tx, config.credentialStoreKey),
+  }));
   const integrations = new IntegrationsServiceImpl(
     integrationsRegistry,
     new DrizzleConnectionsRepository(db),
-    credentialStore,
-    eventBus,
+    integrationsUow,
     () => new Date().toISOString(),
   );
 
