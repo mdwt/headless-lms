@@ -442,3 +442,19 @@ describe("OrganizationService — member management", () => {
     expect(await svc.removeMember(ctx, "nope")).toBe(false);
   });
 });
+
+describe("logging", () => {
+  it("logs the org mirror write once (idempotent re-run stays silent)", async () => {
+    const { createCapturingLogger } = await import("../shared/logger.js");
+    const { logger, entries } = createCapturingLogger();
+    const { repo } = fakeRepo();
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, logger);
+
+    const org = await svc.createOrg(orgInput);
+    await svc.createOrg(orgInput);
+
+    const infos = entries.filter((e) => e.level === "info" && e.msg === "organization mirrored");
+    expect(infos).toHaveLength(1);
+    expect(infos[0]?.meta).toMatchObject({ orgId: org.id, externalId: "org_1" });
+  });
+});

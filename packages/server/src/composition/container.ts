@@ -183,6 +183,7 @@ export async function buildContainer(
     new DrizzleOrganizationsRepository(db),
     new DrizzleMembersRepository(db),
     orgAdminProvider,
+    logger.child({ name: "organizations" }),
   );
   // Content: reads on the root db; course writes + outbox append in one tx.
   const contentUow = new DrizzleUnitOfWork(db, (tx) => ({
