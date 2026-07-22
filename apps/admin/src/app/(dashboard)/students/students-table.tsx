@@ -71,7 +71,7 @@ function StudentsTableInner({
         searchPlaceholder="Search students…"
         onRowClick={(s) => goToStudent(s.id)}
         emptyTitle="No students yet"
-        emptyDescription="Students appear here once they're enrolled in a course."
+        emptyDescription="Add a student or wait for enrollments to appear here."
       />
     </div>
   );
