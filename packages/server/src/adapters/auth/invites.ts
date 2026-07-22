@@ -24,6 +24,8 @@ export interface InviteRecord {
   emails?: string[] | null;
 }
 
+// Decides whether a staged invite entitles this email to sign up — does not
+// consume the invite; the uses cap is enforced by better-invite at accept time.
 export function inviteAllowsSignup(invite: InviteRecord | null, email: string, now: Date): boolean {
   if (!invite || invite.status !== 'pending') {
     return false;
@@ -31,6 +33,6 @@ export function inviteAllowsSignup(invite: InviteRecord | null, email: string, n
   if (new Date(invite.expiresAt) < now) {
     return false;
   }
-  const invited = invite.emails ?? (invite.email ? [invite.email] : []);
-  return invited.includes(email);
+  const invited = (invite.emails ?? (invite.email ? [invite.email] : [])).map((e) => e.toLowerCase());
+  return invited.includes(email.toLowerCase());
 }

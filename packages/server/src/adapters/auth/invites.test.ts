@@ -44,4 +44,7 @@ describe('inviteAllowsSignup', () => {
   it('rejects an email mismatch', () => {
     expect(inviteAllowsSignup({ ...base, emails: ['other@example.com'] }, 'jane@example.com', now)).toBe(false);
   });
+  it('matches the invited email case-insensitively', () => {
+    expect(inviteAllowsSignup({ ...base, emails: ['Jane@Example.com'] }, 'jane@example.com', now)).toBe(true);
+  });
 });

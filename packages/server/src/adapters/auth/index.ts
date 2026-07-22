@@ -378,10 +378,11 @@ export function createAuth(opts: CreateAuthOptions): Auth {
         if (ctx.path !== '/sign-up/email') {
           return;
         }
-        // Only the student portal is invite-only; the admin app keeps open
-        // signup (the create-your-org funnel), and invited staff sign up there.
+        // Fail closed: signup is invite-only everywhere except the admin app's
+        // create-your-org funnel. Missing/unknown Origin (scripted clients) is gated —
+        // better-auth's CSRF origin check skips cookie-less requests, so it is no backstop.
         const origin = ctx.headers?.get('origin') ?? '';
-        if (origin !== new URL(opts.studentPortalUrl).origin) {
+        if (origin === new URL(opts.adminAppUrl).origin) {
           return;
         }
 
