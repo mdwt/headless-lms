@@ -46,13 +46,12 @@ export function InviteView() {
       return;
     }
     // Strict-mode double-mount fires this effect twice; the token activate must run once.
+    // Results apply unconditionally — the ref keeps the call single-flight, and the strict-mode remount wants this exact result.
     if (activateStarted.current) return;
     activateStarted.current = true;
-    let cancelled = false;
     authClient.invite
       .activate({ token, callbackURL: "/" })
       .then(({ data, error }) => {
-        if (cancelled) return;
         if (error) {
           setError(error.message ?? "This invitation link is invalid or has expired.");
           setStage("invalid");
@@ -67,13 +66,9 @@ export function InviteView() {
         }
       })
       .catch(() => {
-        if (cancelled) return;
         setError("This invitation link is invalid or has expired.");
         setStage("invalid");
       });
-    return () => {
-      cancelled = true;
-    };
   }, [token]);
 
   return (
