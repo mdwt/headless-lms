@@ -7,13 +7,17 @@ there requires a valid single-use invitation, managed by the `better-invite`
 better-auth plugin; accepting an invitation links the new auth account to the
 exact student row it was minted for.
 
-Invites cover **all user populations**:
-- **Students** — better-invite: gates portal account creation, links the student row.
-- **Staff** — the existing better-auth org-plugin invitation (already mirrored to
-  the domain and listed in the team table), completed end-to-end: the invitation
-  email actually sends, and the admin app gets an accept page. Membership grant
-  stays standard better-auth. Admin-app signup remains open by design (sign up →
-  create your org → owner), so staff need no signup gate.
+Invites cover **all user populations through the one plugin** — the inviting
+surface supplies the type, carried as the invitation's `role`:
+- **Students** (`role: student`) — minted from "Add student"; accept links the
+  student row.
+- **Staff** (`role: admin | member | …`) — minted from Settings → Team; accept
+  creates the org membership via the org plugin's server-side `addMember` (the
+  existing `afterAddMember` hook mirrors it to the domain). The org plugin's own
+  invitation endpoints/hooks drop out of use.
+
+Admin-app signup remains open by design (sign up → create your org → owner), so
+only the student portal is signup-gated.
 
 ## 1. API contract (`packages/api-contract/src/students.ts`)
 
@@ -87,16 +91,26 @@ the context's `types.ts` — never re-declared.
 Register the `invite` plugin in `createAuth`:
 
 - `sendUserInvitation` → sends through the existing `EmailSender` port
-  (`opts.email`), linking to `<studentPortalUrl>/welcome?token={token}`
-  (`defaultCustomInviteUrl`).
+  (`opts.email`); the link branches on the invitation's role —
+  `role: student` → `<studentPortalUrl>/welcome?token={token}`, staff roles →
+  `<adminAppUrl>/invite?token={token}`.
 - `invitationTokenExpiresIn`: 7 days.
 - Private, email-bound invitations, single-use (`defaultMaxUses: 1`).
-- `inviteHooks.afterAcceptInvite` → `opts.identity.linkStudentByInvite(invitation.id, invitedUser.id)`.
-  This fires after the plugin's own after-hook consumes the cookie-carried token on
-  `/sign-up/email`, `/sign-in/*`, or `/callback/:id` — so linking works for
+- `inviteHooks.afterAcceptInvite` branches on role:
+  - `student` → `opts.identity.linkStudentByInvite(invitation.id, invitedUser.id)`.
+  - staff role → org plugin server-side `addMember` for the inviting org with
+    that role; the existing `afterAddMember` hook mirrors it to the domain.
+  This fires after the plugin's own after-hook consumes the cookie-carried token
+  on `/sign-up/email`, `/sign-in/*`, or `/callback/:id` — so it works for
   password today and social providers whenever they're configured, no flow change.
-- The plugin's role-upgrade feature is unused: invitations carry a nominal role
-  and never write to staff/member state.
+- The plugin's role-*upgrade* feature (writing `user.role`) is unused — the
+  invitation role is our type/role carrier only.
+- Invitations don't natively carry the inviting org; the domain records it —
+  `students.invite_id` for students, and the organizations context's existing
+  invitations store (`recordInvitation`, written from
+  `inviteHooks.afterCreateInvite`) for staff, keyed by invitation id. That store
+  is what the team table already lists, so pending staff invites keep appearing
+  there unchanged.
 
 **Invite-only enforcement** (the plugin consumes invites but does not require
 them): a `hooks.before` on `/sign-up/email` scoped by request `Origin` — signups
@@ -112,17 +126,16 @@ The plugin's schema additions (invite tables) are generated into
 `opts.identity` widens to include `linkStudentByInvite`; the container passes the
 `StudentInviter` implementation (auth adapter) into the identity service.
 
-### Staff invitations (org plugin) — completed
+### Staff invitations — rewired onto the same plugin
 
-- `sendInvitationEmail` configured on the organization plugin: sends through the
-  same `EmailSender` port, linking to `<adminAppUrl>/accept-invitation/<id>`.
-  `adminAppUrl` joins `studentPortalUrl` in `Config`.
-- Admin app gains `/accept-invitation/[id]`: unauthenticated users log in or sign
-  up first (open admin signup), then the page calls the better-auth client's
-  `organization.acceptInvitation` and lands on the dashboard. Invalid/expired →
-  clear error state. The existing `afterAcceptInvitation` hook already mirrors
-  acceptance into the domain; the team table already lists pending invitations.
-- No new invite machinery for staff — the org-plugin invitation is the token.
+- The `inviteMember` route mints a better-invite invitation (staff role) instead
+  of the org plugin's `createInvitation`; the org plugin's
+  `afterCreateInvitation`/`afterAcceptInvitation` hooks and invitation endpoints
+  drop out of use (membership creation still flows through `afterAddMember`).
+- Accepting is implicit: the invitee clicks the link, creates an account or signs
+  in, and the accept hook adds the membership — no separate accept step.
+- Team table invite listing, cancel, and resend keep working against the domain
+  invitations store, now fed by `afterCreateInvite`/cancel on the plugin.
 
 ## 4. Config
 
@@ -193,6 +206,11 @@ handler: async (req, reply) => {
 - Unlinked students (no portal account yet) show a pending indicator and a
   "Resend invite" action → `resendStudentInvite` via the SDK.
 
+**Staff invite landing** — new `/invite` page (outside the dashboard shell, like
+`/login`): stages the token via `inviteClient()`, shows create-account or
+sign-in for the invited email; on success the accept hook has added the
+membership, so it lands on the dashboard.
+
 ## 8. Testing
 
 - `core/identity/service.test.ts`: creates with NULL external id; duplicate
@@ -201,10 +219,12 @@ handler: async (req, reply) => {
   and stores the new id; `linkStudentByInvite` links exactly the matching row.
 - Auth adapter: uninvited portal-origin `/sign-up/email` is rejected by the
   enforcement hook; admin-origin signup passes without an invite; a valid staged
-  invitation passes and `afterAcceptInvite` links the student row; staff
-  invitation creation triggers `sendInvitationEmail` through the email port.
-- Route tests: 201 shape, 409 on duplicate, validation 400s, resend 204/409.
+  invitation passes and `afterAcceptInvite` links the student row (student role)
+  or adds the membership (staff role); invitation creation sends exactly one
+  email through the email port with the role-appropriate link.
+- Route tests: 201 shape, 409 on duplicate, validation 400s, resend 204/409;
+  `inviteMember` mints a plugin invitation recorded in the domain store.
 - Portal: `/welcome` states (valid / expired / account-exists) at the component
-  level. Admin: `/accept-invitation/[id]` states (signed-out, valid, expired).
+  level. Admin: `/invite` states (valid / expired / account-exists).
 - `pnpm gen:sdk` run; regenerated SDK committed. Drizzle migration
   (`external_id` nullable + `invite_id`) and better-invite schema committed.
