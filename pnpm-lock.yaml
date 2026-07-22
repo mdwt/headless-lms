@@ -34,7 +34,7 @@ importers:
         version: 0.3.1
       vitest:
         specifier: ^2.1.8
-        version: 2.1.9(@types/node@26.1.1)(jsdom@25.0.1)(lightningcss@1.32.0)
+        version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)
 
   adapters/email-resend:
     dependencies:
@@ -526,7 +526,7 @@ importers:
         version: 52.0.11(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@platejs/dnd':
         specifier: 52.0.11
-        version: 52.0.11(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dnd-html5-backend@16.0.1)(react-dnd@16.0.1(@types/node@26.1.1)(@types/react@19.2.17)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 52.0.11(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dnd-html5-backend@16.0.1)(react-dnd@16.0.1(@types/node@22.20.0)(@types/react@19.2.17)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@platejs/emoji':
         specifier: 52.0.15
         version: 52.0.15(@emoji-mart/data@1.2.1)(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -598,7 +598,7 @@ importers:
         version: 8.10.1(date-fns@4.1.0)(react@19.2.4)
       react-dnd:
         specifier: 16.0.1
-        version: 16.0.1(@types/node@26.1.1)(@types/react@19.2.17)(react@19.2.4)
+        version: 16.0.1(@types/node@22.20.0)(@types/react@19.2.17)(react@19.2.4)
       react-dnd-html5-backend:
         specifier: 16.0.1
         version: 16.0.1
@@ -647,7 +647,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.8
-        version: 2.1.9(@types/node@26.1.1)(jsdom@25.0.1)(lightningcss@1.32.0)
+        version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)
 
   plugins/slack:
     dependencies:
@@ -4229,9 +4229,6 @@ packages:
 
   '@types/node@22.20.0':
     resolution: {integrity: sha512-QWlFW2wf3nTjC13/DqRnBpR4ZO36VJH/JVBkA/vcnmbTBNQIlnObqyqZE1tUR7+Ni23Lda8R1BxMfbXRpCUx5g==}
-
-  '@types/node@26.1.1':
-    resolution: {integrity: sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==}
 
   '@types/pg@8.20.0':
     resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
@@ -9310,14 +9307,14 @@ snapshots:
       react-compiler-runtime: 1.0.0(react@19.2.4)
       react-dom: 19.2.4(react@19.2.4)
 
-  '@platejs/dnd@52.0.11(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dnd-html5-backend@16.0.1)(react-dnd@16.0.1(@types/node@26.1.1)(@types/react@19.2.17)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@platejs/dnd@52.0.11(platejs@52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4)))(react-dnd-html5-backend@16.0.1)(react-dnd@16.0.1(@types/node@22.20.0)(@types/react@19.2.17)(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       lodash: 4.18.1
       platejs: 52.0.17(@types/react@19.2.17)(immer@10.2.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.4))
       raf: 3.4.1
       react: 19.2.4
       react-compiler-runtime: 1.0.0(react@19.2.4)
-      react-dnd: 16.0.1(@types/node@26.1.1)(@types/react@19.2.17)(react@19.2.4)
+      react-dnd: 16.0.1(@types/node@22.20.0)(@types/react@19.2.17)(react@19.2.4)
       react-dnd-html5-backend: 16.0.1
       react-dom: 19.2.4(react@19.2.4)
 
@@ -11348,7 +11345,7 @@ snapshots:
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 22.20.0
 
   '@types/estree@1.0.9': {}
 
@@ -11368,13 +11365,9 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@26.1.1':
-    dependencies:
-      undici-types: 8.3.0
-
   '@types/pg@8.20.0':
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 22.20.0
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -11395,7 +11388,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 22.20.0
 
   '@typescript-eslint/eslint-plugin@8.62.0(@typescript-eslint/parser@8.62.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
@@ -11678,14 +11671,6 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 5.4.21(@types/node@22.20.0)(lightningcss@1.32.0)
-
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@26.1.1)(lightningcss@1.32.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@26.1.1)(lightningcss@1.32.0)
 
   '@vitest/pretty-format@2.1.9':
     dependencies:
@@ -12479,7 +12464,7 @@ snapshots:
   engine.io@6.6.9:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 26.1.1
+      '@types/node': 22.20.0
       '@types/ws': 8.18.1
       accepts: 1.3.8
       base64id: 2.0.0
@@ -14677,7 +14662,7 @@ snapshots:
     dependencies:
       dnd-core: 16.0.1
 
-  react-dnd@16.0.1(@types/node@26.1.1)(@types/react@19.2.17)(react@19.2.4):
+  react-dnd@16.0.1(@types/node@22.20.0)(@types/react@19.2.17)(react@19.2.4):
     dependencies:
       '@react-dnd/invariant': 4.0.2
       '@react-dnd/shallowequal': 4.0.2
@@ -14686,7 +14671,7 @@ snapshots:
       hoist-non-react-statics: 3.3.2
       react: 19.2.4
     optionalDependencies:
-      '@types/node': 26.1.1
+      '@types/node': 22.20.0
       '@types/react': 19.2.17
 
   react-dom@19.2.4(react@19.2.4):
@@ -15756,24 +15741,6 @@ snapshots:
       - supports-color
       - terser
 
-  vite-node@2.1.9(@types/node@26.1.1)(lightningcss@1.32.0):
-    dependencies:
-      cac: 6.7.14
-      debug: 4.4.3
-      es-module-lexer: 1.7.0
-      pathe: 1.1.2
-      vite: 5.4.21(@types/node@26.1.1)(lightningcss@1.32.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - less
-      - lightningcss
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-
   vite@5.4.21(@types/node@20.19.43)(lightningcss@1.32.0):
     dependencies:
       esbuild: 0.21.5
@@ -15792,16 +15759,6 @@ snapshots:
       rollup: 4.62.2
     optionalDependencies:
       '@types/node': 22.20.0
-      fsevents: 2.3.3
-      lightningcss: 1.32.0
-
-  vite@5.4.21(@types/node@26.1.1)(lightningcss@1.32.0):
-    dependencies:
-      esbuild: 0.21.5
-      postcss: 8.5.15
-      rollup: 4.62.2
-    optionalDependencies:
-      '@types/node': 26.1.1
       fsevents: 2.3.3
       lightningcss: 1.32.0
 
@@ -15866,42 +15823,6 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.20.0
-      jsdom: 25.0.1
-    transitivePeerDependencies:
-      - less
-      - lightningcss
-      - msw
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - supports-color
-      - terser
-
-  vitest@2.1.9(@types/node@26.1.1)(jsdom@25.0.1)(lightningcss@1.32.0):
-    dependencies:
-      '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@26.1.1)(lightningcss@1.32.0))
-      '@vitest/pretty-format': 2.1.9
-      '@vitest/runner': 2.1.9
-      '@vitest/snapshot': 2.1.9
-      '@vitest/spy': 2.1.9
-      '@vitest/utils': 2.1.9
-      chai: 5.3.3
-      debug: 4.4.3
-      expect-type: 1.4.0
-      magic-string: 0.30.21
-      pathe: 1.1.2
-      std-env: 3.10.0
-      tinybench: 2.9.0
-      tinyexec: 0.3.2
-      tinypool: 1.1.1
-      tinyrainbow: 1.2.0
-      vite: 5.4.21(@types/node@26.1.1)(lightningcss@1.32.0)
-      vite-node: 2.1.9(@types/node@26.1.1)(lightningcss@1.32.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 26.1.1
       jsdom: 25.0.1
     transitivePeerDependencies:
       - less
