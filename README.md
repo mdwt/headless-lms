@@ -9,29 +9,24 @@ An API-first LMS platform for building learning systems.
   credential storage, validated requests and responses
 - Headless: build whatever frontend you want on the typed SDK
 
-## Features
 
-- **Course Builder** author structured course content; students work
-  through it activity by activity.
-- **Progress tracking**  per-student, per-activity completion, rolled up
-  into course progress and reporting.
-- **Entitlements**  grant and revoke student access to content.
-- **Multi-tenant**  one deployment serves many orgs; every
-  student, course, and session is org-scoped.
-- **Admin back-office**  a Next.js dashboard for courses, students,
-  entitlements, and reporting, built on the public API.
-- **Student portal**  a Next.js app where students log in and take their
-  courses, built on the SDK.
-- **Media & file assets**  object storage with presigned
-  upload/download URLs.
-- **Integrations**  drop a plugin folder into your installation and it's
-  live at startup. Write your own against the public contract.
-- **MCP endpoint**  AI agents connect over OAuth and operate the LMS
-  through the same domain layer as every other client.
-- **Typed SDK & OpenAPI**  routes validate requests and responses against
-  shared Zod schemas; the SDK is generated from the resulting spec.
-- **Transactional email**  invitation and auth mails, swappable
-  behind an adapter.
+## Features
+Out-of the box, the LMS ships with a backend api, an Admin portal and a student portal. The API and model makes it 
+possible to build your own frontend or use the provided ones.
+
+| Feature                 | Description                                                                                                                          |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| **Course Builder**      | author structured course content; students work through it activity by activity. Replace the course content UI engine with your own. |
+| **Progress tracking**   | per-student, per-activity completion, rolled up into course progress and reporting.                                                  |
+| **Entitlements**        | grant and revoke student access to content.                                                                                          |
+| **Multi-tenant**        | one deployment serves many orgs; every student, course, and session is org-scoped.                                                   |
+| **Admin back-office**   | a Next.js dashboard for courses, students, entitlements, and reporting, built on the public API.                                     |
+| **Student portal**      | a Next.js app where students log in and take their courses, built on the SDK.                                                        |
+| **Media & file assets** | object storage with presigned upload/download URLs.                                                                                  |
+| **Integrations**        | drop a plugin folder into your installation and it's live at startup. Write your own against the public contract.                    |
+| **MCP endpoint**        | AI agents connect over OAuth and operate the LMS through the same domain layer as every other client.                                |
+| **Typed SDK & OpenAPI** | routes validate requests and responses against shared Zod schemas; the SDK is generated from the resulting spec.                     |
+| **Transactional email** | invitation and auth mails, swappable behind an adapter.                                                                              |
 
 ## Self-host
 
