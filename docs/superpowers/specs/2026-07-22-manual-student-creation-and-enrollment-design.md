@@ -40,28 +40,31 @@ linkPendingStudentByEmail(email: string, externalId: string): Promise<void>;
 1. `repo.findStudentByEmail(orgId, email)` — exists → throw `ConflictError`
    (new error class in `core/shared/errors.ts` if not present, mapped to 409 by the
    HTTP error handler).
-2. Insert the student with a **pending placeholder** `external_id`:
-   `pending_<studentId>` (the row's own generated id — satisfies NOT NULL and the
-   per-org unique constraint; no migration).
+2. Insert the student with `external_id = NULL` — the honest "no auth account
+   yet" state. Migration: `students.external_id` drops NOT NULL (the
+   `(org_id, external_id)` unique constraint permits multiple NULLs; lookups by
+   `external_id` never match NULL rows, so login and session org-stamping are
+   unaffected).
 3. If `sendInvite`: send the invite through the existing `EmailSender` port
    (`core/shared/ports`) — subject/text linking to
    `<studentPortalUrl>/signup?email=<email>`.
 
 `linkPendingStudentByEmail`:
 - `repo.linkPendingStudentsByEmail(email, externalId)` — one UPDATE: every student
-  row with this email whose `external_id` starts with `pending_` gets
-  `external_id = externalId`. Cross-org by design: one global login, one row per org.
+  row with this email and `external_id IS NULL` gets `external_id = externalId`.
+  Cross-org by design: one global login, one row per org.
 
 Repository additions (`IdentityRepository` + `DrizzleIdentityRepository`):
 `findStudentByEmail(orgId, email)`, `insertStudent` reused with explicit
 `externalId`, `linkPendingStudentsByEmail(email, externalId)`.
 
-Type additions in `@headless-lms/types` (`identity.ts`): `CreateStudentInput`.
-Re-exported from the context's `types.ts` — never re-declared.
+Type additions in `@headless-lms/types` (`identity.ts`): `CreateStudentInput`;
+the `Student` entity's `externalId` widens to `string | null`. Re-exported from
+the context's `types.ts` — never re-declared. Drizzle schema change +
+`pnpm db:generate` migration committed.
 
 Pending rows are invisible to login until linked: `getStudentByExternalId` /
-`studentOrgExternalId` look up by `external_id`, and no session ever carries a
-`pending_*` id.
+`studentOrgExternalId` look up by `external_id`, which never matches NULL.
 
 ## 3. Auth adapter hook (`adapters/auth/index.ts`)
 
@@ -142,7 +145,7 @@ handler: async (req, reply) => {
 
 ## 8. Testing
 
-- `core/identity/service.test.ts`: creates with pending external id; duplicate
+- `core/identity/service.test.ts`: creates with NULL external id; duplicate
   email → `ConflictError`; `sendInvite: true` sends exactly one email containing
   the signup link, `false` sends none; `linkPendingStudentByEmail` links all
   matching pending rows and never touches linked rows.
