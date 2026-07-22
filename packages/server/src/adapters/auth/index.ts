@@ -4,7 +4,7 @@ import { magicLink, organization, mcp } from 'better-auth/plugins';
 import type { OAuthAccessToken } from 'better-auth/plugins';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-import type { EmailSender } from '../../core/shared/ports.js';
+import type { Mailer } from '../../core/shared/mailer.js';
 import type { IdentityService } from '../../core/identity/index.js';
 import type { OrganizationProvisioner } from '../../core/organizations/index.js';
 import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
@@ -33,8 +33,10 @@ export interface CreateAuthOptions {
   baseURL: string;
   secret: string;
   trustedOrigins: string[];
-  /** Sends transactional auth emails (e.g. the magic-link sign-in email). */
-  email: EmailSender;
+  /** Sends transactional auth emails via the template catalog. */
+  mailer: Mailer;
+  /** Admin app origin — invitation accept links resolve against it. */
+  adminUrl: string;
   /** Provisions a domain student and resolves auth users to students. */
   identity: IdentityService;
   /** Mirrors the organization plugin's records into the domain. */
@@ -186,21 +188,32 @@ export function createAuth(opts: CreateAuthOptions): Auth {
     }),
     emailAndPassword: {
       enabled: true,
+      sendResetPassword: async ({ user, url }) => {
+        await opts.mailer.send(user.email, 'passwordReset', { resetUrl: url });
+      },
     },
     plugins: [
       magicLink({
         sendMagicLink: async ({ email, url }) => {
-          await opts.email.send({
-            to: email,
-            subject: 'Your sign-in link',
-            text: `Click to sign in: ${url}`,
-          });
+          await opts.mailer.send(email, 'magicLink', { url });
         },
       }),
       organization({
         ac,
         roles,
         creatorRole: 'owner',
+        sendInvitationEmail: async (data) => {
+          await opts.mailer.send(
+            data.email,
+            'memberInvite',
+            {
+              inviteUrl: `${opts.adminUrl}/accept-invitation/${data.id}`,
+              inviterName: data.inviter.user.name,
+              role: data.role,
+            },
+            { brandName: data.organization.name },
+          );
+        },
         organizationHooks: {
           // New org → mirror it plus the creator's owner membership.
           afterCreateOrganization: async ({ organization: org, member, user }) => {
