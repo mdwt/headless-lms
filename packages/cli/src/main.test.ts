@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { main } from "./main.js";
 
-const { runMigrations, runSeed } = vi.hoisted(() => ({
+const { runMigrations } = vi.hoisted(() => ({
   runMigrations: vi.fn(),
-  runSeed: vi.fn(),
 }));
-vi.mock("@headless-lms/server", () => ({ runMigrations, runSeed }));
+vi.mock("@headless-lms/server", () => ({ runMigrations }));
 
 const log = vi.spyOn(console, "log").mockImplementation(() => {});
 const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -26,7 +25,6 @@ describe("main", () => {
       expect(await main([flag])).toBe(0);
     }
     expect(log.mock.calls[0]?.[0]).toContain("migrate");
-    expect(log.mock.calls[0]?.[0]).toContain("seed");
   });
 
   it("prints the version", async () => {
@@ -45,12 +43,6 @@ describe("main", () => {
     expect(await main(["migrate"])).toBe(0);
     expect(runMigrations).toHaveBeenCalledWith("postgres://x");
     expect(log).toHaveBeenCalledWith("Migrations applied.");
-  });
-
-  it("dispatches seed with DATABASE_URL", async () => {
-    vi.stubEnv("DATABASE_URL", "postgres://x");
-    expect(await main(["seed"])).toBe(0);
-    expect(runSeed).toHaveBeenCalledWith("postgres://x");
   });
 
   it("turns a command failure into a message and exit code 1", async () => {

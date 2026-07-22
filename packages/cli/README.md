@@ -5,13 +5,12 @@ The `headless-lms` bin: a thin CLI over the operational functions
 
 ```bash
 headless-lms migrate   # apply the server's bundled Drizzle migrations
-headless-lms seed      # seed random data across every domain
 headless-lms --help
 ```
 
 Installations get it as a dependency (the `create-headless-lms` scaffold wires
-`pnpm migrate` / `pnpm seed` to it). In this repo, `apps/api` runs the same
-entry via tsx: `pnpm --filter @headless-lms/api db:migrate|seed`.
+`pnpm migrate` to it). In this repo, `apps/api` runs the same entry via tsx:
+`pnpm --filter @headless-lms/api db:migrate`.
 
 ## Structure
 
