@@ -25,7 +25,11 @@ function fakes() {
   return { rendered, sent, templates, email };
 }
 
-const CTX: TemplateContext = { brandName: 'Acme LMS', baseUrl: 'http://localhost:8001' };
+const CTX: TemplateContext = {
+  brandName: 'Acme LMS',
+  baseUrl: 'http://localhost:8001',
+  studentPortalUrl: 'http://localhost:8002',
+};
 
 describe('Mailer', () => {
   it('renders the template and sends the result', async () => {
@@ -49,6 +53,6 @@ describe('Mailer', () => {
       { brandName: 'Ann Org' },
     );
 
-    expect(rendered[0]?.ctx).toEqual({ brandName: 'Ann Org', baseUrl: 'http://localhost:8001' });
+    expect(rendered[0]?.ctx).toEqual({ ...CTX, brandName: 'Ann Org' });
   });
 });

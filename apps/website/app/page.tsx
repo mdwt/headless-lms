@@ -44,12 +44,14 @@ export default function HomePage() {
       <main className="flex-1">
         <Hero />
         <Features />
-        <Architecture />
-        <SdkShowcase />
         <AppsMcp />
+        <Architecture />
+
+        <SdkShowcase />
+
         <Cta />
       </main>
       <SiteFooter />
     </div>
-  )
+  );
 }

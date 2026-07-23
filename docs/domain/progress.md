@@ -43,20 +43,18 @@ Progress is measured against the course's current published structure, so adding
 
 ## Events
 
-- `lesson.started`
-- `lesson.completed`
-- `assessment.started`
-- `assessment.completed`
-- `module.completed`
-- `course.completed`
+- `progress.started` — a student began a target.
+- `progress.completed` — a target's completion rule was satisfied.
+
+Both name the student and the target. One event pair covers every target type, so new content types don't add events. Module and course completions cascade as `progress.completed` with the container as target — a derived milestone against the structure as of that moment, not a durable fact. Position updates are not evented.
 
 ## How progress accrues
 
 A worked example for context. Take a course with one module holding a video lesson and an assessment — two completable things, so the denominator is two.
 
-A student is enrolled (a grant in entitlements) and opens the course. They have no progress records yet, so the course reads 0%. They click the video: the open is gated first — entitlements confirms their grant is active and the video isn't locked by drip or an unlock rule — and once allowed, progress creates the record and emits `lesson.started`. As they watch, the player reports position every few seconds and progress updates the record, so leaving at ten minutes into a thirteen-minute video means they resume at ten minutes. When the position passes the completion threshold, progress records completion and the course reads 50% (`lesson.completed`).
+A student is enrolled (a grant in entitlements) and opens the course. They have no progress records yet, so the course reads 0%. They click the video: the open is gated first — entitlements confirms their grant is active and the video isn't locked by drip or an unlock rule — and once allowed, progress creates the record and emits `progress.started` with the lesson as target. As they watch, the player reports position every few seconds and progress updates the record, so leaving at ten minutes into a thirteen-minute video means they resume at ten minutes. When the position passes the completion threshold, progress records completion and the course reads 50% (`progress.completed`).
 
-They move to the assessment. Same gate — entitlements may have it locked until the video is complete, which it now is, so access resolves. Progress records the start, then the completion when they finish, and the course reads 100% (`assessment.completed`, `module.completed`, `course.completed`).
+They move to the assessment. Same gate — entitlements may have it locked until the video is complete, which it now is, so access resolves. Progress records the start, then the completion when they finish, and the course reads 100% (`progress.completed` for the assessment, then cascading with the module and the course as targets).
 
 Progress stores a record per lesson or assessment, never a running percentage; the percentage is derived on read. If the author later adds a third one, the denominator becomes three and the same student reads two-thirds on the next read, with nothing to recompute.
 

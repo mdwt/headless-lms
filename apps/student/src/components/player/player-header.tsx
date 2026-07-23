@@ -30,10 +30,7 @@ export function PlayerHeader({
   onToggleSidebar: () => void;
 }) {
   return (
-    <header
-      className="z-30 flex flex-none items-center justify-between gap-4 border-b border-line-strong px-5 py-3"
-      style={{ background: "#fbfaf8" }}
-    >
+    <header className="z-30 flex flex-none items-center justify-between gap-4 border-b border-line-strong bg-surface-warm px-5 py-3">
       <div className="flex min-w-0 items-center gap-1.5">
         <div
           className="grid size-7 flex-none place-items-center rounded-[8px] bg-brand text-[15px] font-semibold text-brand-contrast"
@@ -54,8 +51,7 @@ export function PlayerHeader({
           onClick={onToggleSidebar}
           aria-label="Toggle curriculum"
           title="Toggle curriculum"
-          className="flex size-9 flex-none items-center justify-center rounded-[9px] hover:bg-hover-surface-2"
-          style={{ color: sidebarActive ? "var(--brand)" : "#6f6d66" }}
+          className={`flex size-9 flex-none items-center justify-center rounded-[9px] hover:bg-hover-surface-2 ${sidebarActive ? "text-brand" : "text-ink-2"}`}
         >
           <PanelLeft className="size-[19px]" />
         </button>

@@ -10,7 +10,7 @@ export interface SegmentOption<T extends string> {
   title?: string;
 }
 
-/** Pill segmented control (handoff: track #efeee8, active = white + shadow). */
+/** Pill segmented control (track-seg well, active segment lifted). */
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -47,7 +47,7 @@ export function SegmentedControl<T extends string>({
                 ? "h-[30px] w-8 rounded-[8px]"
                 : "rounded-full px-[14px] py-[7px] text-[13px]",
               active
-                ? "bg-surface text-ink shadow-[0_1px_2px_rgba(20,20,18,0.08)]"
+                ? "bg-surface text-ink shadow-[0_1px_2px_rgba(20,20,18,0.08)] dark:bg-hover-surface dark:shadow-none"
                 : "text-ink-3 hover:text-ink-2",
               active && size !== "icon" && "font-semibold",
             )}
@@ -58,7 +58,7 @@ export function SegmentedControl<T extends string>({
               <span
                 className={cn(
                   "rounded-full px-1.5 text-[11px] tabular-nums",
-                  active ? "bg-brand-soft text-brand" : "bg-[#e6e4dd] text-ink-3",
+                  active ? "bg-brand-soft text-brand" : "bg-track-card text-ink-3",
                 )}
               >
                 {opt.count}

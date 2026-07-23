@@ -50,21 +50,22 @@ export function CurriculumSidebar({
         zIndex: 50,
         width: Math.min(width, 340),
         maxWidth: "86vw",
-        background: "#fbfaf8",
-        borderRight: "1px solid #eae8e2",
-        boxShadow: "0 20px 60px -20px rgba(0,0,0,0.3)",
       }
     : {
         width,
         flex: "none",
-        background: "#fbfaf8",
-        borderRight: "1px solid #eae8e2",
       };
 
   let counter = 0;
 
   return (
-    <aside className="flex flex-col" style={wrapperStyle}>
+    <aside
+      className={cn(
+        "flex flex-col border-r border-line-strong bg-surface-warm",
+        isNarrow && "shadow-[0_20px_60px_-20px_rgba(0,0,0,0.3)] dark:shadow-none",
+      )}
+      style={wrapperStyle}
+    >
       {/* header block */}
       <div className="flex-none border-b border-line-divider px-[18px] pb-4 pt-5">
         <div className="flex items-start justify-between gap-2">
@@ -112,14 +113,11 @@ export function CurriculumSidebar({
                   {(mi < 9 ? "0" : "") + (mi + 1)}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span
-                    className="block text-[13.5px] font-semibold leading-[1.25]"
-                    style={{ color: "#33312c" }}
-                  >
+                  <span className="block text-[13.5px] font-semibold leading-[1.25] text-ink">
                     {mod.title}
                   </span>
                 </span>
-                <span className="flex-none text-[11px]" style={{ color: "#a8a499" }}>
+                <span className="flex-none text-[11px] text-ink-faint">
                   {done}/{total}
                 </span>
                 <span
@@ -184,7 +182,7 @@ function LessonRow({
   const Icon = LESSON_ICON;
   const showNumber = sidebarStyle === "numbered";
 
-  const titleColor = locked ? "#a8a499" : isCurrent ? "#1b1b19" : "#403e38";
+  const titleColor = locked ? "var(--ink-faint)" : isCurrent ? "var(--ink)" : "var(--ink-btn)";
 
   const rowStyle: React.CSSProperties = {
     padding: sidebarStyle === "compact" ? "7px 9px" : "9px 9px",
@@ -209,10 +207,10 @@ function LessonRow({
         className="flex size-[26px] flex-none items-center justify-center rounded-[7px]"
         style={
           isCurrent
-            ? { background: "var(--brand)", color: "#fff" }
+            ? { background: "var(--brand)", color: "var(--brand-contrast)" }
             : isDone
-              ? { background: "#fff", color: "var(--brand)", border: "1px solid #e6e3dc" }
-              : { background: "#f1efe9", color: "#9a978d" }
+              ? { background: "var(--surface)", color: "var(--brand)", border: "1px solid var(--ring-conic)" }
+              : { background: "var(--hover-surface-2)", color: "var(--ink-3)" }
         }
       >
         {showNumber ? (
@@ -233,13 +231,13 @@ function LessonRow({
 
       <span className="flex size-5 flex-none items-center justify-center">
         {isDone ? (
-          <span className="flex size-[18px] items-center justify-center rounded-full bg-brand text-white">
+          <span className="flex size-[18px] items-center justify-center rounded-full bg-brand text-brand-contrast">
             <Check className="size-[11px]" strokeWidth={2.4} />
           </span>
         ) : isCurrent ? (
           <span className="animate-pulse-dot size-[9px] rounded-full bg-brand" />
         ) : locked ? (
-          <Lock className="size-[14px]" style={{ color: "#c2bfb5" }} />
+          <Lock className="size-[14px] text-ink-faintest" />
         ) : null}
       </span>
     </button>

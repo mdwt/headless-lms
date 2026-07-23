@@ -97,38 +97,6 @@ describe('EntitlementsService', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it('sends the accessGranted email after a grant when a mailer is configured', async () => {
-    const repo = fakeRepo();
-    const { uow } = fakeUow(repo);
-    const send = vi.fn().mockResolvedValue(undefined);
-    const svc = new EntitlementsServiceImpl(repo, uow, undefined, { send }, {
-      studentPortalUrl: 'https://learn.example.com',
-    });
-    await svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null });
-    expect(send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
-      contentTitle: 'Intro',
-      contentUrl: 'https://learn.example.com/courses/c1',
-    });
-  });
-
-  it('grant succeeds when the accessGranted email fails to send', async () => {
-    const repo = fakeRepo();
-    const { uow } = fakeUow(repo);
-    const send = vi.fn().mockRejectedValue(new Error('smtp down'));
-    const svc = new EntitlementsServiceImpl(repo, uow, undefined, { send }, {
-      studentPortalUrl: 'https://learn.example.com',
-    });
-    const result = await svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null });
-    expect(result.id).toBe('e1');
-  });
-
-  it('sends no email without a configured mailer', async () => {
-    const { svc } = build();
-    await expect(
-      svc.grant('org-1', { studentId: 's1', contentId: 'c1', expiresAt: null }),
-    ).resolves.toBeTruthy();
-  });
-
   it('does not append when the write fails — the error propagates out of run', async () => {
     const { svc, append } = build(
       fakeRepo({ insert: vi.fn().mockRejectedValue(new Error('boom')) }),

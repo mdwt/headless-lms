@@ -43,7 +43,7 @@ export function CourseCard({
       onClick={onOpen}
       className={cn(
         "flex cursor-pointer flex-col overflow-hidden rounded-card border border-line bg-surface transition-[transform,box-shadow,border-color] duration-200",
-        "hover:-translate-y-[3px] hover:border-[#ddd9cf] hover:shadow-[0_12px_30px_-18px_rgba(20,20,18,0.28)]",
+        "hover:-translate-y-[3px] hover:border-line-hover hover:shadow-[0_12px_30px_-18px_rgba(20,20,18,0.28)] dark:hover:shadow-none",
         expired && "opacity-[0.62]",
       )}
     >

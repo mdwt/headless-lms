@@ -184,7 +184,7 @@ export function CoursePlayer({
           />
         )}
 
-        <main className="flex min-w-0 flex-1 flex-col" style={{ background: "#faf9f6" }}>
+        <main className="flex min-w-0 flex-1 flex-col bg-surface-warm-2">
           <div className="flex-1 overflow-y-auto">
             {courseCompleted && (
               <div

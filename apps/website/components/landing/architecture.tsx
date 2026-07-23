@@ -27,12 +27,12 @@ const principles = [
   {
     icon: Layers,
     title: 'Layered by design',
-    body: 'A framework-free domain core sits behind a Fastify HTTP layer, persisted with Drizzle and Postgres.',
+    body: 'A framework-free domain core allows you to use any tech stack you want.',
   },
   {
     icon: Boxes,
     title: 'Composable installations',
-    body: 'An installation composes what it wants with sane defaults. Swap storage and email adapters freely.',
+    body: 'An installation composes what it wants with sane defaults. Swap for your own storage, email auth adapters freely.',
   },
   {
     icon: ShieldCheck,
@@ -51,15 +51,14 @@ export function Architecture() {
         <div className="grid gap-x-8 gap-y-12 lg:grid-cols-2 lg:items-center">
           <div>
             <h2 className="max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              A backend that ships as a library
+              Bring your own adapters
             </h2>
             <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
               The backend ships as{' '}
               <code className="rounded-md bg-card px-1.5 py-0.5 font-mono text-foreground/90">
                 @headless-lms/server
               </code>
-              : a framework-free domain core behind a Fastify HTTP layer. Every
-              client — including AI agents — talks to the same domain layer.
+               a framework-free domain core which means you can bring your own adapters.
             </p>
 
             <dl className="mt-8 space-y-6">

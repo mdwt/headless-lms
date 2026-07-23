@@ -11,45 +11,55 @@
    brand-strong, brand-soft, brand-contrast) to avoid colliding with shadcn's
    own `--accent` hover token. shadcn `--primary` is mapped onto `--brand` so
    shadcn primitives inherit the design.
+
+   Theming: light values live on :root, dark overrides on `.dark` (applied to
+   <html> by next-themes; system-preference by default). Components style with
+   tokens, so most need no `dark:` variants.
    ========================================================================= */
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  /* neutrals (warm gray) */
-  --page: #f7f6f3;
+  color-scheme: light;
+
+  /* neutrals (clean gray) */
+  --page: #fafafa;
   --surface: #ffffff;
-  --surface-warm: #fbfaf8;
-  --surface-warm-2: #faf9f6;
-  --ink: #1b1b19;
-  --ink-2: #6f6d66;
-  --ink-3: #8e8b82;
-  --ink-4: #a3a097;
-  --ink-faint: #b3afa5;
-  --ink-faintest: #c2bfb5;
-  --line: #e9e7e2;
-  --line-strong: #eae8e2;
-  --line-divider: #eeece6;
-  --line-btn: #e0ddd4;
-  --line-dashed: #d9d6cd;
-  --hover-surface: #f2f1ec;
-  --hover-surface-2: #f1efe9;
-  --track-seg: #efeee8;
-  --track-card: #edece6;
-  --track-side: #e9e6df;
-  --ring-conic: #e6e3dc;
-  --toast-bg: #1f1e1b;
+  --surface-warm: #fbfbfb;
+  --surface-warm-2: #f8f8f8;
+  --ink: #171717;
+  --ink-2: #636363;
+  --ink-3: #8a8a8a;
+  --ink-4: #a3a3a3;
+  --ink-faint: #b8b8b8;
+  --ink-faintest: #cccccc;
+  --ink-btn: #454545;
+  --line: #e7e7e7;
+  --line-strong: #e2e2e2;
+  --line-divider: #ededed;
+  --line-btn: #dedede;
+  --line-dashed: #d4d4d4;
+  --line-hover: #cfcfcf;
+  --hover-surface: #efefef;
+  --hover-surface-2: #f1f1f1;
+  --track-seg: #efefef;
+  --track-card: #ececec;
+  --track-side: #e8e8e8;
+  --ring-conic: #e6e6e6;
+  --toast-bg: #1f1f1f;
 
   /* status / semantic */
-  --status-progress-bg: #f3efe2;
-  --status-progress-fg: #a07c2e;
-  --status-idle-bg: #f0ede6;
-  --status-idle-fg: #8e8b82;
+  --status-progress-bg: #f8f1dd;
+  --status-progress-fg: #96731d;
+  --status-idle-bg: #f0f0f0;
+  --status-idle-fg: #808080;
   --quiz-wrong-bg: #fbf1f1;
   --quiz-wrong-border: #e6c7c7;
   --quiz-wrong-fg: #a14444;
   --quiz-wrong-mark: #c25b5b;
-  --expired-gate-bg: #f3ede2;
-  --expired-gate-fg: #b08948;
-  --expired-bar: #cac7be;
+  --expired-gate-bg: #f6efe0;
+  --expired-gate-fg: #ac8544;
+  --expired-bar: #c6c6c6;
 
   /* accent — Indigo (default). Re-themeable via [data-accent]. */
   --brand: #4f46e5;
@@ -103,6 +113,57 @@
   --brand-contrast: #ffffff;
 }
 
+/* Dark theme — same contrast relationships, not an inversion. Cards sit one
+   step above the page; brand fills flip to indigo-400 with dark contrast text
+   so accent text stays readable on dark surfaces. */
+.dark {
+  color-scheme: dark;
+
+  --page: #0a0a0a;
+  --surface: #171717;
+  --surface-warm: #141414;
+  --surface-warm-2: #101010;
+  --ink: #f2f2f2;
+  --ink-2: #a8a8a8;
+  --ink-3: #8a8a8a;
+  --ink-4: #707070;
+  --ink-faint: #575757;
+  --ink-faintest: #454545;
+  --ink-btn: #d6d6d6;
+  --line: #262626;
+  --line-strong: #262626;
+  --line-divider: #222222;
+  --line-btn: #363636;
+  --line-dashed: #3f3f3f;
+  --line-hover: #454545;
+  --hover-surface: #262626;
+  --hover-surface-2: #222222;
+  --track-seg: #1c1c1c;
+  --track-card: #303030;
+  --track-side: #2e2e2e;
+  --ring-conic: #333333;
+  --toast-bg: #2a2a2a;
+
+  --status-progress-bg: #2c2410;
+  --status-progress-fg: #d3ac52;
+  --status-idle-bg: #262626;
+  --status-idle-fg: #9a9a9a;
+  --quiz-wrong-bg: #2a1616;
+  --quiz-wrong-border: #4d2323;
+  --quiz-wrong-fg: #f0a5a5;
+  --quiz-wrong-mark: #e07a7a;
+  --expired-gate-bg: #2b2413;
+  --expired-gate-fg: #cfa658;
+  --expired-bar: #4d4d4d;
+
+  --brand: #818cf8;
+  --brand-strong: #a5b4fc;
+  --brand-soft: #262a58;
+  --brand-contrast: #1e1b4b;
+
+  --destructive-foreground: #2a1010;
+}
+
 /* =========================================================================
    Tailwind v4 theme — generate utilities from the tokens above.
    ========================================================================= */
@@ -120,11 +181,13 @@
   --color-ink-4: var(--ink-4);
   --color-ink-faint: var(--ink-faint);
   --color-ink-faintest: var(--ink-faintest);
+  --color-ink-btn: var(--ink-btn);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-line-divider: var(--line-divider);
   --color-line-btn: var(--line-btn);
   --color-line-dashed: var(--line-dashed);
+  --color-line-hover: var(--line-hover);
   --color-hover-surface: var(--hover-surface);
   --color-hover-surface-2: var(--hover-surface-2);
   --color-track-seg: var(--track-seg);

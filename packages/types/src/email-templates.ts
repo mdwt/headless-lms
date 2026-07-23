@@ -8,6 +8,8 @@ export interface TemplateContext {
   brandName: string;
   /** Origin links resolve against (e.g. the admin app URL). */
   baseUrl: string;
+  /** Origin student-facing links resolve against (the student portal URL). */
+  studentPortalUrl: string;
   logoUrl?: string;
 }
 
@@ -25,7 +27,7 @@ export interface EmailTemplateParams {
   memberInvite: { inviteUrl: string; inviterName: string; role: string };
   passwordReset: { resetUrl: string };
   emailVerification: { verifyUrl: string };
-  accessGranted: { contentTitle: string; contentUrl: string };
+  accessGranted: { contentTitle: string; contentId: string };
   accessRevoked: { contentTitle: string };
   courseCompleted: { courseTitle: string };
 }

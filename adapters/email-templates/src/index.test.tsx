@@ -5,6 +5,7 @@ import { ReactEmailTemplateRenderer } from './index.js';
 const CTX: TemplateContext = {
   brandName: 'Acme LMS',
   baseUrl: 'http://localhost:8001',
+  studentPortalUrl: 'http://localhost:8002',
 };
 
 const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
@@ -13,7 +14,7 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
   memberInvite: { inviteUrl: 'http://localhost:8001/accept-invitation/inv1', inviterName: 'Ann', role: 'admin' },
   passwordReset: { resetUrl: 'http://localhost:8002/reset?token=t' },
   emailVerification: { verifyUrl: 'http://localhost:8002/verify?token=t' },
-  accessGranted: { contentTitle: 'Fly Tying 101', contentUrl: 'http://localhost:8002/courses/c1' },
+  accessGranted: { contentTitle: 'Fly Tying 101', contentId: 'c1' },
   accessRevoked: { contentTitle: 'Fly Tying 101' },
   courseCompleted: { courseTitle: 'Fly Tying 101' },
 };

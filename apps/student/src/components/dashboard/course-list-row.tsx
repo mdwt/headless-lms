@@ -42,7 +42,7 @@ export function CourseListRow({
       onClick={onOpen}
       className={cn(
         "flex cursor-pointer overflow-hidden rounded-[14px] border border-line bg-surface transition-[box-shadow,border-color] duration-200",
-        "hover:border-[#ddd9cf] hover:shadow-[0_8px_22px_-16px_rgba(20,20,18,0.26)]",
+        "hover:border-line-hover hover:shadow-[0_8px_22px_-16px_rgba(20,20,18,0.26)] dark:hover:shadow-none",
         expired && "opacity-[0.62]",
       )}
     >
@@ -60,7 +60,7 @@ export function CourseListRow({
           <div className="mb-1 flex items-center gap-[9px]">
             <h3 className="truncate text-[18px] font-semibold">{course.title}</h3>
             {state === "completed" && <StatusChip status="completed" />}
-            {expired && <ExpiredPill className="!bg-[#e8e5de] !text-ink-3 !backdrop-blur-none" />}
+            {expired && <ExpiredPill className="!bg-track-side !text-ink-3 !backdrop-blur-none" />}
           </div>
           <div className="truncate text-[13px] text-ink-3">{course.category}</div>
         </div>

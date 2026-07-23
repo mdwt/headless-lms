@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { AppProvider } from "@/lib/store";
 import { Toast } from "@/components/primitives/toast";
@@ -21,12 +22,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={pretendard.variable}>
+    // suppressHydrationWarning: next-themes sets the theme class on <html>
+    // before hydration.
+    <html lang="en" className={pretendard.variable} suppressHydrationWarning>
       <body>
-        <AppProvider>
-          {children}
-          <Toast />
-        </AppProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AppProvider>
+            {children}
+            <Toast />
+          </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

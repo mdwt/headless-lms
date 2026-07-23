@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { requireAuth } from "@/lib/auth/server-session";
 import { learnApi } from "@/lib/api/server";
+import { resolveAssetUrls } from "@/lib/api/resolve-asset-urls";
 import { adaptCourse } from "@/lib/adapt";
 import { renderActivityContent } from "@/components/player/content/render-activity";
 import { CoursePlayer } from "@/components/player/course-player";
@@ -24,10 +25,15 @@ export default async function CoursePlayerPage({
   const adapted = adaptCourse(course, modules);
   // Render each activity's Plate content on the server so the client player
   // receives ready-made nodes (no client re-execution → no hydration mismatch).
+  // Stored media URLs are upload-time presigns (long expired) — mint fresh
+  // short-lived ones for this render before handing the config to the renderer.
   const renderedContent: Record<string, ReactNode> = {};
   for (const mod of adapted.modules) {
     for (const lesson of mod.lessons) {
-      renderedContent[lesson.id] = renderActivityContent(lesson.content);
+      const content = lesson.content
+        ? { ...lesson.content, config: await resolveAssetUrls(lesson.content.config) }
+        : null;
+      renderedContent[lesson.id] = renderActivityContent(content);
     }
   }
 

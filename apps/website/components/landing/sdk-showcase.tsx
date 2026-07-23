@@ -27,37 +27,29 @@ export function SdkShowcase() {
     <section id="sdk" className="scroll-mt-20 border-t border-border/70 py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid gap-x-8 gap-y-12 lg:grid-cols-2 lg:items-center">
-          <div className="order-2 lg:order-1">
-            <CodeBlock
-              code={routeSnippet}
-              filename="routes/courses.ts"
-              language="typescript"
-            />
-          </div>
-
-          <div className="order-1 lg:order-2">
+          <div className="order-1 lg:order-1">
             <h2 className="max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               One source of truth, from schema to SDK
             </h2>
             <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
-              Define a route once with Zod schemas. Headless LMS validates every
-              request and response, generates the OpenAPI spec, and produces a
-              fully typed SDK you can build any frontend on.
+              Define a route once with Zod schemas. Headless LMS validates every request and
+              response, generates the OpenAPI spec, and produces a fully typed SDK you can build any
+              frontend on.
             </p>
             <ul role="list" className="mt-8 space-y-3">
               {benefits.map((b) => (
-                <li
-                  key={b}
-                  className="flex gap-3 text-base/7 text-muted-foreground sm:text-sm/6"
-                >
+                <li key={b} className="flex gap-3 text-base/7 text-muted-foreground sm:text-sm/6">
                   <CheckCircle2 aria-hidden className="size-4 h-lh shrink-0 text-primary" />
                   {b}
                 </li>
               ))}
             </ul>
           </div>
+          <div className="order-2 lg:order-2">
+            <CodeBlock code={routeSnippet} filename="routes/courses.ts" language="typescript" />
+          </div>
         </div>
       </div>
     </section>
-  )
+  );
 }

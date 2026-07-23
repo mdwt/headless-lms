@@ -40,7 +40,7 @@ export function Toolbar({
           <select
             value={sort}
             onChange={(e) => onSort(e.target.value as SortValue)}
-            className="cursor-pointer rounded-[9px] border border-line bg-surface px-3 py-[7px] text-[13px] text-[#4a4843]"
+            className="cursor-pointer rounded-[9px] border border-line bg-surface px-3 py-[7px] text-[13px] text-ink-btn"
           >
             <option value="recent">Recently accessed</option>
             <option value="progress">Progress</option>

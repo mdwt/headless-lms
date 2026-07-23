@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Conic course-progress ring (handoff: 30px, accent fill over #e6e3dc, inner punch-out). */
+/** Conic course-progress ring (30px, brand fill over ring-conic track, inner punch-out). */
 export function ProgressRing({
   percent,
   size = 30,

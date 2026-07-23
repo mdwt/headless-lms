@@ -23,7 +23,7 @@ const buttonVariants = cva(
         brand:
           "rounded-full bg-brand text-brand-contrast font-semibold hover:bg-brand-strong",
         ghostOutline:
-          "rounded-full border border-line-btn bg-surface font-semibold text-[#4a4843] hover:bg-hover-surface",
+          "rounded-full border border-line-btn bg-surface font-semibold text-ink-btn hover:bg-hover-surface",
         brandSoft:
           "rounded-full bg-brand-soft text-brand font-semibold hover:brightness-[0.98]",
       },

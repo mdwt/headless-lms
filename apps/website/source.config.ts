@@ -14,4 +14,12 @@ export const blog = defineCollections({
   }),
 })
 
+export const changelog = defineCollections({
+  type: 'doc',
+  dir: 'content/changelog',
+  schema: frontmatterSchema.extend({
+    date: z.iso.date(),
+  }),
+})
+
 export default defineConfig()

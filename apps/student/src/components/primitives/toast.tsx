@@ -15,10 +15,7 @@ export function Toast() {
       role="status"
       aria-live="polite"
     >
-      <div
-        className="flex items-center gap-2.5 rounded-full px-4 py-2.5 text-[13.5px] font-medium text-white shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)]"
-        style={{ background: "var(--toast-bg)" }}
-      >
+      <div className="flex items-center gap-2.5 rounded-full bg-toast px-4 py-2.5 text-[13.5px] font-medium text-white shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] dark:shadow-none dark:inset-ring dark:inset-ring-white/10">
         <span className="grid size-[18px] place-items-center rounded-full bg-brand">
           <Check className="size-3 text-brand-contrast" strokeWidth={2.6} />
         </span>

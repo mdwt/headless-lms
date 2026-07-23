@@ -115,6 +115,9 @@ import type {
   RequestAssetDownloadData,
   RequestAssetDownloadErrors,
   RequestAssetDownloadResponses,
+  RequestLearnAssetDownloadData,
+  RequestLearnAssetDownloadErrors,
+  RequestLearnAssetDownloadResponses,
   RequestUploadData,
   RequestUploadErrors,
   RequestUploadResponses,
@@ -552,6 +555,30 @@ export class Learn {
       ListLearnModulesErrors,
       ThrowOnError
     >({ url: "/api/learn/courses/{courseId}/modules", ...options });
+  }
+
+  /**
+   * Get a short-lived presigned URL to serve an asset to the student
+   */
+  public static requestLearnAssetDownload<ThrowOnError extends boolean = false>(
+    options: Options<RequestLearnAssetDownloadData, ThrowOnError>,
+  ): RequestResult<
+    RequestLearnAssetDownloadResponses,
+    RequestLearnAssetDownloadErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? client).post<
+      RequestLearnAssetDownloadResponses,
+      RequestLearnAssetDownloadErrors,
+      ThrowOnError
+    >({
+      url: "/api/learn/assets/{id}/download-url",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 }
 

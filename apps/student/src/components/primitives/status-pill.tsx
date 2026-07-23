@@ -6,7 +6,7 @@ export function CompletedPill({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[12px] font-semibold text-brand shadow-[0_2px_8px_-4px_rgba(20,20,18,0.25)]",
+        "inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-[12px] font-semibold text-brand shadow-[0_2px_8px_-4px_rgba(20,20,18,0.25)] dark:shadow-none",
         className,
       )}
     >

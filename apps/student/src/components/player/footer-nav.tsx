@@ -19,17 +19,14 @@ export function FooterNav({
   onMarkComplete: () => void;
 }) {
   const ghost = (disabled: boolean): React.CSSProperties => ({
-    border: "1px solid #e0ddd4",
-    background: "#fff",
-    color: disabled ? "#c2bfb5" : "#4a4843",
+    border: "1px solid var(--line-btn)",
+    background: "var(--surface)",
+    color: disabled ? "var(--ink-faintest)" : "var(--ink-btn)",
     cursor: disabled ? "default" : "pointer",
   });
 
   return (
-    <div
-      className="flex flex-none items-center justify-between gap-3 border-t border-line-strong px-[22px] py-3"
-      style={{ background: "#fbfaf8" }}
-    >
+    <div className="flex flex-none items-center justify-between gap-3 border-t border-line-strong bg-surface-warm px-[22px] py-3">
       <button
         type="button"
         onClick={onPrev}
@@ -48,7 +45,7 @@ export function FooterNav({
         style={
           isCompleted
             ? { background: "var(--brand-soft)", color: "var(--brand)", padding: "11px 22px" }
-            : { background: "var(--brand)", color: "#fff", padding: "11px 24px" }
+            : { background: "var(--brand)", color: "var(--brand-contrast)", padding: "11px 24px" }
         }
       >
         {isCompleted && <Check className="size-4" strokeWidth={2.4} />}

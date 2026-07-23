@@ -33,10 +33,12 @@ function stateOf(percent: number, done: number, half: number): CourseState {
 export function Dashboard({
   courses,
   studentName,
+  studentEmail,
   orgName,
 }: {
   courses: CourseSummaryVM[];
   studentName: string;
+  studentEmail: string;
   orgName: string;
 }) {
   const router = useRouter();
@@ -85,7 +87,7 @@ export function Dashboard({
 
   return (
     <>
-      <DashboardHeader studentName={studentName} orgName={orgName} />
+      <DashboardHeader studentName={studentName} studentEmail={studentEmail} orgName={orgName} />
       <div className="mx-auto max-w-[1180px] px-7 pb-[70px] pt-[30px]">
         <GreetingStats
           eyebrow={dateLabel()}

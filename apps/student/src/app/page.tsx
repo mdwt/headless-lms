@@ -11,5 +11,12 @@ export default async function Page() {
   // other as handled — no unhandledRejection noise while the request unwinds.
   const [rawCourses, org] = await Promise.all([coursesPromise, orgPromise]);
   const courses = rawCourses.map(adaptCourseSummary);
-  return <Dashboard courses={courses} studentName={session.user.name} orgName={org.name} />;
+  return (
+    <Dashboard
+      courses={courses}
+      studentName={session.user.name}
+      studentEmail={session.user.email}
+      orgName={org.name}
+    />
+  );
 }

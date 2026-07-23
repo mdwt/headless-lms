@@ -32,14 +32,14 @@ export default function GlobalError({
           textAlign: "center",
           fontFamily:
             "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-          background: "#faf9f6",
-          color: "#1b1b19",
+          background: "#fafafa",
+          color: "#171717",
         }}
       >
         <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 600 }}>
           Something went wrong
         </h1>
-        <p style={{ margin: 0, maxWidth: "42ch", fontSize: "14px", color: "#6f6d66" }}>
+        <p style={{ margin: 0, maxWidth: "42ch", fontSize: "14px", color: "#636363" }}>
           The app couldn&apos;t be loaded. Try again, or reload the page.
         </p>
         <button
@@ -51,7 +51,7 @@ export default function GlobalError({
             fontWeight: 600,
             borderRadius: "999px",
             border: "none",
-            background: "#1b1b19",
+            background: "#171717",
             color: "#fff",
             cursor: "pointer",
           }}
@@ -59,7 +59,7 @@ export default function GlobalError({
           Try again
         </button>
         {error.digest ? (
-          <p style={{ margin: 0, fontSize: "12px", fontFamily: "ui-monospace, monospace", color: "#a3a097" }}>
+          <p style={{ margin: 0, fontSize: "12px", fontFamily: "ui-monospace, monospace", color: "#a3a3a3" }}>
             ref: {error.digest}
           </p>
         ) : null}

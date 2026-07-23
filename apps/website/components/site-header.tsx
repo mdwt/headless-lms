@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Logo, GithubIcon } from '@/components/logo'
-import { primaryNav, siteConfig } from '@/lib/site'
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Logo, GithubIcon } from "@/components/logo";
+import { primaryNav, siteConfig } from "@/lib/site";
 
 export function SiteHeader() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
@@ -19,20 +19,26 @@ export function SiteHeader() {
             <span className="font-semibold tracking-tight">Headless LMS</span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
-            {primaryNav.map((item) => (
-              <Link
-                key={item.title}
-                href={item.href}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                {item.title}
-              </Link>
-            ))}
+            <div className="flex justify-center">
+              {primaryNav.map((item) => (
+                <Link
+                  key={item.title}
+                  href={item.href}
+                  className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {item.title}
+                </Link>
+              ))}
+            </div>
           </nav>
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" size="sm" render={<a href={siteConfig.githubUrl} target="_blank" rel="noreferrer" />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<a href={siteConfig.githubUrl} target="_blank" rel="noreferrer" />}
+          >
             <GithubIcon className="size-4" />
             GitHub
           </Button>
@@ -70,7 +76,10 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <Button variant="outline" render={<a href={siteConfig.githubUrl} target="_blank" rel="noreferrer" />}>
+              <Button
+                variant="outline"
+                render={<a href={siteConfig.githubUrl} target="_blank" rel="noreferrer" />}
+              >
                 <GithubIcon className="size-4" />
                 GitHub
               </Button>
@@ -82,5 +91,5 @@ export function SiteHeader() {
         </div>
       )}
     </header>
-  )
+  );
 }

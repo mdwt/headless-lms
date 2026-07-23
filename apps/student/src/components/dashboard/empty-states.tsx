@@ -19,7 +19,7 @@ export function LibraryEmpty() {
 /** No courses match the active filter (handoff §6). */
 export function FilterEmpty({ onShowAll }: { onShowAll: () => void }) {
   return (
-    <div className="rounded-card border border-dashed border-line-dashed bg-[#fbfaf7] px-6 py-16 text-center">
+    <div className="rounded-card border border-dashed border-line-dashed bg-surface-warm-2 px-6 py-16 text-center">
       <div className="mb-3.5 flex justify-center text-ink-faintest">
         <Inbox className="size-[30px]" strokeWidth={1.5} />
       </div>

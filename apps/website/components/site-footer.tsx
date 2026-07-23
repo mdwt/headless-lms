@@ -20,6 +20,7 @@ const footerLinks = [
       { label: 'Project structure', href: '/docs/project-structure' },
       { label: 'API reference', href: '/docs/api-reference' },
       { label: 'Blog', href: '/blog' },
+      { label: 'Changelog', href: '/changelog' },
     ],
   },
   {

@@ -359,6 +359,60 @@ export type ListLearnModulesResponses = {
 
 export type ListLearnModulesResponse = ListLearnModulesResponses[keyof ListLearnModulesResponses];
 
+export type RequestLearnAssetDownloadData = {
+  body: {
+    filename?: string;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/learn/assets/{id}/download-url";
+};
+
+export type RequestLearnAssetDownloadErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type RequestLearnAssetDownloadError =
+  RequestLearnAssetDownloadErrors[keyof RequestLearnAssetDownloadErrors];
+
+export type RequestLearnAssetDownloadResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    url: string;
+    asset: {
+      id: string;
+      key: string;
+      kind: "video" | "download" | "content";
+      filename: string;
+      contentType: string;
+      size: number;
+      status: "pending" | "ready";
+      uploadedBy: string;
+      createdAt: string;
+    };
+  };
+};
+
+export type RequestLearnAssetDownloadResponse =
+  RequestLearnAssetDownloadResponses[keyof RequestLearnAssetDownloadResponses];
+
 export type ListModulesData = {
   body?: never;
   path: {

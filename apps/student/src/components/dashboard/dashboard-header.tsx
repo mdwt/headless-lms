@@ -1,19 +1,21 @@
 import { Bell, Search } from "lucide-react";
 
 import { initials } from "@/lib/format";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { UserMenu } from "@/components/user-menu";
 
-/** Sticky dashboard header (handoff §1): brand · search · bell · avatar · sign out.
+/** Sticky dashboard header (handoff §1): brand · search · bell · user menu.
  *  Brand is the portal org's name/initial (per-org, not hardcoded). */
 export function DashboardHeader({
   studentName,
+  studentEmail,
   orgName,
 }: {
   studentName: string;
+  studentEmail: string;
   orgName: string;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line-strong px-7 py-4 backdrop-blur-[10px] [background:rgba(247,246,243,0.86)]">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-line-strong bg-page/85 px-7 py-4 backdrop-blur-[10px]">
       <div className="flex items-center gap-[11px]">
         <div className="grid size-7 place-items-center rounded-[8px] bg-brand text-[16px] font-semibold text-brand-contrast">
           {initials(orgName).charAt(0)}
@@ -32,13 +34,7 @@ export function DashboardHeader({
         >
           <Bell className="size-[18px]" strokeWidth={1.7} />
         </button>
-        <div
-          className="grid size-[38px] place-items-center rounded-full bg-brand-soft text-[12.5px] font-bold text-brand"
-          title={studentName}
-        >
-          {initials(studentName)}
-        </div>
-        <SignOutButton />
+        <UserMenu name={studentName} email={studentEmail} />
       </div>
     </header>
   );

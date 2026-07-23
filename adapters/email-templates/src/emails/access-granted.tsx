@@ -9,12 +9,12 @@ export default function AccessGranted({ ctx, params }: { ctx: TemplateContext; p
   return (
     <Layout ctx={ctx} heading={`${params.contentTitle} is ready for you`}>
       <Paragraph>You've been granted access. Jump in whenever you're ready.</Paragraph>
-      <EmailButton href={params.contentUrl}>Start learning</EmailButton>
+      <EmailButton href={`${ctx.studentPortalUrl}/courses/${params.contentId}`}>Start learning</EmailButton>
     </Layout>
   );
 }
 
 AccessGranted.PreviewProps = {
   ctx: PREVIEW_CTX,
-  params: { contentTitle: 'Fly Tying 101', contentUrl: 'http://localhost:8002/courses/demo' },
+  params: { contentTitle: 'Fly Tying 101', contentId: 'demo' },
 };

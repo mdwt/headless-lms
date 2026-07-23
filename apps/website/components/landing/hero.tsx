@@ -38,8 +38,7 @@ export function Hero() {
 
             <p className="mt-6 max-w-[48ch] text-lg text-pretty text-muted-foreground">
               A headless, composable learning platform in modern TypeScript.
-              Fastify, Drizzle, and Zod under the hood. Org-scoped multi-tenancy,
-              a typed SDK, and swappable adapters. Build whatever frontend you want.
+              Use it out-of-the-box or swap with your own adapters. Build whatever frontend you want.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

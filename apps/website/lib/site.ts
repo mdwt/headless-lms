@@ -10,11 +10,9 @@ export const siteConfig = {
 }
 
 export const primaryNav = [
-  { title: 'Features', href: '/#features' },
-  { title: 'Architecture', href: '/#architecture' },
-  { title: 'SDK', href: '/#sdk' },
   { title: 'Docs', href: '/docs' },
   { title: 'Blog', href: '/blog' },
+  { title: 'Changelog', href: '/changelog' },
 ]
 
 export function absoluteUrl(path: string) {

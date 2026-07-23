@@ -32,6 +32,7 @@ import { OrganizationServiceImpl, type OrgAdmin } from '../core/organizations/in
 import { AssetsServiceImpl } from '../core/assets/index.js';
 import { IntegrationsServiceImpl } from '../core/integrations/index.js';
 import { loadIntegrations } from './integrations.js';
+import { registerNotificationSubscribers } from './notifications.js';
 import { StudentsReportServiceImpl } from '../reporting/students/index.js';
 import { DashboardReportServiceImpl } from '../reporting/dashboard/index.js';
 import { LearnReportServiceImpl } from '../reporting/learn/index.js';
@@ -83,8 +84,9 @@ export interface Config {
   mcpLoginPage: string;
   /** Consent page URL the MCP OAuth flow redirects to. */
   mcpConsentPage: string;
-  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl. */
-  emailBranding?: TemplateContext;
+  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl.
+   *  (studentPortalUrl is composed in from the top-level config field.) */
+  emailBranding?: Omit<TemplateContext, 'studentPortalUrl'>;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
@@ -200,11 +202,10 @@ export async function buildContainer(
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
-  const mailer = new Mailer(
-    templates,
-    email,
-    config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl },
-  );
+  const mailer = new Mailer(templates, email, {
+    ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
+    studentPortalUrl: config.studentPortalUrl,
+  });
 
   // OrgAdmin (member writes via Better Auth) cannot exist until auth is built,
   // and auth depends on the organizations service. Provide it lazily via a ref
@@ -262,8 +263,6 @@ export async function buildContainer(
     new DrizzleEntitlementsRepository(db, entitlementsLogger),
     entitlementsUow,
     entitlementsLogger,
-    mailer,
-    { studentPortalUrl: config.studentPortalUrl },
   );
   const progress = new ProgressServiceImpl(
     new DrizzleProgressRepository(db, progressLogger),
@@ -320,6 +319,7 @@ export async function buildContainer(
   );
 
   const eventBus = new InMemoryEventBus();
+  registerNotificationSubscribers(eventBus, mailer);
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
     new DrizzleOutboxStore(db, outboxLogger),
