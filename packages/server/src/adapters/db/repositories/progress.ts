@@ -1,5 +1,5 @@
 // progress — Drizzle repository (implements the core outbound port).
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { ProgressRepository } from '../../../core/progress/ports.js';
 import type { ProgressRecord, ProgressTargetType } from '../../../core/progress/model.js';
@@ -63,6 +63,27 @@ export class DrizzleProgressRepository implements ProgressRepository {
       )
       .limit(1);
     return row ? toRecord(row) : null;
+  }
+
+  async findByTargets(
+    orgId: string,
+    studentId: string,
+    targetIds: string[],
+  ): Promise<ProgressRecord[]> {
+    if (targetIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(progressRecords)
+      .where(
+        and(
+          eq(progressRecords.orgId, orgId),
+          eq(progressRecords.studentId, studentId),
+          inArray(progressRecords.targetId, targetIds),
+        ),
+      );
+    return rows.map(toRecord);
   }
 
   async update(
