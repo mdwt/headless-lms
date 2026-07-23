@@ -296,6 +296,7 @@ export async function buildContainer(
     learn: new LearnReportServiceImpl(
       new DrizzleLearnRepository(db, reportingLogger),
       content,
+      progress,
       reportingLogger,
     ),
   };

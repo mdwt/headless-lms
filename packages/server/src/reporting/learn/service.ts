@@ -3,7 +3,8 @@
 // service (the Course/Module payload). Activities are filtered to published;
 // `settings.published === false` is the only draft signal (missing ⇒ published).
 import type { ContentService } from '../../core/content/index.js';
-import type { Course, Module } from './model.js';
+import type { ProgressService } from '../../core/progress/index.js';
+import type { Course, Module, CourseProgressView } from './model.js';
 import type { LearnEntitlementReader, LearnReportService } from './ports.js';
 import type { Logger } from '../../core/shared/ports.js';
 import { noopLogger } from '../../core/shared/logger.js';
@@ -16,6 +17,7 @@ export class LearnReportServiceImpl implements LearnReportService {
   constructor(
     private readonly reader: LearnEntitlementReader,
     private readonly content: ContentService,
+    private readonly progress: ProgressService,
     private readonly logger: Logger = noopLogger,
   ) {}
 
@@ -44,5 +46,42 @@ export class LearnReportServiceImpl implements LearnReportService {
       ...m,
       activities: m.activities.filter((a) => isActivityPublished(a.settings)),
     }));
+  }
+
+  async courseProgress(
+    orgId: string,
+    studentId: string,
+    courseId: string,
+  ): Promise<CourseProgressView | null> {
+    const ref = await this.reader.activeRef(orgId, studentId, courseId);
+    if (!ref) {
+      return null;
+    }
+    const modules = await this.content.listForCourse(ref.orgId, courseId);
+    const ids = modules.flatMap((m) =>
+      m.activities.filter((a) => isActivityPublished(a.settings)).map((a) => a.id),
+    );
+    const records = await this.progress.listByTargets(ref.orgId, studentId, ids);
+    const activities: CourseProgressView['activities'] = {};
+    let done = 0;
+    for (const r of records) {
+      if (r.targetType !== 'activity') {
+        continue;
+      }
+      activities[r.targetId] = r.completedAt ? 'completed' : 'in-progress';
+      if (r.completedAt) {
+        done += 1;
+      }
+    }
+    const courseRecord = await this.progress.get(ref.orgId, {
+      studentId,
+      targetType: 'course',
+      targetId: courseId,
+    });
+    return {
+      activities,
+      percent: ids.length > 0 ? Math.round((done / ids.length) * 100) : 0,
+      completed: courseRecord?.completedAt != null,
+    };
   }
 }

@@ -1,5 +1,5 @@
 // reporting/learn — ports.
-import type { Course, Module, CourseRef } from './model.js';
+import type { Course, Module, CourseRef, CourseProgressView } from './model.js';
 
 /**
  * Inbound: the student-scoped read use-cases. Scoped by `(orgId, studentId)` —
@@ -9,6 +9,11 @@ export interface LearnReportService {
   listCourses(orgId: string, studentId: string): Promise<Course[]>;
   getCourse(orgId: string, studentId: string, courseId: string): Promise<Course | null>;
   listModules(orgId: string, studentId: string, courseId: string): Promise<Module[] | null>;
+  courseProgress(
+    orgId: string,
+    studentId: string,
+    courseId: string,
+  ): Promise<CourseProgressView | null>;
 }
 
 /**
