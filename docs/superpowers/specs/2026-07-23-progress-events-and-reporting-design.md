@@ -57,18 +57,18 @@ lessons and assessments (kinds of activity); no doc change.
 
 ## 3. Report input & the reworked inbound port (`core/progress`)
 
-A report is a claim about one activity, in one course, by one student. The wire
-format is the domain's own — foreign vocabularies (xAPI statements, SCORM cmi
-calls) are translated to it at the boundary later, the same way every other
-external dialect in this system stays in an adapter. Verbs use the domain
-doc's language:
+A report is usage parameters about one activity, in one course, by one student
+— no verb vocabulary. The wire format is the domain's own; foreign dialects
+(xAPI statements, SCORM cmi calls) are translated to it at the boundary later,
+the same way every other external dialect in this system stays in an adapter.
 
-- `opened` — student opened the activity
-- `progressed` — position report; carries the opaque position payload
-- `completed` — the learner/player *asserts* completion — a claim the service
-  validates, never a fact it accepts
+- `{}` — bare touch: the student is on the activity; first report creates the
+  record (`startedAt`)
+- `{ position }` — where the player is (opaque payload)
+- `{ completed: true }` — the learner/player *asserts* completion — a claim the
+  service validates, never a fact it accepts
 
-Actor comes from the session; activity and course come from the URL — never
+Student comes from the session; activity and course come from the URL — never
 from the body.
 
 Per type ownership, the report/input types are declared in
@@ -76,11 +76,9 @@ Per type ownership, the report/input types are declared in
 `types.ts`:
 
 ```ts
-export type ProgressVerb = "opened" | "progressed" | "completed";
-
 export interface ProgressReport {
-  verb: ProgressVerb;
-  position?: unknown;   // with "progressed"
+  position?: unknown;
+  completed?: boolean;
 }
 
 export interface ReportProgressInput {
@@ -116,7 +114,7 @@ passthrough, no events, so existing service tests keep working):
 
 1. **Ensure the record** — first touch inserts it (`startedAt` now) and appends
    `progress.started`.
-2. **Apply position** — `progressed` reports update the payload (stored
+2. **Apply position** — reports carrying `position` update the payload (stored
    opaque). No event.
 3. **Evaluate completion** — the service reads the activity via
    `ContentService` (core→core through `content/index.js`) and interprets the
@@ -149,8 +147,8 @@ an already-complete container, change nothing and emit nothing.
 
 ```ts
 export const ProgressReport = z.object({
-  verb: z.enum(["opened", "progressed", "completed"]),
   position: z.unknown().optional(),
+  completed: z.boolean().optional(),
 });
 
 export const ActivityProgress = z.object({
@@ -166,27 +164,27 @@ export const CourseProgress = z.object({
 });
 ```
 
-### Verb → effect
+### Report → effect
 
-| verb         | Effect |
-| ------------ | ------ |
-| `opened`     | Ensure the record exists (start). |
-| `progressed` | Ensure record; store `position` as the opaque payload. |
-| `completed`  | Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
+| report               | Effect |
+| -------------------- | ------ |
+| `{}`                 | Ensure the record exists (start). |
+| `{ position }`       | Ensure record; store `position` as the opaque payload; evaluate the rule against it. |
+| `{ completed: true }`| Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
 
 ### Wire examples
 
 ```http
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": "opened" }
+{}
 → 200 { "status": "in-progress" }
 
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": "progressed", "position": { "seconds": 612 } }
+{ "position": { "seconds": 612 } }
 → 200 { "status": "in-progress" }
 
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": "completed" }
+{ "completed": true }
 → 200 { "status": "completed" }        // or "in-progress" when a rule is unmet
 
 GET /api/learn/courses/crs_9f2/progress
@@ -237,17 +235,97 @@ appear from the route schemas. Regenerated output is committed.
 
 - **Hydrate**: the course player's server component fetches `CourseProgress` and
   seeds the store's `completionByCourse` (the shapes now match: a status map).
-- **Report**: `toggleComplete` becomes one-way `markComplete` — sends a
-  `completed` report, applies the returned `status` to the store. The
+- **Report**: `toggleComplete` becomes one-way `markComplete` — sends
+  `{ completed: true }`, applies the returned `status` to the store. The
   button's completed state is terminal (the domain has no un-complete).
   Course-complete toast keeps deriving from the local map; the GET is the
   authoritative refresh.
-- **Open**: entering an activity sends an `opened` report (fire-and-forget)
+- **Open**: entering an activity sends a bare `{}` report (fire-and-forget)
   so `progress.started` reflects reality, not just completions.
-- `progressed` reports are wired when a player that produces positions
+- `position` reports are wired when a player that produces positions
   exists; the contract already accepts them.
 
-## 10. Tests
+## 10. Worked examples
+
+Three lesson shapes end to end. Only the `manual` rule ships in this task; the
+others show what the rule seam is for.
+
+### Completion rules (activity settings blob, content-owned)
+
+```jsonc
+// Text lesson — no rule authored → manual (the default)
+{ "type": "text", "title": "Safety intro", "body": "…" }
+
+// Video lesson — auto-complete at 80% watched
+{ "type": "video", "title": "TIG basics",
+  "video": { "assetId": "ast_84h", "durationSeconds": 1475 },
+  "completion": { "rule": "watch-percent", "percent": 80 } }
+
+// Mixed lesson — watch the video, then the button counts
+{ "type": "composite",
+  "blocks": [ { "kind": "text" }, { "kind": "video", "assetId": "ast_2kq", "durationSeconds": 480 } ],
+  "completion": { "rule": "watch-then-manual", "percent": 90 } }
+```
+
+### Reports
+
+```jsonc
+{}                                  // opened → record created (startedAt)
+{ "position": { "seconds": 612 } }  // video heartbeat (~10s) → resume point
+{ "position": { "seconds": 1310 } } // crosses 80% of 1475 → service completes
+{ "completed": true }               // the button
+```
+
+- **Text**: `{}` on open, `{ completed: true }` on click → `"completed"`.
+- **Video**: the service notices `1310 / 1475 ≥ 80%` on an ordinary heartbeat
+  and answers `{ "status": "completed" }`. The button at 40% watched →
+  `{ "status": "in-progress" }` — claim heard, rule unmet, nothing recorded.
+- **Mixed**: `{ completed: true }` only lands once the video part passed 90%.
+
+### Stored records (mid-course snapshot)
+
+```jsonc
+// watching, not done — position is the resume point
+{ "targetType": "activity", "targetId": "act_31c", "studentId": "stu_7v",
+  "startedAt": "…T09:12:04Z", "position": { "seconds": 612 }, "completedAt": null }
+
+// text lesson, done via button
+{ "targetType": "activity", "targetId": "act_58a",
+  "startedAt": "…T08:55:11Z", "position": null, "completedAt": "…T08:59:40Z" }
+
+// module record — created complete when its last activity completed
+{ "targetType": "module", "targetId": "mod_c2f",
+  "startedAt": "…T10:02:19Z", "position": null, "completedAt": "…T10:02:19Z" }
+
+// course record — same, when the last module's last activity completed
+{ "targetType": "course", "targetId": "crs_9f2", "completedAt": "…T10:02:19Z" }
+```
+
+Percent never appears — derived on read against current structure.
+
+### Events (outbox, same transaction as the write that caused them)
+
+```jsonc
+{ "type": "progress.started", "orgId": "org_1", "courseId": "crs_9f2",
+  "record": { "targetType": "activity", "targetId": "act_31c" } }
+
+// the heartbeat that crossed the threshold produces up to three, atomically:
+{ "type": "progress.completed", "courseId": "crs_9f2",
+  "record": { "targetType": "activity", "targetId": "act_31c" } }
+{ "type": "progress.completed", "courseId": "crs_9f2",
+  "record": { "targetType": "module", "targetId": "mod_c2f" } }
+{ "type": "progress.completed", "courseId": "crs_9f2",
+  "record": { "targetType": "course", "targetId": "crs_9f2" } }
+```
+
+A future automation ("course completed → post to Slack, issue certificate")
+subscribes to `progress.completed` and filters `record.targetType === "course"`.
+
+The video rule needs `durationSeconds` (or a player-computed percent) authored
+into the blob — rule evaluation is only as good as what content stores, which is
+why `manual` is the only rule this task implements.
+
+## 11. Tests
 
 - `core/progress/service.test.ts` — rewrite around `report`: first-touch insert
   + started event; `completed` claim → completed event (and rejected when a rule
