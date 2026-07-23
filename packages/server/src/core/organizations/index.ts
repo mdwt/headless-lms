@@ -11,7 +11,7 @@ export type {
 } from './ports.js';
 export type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
 export { OrganizationRuleError } from './members.js';
-export type { Member, MemberStatus, MembersQuery, InviteMemberInput, Page } from './members.js';
+export type { Member, MemberStatus, MembersQuery, Page } from './members.js';
 export { ROLES, STUDENT_ROLE, isRole, parseRole, normalizeRole, capability, canForCourse } from './roles.js';
 export type { Role, Permission, Capability } from './roles.js';
 export type {
@@ -22,7 +22,8 @@ export type {
   NewOrganizationInput,
   UpdateOrganizationInput,
   AddMembershipInput,
-  RecordInvitationInput,
+  CreateInviteInput,
   AcceptInviteInput,
+  InviteRole,
   AssignCourseInput,
 } from './types.js';

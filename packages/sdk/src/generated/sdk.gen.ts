@@ -3,6 +3,12 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  AcceptInviteData,
+  AcceptInviteErrors,
+  AcceptInviteResponses,
+  ActivateInviteData,
+  ActivateInviteErrors,
+  ActivateInviteResponses,
   ConfigureConnectionData,
   ConfigureConnectionErrors,
   ConfigureConnectionResponses,
@@ -16,6 +22,9 @@ import type {
   CreateActivityResponses,
   CreateCourseData,
   CreateCourseResponses,
+  CreateInviteData,
+  CreateInviteErrors,
+  CreateInviteResponses,
   CreateModuleData,
   CreateModuleResponses,
   CreateOrganizationData,
@@ -61,9 +70,6 @@ import type {
   GetStudentResponses,
   GrantEntitlementData,
   GrantEntitlementResponses,
-  InviteMemberData,
-  InviteMemberErrors,
-  InviteMemberResponses,
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
@@ -109,9 +115,6 @@ import type {
   RequestUploadData,
   RequestUploadErrors,
   RequestUploadResponses,
-  ResendStudentInviteData,
-  ResendStudentInviteErrors,
-  ResendStudentInviteResponses,
   RevokeConnectedAppData,
   RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
@@ -150,6 +153,64 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+export class Invites {
+  /**
+   * Validate an invite token and stage it for signup
+   */
+  public static activateInvite<ThrowOnError extends boolean = false>(
+    options: Options<ActivateInviteData, ThrowOnError>,
+  ): RequestResult<ActivateInviteResponses, ActivateInviteErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ActivateInviteResponses,
+      ActivateInviteErrors,
+      ThrowOnError
+    >({
+      url: "/api/invites/activate",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Invite a member or student into the active organization
+   */
+  public static createInvite<ThrowOnError extends boolean = false>(
+    options: Options<CreateInviteData, ThrowOnError>,
+  ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateInviteResponses, CreateInviteErrors, ThrowOnError>(
+      {
+        url: "/api/organizations/invites",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Accept an invitation with the logged-in account
+   */
+  public static acceptInvite<ThrowOnError extends boolean = false>(
+    options: Options<AcceptInviteData, ThrowOnError>,
+  ): RequestResult<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError> {
+    return (options.client ?? client).post<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError>(
+      {
+        url: "/api/invites/accept",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+}
 
 export class Courses {
   /**
@@ -424,7 +485,7 @@ export class Students {
   }
 
   /**
-   * Create a student manually
+   * Create a student from the admin portal
    */
   public static createStudent<ThrowOnError extends boolean = false>(
     options: Options<CreateStudentData, ThrowOnError>,
@@ -453,19 +514,6 @@ export class Students {
       url: "/api/students/{id}",
       ...options,
     });
-  }
-
-  /**
-   * Resend the portal invitation for a pending student
-   */
-  public static resendStudentInvite<ThrowOnError extends boolean = false>(
-    options: Options<ResendStudentInviteData, ThrowOnError>,
-  ): RequestResult<ResendStudentInviteResponses, ResendStudentInviteErrors, ThrowOnError> {
-    return (options.client ?? client).post<
-      ResendStudentInviteResponses,
-      ResendStudentInviteErrors,
-      ThrowOnError
-    >({ url: "/api/students/{id}/invite", ...options });
   }
 }
 
@@ -566,24 +614,6 @@ export class Organizations {
       url: "/api/organizations/members",
       ...options,
     });
-  }
-
-  /**
-   * Invite an organization member
-   */
-  public static inviteMember<ThrowOnError extends boolean = false>(
-    options: Options<InviteMemberData, ThrowOnError>,
-  ): RequestResult<InviteMemberResponses, InviteMemberErrors, ThrowOnError> {
-    return (options.client ?? client).post<InviteMemberResponses, InviteMemberErrors, ThrowOnError>(
-      {
-        url: "/api/organizations/members",
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-      },
-    );
   }
 
   /**

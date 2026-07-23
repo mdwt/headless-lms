@@ -1,11 +1,4 @@
-// better-auth's tables, owned by the auth adapter (not by core).
-// Matches the schema produced by `npx @better-auth/cli generate` for
-// email/password + magic-link (magic link reuses the `verification` table) plus
-// the organization plugin (`organization`, `member`, `invitation`, and
-// `session.active_organization_id`). These are the multi-tenant source of truth;
-// core mirrors them via organizationHooks. Regenerate with the CLI and let
-// drizzle-kit own the migration.
-import { pgTable, text, timestamp, boolean, index, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -143,39 +136,6 @@ export const oauthAccessToken = pgTable(
     index('oauth_access_token_user_id_idx').on(t.userId),
   ],
 );
-
-// --- better-invite plugin tables (all-population invitations) ---
-
-export const invite = pgTable('invite', {
-  id: text('id').primaryKey(),
-  token: text('token').notNull().unique(),
-  createdAt: timestamp('created_at'),
-  expiresAt: timestamp('expires_at').notNull(),
-  maxUses: integer('max_uses').notNull(),
-  infinityMaxUses: boolean('infinity_max_uses')
-    .$defaultFn(() => false)
-    .notNull(),
-  createdByUserId: text('created_by_user_id').references(() => user.id, { onDelete: 'set null' }),
-  redirectToAfterUpgrade: text('redirect_to_after_upgrade'),
-  shareInviterName: boolean('share_inviter_name').notNull(),
-  email: text('email'),
-  // Native text[] — better-auth's string[] fields round-trip as real arrays
-  // only with an array column; a plain text column comes back as a pg array
-  // literal STRING, breaking every consumer that indexes into it.
-  emails: text('emails').array(),
-  role: text('role').notNull(),
-  newAccount: boolean('new_account'),
-  status: text('status').notNull(),
-});
-
-export const inviteUse = pgTable('invite_use', {
-  id: text('id').primaryKey(),
-  // Nullable so the FK's ON DELETE SET NULL can actually fire (upstream declares required-on-write).
-  inviteId: text('invite_id')
-    .references(() => invite.id, { onDelete: 'set null' }),
-  usedAt: timestamp('used_at').notNull(),
-  usedByUserId: text('used_by_user_id').references(() => user.id, { onDelete: 'set null' }),
-});
 
 export const oauthConsent = pgTable(
   'oauth_consent',

@@ -7,7 +7,8 @@ export type {
   NewOrganizationInput,
   UpdateOrganizationInput,
   AddMembershipInput,
-  RecordInvitationInput,
+  CreateInviteInput,
   AcceptInviteInput,
+  InviteRole,
   AssignCourseInput,
 } from '@headless-lms/types';

@@ -3,7 +3,9 @@
 // `loggerInstance`, and every component gets a child bound with { name }.
 import { pino, stdSerializers, type DestinationStream, type Logger as PinoInstance } from 'pino';
 import type { Logger } from '../../core/shared/ports.js';
+import { requestLogContext } from './request-context.js';
 
+export { requestLogContext, type RequestLogContext } from './request-context.js';
 export type { PinoInstance };
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -34,6 +36,14 @@ export function createRootLogger(
   level: LogLevel,
   destination?: DestinationStream,
 ): { instance: PinoInstance; logger: Logger } {
-  const instance = pino({ level, serializers: { err: stdSerializers.err } }, destination);
+  const instance = pino(
+    {
+      level,
+      serializers: { err: stdSerializers.err },
+      // Ambient request correlation (reqId/orgId); call-site meta wins on clash.
+      mixin: () => requestLogContext.current(),
+    },
+    destination,
+  );
   return { instance, logger: new PinoLogger(instance) };
 }

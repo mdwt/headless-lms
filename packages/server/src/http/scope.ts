@@ -45,5 +45,6 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
   if (!membership) {
     throw new NoActiveOrgError('not an organization member');
   }
+  container.requestContext.set({ orgId: org.id });
   return { orgId: org.id, userId: user.id, authOrgId };
 }

@@ -50,14 +50,14 @@ export const invitations = pgTable(
       .notNull()
       .$defaultFn(() => genId('invitation')),
     email: text('email').notNull(),
-    role: text('role', { enum: ['owner', 'admin', 'instructor'] }).notNull(),
+    role: text('role', { enum: ['admin', 'instructor', 'student'] }).notNull(),
     status: text('status', {
       enum: ['pending', 'accepted', 'rejected', 'canceled'],
     }).notNull(),
-    invetedBy: text('invited_by')
+    invitedBy: text('invited_by')
       .notNull()
       .references(() => users.id),
-    externalId: text('external_id').notNull().unique(),
+    tokenHash: text('token_hash').unique(),
     expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },

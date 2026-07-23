@@ -1,8 +1,7 @@
 // HTTP routes for students: the reporting-backed list/read endpoints, plus
-// identity-backed writes (manual creation, invite resend).
+// identity-backed writes (manual creation). Invites live at /api/organizations/invites.
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
 import {
   CreateStudent,
   ErrorBody,
@@ -11,7 +10,7 @@ import {
   StudentsPage,
   StudentsQuery,
 } from '@headless-lms/api-contract';
-import { ConflictError, NotFoundError } from '../../core/shared/errors.js';
+import { NotFoundError } from '../../core/shared/errors.js';
 import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
 
@@ -64,7 +63,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'createStudent',
       tags: ['Students'],
-      summary: 'Create a student manually',
+      summary: 'Create a student from the admin portal',
       body: CreateStudent,
       response: { 201: Student, 409: ErrorBody },
     },
@@ -76,48 +75,11 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
         firstName: req.body.firstName,
         lastName: req.body.lastName,
       });
-      if (req.body.sendInvite) {
-        // Invitations are the organizations domain's concern; the service drives
-        // the invite provider, whose hooks record the invite id on the student
-        // row and email the portal welcome link.
-        await container.organizations.inviteStudent(
-          { orgId: scope.orgId, authOrgId: scope.authOrgId, headers: req.headers },
-          created.email,
-        );
-      }
       const student = await students.get(scope.orgId, created.id);
       if (!student) {
         throw new Error('created student missing from report');
       }
       return reply.code(201).send(student);
-    },
-  });
-
-  r.route({
-    method: 'POST',
-    url: '/api/students/:id/invite',
-    preHandler: app.requireSession,
-    schema: {
-      operationId: 'resendStudentInvite',
-      tags: ['Students'],
-      summary: 'Resend the portal invitation for a pending student',
-      params: StudentIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
-    },
-    handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const student = await container.identity.getStudentById(scope.orgId, req.params.id);
-      if (!student) {
-        throw new NotFoundError('Student', req.params.id);
-      }
-      if (student.externalId !== null) {
-        throw new ConflictError('This student already has an account');
-      }
-      await container.organizations.inviteStudent(
-        { orgId: scope.orgId, authOrgId: scope.authOrgId, headers: req.headers },
-        student.email,
-      );
-      return reply.code(204).send();
     },
   });
 }

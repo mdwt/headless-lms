@@ -4,17 +4,14 @@ import type {
   OrganizationsRepository,
   MembersRepository,
   MemberRecord,
+  NewInvitationRow,
   OrgAdmin,
   StudentLinker,
 } from './ports.js';
 import type { Organization, Membership, Invitation } from './model.js';
-import { type Role, normalizeRole } from './roles.js';
+import { normalizeRole } from './roles.js';
 import { OrganizationRuleError } from './members.js';
-import type {
-  CreateOrganizationInput,
-  AddMembershipInput,
-  RecordInvitationInput,
-} from './types.js';
+import type { CreateOrganizationInput, AddMembershipInput } from './types.js';
 
 // Member-management stubs for tests that only exercise the provisioning/course
 // surface. Member-op tests below build their own configurable stubs.
@@ -30,10 +27,11 @@ const stubMembersRepo: MembersRepository = {
   },
 };
 const stubStudentLinker = (): StudentLinker => ({
-  async recordStudentInvite() {},
-  async linkStudentByInvite() {},
-  async studentOrgExternalId() {
-    return null;
+  async hasPendingStudent() {
+    return true;
+  },
+  async linkPendingStudent() {
+    return true;
   },
 });
 const stubOrgAdmin = (): OrgAdmin => ({
@@ -42,8 +40,6 @@ const stubOrgAdmin = (): OrgAdmin => ({
   },
   async setActiveOrganization() {},
   async updateOrganization() {},
-  async invite() {},
-  async inviteStudent() {},
   async grantMembership() {},
   async updateRole() {},
   async removeMember() {},
@@ -53,6 +49,7 @@ function fakeRepo() {
   const orgs: Organization[] = [];
   const members: Membership[] = [];
   const invitations: Invitation[] = [];
+  const tokenHashes = new Map<string, string>();
   const assignments: {
     id: string;
     orgId: string;
@@ -75,6 +72,9 @@ function fakeRepo() {
       const updated: Organization = { ...orgs[i]!, name: input.name, slug: input.slug };
       orgs[i] = updated;
       return updated;
+    },
+    async findById(id: string) {
+      return orgs.find((o) => o.id === id) ?? null;
     },
     async findBySlug(slug: string) {
       return orgs.find((o) => o.slug === slug) ?? null;
@@ -100,37 +100,50 @@ function fakeRepo() {
         members.splice(i, 1);
       }
     },
-    async insertInvitation(orgId: string, input: RecordInvitationInput) {
+    async insertInvitation(orgId: string, input: NewInvitationRow) {
       const row: Invitation = {
         id: `i${++n}`,
         orgId,
         email: input.email,
-        role: input.role as Role,
-        status: input.status,
-        invetedBy: input.inviterUserId,
-        externalId: input.externalId,
+        role: input.role,
+        status: 'pending',
+        invitedBy: input.invitedBy,
         expiresAt: input.expiresAt,
         createdAt: new Date(0),
       };
       invitations.push(row);
+      tokenHashes.set(row.id, input.tokenHash);
       return row;
     },
-    async setInvitationStatusByExternalId(externalId: string, status: string) {
-      const inv = invitations.find((x) => x.externalId === externalId);
+    async rotateInvitationToken(orgId: string, id: string, tokenHash: string, expiresAt: Date) {
+      const inv = invitations.find((x) => x.orgId === orgId && x.id === id);
+      if (!inv) {
+        return null;
+      }
+      (inv as { expiresAt: Date | null }).expiresAt = expiresAt;
+      tokenHashes.set(id, tokenHash);
+      return inv;
+    },
+    async setInvitationStatus(orgId: string, id: string, status: string) {
+      const inv = invitations.find((x) => x.orgId === orgId && x.id === id);
       if (inv) {
         (inv as { status: string }).status = status;
       }
     },
-    async findInvitationByExternalId(externalId: string) {
-      const inv = invitations.find((x) => x.externalId === externalId);
-      if (!inv) {
-        return null;
+    async findInvitationByTokenHash(tokenHash: string) {
+      for (const [id, hash] of tokenHashes) {
+        if (hash === tokenHash) {
+          return invitations.find((x) => x.id === id) ?? null;
+        }
       }
-      const org = orgs.find((o) => o.id === inv.orgId);
-      if (!org) {
-        return null;
-      }
-      return { orgExternalId: org.externalId, role: inv.role, status: inv.status };
+      return null;
+    },
+    async findPendingInvitation(orgId: string, email: string) {
+      return (
+        invitations.find(
+          (x) => x.orgId === orgId && x.email === email && x.status === 'pending',
+        ) ?? null
+      );
     },
     async insertCourseAssignment(orgId, input) {
       const row = {
@@ -293,8 +306,124 @@ describe('OrganizationService', () => {
     expect(m).toBeNull();
   });
 
-  it('acceptInvite grants the recorded membership for a pending staff invitation', async () => {
-    const { repo, invitations } = fakeRepo();
+  const inviteUrls = { studentPortalUrl: 'http://localhost:8002', adminAppUrl: 'http://localhost:8001' };
+
+  function capturingMailer() {
+    const sent: Array<{ to: string; id: string; params: Record<string, unknown> }> = [];
+    const mailer = {
+      send: async (to: string, id: string, params: Record<string, unknown>) => {
+        sent.push({ to, id, params });
+      },
+    };
+    const lastToken = () => {
+      const url = sent.at(-1)?.params.inviteUrl as string;
+      return new URL(url).searchParams.get('token') ?? '';
+    };
+    return { mailer: mailer as never, sent, lastToken };
+  }
+
+  function inviteHarness(over?: { linker?: StudentLinker; membersRepo?: MembersRepository; orgAdmin?: OrgAdmin }) {
+    const fake = fakeRepo();
+    const { mailer, sent, lastToken } = capturingMailer();
+    const svc = new OrganizationServiceImpl(
+      fake.repo,
+      over?.membersRepo ?? stubMembersRepo,
+      () => over?.orgAdmin ?? stubOrgAdmin(),
+      over?.linker ?? stubStudentLinker(),
+      undefined,
+      undefined,
+      mailer,
+      inviteUrls,
+    );
+    return { ...fake, svc, sent, lastToken };
+  }
+
+  it('createInvite mints a pending staff invitation and mails the admin link', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    const invitation = await h.svc.createInvite({
+      orgId: org.id,
+      email: 'sam@example.com',
+      role: 'instructor',
+      inviterUserId: 'usr_1',
+    });
+    expect(invitation.status).toBe('pending');
+    expect(h.invitations).toHaveLength(1);
+    expect(h.sent[0]?.id).toBe('memberInvite');
+    const url = h.sent[0]?.params.inviteUrl as string;
+    expect(url.startsWith('http://localhost:8001/invite?token=')).toBe(true);
+    expect(h.lastToken().length).toBeGreaterThan(20);
+  });
+
+  it('createInvite refuses an email that is already a member', async () => {
+    const membersRepo: MembersRepository = {
+      ...stubMembersRepo,
+      async findByEmail() {
+        return { kind: 'member' } as MemberRecord;
+      },
+    };
+    const h = inviteHarness({ membersRepo });
+    const org = await h.svc.createOrg(orgInput);
+    await expect(
+      h.svc.createInvite({ orgId: org.id, email: 'dup@example.com', role: 'instructor', inviterUserId: 'usr_1' }),
+    ).rejects.toThrow(OrganizationRuleError);
+    expect(h.invitations).toHaveLength(0);
+  });
+
+  it('createInvite re-issues a pending invitation with a fresh token (resend)', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    const first = await h.svc.createInvite({
+      orgId: org.id,
+      email: 'jane@example.com',
+      role: 'student',
+      inviterUserId: 'usr_1',
+    });
+    const firstToken = h.lastToken();
+    const second = await h.svc.createInvite({
+      orgId: org.id,
+      email: 'jane@example.com',
+      role: 'student',
+      inviterUserId: 'usr_1',
+    });
+    expect(second.id).toBe(first.id);
+    expect(h.invitations).toHaveLength(1);
+    expect(h.lastToken()).not.toBe(firstToken);
+    expect(await h.svc.peekInvite(firstToken)).toBeNull();
+    expect(await h.svc.peekInvite(h.lastToken())).not.toBeNull();
+  });
+
+  it('createInvite refuses a student invite without a pending student row', async () => {
+    const linker: StudentLinker = {
+      async hasPendingStudent() {
+        return false;
+      },
+      async linkPendingStudent() {
+        return false;
+      },
+    };
+    const h = inviteHarness({ linker });
+    const org = await h.svc.createOrg(orgInput);
+    await expect(
+      h.svc.createInvite({ orgId: org.id, email: 'ghost@example.com', role: 'student', inviterUserId: 'usr_1' }),
+    ).rejects.toThrow(OrganizationRuleError);
+  });
+
+  it('createInvite mails the student template with the portal welcome link', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({
+      orgId: org.id,
+      email: 'jane@example.com',
+      role: 'student',
+      inviterUserId: 'usr_1',
+    });
+    expect(h.sent[0]?.id).toBe('studentInvite');
+    const url = h.sent[0]?.params.inviteUrl as string;
+    expect(url.startsWith('http://localhost:8002/welcome?token=')).toBe(true);
+  });
+
+  it('acceptInvite grants the membership for a pending staff invitation', async () => {
     const grants: Array<{ org: string; user: string; role: string }> = [];
     const orgAdmin: OrgAdmin = {
       ...stubOrgAdmin(),
@@ -302,30 +431,20 @@ describe('OrganizationService', () => {
         grants.push({ org: orgExternalId, user: userExternalId, role });
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
-    await svc.createOrg(orgInput);
-    await svc.recordInvitation({
-      orgExternalId: 'org_1',
-      externalId: 'inv_1',
-      email: 'sam@example.com',
-      role: 'instructor',
-      status: 'pending',
-      inviterUserId: 'user_1',
-      expiresAt: null,
-    });
-    const result = await svc.acceptInvite({
-      inviteExternalId: 'inv_1',
-      role: 'instructor',
+    const h = inviteHarness({ orgAdmin });
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({ orgId: org.id, email: 'sam@example.com', role: 'instructor', inviterUserId: 'usr_1' });
+    const result = await h.svc.acceptInvite({
+      token: h.lastToken(),
       email: 'sam@example.com',
       userExternalId: 'usr_ext_1',
     });
     expect(grants).toEqual([{ org: 'org_1', user: 'usr_ext_1', role: 'instructor' }]);
-    expect(result.orgExternalId).toBe('org_1');
-    expect(invitations[0]?.status).toBe('accepted');
+    expect(result?.orgExternalId).toBe('org_1');
+    expect(h.invitations[0]?.status).toBe('accepted');
   });
 
-  it('acceptInvite refuses a canceled staff invitation — no grant', async () => {
-    const { repo, invitations } = fakeRepo();
+  it('acceptInvite refuses a canceled invitation — no grant', async () => {
     const grants: string[] = [];
     const orgAdmin: OrgAdmin = {
       ...stubOrgAdmin(),
@@ -333,95 +452,117 @@ describe('OrganizationService', () => {
         grants.push(orgExternalId);
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
-    await svc.createOrg(orgInput);
-    await svc.recordInvitation({
-      orgExternalId: 'org_1',
-      externalId: 'inv_1',
+    const h = inviteHarness({ orgAdmin });
+    const org = await h.svc.createOrg(orgInput);
+    const invitation = await h.svc.createInvite({
+      orgId: org.id,
       email: 'sam@example.com',
       role: 'instructor',
-      status: 'pending',
-      inviterUserId: 'user_1',
-      expiresAt: null,
+      inviterUserId: 'usr_1',
     });
-    await repo.setInvitationStatusByExternalId('inv_1', 'canceled');
-    const result = await svc.acceptInvite({
-      inviteExternalId: 'inv_1',
-      role: 'instructor',
+    await h.repo.setInvitationStatus(org.id, invitation.id, 'canceled');
+    const result = await h.svc.acceptInvite({
+      token: h.lastToken(),
       email: 'sam@example.com',
       userExternalId: 'usr_ext_1',
     });
     expect(grants).toEqual([]);
-    expect(result.orgExternalId).toBeNull();
-    expect(invitations[0]?.status).toBe('canceled');
+    expect(result).toBeNull();
+    expect(h.invitations[0]?.status).toBe('canceled');
   });
 
-  it('acceptInvite links student rows through the identity slice and returns their org', async () => {
-    const { repo } = fakeRepo();
-    const links: Array<{ invite: string; email: string; user: string }> = [];
+  it('acceptInvite refuses an email mismatch', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({ orgId: org.id, email: 'sam@example.com', role: 'instructor', inviterUserId: 'usr_1' });
+    const result = await h.svc.acceptInvite({
+      token: h.lastToken(),
+      email: 'other@example.com',
+      userExternalId: 'usr_ext_1',
+    });
+    expect(result).toBeNull();
+    expect(h.invitations[0]?.status).toBe('pending');
+  });
+
+  it('acceptInvite links the student row via identity and returns the org', async () => {
+    const links: Array<{ orgId: string; email: string; invitationId: string; user: string }> = [];
     const linker: StudentLinker = {
-      async recordStudentInvite() {},
-      async linkStudentByInvite(inviteExternalId, email, externalId) {
-        links.push({ invite: inviteExternalId, email, user: externalId });
+      async hasPendingStudent() {
+        return true;
       },
-      async studentOrgExternalId() {
-        return 'org_1';
+      async linkPendingStudent(orgId, email, invitationId, externalId) {
+        links.push({ orgId, email, invitationId, user: externalId });
+        return true;
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, linker);
-    await svc.createOrg(orgInput);
-    const result = await svc.acceptInvite({
-      inviteExternalId: 'inv_s1',
+    const h = inviteHarness({ linker });
+    const org = await h.svc.createOrg(orgInput);
+    const invitation = await h.svc.createInvite({
+      orgId: org.id,
+      email: 'jane@example.com',
       role: 'student',
+      inviterUserId: 'usr_1',
+    });
+    const result = await h.svc.acceptInvite({
+      token: h.lastToken(),
       email: 'jane@example.com',
       userExternalId: 'usr_ext_9',
     });
-    expect(links).toEqual([{ invite: 'inv_s1', email: 'jane@example.com', user: 'usr_ext_9' }]);
-    expect(result.orgExternalId).toBe('org_1');
+    expect(links).toEqual([
+      { orgId: org.id, email: 'jane@example.com', invitationId: invitation.id, user: 'usr_ext_9' },
+    ]);
+    expect(result?.orgExternalId).toBe(org.externalId);
+    expect(h.invitations[0]?.status).toBe('accepted');
   });
 
-  it('recordStudentInvite resolves the org and records on the student row', async () => {
-    const { repo } = fakeRepo();
-    const recorded: Array<{ orgId: string; email: string; invite: string }> = [];
+  it('acceptInvite refuses a student invite whose row is no longer pending', async () => {
     const linker: StudentLinker = {
-      ...stubStudentLinker(),
-      async recordStudentInvite(orgId, email, inviteExternalId) {
-        recorded.push({ orgId, email, invite: inviteExternalId });
+      async hasPendingStudent() {
+        return true;
+      },
+      async linkPendingStudent() {
+        return false;
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, linker);
-    const org = await svc.createOrg(orgInput);
-    await svc.recordStudentInvite('org_1', 'jane@example.com', 'inv_s1');
-    expect(recorded).toEqual([{ orgId: org.id, email: 'jane@example.com', invite: 'inv_s1' }]);
+    const h = inviteHarness({ linker });
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({ orgId: org.id, email: 'jane@example.com', role: 'student', inviterUserId: 'usr_1' });
+    const result = await h.svc.acceptInvite({
+      token: h.lastToken(),
+      email: 'jane@example.com',
+      userExternalId: 'usr_ext_9',
+    });
+    expect(result).toBeNull();
+    expect(h.invitations[0]?.status).toBe('pending');
   });
 
-  it('inviteStudent drives the invite provider with the student email', async () => {
-    const { repo } = fakeRepo();
-    const invites: string[] = [];
-    const orgAdmin: OrgAdmin = {
-      ...stubOrgAdmin(),
-      async inviteStudent(_ctx, email) {
-        invites.push(email);
-      },
-    };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
-    await svc.inviteStudent(
-      { orgId: 'org1', authOrgId: 'ext_org1', headers: {} },
-      'jane@example.com',
-    );
-    expect(invites).toEqual(['jane@example.com']);
-  });
-
-  it('acceptInvite of an unknown invitation grants nothing', async () => {
-    const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
-    const result = await svc.acceptInvite({
-      inviteExternalId: 'nope',
-      role: 'instructor',
+  it('acceptInvite of an unknown token grants nothing', async () => {
+    const h = inviteHarness();
+    await h.svc.createOrg(orgInput);
+    const result = await h.svc.acceptInvite({
+      token: 'nope',
       email: 'x@example.com',
       userExternalId: 'usr_x',
     });
-    expect(result.orgExternalId).toBeNull();
+    expect(result).toBeNull();
+  });
+
+  it('peekInvite treats an expired invitation as invalid', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({ orgId: org.id, email: 'sam@example.com', role: 'instructor', inviterUserId: 'usr_1' });
+    const token = h.lastToken();
+    (h.invitations[0] as { expiresAt: Date | null }).expiresAt = new Date(0);
+    expect(await h.svc.peekInvite(token)).toBeNull();
+    expect(await h.svc.inviteAllowsSignup(token, 'sam@example.com')).toBe(false);
+  });
+
+  it('inviteAllowsSignup matches the invited email case-insensitively', async () => {
+    const h = inviteHarness();
+    const org = await h.svc.createOrg(orgInput);
+    await h.svc.createInvite({ orgId: org.id, email: 'Jane@Example.com', role: 'student', inviterUserId: 'usr_1' });
+    expect(await h.svc.inviteAllowsSignup(h.lastToken(), 'jane@example.com')).toBe(true);
+    expect(await h.svc.inviteAllowsSignup(h.lastToken(), 'other@example.com')).toBe(false);
   });
 
   it('creates an org via OrgAdmin, sets it active, then returns the mirrored org', async () => {
@@ -509,7 +650,7 @@ describe('OrganizationService — member management', () => {
       invitedAt: null,
       kind: 'member',
       memberExternalId: `auth-${over.id}`,
-      invitationExternalId: null,
+      invitationId: null,
       ...over,
     };
   }
@@ -536,12 +677,6 @@ describe('OrganizationService — member management', () => {
       async updateOrganization() {
         calls.push('updateOrganization');
       },
-      async invite() {
-        calls.push('invite');
-      },
-      async inviteStudent() {
-        calls.push('inviteStudent');
-      },
       async grantMembership() {
         calls.push('grantMembership');
       },
@@ -556,14 +691,6 @@ describe('OrganizationService — member management', () => {
     const svc = new OrganizationServiceImpl(repo, membersRepo, () => orgAdmin, stubStudentLinker());
     return { svc, calls, repo, invitations };
   }
-
-  it('rejects inviting an email that is already a member or invited', async () => {
-    const { svc, calls } = harness([memberRecord({ id: 'm1', email: 'dup@example.com' })]);
-    await expect(
-      svc.inviteMember(ctx, { email: 'dup@example.com', role: 'instructor' }),
-    ).rejects.toThrow(OrganizationRuleError);
-    expect(calls).not.toContain('invite');
-  });
 
   it('refuses to reassign the owner role', async () => {
     const { svc, calls } = harness([memberRecord({ id: 'm1', role: 'owner' })]);
@@ -583,30 +710,29 @@ describe('OrganizationService — member management', () => {
     expect(calls).toContain('updateRole');
   });
 
-  it('removeMember cancels a pending invitation in the mirror only', async () => {
-    const { svc, calls, repo, invitations } = harness([
+  it('removeMember cancels a pending invitation without touching the auth provider', async () => {
+    const records: MemberRecord[] = [];
+    const { svc, calls, repo, invitations } = harness(records);
+    const invitation = await repo.insertInvitation('o1', {
+      email: 'x@example.com',
+      role: 'instructor',
+      invitedBy: 'user_1',
+      tokenHash: 'hash-1',
+      expiresAt: new Date('2027-01-01T00:00:00Z'),
+    });
+    records.push(
       memberRecord({
-        id: 'i1',
+        id: invitation.id,
         role: 'instructor',
         kind: 'invitation',
         status: 'invited',
         memberExternalId: null,
-        invitationExternalId: 'auth-inv-1',
+        invitationId: invitation.id,
       }),
-    ]);
-    await repo.insertInvitation('o1', {
-      orgExternalId: 'org_1',
-      externalId: 'auth-inv-1',
-      email: 'x@example.com',
-      role: 'instructor',
-      status: 'pending',
-      inviterUserId: 'user_1',
-      expiresAt: null,
-    });
-    const removed = await svc.removeMember(ctx, 'i1');
+    );
+    const removed = await svc.removeMember(ctx, invitation.id);
     expect(removed).toBe(true);
-    expect(invitations.find((i) => i.externalId === 'auth-inv-1')?.status).toBe('canceled');
-    expect(calls).not.toContain('cancelInvitation');
+    expect(invitations[0]?.status).toBe('canceled');
     expect(calls).not.toContain('removeMember');
   });
 

@@ -25,8 +25,15 @@ export interface IdentityService extends UserProvisioner, StudentProvisioner {
   studentOrgExternalId(externalId: string): Promise<string | null>;
   createStudent(input: CreateStudentInput): Promise<Student>;
   getStudentById(orgId: string, id: string): Promise<Student | null>;
-  recordStudentInvite(orgId: string, email: string, inviteId: string): Promise<void>;
-  linkStudentByInvite(inviteId: string, email: string, externalId: string): Promise<void>;
+  /** A student row exists for (org, email) with no linked account yet. */
+  hasPendingStudent(orgId: string, email: string): Promise<boolean>;
+  /** Links the account to the org's pending row; false when none was pending. */
+  linkPendingStudent(
+    orgId: string,
+    email: string,
+    invitationId: string,
+    externalId: string,
+  ): Promise<boolean>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -46,7 +53,6 @@ export interface IdentityRepository {
   findStudentByEmail(orgId: string, email: string): Promise<Student | null>;
   findStudentById(orgId: string, id: string): Promise<Student | null>;
   insertPendingStudent(input: CreateStudentInput): Promise<Student>;
-  /** Returns the number of rows updated — 0 means no pending student matched. */
-  setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<number>;
-  linkPendingStudents(inviteId: string, email: string, externalId: string): Promise<number>;
+  /** Links the org's pending (unlinked) row for this email; returns rows updated. */
+  linkPendingStudent(orgId: string, email: string, externalId: string): Promise<number>;
 }

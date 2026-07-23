@@ -30,12 +30,6 @@ export type MembersQuery = z.infer<typeof MembersQuery>;
 export const MembersPage = paginated(Member);
 export type MembersPage = z.infer<typeof MembersPage>;
 
-export const InviteMember = z.object({
-  email: z.string().email(),
-  role: Role,
-});
-export type InviteMember = z.infer<typeof InviteMember>;
-
 export const UpdateMemberRole = z.object({ role: Role });
 export type UpdateMemberRole = z.infer<typeof UpdateMemberRole>;
 

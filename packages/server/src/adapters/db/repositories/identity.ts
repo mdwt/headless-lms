@@ -1,5 +1,5 @@
 // identity — Drizzle repository (implements the core outbound port).
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { IdentityRepository } from '../../../core/identity/ports.js';
 import type { User, Student } from '../../../core/identity/model.js';
@@ -136,24 +136,11 @@ export class DrizzleIdentityRepository implements IdentityRepository {
     }
   }
 
-  async setInviteIdByEmail(orgId: string, email: string, inviteId: string): Promise<number> {
+  async linkPendingStudent(orgId: string, email: string, externalId: string): Promise<number> {
     const rows = await this.db
       .update(students)
-      .set({ inviteExternalId: inviteId })
+      .set({ externalId })
       .where(and(eq(students.orgId, orgId), eq(students.email, email), isNull(students.externalId)))
-      .returning({ id: students.id });
-    return rows.length;
-  }
-
-  // Link every still-pending row minted for this invite OR carrying the invited
-  // email (resent tokens, one login across orgs). Pending guard makes it idempotent.
-  async linkPendingStudents(inviteId: string, email: string, externalId: string): Promise<number> {
-    const rows = await this.db
-      .update(students)
-      .set({ externalId, inviteExternalId: null })
-      .where(
-        and(isNull(students.externalId), or(eq(students.inviteExternalId, inviteId), eq(students.email, email))),
-      )
       .returning({ id: students.id });
     return rows.length;
   }

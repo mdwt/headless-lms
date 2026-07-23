@@ -75,22 +75,31 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findStudentById(orgId, id);
   }
 
-  async recordStudentInvite(orgId: string, email: string, inviteId: string): Promise<void> {
-    const updated = await this.repo.setInviteIdByEmail(orgId, email, inviteId);
-    if (updated === 0) {
-      // A capture miss is silent data loss (the invite exists but no row points
-      // at it) — this warn is the only trace, so keep it loud.
-      this.logger.warn('student invite NOT recorded: no pending student matched', {
-        orgId,
-        inviteId,
-      });
-      return;
-    }
-    this.logger.info('student invite recorded', { orgId, inviteId });
+  async hasPendingStudent(orgId: string, email: string): Promise<boolean> {
+    const student = await this.repo.findStudentByEmail(orgId, email);
+    return student !== null && student.externalId === null;
   }
 
-  async linkStudentByInvite(inviteId: string, email: string, externalId: string): Promise<void> {
-    const linked = await this.repo.linkPendingStudents(inviteId, email, externalId);
-    this.logger.info('student invite accepted', { inviteId, linked });
+  async linkPendingStudent(
+    orgId: string,
+    email: string,
+    invitationId: string,
+    externalId: string,
+  ): Promise<boolean> {
+    const linked = await this.uow.run(async ({ identity, outbox }) => {
+      const count = await identity.linkPendingStudent(orgId, email, externalId);
+      if (count > 0) {
+        await outbox.append([
+          { type: 'student.invite.accepted', orgId, email, invitationId, userExternalId: externalId },
+        ]);
+      }
+      return count > 0;
+    });
+    if (!linked) {
+      this.logger.warn('student invite NOT linked: no pending student row', { orgId, invitationId });
+      return false;
+    }
+    this.logger.info('student linked to account', { orgId, invitationId });
+    return true;
   }
 }

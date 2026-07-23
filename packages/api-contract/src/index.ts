@@ -9,6 +9,7 @@ export * from "./students.js";
 export * from "./entitlements.js";
 export * from "./organizations.js";
 export * from "./members.js";
+export * from "./invites.js";
 export * from "./dashboard.js";
 export * from "./assets.js";
 export * from "./connected-apps.js";

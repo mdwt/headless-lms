@@ -1,10 +1,8 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
-import { setSessionCookie } from 'better-auth/cookies';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { magicLink, organization, mcp } from 'better-auth/plugins';
 import type { OAuthAccessToken } from 'better-auth/plugins';
-import { invite } from 'better-invite';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import type { Mailer } from '../../core/shared/mailer.js';
@@ -12,15 +10,19 @@ import type { Logger } from '../../core/shared/ports.js';
 import type { IdentityService } from '../../core/identity/index.js';
 import type { OrganizationProvisioner } from '../../core/organizations/index.js';
 import { ID_PREFIXES, prefixId } from '../../core/shared/id.js';
+import { INVITE_COOKIE_NAME } from '../../core/shared/invite-token.js';
 import * as authSchema from './schema.js';
 import { ac, roles } from './access.js';
-import { inviteAllowsSignup, inviteLinkFor, STUDENT_ROLE, type InviteRecord } from './invites.js';
 
-// better-invite's own cookie name for the staged invite token, set by its
-// activate-invite route. Not re-exported from the package root (only `invite`
-// / `inviteClient` are), so declared here — verified against
-// `better-invite/dist/constants.mjs`.
-const INVITE_COOKIE_NAME = 'invite_token';
+function readCookie(header: string, name: string): string | null {
+  for (const part of header.split(';')) {
+    const [key, ...rest] = part.trim().split('=');
+    if (key === name) {
+      return decodeURIComponent(rest.join('='));
+    }
+  }
+  return null;
+}
 
 // Prefixes for better-auth's own tables. This is a distinct id space from the
 // mirrored domain rows (auth `user.id` → `users.external_id`, etc.), but we reuse
@@ -54,100 +56,14 @@ export interface CreateAuthOptions {
   organizations: OrganizationProvisioner;
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
+  /** Consent page URL the MCP OAuth flow redirects to (?consent_code&client_id&scope). */
+  mcpConsentPage: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
-  /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
-  studentPortalUrl: string;
-  /** Admin app origin — invite links for staff. */
+  /** Admin app origin — the only origin whose signups are not invite-gated. */
   adminAppUrl: string;
-}
-
-function htmlEscape(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-/**
- * Renders an inline HTML consent page for the MCP OAuth flow.
- * POSTs JSON to POST /api/auth/oauth2/consent with { accept: boolean, consent_code: string }.
- * The consent endpoint requires a boolean `accept` field (not a form string), so we use
- * fetch() to send JSON rather than a plain HTML form.
- */
-function getConsentHTML(p: {
-  scopes: string[];
-  clientMetadata: unknown;
-  clientIcon?: string;
-  clientId: string;
-  clientName: string;
-  code: string;
-}): string {
-  const scopeList = p.scopes.map((s) => `<li>${htmlEscape(s)}</li>`).join('');
-  // clientIcon is attacker-controlled under open DCR — escape it in the attribute.
-  const icon = p.clientIcon
-    ? `<img src="${htmlEscape(p.clientIcon)}" alt="" style="width:48px;height:48px;border-radius:8px;margin-bottom:12px;" /><br />`
-    : '';
-  // Escape code for safe embedding in JS string literal
-  const safeCode = p.code.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Authorize ${htmlEscape(p.clientName)}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
-    .card { background: #fff; border-radius: 12px; padding: 32px; max-width: 400px; width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
-    h1 { font-size: 1.25rem; margin: 0 0 8px; }
-    p { color: #555; margin: 0 0 16px; }
-    ul { margin: 0 0 24px; padding-left: 20px; color: #333; }
-    .actions { display: flex; gap: 12px; }
-    button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-    .allow { background: #2563eb; color: #fff; }
-    .deny { background: #e5e7eb; color: #333; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    ${icon}
-    <h1>${htmlEscape(p.clientName)} wants access</h1>
-    <p>This app is requesting the following permissions:</p>
-    <ul>${scopeList}</ul>
-    <div class="actions">
-      <button class="allow" onclick="respond(true)">Allow</button>
-      <button class="deny" onclick="respond(false)">Deny</button>
-    </div>
-    <p id="err" style="color:#dc2626;margin-top:12px;display:none;"></p>
-  </div>
-  <script>
-    async function respond(accept) {
-      try {
-        const res = await fetch('/api/auth/oauth2/consent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ accept, consent_code: '${safeCode}' })
-        });
-        if (!res.ok) { showError('Request failed (' + res.status + ')'); return; }
-        const data = await res.json();
-        if (data.redirectURI) { window.location.href = data.redirectURI; return; }
-        showError('Authorization failed: no redirect received.');
-      } catch (e) {
-        showError('Network error. Please try again.');
-      }
-    }
-    function showError(msg) {
-      const el = document.getElementById('err');
-      if (el) { el.textContent = msg; el.style.display = ''; }
-    }
-  </script>
-</body>
-</html>`;
 }
 
 export function createAuth(opts: CreateAuthOptions): Auth {
@@ -215,146 +131,14 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           await opts.mailer.send(email, 'magicLink', { url });
         },
       }),
-      invite({
-        invitationTokenExpiresIn: 60 * 60 * 24 * 7, // 7 days
-        defaultMaxUses: 1,
-        // Only staff (users with an org membership) may mint invitations; blocks
-        // authenticated portal students from hitting /invite/create.
-        canCreateInvite: async ({ inviterUser, ctx }) => {
-          const domainUser = await opts.identity.getUserByExternalId(inviterUser.id);
-          if (!domainUser) {
-            return false;
-          }
-          const membership = await opts.organizations.getMembershipByUser(domainUser.id);
-          if (membership === null) {
-            return false;
-          }
-          const session = ctx.context.session as {
-            session: { activeOrganizationId?: string | null };
-          } | null;
-          // No active org → afterCreateInvite couldn't record the invite; refuse before anything is sent.
-          if (!session?.session?.activeOrganizationId) {
-            return false;
-          }
-          return true;
-        },
-        sendUserInvitation: async ({ email, name, role, token }) => {
-          const link = inviteLinkFor(role, token, email, {
-            studentPortalUrl: opts.studentPortalUrl,
-            adminAppUrl: opts.adminAppUrl,
-          });
-          try {
-            if (role === STUDENT_ROLE) {
-              await opts.mailer.send(email, 'studentInvite', {
-                inviteUrl: link,
-                studentName: name ?? email,
-              });
-            } else {
-              // better-invite's callback doesn't expose the inviter, so the
-              // member template gets a generic sender name.
-              await opts.mailer.send(email, 'memberInvite', {
-                inviteUrl: link,
-                inviterName: 'Your team',
-                role,
-              });
-            }
-          } catch (err) {
-            // A failed email must not abort invite creation: the token is already minted and
-            // afterCreateInvite still records it, so the admin can fix transport and resend.
-            opts.logger.error('failed to send invite email', {
-              email,
-              role,
-              err: err instanceof Error ? err.message : String(err),
-            });
-          }
-        },
-        inviteHooks: {
-          // Capture which domain record each invitation belongs to, using the
-          // inviter's active org (the surface that minted it).
-          afterCreateInvite: async ({ ctx, invitations }) => {
-            const session = ctx.context.session as {
-              user: { id: string };
-              session: { activeOrganizationId?: string | null };
-            } | null;
-            const orgExternalId = session?.session?.activeOrganizationId ?? null;
-            if (!orgExternalId) {
-              return;
-            }
-            for (const inv of invitations) {
-              const email = (inv.emails?.[0] ?? inv.email) as string | undefined;
-              if (!email) {
-                continue;
-              }
-              if (inv.role === STUDENT_ROLE) {
-                await opts.organizations.recordStudentInvite(orgExternalId, email, inv.id);
-              } else {
-                const inviter = await requireUser(session!.user.id);
-                await opts.organizations.recordInvitation({
-                  orgExternalId,
-                  externalId: inv.id,
-                  email,
-                  role: inv.role,
-                  status: 'pending',
-                  inviterUserId: inviter.id,
-                  expiresAt: inv.expiresAt ?? null,
-                });
-              }
-            }
-          },
-          // One accept path for every auth method. Acceptance itself is an
-          // organizations-domain use case (student → identity links the row,
-          // staff → membership grant); this hook only adapts the provider's
-          // callback and stamps the session with the org the domain returns.
-          afterAcceptInvite: async ({ ctx, invitation, invitedUser }) => {
-            const { orgExternalId } = await opts.organizations.acceptInvite({
-              inviteExternalId: invitation.id,
-              role: invitation.role,
-              email: invitedUser.email,
-              userExternalId: invitedUser.id,
-            });
-            // The signup/sign-in session was created BEFORE the domain linked the
-            // account, so session.create.before saw nothing — stamp the fresh
-            // session now or the very first portal load 401s.
-            const liveSession =
-              (
-                ctx.context as {
-                  newSession?: { session?: { token?: string } } | null;
-                }
-              ).newSession?.session ??
-              (ctx.context as { session?: { session?: { token?: string } } | null }).session
-                ?.session;
-            if (orgExternalId && liveSession?.token) {
-              const updated = await ctx.context.internalAdapter.updateSession(liveSession.token, {
-                activeOrganizationId: orgExternalId,
-              });
-              // Refresh the cookie cache too — consumeInvite already re-issued
-              // it with the pre-stamp session, and getSession trusts the cache
-              // for its maxAge (same pattern as the org plugin's set-active).
-              await setSessionCookie(ctx as Parameters<typeof setSessionCookie>[0], {
-                session: updated,
-                user: invitedUser,
-              } as Parameters<typeof setSessionCookie>[1]);
-              opts.logger.info('invite session stamped', { orgExternalId });
-            } else {
-              opts.logger.warn('invite session NOT stamped', {
-                hasOrg: orgExternalId !== null,
-                hasToken: Boolean(liveSession?.token),
-              });
-            }
-          },
-        },
-      }),
       organization({
         ac,
         roles,
         creatorRole: 'owner',
-        // No sendInvitationEmail: the org plugin's native invitations are blocked
-        // below (beforeCreateInvitation) — all invites flow through better-invite.
         organizationHooks: {
-          // The org plugin's own invitation endpoints (createInvitation/acceptInvitation)
-          // are unmirrored on this branch — invites are minted and recorded exclusively
-          // through better-invite (see `invite(...)` above). Block the native endpoint so
-          // it cannot silently create invitations the domain never learns about.
+          // Invitations are domain-owned (core organizations + /api/invites).
+          // Block the org plugin's native invitation endpoint so it cannot
+          // silently create invitations the domain never learns about.
           beforeCreateInvitation: async () => {
             throw new APIError('BAD_REQUEST', {
               message: 'Invitations are managed by the invite system',
@@ -404,6 +188,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           // loginPage is required by OIDCOptions; the mcp plugin also sets it
           // from the outer loginPage option at runtime, so this is consistent.
           loginPage: opts.mcpLoginPage,
+          consentPage: opts.mcpConsentPage,
           allowDynamicClientRegistration: true,
           storeClientSecret: 'hashed',
           scopes: [
@@ -418,7 +203,6 @@ export function createAuth(opts: CreateAuthOptions): Auth {
             'assessments:read',
             'org:read',
           ],
-          getConsentHTML,
         },
       }),
     ],
@@ -435,16 +219,9 @@ export function createAuth(opts: CreateAuthOptions): Auth {
           return;
         }
 
-        const cookie = ctx.context.createAuthCookie(INVITE_COOKIE_NAME, { maxAge: 60 * 10 });
-        const token = await ctx.getSignedCookie(cookie.name, ctx.context.secret);
+        const token = readCookie(ctx.headers?.get('cookie') ?? '', INVITE_COOKIE_NAME);
         const email = (ctx.body as { email?: string } | undefined)?.email ?? '';
-        const invite = token
-          ? await ctx.context.adapter.findOne<InviteRecord>({
-              model: 'invite',
-              where: [{ field: 'token', value: token }],
-            })
-          : null;
-        if (!inviteAllowsSignup(invite, email, new Date())) {
+        if (!token || !(await opts.organizations.inviteAllowsSignup(token, email))) {
           throw new APIError('FORBIDDEN', { message: 'The student portal is invite-only' });
         }
       }),
@@ -528,12 +305,16 @@ export interface Auth {
       headers: Headers;
     }) => Promise<unknown>;
     removeMember: (input: { body: Record<string, unknown>; headers: Headers }) => Promise<unknown>;
-    // better-invite (see invites.ts + org-admin.ts). Driven by OrgAdmin.invite
-    // for staff roles; the same endpoint mints student invites too.
-    createInvite: (input: { body: { email: string; role: string }; headers: Headers }) => Promise<unknown>;
-    // Grants a membership on an accepted staff invitation (see afterAcceptInvite).
+    // Grants a membership on an accepted staff invitation (server-side, no session).
     addMember: (input: {
       body: { userId: string; organizationId: string; role: string };
     }) => Promise<unknown>;
   };
+  /** better-auth's internal context — used by the accept route to stamp the
+   *  session's active org (students are not members, so set-active can't). */
+  $context: Promise<{
+    internalAdapter: {
+      updateSession: (token: string, data: Record<string, unknown>) => Promise<unknown>;
+    };
+  }>;
 }

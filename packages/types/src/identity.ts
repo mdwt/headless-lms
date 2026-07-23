@@ -19,8 +19,6 @@ export interface Student {
   readonly orgId: string;
   /** better-auth user id once linked; NULL until an invitation is accepted. */
   readonly externalId: string | null;
-  /** Latest pending better-invite invitation id; cleared on link. */
-  readonly inviteExternalId: string | null;
   readonly email: string;
   readonly firstName: string;
   readonly lastName: string;

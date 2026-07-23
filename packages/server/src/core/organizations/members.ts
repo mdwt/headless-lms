@@ -25,11 +25,6 @@ export interface MembersQuery {
   status?: MemberStatus | undefined;
 }
 
-export interface InviteMemberInput {
-  email: string;
-  role: Role;
-}
-
 export interface Page<T> {
   rows: T[];
   total: number;

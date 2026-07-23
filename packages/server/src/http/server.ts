@@ -19,6 +19,13 @@ export async function buildServer(
     loggerInstance: container.loggerInstance as FastifyBaseLogger,
   });
 
+  // Enter the request-scoped log context: every line logged inside this
+  // request's async scope carries its reqId (and orgId once resolveScope runs),
+  // wherever it is emitted.
+  app.addHook('onRequest', (request, _reply, done) => {
+    container.requestContext.run({ reqId: request.id }, done);
+  });
+
   // Validate + serialize request/response bodies from the shared Zod contract.
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -27,7 +34,7 @@ export async function buildServer(
   registerOpenApi(app, config);
   registerAuth(app, container);
   registerErrorHandler(app);
-  registerRoutes(app, container);
+  registerRoutes(app, container, config);
 
   // Drain + stop the outbox relay on shutdown. Harmless when the relay was
   // never started (gen-openapi boots this app with ready() + close() only).

@@ -15,11 +15,11 @@ CREATE TABLE "invitations" (
 	"role" text NOT NULL,
 	"status" text NOT NULL,
 	"invited_by" text NOT NULL,
-	"external_id" text NOT NULL,
+	"token_hash" text,
 	"expires_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "invitations_org_id_id_pk" PRIMARY KEY("org_id","id"),
-	CONSTRAINT "invitations_external_id_unique" UNIQUE("external_id")
+	CONSTRAINT "invitations_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
 CREATE TABLE "memberships" (
@@ -133,7 +133,6 @@ CREATE TABLE "students" (
 	"org_id" text NOT NULL,
 	"id" text NOT NULL,
 	"external_id" text,
-	"invite_external_id" text,
 	"email" text NOT NULL,
 	"first_name" text NOT NULL,
 	"last_name" text NOT NULL,
@@ -229,31 +228,6 @@ CREATE TABLE "invitation" (
 	"expires_at" timestamp,
 	"inviter_id" text NOT NULL,
 	"created_at" timestamp NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "invite" (
-	"id" text PRIMARY KEY NOT NULL,
-	"token" text NOT NULL,
-	"created_at" timestamp,
-	"expires_at" timestamp NOT NULL,
-	"max_uses" integer NOT NULL,
-	"infinity_max_uses" boolean NOT NULL,
-	"created_by_user_id" text,
-	"redirect_to_after_upgrade" text,
-	"share_inviter_name" boolean NOT NULL,
-	"email" text,
-	"emails" text[],
-	"role" text NOT NULL,
-	"new_account" boolean,
-	"status" text NOT NULL,
-	CONSTRAINT "invite_token_unique" UNIQUE("token")
-);
---> statement-breakpoint
-CREATE TABLE "invite_use" (
-	"id" text PRIMARY KEY NOT NULL,
-	"invite_id" text,
-	"used_at" timestamp NOT NULL,
-	"used_by_user_id" text
 );
 --> statement-breakpoint
 CREATE TABLE "member" (
@@ -379,9 +353,6 @@ ALTER TABLE "connections" ADD CONSTRAINT "connections_org_id_credential_ref_cred
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "invite" ADD CONSTRAINT "invite_created_by_user_id_user_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "invite_use" ADD CONSTRAINT "invite_use_invite_id_invite_id_fk" FOREIGN KEY ("invite_id") REFERENCES "public"."invite"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "invite_use" ADD CONSTRAINT "invite_use_used_by_user_id_user_id_fk" FOREIGN KEY ("used_by_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

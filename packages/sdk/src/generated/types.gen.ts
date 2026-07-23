@@ -4,6 +4,40 @@ export type ClientOptions = {
   baseUrl: "http://localhost:8000" | (string & {});
 };
 
+export type ActivateInviteData = {
+  body: {
+    token: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/invites/activate";
+};
+
+export type ActivateInviteErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ActivateInviteError = ActivateInviteErrors[keyof ActivateInviteErrors];
+
+export type ActivateInviteResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: "accepted" | "auth-required";
+    email: string;
+    role: "admin" | "instructor" | "student";
+  };
+};
+
+export type ActivateInviteResponse = ActivateInviteResponses[keyof ActivateInviteResponses];
+
 export type ListCoursesData = {
   body?: never;
   path?: never;
@@ -192,6 +226,76 @@ export type UpdateCourseResponses = {
 };
 
 export type UpdateCourseResponse = UpdateCourseResponses[keyof UpdateCourseResponses];
+
+export type CreateInviteData = {
+  body: {
+    email: string;
+    role: "admin" | "instructor" | "student";
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations/invites";
+};
+
+export type CreateInviteErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type CreateInviteError = CreateInviteErrors[keyof CreateInviteErrors];
+
+export type CreateInviteResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    email: string;
+    role: "admin" | "instructor" | "student";
+    status: string;
+    expiresAt: string | null;
+    createdAt: string;
+  };
+};
+
+export type CreateInviteResponse = CreateInviteResponses[keyof CreateInviteResponses];
+
+export type AcceptInviteData = {
+  body: {
+    token: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/invites/accept";
+};
+
+export type AcceptInviteErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type AcceptInviteError = AcceptInviteErrors[keyof AcceptInviteErrors];
+
+export type AcceptInviteResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: "accepted";
+  };
+};
+
+export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
 
 export type ListLearnCoursesData = {
   body?: never;
@@ -659,7 +763,6 @@ export type CreateStudentData = {
     firstName: string;
     lastName: string;
     email: string;
-    sendInvite: boolean;
   };
   path?: never;
   query?: never;
@@ -736,41 +839,6 @@ export type GetStudentResponses = {
 };
 
 export type GetStudentResponse = GetStudentResponses[keyof GetStudentResponses];
-
-export type ResendStudentInviteData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/students/{id}/invite";
-};
-
-export type ResendStudentInviteErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type ResendStudentInviteError = ResendStudentInviteErrors[keyof ResendStudentInviteErrors];
-
-export type ResendStudentInviteResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
 
 export type ListEntitlementsData = {
   body?: never;
@@ -1000,46 +1068,6 @@ export type ListMembersResponses = {
 };
 
 export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
-
-export type InviteMemberData = {
-  body: {
-    email: string;
-    role: "owner" | "admin" | "instructor";
-  };
-  path?: never;
-  query?: never;
-  url: "/api/organizations/members";
-};
-
-export type InviteMemberErrors = {
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type InviteMemberError = InviteMemberErrors[keyof InviteMemberErrors];
-
-export type InviteMemberResponses = {
-  /**
-   * Default Response
-   */
-  201: {
-    id: string;
-    name: string;
-    email: string;
-    image?: string | null;
-    role: "owner" | "admin" | "instructor";
-    status: "active" | "invited";
-    joinedAt: string | null;
-    invitedAt: string | null;
-  };
-};
-
-export type InviteMemberResponse = InviteMemberResponses[keyof InviteMemberResponses];
 
 export type UpdateMemberRoleData = {
   body: {

@@ -9,11 +9,11 @@ import type {
   CourseAssignment,
 } from '../../../core/organizations/model.js';
 import { parseRole, normalizeRole } from '../../../core/organizations/index.js';
+import type { NewInvitationRow } from '../../../core/organizations/ports.js';
 import type {
   CreateOrganizationInput,
   UpdateOrganizationInput,
   AddMembershipInput,
-  RecordInvitationInput,
   AssignCourseInput,
 } from '../../../core/organizations/types.js';
 import {
@@ -29,6 +29,21 @@ const INVITATION_STATUSES = ['pending', 'accepted', 'rejected', 'canceled'] as c
 type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 const toStatus = (s: string): InvitationStatus =>
   (INVITATION_STATUSES as readonly string[]).includes(s) ? (s as InvitationStatus) : 'pending';
+
+// The Invitation DTO deliberately omits token_hash — the row shape flows into
+// domain events, and the hash must never leave the persistence layer.
+function toInvitation(row: typeof invitations.$inferSelect): Invitation {
+  return {
+    id: row.id,
+    orgId: row.orgId,
+    email: row.email,
+    role: row.role,
+    status: row.status,
+    invitedBy: row.invitedBy,
+    expiresAt: row.expiresAt,
+    createdAt: row.createdAt,
+  };
+}
 
 export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   constructor(
@@ -61,6 +76,15 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .set({ name: input.name, slug: input.slug })
       .where(eq(organizations.externalId, externalId))
       .returning();
+    return row ?? null;
+  }
+
+  async findById(id: string): Promise<Organization | null> {
+    const [row] = await this.db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, id))
+      .limit(1);
     return row ?? null;
   }
 
@@ -112,55 +136,68 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     await this.db.delete(memberships).where(eq(memberships.externalId, externalId));
   }
 
-  async insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation> {
+  async insertInvitation(orgId: string, input: NewInvitationRow): Promise<Invitation> {
     const [row] = await this.db
       .insert(invitations)
       .values({
         orgId,
         email: input.email,
-        role: normalizeRole(input.role),
-        status: toStatus(input.status),
-        invetedBy: input.inviterUserId,
-        externalId: input.externalId,
+        role: input.role,
+        status: 'pending',
+        invitedBy: input.invitedBy,
+        tokenHash: input.tokenHash,
         expiresAt: input.expiresAt,
       })
-      .onConflictDoNothing({ target: invitations.externalId })
       .returning();
-    if (row) {
-      return row;
-    }
-    const [existing] = await this.db
-      .select()
-      .from(invitations)
-      .where(eq(invitations.externalId, input.externalId))
-      .limit(1);
-    if (!existing) {
+    if (!row) {
       throw new Error('failed to insert invitation');
     }
-    return existing;
+    return toInvitation(row);
   }
 
-  async setInvitationStatusByExternalId(externalId: string, status: string): Promise<void> {
+  async rotateInvitationToken(
+    orgId: string,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<Invitation | null> {
+    const [row] = await this.db
+      .update(invitations)
+      .set({ tokenHash, expiresAt })
+      .where(and(eq(invitations.orgId, orgId), eq(invitations.id, id)))
+      .returning();
+    return row ? toInvitation(row) : null;
+  }
+
+  async setInvitationStatus(orgId: string, id: string, status: string): Promise<void> {
     await this.db
       .update(invitations)
       .set({ status: toStatus(status) })
-      .where(eq(invitations.externalId, externalId));
+      .where(and(eq(invitations.orgId, orgId), eq(invitations.id, id)));
   }
 
-  async findInvitationByExternalId(
-    externalId: string,
-  ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
+  async findInvitationByTokenHash(tokenHash: string): Promise<Invitation | null> {
     const [row] = await this.db
-      .select({
-        orgExternalId: organizations.externalId,
-        role: invitations.role,
-        status: invitations.status,
-      })
+      .select()
       .from(invitations)
-      .innerJoin(organizations, eq(invitations.orgId, organizations.id))
-      .where(eq(invitations.externalId, externalId))
+      .where(eq(invitations.tokenHash, tokenHash))
       .limit(1);
-    return row ?? null;
+    return row ? toInvitation(row) : null;
+  }
+
+  async findPendingInvitation(orgId: string, email: string): Promise<Invitation | null> {
+    const [row] = await this.db
+      .select()
+      .from(invitations)
+      .where(
+        and(
+          eq(invitations.orgId, orgId),
+          eq(invitations.email, email),
+          eq(invitations.status, 'pending'),
+        ),
+      )
+      .limit(1);
+    return row ? toInvitation(row) : null;
   }
 
   async insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment> {

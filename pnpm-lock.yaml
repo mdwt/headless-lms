@@ -146,9 +146,6 @@ importers:
       better-auth:
         specifier: ^1.2.7
         version: 1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0))
-      better-invite:
-        specifier: ^0.5.7
-        version: 0.5.7(better-auth@1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0)))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -271,9 +268,6 @@ importers:
       better-auth:
         specifier: ^1.6.22
         version: 1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0))
-      better-invite:
-        specifier: ^0.5.7
-        version: 0.5.7(better-auth@1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0)))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -511,9 +505,6 @@ importers:
       better-auth:
         specifier: ^1.6.22
         version: 1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.22.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0))
-      better-invite:
-        specifier: ^0.5.7
-        version: 0.5.7(better-auth@1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.22.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)))
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0)
@@ -5641,11 +5632,6 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
-
-  better-invite@0.5.7:
-    resolution: {integrity: sha512-7oxtGUcMBUGdhPQhDud4FbZmS4OtGsAszv0/TzyLA+2LSEsrnh9siUhi/pOX9i+F5+n9eu1Yht2iX0G+3HbRyg==}
-    peerDependencies:
-      better-auth: ^1.6.11
 
   block-stream2@2.1.0:
     resolution: {integrity: sha512-suhjmLI57Ewpmq00qaygS8UgEq2ly2PCItenIyhMqVjo4t4pGzqMvfgJuX8iWTeSDdfSSqS6j38fL4ToNL7Pfg==}
@@ -14558,18 +14544,6 @@ snapshots:
       rou3: 0.7.12
       set-cookie-parser: 3.1.1
     optionalDependencies:
-      zod: 4.4.3
-
-  better-invite@0.5.7(better-auth@1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0))):
-    dependencies:
-      '@better-auth/utils': 0.4.2
-      better-auth: 1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@2.1.9(@types/node@20.19.43)(jsdom@25.0.1)(lightningcss@1.32.0))
-      zod: 4.4.3
-
-  better-invite@0.5.7(better-auth@1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.22.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0))):
-    dependencies:
-      '@better-auth/utils': 0.4.2
-      better-auth: 1.6.22(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.20.0)(gel@2.2.0)(kysely@0.29.2)(pg@8.22.0))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.22.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0))
       zod: 4.4.3
 
   block-stream2@2.1.0:

@@ -29,7 +29,5 @@ export const CreateStudent = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   email: z.email(),
-  /** Create + send a portal invitation on creation. */
-  sendInvite: z.boolean(),
 });
 export type CreateStudent = z.infer<typeof CreateStudent>;

@@ -1,7 +1,7 @@
 // organizations members — Drizzle read repository. Reads the domain mirror of the
 // org's members (memberships) and pending invitations, joined to the identity user
 // for display. Writes go through the auth provider (see adapters/auth/org-admin.ts).
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { MembersRepository, MemberRecord } from '../../../core/organizations/index.js';
 import type { Member, MembersQuery, Page, Role } from '../../../core/organizations/index.js';
@@ -49,16 +49,23 @@ export class DrizzleMembersRepository implements MembersRepository {
       .leftJoin(user, eq(user.id, users.externalId))
       .where(eq(memberships.orgId, orgId));
 
+    // Student invitations live in the same table but belong to the students
+    // surface, not the members list.
     const inviteRows = await this.db
       .select({
         id: invitations.id,
         email: invitations.email,
         role: invitations.role,
         invitedAt: invitations.createdAt,
-        externalId: invitations.externalId,
       })
       .from(invitations)
-      .where(and(eq(invitations.orgId, orgId), eq(invitations.status, 'pending')));
+      .where(
+        and(
+          eq(invitations.orgId, orgId),
+          eq(invitations.status, 'pending'),
+          ne(invitations.role, 'student'),
+        ),
+      );
 
     const members: MemberRecord[] = memberRows.map((m) => ({
       id: m.id,
@@ -71,7 +78,7 @@ export class DrizzleMembersRepository implements MembersRepository {
       invitedAt: null,
       kind: 'member',
       memberExternalId: m.memberExternalId,
-      invitationExternalId: null,
+      invitationId: null,
     }));
     const invited: MemberRecord[] = inviteRows.map((i) => ({
       id: i.id,
@@ -84,7 +91,7 @@ export class DrizzleMembersRepository implements MembersRepository {
       invitedAt: i.invitedAt.toISOString(),
       kind: 'invitation',
       memberExternalId: null,
-      invitationExternalId: i.externalId,
+      invitationId: i.id,
     }));
     return [...members, ...invited];
   }

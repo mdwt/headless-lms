@@ -4,7 +4,9 @@
 //   - MCP: guarded by OAuth bearer tokens, so it sits outside the session plugin
 import type { FastifyInstance } from 'fastify';
 import type { Container } from '../app/container.js';
+import type { ServerConfig } from './config.js';
 import { coursesRoutes } from './routes/courses.js';
+import { invitesRoutes, invitesPublicRoutes } from './routes/invites.js';
 import { learnRoutes } from './routes/learn.js';
 import { activitiesRoutes } from './routes/activities.js';
 import { studentsRoutes } from './routes/students.js';
@@ -16,8 +18,20 @@ import { connectedAppsRoutes } from './routes/connected-apps.js';
 import { integrationsRoutes } from './routes/integrations.js';
 import { mcpRoutes } from './mcp/route.js';
 
-export function registerRoutes(app: FastifyInstance, container: Container): void {
+export function registerRoutes(
+  app: FastifyInstance,
+  container: Container,
+  config: ServerConfig,
+): void {
   app.get('/health', async () => ({ status: 'ok' }));
+
+  // Invite activation is the one route an invitee can reach without a session —
+  // registered outside the session-guarded plugin below.
+  app.register(async (instance) => {
+    await invitesPublicRoutes(instance, container, {
+      secureCookies: config.container.secureCookies ?? false,
+    });
+  });
 
   // Back-office routes (validated against the shared contract). A scoped
   // onRequest hook enforces the session on EVERY route in this plugin, so a new
@@ -26,6 +40,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
   app.register(async (instance) => {
     instance.addHook('onRequest', instance.requireSession);
     await coursesRoutes(instance, container);
+    await invitesRoutes(instance, container);
     await learnRoutes(instance, container);
     await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);

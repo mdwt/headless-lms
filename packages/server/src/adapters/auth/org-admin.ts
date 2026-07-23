@@ -9,13 +9,11 @@ import {
   type OrgAdmin,
   type MemberWriteContext,
   type Role,
-  type InviteMemberInput,
   type NewOrganizationInput,
   type UpdateOrganizationInput,
   type AuthHeaders,
 } from '../../core/organizations/index.js';
 import type { Auth } from './index.js';
-import { STUDENT_ROLE } from './invites.js';
 
 export function createOrgAdmin(auth: Auth): OrgAdmin {
   const headersOf = (ctx: MemberWriteContext) => fromNodeHeaders(ctx.headers);
@@ -57,23 +55,6 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
         }
         throw err;
       }
-    },
-    async invite(ctx: MemberWriteContext, input: InviteMemberInput): Promise<void> {
-      // One invite system for all populations: mint a better-invite invitation
-      // (role = staff role); its afterCreateInvite hook mirrors it into the
-      // domain, which the members list reads.
-      await auth.api.createInvite({
-        body: { email: input.email, role: input.role },
-        headers: headersOf(ctx),
-      });
-    },
-    async inviteStudent(ctx: MemberWriteContext, email: string): Promise<void> {
-      // Same provider, student role: afterCreateInvite records the invite id on
-      // the student row; sendUserInvitation emails the portal welcome link.
-      await auth.api.createInvite({
-        body: { email, role: STUDENT_ROLE },
-        headers: headersOf(ctx),
-      });
     },
     async grantMembership(
       orgExternalId: string,

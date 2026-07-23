@@ -14,6 +14,7 @@ function container(opts: {
       getMembershipByUser: async () => opts.membership ?? null,
     },
     identity: { getUserByExternalId: async () => opts.user ?? null },
+    requestContext: { run: (_fields: unknown, fn: () => void) => fn(), set: () => {}, current: () => ({}) },
   } as unknown as Container;
 }
 

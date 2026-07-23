@@ -8,6 +8,94 @@
     "schemas": {}
   },
   "paths": {
+    "/api/invites/activate": {
+      "post": {
+        "operationId": "activateInvite",
+        "summary": "Validate an invite token and stage it for signup",
+        "tags": [
+          "Invites"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted",
+                        "auth-required"
+                      ]
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "admin",
+                        "instructor",
+                        "student"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "email",
+                    "role"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/courses": {
       "get": {
         "operationId": "listCourses",
@@ -561,6 +649,187 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/organizations/invites": {
+      "post": {
+        "operationId": "createInvite",
+        "summary": "Invite a member or student into the active organization",
+        "tags": [
+          "Invites"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "instructor",
+                      "student"
+                    ]
+                  }
+                },
+                "required": [
+                  "email",
+                  "role"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "admin",
+                        "instructor",
+                        "student"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "role",
+                    "status",
+                    "expiresAt",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invites/accept": {
+      "post": {
+        "operationId": "acceptInvite",
+        "summary": "Accept an invitation with the logged-in account",
+        "tags": [
+          "Invites"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -2074,7 +2343,7 @@
       },
       "post": {
         "operationId": "createStudent",
-        "summary": "Create a student manually",
+        "summary": "Create a student from the admin portal",
         "tags": [
           "Students"
         ],
@@ -2097,16 +2366,12 @@
                     "type": "string",
                     "format": "email",
                     "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  },
-                  "sendInvite": {
-                    "type": "boolean"
                   }
                 },
                 "required": [
                   "firstName",
                   "lastName",
-                  "email",
-                  "sendInvite"
+                  "email"
                 ]
               }
             }
@@ -2269,79 +2534,6 @@
             }
           },
           "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/students/{id}/invite": {
-      "post": {
-        "operationId": "resendStudentInvite",
-        "summary": "Resend the portal invitation for a pending student",
-        "tags": [
-          "Students"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -3149,124 +3341,6 @@
                     "total",
                     "page",
                     "pageSize"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "inviteMember",
-        "summary": "Invite an organization member",
-        "tags": [
-          "Organizations"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
-                  },
-                  "role": {
-                    "type": "string",
-                    "enum": [
-                      "owner",
-                      "admin",
-                      "instructor"
-                    ]
-                  }
-                },
-                "required": [
-                  "email",
-                  "role"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "image": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "role": {
-                      "type": "string",
-                      "enum": [
-                        "owner",
-                        "admin",
-                        "instructor"
-                      ]
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "active",
-                        "invited"
-                      ]
-                    },
-                    "joinedAt": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "invitedAt": {
-                      "nullable": true,
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "email",
-                    "role",
-                    "status",
-                    "joinedAt",
-                    "invitedAt"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
                   ],
                   "additionalProperties": false
                 }

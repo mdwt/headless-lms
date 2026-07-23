@@ -16,7 +16,6 @@ import {
   OrganizationRuleError,
   type Member,
   type MembersQuery,
-  type InviteMemberInput,
   type Page,
 } from './members.js';
 import type {
@@ -24,12 +23,22 @@ import type {
   NewOrganizationInput,
   UpdateOrganizationInput,
   AddMembershipInput,
-  RecordInvitationInput,
+  CreateInviteInput,
   AcceptInviteInput,
+  InviteRole,
   AssignCourseInput,
 } from './types.js';
 import type { Logger, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
+import type { Mailer } from '../shared/mailer.js';
+import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
+
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface InviteUrls {
+  studentPortalUrl: string;
+  adminAppUrl: string;
+}
 
 function toMember(r: MemberRecord): Member {
   return {
@@ -51,19 +60,15 @@ export class OrganizationServiceImpl implements OrganizationService {
    *  entry commit in one transaction. Absent (tests) → passthrough, no events. */
   private readonly uow: OrganizationsUnitOfWork;
 
-  // `orgAdmin` is provided lazily: the auth adapter depends on this service (for
-  // its mirror hooks), and OrgAdmin is built over that same auth instance — so it
-  // cannot exist at construction time. The thunk is resolved at request time,
-  // after composition has finished wiring auth.
   constructor(
     private readonly repo: OrganizationsRepository,
     private readonly membersRepo: MembersRepository,
     private readonly orgAdmin: () => OrgAdmin,
-    // Identity-context slice: the student rows the invite lifecycle records
-    // against and links. Invites are organizations-domain; the row is identity's.
     private readonly students: StudentLinker,
     uow?: OrganizationsUnitOfWork,
     private readonly logger: Logger = noopLogger,
+    private readonly mailer?: Pick<Mailer, 'send'>,
+    private readonly inviteUrls?: InviteUrls,
   ) {
     this.uow = uow ?? { run: (fn) => fn({ organizations: repo, outbox: noopOutbox }) };
   }
@@ -124,85 +129,151 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.logger.info('membership removed', { externalId });
   }
 
-  async recordInvitation(input: RecordInvitationInput): Promise<Invitation> {
-    const org = await this.requireOrg(input.orgExternalId);
+  async createInvite(input: CreateInviteInput): Promise<Invitation> {
+    const { orgId, email, role, inviterUserId } = input;
+    if (role === STUDENT_ROLE) {
+      if (!(await this.students.hasPendingStudent(orgId, email))) {
+        throw new OrganizationRuleError('No pending student with this email');
+      }
+    } else {
+      const existing = await this.membersRepo.findByEmail(orgId, email);
+      if (existing?.kind === 'member') {
+        this.logger.warn('invite rejected: already a member', { orgId });
+        throw new OrganizationRuleError('That email is already a member');
+      }
+    }
+    const { token, tokenHash } = generateInviteToken();
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+    const pending = await this.repo.findPendingInvitation(orgId, email);
     const invitation = await this.uow.run(async ({ organizations, outbox }) => {
-      const created = await organizations.insertInvitation(org.id, input);
-      await outbox.append([{ type: 'invitation.created', orgId: org.id, invitation: created }]);
-      return created;
+      const row = pending
+        ? await organizations.rotateInvitationToken(orgId, pending.id, tokenHash, expiresAt)
+        : await organizations.insertInvitation(orgId, {
+            email,
+            role,
+            invitedBy: inviterUserId,
+            tokenHash,
+            expiresAt,
+          });
+      if (!row) {
+        throw new Error('invitation row disappeared during re-issue');
+      }
+      await outbox.append([
+        role === STUDENT_ROLE
+          ? { type: 'student.invited', orgId, email, invitationId: row.id }
+          : { type: 'invitation.created', orgId, invitation: row },
+      ]);
+      return row;
     });
-    this.logger.info('invitation recorded', { orgId: org.id });
+    await this.sendInviteEmail(email, role, token);
+    this.logger.info('invite created', { orgId, invitationId: invitation.id, role });
     return invitation;
   }
 
-  async recordStudentInvite(
-    orgExternalId: string,
-    email: string,
-    inviteExternalId: string,
-  ): Promise<void> {
-    const org = await this.requireOrg(orgExternalId);
-    // The row pointer is identity's own (atomic) statement; only the event
-    // rides our scope — cross-context writes can't share one transaction
-    // without collapsing the port boundary.
-    await this.students.recordStudentInvite(org.id, email, inviteExternalId);
-    await this.uow.run(({ outbox }) =>
-      outbox.append([{ type: 'student.invited', orgId: org.id, email, inviteExternalId }]),
-    );
+  async peekInvite(token: string): Promise<Invitation | null> {
+    const invitation = await this.repo.findInvitationByTokenHash(hashInviteToken(token));
+    if (!invitation || invitation.status !== 'pending') {
+      return null;
+    }
+    if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+      return null;
+    }
+    return invitation;
   }
 
-  // Invitation acceptance — an organizations-domain event with two grants:
-  // student invites link the pending student row(s) (identity persists that),
-  // staff invites grant the membership their mirror records. Returns the org
-  // the accepting account should act in, for session stamping at the boundary.
-  async acceptInvite(input: AcceptInviteInput): Promise<{ orgExternalId: string | null }> {
-    if (input.role === STUDENT_ROLE) {
-      await this.students.linkStudentByInvite(
-        input.inviteExternalId,
-        input.email,
+  async inviteAllowsSignup(token: string, email: string): Promise<boolean> {
+    const invitation = await this.peekInvite(token);
+    return invitation !== null && invitation.email.toLowerCase() === email.toLowerCase();
+  }
+
+  async acceptInvite(
+    input: AcceptInviteInput,
+  ): Promise<{ orgExternalId: string; role: InviteRole } | null> {
+    const invitation = await this.peekInvite(input.token);
+    if (!invitation) {
+      this.logger.warn('invite accept refused: token invalid or expired');
+      return null;
+    }
+    if (invitation.email.toLowerCase() !== input.email.toLowerCase()) {
+      this.logger.warn('invite accept refused: email mismatch', {
+        orgId: invitation.orgId,
+        invitationId: invitation.id,
+      });
+      return null;
+    }
+    const org = await this.repo.findById(invitation.orgId);
+    if (!org) {
+      return null;
+    }
+    if (invitation.role === STUDENT_ROLE) {
+      const linked = await this.students.linkPendingStudent(
+        invitation.orgId,
+        invitation.email,
+        invitation.id,
         input.userExternalId,
       );
-      const orgExternalId = await this.students.studentOrgExternalId(input.userExternalId);
-      this.logger.info('student invite accepted', { inviteExternalId: input.inviteExternalId });
-      const org = orgExternalId ? await this.repo.findByExternalId(orgExternalId) : null;
-      if (org) {
-        await this.uow.run(({ outbox }) =>
-          outbox.append([
-            {
-              type: 'student.invite.accepted',
-              orgId: org.id,
-              email: input.email,
-              inviteExternalId: input.inviteExternalId,
-              userExternalId: input.userExternalId,
-            },
-          ]),
-        );
+      if (!linked) {
+        this.logger.warn('student invite accept refused: no pending student row', {
+          orgId: invitation.orgId,
+          invitationId: invitation.id,
+        });
+        return null;
       }
-      return { orgExternalId };
-    }
-    const record = await this.repo.findInvitationByExternalId(input.inviteExternalId);
-    if (!record || record.status !== 'pending') {
-      // Canceled/unknown mirror → no grant; the token alone proves nothing.
-      this.logger.warn('invitation accept refused: mirror not pending', {
-        inviteExternalId: input.inviteExternalId,
+      await this.uow.run(({ organizations }) =>
+        organizations.setInvitationStatus(invitation.orgId, invitation.id, 'accepted'),
+      );
+    } else {
+      await this.orgAdmin().grantMembership(org.externalId, input.userExternalId, invitation.role);
+      await this.uow.run(async ({ organizations, outbox }) => {
+        await organizations.setInvitationStatus(invitation.orgId, invitation.id, 'accepted');
+        await outbox.append([
+          {
+            type: 'invitation.accepted',
+            orgId: invitation.orgId,
+            invitationId: invitation.id,
+            role: invitation.role,
+            userExternalId: input.userExternalId,
+          },
+        ]);
       });
-      return { orgExternalId: null };
     }
-    await this.orgAdmin().grantMembership(record.orgExternalId, input.userExternalId, record.role);
-    const org = await this.requireOrg(record.orgExternalId);
-    await this.uow.run(async ({ organizations, outbox }) => {
-      await organizations.setInvitationStatusByExternalId(input.inviteExternalId, 'accepted');
-      await outbox.append([
-        {
-          type: 'invitation.accepted',
-          orgId: org.id,
-          inviteExternalId: input.inviteExternalId,
-          role: record.role,
-          userExternalId: input.userExternalId,
-        },
-      ]);
+    this.logger.info('invite accepted', {
+      orgId: invitation.orgId,
+      invitationId: invitation.id,
+      role: invitation.role,
     });
-    this.logger.info('invitation accepted', { inviteExternalId: input.inviteExternalId });
-    return { orgExternalId: record.orgExternalId };
+    return { orgExternalId: org.externalId, role: invitation.role };
+  }
+
+  private async sendInviteEmail(email: string, role: InviteRole, token: string): Promise<void> {
+    if (!this.mailer || !this.inviteUrls) {
+      throw new Error('invite delivery is not configured (mailer / invite urls missing)');
+    }
+    const base =
+      role === STUDENT_ROLE
+        ? `${this.inviteUrls.studentPortalUrl}/welcome`
+        : `${this.inviteUrls.adminAppUrl}/invite`;
+    const query = new URLSearchParams({ token, email });
+    const inviteUrl = `${base}?${query.toString()}`;
+    try {
+      if (role === STUDENT_ROLE) {
+        await this.mailer.send(email, 'studentInvite', { inviteUrl, studentName: email });
+      } else {
+        await this.mailer.send(email, 'memberInvite', {
+          inviteUrl,
+          inviterName: 'Your team',
+          role,
+        });
+      }
+    } catch (err) {
+      // A failed email must not abort invite creation: the token is already
+      // minted and recorded, so the admin can fix transport and resend.
+      this.logger.error('failed to send invite email', {
+        email,
+        role,
+        err: err instanceof Error ? err : new Error(String(err)),
+      });
+    }
   }
 
   async getByExternalId(externalId: string): Promise<Organization | null> {
@@ -242,24 +313,16 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.membersRepo.list(orgId, query);
   }
 
-  async inviteMember(ctx: MemberWriteContext, input: InviteMemberInput): Promise<Member> {
-    const existing = await this.membersRepo.findByEmail(ctx.orgId, input.email);
+  async assertInvitable(orgExternalId: string, email: string, role: string): Promise<void> {
+    if (role === STUDENT_ROLE) {
+      return;
+    }
+    const org = await this.requireOrg(orgExternalId);
+    const existing = await this.membersRepo.findByEmail(org.id, email);
     if (existing) {
-      this.logger.warn('invite rejected: already a member or invited', { orgId: ctx.orgId });
+      this.logger.warn('invite rejected: already a member or invited', { orgId: org.id });
       throw new OrganizationRuleError('That email is already a member or invited');
     }
-    await this.orgAdmin().invite(ctx, input);
-    const created = await this.membersRepo.findByEmail(ctx.orgId, input.email);
-    if (!created) {
-      throw new Error('invitation did not propagate to the domain mirror');
-    }
-    this.logger.info('member invited', { orgId: ctx.orgId, memberId: created.id });
-    return toMember(created);
-  }
-
-  async inviteStudent(ctx: MemberWriteContext, email: string): Promise<void> {
-    await this.orgAdmin().inviteStudent(ctx, email);
-    this.logger.info('student invited', { orgId: ctx.orgId });
   }
 
   async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
@@ -301,16 +364,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     }
     if (member.kind === 'member' && member.memberExternalId) {
       await this.orgAdmin().removeMember(ctx, member.memberExternalId);
-    } else if (member.kind === 'invitation' && member.invitationExternalId) {
-      // better-invite tokens can only be canceled by their creator; the domain
-      // mirror is authoritative for staff grants (acceptInvite refuses
-      // non-pending mirrors), so canceling the mirror is canceling the invite.
-      const inviteExternalId = member.invitationExternalId;
+    } else if (member.kind === 'invitation' && member.invitationId) {
+      const invitationId = member.invitationId;
       await this.uow.run(async ({ organizations, outbox }) => {
-        await organizations.setInvitationStatusByExternalId(inviteExternalId, 'canceled');
-        await outbox.append([
-          { type: 'invitation.canceled', orgId: ctx.orgId, inviteExternalId },
-        ]);
+        await organizations.setInvitationStatus(ctx.orgId, invitationId, 'canceled');
+        await outbox.append([{ type: 'invitation.canceled', orgId: ctx.orgId, invitationId }]);
       });
     }
     this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });

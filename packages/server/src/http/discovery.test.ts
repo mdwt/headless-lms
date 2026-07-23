@@ -11,6 +11,7 @@ const containerConfig: Config = {
   authSecret: '',
   trustedOrigins: ['http://localhost:8001', 'http://localhost:8002', 'http://localhost:8000'],
   mcpLoginPage: 'http://localhost:8001/login',
+  mcpConsentPage: 'http://localhost:8001/oauth/consent',
   credentialStoreKey: '',
   studentPortalUrl: 'http://localhost:8002',
   adminAppUrl: 'http://localhost:8001',

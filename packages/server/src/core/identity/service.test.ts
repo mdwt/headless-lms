@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
 import { ConflictError } from '../shared/errors.js';
-import type { IdentityRepository } from './ports.js';
+import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { Student, User } from './model.js';
 import type { CreateStudentInput, RegisterStudentInput, RegisterUserInput } from './types.js';
 
@@ -23,7 +23,6 @@ function fakeRepo() {
         id: `s${++n}`,
         createdAt: new Date(0),
         updatedAt: new Date(0),
-        inviteExternalId: null,
         ...input,
       };
       students.push(row);
@@ -46,7 +45,6 @@ function fakeRepo() {
       const row: Student = {
         id: `st_${++n}`,
         externalId: null,
-        inviteExternalId: null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
         ...input,
@@ -54,30 +52,37 @@ function fakeRepo() {
       students.push(row);
       return row;
     },
-    async setInviteIdByEmail(orgId: string, email: string, inviteId: string) {
+    async linkPendingStudent(orgId: string, email: string, externalId: string) {
       let count = 0;
       for (let i = 0; i < students.length; i++) {
         const row = students[i];
         if (row && row.orgId === orgId && row.email === email && row.externalId === null) {
-          students[i] = { ...row, inviteExternalId: inviteId };
+          students[i] = { ...row, externalId };
           count += 1;
-        }
-      }
-      return count;
-    },
-    async linkPendingStudents(inviteId: string, email: string, externalId: string) {
-      let count = 0;
-      for (let i = 0; i < students.length; i++) {
-        const row = students[i];
-        if (row && row.externalId === null && (row.inviteExternalId === inviteId || row.email === email)) {
-          students[i] = { ...row, externalId, inviteExternalId: null };
-          count++;
         }
       }
       return count;
     },
   };
   return { repo, rows: students };
+}
+
+// A passthrough UoW whose outbox captures appended events, so tests can assert
+// what a write emits alongside its row change.
+function capturingUow(repo: IdentityRepository) {
+  const events: Array<Record<string, unknown>> = [];
+  const uow: IdentityUnitOfWork = {
+    run: (fn) =>
+      fn({
+        identity: repo,
+        outbox: {
+          append: async (batch) => {
+            events.push(...(batch as Record<string, unknown>[]));
+          },
+        },
+      }),
+  };
+  return { uow, events };
 }
 
 describe('IdentityService.registerStudent', () => {
@@ -166,52 +171,72 @@ describe('createStudent', () => {
   });
 });
 
-describe('linkStudentByInvite', () => {
-  it('links the row carrying the invite id', async () => {
+describe('hasPendingStudent', () => {
+  it('is true for an unlinked row, false once linked or absent', async () => {
     const { repo } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
     await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
-    await svc.recordStudentInvite('org1', 'jane@example.com', 'inv_1');
-    await svc.linkStudentByInvite('inv_1', 'jane@example.com', 'usr_ext_9');
-    const linked = await repo.findStudentByEmail('org1', 'jane@example.com');
-    expect(linked?.externalId).toBe('usr_ext_9');
+    expect(await svc.hasPendingStudent('org1', 'jane@example.com')).toBe(true);
+    expect(await svc.hasPendingStudent('org1', 'nobody@example.com')).toBe(false);
+    await svc.linkPendingStudent('org1', 'jane@example.com', 'ivt_1', 'usr_ext_9');
+    expect(await svc.hasPendingStudent('org1', 'jane@example.com')).toBe(false);
   });
+});
 
-  it('falls back to email match for pending rows (resent/old token, second org)', async () => {
+describe('linkPendingStudent', () => {
+  it("links the org's pending row and reports success", async () => {
     const { repo } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    const linked = await svc.linkPendingStudent('org1', 'jane@example.com', 'ivt_1', 'usr_ext_9');
+    expect(linked).toBe(true);
+    const row = await repo.findStudentByEmail('org1', 'jane@example.com');
+    expect(row?.externalId).toBe('usr_ext_9');
+  });
+
+  it('links only the target org, not another org with the same email', async () => {
+    const { repo } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
     await svc.createStudent({ orgId: 'org2', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
-    // org2 row has a DIFFERENT invite id recorded
-    await svc.recordStudentInvite('org2', 'jane@example.com', 'inv_other');
-    await svc.linkStudentByInvite('inv_stale', 'jane@example.com', 'usr_ext_9');
-    const linked = await repo.findStudentByEmail('org2', 'jane@example.com');
-    expect(linked?.externalId).toBe('usr_ext_9');
+    await svc.linkPendingStudent('org1', 'jane@example.com', 'ivt_1', 'usr_ext_9');
+    expect((await repo.findStudentByEmail('org2', 'jane@example.com'))?.externalId).toBeNull();
+  });
+
+  it('appends student.invite.accepted in the same write scope as the link', async () => {
+    const { repo } = fakeRepo();
+    const { uow, events } = capturingUow(repo);
+    const svc = new IdentityServiceImpl(repo, uow);
+    await svc.createStudent({ orgId: 'org1', email: 'jane@example.com', firstName: 'Jane', lastName: 'Doe' });
+    events.length = 0;
+    await svc.linkPendingStudent('org1', 'jane@example.com', 'ivt_1', 'usr_ext_9');
+    expect(events).toEqual([
+      {
+        type: 'student.invite.accepted',
+        orgId: 'org1',
+        email: 'jane@example.com',
+        invitationId: 'ivt_1',
+        userExternalId: 'usr_ext_9',
+      },
+    ]);
+  });
+
+  it('appends no event and reports failure when nothing was pending', async () => {
+    const { repo } = fakeRepo();
+    const { uow, events } = capturingUow(repo);
+    const svc = new IdentityServiceImpl(repo, uow);
+    const linked = await svc.linkPendingStudent('org1', 'nobody@example.com', 'ivt_1', 'usr_1');
+    expect(linked).toBe(false);
+    expect(events).toEqual([]);
   });
 
   it('never touches already-linked rows', async () => {
     const { repo } = fakeRepo();
     const svc = new IdentityServiceImpl(repo);
     const s = await svc.createStudent({ orgId: 'org1', email: 'a@example.com', firstName: 'A', lastName: 'B' });
-    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_a');
-    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_1');
-    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_2');
+    await svc.linkPendingStudent('org1', 'a@example.com', 'ivt_a', 'usr_1');
+    await svc.linkPendingStudent('org1', 'a@example.com', 'ivt_b', 'usr_2');
     const row = await repo.findStudentById('org1', s.id);
-    expect(row?.externalId).toBe('usr_1');
-  });
-});
-
-describe('recordStudentInvite', () => {
-  it('never touches already-linked students', async () => {
-    const { repo } = fakeRepo();
-    const svc = new IdentityServiceImpl(repo);
-    const s = await svc.createStudent({ orgId: 'org1', email: 'a@example.com', firstName: 'A', lastName: 'B' });
-    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_a');
-    await svc.linkStudentByInvite('inv_a', 'a@example.com', 'usr_1');
-
-    await svc.recordStudentInvite('org1', 'a@example.com', 'inv_b');
-
-    const row = await repo.findStudentById('org1', s.id);
-    expect(row?.inviteExternalId).toBeNull();
     expect(row?.externalId).toBe('usr_1');
   });
 });

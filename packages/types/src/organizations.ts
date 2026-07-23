@@ -33,16 +33,16 @@ export interface Invitation {
   readonly id: string;
   readonly orgId: string;
   readonly email: string;
-  readonly role: Role;
+  readonly role: InviteRole;
   readonly status: string;
-  // The identity USER who issued the invitation. (Schema column property is the
-  // misspelt `invetedBy`; mirrored here to match the persisted row.)
-  readonly invetedBy: string;
-  // Links to the better-auth invitation record.
-  readonly externalId: string;
+  // The identity USER who issued the invitation.
+  readonly invitedBy: string;
   readonly expiresAt: Date | null;
   readonly createdAt: Date;
 }
+
+/** Roles an invitation can carry — staff roles plus the portal student. Never owner. */
+export type InviteRole = "admin" | "instructor" | "student";
 
 export interface CourseAssignment {
   readonly id: string;
@@ -91,30 +91,22 @@ export interface AddMembershipInput {
   role: string;
 }
 
-export interface RecordInvitationInput {
-  // The owning org's better-auth id (used to locate the domain org).
-  orgExternalId: string;
-  externalId: string;
+/** A request to mint an invitation: domain-owned token, emailed to the invitee. */
+export interface CreateInviteInput {
+  orgId: string;
   email: string;
-  role: string;
-  status: string;
-  // The identity USER who issued the invitation.
+  role: InviteRole;
+  // The identity USER issuing the invitation.
   inviterUserId: string;
-  expiresAt: Date | null;
 }
 
-/** An accepted invitation: the auth-side invite + the account that accepted it.
- *  Acceptance is an organizations-domain event; for student invites the grant
- *  itself (linking the student row) is delegated to the identity context. */
+/** A token-carrying acceptance: the logged-in account claiming an invitation. */
 export interface AcceptInviteInput {
-  /** The invitation's auth-provider id. */
-  inviteExternalId: string;
-  /** Role carried by the invitation — 'student' or a staff role. */
-  role: string;
-  /** The invited email (verified against the account by the invite provider). */
-  email: string;
+  token: string;
   /** The accepting auth account's id. */
   userExternalId: string;
+  /** The accepting account's email — must match the invitation. */
+  email: string;
 }
 
 export interface AssignCourseInput {
@@ -128,34 +120,34 @@ export interface AssignCourseInput {
 export interface StudentInvited extends DomainEvent {
   type: "student.invited";
   email: string;
-  inviteExternalId: string;
+  invitationId: string;
 }
 
-/** A staff invitation was recorded (mirror of the minted invite). */
+/** A staff invitation was created. */
 export interface InvitationCreated extends DomainEvent {
   type: "invitation.created";
   invitation: Invitation;
 }
 
-/** A pending staff invitation was canceled (mirror-side; the token dies with it). */
+/** A pending invitation was canceled (the token dies with it). */
 export interface InvitationCanceled extends DomainEvent {
   type: "invitation.canceled";
-  inviteExternalId: string;
+  invitationId: string;
 }
 
 /** An invited student created/linked their account. */
 export interface StudentInviteAccepted extends DomainEvent {
   type: "student.invite.accepted";
   email: string;
-  inviteExternalId: string;
-  /** The auth account now linked to the student row(s). */
+  invitationId: string;
+  /** The auth account now linked to the student row. */
   userExternalId: string;
 }
 
 /** A staff invitation was accepted and the membership granted. */
 export interface InvitationAccepted extends DomainEvent {
   type: "invitation.accepted";
-  inviteExternalId: string;
+  invitationId: string;
   role: string;
   userExternalId: string;
 }

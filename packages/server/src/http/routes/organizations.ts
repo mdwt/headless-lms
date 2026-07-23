@@ -8,7 +8,6 @@ import { z } from 'zod';
 import {
   CreateOrganization,
   ErrorBody,
-  InviteMember,
   Member,
   MemberIdParam,
   MembersPage,
@@ -95,29 +94,6 @@ export async function organizationsRoutes(
     handler: async (req) => {
       const scope = await resolveScope(container, req);
       return organizations.listMembers(scope.orgId, req.query);
-    },
-  });
-
-  r.route({
-    method: 'POST',
-    url: '/api/organizations/members',
-    preHandler: app.requireSession,
-    schema: {
-      operationId: 'inviteMember',
-      tags,
-      summary: 'Invite an organization member',
-      body: InviteMember,
-      response: { 201: Member, 409: ErrorBody },
-    },
-    handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const ctx: MemberWriteContext = {
-        orgId: scope.orgId,
-        authOrgId: scope.authOrgId,
-        headers: req.headers,
-      };
-      const member = await organizations.inviteMember(ctx, req.body);
-      return reply.code(201).send(member);
     },
   });
 

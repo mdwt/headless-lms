@@ -8,10 +8,17 @@ import {
 } from '../adapters/events/outbox-relay.js';
 import { DrizzleOutboxAppender, DrizzleOutboxStore } from '../adapters/db/repositories/outbox.js';
 import { EmailAdapter, StubTemplateRenderer } from '../adapters/email/index.js';
-import { createRootLogger, type LogLevel, type PinoInstance } from '../adapters/logging/index.js';
+import {
+  createRootLogger,
+  requestLogContext,
+  type LogLevel,
+  type PinoInstance,
+  type RequestLogContext,
+} from '../adapters/logging/index.js';
 import { StorageAdapter } from '../adapters/storage/index.js';
 import { createAuth, type Auth } from '../adapters/auth/index.js';
 import { createOrgAdmin } from '../adapters/auth/org-admin.js';
+import { stampSessionActiveOrg } from '../adapters/auth/session-stamp.js';
 import {
   createConnectedAppsRepo,
   type ConnectedAppsRepo,
@@ -74,6 +81,8 @@ export interface Config {
   trustedOrigins: string[];
   /** Login page URL shown to unauthenticated MCP OAuth clients. */
   mcpLoginPage: string;
+  /** Consent page URL the MCP OAuth flow redirects to. */
+  mcpConsentPage: string;
   /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl. */
   emailBranding?: TemplateContext;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
@@ -157,6 +166,13 @@ export interface Container {
   logger: Logger;
   /** The raw pino root; buildServer hands it to Fastify so HTTP shares the stream. */
   loggerInstance: PinoInstance;
+  /** Request-scoped log correlation; the HTTP layer enters it per request. */
+  requestContext: RequestLogContext;
+  /** Stamps the caller's session with an active org (invite acceptance). */
+  stampSessionActiveOrg: (
+    headers: Record<string, string | string[] | undefined>,
+    orgExternalId: string,
+  ) => Promise<boolean>;
 }
 
 export async function buildContainer(
@@ -219,10 +235,12 @@ export async function buildContainer(
     new DrizzleOrganizationsRepository(db, organizationsLogger),
     new DrizzleMembersRepository(db, organizationsLogger),
     orgAdminProvider,
-    // Identity slice: the invite lifecycle records/links student rows.
+    // Identity slice: the invite lifecycle stamps/links student rows.
     identity,
     organizationsUow,
     organizationsLogger,
+    mailer,
+    { studentPortalUrl: config.studentPortalUrl, adminAppUrl: config.adminAppUrl },
   );
   // Content: reads on the root db; course writes + outbox append in one tx.
   const contentUow = new DrizzleUnitOfWork(db, (tx) => ({
@@ -316,13 +334,13 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     mcpLoginPage: config.mcpLoginPage,
+    mcpConsentPage: config.mcpConsentPage,
     mailer,
     identity,
     organizations,
     logger: logger.child({ name: 'auth' }),
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
-    studentPortalUrl: config.studentPortalUrl,
     adminAppUrl: config.adminAppUrl,
   });
 
@@ -347,5 +365,8 @@ export async function buildContainer(
     outboxRelay,
     logger,
     loggerInstance,
+    requestContext: requestLogContext,
+    stampSessionActiveOrg: (headers, orgExternalId) =>
+      stampSessionActiveOrg(auth, headers, orgExternalId),
   };
 }
