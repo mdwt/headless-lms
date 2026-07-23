@@ -264,8 +264,16 @@ export async function buildContainer(
     entitlementsUow,
     entitlementsLogger,
   );
+  // Progress: report writes + outbox append in one tx; content supplies the
+  // structure and completion rules the service evaluates against.
+  const progressUow = new DrizzleUnitOfWork(db, (tx) => ({
+    progress: new DrizzleProgressRepository(tx, progressLogger),
+    outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+  }));
   const progress = new ProgressServiceImpl(
     new DrizzleProgressRepository(db, progressLogger),
+    content,
+    progressUow,
     () => new Date().toISOString(),
     progressLogger,
   );
