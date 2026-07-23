@@ -1,18 +1,61 @@
 # Headless LMS
 
-An API-first LMS platform for building learning systems.
+<div align="center">
 
-- Modern TypeScript: Fastify, Drizzle, Zod, strict ESM
-- Composable: swappable adapters for storage and email; integrations plug in
-  as folders
-- Secure by default: authentication, org-scoped multi-tenancy, encrypted
-  credential storage, validated requests and responses
+<img src="docs/assets/headless-lms-header.png" alt="Headless LMS - API-first LMS platform for building learning systems" width="100%" />
+
+<br/>
+
+[![Website](https://img.shields.io/badge/website-headless--lms.dev-0A0A0A)](https://headless-lms.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![pnpm](https://img.shields.io/badge/pnpm-10-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
+**An API-first LMS platform for building learning systems.**
+
+[Features](#features) · [Self-host](#self-host) · [Under the hood](#under-the-hood) · [Documentation](#documentation)
+
+</div>
+
+- Modern TypeScript: Fastify, Drizzle, tsdown
+- Composable: use your own tech stack and easily replace any part of the system with your own implementation.
+- Ready to fo: Authentication, multi-tenancy, emails, workflows, file hosting, and more are all baked in.
 - Headless: build whatever frontend you want on the typed SDK
 
+## What's in the box
+
+It ships with sane defaults so it's ready to go out of the box. Start building courses in less than 5 minutes!
+
+Headless LMS ships with a backend api, an admin portal and course builder and a student portal.
+
+### Core Adapters
+
+|                                | Default adapters                | Package                               | 
+|--------------------------------|---------------------------------|---------------------------------------|
+| **HTTP Server**                | Fastify                         | @headless-lms/server                  |         
+| **Database**                   | Postgresql with Drizzle         |                                       |
+| **Authentication**             | better-auth                     |                                       |
+| **Email**                      | Resend                          | @headless-lms/adapter-email-resend    |
+| **Email Templates**            | React Email                     | @headless-lms/adapter-email-templates |
+| **Content Builder & Renderer** | Plate.js builder and components |                                       |
+| **File & Media Storage**       | Minio (S3 compatible)           |                                       |
+| **Logging**                    | Pino                            |                                       |
+
+### Plugins
+
+|           | Description         | Package                    | 
+|-----------|---------------------|----------------------------|
+| **Slack** | Slack notifications | @headless-lms/plugin-slack | 
+
+### Frontends
+
+|                    | Description                                                                 | Package      | 
+|--------------------|-----------------------------------------------------------------------------|--------------|
+| **Admin Portal**   | NextJS,RCS,Tailwind/ShadCN                                                  | apps/admin   |
+| **Student Portal** | NextJS built with RCS, Tailwind/ShadCN. Fully featured learning experience. | apps/student |
 
 ## Features
-Out-of the box, the LMS ships with a backend api, an Admin portal and a student portal. The API and model makes it 
-possible to build your own frontend or use the provided ones.
 
 | Feature                 | Description                                                                                                                          |
 |-------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
@@ -36,7 +79,7 @@ npm create headless-lms
 
 Create a standalone installation using the cli. It creates a small project that
 depends on `@headless-lms/server`, owns its config and plugins, and deploys
-anywhere Node and Postgres run. 
+anywhere Node and Postgres run.
 
 ## Under the hood
 
@@ -51,9 +94,9 @@ An *installation* composes what it wants with sane defaults. See `apps/api` for 
   installation composes the server
 - [Project structure](docs/project-structure.md)  what each workspace is
 - [`packages/server`](packages/server/README.md)  the backend library
-- [`packages/create-headless-lms`](packages/create-headless-lms/README.md) 
+- [`packages/create-headless-lms`](packages/create-headless-lms/README.md)
   the installation scaffolder
-- `/docs` on a running API  interactive OpenAPI reference
+- `/docs` on a running API interactive OpenAPI reference
 
 ## Developing this repo
 
