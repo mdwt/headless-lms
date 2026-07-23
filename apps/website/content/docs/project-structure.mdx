@@ -3,16 +3,33 @@ title: Project structure
 description: How the monorepo is organized and what each workspace is responsible for.
 ---
 
-```txt title="workspaces"
+The project is a pnpm monorepo. The core server, adapters and plugins are publised as packages and can be
+installed using `npm install @headless-lms/server`.
+
+```txt title="repository"
 headless-lms/
-├─ packages/
-│  ├─ server/                # @headless-lms/server — the backend library
-│  ├─ sdk/                   # generated typed client
-│  └─ create-headless-lms/   # the installation scaffolder
 ├─ apps/
-│  ├─ api/                   # example installation
+│  ├─ api/                   # @headless-lms/api — reference server installation
 │  ├─ admin/                 # Next.js admin back-office
-│  └─ student/               # Next.js student portal
+│  ├─ student/               # Next.js student portal
+│  └─ website/               # public docs and marketing site
+├─ packages/
+│  ├─ server/                # @headless-lms/server — backend library
+│  ├─ api-contract/          # @headless-lms/api-contract — Zod HTTP schemas
+│  ├─ sdk/                   # @headless-lms/sdk — generated typed client
+│  ├─ types/                 # @headless-lms/types — published type surface
+│  ├─ utils/                 # @headless-lms/utils — integration runtime helpers
+│  ├─ editor-contract/       # @headless-lms/editor-contract — editor shared types
+│  ├─ cli/                   # @headless-lms/cli — headless-lms bin
+│  └─ create-headless-lms/   # create-headless-lms — installation scaffolder
+├─ plugins/
+│  ├─ slack/                 # @headless-lms/plugin-slack
+│  └─ content-plate/         # @headless-lms/content-plate editor plugin
+├─ adapters/
+│  ├─ email-resend/          # @headless-lms/adapter-email-resend
+│  ├─ email-templates/       # @headless-lms/adapter-email-templates
+│  └─ storage-minio/         # @headless-lms/adapter-storage-minio
+├─ docs/                     # internal architecture and domain notes
 └─ docker/                   # Postgres + MinIO for local dev
 ```
 

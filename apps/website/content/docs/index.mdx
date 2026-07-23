@@ -3,18 +3,30 @@ title: Introduction
 description: What Headless LMS is, why it is API-first, and how an installation composes the server.
 ---
 
-**Headless LMS** gives you the full domain of a learning management system — courses, progress, entitlements, and org-scoped multi-tenancy — exposed as a typed API. It is headless by design: build whatever frontend you want on the generated SDK.
+**Headless LMS** gives you the full domain of a learning management system: courses, progress, entitlements, and org-scoped multi-tenancy exposed as a typed API.
+It is headless by design so you can build whatever frontend you want, but also comes with fully featured frontends so you can get started quickly.
+
+## What can you do with Headless LMS
+You can build and run a fully featured LMS, create online courses and rich learning experiences, extend the platform with custom plugins,
+and integrate with your existing tech stack.
+
+The API is designed to be flexible and extensible, so you can build your own custom integrations and workflows.
 
 ## Why headless
 
-- **Modern TypeScript.** Fastify, Drizzle, and Zod with strict ESM.
-- **Composable.** Swappable adapters for storage and email; integrations plug in as folders.
-- **Secure by default.** Authentication, org-scoped multi-tenancy, encrypted credential storage, and validated requests and responses.
-- **Headless.** Build any frontend you want on the typed SDK.
+So you can build any frontend you want or integrate any product. Build a custom course designer, or a custom admin dashboard. It comes
+with a fully featured admin dashboard out of the box.
+
+It's **composable**, so you can use your own tech stack and easily replace any part of the system with your own implementation.
+
+
+It ships with sane defaults so it's **ready to go out of the box**.  Authentication, multi-tenancy,
+emails, workflows, file hosting, and more are all baked in.
+
 
 ## Quick start
 
-Create a standalone installation using the CLI. It scaffolds a small project that depends on `@headless-lms/server`, owns its config and plugins, and deploys anywhere Node and Postgres run.
+Create a standalone installation using the CLI. It scaffolds a project that uses the default adapters so you're up and running in seconds.
 
 ```bash
 npm create headless-lms
