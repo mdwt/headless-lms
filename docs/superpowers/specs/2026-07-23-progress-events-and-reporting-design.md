@@ -1,8 +1,8 @@
 # Progress reporting, completion decisions & progress events
 
 The student frontend can only **report** what happened — an activity was opened,
-the player is at a position, the learner claims they're done. It never decides
-completion. The progress service processes each report, applies the activity's
+the player is at a position, the learner claims they're done — as **xAPI
+statements** (constrained profile). It never decides completion. The progress service processes each report, applies the activity's
 completion rule, records progress in its own data models (activity, module, and
 course records), and emits `progress.started` / `progress.completed` domain
 events through the outbox. Module and course completion are part of the same
@@ -57,22 +57,43 @@ lessons and assessments (kinds of activity); no doc change.
 
 ## 3. Report input & the reworked inbound port (`core/progress`)
 
-A report is a discriminated claim about one activity, in one course, by one
-student. Per type ownership, `ProgressReport` / `ReportProgressInput` are
-declared in `@headless-lms/types` (`progress.ts`) and re-exported by the
-context's `types.ts`:
+Reports are **xAPI statements** (constrained profile) — the standard "actor verb
+object" usage vocabulary instead of a bespoke shape, so external players and
+SCORM/cmi5 shims can emit the same thing our UI does. Profile constraints:
+
+- **Actor comes from the session**, never the body (ignored if present).
+- **Object comes from the URL** (the activity), course from the URL too.
+- **Supported verbs** (ADL registry IRIs):
+  - `…/verbs/launched` — student opened the activity
+  - `…/verbs/progressed` — position report; the opaque position payload rides in
+    `result.extensions` under our extension IRI
+  - `…/verbs/completed` — the learner/player *asserts* completion — a claim the
+    service validates, exactly xAPI's semantics (cmi5's moveOn makes the same
+    split)
+- Statements with other verbs are accepted (200), ensure the record exists, and
+  are otherwise ignored — forgiving to richer emitters, no contract churn later.
+
+Per type ownership, the statement/input types are declared in
+`@headless-lms/types` (`progress.ts`) and re-exported by the context's
+`types.ts`:
 
 ```ts
-export type ProgressReport =
-  | { kind: "opened" }
-  | { kind: "position"; position: unknown }
-  | { kind: "done" };   // a claim, not a fact — the service validates it
+export interface ProgressStatement {
+  verb: { id: string; display?: Record<string, string> };
+  result?: {
+    completion?: boolean;
+    success?: boolean;
+    duration?: string;
+    extensions?: Record<string, unknown>;  // position payload lives here
+  };
+  timestamp?: string;
+}
 
 export interface ReportProgressInput {
   studentId: string;
   courseId: string;
   activityId: string;
-  report: ProgressReport;
+  statement: ProgressStatement;
 }
 ```
 
@@ -101,12 +122,14 @@ passthrough, no events, so existing service tests keep working):
 
 1. **Ensure the record** — first touch inserts it (`startedAt` now) and appends
    `progress.started`.
-2. **Apply position** — `position` reports update the payload. No event.
+2. **Apply position** — `progressed` statements update the payload (taken from
+   `result.extensions`, stored opaque). No event.
 3. **Evaluate completion** — the service reads the activity via
    `ContentService` (core→core through `content/index.js`) and interprets the
    completion-rule slice of the settings blob. Today the only interpretation is
-   *no rule → manual*: a `done` claim completes the activity. A present-but-unmet
-   rule means the `done` claim records nothing — the activity stays in progress.
+   *no rule → manual*: a `completed` claim completes the activity. A
+   present-but-unmet rule means the claim records nothing — the activity stays
+   in progress.
    The rule seam is a private function of the service (settings → rule →
    satisfied?), which is where video-threshold and friends plug in later without
    touching the port or the endpoint.
@@ -131,11 +154,21 @@ an already-complete container, change nothing and emit nothing.
 ## 4. API contract (`packages/api-contract/src/learn.ts`)
 
 ```ts
-export const ProgressReport = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("opened") }),
-  z.object({ kind: z.literal("position"), position: z.unknown() }),
-  z.object({ kind: z.literal("done") }),
-]);
+export const ProgressStatement = z.object({
+  verb: z.object({
+    id: z.string(),                                  // verb IRI
+    display: z.record(z.string(), z.string()).optional(),
+  }),
+  result: z
+    .object({
+      completion: z.boolean().optional(),
+      success: z.boolean().optional(),
+      duration: z.string().optional(),
+      extensions: z.record(z.string(), z.unknown()).optional(),
+    })
+    .optional(),
+  timestamp: z.string().optional(),
+});
 
 export const ActivityProgress = z.object({
   status: z.enum(["in-progress", "completed"]),
@@ -154,10 +187,13 @@ export const CourseProgress = z.object({
 Both session-guarded via `resolveStudentScope`, like every Learn route.
 
 - `POST /api/learn/courses/:courseId/activities/:activityId/progress` — body
-  `ProgressReport`, response `200 ActivityProgress`. Always 200 when processed:
-  a `done` claim with an unmet rule returns `status: "in-progress"` — that *is*
-  the answer. 4xx only for transport-level problems (bad body, no session,
-  unknown activity → 404).
+  `ProgressStatement`, response `200 ActivityProgress`. Always 200 when
+  processed: a `completed` claim with an unmet rule returns
+  `status: "in-progress"` — that *is* the answer. 4xx only for transport-level
+  problems (bad body, no session, unknown activity → 404). This is the wire
+  format future SCORM support converges into: a player-side shim translates cmi
+  calls to statements (ADL's standard mapping), with `suspend_data` riding as
+  the position payload — no endpoint changes.
 - `GET /api/learn/courses/:courseId/progress` — response `200 CourseProgress`.
 
 The stub `http/routes/progress.ts` stays a stub — the student surface is Learn.
@@ -190,19 +226,21 @@ appear from the route schemas. Regenerated output is committed.
 
 - **Hydrate**: the course player's server component fetches `CourseProgress` and
   seeds the store's `completionByCourse` (the shapes now match: a status map).
-- **Report**: `toggleComplete` becomes one-way `markComplete` — sends
-  `{ kind: "done" }`, applies the returned `status` to the store. The button's
-  completed state is terminal (the domain has no un-complete). Course-complete
-  toast keeps deriving from the local map; the GET is the authoritative refresh.
-- **Open**: entering an activity sends `{ kind: "opened" }` (fire-and-forget) so
-  `progress.started` reflects reality, not just completions.
-- Position reports are wired when a player that produces positions exists; the
-  contract already accepts them.
+- **Report**: `toggleComplete` becomes one-way `markComplete` — sends a
+  `completed` statement, applies the returned `status` to the store. The
+  button's completed state is terminal (the domain has no un-complete).
+  Course-complete toast keeps deriving from the local map; the GET is the
+  authoritative refresh.
+- **Open**: entering an activity sends a `launched` statement (fire-and-forget)
+  so `progress.started` reflects reality, not just completions.
+- `progressed` statements are wired when a player that produces positions
+  exists; the contract already accepts them.
 
 ## 10. Tests
 
 - `core/progress/service.test.ts` — rewrite around `report`: first-touch insert
-  + started event; done → completed event; done on completed activity → no-op,
+  + started event; `completed` claim → completed event (and rejected when a rule
+  is unmet); claim on a completed activity → no-op,
   no event; module completes when its last activity does; course completes when
   its last module does; container records created complete emit only
   `progress.completed`; fake UoW captures appended events (identity's test
