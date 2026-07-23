@@ -153,21 +153,35 @@ an already-complete container, change nothing and emit nothing.
 
 ## 4. API contract (`packages/api-contract/src/learn.ts`)
 
+The verb and extension IRIs are exported constants (IRIs are identifiers, not
+resolvable URLs):
+
+```ts
+export const XAPI_VERBS = {
+  launched: "http://adlnet.gov/expapi/verbs/launched",
+  progressed: "http://adlnet.gov/expapi/verbs/progressed",
+  completed: "http://adlnet.gov/expapi/verbs/completed",
+} as const;
+
+/** result.extensions key carrying the opaque position payload. */
+export const XAPI_EXT_POSITION = "https://headless-lms.dev/xapi/ext/position";
+```
+
 ```ts
 export const ProgressStatement = z.object({
   verb: z.object({
-    id: z.string(),                                  // verb IRI
+    id: z.url(),                                       // verb IRI
     display: z.record(z.string(), z.string()).optional(),
   }),
   result: z
     .object({
       completion: z.boolean().optional(),
       success: z.boolean().optional(),
-      duration: z.string().optional(),
-      extensions: z.record(z.string(), z.unknown()).optional(),
+      duration: z.string().optional(),                 // ISO-8601 duration
+      extensions: z.record(z.url(), z.unknown()).optional(),
     })
     .optional(),
-  timestamp: z.string().optional(),
+  timestamp: z.iso.datetime({ offset: true }).optional(),
 });
 
 export const ActivityProgress = z.object({
@@ -177,9 +191,45 @@ export const ActivityProgress = z.object({
 export const CourseProgress = z.object({
   /** Keyed by activity id; absent key = not started. */
   activities: z.record(z.string(), z.enum(["in-progress", "completed"])),
-  percent: z.number(),
+  /** Integer 0–100, completed ÷ current activities, rounded. */
+  percent: z.int().min(0).max(100),
   completed: z.boolean(),
 });
+```
+
+Unknown fields in the body (`actor`, `object`, `context`, `id`, …) are
+**stripped, not rejected** — real xAPI emitters send full statements; the
+profile takes what it uses (session/actor and URL/object are authoritative).
+
+### Verb → effect
+
+| `verb.id`             | Effect |
+| --------------------- | ------ |
+| `…/verbs/launched`    | Ensure the record exists (start). |
+| `…/verbs/progressed`  | Ensure record; store `result.extensions[XAPI_EXT_POSITION]` as the position payload. |
+| `…/verbs/completed`   | Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
+| anything else         | Ensure record; otherwise ignored. |
+
+### Wire examples
+
+```http
+POST /api/learn/courses/crs_9f2/activities/act_31c/progress
+{ "verb": { "id": "http://adlnet.gov/expapi/verbs/launched" } }
+→ 200 { "status": "in-progress" }
+
+POST /api/learn/courses/crs_9f2/activities/act_31c/progress
+{ "verb": { "id": "http://adlnet.gov/expapi/verbs/progressed" },
+  "result": { "extensions": {
+    "https://headless-lms.dev/xapi/ext/position": { "seconds": 612 } } } }
+→ 200 { "status": "in-progress" }
+
+POST /api/learn/courses/crs_9f2/activities/act_31c/progress
+{ "verb": { "id": "http://adlnet.gov/expapi/verbs/completed" } }
+→ 200 { "status": "completed" }        // or "in-progress" when a rule is unmet
+
+GET /api/learn/courses/crs_9f2/progress
+→ 200 { "activities": { "act_31c": "completed", "act_58a": "in-progress" },
+        "percent": 50, "completed": false }
 ```
 
 ## 5. HTTP routes (`http/routes/learn.ts`, tag `Learn`)
