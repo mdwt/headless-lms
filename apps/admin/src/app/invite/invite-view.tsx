@@ -13,7 +13,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/app-shell/logo";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 type Stage = "activating" | "create" | "signin" | "invalid";
+
+/** Stages the token in the API's activation cookie (or consumes it when a session exists). */
+async function activateInvite(
+  token: string,
+): Promise<{ status: "accepted" | "auth-required" } | { error: string }> {
+  const res = await fetch(`${API_URL}/api/invites/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { error: body?.error ?? "This invitation link is invalid or has expired." };
+  }
+  return (await res.json()) as { status: "accepted" | "auth-required" };
+}
+
+/** Claims the invite for the fresh session, then refreshes the cookie cache. */
+async function acceptInvite(token: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/invites/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) return false;
+  await authClient.getSession({ query: { disableCookieCache: true } });
+  return true;
+}
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Your name is required"),
@@ -49,21 +81,20 @@ export function InviteView() {
     // Results apply unconditionally — the ref keeps the call single-flight, and the strict-mode remount wants this exact result.
     if (activateStarted.current) return;
     activateStarted.current = true;
-    authClient.invite
-      .activate({ token, callbackURL: "/" })
-      .then(({ data, error }) => {
-        if (error) {
-          setError(error.message ?? "This invitation link is invalid or has expired.");
+    activateInvite(token)
+      .then((result) => {
+        if ("error" in result) {
+          setError(result.error);
           setStage("invalid");
           return;
         }
-        if (data?.action === "SIGN_IN_UP_REQUIRED") {
-          setStage("create");
-        } else {
+        if (result.status === "accepted") {
           // Session existed — invite consumed and the membership was added.
           // Full reload so the server session resolver picks up the new org.
           window.location.assign("/");
+          return;
         }
+        setStage("create");
       })
       .catch(() => {
         setError("This invitation link is invalid or has expired.");
@@ -109,7 +140,7 @@ export function InviteView() {
                   accept.
                 </p>
               </div>
-              <CreateAccountForm email={email} />
+              <CreateAccountForm email={email} token={token} />
               <p className="mt-4 text-center text-sm text-ink-3">
                 Already have an account?{" "}
                 <button
@@ -132,7 +163,7 @@ export function InviteView() {
                   accept.
                 </p>
               </div>
-              <SignInForm email={email} />
+              <SignInForm email={email} token={token} />
               <p className="mt-4 text-center text-sm text-ink-3">
                 Need to create an account instead?{" "}
                 <button
@@ -151,7 +182,7 @@ export function InviteView() {
   );
 }
 
-function CreateAccountForm({ email }: { email: string }) {
+function CreateAccountForm({ email, token }: { email: string; token: string }) {
   const [formError, setFormError] = React.useState<string | null>(null);
   const {
     register,
@@ -167,6 +198,10 @@ function CreateAccountForm({ email }: { email: string }) {
     const { error } = await signUp.email({ email, password: values.password, name: values.name });
     if (error) {
       setFormError(error.message ?? "Couldn't create your account");
+      return;
+    }
+    if (!(await acceptInvite(token))) {
+      setFormError("Your account was created, but the invitation could not be accepted.");
       return;
     }
     // The membership landed on the session server-side; a full reload lets the
@@ -211,7 +246,7 @@ function CreateAccountForm({ email }: { email: string }) {
   );
 }
 
-function SignInForm({ email }: { email: string }) {
+function SignInForm({ email, token }: { email: string; token: string }) {
   const [formError, setFormError] = React.useState<string | null>(null);
   const {
     register,
@@ -229,8 +264,12 @@ function SignInForm({ email }: { email: string }) {
       setFormError(error.message ?? "Invalid email or password");
       return;
     }
-    // The staged invite cookie is consumed on sign-in and the membership added
-    // server-side; full reload so the server session resolver picks it up.
+    if (!(await acceptInvite(token))) {
+      setFormError("Signed in, but the invitation could not be accepted.");
+      return;
+    }
+    // The membership landed on the session server-side; full reload so the
+    // server session resolver picks it up.
     window.location.assign("/");
   }
 

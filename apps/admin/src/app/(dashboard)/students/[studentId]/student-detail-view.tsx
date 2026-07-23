@@ -41,7 +41,7 @@ export function StudentDetailView({
   const onResendInvite = () =>
     startResend(async () => {
       try {
-        await resendStudentInviteAction(student.id);
+        await resendStudentInviteAction(student.email);
         toast.success("Invitation sent");
       } catch (err) {
         toast.error("Couldn't resend invite", { description: (err as Error).message });

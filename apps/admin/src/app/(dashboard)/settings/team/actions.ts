@@ -3,19 +3,18 @@
 // Server actions for member mutations.
 
 import { revalidatePath } from "next/cache";
-import { Organizations } from "@headless-lms/sdk";
+import { Invites, Organizations } from "@headless-lms/sdk";
 
 import { ensureConfigured, authHeaders, unwrap, expectOk } from "@/lib/api/server-call";
-import type { Member, Role } from "@/lib/api/types";
+import type { Role } from "@/lib/api/types";
 
-
-export async function inviteMemberAction(input: { email: string; role: Role }): Promise<Member> {
+export async function inviteMemberAction(input: {
+  email: string;
+  role: Exclude<Role, "owner">;
+}): Promise<void> {
   ensureConfigured();
-  const member = unwrap(
-    await Organizations.inviteMember({ body: input, ...(await authHeaders()) }),
-  );
+  unwrap(await Invites.createInvite({ body: input, ...(await authHeaders()) }));
   revalidatePath("/settings/team");
-  return member;
 }
 
 /** Change a member's role — targeted write for the inline role control + optimism. */

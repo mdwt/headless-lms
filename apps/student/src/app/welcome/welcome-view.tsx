@@ -8,7 +8,41 @@ import { authClient, signIn, signUp } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 type Stage = "activating" | "create" | "signin" | "invalid";
+
+/** Stages the token in the API's activation cookie (the signup gate reads it). */
+async function activateInvite(
+  token: string,
+): Promise<{ status: "accepted" | "auth-required" } | { error: string }> {
+  const res = await fetch(`${API_URL}/api/invites/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    return { error: body?.error ?? "This invitation link is invalid or has expired." };
+  }
+  return (await res.json()) as { status: "accepted" | "auth-required" };
+}
+
+/** Claims the invite for the fresh session, then refreshes the cookie cache. */
+async function acceptInvite(token: string): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/invites/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) return false;
+  // The session row now carries the org; re-issue the 5-minute session cookie
+  // cache so the very first portal load sees it.
+  await authClient.getSession({ query: { disableCookieCache: true } });
+  return true;
+}
 
 export function WelcomeView() {
   const router = useRouter();
@@ -19,8 +53,8 @@ export function WelcomeView() {
   const [error, setError] = React.useState<string | null>(null);
   const activateStarted = React.useRef(false);
 
-  // Stage the invite token: logged out → better-invite stores it in a signed
-  // cookie and the sign-up/in that follows consumes it; already logged in →
+  // Stage the invite token: logged out → the API stores it in the activation
+  // cookie and the sign-up/in that follows claims it; already logged in →
   // it is consumed right here and the account is linked.
   React.useEffect(() => {
     if (!token) {
@@ -31,20 +65,18 @@ export function WelcomeView() {
     // Results apply unconditionally — the ref keeps the call single-flight, and the strict-mode remount wants this exact result.
     if (activateStarted.current) return;
     activateStarted.current = true;
-    authClient.invite
-      .activate({ token, callbackURL: "/" })
-      .then(({ data, error }) => {
-        if (error) {
-          setError(error.message ?? "This invitation link is invalid or has expired.");
+    activateInvite(token)
+      .then((result) => {
+        if ("error" in result) {
+          setError(result.error);
           setStage("invalid");
           return;
         }
-        if (data?.action === "SIGN_IN_UP_REQUIRED") {
-          setStage("create");
-        } else {
-          // Session existed — invite consumed and linked; straight in.
+        if (result.status === "accepted") {
           router.replace("/");
+          return;
         }
+        setStage("create");
       })
       .catch(() => {
         setError("This invitation link is invalid or has expired.");
@@ -93,7 +125,7 @@ export function WelcomeView() {
                     You&apos;ve been invited. Create your account to start learning.
                   </p>
                 </div>
-                <CreateAccountForm email={email} onDone={() => router.replace("/")} />
+                <CreateAccountForm email={email} token={token} onDone={() => router.replace("/")} />
                 <p className="mt-6 text-center text-sm text-ink-3">
                   Already have an account?{" "}
                   <button
@@ -118,7 +150,7 @@ export function WelcomeView() {
                     learning.
                   </p>
                 </div>
-                <SignInForm email={email} onDone={() => router.replace("/")} />
+                <SignInForm email={email} token={token} onDone={() => router.replace("/")} />
                 <p className="mt-6 text-center text-sm text-ink-3">
                   Need to create an account instead?{" "}
                   <button
@@ -151,7 +183,15 @@ export function WelcomeView() {
   );
 }
 
-function CreateAccountForm({ email, onDone }: { email: string; onDone: () => void }) {
+function CreateAccountForm({
+  email,
+  token,
+  onDone,
+}: {
+  email: string;
+  token: string;
+  onDone: () => void;
+}) {
   const [name, setName] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -164,6 +204,11 @@ function CreateAccountForm({ email, onDone }: { email: string; onDone: () => voi
     const { error } = await signUp.email({ email, password, name });
     if (error) {
       setError(error.message ?? "Couldn't create your account");
+      setSubmitting(false);
+      return;
+    }
+    if (!(await acceptInvite(token))) {
+      setError("Your account was created, but the invitation could not be linked.");
       setSubmitting(false);
       return;
     }
@@ -228,7 +273,15 @@ function CreateAccountForm({ email, onDone }: { email: string; onDone: () => voi
   );
 }
 
-function SignInForm({ email, onDone }: { email: string; onDone: () => void }) {
+function SignInForm({
+  email,
+  token,
+  onDone,
+}: {
+  email: string;
+  token: string;
+  onDone: () => void;
+}) {
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -240,6 +293,11 @@ function SignInForm({ email, onDone }: { email: string; onDone: () => void }) {
     const { error } = await signIn.email({ email, password });
     if (error) {
       setError(error.message ?? "Invalid email or password");
+      setSubmitting(false);
+      return;
+    }
+    if (!(await acceptInvite(token))) {
+      setError("Signed in, but the invitation could not be linked.");
       setSubmitting(false);
       return;
     }

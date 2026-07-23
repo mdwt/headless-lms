@@ -60,8 +60,8 @@ export function InviteSheet({
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
       try {
-        const member = await inviteMemberAction(values);
-        toast.success("Invitation sent", { description: member.email });
+        await inviteMemberAction(values);
+        toast.success("Invitation sent", { description: values.email });
         onOpenChange(false);
       } catch (e) {
         toast.error("Couldn't send invite", { description: (e as Error).message });
