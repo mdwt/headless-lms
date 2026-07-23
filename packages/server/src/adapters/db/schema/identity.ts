@@ -37,7 +37,7 @@ export const students = pgTable(
     externalId: text('external_id'),
     // Latest pending better-invite invitation id (set on create/resend, used by
     // afterAcceptInvite to link the exact row; cleared on link).
-    inviteId: text('invite_id'),
+    inviteExternalId: text('invite_external_id'),
     email: text('email').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),

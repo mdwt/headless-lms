@@ -117,8 +117,8 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   async acceptInvitation(input: AcceptInvitationInput): Promise<void> {
-    await this.repo.setInvitationStatusByAuthId(input.authInvitationId, 'accepted');
-    this.logger.info('invitation accepted', { authInvitationId: input.authInvitationId });
+    await this.repo.setInvitationStatusByExternalId(input.externalId, 'accepted');
+    this.logger.info('invitation accepted', { externalId: input.externalId });
   }
 
   async getByExternalId(externalId: string): Promise<Organization | null> {
@@ -151,9 +151,9 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   async invitationForAccept(
-    authInvitationId: string,
+    externalId: string,
   ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
-    return this.repo.findInvitationByAuthId(authInvitationId);
+    return this.repo.findInvitationByExternalId(externalId);
   }
 
   // --- Member management (formerly the `team` context) -----------------------
@@ -196,14 +196,14 @@ export class OrganizationServiceImpl implements OrganizationService {
       });
       throw new OrganizationRuleError('The owner role cannot be reassigned');
     }
-    if (member.kind !== 'member' || !member.authMemberId) {
+    if (member.kind !== 'member' || !member.memberExternalId) {
       this.logger.warn('role change rejected: not an active member', {
         orgId: ctx.orgId,
         memberId: id,
       });
       throw new OrganizationRuleError('Only active members can have their role changed');
     }
-    await this.orgAdmin().updateRole(ctx, member.authMemberId, role);
+    await this.orgAdmin().updateRole(ctx, member.memberExternalId, role);
     const updated = await this.membersRepo.findById(ctx.orgId, id);
     this.logger.info('member role updated', { orgId: ctx.orgId, memberId: id, role });
     return updated ? toMember(updated) : null;
@@ -221,13 +221,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       });
       throw new OrganizationRuleError('The owner cannot be removed');
     }
-    if (member.kind === 'member' && member.authMemberId) {
-      await this.orgAdmin().removeMember(ctx, member.authMemberId);
-    } else if (member.kind === 'invitation' && member.authInvitationId) {
+    if (member.kind === 'member' && member.memberExternalId) {
+      await this.orgAdmin().removeMember(ctx, member.memberExternalId);
+    } else if (member.kind === 'invitation' && member.invitationExternalId) {
       // better-invite tokens can only be canceled by their creator; the domain
       // mirror is authoritative for staff grants (afterAcceptInvite refuses
       // non-pending mirrors), so canceling the mirror is canceling the invite.
-      await this.repo.setInvitationStatusByAuthId(member.authInvitationId, 'canceled');
+      await this.repo.setInvitationStatusByExternalId(member.invitationExternalId, 'canceled');
     }
     this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;

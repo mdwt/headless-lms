@@ -99,21 +99,21 @@ function fakeRepo() {
         role: input.role as Role,
         status: input.status,
         invetedBy: input.inviterUserId,
-        authInvitationId: input.authInvitationId,
+        externalId: input.externalId,
         expiresAt: input.expiresAt,
         createdAt: new Date(0),
       };
       invitations.push(row);
       return row;
     },
-    async setInvitationStatusByAuthId(authInvitationId: string, status: string) {
-      const inv = invitations.find((x) => x.authInvitationId === authInvitationId);
+    async setInvitationStatusByExternalId(externalId: string, status: string) {
+      const inv = invitations.find((x) => x.externalId === externalId);
       if (inv) {
         (inv as { status: string }).status = status;
       }
     },
-    async findInvitationByAuthId(authInvitationId: string) {
-      const inv = invitations.find((x) => x.authInvitationId === authInvitationId);
+    async findInvitationByExternalId(externalId: string) {
+      const inv = invitations.find((x) => x.externalId === externalId);
       if (!inv) {
         return null;
       }
@@ -290,7 +290,7 @@ describe('OrganizationService', () => {
     await svc.createOrg(orgInput);
     await svc.recordInvitation({
       orgExternalId: 'org_1',
-      authInvitationId: 'inv_1',
+      externalId: 'inv_1',
       email: 'sam@example.com',
       role: 'instructor',
       status: 'pending',
@@ -408,8 +408,8 @@ describe('OrganizationService — member management', () => {
       joinedAt: '2026-01-01T00:00:00Z',
       invitedAt: null,
       kind: 'member',
-      authMemberId: `auth-${over.id}`,
-      authInvitationId: null,
+      memberExternalId: `auth-${over.id}`,
+      invitationExternalId: null,
       ...over,
     };
   }
@@ -487,13 +487,13 @@ describe('OrganizationService — member management', () => {
         role: 'instructor',
         kind: 'invitation',
         status: 'invited',
-        authMemberId: null,
-        authInvitationId: 'auth-inv-1',
+        memberExternalId: null,
+        invitationExternalId: 'auth-inv-1',
       }),
     ]);
     await repo.insertInvitation('o1', {
       orgExternalId: 'org_1',
-      authInvitationId: 'auth-inv-1',
+      externalId: 'auth-inv-1',
       email: 'x@example.com',
       role: 'instructor',
       status: 'pending',
@@ -502,7 +502,7 @@ describe('OrganizationService — member management', () => {
     });
     const removed = await svc.removeMember(ctx, 'i1');
     expect(removed).toBe(true);
-    expect(invitations.find((i) => i.authInvitationId === 'auth-inv-1')?.status).toBe('canceled');
+    expect(invitations.find((i) => i.externalId === 'auth-inv-1')?.status).toBe('canceled');
     expect(calls).not.toContain('cancelInvitation');
     expect(calls).not.toContain('removeMember');
   });

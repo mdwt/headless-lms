@@ -23,7 +23,7 @@ function fakeRepo() {
         id: `s${++n}`,
         createdAt: new Date(0),
         updatedAt: new Date(0),
-        inviteId: null,
+        inviteExternalId: null,
         ...input,
       };
       students.push(row);
@@ -46,7 +46,7 @@ function fakeRepo() {
       const row: Student = {
         id: `st_${++n}`,
         externalId: null,
-        inviteId: null,
+        inviteExternalId: null,
         createdAt: new Date(0),
         updatedAt: new Date(0),
         ...input,
@@ -59,7 +59,7 @@ function fakeRepo() {
       for (let i = 0; i < students.length; i++) {
         const row = students[i];
         if (row && row.orgId === orgId && row.email === email && row.externalId === null) {
-          students[i] = { ...row, inviteId };
+          students[i] = { ...row, inviteExternalId: inviteId };
           count += 1;
         }
       }
@@ -69,8 +69,8 @@ function fakeRepo() {
       let count = 0;
       for (let i = 0; i < students.length; i++) {
         const row = students[i];
-        if (row && row.externalId === null && (row.inviteId === inviteId || row.email === email)) {
-          students[i] = { ...row, externalId, inviteId: null };
+        if (row && row.externalId === null && (row.inviteExternalId === inviteId || row.email === email)) {
+          students[i] = { ...row, externalId, inviteExternalId: null };
           count++;
         }
       }
@@ -211,7 +211,7 @@ describe('recordStudentInvite', () => {
     await svc.recordStudentInvite('org1', 'a@example.com', 'inv_b');
 
     const row = await repo.findStudentById('org1', s.id);
-    expect(row?.inviteId).toBeNull();
+    expect(row?.inviteExternalId).toBeNull();
     expect(row?.externalId).toBe('usr_1');
   });
 });

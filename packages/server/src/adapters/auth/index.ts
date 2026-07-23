@@ -299,7 +299,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
                 const inviter = await requireUser(session!.user.id);
                 await opts.organizations.recordInvitation({
                   orgExternalId,
-                  authInvitationId: inv.id,
+                  externalId: inv.id,
                   email,
                   role: inv.role,
                   status: 'pending',
@@ -351,7 +351,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
             await authRef.current!.api.addMember({
               body: { userId: invitedUser.id, organizationId: record.orgExternalId, role: record.role },
             });
-            await opts.organizations.acceptInvitation({ authInvitationId: invitation.id });
+            await opts.organizations.acceptInvitation({ externalId: invitation.id });
           },
         },
       }),

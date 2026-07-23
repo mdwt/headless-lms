@@ -33,7 +33,7 @@ export interface OrganizationProvisioner {
   // invitation belongs to, before granting the membership.
   getMembershipByUser(userId: string): Promise<Membership | null>;
   invitationForAccept(
-    authInvitationId: string,
+    externalId: string,
   ): Promise<{ orgExternalId: string; role: string; status: string } | null>;
 }
 
@@ -79,9 +79,9 @@ export interface OrganizationsRepository {
   insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership>;
   deleteMembershipByExternalId(externalId: string): Promise<void>;
   insertInvitation(orgId: string, input: RecordInvitationInput): Promise<Invitation>;
-  setInvitationStatusByAuthId(authInvitationId: string, status: string): Promise<void>;
-  findInvitationByAuthId(
-    authInvitationId: string,
+  setInvitationStatusByExternalId(externalId: string, status: string): Promise<void>;
+  findInvitationByExternalId(
+    externalId: string,
   ): Promise<{ orgExternalId: string; role: string; status: string } | null>;
   insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
@@ -92,8 +92,8 @@ export interface OrganizationsRepository {
 /** A member row enriched with the auth-provider ids needed to drive writes. */
 export interface MemberRecord extends Member {
   kind: 'member' | 'invitation';
-  authMemberId: string | null;
-  authInvitationId: string | null;
+  memberExternalId: string | null;
+  invitationExternalId: string | null;
 }
 
 // Outbound: reads the org's members + pending invitations from the domain mirror.
@@ -130,6 +130,6 @@ export interface OrgAdmin {
   // Mints a student-role invitation (portal account creation). Same invite
   // provider as staff invites; the role decides the landing app and the grant.
   inviteStudent(ctx: MemberWriteContext, email: string): Promise<void>;
-  updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void>;
-  removeMember(ctx: MemberWriteContext, authMemberId: string): Promise<void>;
+  updateRole(ctx: MemberWriteContext, memberExternalId: string, role: Role): Promise<void>;
+  removeMember(ctx: MemberWriteContext, memberExternalId: string): Promise<void>;
 }

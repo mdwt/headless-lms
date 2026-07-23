@@ -57,7 +57,7 @@ export const invitations = pgTable(
     invetedBy: text('invited_by')
       .notNull()
       .references(() => users.id),
-    authInvitationId: text('auth_invitation_id').notNull().unique(),
+    externalId: text('external_id').notNull().unique(),
     expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },

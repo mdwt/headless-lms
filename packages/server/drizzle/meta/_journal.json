@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1784718683900,
+      "when": 1784764932228,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1784730148975,
-      "tag": "0001_tidy_toad",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1784736468223,
-      "tag": "0002_cool_shen",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1784746472595,
-      "tag": "0003_magical_thor_girl",
       "breakpoints": true
     }
   ]

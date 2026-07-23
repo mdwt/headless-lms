@@ -1,1 +1,0 @@
-ALTER TABLE "invite" ALTER COLUMN "emails" SET DATA TYPE text[] USING "emails"::text[];

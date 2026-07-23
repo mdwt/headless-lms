@@ -121,10 +121,10 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         role: normalizeRole(input.role),
         status: toStatus(input.status),
         invetedBy: input.inviterUserId,
-        authInvitationId: input.authInvitationId,
+        externalId: input.externalId,
         expiresAt: input.expiresAt,
       })
-      .onConflictDoNothing({ target: invitations.authInvitationId })
+      .onConflictDoNothing({ target: invitations.externalId })
       .returning();
     if (row) {
       return row;
@@ -132,7 +132,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const [existing] = await this.db
       .select()
       .from(invitations)
-      .where(eq(invitations.authInvitationId, input.authInvitationId))
+      .where(eq(invitations.externalId, input.externalId))
       .limit(1);
     if (!existing) {
       throw new Error('failed to insert invitation');
@@ -140,15 +140,15 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return existing;
   }
 
-  async setInvitationStatusByAuthId(authInvitationId: string, status: string): Promise<void> {
+  async setInvitationStatusByExternalId(externalId: string, status: string): Promise<void> {
     await this.db
       .update(invitations)
       .set({ status: toStatus(status) })
-      .where(eq(invitations.authInvitationId, authInvitationId));
+      .where(eq(invitations.externalId, externalId));
   }
 
-  async findInvitationByAuthId(
-    authInvitationId: string,
+  async findInvitationByExternalId(
+    externalId: string,
   ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
     const [row] = await this.db
       .select({
@@ -158,7 +158,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .from(invitations)
       .innerJoin(organizations, eq(invitations.orgId, organizations.id))
-      .where(eq(invitations.authInvitationId, authInvitationId))
+      .where(eq(invitations.externalId, externalId))
       .limit(1);
     return row ?? null;
   }

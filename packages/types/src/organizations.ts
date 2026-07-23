@@ -38,7 +38,7 @@ export interface Invitation {
   // misspelt `invetedBy`; mirrored here to match the persisted row.)
   readonly invetedBy: string;
   // Links to the better-auth invitation record.
-  readonly authInvitationId: string;
+  readonly externalId: string;
   readonly expiresAt: Date | null;
   readonly createdAt: Date;
 }
@@ -93,7 +93,7 @@ export interface AddMembershipInput {
 export interface RecordInvitationInput {
   // The owning org's better-auth id (used to locate the domain org).
   orgExternalId: string;
-  authInvitationId: string;
+  externalId: string;
   email: string;
   role: string;
   status: string;
@@ -103,7 +103,7 @@ export interface RecordInvitationInput {
 }
 
 export interface AcceptInvitationInput {
-  authInvitationId: string;
+  externalId: string;
 }
 
 export interface AssignCourseInput {

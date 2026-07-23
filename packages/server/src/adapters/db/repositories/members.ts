@@ -42,7 +42,7 @@ export class DrizzleMembersRepository implements MembersRepository {
         image: user.image,
         role: memberships.role,
         joinedAt: memberships.createdAt,
-        authMemberId: memberships.externalId,
+        memberExternalId: memberships.externalId,
       })
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId))
@@ -55,7 +55,7 @@ export class DrizzleMembersRepository implements MembersRepository {
         email: invitations.email,
         role: invitations.role,
         invitedAt: invitations.createdAt,
-        authInvitationId: invitations.authInvitationId,
+        externalId: invitations.externalId,
       })
       .from(invitations)
       .where(and(eq(invitations.orgId, orgId), eq(invitations.status, 'pending')));
@@ -70,8 +70,8 @@ export class DrizzleMembersRepository implements MembersRepository {
       joinedAt: m.joinedAt.toISOString(),
       invitedAt: null,
       kind: 'member',
-      authMemberId: m.authMemberId,
-      authInvitationId: null,
+      memberExternalId: m.memberExternalId,
+      invitationExternalId: null,
     }));
     const invited: MemberRecord[] = inviteRows.map((i) => ({
       id: i.id,
@@ -83,8 +83,8 @@ export class DrizzleMembersRepository implements MembersRepository {
       joinedAt: null,
       invitedAt: i.invitedAt.toISOString(),
       kind: 'invitation',
-      authMemberId: null,
-      authInvitationId: i.authInvitationId,
+      memberExternalId: null,
+      invitationExternalId: i.externalId,
     }));
     return [...members, ...invited];
   }
