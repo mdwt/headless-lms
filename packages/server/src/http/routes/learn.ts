@@ -4,14 +4,18 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
+  ActivityProgress,
   AssetIdParam,
   Course,
+  CourseProgress,
   DownloadTicket,
   ErrorBody,
+  LearnActivityParams,
   LearnCourseIdParam,
   LearnCourses,
   LearnModules,
   LearnOrg,
+  ProgressReport,
   RequestDownload,
 } from '@headless-lms/api-contract';
 import { NotFoundError } from '../../core/shared/errors.js';
@@ -124,6 +128,56 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
         throw new NotFoundError('Asset', req.params.id);
       }
       return ticket;
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/learn/courses/:courseId/activities/:activityId/progress',
+    preHandler: app.requireSession,
+    schema: {
+      operationId: 'reportActivityProgress',
+      tags: ['Learn'],
+      summary: 'Report usage on an activity; the progress service decides completion',
+      params: LearnActivityParams,
+      body: ProgressReport,
+      response: { 200: ActivityProgress, 404: ErrorBody },
+    },
+    handler: async (req) => {
+      const scope = await resolveStudentScope(container, req);
+      // Enrollment gate — same visibility rule as every Learn read.
+      const course = await learn.getCourse(scope.orgId, scope.studentId, req.params.courseId);
+      if (!course) {
+        throw new NotFoundError('Course', req.params.courseId);
+      }
+      const record = await container.progress.report(scope.orgId, {
+        studentId: scope.studentId,
+        courseId: req.params.courseId,
+        activityId: req.params.activityId,
+        report: req.body,
+      });
+      return { status: record.completedAt ? ('completed' as const) : ('in-progress' as const) };
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/learn/courses/:courseId/progress',
+    preHandler: app.requireSession,
+    schema: {
+      operationId: 'getLearnCourseProgress',
+      tags: ['Learn'],
+      summary: "The student's progress in one course",
+      params: LearnCourseIdParam,
+      response: { 200: CourseProgress, 404: ErrorBody },
+    },
+    handler: async (req) => {
+      const scope = await resolveStudentScope(container, req);
+      const view = await learn.courseProgress(scope.orgId, scope.studentId, req.params.courseId);
+      if (!view) {
+        throw new NotFoundError('Course', req.params.courseId);
+      }
+      return view;
     },
   });
 }
