@@ -1,5 +1,5 @@
-// progress tables — one progress record per student per target (lesson,
-// assessment, module, or course). Tracks lifecycle: started_at on open, position
+// progress tables — one progress record per student per target (activity,
+// module, or course). Tracks lifecycle: started_at on open, position
 // (typed resume payload) as the player reports it, completed_at when the rule is
 // satisfied (null = in progress). Target is denormalized (type + id, no FK) so a
 // record survives structure edits. Percentage and resume are derived on read;
@@ -19,7 +19,7 @@ export const progressRecords = pgTable(
       .$defaultFn(() => genId('progress')),
     studentId: text('student_id').notNull(),
     targetType: text('target_type', {
-      enum: ['lesson', 'assessment', 'module', 'course'],
+      enum: ['activity', 'module', 'course'],
     }).notNull(),
     targetId: text('target_id').notNull(),
     startedAt: timestamp('started_at').notNull().defaultNow(),
