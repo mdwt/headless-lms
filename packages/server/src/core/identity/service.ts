@@ -3,14 +3,19 @@ import { ConflictError } from '../shared/errors.js';
 import type { IdentityService, IdentityRepository } from './ports.js';
 import type { User, Student } from './model.js';
 import type { RegisterUserInput, RegisterStudentInput, CreateStudentInput } from './types.js';
-import type { Logger } from '../shared/ports.js';
+import type { Logger, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 
 export class IdentityServiceImpl implements IdentityService {
   constructor(
     private readonly repo: IdentityRepository,
+    private readonly outbox?: OutboxAppender,
     private readonly logger: Logger = noopLogger,
   ) {}
+
+  private async emit<E extends NewDomainEvent>(events: E[]): Promise<void> {
+    await this.outbox?.append(events);
+  }
 
   async registerUser(input: RegisterUserInput): Promise<User> {
     const existing = await this.repo.findUserByExternalId(input.externalId);
@@ -29,6 +34,7 @@ export class IdentityServiceImpl implements IdentityService {
     }
     const student = await this.repo.insertStudent(input);
     this.logger.info('student registered', { orgId: input.orgId, studentId: student.id });
+    await this.emit([{ type: 'student.created', orgId: student.orgId, student }]);
     return student;
   }
 
@@ -51,6 +57,7 @@ export class IdentityServiceImpl implements IdentityService {
     }
     const student = await this.repo.insertPendingStudent(input);
     this.logger.info('student created', { orgId: input.orgId, studentId: student.id });
+    await this.emit([{ type: 'student.created', orgId: student.orgId, student }]);
     return student;
   }
 

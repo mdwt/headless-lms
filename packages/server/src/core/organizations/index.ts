@@ -12,7 +12,7 @@ export type {
 export type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
 export { OrganizationRuleError } from './members.js';
 export type { Member, MemberStatus, MembersQuery, InviteMemberInput, Page } from './members.js';
-export { ROLES, isRole, parseRole, normalizeRole, capability, canForCourse } from './roles.js';
+export { ROLES, STUDENT_ROLE, isRole, parseRole, normalizeRole, capability, canForCourse } from './roles.js';
 export type { Role, Permission, Capability } from './roles.js';
 export type {
   OrganizationId,
@@ -23,6 +23,6 @@ export type {
   UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
-  AcceptInvitationInput,
+  AcceptInviteInput,
   AssignCourseInput,
 } from './types.js';

@@ -221,7 +221,7 @@ describe('logging', () => {
     const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
     const { repo } = fakeRepo();
-    const svc = new IdentityServiceImpl(repo, logger);
+    const svc = new IdentityServiceImpl(repo, undefined, logger);
 
     const input: RegisterUserInput = { externalId: 'auth-1', email: 'a@b.c', displayName: 'A' };
     const user = await svc.registerUser(input);

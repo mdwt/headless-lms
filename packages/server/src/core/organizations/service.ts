@@ -6,10 +6,11 @@ import type {
   MemberRecord,
   MemberWriteContext,
   OrgAdmin,
+  StudentLinker,
   AuthHeaders,
 } from './ports.js';
 import type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
-import type { Role } from './roles.js';
+import { STUDENT_ROLE, type Role } from './roles.js';
 import {
   OrganizationRuleError,
   type Member,
@@ -23,10 +24,10 @@ import type {
   UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
-  AcceptInvitationInput,
+  AcceptInviteInput,
   AssignCourseInput,
 } from './types.js';
-import type { Logger } from '../shared/ports.js';
+import type { Logger, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 
 function toMember(r: MemberRecord): Member {
@@ -51,8 +52,16 @@ export class OrganizationServiceImpl implements OrganizationService {
     private readonly repo: OrganizationsRepository,
     private readonly membersRepo: MembersRepository,
     private readonly orgAdmin: () => OrgAdmin,
+    // Identity-context slice: the student rows the invite lifecycle records
+    // against and links. Invites are organizations-domain; the row is identity's.
+    private readonly students: StudentLinker,
+    private readonly outbox?: OutboxAppender,
     private readonly logger: Logger = noopLogger,
   ) {}
+
+  private async emit<E extends NewDomainEvent>(events: E[]): Promise<void> {
+    await this.outbox?.append(events);
+  }
 
   async createOrg(input: CreateOrganizationInput): Promise<Organization> {
     const existing = await this.repo.findByExternalId(input.externalId);
@@ -113,12 +122,69 @@ export class OrganizationServiceImpl implements OrganizationService {
     const org = await this.requireOrg(input.orgExternalId);
     const invitation = await this.repo.insertInvitation(org.id, input);
     this.logger.info('invitation recorded', { orgId: org.id });
+    await this.emit([{ type: 'invitation.created', orgId: org.id, invitation }]);
     return invitation;
   }
 
-  async acceptInvitation(input: AcceptInvitationInput): Promise<void> {
-    await this.repo.setInvitationStatusByExternalId(input.externalId, 'accepted');
-    this.logger.info('invitation accepted', { externalId: input.externalId });
+  async recordStudentInvite(
+    orgExternalId: string,
+    email: string,
+    inviteExternalId: string,
+  ): Promise<void> {
+    const org = await this.requireOrg(orgExternalId);
+    await this.students.recordStudentInvite(org.id, email, inviteExternalId);
+    await this.emit([{ type: 'student.invited', orgId: org.id, email, inviteExternalId }]);
+  }
+
+  // Invitation acceptance — an organizations-domain event with two grants:
+  // student invites link the pending student row(s) (identity persists that),
+  // staff invites grant the membership their mirror records. Returns the org
+  // the accepting account should act in, for session stamping at the boundary.
+  async acceptInvite(input: AcceptInviteInput): Promise<{ orgExternalId: string | null }> {
+    if (input.role === STUDENT_ROLE) {
+      await this.students.linkStudentByInvite(
+        input.inviteExternalId,
+        input.email,
+        input.userExternalId,
+      );
+      const orgExternalId = await this.students.studentOrgExternalId(input.userExternalId);
+      this.logger.info('student invite accepted', { inviteExternalId: input.inviteExternalId });
+      const org = orgExternalId ? await this.repo.findByExternalId(orgExternalId) : null;
+      if (org) {
+        await this.emit([
+          {
+            type: 'student.invite.accepted',
+            orgId: org.id,
+            email: input.email,
+            inviteExternalId: input.inviteExternalId,
+            userExternalId: input.userExternalId,
+          },
+        ]);
+      }
+      return { orgExternalId };
+    }
+    const record = await this.repo.findInvitationByExternalId(input.inviteExternalId);
+    if (!record || record.status !== 'pending') {
+      // Canceled/unknown mirror → no grant; the token alone proves nothing.
+      this.logger.warn('invitation accept refused: mirror not pending', {
+        inviteExternalId: input.inviteExternalId,
+      });
+      return { orgExternalId: null };
+    }
+    await this.orgAdmin().grantMembership(record.orgExternalId, input.userExternalId, record.role);
+    await this.repo.setInvitationStatusByExternalId(input.inviteExternalId, 'accepted');
+    this.logger.info('invitation accepted', { inviteExternalId: input.inviteExternalId });
+    const org = await this.requireOrg(record.orgExternalId);
+    await this.emit([
+      {
+        type: 'invitation.accepted',
+        orgId: org.id,
+        inviteExternalId: input.inviteExternalId,
+        role: record.role,
+        userExternalId: input.userExternalId,
+      },
+    ]);
+    return { orgExternalId: record.orgExternalId };
   }
 
   async getByExternalId(externalId: string): Promise<Organization | null> {
@@ -148,12 +214,6 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async getMembershipByUser(userId: string): Promise<Membership | null> {
     return this.repo.findMembershipByUser(userId);
-  }
-
-  async invitationForAccept(
-    externalId: string,
-  ): Promise<{ orgExternalId: string; role: string; status: string } | null> {
-    return this.repo.findInvitationByExternalId(externalId);
   }
 
   // --- Member management (formerly the `team` context) -----------------------
@@ -225,9 +285,16 @@ export class OrganizationServiceImpl implements OrganizationService {
       await this.orgAdmin().removeMember(ctx, member.memberExternalId);
     } else if (member.kind === 'invitation' && member.invitationExternalId) {
       // better-invite tokens can only be canceled by their creator; the domain
-      // mirror is authoritative for staff grants (afterAcceptInvite refuses
+      // mirror is authoritative for staff grants (acceptInvite refuses
       // non-pending mirrors), so canceling the mirror is canceling the invite.
       await this.repo.setInvitationStatusByExternalId(member.invitationExternalId, 'canceled');
+      await this.emit([
+        {
+          type: 'invitation.canceled',
+          orgId: ctx.orgId,
+          inviteExternalId: member.invitationExternalId,
+        },
+      ]);
     }
     this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;

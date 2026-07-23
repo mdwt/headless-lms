@@ -8,7 +8,7 @@ import type {
   UpdateOrganizationInput,
   AddMembershipInput,
   RecordInvitationInput,
-  AcceptInvitationInput,
+  AcceptInviteInput,
   AssignCourseInput,
 } from './types.js';
 
@@ -24,17 +24,20 @@ export interface OrganizationProvisioner {
   addMembership(input: AddMembershipInput): Promise<Membership>;
   removeMembership(externalId: string): Promise<void>;
   recordInvitation(input: RecordInvitationInput): Promise<Invitation>;
-  acceptInvitation(input: AcceptInvitationInput): Promise<void>;
+  // Captures a freshly minted student invite on the pending student row
+  // (identity persists the pointer; organizations owns the invite lifecycle).
+  recordStudentInvite(orgExternalId: string, email: string, inviteExternalId: string): Promise<void>;
+  // Invitation acceptance: an organizations-domain event. Student invites link
+  // the student row (delegated to identity); staff invites grant the membership
+  // recorded for the invitation — refused unless the mirror is still pending.
+  // Returns the org the account should act in, for session stamping.
+  acceptInvite(input: AcceptInviteInput): Promise<{ orgExternalId: string | null }>;
   // Lets the adapter detect whether an org is already mirrored (used to make
   // the creator's membership hook resilient to firing before provisioning).
   getByExternalId(externalId: string): Promise<Organization | null>;
   // Lets the auth adapter gate invite creation to staff (users with a
-  // membership somewhere), and read back the mirror record an accepted
-  // invitation belongs to, before granting the membership.
+  // membership somewhere).
   getMembershipByUser(userId: string): Promise<Membership | null>;
-  invitationForAccept(
-    externalId: string,
-  ): Promise<{ orgExternalId: string; role: string; status: string } | null>;
 }
 
 // Inbound port (use cases the service exposes).
@@ -103,6 +106,15 @@ export interface MembersRepository {
   findById(orgId: string, id: string): Promise<MemberRecord | null>;
 }
 
+/** Narrow identity-context slice the invite lifecycle needs: the student rows
+ *  an invite is recorded on and later linked to. Declared here (not imported
+ *  from identity) so the contexts stay structurally coupled only at composition. */
+export interface StudentLinker {
+  recordStudentInvite(orgId: string, email: string, inviteExternalId: string): Promise<void>;
+  linkStudentByInvite(inviteExternalId: string, email: string, externalId: string): Promise<void>;
+  studentOrgExternalId(externalId: string): Promise<string | null>;
+}
+
 /** Context for a write: domain org (reads/rules) + auth org & session (writes). */
 export interface MemberWriteContext {
   orgId: string;
@@ -130,6 +142,9 @@ export interface OrgAdmin {
   // Mints a student-role invitation (portal account creation). Same invite
   // provider as staff invites; the role decides the landing app and the grant.
   inviteStudent(ctx: MemberWriteContext, email: string): Promise<void>;
+  // Grants a membership server-side when an accepted invitation is honoured
+  // (no acting session — the invitee's acceptance IS the authorisation).
+  grantMembership(orgExternalId: string, userExternalId: string, role: string): Promise<void>;
   updateRole(ctx: MemberWriteContext, memberExternalId: string, role: Role): Promise<void>;
   removeMember(ctx: MemberWriteContext, memberExternalId: string): Promise<void>;
 }

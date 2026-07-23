@@ -161,10 +161,6 @@ export function createAuth(opts: CreateAuthOptions): Auth {
     return user;
   };
 
-  // afterAcceptInvite needs auth.api.addMember, but hooks are defined before
-  // betterAuth() returns — resolved via this ref, assigned right after creation.
-  const authRef: { current: Auth | null } = { current: null };
-
   const auth = betterAuth({
     baseURL: opts.baseURL,
     secret: opts.secret,
@@ -290,11 +286,7 @@ export function createAuth(opts: CreateAuthOptions): Auth {
                 continue;
               }
               if (inv.role === STUDENT_ROLE) {
-                const org = await opts.organizations.getByExternalId(orgExternalId);
-                if (!org) {
-                  throw new Error('unknown organization for invite');
-                }
-                await opts.identity.recordStudentInvite(org.id, email, inv.id);
+                await opts.organizations.recordStudentInvite(orgExternalId, email, inv.id);
               } else {
                 const inviter = await requireUser(session!.user.id);
                 await opts.organizations.recordInvitation({
@@ -309,49 +301,46 @@ export function createAuth(opts: CreateAuthOptions): Auth {
               }
             }
           },
-          // One accept path for every auth method: link the student row, or grant
-          // the staff membership recorded for this invitation.
+          // One accept path for every auth method. Acceptance itself is an
+          // organizations-domain use case (student → identity links the row,
+          // staff → membership grant); this hook only adapts the provider's
+          // callback and stamps the session with the org the domain returns.
           afterAcceptInvite: async ({ ctx, invitation, invitedUser }) => {
-            if (invitation.role === STUDENT_ROLE) {
-              await opts.identity.linkStudentByInvite(invitation.id, invitedUser.email, invitedUser.id);
-              // The signup/sign-in session was created BEFORE this hook linked the
-              // row, so the session.create.before org-stamping saw nothing — stamp
-              // the fresh session now or the very first portal load 401s.
-              const orgExternalId = await opts.identity.studentOrgExternalId(invitedUser.id);
-              const liveSession = (
+            const { orgExternalId } = await opts.organizations.acceptInvite({
+              inviteExternalId: invitation.id,
+              role: invitation.role,
+              email: invitedUser.email,
+              userExternalId: invitedUser.id,
+            });
+            // The signup/sign-in session was created BEFORE the domain linked the
+            // account, so session.create.before saw nothing — stamp the fresh
+            // session now or the very first portal load 401s.
+            const liveSession =
+              (
                 ctx.context as {
                   newSession?: { session?: { token?: string } } | null;
-                  session?: { session?: { token?: string } } | null;
                 }
-              ).newSession?.session ?? (ctx.context as { session?: { session?: { token?: string } } | null }).session?.session;
-              if (orgExternalId && liveSession?.token) {
-                const updated = await ctx.context.internalAdapter.updateSession(liveSession.token, {
-                  activeOrganizationId: orgExternalId,
-                });
-                // Refresh the cookie cache too — consumeInvite already re-issued
-                // it with the pre-stamp session, and getSession trusts the cache
-                // for its maxAge (same pattern as the org plugin's set-active).
-                await setSessionCookie(ctx as Parameters<typeof setSessionCookie>[0], {
-                  session: updated,
-                  user: invitedUser,
-                } as Parameters<typeof setSessionCookie>[1]);
-                opts.logger.info('invite session stamped', { orgExternalId });
-              } else {
-                opts.logger.warn('invite session NOT stamped', {
-                  hasOrg: orgExternalId !== null,
-                  hasToken: Boolean(liveSession?.token),
-                });
-              }
-              return;
+              ).newSession?.session ??
+              (ctx.context as { session?: { session?: { token?: string } } | null }).session
+                ?.session;
+            if (orgExternalId && liveSession?.token) {
+              const updated = await ctx.context.internalAdapter.updateSession(liveSession.token, {
+                activeOrganizationId: orgExternalId,
+              });
+              // Refresh the cookie cache too — consumeInvite already re-issued
+              // it with the pre-stamp session, and getSession trusts the cache
+              // for its maxAge (same pattern as the org plugin's set-active).
+              await setSessionCookie(ctx as Parameters<typeof setSessionCookie>[0], {
+                session: updated,
+                user: invitedUser,
+              } as Parameters<typeof setSessionCookie>[1]);
+              opts.logger.info('invite session stamped', { orgExternalId });
+            } else {
+              opts.logger.warn('invite session NOT stamped', {
+                hasOrg: orgExternalId !== null,
+                hasToken: Boolean(liveSession?.token),
+              });
             }
-            const record = await opts.organizations.invitationForAccept(invitation.id);
-            if (!record || record.status !== 'pending') {
-              return; // canceled/unknown → no grant
-            }
-            await authRef.current!.api.addMember({
-              body: { userId: invitedUser.id, organizationId: record.orgExternalId, role: record.role },
-            });
-            await opts.organizations.acceptInvitation({ externalId: invitation.id });
           },
         },
       }),
@@ -490,7 +479,6 @@ export function createAuth(opts: CreateAuthOptions): Auth {
       },
     },
   }) as unknown as Auth;
-  authRef.current = auth;
   return auth;
 }
 

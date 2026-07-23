@@ -3,7 +3,9 @@
 // framework-free so the hook wiring in index.ts stays thin and this logic is
 // unit-testable.
 
-export const STUDENT_ROLE = 'student';
+import { STUDENT_ROLE } from '../../core/organizations/index.js';
+
+export { STUDENT_ROLE };
 
 export function inviteLinkFor(
   role: string,

@@ -92,3 +92,8 @@ export function normalizeRole(raw: string): Role {
   }
   return best;
 }
+
+// Invitations carry either a staff Role or this marker: the invited account is
+// a portal student, not an org member. Owned by the organizations domain — the
+// invite provider adapter reuses it to branch links, emails, and grants.
+export const STUDENT_ROLE = 'student';

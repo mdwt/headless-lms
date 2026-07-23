@@ -5,6 +5,7 @@ import type {
   MembersRepository,
   MemberRecord,
   OrgAdmin,
+  StudentLinker,
 } from './ports.js';
 import type { Organization, Membership, Invitation } from './model.js';
 import { type Role, normalizeRole } from './roles.js';
@@ -28,6 +29,13 @@ const stubMembersRepo: MembersRepository = {
     return null;
   },
 };
+const stubStudentLinker = (): StudentLinker => ({
+  async recordStudentInvite() {},
+  async linkStudentByInvite() {},
+  async studentOrgExternalId() {
+    return null;
+  },
+});
 const stubOrgAdmin = (): OrgAdmin => ({
   async createOrganization() {
     return { externalId: 'org_stub' };
@@ -36,6 +44,7 @@ const stubOrgAdmin = (): OrgAdmin => ({
   async updateOrganization() {},
   async invite() {},
   async inviteStudent() {},
+  async grantMembership() {},
   async updateRole() {},
   async removeMember() {},
 });
@@ -164,7 +173,7 @@ const orgInput: CreateOrganizationInput = {
 describe('OrganizationService', () => {
   it('provisions an org and is idempotent on the auth org id', async () => {
     const { repo, orgs } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     const first = await svc.createOrg(orgInput);
     const second = await svc.createOrg(orgInput);
     expect(second.id).toBe(first.id);
@@ -173,7 +182,7 @@ describe('OrganizationService', () => {
 
   it('resolves the org by auth id when mirroring a membership', async () => {
     const { repo, members } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     const org = await svc.createOrg(orgInput);
     const m = await svc.addMembership({
       orgExternalId: 'org_1',
@@ -187,7 +196,7 @@ describe('OrganizationService', () => {
 
   it('throws when mirroring against an unknown org', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await expect(
       svc.addMembership({
         orgExternalId: 'missing',
@@ -200,7 +209,7 @@ describe('OrganizationService', () => {
 
   it('stores the membership role as a domain Role', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await svc.createOrg(orgInput);
     const m = await svc.addMembership({
       orgExternalId: 'org_1',
@@ -213,7 +222,7 @@ describe('OrganizationService', () => {
 
   it('assigns and lists instructor course assignments', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     const org = await svc.createOrg(orgInput);
     const a = await svc.assignCourse({
       orgExternalId: 'org_1',
@@ -227,7 +236,7 @@ describe('OrganizationService', () => {
 
   it('unassigns a course', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     const org = await svc.createOrg(orgInput);
     await svc.assignCourse({ orgExternalId: 'org_1', membershipId: 'm1', courseId: 'c1' });
     await svc.unassignCourse({ orgExternalId: 'org_1', membershipId: 'm1', courseId: 'c1' });
@@ -236,7 +245,7 @@ describe('OrganizationService', () => {
 
   it("normalizes Better Auth's member role to instructor on mirror", async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await svc.createOrg(orgInput);
     const m = await svc.addMembership({
       orgExternalId: 'org_1',
@@ -249,7 +258,7 @@ describe('OrganizationService', () => {
 
   it('collapses a multi-role mirror to the highest-privilege role', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await svc.createOrg(orgInput);
     const m = await svc.addMembership({
       orgExternalId: 'org_1',
@@ -262,7 +271,7 @@ describe('OrganizationService', () => {
 
   it('getMembershipByUser returns the membership for a known user', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     const org = await svc.createOrg(orgInput);
     await svc.addMembership({
       orgExternalId: 'org_1',
@@ -278,15 +287,22 @@ describe('OrganizationService', () => {
 
   it('getMembershipByUser returns null for an unknown user', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await svc.createOrg(orgInput);
     const m = await svc.getMembershipByUser('no-such-user');
     expect(m).toBeNull();
   });
 
-  it('invitationForAccept returns the mirror record for a pending invitation', async () => {
-    const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+  it('acceptInvite grants the recorded membership for a pending staff invitation', async () => {
+    const { repo, invitations } = fakeRepo();
+    const grants: Array<{ org: string; user: string; role: string }> = [];
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async grantMembership(orgExternalId, userExternalId, role) {
+        grants.push({ org: orgExternalId, user: userExternalId, role });
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
     await svc.createOrg(orgInput);
     await svc.recordInvitation({
       orgExternalId: 'org_1',
@@ -297,8 +313,86 @@ describe('OrganizationService', () => {
       inviterUserId: 'user_1',
       expiresAt: null,
     });
-    const record = await svc.invitationForAccept('inv_1');
-    expect(record).toMatchObject({ orgExternalId: 'org_1', role: 'instructor', status: 'pending' });
+    const result = await svc.acceptInvite({
+      inviteExternalId: 'inv_1',
+      role: 'instructor',
+      email: 'sam@example.com',
+      userExternalId: 'usr_ext_1',
+    });
+    expect(grants).toEqual([{ org: 'org_1', user: 'usr_ext_1', role: 'instructor' }]);
+    expect(result.orgExternalId).toBe('org_1');
+    expect(invitations[0]?.status).toBe('accepted');
+  });
+
+  it('acceptInvite refuses a canceled staff invitation — no grant', async () => {
+    const { repo, invitations } = fakeRepo();
+    const grants: string[] = [];
+    const orgAdmin: OrgAdmin = {
+      ...stubOrgAdmin(),
+      async grantMembership(orgExternalId) {
+        grants.push(orgExternalId);
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
+    await svc.createOrg(orgInput);
+    await svc.recordInvitation({
+      orgExternalId: 'org_1',
+      externalId: 'inv_1',
+      email: 'sam@example.com',
+      role: 'instructor',
+      status: 'pending',
+      inviterUserId: 'user_1',
+      expiresAt: null,
+    });
+    await repo.setInvitationStatusByExternalId('inv_1', 'canceled');
+    const result = await svc.acceptInvite({
+      inviteExternalId: 'inv_1',
+      role: 'instructor',
+      email: 'sam@example.com',
+      userExternalId: 'usr_ext_1',
+    });
+    expect(grants).toEqual([]);
+    expect(result.orgExternalId).toBeNull();
+    expect(invitations[0]?.status).toBe('canceled');
+  });
+
+  it('acceptInvite links student rows through the identity slice and returns their org', async () => {
+    const { repo } = fakeRepo();
+    const links: Array<{ invite: string; email: string; user: string }> = [];
+    const linker: StudentLinker = {
+      async recordStudentInvite() {},
+      async linkStudentByInvite(inviteExternalId, email, externalId) {
+        links.push({ invite: inviteExternalId, email, user: externalId });
+      },
+      async studentOrgExternalId() {
+        return 'org_1';
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, linker);
+    await svc.createOrg(orgInput);
+    const result = await svc.acceptInvite({
+      inviteExternalId: 'inv_s1',
+      role: 'student',
+      email: 'jane@example.com',
+      userExternalId: 'usr_ext_9',
+    });
+    expect(links).toEqual([{ invite: 'inv_s1', email: 'jane@example.com', user: 'usr_ext_9' }]);
+    expect(result.orgExternalId).toBe('org_1');
+  });
+
+  it('recordStudentInvite resolves the org and records on the student row', async () => {
+    const { repo } = fakeRepo();
+    const recorded: Array<{ orgId: string; email: string; invite: string }> = [];
+    const linker: StudentLinker = {
+      ...stubStudentLinker(),
+      async recordStudentInvite(orgId, email, inviteExternalId) {
+        recorded.push({ orgId, email, invite: inviteExternalId });
+      },
+    };
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, linker);
+    const org = await svc.createOrg(orgInput);
+    await svc.recordStudentInvite('org_1', 'jane@example.com', 'inv_s1');
+    expect(recorded).toEqual([{ orgId: org.id, email: 'jane@example.com', invite: 'inv_s1' }]);
   });
 
   it('inviteStudent drives the invite provider with the student email', async () => {
@@ -310,7 +404,7 @@ describe('OrganizationService', () => {
         invites.push(email);
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
     await svc.inviteStudent(
       { orgId: 'org1', authOrgId: 'ext_org1', headers: {} },
       'jane@example.com',
@@ -318,10 +412,16 @@ describe('OrganizationService', () => {
     expect(invites).toEqual(['jane@example.com']);
   });
 
-  it('invitationForAccept returns null for an unknown invitation', async () => {
+  it('acceptInvite of an unknown invitation grants nothing', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
-    expect(await svc.invitationForAccept('nope')).toBeNull();
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
+    const result = await svc.acceptInvite({
+      inviteExternalId: 'nope',
+      role: 'instructor',
+      email: 'x@example.com',
+      userExternalId: 'usr_x',
+    });
+    expect(result.orgExternalId).toBeNull();
   });
 
   it('creates an org via OrgAdmin, sets it active, then returns the mirrored org', async () => {
@@ -344,7 +444,7 @@ describe('OrganizationService', () => {
         calls.push(`setActive:${externalId}`);
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
     const org = await svc.createOrganization({}, { name: 'New', slug: 'new' });
     expect(org.externalId).toBe('org_new');
     expect(org.slug).toBe('new');
@@ -359,7 +459,7 @@ describe('OrganizationService', () => {
         return { externalId: 'ghost' };
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
     await expect(svc.createOrganization({}, { name: 'X', slug: 'x' })).rejects.toThrow(
       /did not propagate/,
     );
@@ -375,7 +475,7 @@ describe('OrganizationService', () => {
         calls.push(`update:${externalId}`);
       },
     };
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, () => orgAdmin, stubStudentLinker());
     const org = await svc.updateOrganization({}, 'org_1', { name: 'New', slug: 'new' });
     expect(calls).toEqual(['update:org_1']);
     expect(org.name).toBe('New');
@@ -386,7 +486,7 @@ describe('OrganizationService', () => {
 
   it('throws when the org to update is missing from the domain mirror', async () => {
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker());
     await expect(svc.updateOrganization({}, 'ghost', { name: 'New', slug: 'new' })).rejects.toThrow(
       /did not propagate/,
     );
@@ -442,6 +542,9 @@ describe('OrganizationService — member management', () => {
       async inviteStudent() {
         calls.push('inviteStudent');
       },
+      async grantMembership() {
+        calls.push('grantMembership');
+      },
       async updateRole() {
         calls.push('updateRole');
       },
@@ -450,7 +553,7 @@ describe('OrganizationService — member management', () => {
       },
     };
     const { repo, invitations } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, membersRepo, () => orgAdmin);
+    const svc = new OrganizationServiceImpl(repo, membersRepo, () => orgAdmin, stubStudentLinker());
     return { svc, calls, repo, invitations };
   }
 
@@ -518,7 +621,7 @@ describe('logging', () => {
     const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
     const { repo } = fakeRepo();
-    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, logger);
+    const svc = new OrganizationServiceImpl(repo, stubMembersRepo, stubOrgAdmin, stubStudentLinker(), undefined, logger);
 
     const org = await svc.createOrg(orgInput);
     await svc.createOrg(orgInput);

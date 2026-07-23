@@ -75,6 +75,16 @@ export function createOrgAdmin(auth: Auth): OrgAdmin {
         headers: headersOf(ctx),
       });
     },
+    async grantMembership(
+      orgExternalId: string,
+      userExternalId: string,
+      role: string,
+    ): Promise<void> {
+      // Server-side (no session): the accepted invitation is the authorisation.
+      await auth.api.addMember({
+        body: { userId: userExternalId, organizationId: orgExternalId, role },
+      });
+    },
     async updateRole(ctx: MemberWriteContext, authMemberId: string, role: Role): Promise<void> {
       await auth.api.updateMemberRole({
         body: { memberId: authMemberId, role, organizationId: ctx.authOrgId },

@@ -2,6 +2,7 @@
 // The org is the tenant root that owns all org-scoped data; memberships and
 // invitations are mirrored from the auth adapter's organization plugin.
 // Owner/member/inviter all reference the identity USER (staff), not a student.
+import type { DomainEvent } from "./shared.js";
 
 /** Domain roles. The authorization matrix lives in core (roles.ts). */
 export type Role = "owner" | "admin" | "instructor";
@@ -102,8 +103,18 @@ export interface RecordInvitationInput {
   expiresAt: Date | null;
 }
 
-export interface AcceptInvitationInput {
-  externalId: string;
+/** An accepted invitation: the auth-side invite + the account that accepted it.
+ *  Acceptance is an organizations-domain event; for student invites the grant
+ *  itself (linking the student row) is delegated to the identity context. */
+export interface AcceptInviteInput {
+  /** The invitation's auth-provider id. */
+  inviteExternalId: string;
+  /** Role carried by the invitation — 'student' or a staff role. */
+  role: string;
+  /** The invited email (verified against the account by the invite provider). */
+  email: string;
+  /** The accepting auth account's id. */
+  userExternalId: string;
 }
 
 export interface AssignCourseInput {
@@ -113,5 +124,46 @@ export interface AssignCourseInput {
   courseId: string;
 }
 
-/** Domain events the organizations context emits. Empty placeholder. */
-export type OrganizationEvent = never;
+/** A student was invited to create their portal account. */
+export interface StudentInvited extends DomainEvent {
+  type: "student.invited";
+  email: string;
+  inviteExternalId: string;
+}
+
+/** A staff invitation was recorded (mirror of the minted invite). */
+export interface InvitationCreated extends DomainEvent {
+  type: "invitation.created";
+  invitation: Invitation;
+}
+
+/** A pending staff invitation was canceled (mirror-side; the token dies with it). */
+export interface InvitationCanceled extends DomainEvent {
+  type: "invitation.canceled";
+  inviteExternalId: string;
+}
+
+/** An invited student created/linked their account. */
+export interface StudentInviteAccepted extends DomainEvent {
+  type: "student.invite.accepted";
+  email: string;
+  inviteExternalId: string;
+  /** The auth account now linked to the student row(s). */
+  userExternalId: string;
+}
+
+/** A staff invitation was accepted and the membership granted. */
+export interface InvitationAccepted extends DomainEvent {
+  type: "invitation.accepted";
+  inviteExternalId: string;
+  role: string;
+  userExternalId: string;
+}
+
+/** Domain events the organizations context emits. */
+export type OrganizationEvent =
+  | StudentInvited
+  | InvitationCreated
+  | InvitationCanceled
+  | StudentInviteAccepted
+  | InvitationAccepted;

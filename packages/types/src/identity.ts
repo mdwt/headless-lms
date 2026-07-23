@@ -1,6 +1,7 @@
 // identity context — domain entities, DTOs, and events.
 // Two identities, both mirrors of a Better Auth user linked by `externalId`:
 // User (staff) and Student (learner).
+import type { DomainEvent } from "./shared.js";
 
 export interface User {
   readonly id: string;
@@ -51,5 +52,11 @@ export interface CreateStudentInput {
   lastName: string;
 }
 
-/** Domain events the identity context emits. Empty placeholder. */
-export type IdentityEvent = never;
+/** A student row was created (manual admin creation or portal registration). */
+export interface StudentCreated extends DomainEvent {
+  type: "student.created";
+  student: Student;
+}
+
+/** Domain events the identity context emits. */
+export type IdentityEvent = StudentCreated;

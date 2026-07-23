@@ -204,12 +204,16 @@ export async function buildContainer(
   // Services (inject repos + peer services in dependency order)
   const identity = new IdentityServiceImpl(
     new DrizzleIdentityRepository(db, identityLogger),
+    new DrizzleOutboxAppender(db, identityLogger),
     identityLogger,
   );
   const organizations = new OrganizationServiceImpl(
     new DrizzleOrganizationsRepository(db, organizationsLogger),
     new DrizzleMembersRepository(db, organizationsLogger),
     orgAdminProvider,
+    // Identity slice: the invite lifecycle records/links student rows.
+    identity,
+    new DrizzleOutboxAppender(db, organizationsLogger),
     organizationsLogger,
   );
   // Content: reads on the root db; course writes + outbox append in one tx.
