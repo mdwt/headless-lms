@@ -17,6 +17,7 @@ interface AppState {
   completionByCourse: Record<string, Completion>;
   setLessonStatus: (courseId: string, lessonId: string, status: LessonStatus) => void;
   seedCompletion: (courseId: string, completion: Completion) => void;
+  markOpened: (courseId: string, lessonId: string) => void;
   toast: ToastState | null;
   showToast: (message: string) => void;
   accent: Accent;
@@ -51,10 +52,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCompletion((prev) => ({ ...prev, [courseId]: { ...completion, ...(prev[courseId] ?? {}) } }));
   }, []);
 
+  /** Promote to in-progress only if not started — never demotes a seeded/completed status. */
+  const markOpened = React.useCallback((courseId: string, lessonId: string) => {
+    setCompletion((prev) => {
+      const cur = prev[courseId]?.[lessonId] ?? "not-started";
+      if (cur !== "not-started") return prev;
+      return { ...prev, [courseId]: { ...(prev[courseId] ?? {}), [lessonId]: "in-progress" } };
+    });
+  }, []);
+
   const value: AppState = {
     completionByCourse,
     setLessonStatus,
     seedCompletion,
+    markOpened,
     toast,
     showToast,
     accent,

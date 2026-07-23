@@ -54,7 +54,7 @@ export function CoursePlayer({
   autoAdvance = true,
 }: CoursePlayerProps) {
   const router = useRouter();
-  const { setLessonStatus, seedCompletion, showToast } = useApp();
+  const { setLessonStatus, seedCompletion, markOpened, showToast } = useApp();
   const completion = useCompletion(course.id);
   const isNarrow = useIsNarrow();
 
@@ -90,9 +90,7 @@ export function CoursePlayer({
   // Report the open and reflect it locally.
   React.useEffect(() => {
     if (!curLessonId) return;
-    if (lessonStatus(completion, curLessonId) === "not-started") {
-      setLessonStatus(course.id, curLessonId, "in-progress");
-    }
+    markOpened(course.id, curLessonId);
     reporter?.opened();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- report on lesson change only
   }, [course.id, curLessonId]);
