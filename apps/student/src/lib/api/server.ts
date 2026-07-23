@@ -45,4 +45,18 @@ export const learnApi = {
     }
     return res.data ?? null;
   },
+  async courseProgress(
+    courseId: string,
+  ): Promise<{ activities: Record<string, "in-progress" | "completed"> } | null> {
+    ensureConfigured();
+    const res = await Learn.getLearnCourseProgress({
+      path: { courseId },
+      ...(await authHeaders()),
+    });
+    if (res.error) {
+      redirectIfNoStudent(res.response?.status);
+      return null;
+    }
+    return res.data ?? null;
+  },
 };

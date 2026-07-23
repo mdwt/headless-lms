@@ -17,7 +17,9 @@ import {
   totalLessons,
 } from "@/lib/progress";
 import { useApp, useCompletion } from "@/lib/store";
-import type { Course } from "@/lib/types";
+import type { Completion, Course } from "@/lib/types";
+import { ensureClientSdk } from "@/lib/api/client-sdk";
+import { progressReporter } from "@headless-lms/sdk";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";
@@ -32,6 +34,8 @@ export interface CoursePlayerProps {
   orgName: string;
   /** Server-rendered activity content, keyed by lesson id (see render-activity). */
   renderedContent: Record<string, React.ReactNode>;
+  /** Server-hydrated completion, seeded into the store on mount. */
+  initialCompletion?: Completion;
   sidebarStyle?: SidebarStyle;
   sequentialLocking?: boolean;
   autoAdvance?: boolean;
@@ -44,12 +48,13 @@ export function CoursePlayer({
   studentName,
   orgName,
   renderedContent,
+  initialCompletion,
   sidebarStyle = "detailed",
   sequentialLocking = true,
   autoAdvance = true,
 }: CoursePlayerProps) {
   const router = useRouter();
-  const { toggleComplete, showToast } = useApp();
+  const { setLessonStatus, seedCompletion, showToast } = useApp();
   const completion = useCompletion(course.id);
   const isNarrow = useIsNarrow();
 
@@ -70,6 +75,27 @@ export function CoursePlayer({
   // render falls back to an empty state below.
   const curLessonId = curLesson?.id ?? "";
   const curIdx = flat.findIndex((l) => l.id === curLessonId);
+
+  const reporter = React.useMemo(() => {
+    ensureClientSdk();
+    return curLessonId ? progressReporter(course.id, curLessonId) : null;
+  }, [course.id, curLessonId]);
+
+  // Seed once per mount — local state (set by later reports) wins over the seed.
+  React.useEffect(() => {
+    if (initialCompletion) seedCompletion(course.id, initialCompletion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per mount
+  }, []);
+
+  // Report the open and reflect it locally.
+  React.useEffect(() => {
+    if (!curLessonId) return;
+    if (lessonStatus(completion, curLessonId) === "not-started") {
+      setLessonStatus(course.id, curLessonId, "in-progress");
+    }
+    reporter?.opened();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- report on lesson change only
+  }, [course.id, curLessonId]);
 
   const goToLesson = React.useCallback(
     (id: string) => {
@@ -107,17 +133,6 @@ export function CoursePlayer({
     if (prv) goToLesson(prv.id);
   }, [course, curLessonId, goToLesson]);
 
-  const markComplete = React.useCallback(() => {
-    const wasDone = lessonStatus(completion, curLessonId) === "completed";
-    toggleComplete(course.id, curLessonId);
-    if (!wasDone) {
-      showToast("Lesson completed");
-      if (autoAdvance) {
-        window.setTimeout(() => goNext(true), AUTO_ADVANCE_MS);
-      }
-    }
-  }, [completion, curLessonId, toggleComplete, course.id, showToast, autoAdvance, goNext]);
-
   // ---- derived ----
   const coursePct = coursePercent(course, completion);
   const doneCount = completedCount(course, completion);
@@ -125,6 +140,18 @@ export function CoursePlayer({
   const courseCompleted = isCourseCompleted(course, completion);
   const curStatus = lessonStatus(completion, curLessonId);
   const isCompleted = curStatus === "completed";
+
+  const markComplete = React.useCallback(() => {
+    if (isCompleted || !reporter) return;
+    void reporter.completed().then((status) => {
+      if (status !== "completed") return;
+      setLessonStatus(course.id, curLessonId, "completed");
+      showToast("Lesson completed");
+      if (autoAdvance) {
+        window.setTimeout(() => goNext(true), AUTO_ADVANCE_MS);
+      }
+    });
+  }, [isCompleted, reporter, course.id, curLessonId, setLessonStatus, showToast, autoAdvance, goNext]);
 
   const sidebarShownDesktop = !isNarrow && sidebarOpen;
   const sidebarShownMobile = isNarrow && mobileSidebar;
