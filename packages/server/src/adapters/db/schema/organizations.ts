@@ -1,7 +1,16 @@
 // organizations tables — the domain mirror of the auth adapter's organization
 // plugin. `organizations` is the tenant root (every org-scoped table FKs to it);
 // memberships and invitations carry a composite (org_id, id) key.
-import { pgTable, text, timestamp, primaryKey, foreignKey, unique } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  pgTable,
+  text,
+  timestamp,
+  primaryKey,
+  foreignKey,
+  unique,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { genId } from '../../../core/shared/id.js';
 import { users } from './identity.js';
 import { courses } from './content.js';
@@ -61,7 +70,13 @@ export const invitations = pgTable(
     expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.orgId, t.id] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    // One pending invitation per (org, email) — the upsert's conflict target.
+    pendingEmailUq: uniqueIndex('invitations_pending_email_uq')
+      .on(t.orgId, t.email)
+      .where(sql`${t.status} = 'pending'`),
+  }),
 );
 
 export const courseAssignments = pgTable(

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "dev": "tsx watch --env-file=../../.env src/main.ts | pino-pretty",
     "build": "tsdown",
     "start": "node --env-file=../../.env dist/main.js",
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "pino-pretty": "^13.0.0",
     "tsdown": "^0.22.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",

@@ -44,6 +44,9 @@ import type {
   DeleteMcpResponses,
   DeleteModuleData,
   DeleteModuleResponses,
+  DeleteStudentData,
+  DeleteStudentErrors,
+  DeleteStudentResponses,
   DisconnectIntegrationData,
   DisconnectIntegrationErrors,
   DisconnectIntegrationResponses,
@@ -154,7 +157,7 @@ export type Options<
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
-export class Invites {
+export class Organizations {
   /**
    * Validate an invite token and stage it for signup
    */
@@ -166,13 +169,94 @@ export class Invites {
       ActivateInviteErrors,
       ThrowOnError
     >({
-      url: "/api/invites/activate",
+      url: "/api/organizations/invites/activate",
       ...options,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
     });
+  }
+
+  /**
+   * Update the active organization
+   */
+  public static updateOrganization<ThrowOnError extends boolean = false>(
+    options: Options<UpdateOrganizationData, ThrowOnError>,
+  ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateOrganizationResponses,
+      UpdateOrganizationErrors,
+      ThrowOnError
+    >({
+      url: "/api/organizations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create an organization and make it active
+   */
+  public static createOrganization<ThrowOnError extends boolean = false>(
+    options: Options<CreateOrganizationData, ThrowOnError>,
+  ): RequestResult<CreateOrganizationResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<CreateOrganizationResponses, unknown, ThrowOnError>({
+      url: "/api/organizations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List organization members
+   */
+  public static listMembers<ThrowOnError extends boolean = false>(
+    options?: Options<ListMembersData, ThrowOnError>,
+  ): RequestResult<ListMembersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError>({
+      url: "/api/organizations/members",
+      ...options,
+    });
+  }
+
+  /**
+   * Change a member's role
+   */
+  public static updateMemberRole<ThrowOnError extends boolean = false>(
+    options: Options<UpdateMemberRoleData, ThrowOnError>,
+  ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateMemberRoleResponses,
+      UpdateMemberRoleErrors,
+      ThrowOnError
+    >({
+      url: "/api/organizations/members/{id}/role",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove an organization member
+   */
+  public static removeMember<ThrowOnError extends boolean = false>(
+    options: Options<RemoveMemberData, ThrowOnError>,
+  ): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      RemoveMemberResponses,
+      RemoveMemberErrors,
+      ThrowOnError
+    >({ url: "/api/organizations/members/{id}", ...options });
   }
 
   /**
@@ -201,7 +285,7 @@ export class Invites {
   ): RequestResult<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError> {
     return (options.client ?? client).post<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError>(
       {
-        url: "/api/invites/accept",
+        url: "/api/organizations/invites/accept",
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -505,6 +589,19 @@ export class Students {
   }
 
   /**
+   * Delete a student
+   */
+  public static deleteStudent<ThrowOnError extends boolean = false>(
+    options: Options<DeleteStudentData, ThrowOnError>,
+  ): RequestResult<DeleteStudentResponses, DeleteStudentErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DeleteStudentResponses,
+      DeleteStudentErrors,
+      ThrowOnError
+    >({ url: "/api/students/{id}", ...options });
+  }
+
+  /**
    * Get a student by id
    */
   public static getStudent<ThrowOnError extends boolean = false>(
@@ -564,89 +661,6 @@ export class Entitlements {
         ...options.headers,
       },
     });
-  }
-}
-
-export class Organizations {
-  /**
-   * Update the active organization
-   */
-  public static updateOrganization<ThrowOnError extends boolean = false>(
-    options: Options<UpdateOrganizationData, ThrowOnError>,
-  ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError> {
-    return (options.client ?? client).patch<
-      UpdateOrganizationResponses,
-      UpdateOrganizationErrors,
-      ThrowOnError
-    >({
-      url: "/api/organizations",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * Create an organization and make it active
-   */
-  public static createOrganization<ThrowOnError extends boolean = false>(
-    options: Options<CreateOrganizationData, ThrowOnError>,
-  ): RequestResult<CreateOrganizationResponses, unknown, ThrowOnError> {
-    return (options.client ?? client).post<CreateOrganizationResponses, unknown, ThrowOnError>({
-      url: "/api/organizations",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * List organization members
-   */
-  public static listMembers<ThrowOnError extends boolean = false>(
-    options?: Options<ListMembersData, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError>({
-      url: "/api/organizations/members",
-      ...options,
-    });
-  }
-
-  /**
-   * Change a member's role
-   */
-  public static updateMemberRole<ThrowOnError extends boolean = false>(
-    options: Options<UpdateMemberRoleData, ThrowOnError>,
-  ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError> {
-    return (options.client ?? client).patch<
-      UpdateMemberRoleResponses,
-      UpdateMemberRoleErrors,
-      ThrowOnError
-    >({
-      url: "/api/organizations/members/{id}/role",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * Remove an organization member
-   */
-  public static removeMember<ThrowOnError extends boolean = false>(
-    options: Options<RemoveMemberData, ThrowOnError>,
-  ): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError> {
-    return (options.client ?? client).delete<
-      RemoveMemberResponses,
-      RemoveMemberErrors,
-      ThrowOnError
-    >({ url: "/api/organizations/members/{id}", ...options });
   }
 }
 

@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { OrganizationsRepository } from '../../../core/organizations/ports.js';
 import type {
@@ -136,7 +136,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     await this.db.delete(memberships).where(eq(memberships.externalId, externalId));
   }
 
-  async insertInvitation(orgId: string, input: NewInvitationRow): Promise<Invitation> {
+  async upsertPendingInvitation(orgId: string, input: NewInvitationRow): Promise<Invitation> {
     const [row] = await this.db
       .insert(invitations)
       .values({
@@ -148,25 +148,21 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         tokenHash: input.tokenHash,
         expiresAt: input.expiresAt,
       })
+      .onConflictDoUpdate({
+        target: [invitations.orgId, invitations.email],
+        targetWhere: sql`${invitations.status} = 'pending'`,
+        set: {
+          role: input.role,
+          invitedBy: input.invitedBy,
+          tokenHash: input.tokenHash,
+          expiresAt: input.expiresAt,
+        },
+      })
       .returning();
     if (!row) {
-      throw new Error('failed to insert invitation');
+      throw new Error('failed to upsert invitation');
     }
     return toInvitation(row);
-  }
-
-  async rotateInvitationToken(
-    orgId: string,
-    id: string,
-    tokenHash: string,
-    expiresAt: Date,
-  ): Promise<Invitation | null> {
-    const [row] = await this.db
-      .update(invitations)
-      .set({ tokenHash, expiresAt })
-      .where(and(eq(invitations.orgId, orgId), eq(invitations.id, id)))
-      .returning();
-    return row ? toInvitation(row) : null;
   }
 
   async setInvitationStatus(orgId: string, id: string, status: string): Promise<void> {
@@ -181,21 +177,6 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .select()
       .from(invitations)
       .where(eq(invitations.tokenHash, tokenHash))
-      .limit(1);
-    return row ? toInvitation(row) : null;
-  }
-
-  async findPendingInvitation(orgId: string, email: string): Promise<Invitation | null> {
-    const [row] = await this.db
-      .select()
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.orgId, orgId),
-          eq(invitations.email, email),
-          eq(invitations.status, 'pending'),
-        ),
-      )
       .limit(1);
     return row ? toInvitation(row) : null;
   }

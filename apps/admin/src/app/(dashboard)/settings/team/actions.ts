@@ -3,7 +3,7 @@
 // Server actions for member mutations.
 
 import { revalidatePath } from "next/cache";
-import { Invites, Organizations } from "@headless-lms/sdk";
+import { Organizations } from "@headless-lms/sdk";
 
 import { ensureConfigured, authHeaders, unwrap, expectOk } from "@/lib/api/server-call";
 import type { Role } from "@/lib/api/types";
@@ -13,7 +13,7 @@ export async function inviteMemberAction(input: {
   role: Exclude<Role, "owner">;
 }): Promise<void> {
   ensureConfigured();
-  unwrap(await Invites.createInvite({ body: input, ...(await authHeaders()) }));
+  unwrap(await Organizations.createInvite({ body: input, ...(await authHeaders()) }));
   revalidatePath("/settings/team");
 }
 

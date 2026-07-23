@@ -38,10 +38,11 @@ export const entitlements = pgTable(
       foreignColumns: [contentItems.orgId, contentItems.id],
     }).onDelete('cascade'),
     // students is org-scoped (composite PK) — the FK must match both columns.
+    // Grants die with their student: deleting the student row cascades here.
     studentFk: foreignKey({
       columns: [t.orgId, t.studentId],
       foreignColumns: [students.orgId, students.id],
-    }),
+    }).onDelete('cascade'),
     // One grant per (org, student, content).
     studentContentUq: unique().on(t.orgId, t.studentId, t.contentId),
   }),

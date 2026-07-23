@@ -6,12 +6,11 @@ import type { FastifyInstance } from 'fastify';
 import type { Container } from '../app/container.js';
 import type { ServerConfig } from './config.js';
 import { coursesRoutes } from './routes/courses.js';
-import { invitesRoutes, invitesPublicRoutes } from './routes/invites.js';
 import { learnRoutes } from './routes/learn.js';
 import { activitiesRoutes } from './routes/activities.js';
 import { studentsRoutes } from './routes/students.js';
 import { entitlementsRoutes } from './routes/entitlements.js';
-import { organizationsRoutes } from './routes/organizations.js';
+import { organizationsRoutes, organizationsPublicRoutes } from './routes/organizations.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { assetsRoutes } from './routes/assets.js';
 import { connectedAppsRoutes } from './routes/connected-apps.js';
@@ -28,7 +27,7 @@ export function registerRoutes(
   // Invite activation is the one route an invitee can reach without a session —
   // registered outside the session-guarded plugin below.
   app.register(async (instance) => {
-    await invitesPublicRoutes(instance, container, {
+    await organizationsPublicRoutes(instance, container, {
       secureCookies: config.container.secureCookies ?? false,
     });
   });
@@ -40,7 +39,6 @@ export function registerRoutes(
   app.register(async (instance) => {
     instance.addHook('onRequest', instance.requireSession);
     await coursesRoutes(instance, container);
-    await invitesRoutes(instance, container);
     await learnRoutes(instance, container);
     await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);

@@ -21,7 +21,7 @@ type Stage = "activating" | "create" | "signin" | "invalid";
 async function activateInvite(
   token: string,
 ): Promise<{ status: "accepted" | "auth-required" } | { error: string }> {
-  const res = await fetch(`${API_URL}/api/invites/activate`, {
+  const res = await fetch(`${API_URL}/api/organizations/invites/activate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -36,7 +36,7 @@ async function activateInvite(
 
 /** Claims the invite for the fresh session, then refreshes the cookie cache. */
 async function acceptInvite(token: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/invites/accept`, {
+  const res = await fetch(`${API_URL}/api/organizations/invites/accept`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -60,9 +60,8 @@ type SignInValues = z.infer<typeof signInSchema>;
 
 /**
  * Landing page for staff invite links (`/invite?token=…&email=…`). Same stage
- * machine as the student portal's `/welcome`, but signup here is open (no
- * invite-only gate) — the staged cookie is consumed by the after-hook on
- * sign-up/in and `afterAcceptInvite` adds the org membership.
+ * machine as the student portal's `/welcome`: activate stages the token, then
+ * sign-up/in followed by an explicit accept call grants the membership.
  */
 export function InviteView() {
   const params = useSearchParams();

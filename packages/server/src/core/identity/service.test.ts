@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
-import { ConflictError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { Student, User } from './model.js';
 import type { CreateStudentInput, RegisterStudentInput, RegisterUserInput } from './types.js';
@@ -51,6 +51,14 @@ function fakeRepo() {
       };
       students.push(row);
       return row;
+    },
+    async deleteStudent(orgId: string, id: string) {
+      const i = students.findIndex((r) => r.orgId === orgId && r.id === id);
+      if (i === -1) {
+        return false;
+      }
+      students.splice(i, 1);
+      return true;
     },
     async linkPendingStudent(orgId: string, email: string, externalId: string) {
       let count = 0;
@@ -171,6 +179,44 @@ describe('createStudent', () => {
   });
 });
 
+describe('deleteStudent', () => {
+  it('removes the row and appends student.deleted with the last known state', async () => {
+    const { repo, rows } = fakeRepo();
+    const { uow, events } = capturingUow(repo);
+    const svc = new IdentityServiceImpl(repo, uow);
+    const student = await svc.createStudent({
+      orgId: 'org1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    });
+    await svc.deleteStudent('org1', student.id);
+    expect(rows).toHaveLength(0);
+    expect(events).toContainEqual({ type: 'student.deleted', orgId: 'org1', student });
+  });
+
+  it('throws NotFoundError and appends nothing for an unknown id', async () => {
+    const { repo } = fakeRepo();
+    const { uow, events } = capturingUow(repo);
+    const svc = new IdentityServiceImpl(repo, uow);
+    await expect(svc.deleteStudent('org1', 's_missing')).rejects.toBeInstanceOf(NotFoundError);
+    expect(events).toHaveLength(0);
+  });
+
+  it("does not delete another org's student with the same id", async () => {
+    const { repo, rows } = fakeRepo();
+    const svc = new IdentityServiceImpl(repo);
+    const student = await svc.createStudent({
+      orgId: 'org1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+    });
+    await expect(svc.deleteStudent('org2', student.id)).rejects.toBeInstanceOf(NotFoundError);
+    expect(rows).toHaveLength(1);
+  });
+});
+
 describe('hasPendingStudent', () => {
   it('is true for an unlinked row, false once linked or absent', async () => {
     const { repo } = fakeRepo();
@@ -203,7 +249,7 @@ describe('linkPendingStudent', () => {
     expect((await repo.findStudentByEmail('org2', 'jane@example.com'))?.externalId).toBeNull();
   });
 
-  it('appends student.invite.accepted in the same write scope as the link', async () => {
+  it('appends student.linked in the same write scope as the link', async () => {
     const { repo } = fakeRepo();
     const { uow, events } = capturingUow(repo);
     const svc = new IdentityServiceImpl(repo, uow);
@@ -212,7 +258,7 @@ describe('linkPendingStudent', () => {
     await svc.linkPendingStudent('org1', 'jane@example.com', 'ivt_1', 'usr_ext_9');
     expect(events).toEqual([
       {
-        type: 'student.invite.accepted',
+        type: 'student.linked',
         orgId: 'org1',
         email: 'jane@example.com',
         invitationId: 'ivt_1',

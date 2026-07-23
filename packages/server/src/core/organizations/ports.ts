@@ -97,17 +97,11 @@ export interface OrganizationsRepository {
   findBySlug(slug: string): Promise<Organization | null>;
   insertMembership(orgId: string, input: AddMembershipInput): Promise<Membership>;
   deleteMembershipByExternalId(externalId: string): Promise<void>;
-  insertInvitation(orgId: string, input: NewInvitationRow): Promise<Invitation>;
-  /** Fresh token + expiry on an existing pending invitation (resend). */
-  rotateInvitationToken(
-    orgId: string,
-    id: string,
-    tokenHash: string,
-    expiresAt: Date,
-  ): Promise<Invitation | null>;
+  /** Inserts a pending invitation, or re-issues the org's existing pending one
+   *  for this email (fresh token/expiry/role) — atomic upsert. */
+  upsertPendingInvitation(orgId: string, input: NewInvitationRow): Promise<Invitation>;
   setInvitationStatus(orgId: string, id: string, status: string): Promise<void>;
   findInvitationByTokenHash(tokenHash: string): Promise<Invitation | null>;
-  findPendingInvitation(orgId: string, email: string): Promise<Invitation | null>;
   insertCourseAssignment(orgId: string, input: AssignCourseInput): Promise<CourseAssignment>;
   deleteCourseAssignment(orgId: string, membershipId: string, courseId: string): Promise<void>;
   findAssignedCourseIds(orgId: string, membershipId: string): Promise<string[]>;

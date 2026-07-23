@@ -116,14 +116,7 @@ export interface AssignCourseInput {
   courseId: string;
 }
 
-/** A student was invited to create their portal account. */
-export interface StudentInvited extends DomainEvent {
-  type: "student.invited";
-  email: string;
-  invitationId: string;
-}
-
-/** A staff invitation was created. */
+/** An invitation was created or re-issued (any role; a resend rotates the token). */
 export interface InvitationCreated extends DomainEvent {
   type: "invitation.created";
   invitation: Invitation;
@@ -135,16 +128,7 @@ export interface InvitationCanceled extends DomainEvent {
   invitationId: string;
 }
 
-/** An invited student created/linked their account. */
-export interface StudentInviteAccepted extends DomainEvent {
-  type: "student.invite.accepted";
-  email: string;
-  invitationId: string;
-  /** The auth account now linked to the student row. */
-  userExternalId: string;
-}
-
-/** A staff invitation was accepted and the membership granted. */
+/** An invitation was accepted — student row linked or membership granted. */
 export interface InvitationAccepted extends DomainEvent {
   type: "invitation.accepted";
   invitationId: string;
@@ -153,9 +137,4 @@ export interface InvitationAccepted extends DomainEvent {
 }
 
 /** Domain events the organizations context emits. */
-export type OrganizationEvent =
-  | StudentInvited
-  | InvitationCreated
-  | InvitationCanceled
-  | StudentInviteAccepted
-  | InvitationAccepted;
+export type OrganizationEvent = InvitationCreated | InvitationCanceled | InvitationAccepted;

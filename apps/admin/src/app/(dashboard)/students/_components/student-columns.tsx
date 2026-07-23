@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { NameAvatar } from "@/components/ui/avatar";
 import { relativeTime } from "@/lib/format";
 import type { Student } from "@/lib/api/types";
@@ -12,10 +12,13 @@ import type { Student } from "@/lib/api/types";
 import { ProgressCell } from "./progress-meter";
 
 /**
- * Column set for the students list. `onView` drives the row-action menu;
- * row clicks are wired separately on the table (onRowClick).
+ * Column set for the students list. `onView`/`onDelete` drive the row-action
+ * menu; row clicks are wired separately on the table (onRowClick).
  */
-export function studentColumns(onView: (id: string) => void): ColumnDef<Student, unknown>[] {
+export function studentColumns(
+  onView: (id: string) => void,
+  onDelete: (student: Student) => void,
+): ColumnDef<Student, unknown>[] {
   return [
     {
       accessorKey: "name",
@@ -71,6 +74,10 @@ export function studentColumns(onView: (id: string) => void): ColumnDef<Student,
           <RowActions>
             <DropdownMenuItem onClick={() => onView(row.original.id)}>
               View student
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="danger" onClick={() => onDelete(row.original)}>
+              Delete
             </DropdownMenuItem>
           </RowActions>
         </div>

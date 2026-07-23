@@ -100,7 +100,16 @@ function fakeRepo() {
         members.splice(i, 1);
       }
     },
-    async insertInvitation(orgId: string, input: NewInvitationRow) {
+    async upsertPendingInvitation(orgId: string, input: NewInvitationRow) {
+      const existing = invitations.find(
+        (x) => x.orgId === orgId && x.email === input.email && x.status === 'pending',
+      );
+      if (existing) {
+        (existing as { role: string }).role = input.role;
+        (existing as { expiresAt: Date | null }).expiresAt = input.expiresAt;
+        tokenHashes.set(existing.id, input.tokenHash);
+        return existing;
+      }
       const row: Invitation = {
         id: `i${++n}`,
         orgId,
@@ -115,15 +124,6 @@ function fakeRepo() {
       tokenHashes.set(row.id, input.tokenHash);
       return row;
     },
-    async rotateInvitationToken(orgId: string, id: string, tokenHash: string, expiresAt: Date) {
-      const inv = invitations.find((x) => x.orgId === orgId && x.id === id);
-      if (!inv) {
-        return null;
-      }
-      (inv as { expiresAt: Date | null }).expiresAt = expiresAt;
-      tokenHashes.set(id, tokenHash);
-      return inv;
-    },
     async setInvitationStatus(orgId: string, id: string, status: string) {
       const inv = invitations.find((x) => x.orgId === orgId && x.id === id);
       if (inv) {
@@ -137,13 +137,6 @@ function fakeRepo() {
         }
       }
       return null;
-    },
-    async findPendingInvitation(orgId: string, email: string) {
-      return (
-        invitations.find(
-          (x) => x.orgId === orgId && x.email === email && x.status === 'pending',
-        ) ?? null
-      );
     },
     async insertCourseAssignment(orgId, input) {
       const row = {
@@ -713,7 +706,7 @@ describe('OrganizationService — member management', () => {
   it('removeMember cancels a pending invitation without touching the auth provider', async () => {
     const records: MemberRecord[] = [];
     const { svc, calls, repo, invitations } = harness(records);
-    const invitation = await repo.insertInvitation('o1', {
+    const invitation = await repo.upsertPendingInvitation('o1', {
       email: 'x@example.com',
       role: 'instructor',
       invitedBy: 'user_1',

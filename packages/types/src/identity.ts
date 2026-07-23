@@ -56,5 +56,19 @@ export interface StudentCreated extends DomainEvent {
   student: Student;
 }
 
+/** A student row was deleted; carries the last known state. */
+export interface StudentDeleted extends DomainEvent {
+  type: "student.deleted";
+  student: Student;
+}
+
+/** A pending student row was linked to an auth account (invite acceptance). */
+export interface StudentLinked extends DomainEvent {
+  type: "student.linked";
+  email: string;
+  invitationId: string;
+  userExternalId: string;
+}
+
 /** Domain events the identity context emits. */
-export type IdentityEvent = StudentCreated;
+export type IdentityEvent = StudentCreated | StudentDeleted | StudentLinked;

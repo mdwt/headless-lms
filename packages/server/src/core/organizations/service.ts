@@ -139,30 +139,20 @@ export class OrganizationServiceImpl implements OrganizationService {
       const existing = await this.membersRepo.findByEmail(orgId, email);
       if (existing?.kind === 'member') {
         this.logger.warn('invite rejected: already a member', { orgId });
-        throw new OrganizationRuleError('That email is already a member');
+        throw new OrganizationRuleError('This email is already a member.');
       }
     }
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-    const pending = await this.repo.findPendingInvitation(orgId, email);
     const invitation = await this.uow.run(async ({ organizations, outbox }) => {
-      const row = pending
-        ? await organizations.rotateInvitationToken(orgId, pending.id, tokenHash, expiresAt)
-        : await organizations.insertInvitation(orgId, {
-            email,
-            role,
-            invitedBy: inviterUserId,
-            tokenHash,
-            expiresAt,
-          });
-      if (!row) {
-        throw new Error('invitation row disappeared during re-issue');
-      }
-      await outbox.append([
-        role === STUDENT_ROLE
-          ? { type: 'student.invited', orgId, email, invitationId: row.id }
-          : { type: 'invitation.created', orgId, invitation: row },
-      ]);
+      const row = await organizations.upsertPendingInvitation(orgId, {
+        email,
+        role,
+        invitedBy: inviterUserId,
+        tokenHash,
+        expiresAt,
+      });
+      await outbox.append([{ type: 'invitation.created', orgId, invitation: row }]);
       return row;
     });
     await this.sendInviteEmail(email, role, token);
@@ -219,24 +209,21 @@ export class OrganizationServiceImpl implements OrganizationService {
         });
         return null;
       }
-      await this.uow.run(({ organizations }) =>
-        organizations.setInvitationStatus(invitation.orgId, invitation.id, 'accepted'),
-      );
     } else {
       await this.orgAdmin().grantMembership(org.externalId, input.userExternalId, invitation.role);
-      await this.uow.run(async ({ organizations, outbox }) => {
-        await organizations.setInvitationStatus(invitation.orgId, invitation.id, 'accepted');
-        await outbox.append([
-          {
-            type: 'invitation.accepted',
-            orgId: invitation.orgId,
-            invitationId: invitation.id,
-            role: invitation.role,
-            userExternalId: input.userExternalId,
-          },
-        ]);
-      });
     }
+    await this.uow.run(async ({ organizations, outbox }) => {
+      await organizations.setInvitationStatus(invitation.orgId, invitation.id, 'accepted');
+      await outbox.append([
+        {
+          type: 'invitation.accepted',
+          orgId: invitation.orgId,
+          invitationId: invitation.id,
+          role: invitation.role,
+          userExternalId: input.userExternalId,
+        },
+      ]);
+    });
     this.logger.info('invite accepted', {
       orgId: invitation.orgId,
       invitationId: invitation.id,

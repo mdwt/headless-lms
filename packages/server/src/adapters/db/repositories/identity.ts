@@ -10,6 +10,7 @@ import type {
 } from '../../../core/identity/types.js';
 import { users, students } from '../schema/identity.js';
 import { organizations } from '../schema/organizations.js';
+import { progressRecords } from '../schema/progress.js';
 import type { Logger } from '../../../core/shared/ports.js';
 import { noopLogger } from '../../../core/shared/logger.js';
 import { ConflictError } from '../../../core/shared/errors.js';
@@ -134,6 +135,19 @@ export class DrizzleIdentityRepository implements IdentityRepository {
       }
       throw err;
     }
+  }
+
+  async deleteStudent(orgId: string, id: string): Promise<boolean> {
+    // progress_records carries no student FK (denormalized by design), so its
+    // rows are removed here; entitlements cascade off the students FK.
+    await this.db
+      .delete(progressRecords)
+      .where(and(eq(progressRecords.orgId, orgId), eq(progressRecords.studentId, id)));
+    const rows = await this.db
+      .delete(students)
+      .where(and(eq(students.orgId, orgId), eq(students.id, id)))
+      .returning({ id: students.id });
+    return rows.length > 0;
   }
 
   async linkPendingStudent(orgId: string, email: string, externalId: string): Promise<number> {

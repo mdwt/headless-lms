@@ -16,7 +16,7 @@ type Stage = "activating" | "create" | "signin" | "invalid";
 async function activateInvite(
   token: string,
 ): Promise<{ status: "accepted" | "auth-required" } | { error: string }> {
-  const res = await fetch(`${API_URL}/api/invites/activate`, {
+  const res = await fetch(`${API_URL}/api/organizations/invites/activate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -31,7 +31,7 @@ async function activateInvite(
 
 /** Claims the invite for the fresh session, then refreshes the cookie cache. */
 async function acceptInvite(token: string): Promise<boolean> {
-  const res = await fetch(`${API_URL}/api/invites/accept`, {
+  const res = await fetch(`${API_URL}/api/organizations/invites/accept`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

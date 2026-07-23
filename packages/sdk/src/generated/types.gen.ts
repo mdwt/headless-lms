@@ -10,7 +10,7 @@ export type ActivateInviteData = {
   };
   path?: never;
   query?: never;
-  url: "/api/invites/activate";
+  url: "/api/organizations/invites/activate";
 };
 
 export type ActivateInviteErrors = {
@@ -226,76 +226,6 @@ export type UpdateCourseResponses = {
 };
 
 export type UpdateCourseResponse = UpdateCourseResponses[keyof UpdateCourseResponses];
-
-export type CreateInviteData = {
-  body: {
-    email: string;
-    role: "admin" | "instructor" | "student";
-  };
-  path?: never;
-  query?: never;
-  url: "/api/organizations/invites";
-};
-
-export type CreateInviteErrors = {
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type CreateInviteError = CreateInviteErrors[keyof CreateInviteErrors];
-
-export type CreateInviteResponses = {
-  /**
-   * Default Response
-   */
-  201: {
-    id: string;
-    email: string;
-    role: "admin" | "instructor" | "student";
-    status: string;
-    expiresAt: string | null;
-    createdAt: string;
-  };
-};
-
-export type CreateInviteResponse = CreateInviteResponses[keyof CreateInviteResponses];
-
-export type AcceptInviteData = {
-  body: {
-    token: string;
-  };
-  path?: never;
-  query?: never;
-  url: "/api/invites/accept";
-};
-
-export type AcceptInviteErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type AcceptInviteError = AcceptInviteErrors[keyof AcceptInviteErrors];
-
-export type AcceptInviteResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    status: "accepted";
-  };
-};
-
-export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
 
 export type ListLearnCoursesData = {
   body?: never;
@@ -800,6 +730,34 @@ export type CreateStudentResponses = {
 
 export type CreateStudentResponse = CreateStudentResponses[keyof CreateStudentResponses];
 
+export type DeleteStudentData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/students/{id}";
+};
+
+export type DeleteStudentErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type DeleteStudentError = DeleteStudentErrors[keyof DeleteStudentErrors];
+
+export type DeleteStudentResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
 export type GetStudentData = {
   body?: never;
   path: {
@@ -1151,6 +1109,76 @@ export type RemoveMemberResponses = {
    */
   204: unknown;
 };
+
+export type CreateInviteData = {
+  body: {
+    email: string;
+    role: "admin" | "instructor" | "student";
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations/invites";
+};
+
+export type CreateInviteErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type CreateInviteError = CreateInviteErrors[keyof CreateInviteErrors];
+
+export type CreateInviteResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    email: string;
+    role: "admin" | "instructor" | "student";
+    status: string;
+    expiresAt: string | null;
+    createdAt: string;
+  };
+};
+
+export type CreateInviteResponse = CreateInviteResponses[keyof CreateInviteResponses];
+
+export type AcceptInviteData = {
+  body: {
+    token: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations/invites/accept";
+};
+
+export type AcceptInviteErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type AcceptInviteError = AcceptInviteErrors[keyof AcceptInviteErrors];
+
+export type AcceptInviteResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: "accepted";
+  };
+};
+
+export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
 
 export type GetOverviewData = {
   body?: never;

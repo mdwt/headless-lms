@@ -1,5 +1,5 @@
 {
-  "id": "9572e134-c4a8-411c-a6b6-1259df0aef0f",
+  "id": "8531f79a-c024-4ff4-80d1-bd331309ccb5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -170,7 +170,30 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "invitations_pending_email_uq": {
+          "name": "invitations_pending_email_uq",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"invitations\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "invitations_org_id_organizations_id_fk": {
           "name": "invitations_org_id_organizations_id_fk",
@@ -1000,7 +1023,7 @@
             "org_id",
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

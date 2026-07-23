@@ -8,12 +8,10 @@ export function LibraryEmpty() {
       <div className="mx-auto mb-6 grid size-16 place-items-center rounded-[18px] border border-line bg-surface text-ink-faintest">
         <Inbox className="size-7" strokeWidth={1.5} />
       </div>
-      <h1 className="mb-3 text-[28px] font-semibold tracking-[-0.01em]">Your library is waiting</h1>
+      <h1 className="mb-3 text-[28px] font-semibold tracking-[-0.01em]">Your library is empty</h1>
       <p className="mb-[26px] text-[15.5px] leading-[1.6] text-ink-2">
-        You&apos;re not enrolled in any courses yet. Browse the catalog to find your first one and
-        it&apos;ll show up right here.
+        You&apos;re not enrolled in any courses yet.
       </p>
-      <Button variant="brand" size="pill">Browse the catalog</Button>
     </div>
   );
 }

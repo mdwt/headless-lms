@@ -1,6 +1,7 @@
 // HTTP routes for students: the reporting-backed list/read endpoints, plus
 // identity-backed writes (manual creation). Invites live at /api/organizations/invites.
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   CreateStudent,
@@ -80,6 +81,24 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
         throw new Error('created student missing from report');
       }
       return reply.code(201).send(student);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/students/:id',
+    preHandler: app.requireSession,
+    schema: {
+      operationId: 'deleteStudent',
+      tags: ['Students'],
+      summary: 'Delete a student',
+      params: StudentIdParam,
+      response: { 204: z.void(), 404: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      await container.identity.deleteStudent(scope.orgId, req.params.id);
+      return reply.code(204).send();
     },
   });
 }

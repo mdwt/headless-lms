@@ -1,5 +1,5 @@
 // identity context — service implementation (inbound port).
-import { ConflictError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { IdentityService, IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User, Student } from './model.js';
 import type { RegisterUserInput, RegisterStudentInput, CreateStudentInput } from './types.js';
@@ -75,6 +75,22 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findStudentById(orgId, id);
   }
 
+  async deleteStudent(orgId: string, id: string): Promise<void> {
+    await this.uow.run(async ({ identity, outbox }) => {
+      // Snapshot before the delete — the event carries the last known state.
+      const student = await identity.findStudentById(orgId, id);
+      if (!student) {
+        throw new NotFoundError('Student', id);
+      }
+      const ok = await identity.deleteStudent(orgId, id);
+      if (!ok) {
+        throw new NotFoundError('Student', id);
+      }
+      await outbox.append([{ type: 'student.deleted', orgId, student }]);
+    });
+    this.logger.info('student deleted', { orgId, studentId: id });
+  }
+
   async hasPendingStudent(orgId: string, email: string): Promise<boolean> {
     const student = await this.repo.findStudentByEmail(orgId, email);
     return student !== null && student.externalId === null;
@@ -90,7 +106,7 @@ export class IdentityServiceImpl implements IdentityService {
       const count = await identity.linkPendingStudent(orgId, email, externalId);
       if (count > 0) {
         await outbox.append([
-          { type: 'student.invite.accepted', orgId, email, invitationId, userExternalId: externalId },
+          { type: 'student.linked', orgId, email, invitationId, userExternalId: externalId },
         ]);
       }
       return count > 0;

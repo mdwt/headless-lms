@@ -262,6 +262,8 @@ export async function buildContainer(
     new DrizzleEntitlementsRepository(db, entitlementsLogger),
     entitlementsUow,
     entitlementsLogger,
+    mailer,
+    { studentPortalUrl: config.studentPortalUrl },
   );
   const progress = new ProgressServiceImpl(
     new DrizzleProgressRepository(db, progressLogger),
