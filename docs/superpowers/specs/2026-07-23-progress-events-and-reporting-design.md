@@ -1,8 +1,8 @@
 # Progress reporting, completion decisions & progress events
 
 The student frontend can only **report** what happened — an activity was opened,
-the player is at a position, the learner claims they're done — as **xAPI
-statements** (constrained profile). It never decides completion. The progress service processes each report, applies the activity's
+the player is at a position, the learner claims they're done. It never decides
+completion. The progress service processes each report, applies the activity's
 completion rule, records progress in its own data models (activity, module, and
 course records), and emits `progress.started` / `progress.completed` domain
 events through the outbox. Module and course completion are part of the same
@@ -57,43 +57,37 @@ lessons and assessments (kinds of activity); no doc change.
 
 ## 3. Report input & the reworked inbound port (`core/progress`)
 
-Reports are **xAPI statements** (constrained profile) — the standard "actor verb
-object" usage vocabulary instead of a bespoke shape, so external players and
-SCORM/cmi5 shims can emit the same thing our UI does. Profile constraints:
+A report is a claim about one activity, in one course, by one student. The wire
+format is the domain's own — foreign vocabularies (xAPI statements, SCORM cmi
+calls) are translated to it at the boundary later, the same way every other
+external dialect in this system stays in an adapter. Verbs use the domain
+doc's language:
 
-- **Actor comes from the session**, never the body (ignored if present).
-- **Object comes from the URL** (the activity), course from the URL too.
-- **Supported verbs** (ADL registry IRIs):
-  - `…/verbs/launched` — student opened the activity
-  - `…/verbs/progressed` — position report; the opaque position payload rides in
-    `result.extensions` under our extension IRI
-  - `…/verbs/completed` — the learner/player *asserts* completion — a claim the
-    service validates, exactly xAPI's semantics (cmi5's moveOn makes the same
-    split)
-- Statements with other verbs are accepted (200), ensure the record exists, and
-  are otherwise ignored — forgiving to richer emitters, no contract churn later.
+- `opened` — student opened the activity
+- `progressed` — position report; carries the opaque position payload
+- `completed` — the learner/player *asserts* completion — a claim the service
+  validates, never a fact it accepts
 
-Per type ownership, the statement/input types are declared in
+Actor comes from the session; activity and course come from the URL — never
+from the body.
+
+Per type ownership, the report/input types are declared in
 `@headless-lms/types` (`progress.ts`) and re-exported by the context's
 `types.ts`:
 
 ```ts
-export interface ProgressStatement {
-  verb: { id: string; display?: Record<string, string> };
-  result?: {
-    completion?: boolean;
-    success?: boolean;
-    duration?: string;
-    extensions?: Record<string, unknown>;  // position payload lives here
-  };
-  timestamp?: string;
+export type ProgressVerb = "opened" | "progressed" | "completed";
+
+export interface ProgressReport {
+  verb: ProgressVerb;
+  position?: unknown;   // with "progressed"
 }
 
 export interface ReportProgressInput {
   studentId: string;
   courseId: string;
   activityId: string;
-  statement: ProgressStatement;
+  report: ProgressReport;
 }
 ```
 
@@ -122,8 +116,8 @@ passthrough, no events, so existing service tests keep working):
 
 1. **Ensure the record** — first touch inserts it (`startedAt` now) and appends
    `progress.started`.
-2. **Apply position** — `progressed` statements update the payload (taken from
-   `result.extensions`, stored opaque). No event.
+2. **Apply position** — `progressed` reports update the payload (stored
+   opaque). No event.
 3. **Evaluate completion** — the service reads the activity via
    `ContentService` (core→core through `content/index.js`) and interprets the
    completion-rule slice of the settings blob. Today the only interpretation is
@@ -153,35 +147,10 @@ an already-complete container, change nothing and emit nothing.
 
 ## 4. API contract (`packages/api-contract/src/learn.ts`)
 
-The verb and extension IRIs are exported constants (IRIs are identifiers, not
-resolvable URLs):
-
 ```ts
-export const XAPI_VERBS = {
-  launched: "http://adlnet.gov/expapi/verbs/launched",
-  progressed: "http://adlnet.gov/expapi/verbs/progressed",
-  completed: "http://adlnet.gov/expapi/verbs/completed",
-} as const;
-
-/** result.extensions key carrying the opaque position payload. */
-export const XAPI_EXT_POSITION = "https://headless-lms.dev/xapi/ext/position";
-```
-
-```ts
-export const ProgressStatement = z.object({
-  verb: z.object({
-    id: z.url(),                                       // verb IRI
-    display: z.record(z.string(), z.string()).optional(),
-  }),
-  result: z
-    .object({
-      completion: z.boolean().optional(),
-      success: z.boolean().optional(),
-      duration: z.string().optional(),                 // ISO-8601 duration
-      extensions: z.record(z.url(), z.unknown()).optional(),
-    })
-    .optional(),
-  timestamp: z.iso.datetime({ offset: true }).optional(),
+export const ProgressReport = z.object({
+  verb: z.enum(["opened", "progressed", "completed"]),
+  position: z.unknown().optional(),
 });
 
 export const ActivityProgress = z.object({
@@ -197,34 +166,27 @@ export const CourseProgress = z.object({
 });
 ```
 
-Unknown fields in the body (`actor`, `object`, `context`, `id`, …) are
-**stripped, not rejected** — real xAPI emitters send full statements; the
-profile takes what it uses (session/actor and URL/object are authoritative).
-
 ### Verb → effect
 
-| `verb.id`             | Effect |
-| --------------------- | ------ |
-| `…/verbs/launched`    | Ensure the record exists (start). |
-| `…/verbs/progressed`  | Ensure record; store `result.extensions[XAPI_EXT_POSITION]` as the position payload. |
-| `…/verbs/completed`   | Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
-| anything else         | Ensure record; otherwise ignored. |
+| verb         | Effect |
+| ------------ | ------ |
+| `opened`     | Ensure the record exists (start). |
+| `progressed` | Ensure record; store `position` as the opaque payload. |
+| `completed`  | Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
 
 ### Wire examples
 
 ```http
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": { "id": "http://adlnet.gov/expapi/verbs/launched" } }
+{ "verb": "opened" }
 → 200 { "status": "in-progress" }
 
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": { "id": "http://adlnet.gov/expapi/verbs/progressed" },
-  "result": { "extensions": {
-    "https://headless-lms.dev/xapi/ext/position": { "seconds": 612 } } } }
+{ "verb": "progressed", "position": { "seconds": 612 } }
 → 200 { "status": "in-progress" }
 
 POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "verb": { "id": "http://adlnet.gov/expapi/verbs/completed" } }
+{ "verb": "completed" }
 → 200 { "status": "completed" }        // or "in-progress" when a rule is unmet
 
 GET /api/learn/courses/crs_9f2/progress
@@ -237,13 +199,12 @@ GET /api/learn/courses/crs_9f2/progress
 Both session-guarded via `resolveStudentScope`, like every Learn route.
 
 - `POST /api/learn/courses/:courseId/activities/:activityId/progress` — body
-  `ProgressStatement`, response `200 ActivityProgress`. Always 200 when
-  processed: a `completed` claim with an unmet rule returns
-  `status: "in-progress"` — that *is* the answer. 4xx only for transport-level
-  problems (bad body, no session, unknown activity → 404). This is the wire
-  format future SCORM support converges into: a player-side shim translates cmi
-  calls to statements (ADL's standard mapping), with `suspend_data` riding as
-  the position payload — no endpoint changes.
+  `ProgressReport`, response `200 ActivityProgress`. Always 200 when processed:
+  a `completed` claim with an unmet rule returns `status: "in-progress"` — that
+  *is* the answer. 4xx only for transport-level problems (bad body, no session,
+  unknown activity → 404). Future xAPI or SCORM support is a boundary
+  translation onto this same endpoint (a shim maps statements/cmi calls to
+  reports, `suspend_data` rides as the position payload) — no endpoint changes.
 - `GET /api/learn/courses/:courseId/progress` — response `200 CourseProgress`.
 
 The stub `http/routes/progress.ts` stays a stub — the student surface is Learn.
@@ -277,13 +238,13 @@ appear from the route schemas. Regenerated output is committed.
 - **Hydrate**: the course player's server component fetches `CourseProgress` and
   seeds the store's `completionByCourse` (the shapes now match: a status map).
 - **Report**: `toggleComplete` becomes one-way `markComplete` — sends a
-  `completed` statement, applies the returned `status` to the store. The
+  `completed` report, applies the returned `status` to the store. The
   button's completed state is terminal (the domain has no un-complete).
   Course-complete toast keeps deriving from the local map; the GET is the
   authoritative refresh.
-- **Open**: entering an activity sends a `launched` statement (fire-and-forget)
+- **Open**: entering an activity sends an `opened` report (fire-and-forget)
   so `progress.started` reflects reality, not just completions.
-- `progressed` statements are wired when a player that produces positions
+- `progressed` reports are wired when a player that produces positions
   exists; the contract already accepts them.
 
 ## 10. Tests
