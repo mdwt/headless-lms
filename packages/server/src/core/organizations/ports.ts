@@ -2,6 +2,7 @@
 import type { Organization, Membership, Invitation, CourseAssignment } from './model.js';
 import type { Member, MembersQuery, InviteMemberInput, Page } from './members.js';
 import type { Role } from './roles.js';
+import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type {
   CreateOrganizationInput,
   NewOrganizationInput,
@@ -69,6 +70,13 @@ export interface OrganizationService extends OrganizationProvisioner {
   updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null>;
   removeMember(ctx: MemberWriteContext, id: string): Promise<boolean>;
 }
+
+/** Atomic write scope: tx-bound repo + outbox appender, one transaction. */
+export interface OrganizationsWriteScope {
+  organizations: OrganizationsRepository;
+  outbox: OutboxAppender;
+}
+export type OrganizationsUnitOfWork = UnitOfWork<OrganizationsWriteScope>;
 
 // Outbound port (persistence contract the repository fulfils).
 export interface OrganizationsRepository {

@@ -1,20 +1,24 @@
 // identity context — service implementation (inbound port).
 import { ConflictError } from '../shared/errors.js';
-import type { IdentityService, IdentityRepository } from './ports.js';
+import type { IdentityService, IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User, Student } from './model.js';
 import type { RegisterUserInput, RegisterStudentInput, CreateStudentInput } from './types.js';
-import type { Logger, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
+import type { Logger, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 
+const noopOutbox: OutboxAppender = { append: async () => {} };
+
 export class IdentityServiceImpl implements IdentityService {
+  /** Writes that emit an event run through the UoW so the row and its outbox
+   *  entry commit in one transaction. Absent (tests) → passthrough, no events. */
+  private readonly uow: IdentityUnitOfWork;
+
   constructor(
     private readonly repo: IdentityRepository,
-    private readonly outbox?: OutboxAppender,
+    uow?: IdentityUnitOfWork,
     private readonly logger: Logger = noopLogger,
-  ) {}
-
-  private async emit<E extends NewDomainEvent>(events: E[]): Promise<void> {
-    await this.outbox?.append(events);
+  ) {
+    this.uow = uow ?? { run: (fn) => fn({ identity: repo, outbox: noopOutbox }) };
   }
 
   async registerUser(input: RegisterUserInput): Promise<User> {
@@ -32,9 +36,12 @@ export class IdentityServiceImpl implements IdentityService {
     if (existing) {
       return existing;
     }
-    const student = await this.repo.insertStudent(input);
+    const student = await this.uow.run(async ({ identity, outbox }) => {
+      const created = await identity.insertStudent(input);
+      await outbox.append([{ type: 'student.created', orgId: created.orgId, student: created }]);
+      return created;
+    });
     this.logger.info('student registered', { orgId: input.orgId, studentId: student.id });
-    await this.emit([{ type: 'student.created', orgId: student.orgId, student }]);
     return student;
   }
 
@@ -55,9 +62,12 @@ export class IdentityServiceImpl implements IdentityService {
     if (existing) {
       throw new ConflictError('A student with this email already exists');
     }
-    const student = await this.repo.insertPendingStudent(input);
+    const student = await this.uow.run(async ({ identity, outbox }) => {
+      const created = await identity.insertPendingStudent(input);
+      await outbox.append([{ type: 'student.created', orgId: created.orgId, student: created }]);
+      return created;
+    });
     this.logger.info('student created', { orgId: input.orgId, studentId: student.id });
-    await this.emit([{ type: 'student.created', orgId: student.orgId, student }]);
     return student;
   }
 

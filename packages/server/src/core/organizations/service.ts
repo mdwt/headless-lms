@@ -2,6 +2,7 @@
 import type {
   OrganizationService,
   OrganizationsRepository,
+  OrganizationsUnitOfWork,
   MembersRepository,
   MemberRecord,
   MemberWriteContext,
@@ -27,7 +28,7 @@ import type {
   AcceptInviteInput,
   AssignCourseInput,
 } from './types.js';
-import type { Logger, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
+import type { Logger, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 
 function toMember(r: MemberRecord): Member {
@@ -43,7 +44,13 @@ function toMember(r: MemberRecord): Member {
   };
 }
 
+const noopOutbox: OutboxAppender = { append: async () => {} };
+
 export class OrganizationServiceImpl implements OrganizationService {
+  /** Writes that emit an event run through the UoW so the row and its outbox
+   *  entry commit in one transaction. Absent (tests) → passthrough, no events. */
+  private readonly uow: OrganizationsUnitOfWork;
+
   // `orgAdmin` is provided lazily: the auth adapter depends on this service (for
   // its mirror hooks), and OrgAdmin is built over that same auth instance — so it
   // cannot exist at construction time. The thunk is resolved at request time,
@@ -55,13 +62,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     // Identity-context slice: the student rows the invite lifecycle records
     // against and links. Invites are organizations-domain; the row is identity's.
     private readonly students: StudentLinker,
-    private readonly outbox?: OutboxAppender,
+    uow?: OrganizationsUnitOfWork,
     private readonly logger: Logger = noopLogger,
-  ) {}
-
-  private async emit<E extends NewDomainEvent>(events: E[]): Promise<void> {
-    await this.outbox?.append(events);
+  ) {
+    this.uow = uow ?? { run: (fn) => fn({ organizations: repo, outbox: noopOutbox }) };
   }
+
 
   async createOrg(input: CreateOrganizationInput): Promise<Organization> {
     const existing = await this.repo.findByExternalId(input.externalId);
@@ -120,9 +126,12 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async recordInvitation(input: RecordInvitationInput): Promise<Invitation> {
     const org = await this.requireOrg(input.orgExternalId);
-    const invitation = await this.repo.insertInvitation(org.id, input);
+    const invitation = await this.uow.run(async ({ organizations, outbox }) => {
+      const created = await organizations.insertInvitation(org.id, input);
+      await outbox.append([{ type: 'invitation.created', orgId: org.id, invitation: created }]);
+      return created;
+    });
     this.logger.info('invitation recorded', { orgId: org.id });
-    await this.emit([{ type: 'invitation.created', orgId: org.id, invitation }]);
     return invitation;
   }
 
@@ -132,8 +141,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     inviteExternalId: string,
   ): Promise<void> {
     const org = await this.requireOrg(orgExternalId);
+    // The row pointer is identity's own (atomic) statement; only the event
+    // rides our scope — cross-context writes can't share one transaction
+    // without collapsing the port boundary.
     await this.students.recordStudentInvite(org.id, email, inviteExternalId);
-    await this.emit([{ type: 'student.invited', orgId: org.id, email, inviteExternalId }]);
+    await this.uow.run(({ outbox }) =>
+      outbox.append([{ type: 'student.invited', orgId: org.id, email, inviteExternalId }]),
+    );
   }
 
   // Invitation acceptance — an organizations-domain event with two grants:
@@ -151,15 +165,17 @@ export class OrganizationServiceImpl implements OrganizationService {
       this.logger.info('student invite accepted', { inviteExternalId: input.inviteExternalId });
       const org = orgExternalId ? await this.repo.findByExternalId(orgExternalId) : null;
       if (org) {
-        await this.emit([
-          {
-            type: 'student.invite.accepted',
-            orgId: org.id,
-            email: input.email,
-            inviteExternalId: input.inviteExternalId,
-            userExternalId: input.userExternalId,
-          },
-        ]);
+        await this.uow.run(({ outbox }) =>
+          outbox.append([
+            {
+              type: 'student.invite.accepted',
+              orgId: org.id,
+              email: input.email,
+              inviteExternalId: input.inviteExternalId,
+              userExternalId: input.userExternalId,
+            },
+          ]),
+        );
       }
       return { orgExternalId };
     }
@@ -172,18 +188,20 @@ export class OrganizationServiceImpl implements OrganizationService {
       return { orgExternalId: null };
     }
     await this.orgAdmin().grantMembership(record.orgExternalId, input.userExternalId, record.role);
-    await this.repo.setInvitationStatusByExternalId(input.inviteExternalId, 'accepted');
-    this.logger.info('invitation accepted', { inviteExternalId: input.inviteExternalId });
     const org = await this.requireOrg(record.orgExternalId);
-    await this.emit([
-      {
-        type: 'invitation.accepted',
-        orgId: org.id,
-        inviteExternalId: input.inviteExternalId,
-        role: record.role,
-        userExternalId: input.userExternalId,
-      },
-    ]);
+    await this.uow.run(async ({ organizations, outbox }) => {
+      await organizations.setInvitationStatusByExternalId(input.inviteExternalId, 'accepted');
+      await outbox.append([
+        {
+          type: 'invitation.accepted',
+          orgId: org.id,
+          inviteExternalId: input.inviteExternalId,
+          role: record.role,
+          userExternalId: input.userExternalId,
+        },
+      ]);
+    });
+    this.logger.info('invitation accepted', { inviteExternalId: input.inviteExternalId });
     return { orgExternalId: record.orgExternalId };
   }
 
@@ -287,14 +305,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       // better-invite tokens can only be canceled by their creator; the domain
       // mirror is authoritative for staff grants (acceptInvite refuses
       // non-pending mirrors), so canceling the mirror is canceling the invite.
-      await this.repo.setInvitationStatusByExternalId(member.invitationExternalId, 'canceled');
-      await this.emit([
-        {
-          type: 'invitation.canceled',
-          orgId: ctx.orgId,
-          inviteExternalId: member.invitationExternalId,
-        },
-      ]);
+      const inviteExternalId = member.invitationExternalId;
+      await this.uow.run(async ({ organizations, outbox }) => {
+        await organizations.setInvitationStatusByExternalId(inviteExternalId, 'canceled');
+        await outbox.append([
+          { type: 'invitation.canceled', orgId: ctx.orgId, inviteExternalId },
+        ]);
+      });
     }
     this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;

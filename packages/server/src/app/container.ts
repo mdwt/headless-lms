@@ -202,18 +202,26 @@ export async function buildContainer(
   };
 
   // Services (inject repos + peer services in dependency order)
+  const identityUow = new DrizzleUnitOfWork(db, (tx) => ({
+    identity: new DrizzleIdentityRepository(tx, identityLogger),
+    outbox: new DrizzleOutboxAppender(tx, identityLogger),
+  }));
   const identity = new IdentityServiceImpl(
     new DrizzleIdentityRepository(db, identityLogger),
-    new DrizzleOutboxAppender(db, identityLogger),
+    identityUow,
     identityLogger,
   );
+  const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
+    organizations: new DrizzleOrganizationsRepository(tx, organizationsLogger),
+    outbox: new DrizzleOutboxAppender(tx, organizationsLogger),
+  }));
   const organizations = new OrganizationServiceImpl(
     new DrizzleOrganizationsRepository(db, organizationsLogger),
     new DrizzleMembersRepository(db, organizationsLogger),
     orgAdminProvider,
     // Identity slice: the invite lifecycle records/links student rows.
     identity,
-    new DrizzleOutboxAppender(db, organizationsLogger),
+    organizationsUow,
     organizationsLogger,
   );
   // Content: reads on the root db; course writes + outbox append in one tx.

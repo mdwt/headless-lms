@@ -1,5 +1,6 @@
 // identity context — ports.
 import type { User, Student } from './model.js';
+import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { RegisterUserInput, RegisterStudentInput, CreateStudentInput } from './types.js';
 
 // Capabilities used by the auth adapter to provision a domain identity when a
@@ -29,6 +30,13 @@ export interface IdentityService extends UserProvisioner, StudentProvisioner {
 }
 
 // Outbound port (persistence contract the repository fulfils).
+/** Atomic write scope: tx-bound repo + outbox appender, one transaction. */
+export interface IdentityWriteScope {
+  identity: IdentityRepository;
+  outbox: OutboxAppender;
+}
+export type IdentityUnitOfWork = UnitOfWork<IdentityWriteScope>;
+
 export interface IdentityRepository {
   insertUser(input: RegisterUserInput): Promise<User>;
   findUserByExternalId(externalId: string): Promise<User | null>;
