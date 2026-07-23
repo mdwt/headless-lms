@@ -413,6 +413,82 @@ export type RequestLearnAssetDownloadResponses = {
 export type RequestLearnAssetDownloadResponse =
   RequestLearnAssetDownloadResponses[keyof RequestLearnAssetDownloadResponses];
 
+export type ReportActivityProgressData = {
+  body: {
+    position?: unknown;
+    completed?: boolean;
+  };
+  path: {
+    courseId: string;
+    activityId: string;
+  };
+  query?: never;
+  url: "/api/learn/courses/{courseId}/activities/{activityId}/progress";
+};
+
+export type ReportActivityProgressErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type ReportActivityProgressError =
+  ReportActivityProgressErrors[keyof ReportActivityProgressErrors];
+
+export type ReportActivityProgressResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    status: "in-progress" | "completed";
+  };
+};
+
+export type ReportActivityProgressResponse =
+  ReportActivityProgressResponses[keyof ReportActivityProgressResponses];
+
+export type GetLearnCourseProgressData = {
+  body?: never;
+  path: {
+    courseId: string;
+  };
+  query?: never;
+  url: "/api/learn/courses/{courseId}/progress";
+};
+
+export type GetLearnCourseProgressErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type GetLearnCourseProgressError =
+  GetLearnCourseProgressErrors[keyof GetLearnCourseProgressErrors];
+
+export type GetLearnCourseProgressResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    activities: {
+      [key: string]: "in-progress" | "completed";
+    };
+    percent: number;
+    completed: boolean;
+  };
+};
+
+export type GetLearnCourseProgressResponse =
+  GetLearnCourseProgressResponses[keyof GetLearnCourseProgressResponses];
+
 export type ListModulesData = {
   body?: never;
   path: {
