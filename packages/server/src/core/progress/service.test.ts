@@ -179,6 +179,20 @@ describe('ProgressService.report', () => {
     const { svc } = makeService(structure());
     await expect(svc.report('org-1', input('nope', {}))).rejects.toBeInstanceOf(NotFoundError);
   });
+
+  it('rejects a report for a draft activity (published: false)', async () => {
+    const { svc } = makeService(structure({ a1Settings: { published: false } }));
+    await expect(svc.report('org-1', input('a1', {}))).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('completed claim on an explicit manual rule completes it', async () => {
+    const { svc, appended } = makeService(
+      structure({ a1Settings: { completion: { rule: 'manual' } } }),
+    );
+    const record = await svc.report('org-1', input('a1', { completed: true }));
+    expect(record.completedAt).toBe('2026-07-23T10:00:00Z');
+    expect(appended.filter((e) => e.type === 'progress.completed')).toHaveLength(1);
+  });
 });
 
 describe('ProgressService reads', () => {

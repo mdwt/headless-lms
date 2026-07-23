@@ -59,6 +59,16 @@ export class ProgressServiceImpl implements ProgressService {
       throw new NotFoundError('Activity', input.activityId);
     }
     return this.uow.run(async (scope) => {
+      // Serializes concurrent reports for this student+course (locks are tx-scoped;
+      // both racers lock in the same order, the loser waits and then sees committed state).
+      const lockIds = [
+        ...modules.flatMap((m) =>
+          m.activities.filter((a) => isActivityPublished(a.settings)).map((a) => a.id),
+        ),
+        ...modules.map((m) => m.id),
+        input.courseId,
+      ];
+      await scope.progress.findByTargets(orgId, input.studentId, lockIds, { forUpdate: true });
       const events: NewProgressEvent[] = [];
       let record = await this.ensureActivityRecord(orgId, input, scope, events);
       if (input.report.position !== undefined && !record.completedAt) {
@@ -105,6 +115,15 @@ export class ProgressServiceImpl implements ProgressService {
       position: null,
       completedAt: null,
     });
+    if (!record) {
+      // Lost a concurrent first-touch insert: the winner owns the row and emitted
+      // progress.started. Return its row without re-emitting.
+      const winner = await scope.progress.findByTarget(orgId, target);
+      if (!winner) {
+        throw new Error('progress record vanished after insert conflict');
+      }
+      return winner;
+    }
     events.push({ type: 'progress.started', orgId, courseId: input.courseId, record });
     this.logger.info('progress started', { orgId, recordId: record.id });
     return record;
@@ -146,22 +165,36 @@ export class ProgressServiceImpl implements ProgressService {
     events: NewProgressEvent[],
   ): Promise<void> {
     const target: ProgressTarget = { studentId: input.studentId, targetType, targetId };
-    const existing = await scope.progress.findByTarget(orgId, target);
+    let existing = await scope.progress.findByTarget(orgId, target);
     if (existing?.completedAt) {
       return;
     }
-    const record = existing
-      ? ((await scope.progress.update(orgId, existing.id, { completedAt: this.now() })) ?? existing)
-      : await scope.progress.insert(orgId, {
-          id: genId('progress'),
-          orgId,
-          studentId: input.studentId,
-          targetType,
-          targetId,
-          startedAt: this.now(),
-          position: null,
-          completedAt: this.now(),
-        });
+    if (!existing) {
+      const inserted = await scope.progress.insert(orgId, {
+        id: genId('progress'),
+        orgId,
+        studentId: input.studentId,
+        targetType,
+        targetId,
+        startedAt: this.now(),
+        position: null,
+        completedAt: this.now(),
+      });
+      if (inserted) {
+        events.push({ type: 'progress.completed', orgId, courseId: input.courseId, record: inserted });
+        return;
+      }
+      // Lost a concurrent insert: re-read the winner's row.
+      existing = await scope.progress.findByTarget(orgId, target);
+      if (existing?.completedAt) {
+        return;
+      }
+      if (!existing) {
+        throw new Error('progress container record vanished after insert conflict');
+      }
+    }
+    const record =
+      (await scope.progress.update(orgId, existing.id, { completedAt: this.now() })) ?? existing;
     events.push({ type: 'progress.completed', orgId, courseId: input.courseId, record });
   }
 

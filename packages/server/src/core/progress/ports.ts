@@ -19,11 +19,18 @@ export interface ProgressService {
 
 // Outbound port (persistence contract the repository fulfils).
 export interface ProgressRepository {
-  insert(orgId: string, record: ProgressRecord): Promise<ProgressRecord>;
+  /** Conflict-safe insert. null = lost a concurrent-insert race (unique key already taken). */
+  insert(orgId: string, record: ProgressRecord): Promise<ProgressRecord | null>;
   /** Scoped to the org — returns the record for the unique (student, target) key, or null. */
   findByTarget(orgId: string, target: ProgressTarget): Promise<ProgressRecord | null>;
-  /** All of the student's records whose targetId is in the set. */
-  findByTargets(orgId: string, studentId: string, targetIds: string[]): Promise<ProgressRecord[]>;
+  /** All of the student's records whose targetId is in the set. `forUpdate` takes tx-scoped
+   *  row locks (ordered) to serialize concurrent reports for the same student+course. */
+  findByTargets(
+    orgId: string,
+    studentId: string,
+    targetIds: string[],
+    opts?: { forUpdate?: boolean },
+  ): Promise<ProgressRecord[]>;
   update(
     orgId: string,
     id: string,

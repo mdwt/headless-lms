@@ -29,7 +29,7 @@ export class DrizzleProgressRepository implements ProgressRepository {
     private readonly logger: Logger = noopLogger,
   ) {}
 
-  async insert(orgId: string, record: ProgressRecord): Promise<ProgressRecord> {
+  async insert(orgId: string, record: ProgressRecord): Promise<ProgressRecord | null> {
     const [row] = await this.db
       .insert(progressRecords)
       .values({
@@ -42,11 +42,9 @@ export class DrizzleProgressRepository implements ProgressRepository {
         position: record.position ?? null,
         completedAt: record.completedAt ? new Date(record.completedAt) : null,
       })
+      .onConflictDoNothing()
       .returning();
-    if (!row) {
-      throw new Error('failed to insert progress record');
-    }
-    return toRecord(row);
+    return row ? toRecord(row) : null;
   }
 
   async findByTarget(orgId: string, target: ProgressTarget): Promise<ProgressRecord | null> {
@@ -69,11 +67,12 @@ export class DrizzleProgressRepository implements ProgressRepository {
     orgId: string,
     studentId: string,
     targetIds: string[],
+    opts?: { forUpdate?: boolean },
   ): Promise<ProgressRecord[]> {
     if (targetIds.length === 0) {
       return [];
     }
-    const rows = await this.db
+    const base = this.db
       .select()
       .from(progressRecords)
       .where(
@@ -83,6 +82,10 @@ export class DrizzleProgressRepository implements ProgressRepository {
           inArray(progressRecords.targetId, targetIds),
         ),
       );
+    // Deterministic lock order prevents deadlock between overlapping reports.
+    const rows = opts?.forUpdate
+      ? await base.orderBy(progressRecords.id).for('update')
+      : await base;
     return rows.map(toRecord);
   }
 
