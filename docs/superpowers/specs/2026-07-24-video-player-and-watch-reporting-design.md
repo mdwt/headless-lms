@@ -69,20 +69,13 @@ interface MediaTracking {
 }
 ```
 
-`MediaProvider` is a client component that puts these two callbacks into the
-context; `EditorModule` gains the optional field
-
-```ts
-MediaProvider?: ComponentType<MediaTracking & { children: ReactNode }>;
-```
-
-Why a contract field: the callback cannot cross the RSC boundary as a Renderer
-prop (not serializable); the context object must be runtime code the app and
-the island both reach; the app may import editors only through the
-`editor.config` swap point; `editor-contract` stays types-only. The
-intersection of those constraints is a field on `EditorModule` — same reason
-`Editor` and `Renderer` are fields. Optional because a media-less editor has
-nothing to provide and a non-tracking host ignores it.
+`MediaProvider` ships from a dedicated `@headless-lms/content-plate/media`
+entry (`'use client'`), typed by `EditorMediaModule` in the contract, and the
+app reaches it through its own swap-point file `editor-media.config.ts` — a
+sibling of `editor.config.ts`. A field on `EditorModule` would force client
+components to import the whole module (and thus bundle the editor) to get a
+20-line provider; a separate entry keeps player routes editor-free while
+preserving the swap-point rule and contract typing.
 
 ### 3. Translation to reports (`apps/student`)
 

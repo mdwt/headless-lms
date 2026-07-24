@@ -2,7 +2,7 @@
 // An installation picks its editor by assigning a package's default export to
 // this interface in one convention file (the admin app's `editor.config.tsx`);
 // a non-conforming editor fails typecheck at that file.
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 /** Result of a host-side media upload, referenced from editor content. */
 export interface UploadedEditorFile {
@@ -54,4 +54,33 @@ export interface EditorModule {
      *  treated the same as a foreign type. */
     version?: number;
   };
+}
+
+/** One media playback fact emitted by an editor's rendered media node. */
+export interface MediaTrackingEvent {
+  assetId: string;
+  kind: "play" | "pause" | "timeupdate" | "seeked" | "ended";
+  /** Current playback position, seconds. */
+  seconds: number;
+  /** Media duration as the player measured it; null until known. */
+  duration: number | null;
+}
+
+/** Host-provided callbacks for media playback: facts out, resume/refresh in. */
+export interface MediaTracking {
+  onEvent?: (event: MediaTrackingEvent) => void;
+  /** Resume point for an asset, seconds. */
+  startPosition?: (assetId: string) => number | undefined;
+  /** Fresh playback URL when the embedded presign has expired. */
+  refreshUrl?: (assetId: string) => Promise<string | null>;
+}
+
+/**
+ * Client-side media companion to EditorModule. Shipped as its own entry (and
+ * its own swap-point config file in the host app) so routes that only play
+ * content don't bundle the editor.
+ */
+export interface EditorMediaModule {
+  /** Client component putting MediaTracking callbacks into context for media islands. */
+  MediaProvider: ComponentType<MediaTracking & { children: ReactNode }>;
 }
