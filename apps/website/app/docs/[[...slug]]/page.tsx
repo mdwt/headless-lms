@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page'
 import { createRelativeLink } from 'fumadocs-ui/mdx'
 import { source } from '@/lib/source'
+import { openapi } from '@/lib/openapi'
+import { OpenAPIPage } from '@/components/api-page'
 import { getMDXComponents } from '@/components/mdx'
 
 type Props = {
@@ -24,6 +26,9 @@ export default async function Page(props: Props) {
         <MDX
           components={getMDXComponents({
             a: createRelativeLink(source, page),
+            OpenAPIPage: async (props: object) => (
+              <OpenAPIPage {...(await openapi.preloadOpenAPIPage(page))} {...props} />
+            ),
           })}
         />
       </DocsBody>
