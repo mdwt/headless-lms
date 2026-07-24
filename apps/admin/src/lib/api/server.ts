@@ -20,6 +20,7 @@ import "server-only";
 
 import {
   Assets,
+  Automations,
   ConnectedApps,
   Courses,
   Dashboard,
@@ -33,6 +34,9 @@ import { toQuery, unwrap } from "./shared";
 import { ensureConfigured, authHeaders } from "./server-call";
 import type {
   Asset,
+  Automation,
+  AutomationTriggerInfo,
+  AvailableAction,
   AvailableIntegration,
   ConnectedApp,
   Course,
@@ -177,5 +181,24 @@ export const serverApi = {
   async listConnections(): Promise<IntegrationConnection[]> {
     ensureConfigured();
     return unwrap(await Integrations.listConnections(await authHeaders()));
+  },
+
+  // automations
+  async listAutomations(): Promise<Automation[]> {
+    ensureConfigured();
+    return unwrap(await Automations.listAutomations(await authHeaders()));
+  },
+  async getAutomation(id: string): Promise<Automation> {
+    ensureConfigured();
+    return unwrap(await Automations.getAutomation({ path: { id }, ...(await authHeaders()) }));
+  },
+  async automationActions(): Promise<AvailableAction[]> {
+    ensureConfigured();
+    return unwrap(await Automations.listAutomationActions(await authHeaders()));
+  },
+  async automationTriggers(): Promise<AutomationTriggerInfo[]> {
+    ensureConfigured();
+    const { triggers } = unwrap(await Automations.listAutomationTriggers(await authHeaders()));
+    return triggers;
   },
 };
