@@ -1,4 +1,4 @@
-import type { Course, Module, SaveActivityInput } from './model.js';
+import type { Activity, Course, Module, SaveActivityInput } from './model.js';
 import type { CreateCourseInput, ListCoursesQuery, Page, UpdateCourseInput } from './types.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
@@ -12,6 +12,8 @@ export interface ContentService {
   remove(orgId: string, id: string): Promise<void>;
 
   listForCourse(orgId: string, courseId: string): Promise<Module[]>;
+  getActivity(orgId: string, activityId: string): Promise<Activity | null>;
+  getModule(orgId: string, moduleId: string): Promise<Module | null>;
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;
   updateModule(orgId: string, courseId: string, moduleId: string, title: string): Promise<Module[]>;
@@ -56,6 +58,8 @@ export type ContentUnitOfWork = UnitOfWork<ContentTxScope>;
 
 export interface CourseRepository {
   listForCourse(orgId: string, courseId: string): Promise<Module[]>;
+  findActivity(orgId: string, activityId: string): Promise<Activity | null>;
+  findModule(orgId: string, moduleId: string): Promise<Module | null>;
   reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
   createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;
   updateModule(orgId: string, courseId: string, moduleId: string, title: string): Promise<Module[]>;

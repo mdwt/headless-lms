@@ -30,6 +30,44 @@ export class DrizzleContentStructureRepository implements CourseRepository {
     return this.db.transaction((tx) => this.list(tx, orgId, courseId));
   }
 
+  async findActivity(orgId: string, activityId: string): Promise<Activity | null> {
+    const [row] = await this.db
+      .select()
+      .from(activities)
+      .where(and(eq(activities.orgId, orgId), eq(activities.id, activityId)))
+      .limit(1);
+    if (!row) {
+      return null;
+    }
+    const assetRows = await this.db
+      .select()
+      .from(activityAssets)
+      .where(and(eq(activityAssets.orgId, orgId), eq(activityAssets.activityId, activityId)))
+      .orderBy(activityAssets.seq);
+    return {
+      id: row.id,
+      moduleId: row.moduleId,
+      seq: row.seq,
+      settings: row.settings ?? null,
+      assetIds: assetRows.map((r) => r.assetId),
+    };
+  }
+
+  async findModule(orgId: string, moduleId: string): Promise<Module | null> {
+    return this.db.transaction(async (tx) => {
+      const [m] = await tx
+        .select()
+        .from(modules)
+        .where(and(eq(modules.orgId, orgId), eq(modules.id, moduleId)))
+        .limit(1);
+      if (!m) {
+        return null;
+      }
+      const all = await this.list(tx, orgId, m.courseId);
+      return all.find((x) => x.id === moduleId) ?? null;
+    });
+  }
+
   /** The course's full ordered module list, each module's activities ordered too. */
   private async list(tx: Tx, orgId: string, courseId: string): Promise<Module[]> {
     const moduleRows = await tx

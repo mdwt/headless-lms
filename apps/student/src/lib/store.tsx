@@ -1,8 +1,8 @@
 "use client";
 
-// App-wide client state the prototype keeps in component state: per-course
-// completion (source of progress math), a toast, and the accent knob.
-// Swap markLessonComplete for a real mutation when wiring the API.
+// App-wide client state: per-course completion (source of progress math), a
+// toast, and the accent knob. Completion is seeded from the server (hydration)
+// and advanced locally as the player reports progress via the SDK.
 import * as React from "react";
 import type { Completion, LessonStatus } from "./types";
 
@@ -16,7 +16,8 @@ interface ToastState {
 interface AppState {
   completionByCourse: Record<string, Completion>;
   setLessonStatus: (courseId: string, lessonId: string, status: LessonStatus) => void;
-  toggleComplete: (courseId: string, lessonId: string) => LessonStatus;
+  seedCompletion: (courseId: string, completion: Completion) => void;
+  markOpened: (courseId: string, lessonId: string) => void;
   toast: ToastState | null;
   showToast: (message: string) => void;
   accent: Accent;
@@ -47,20 +48,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const toggleComplete = React.useCallback(
-    (courseId: string, lessonId: string): LessonStatus => {
-      const current = completionByCourse[courseId]?.[lessonId] ?? "not-started";
-      const next: LessonStatus = current === "completed" ? "in-progress" : "completed";
-      setLessonStatus(courseId, lessonId, next);
-      return next;
-    },
-    [completionByCourse, setLessonStatus],
-  );
+  const seedCompletion = React.useCallback((courseId: string, completion: Completion) => {
+    setCompletion((prev) => ({ ...prev, [courseId]: { ...completion, ...(prev[courseId] ?? {}) } }));
+  }, []);
+
+  /** Promote to in-progress only if not started — never demotes a seeded/completed status. */
+  const markOpened = React.useCallback((courseId: string, lessonId: string) => {
+    setCompletion((prev) => {
+      const cur = prev[courseId]?.[lessonId] ?? "not-started";
+      if (cur !== "not-started") return prev;
+      return { ...prev, [courseId]: { ...(prev[courseId] ?? {}), [lessonId]: "in-progress" } };
+    });
+  }, []);
 
   const value: AppState = {
     completionByCourse,
     setLessonStatus,
-    toggleComplete,
+    seedCompletion,
+    markOpened,
     toast,
     showToast,
     accent,

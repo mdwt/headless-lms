@@ -4,7 +4,7 @@
 // the outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay dispatches committed events to
 // EventBus subscribers at-least-once.
-import type { Course, Module, SaveActivityInput } from './model.js';
+import type { Activity, Course, Module, SaveActivityInput } from './model.js';
 import type {
   ContentService,
   ContentRepository,
@@ -83,6 +83,12 @@ export class ContentServiceImpl implements ContentService {
 
   listForCourse(orgId: string, courseId: string): Promise<Module[]> {
     return this.structureRepo.listForCourse(orgId, courseId);
+  }
+  getActivity(orgId: string, activityId: string): Promise<Activity | null> {
+    return this.structureRepo.findActivity(orgId, activityId);
+  }
+  getModule(orgId: string, moduleId: string): Promise<Module | null> {
+    return this.structureRepo.findModule(orgId, moduleId);
   }
   async reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
     const modules = await this.structureRepo.reorderModules(orgId, courseId, orderedIds);

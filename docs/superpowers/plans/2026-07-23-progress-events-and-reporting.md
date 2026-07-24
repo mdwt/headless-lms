@@ -1103,56 +1103,117 @@ git commit -m "chore(sdk): regenerate for learn progress endpoints"
 
 ---
 
-### Task 7: Student app — hydrate, report, decide nothing
+### Task 7: SDK progress reporter — ergonomic usage reporting
 
 **Files:**
-- Create: `apps/student/src/lib/api/progress-client.ts`
+- Create: `packages/sdk/src/progress.ts`
+- Modify: `packages/sdk/src/index.ts`
+
+**Interfaces:**
+- Consumes: generated `Learn.reportActivityProgress({ path: { courseId, activityId }, body })` (Task 6); the package's existing hand-written layer (`configureSdk` already defaults `credentials: "include"`, so browser calls carry the session cookie).
+- Produces: `progressReporter(courseId, activityId): ProgressReporter` with `opened(): void`, `position(position: unknown): void`, `completed(): Promise<"in-progress" | "completed" | null>` — the one import frontends use to report usage without knowing paths or report shapes.
+
+- [ ] **Step 1: Write the reporter**
+
+Create `packages/sdk/src/progress.ts`:
+
+```ts
+// Ergonomic usage reporting over the generated Learn client. Frontends report
+// what happened; the server decides completion — completed() resolves with the
+// server's answer, opened()/position() are fire-and-forget.
+import { Learn } from "./generated";
+
+export type ActivityStatus = "in-progress" | "completed";
+
+export interface ProgressReporter {
+  /** The student is on the activity — creates the record on first touch. */
+  opened(): void;
+  /** Player position update (opaque payload, interpreted server-side). */
+  position(position: unknown): void;
+  /** The learner claims done; resolves with the server's decision (null on transport failure). */
+  completed(): Promise<ActivityStatus | null>;
+}
+
+export function progressReporter(courseId: string, activityId: string): ProgressReporter {
+  const path = { courseId, activityId };
+  const send = async (body: {
+    position?: unknown;
+    completed?: boolean;
+  }): Promise<ActivityStatus | null> => {
+    try {
+      const res = await Learn.reportActivityProgress({ path, body });
+      return res.data?.status ?? null;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    opened() {
+      void send({});
+    },
+    position(position: unknown) {
+      void send({ position });
+    },
+    completed() {
+      return send({ completed: true });
+    },
+  };
+}
+```
+
+(Adjust the `Learn.reportActivityProgress` call/response access to the generated signature if it differs — check `packages/sdk/src/generated/sdk.gen.ts`.)
+
+- [ ] **Step 2: Export it**
+
+In `packages/sdk/src/index.ts`, after the existing exports:
+
+```ts
+export { progressReporter } from "./progress";
+export type { ProgressReporter, ActivityStatus } from "./progress";
+```
+
+(Match the file's existing extensionless-import style.)
+
+- [ ] **Step 3: Verify**
+
+Run: `pnpm --filter @headless-lms/sdk typecheck`
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/sdk/src
+git commit -m "feat(sdk): progressReporter for frontend usage reporting"
+```
+
+---
+
+### Task 8: Student app — hydrate, report, decide nothing
+
+**Files:**
 - Modify: `apps/student/src/lib/api/server.ts`
 - Modify: `apps/student/src/lib/store.tsx`
 - Modify: `apps/student/src/app/courses/[courseId]/page.tsx`
 - Modify: `apps/student/src/components/player/course-player.tsx`
 
 **Interfaces:**
-- Consumes: SDK `Learn.getLearnCourseProgress` (server read, Task 6); the POST endpoint via browser `fetch` (client mutation — matches the app's existing client-call pattern in `welcome-view.tsx`); store's existing `setLessonStatus`, `Completion`, `LessonStatus` types.
-- Produces: `reportProgress(courseId, activityId, report): Promise<LessonStatus | null>`; store gains `seedCompletion(courseId, completion)`; `CoursePlayer` gains an `initialCompletion` prop. `toggleComplete` is deleted (the domain has no un-complete).
+- Consumes: SDK `Learn.getLearnCourseProgress` (server read, Task 6); SDK `progressReporter` (Task 7) for client mutations — the browser SDK is configured once client-side with `configureSdk({ baseUrl: process.env.NEXT_PUBLIC_API_URL })` (credentials default to "include"); store's existing `setLessonStatus`, `Completion`, `LessonStatus` types.
+- Produces: store gains `seedCompletion(courseId, completion)`; `CoursePlayer` gains an `initialCompletion` prop. `toggleComplete` is deleted (the domain has no un-complete).
 
-- [ ] **Step 1: Client report helper**
+- [ ] **Step 1: Client SDK configuration**
 
-Create `apps/student/src/lib/api/progress-client.ts`:
+Create `apps/student/src/lib/api/client-sdk.ts`:
 
 ```ts
-// Client-side progress reporting. The frontend only reports usage — the
-// server decides completion; callers apply the returned status.
-import type { LessonStatus } from "../types";
+// One-time browser-side SDK configuration for client mutations. Server calls
+// configure their own instance in server-call.ts.
+import { configureSdk } from "@headless-lms/sdk";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-export interface ProgressReport {
-  position?: unknown;
-  completed?: boolean;
-}
-
-export async function reportProgress(
-  courseId: string,
-  activityId: string,
-  report: ProgressReport,
-): Promise<LessonStatus | null> {
-  try {
-    const res = await fetch(
-      `${API_URL}/api/learn/courses/${courseId}/activities/${activityId}/progress`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(report),
-      },
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { status: "in-progress" | "completed" };
-    return data.status;
-  } catch {
-    return null;
-  }
+let configured = false;
+export function ensureClientSdk(): void {
+  if (configured) return;
+  configureSdk({ baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000" });
+  configured = true;
 }
 ```
 
@@ -1210,7 +1271,14 @@ and pass `initialCompletion={progress?.activities ?? {}}` to `<CoursePlayer …>
 
 In `apps/student/src/components/player/course-player.tsx`:
 
-- Add `initialCompletion?: Completion` to `CoursePlayerProps` (import `Completion` from `@/lib/types`); import `reportProgress` from `@/lib/api/progress-client`.
+- Add `initialCompletion?: Completion` to `CoursePlayerProps` (import `Completion` from `@/lib/types`); import `progressReporter` from `@headless-lms/sdk` and `ensureClientSdk` from `@/lib/api/client-sdk`; derive one reporter per current activity:
+
+```ts
+  const reporter = React.useMemo(() => {
+    ensureClientSdk();
+    return curLessonId ? progressReporter(course.id, curLessonId) : null;
+  }, [course.id, curLessonId]);
+```
 - Replace `const { toggleComplete, showToast } = useApp();` with `const { setLessonStatus, seedCompletion, showToast } = useApp();`
 - Seed once on mount:
 
@@ -1229,7 +1297,7 @@ In `apps/student/src/components/player/course-player.tsx`:
     if (lessonStatus(completion, curLessonId) === "not-started") {
       setLessonStatus(course.id, curLessonId, "in-progress");
     }
-    void reportProgress(course.id, curLessonId, {});
+    reporter?.opened();
   }, [course.id, curLessonId]); // eslint-disable-line react-hooks/exhaustive-deps -- report on lesson change only
 ```
 
@@ -1237,8 +1305,8 @@ In `apps/student/src/components/player/course-player.tsx`:
 
 ```ts
   const markComplete = React.useCallback(() => {
-    if (isCompleted) return;
-    void reportProgress(course.id, curLessonId, { completed: true }).then((status) => {
+    if (isCompleted || !reporter) return;
+    void reporter.completed().then((status) => {
       if (status !== "completed") return;
       setLessonStatus(course.id, curLessonId, "completed");
       showToast("Lesson completed");
@@ -1246,7 +1314,7 @@ In `apps/student/src/components/player/course-player.tsx`:
         window.setTimeout(() => goNext(true), AUTO_ADVANCE_MS);
       }
     });
-  }, [isCompleted, course.id, curLessonId, setLessonStatus, showToast, autoAdvance, goNext]);
+  }, [isCompleted, reporter, course.id, curLessonId, setLessonStatus, showToast, autoAdvance, goNext]);
 ```
 
 (`isCompleted` is derived above the callback already; the button now does nothing once completed — the domain has no un-complete.)
@@ -1267,7 +1335,7 @@ git commit -m "feat(student): report progress to the API, hydrate completion"
 
 ---
 
-### Task 8: Full verification sweep
+### Task 9: Full verification sweep
 
 - [ ] **Step 1: Whole-repo gates**
 

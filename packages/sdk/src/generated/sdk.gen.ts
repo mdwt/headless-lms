@@ -61,6 +61,9 @@ import type {
   GetCourseResponses,
   GetLearnCourseData,
   GetLearnCourseErrors,
+  GetLearnCourseProgressData,
+  GetLearnCourseProgressErrors,
+  GetLearnCourseProgressResponses,
   GetLearnCourseResponses,
   GetLearnOrgData,
   GetLearnOrgResponses,
@@ -112,6 +115,9 @@ import type {
   ReorderActivitiesResponses,
   ReorderModulesData,
   ReorderModulesResponses,
+  ReportProgressData,
+  ReportProgressErrors,
+  ReportProgressResponses,
   RequestAssetDownloadData,
   RequestAssetDownloadErrors,
   RequestAssetDownloadResponses,
@@ -579,6 +585,39 @@ export class Learn {
         ...options.headers,
       },
     });
+  }
+
+  /**
+   * Report usage on a target; the progress service decides completion
+   */
+  public static reportProgress<ThrowOnError extends boolean = false>(
+    options: Options<ReportProgressData, ThrowOnError>,
+  ): RequestResult<ReportProgressResponses, ReportProgressErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      ReportProgressResponses,
+      ReportProgressErrors,
+      ThrowOnError
+    >({
+      url: "/api/learn/progress",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * The student's progress in one course
+   */
+  public static getLearnCourseProgress<ThrowOnError extends boolean = false>(
+    options: Options<GetLearnCourseProgressData, ThrowOnError>,
+  ): RequestResult<GetLearnCourseProgressResponses, GetLearnCourseProgressErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetLearnCourseProgressResponses,
+      GetLearnCourseProgressErrors,
+      ThrowOnError
+    >({ url: "/api/learn/courses/{courseId}/progress", ...options });
   }
 }
 
