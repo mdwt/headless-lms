@@ -10,6 +10,7 @@ import type { Entitlement } from '../entitlements/index.js';
 import type { Mailer } from '../shared/mailer.js';
 import type { DomainEvent } from '../shared/ports.js';
 import type { AutomationAction } from './model.js';
+import { ALL_EMAIL_TEMPLATE_IDS } from './catalog.js';
 
 interface SendEmailDerivation<K extends EmailTemplateId> {
   /** The only event type this template's params can be derived from. */
@@ -59,6 +60,10 @@ export const SEND_EMAIL_DERIVATIONS: SendEmailDerivations = {
   },
 };
 
+function isEmailTemplateId(value: unknown): value is EmailTemplateId {
+  return typeof value === 'string' && value in ALL_EMAIL_TEMPLATE_IDS;
+}
+
 /** Throws on any failure — the engine owns retry policy and failure bookkeeping. */
 export async function executeAction(
   action: AutomationAction,
@@ -67,24 +72,27 @@ export async function executeAction(
 ): Promise<void> {
   switch (action.type) {
     case 'sendEmail': {
-      const derivation = SEND_EMAIL_DERIVATIONS[action.template];
+      const template = action.input['template'];
+      if (!isEmailTemplateId(template)) {
+        throw new Error(`sendEmail: unknown template "${String(template)}"`);
+      }
+      const derivation = SEND_EMAIL_DERIVATIONS[template];
       if (!derivation || derivation.trigger !== event.type) {
         throw new Error(
-          `sendEmail: template "${action.template}" cannot be derived from event "${event.type}"`,
+          `sendEmail: template "${template}" cannot be derived from event "${event.type}"`,
         );
       }
       const derived = derivation.derive(event);
       if (!derived) {
         throw new Error(
-          `sendEmail: event "${event.type}" is missing the data required to derive template "${action.template}"`,
+          `sendEmail: event "${event.type}" is missing the data required to derive template "${template}"`,
         );
       }
-      await mailer.send(derived.to, action.template, derived.params);
+      await mailer.send(derived.to, template, derived.params);
       return;
     }
     default: {
-      const exhaustive: never = action.type;
-      throw new Error(`unknown automation action type "${String(exhaustive)}"`);
+      throw new Error(`unknown automation action type "${action.type}"`);
     }
   }
 }

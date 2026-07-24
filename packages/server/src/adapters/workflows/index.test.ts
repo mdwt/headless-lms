@@ -12,8 +12,8 @@ function dispatch(): AutomationDispatch {
     orgId: 'org-1',
     automationId: 'automation-1',
     actions: [
-      { type: 'sendEmail', template: 'magicLink' },
-      { type: 'sendEmail', template: 'magicLink' },
+      { type: 'sendEmail', input: { template: 'magicLink' } },
+      { type: 'sendEmail', input: { template: 'magicLink' } },
     ],
     event: { type: 'student.enrolled' } as AutomationDispatch['event'],
   };
@@ -63,9 +63,9 @@ describe('InlineAutomationEngine', () => {
     const d: AutomationDispatch = {
       ...dispatch(),
       actions: [
-        { type: 'sendEmail', template: 'magicLink' },
-        { type: 'sendEmail', template: 'magicLink' },
-        { type: 'sendEmail', template: 'magicLink' },
+        { type: 'sendEmail', input: { template: 'magicLink' } },
+        { type: 'sendEmail', input: { template: 'magicLink' } },
+        { type: 'sendEmail', input: { template: 'magicLink' } },
       ],
     };
     await engine.dispatch(d);

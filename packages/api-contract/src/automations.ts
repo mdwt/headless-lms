@@ -6,22 +6,11 @@
 import { z } from "zod";
 import { ListQuery, paginated } from "./shared.js";
 
-/** Every EmailTemplateId — see @headless-lms/types/email-templates.ts. */
-export const EmailTemplateId = z.enum([
-  "magicLink",
-  "studentInvite",
-  "memberInvite",
-  "passwordReset",
-  "emailVerification",
-  "accessGranted",
-  "accessRevoked",
-  "courseCompleted",
-]);
-export type EmailTemplateId = z.infer<typeof EmailTemplateId>;
-
-export const AutomationAction = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sendEmail"), template: EmailTemplateId }),
-]);
+/** One step of an automation: which action, and its input per that action's inputSchema. */
+export const AutomationAction = z.object({
+  type: z.string().min(1),
+  input: z.record(z.string(), z.unknown()),
+});
 export type AutomationAction = z.infer<typeof AutomationAction>;
 
 /** A domain event type, e.g. `entitlement.created`. */
@@ -60,6 +49,8 @@ export const AvailableAction = z.object({
   type: z.string(),
   description: z.string(),
   inputSchema: z.record(z.string(), z.unknown()),
+  /** Who defines it: `system` or the integration id. */
+  source: z.string(),
 });
 export type AvailableAction = z.infer<typeof AvailableAction>;
 
@@ -74,7 +65,7 @@ export type AutomationRunStatus = z.infer<typeof AutomationRunStatus>;
 
 export const AutomationActionResult = z.object({
   index: z.number().int(),
-  type: z.literal("sendEmail"),
+  type: z.string(),
   status: z.enum(["completed", "failed"]),
   error: z.string().optional(),
 });

@@ -264,6 +264,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
           type: `${integration.id}.${action.id}`,
           description: action.description,
           inputSchema: action.inputSchema,
+          source: integration.id,
         })),
       ),
     ];

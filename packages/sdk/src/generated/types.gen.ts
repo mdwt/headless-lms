@@ -1074,16 +1074,10 @@ export type ListAutomationsResponses = {
     description?: string;
     trigger: string;
     actions: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
     enabled: boolean;
   }>;
@@ -1097,16 +1091,10 @@ export type CreateAutomationData = {
     description?: string;
     trigger: string;
     actions: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
   };
   path?: never;
@@ -1124,16 +1112,10 @@ export type CreateAutomationResponses = {
     description?: string;
     trigger: string;
     actions: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
     enabled: boolean;
   };
@@ -1158,6 +1140,7 @@ export type ListAutomationActionsResponses = {
     inputSchema: {
       [key: string]: unknown;
     };
+    source: string;
   }>;
 };
 
@@ -1245,16 +1228,10 @@ export type GetAutomationResponses = {
     description?: string;
     trigger: string;
     actions: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
     enabled: boolean;
   };
@@ -1268,16 +1245,10 @@ export type UpdateAutomationData = {
     description?: string;
     trigger?: string;
     actions?: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
     enabled?: boolean;
   };
@@ -1310,16 +1281,10 @@ export type UpdateAutomationResponses = {
     description?: string;
     trigger: string;
     actions: Array<{
-      type: "sendEmail";
-      template:
-        | "magicLink"
-        | "studentInvite"
-        | "memberInvite"
-        | "passwordReset"
-        | "emailVerification"
-        | "accessGranted"
-        | "accessRevoked"
-        | "courseCompleted";
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
     }>;
     enabled: boolean;
   };
@@ -1358,7 +1323,7 @@ export type ListAutomationRunsResponses = {
       status: "running" | "completed" | "failed";
       actionResults: Array<{
         index: number;
-        type: "sendEmail";
+        type: string;
         status: "completed" | "failed";
         error?: string;
       }>;

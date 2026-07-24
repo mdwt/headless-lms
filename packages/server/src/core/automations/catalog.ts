@@ -5,7 +5,7 @@ import type { EmailTemplateId } from '@headless-lms/types';
 import type { AvailableActions, AvailableTriggers } from './types.js';
 
 /** Every EmailTemplateId — a missing key here is a compile error, kept exhaustive by construction. */
-const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
+export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   magicLink: true,
   studentInvite: true,
   memberInvite: true,
@@ -28,6 +28,7 @@ export function catalogActions(): AvailableActions {
           template: { enum: Object.keys(ALL_EMAIL_TEMPLATE_IDS) },
         },
       },
+      source: 'system',
     },
   ];
 }

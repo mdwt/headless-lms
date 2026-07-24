@@ -49,7 +49,7 @@ const AUTOMATION: Automation = {
   name: 'Welcome email',
   description: 'Send a welcome email on access grant',
   trigger: 'entitlement.created',
-  actions: [{ type: 'sendEmail', template: 'accessGranted' }],
+  actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
   enabled: true,
 };
 
@@ -269,7 +269,7 @@ describe('AutomationsService.runAction', () => {
     const mailer = fakeMailer();
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
     const result = await svc.runAction(
-      dispatch({ type: 'sendEmail', template: 'accessGranted' }, ENTITLEMENT_CREATED_EVENT),
+      dispatch({ type: 'sendEmail', input: { template: 'accessGranted' } }, ENTITLEMENT_CREATED_EVENT),
       0,
     );
     expect(result).toEqual({ index: 0, type: 'sendEmail', status: 'completed' });
@@ -283,7 +283,7 @@ describe('AutomationsService.runAction', () => {
     const mailer = fakeMailer();
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
     const result = await svc.runAction(
-      dispatch({ type: 'sendEmail', template: 'accessRevoked' }, ENTITLEMENT_DELETED_EVENT),
+      dispatch({ type: 'sendEmail', input: { template: 'accessRevoked' } }, ENTITLEMENT_DELETED_EVENT),
       0,
     );
     expect(result.status).toBe('completed');
@@ -296,7 +296,7 @@ describe('AutomationsService.runAction', () => {
     const mailer = fakeMailer({ send: vi.fn().mockRejectedValue(new Error('smtp down')) });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
     await expect(
-      svc.runAction(dispatch({ type: 'sendEmail', template: 'accessGranted' }, ENTITLEMENT_CREATED_EVENT), 0),
+      svc.runAction(dispatch({ type: 'sendEmail', input: { template: 'accessGranted' } }, ENTITLEMENT_CREATED_EVENT), 0),
     ).rejects.toThrow('smtp down');
   });
 
@@ -304,8 +304,26 @@ describe('AutomationsService.runAction', () => {
     const mailer = fakeMailer();
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
     await expect(
-      svc.runAction(dispatch({ type: 'sendEmail', template: 'courseCompleted' }, ENTITLEMENT_CREATED_EVENT), 0),
+      svc.runAction(dispatch({ type: 'sendEmail', input: { template: 'courseCompleted' } }, ENTITLEMENT_CREATED_EVENT), 0),
     ).rejects.toThrow(/courseCompleted/);
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it('throws an error naming an unknown template', async () => {
+    const mailer = fakeMailer();
+    const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
+    await expect(
+      svc.runAction(dispatch({ type: 'sendEmail', input: { template: 'nope' } }, ENTITLEMENT_CREATED_EVENT), 0),
+    ).rejects.toThrow(/nope/);
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it('throws for an unknown action type', async () => {
+    const mailer = fakeMailer();
+    const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
+    await expect(
+      svc.runAction(dispatch({ type: 'not-an-action', input: {} }, ENTITLEMENT_CREATED_EVENT), 0),
+    ).rejects.toThrow(/not-an-action/);
     expect(mailer.send).not.toHaveBeenCalled();
   });
 });
@@ -315,7 +333,7 @@ describe('AutomationsService.finalize', () => {
     runId: 'run_1',
     orgId: 'org-1',
     automationId: 'atm_1',
-    actions: [{ type: 'sendEmail', template: 'accessGranted' }],
+    actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
     event: ENTITLEMENT_CREATED_EVENT,
   };
 
@@ -363,7 +381,7 @@ describe('AutomationsService.finalize', () => {
     const runsRepo = fakeRunsRepo();
     const { svc } = build(fakeRepo(), runsRepo);
     await svc.finalize(
-      { ...dispatch, actions: [{ type: 'sendEmail', template: 'accessGranted' }, { type: 'sendEmail', template: 'accessGranted' }] },
+      { ...dispatch, actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }, { type: 'sendEmail', input: { template: 'accessGranted' } }] },
       [{ index: 0, type: 'sendEmail', status: 'completed' }],
     );
     expect(runsRepo.recordOutcome).toHaveBeenCalledWith(
@@ -380,7 +398,7 @@ describe('AutomationsService CRUD', () => {
     const input: CreateAutomationInput = {
       name: 'Welcome email',
       trigger: 'entitlement.created',
-      actions: [{ type: 'sendEmail', template: 'accessGranted' }],
+      actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
     };
     const created = await svc.create('org-1', input);
     expect(created).toEqual(AUTOMATION);
@@ -393,7 +411,7 @@ describe('AutomationsService CRUD', () => {
     const input: CreateAutomationInput = {
       name: 'Loop',
       trigger: 'automation.run.started',
-      actions: [{ type: 'sendEmail', template: 'accessGranted' }],
+      actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
     };
     await expect(svc.create('org-1', input)).rejects.toThrow(InvalidTriggerError);
     expect(repo.insert).not.toHaveBeenCalled();
@@ -494,11 +512,13 @@ describe('AutomationsService.availableActions', () => {
         type: 'sendEmail',
         description: expect.any(String),
         inputSchema: expect.objectContaining({ type: 'object', required: ['template'] }),
+        source: 'system',
       },
       {
         type: 'slack.send-message',
         description: 'Post a message to a channel.',
         inputSchema: { type: 'object', required: ['channel'] },
+        source: 'slack',
       },
     ]);
   });

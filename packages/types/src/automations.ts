@@ -1,11 +1,15 @@
 // automations context — domain entities, DTOs, and events.
 import type { DomainEvent } from "./shared.js";
-import type { EmailTemplateId } from "./email-templates.js";
 
 /** Any DomainEvent type. */
 export type AutomationTrigger = string;
 
-export type AutomationAction = { type: "sendEmail"; template: EmailTemplateId };
+/** One step of an automation: which action, and its input per that action's inputSchema. */
+export interface AutomationAction {
+  /** Unique action id; plugin actions are `<integrationId>.<actionId>`. */
+  type: string;
+  input: Record<string, unknown>;
+}
 
 export interface Automation {
   readonly id: string;
@@ -38,6 +42,8 @@ export interface AvailableAction {
   type: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Who defines it: 'system' or the integration id. */
+  source: string;
 }
 export type AvailableActions = AvailableAction[];
 
@@ -50,7 +56,7 @@ export type AutomationRunStatus = "running" | "completed" | "failed";
 
 export interface AutomationActionResult {
   index: number;
-  type: AutomationAction["type"];
+  type: string;
   status: "completed" | "failed";
   error?: string;
 }

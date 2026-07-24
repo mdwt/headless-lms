@@ -3255,37 +3255,22 @@
                       "actions": {
                         "type": "array",
                         "items": {
-                          "oneOf": [
-                            {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "input": {
                               "type": "object",
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "sendEmail"
-                                  ]
-                                },
-                                "template": {
-                                  "type": "string",
-                                  "enum": [
-                                    "magicLink",
-                                    "studentInvite",
-                                    "memberInvite",
-                                    "passwordReset",
-                                    "emailVerification",
-                                    "accessGranted",
-                                    "accessRevoked",
-                                    "courseCompleted"
-                                  ]
-                                }
-                              },
-                              "required": [
-                                "type",
-                                "template"
-                              ],
-                              "additionalProperties": false
+                              "additionalProperties": {}
                             }
-                          ]
+                          },
+                          "required": [
+                            "type",
+                            "input"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "enabled": {
@@ -3333,35 +3318,20 @@
                   "actions": {
                     "type": "array",
                     "items": {
-                      "oneOf": [
-                        {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "input": {
                           "type": "object",
-                          "properties": {
-                            "type": {
-                              "type": "string",
-                              "enum": [
-                                "sendEmail"
-                              ]
-                            },
-                            "template": {
-                              "type": "string",
-                              "enum": [
-                                "magicLink",
-                                "studentInvite",
-                                "memberInvite",
-                                "passwordReset",
-                                "emailVerification",
-                                "accessGranted",
-                                "accessRevoked",
-                                "courseCompleted"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "template"
-                          ]
+                          "additionalProperties": {}
                         }
+                      },
+                      "required": [
+                        "type",
+                        "input"
                       ]
                     }
                   }
@@ -3398,37 +3368,22 @@
                     "actions": {
                       "type": "array",
                       "items": {
-                        "oneOf": [
-                          {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "input": {
                             "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "sendEmail"
-                                ]
-                              },
-                              "template": {
-                                "type": "string",
-                                "enum": [
-                                  "magicLink",
-                                  "studentInvite",
-                                  "memberInvite",
-                                  "passwordReset",
-                                  "emailVerification",
-                                  "accessGranted",
-                                  "accessRevoked",
-                                  "courseCompleted"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "template"
-                            ],
-                            "additionalProperties": false
+                            "additionalProperties": {}
                           }
-                        ]
+                        },
+                        "required": [
+                          "type",
+                          "input"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "enabled": {
@@ -3476,12 +3431,16 @@
                       "inputSchema": {
                         "type": "object",
                         "additionalProperties": {}
+                      },
+                      "source": {
+                        "type": "string"
                       }
                     },
                     "required": [
                       "type",
                       "description",
-                      "inputSchema"
+                      "inputSchema",
+                      "source"
                     ],
                     "additionalProperties": false
                   }
@@ -3578,37 +3537,22 @@
                     "actions": {
                       "type": "array",
                       "items": {
-                        "oneOf": [
-                          {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "input": {
                             "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "sendEmail"
-                                ]
-                              },
-                              "template": {
-                                "type": "string",
-                                "enum": [
-                                  "magicLink",
-                                  "studentInvite",
-                                  "memberInvite",
-                                  "passwordReset",
-                                  "emailVerification",
-                                  "accessGranted",
-                                  "accessRevoked",
-                                  "courseCompleted"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "template"
-                            ],
-                            "additionalProperties": false
+                            "additionalProperties": {}
                           }
-                        ]
+                        },
+                        "required": [
+                          "type",
+                          "input"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "enabled": {
@@ -3677,35 +3621,20 @@
                   "actions": {
                     "type": "array",
                     "items": {
-                      "oneOf": [
-                        {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "input": {
                           "type": "object",
-                          "properties": {
-                            "type": {
-                              "type": "string",
-                              "enum": [
-                                "sendEmail"
-                              ]
-                            },
-                            "template": {
-                              "type": "string",
-                              "enum": [
-                                "magicLink",
-                                "studentInvite",
-                                "memberInvite",
-                                "passwordReset",
-                                "emailVerification",
-                                "accessGranted",
-                                "accessRevoked",
-                                "courseCompleted"
-                              ]
-                            }
-                          },
-                          "required": [
-                            "type",
-                            "template"
-                          ]
+                          "additionalProperties": {}
                         }
+                      },
+                      "required": [
+                        "type",
+                        "input"
                       ]
                     }
                   },
@@ -3750,37 +3679,22 @@
                     "actions": {
                       "type": "array",
                       "items": {
-                        "oneOf": [
-                          {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "input": {
                             "type": "object",
-                            "properties": {
-                              "type": {
-                                "type": "string",
-                                "enum": [
-                                  "sendEmail"
-                                ]
-                              },
-                              "template": {
-                                "type": "string",
-                                "enum": [
-                                  "magicLink",
-                                  "studentInvite",
-                                  "memberInvite",
-                                  "passwordReset",
-                                  "emailVerification",
-                                  "accessGranted",
-                                  "accessRevoked",
-                                  "courseCompleted"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "type",
-                              "template"
-                            ],
-                            "additionalProperties": false
+                            "additionalProperties": {}
                           }
-                        ]
+                        },
+                        "required": [
+                          "type",
+                          "input"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "enabled": {
@@ -3989,10 +3903,7 @@
                                   "maximum": 9007199254740991
                                 },
                                 "type": {
-                                  "type": "string",
-                                  "enum": [
-                                    "sendEmail"
-                                  ]
+                                  "type": "string"
                                 },
                                 "status": {
                                   "type": "string",
