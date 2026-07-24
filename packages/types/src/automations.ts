@@ -33,8 +33,7 @@ export interface AutomationRunsQuery {
   sort?: string | undefined;
 }
 
-/** The catalog `available()` serves: which actions an automation can use —
- *  built-in action types plus every loaded integration's own actions. */
+/** Which actions an automation can use: built-in types plus every loaded integration's own. */
 export interface AutomationsAvailable {
   actions: {
     type: AutomationAction["type"];
@@ -75,8 +74,7 @@ export interface AutomationRun {
 }
 
 // --- engine contract (deployment port) -----
-/** The definition handed off to be run (doc boundary 3). Serializable —
- *  action functions never cross this boundary. */
+/** Serializable — action functions never cross this boundary. */
 export interface AutomationDispatch {
   runId: string;
   orgId: string;
@@ -85,9 +83,7 @@ export interface AutomationDispatch {
   event: DomainEvent;
 }
 
-/** Domain-owned. The ENGINE orders the steps and retries failures; it calls
- *  runAction per step (throws on failure → engine retries per its policy;
- *  exhausted → sequence stops) and finalize exactly once at the end. */
+/** Domain-owned; the engine orders steps, retries failures, and calls finalize exactly once at the end. */
 export interface AutomationExecutor {
   runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult>;
   finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void>;
@@ -98,8 +94,7 @@ export interface AutomationEngine {
   register(executor: AutomationExecutor): void;
   /** Hand a run off. Inline: runs now. Hatchet: workflow run, no-wait. */
   dispatch(d: AutomationDispatch): Promise<void>;
-  /** Worker lifecycle — started by the installation entry point after listen
-   *  (like outboxRelay), stopped by buildServer onClose. */
+  /** Worker lifecycle — started by the installation entry point after listen, stopped by buildServer onClose. */
   start(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -143,10 +138,6 @@ export interface AutomationActionFailed extends DomainEvent {
   automationId: string;
   result: AutomationActionResult;
 }
-// Emit sites: created/updated/deleted ← CRUD writes; enabled/disabled ← an
-// update that flips enabled; run.started ← handle's run-insert uow;
-// run.completed|failed + action.failed ← finalize's uow.
-
 export type AutomationEvent =
   | AutomationCreated
   | AutomationUpdated

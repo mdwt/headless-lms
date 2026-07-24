@@ -1,7 +1,6 @@
-// automations context — ports. The engine contract (AutomationDispatch,
-// AutomationExecutor, AutomationEngine) is owned by @headless-lms/types so the
-// domain and every engine implementation (inline, Hatchet-backed, …) share one
-// definition; the context re-exports it as part of its public surface.
+// automations context — ports. AutomationDispatch/Executor/Engine are owned by
+// @headless-lms/types and re-exported here so every engine implementation
+// (inline, Hatchet-backed, …) shares one definition.
 import type { Automation, AutomationRun, Page } from './model.js';
 import type {
   AutomationsAvailable,
@@ -18,12 +17,9 @@ export type NewAutomationRun = Omit<AutomationRun, 'id'>;
 
 // Inbound port (use cases the service exposes).
 export interface AutomationsService {
-  /** Match `event` against enabled automations for its trigger and dispatch a
-   *  run per match. Never throws — a per-automation failure is logged and
-   *  recorded on the run, not propagated to the caller (the outbox relay). */
+  /** Matches `event` against enabled automations and dispatches a run per match; never throws. */
   handle(event: DomainEvent): Promise<void>;
-  /** Which actions an automation can use: built-in action types plus every
-   *  loaded integration's declared actions. */
+  /** Built-in action types plus every loaded integration's declared actions. */
   available(): Promise<AutomationsAvailable>;
   list(orgId: string): Promise<Automation[]>;
   get(orgId: string, id: string): Promise<Automation | null>;
@@ -45,17 +41,12 @@ export interface AutomationsRepository {
   delete(orgId: string, id: string): Promise<Automation | null>;
   findById(orgId: string, id: string): Promise<Automation | null>;
   listByOrg(orgId: string): Promise<Automation[]>;
-  /** Rows whose `trigger` matches, enabled and disabled alike — the service
-   *  filters to `enabled`. */
+  /** All rows matching `trigger`, enabled and disabled alike — the service filters to `enabled`. */
   listByTrigger(orgId: string, trigger: string): Promise<Automation[]>;
 }
 
 export interface AutomationRunsRepository {
-  /** Inserts a run keyed by (orgId, automationId, event.id) — the outbox
-   *  relay is at-least-once, so a redelivery of the same trigger event for
-   *  the same automation hits the unique constraint and this returns `null`
-   *  instead of a second row. `null` means: this event was already handled
-   *  for this automation — the caller should treat the delivery as a no-op. */
+  /** Keyed by (orgId, automationId, event.id); returns `null` if this event was already run for this automation (duplicate). */
   insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun | null>;
   recordOutcome(
     orgId: string,

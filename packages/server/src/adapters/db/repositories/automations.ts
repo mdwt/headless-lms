@@ -199,8 +199,7 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
         startedAt: new Date(run.startedAt),
         finishedAt: run.finishedAt ? new Date(run.finishedAt) : null,
       })
-      // Redelivery of the same trigger event for this automation — the unique
-      // (org, automation, event) index absorbs it; no row comes back.
+      // A redelivered trigger event hits the unique (org, automation, event) index; no row comes back.
       .onConflictDoNothing({
         target: [automationRuns.orgId, automationRuns.automationId, automationRuns.eventId],
       })

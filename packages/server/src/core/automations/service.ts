@@ -1,16 +1,10 @@
 // automations context — service implementation (inbound port) and the
 // AutomationExecutor the engine drives.
 //
-// `handle` is the outbox-relay entry point: it matches an incoming event
-// against enabled automations for its trigger, opens one run per match (run
-// insert + `automation.run.started` commit in one transaction), then hands
-// the run off to the injected AutomationEngine. It never throws — a
-// per-automation failure is logged and best-effort recorded on the run.
-//
-// The engine calls back into `runAction`/`finalize` (this class also
-// implements AutomationExecutor) to actually execute steps and close the run
-// out; the container wires `engine.register(service)` — this class never
-// self-registers.
+// `handle` is subscribed to all events on the EventBus: it matches an event
+// against enabled automations for its trigger, opens one run per match, and
+// hands it to the injected AutomationEngine, which calls back into
+// `runAction`/`finalize`.
 import { catalogActions } from './catalog.js';
 import { executeAction } from './actions.js';
 import { InvalidTriggerError } from './model.js';
@@ -35,8 +29,7 @@ import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import type { IntegrationsService } from '../integrations/index.js';
 
-/** True only when `input` sets `enabled` and nothing else — the trigger for
- *  emitting automation.enabled|disabled instead of automation.updated. */
+/** True only when `input` sets `enabled` and nothing else — emits automation.enabled|disabled instead of automation.updated. */
 function isEnabledOnlyUpdate(input: UpdateAutomationInput): input is { enabled: boolean } {
   if (input.enabled === undefined) {
     return false;
@@ -60,8 +53,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   ) {}
 
   async handle(event: DomainEvent): Promise<void> {
-    // The service itself emits automation.* events (run.started/completed/…) —
-    // matching one as a trigger would fire the next run in an infinite loop.
+    // automation.* events are this service's own output — matching one as a trigger would self-loop.
     if (event.type.startsWith('automation.')) {
       return;
     }
@@ -99,10 +91,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
           finishedAt: null,
         });
         if (!inserted) {
-          // Redelivery (at-least-once outbox) of a trigger event already run
-          // for this automation — the unique (org, automation, event) index
-          // absorbed the insert. Append nothing and dispatch nothing: this
-          // delivery is a no-op.
+          // At-least-once redelivery of a trigger event already run for this automation — no-op.
           return null;
         }
         await outbox.append([{ type: 'automation.run.started', orgId: event.orgId, run: inserted }]);
@@ -132,8 +121,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
   }
 
-  /** Best-effort: a failure here is logged, never rethrown — `handle` must
-   *  never throw. */
+  /** Best-effort: logs and never rethrows — `handle` must never throw. */
   private async recordFailure(run: AutomationRun, error: string): Promise<void> {
     try {
       await this.uow.run(async ({ runs, outbox }) => {
@@ -155,8 +143,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       });
     }
   }
-
-  // --- AutomationExecutor — driven by the engine, one step/finalize call at a time.
 
   async runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult> {
     const action = d.actions[index];
@@ -196,8 +182,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       await outbox.append([runEvent, ...actionFailedEvents]);
     });
   }
-
-  // --- CRUD -------------------------------------------------------------
 
   async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
     if (input.trigger.startsWith('automation.')) {

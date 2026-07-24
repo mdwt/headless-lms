@@ -6,9 +6,7 @@ import type { EmailTemplateId } from '@headless-lms/types';
 import { SEND_EMAIL_DERIVATIONS } from './actions.js';
 import type { AutomationsAvailable } from './types.js';
 
-/** Every EmailTemplateId, kept exhaustive by construction: a missing key here
- *  is a compile error, so a new template can't silently fall out of the
- *  action's config schema. */
+/** Every EmailTemplateId — a missing key here is a compile error, kept exhaustive by construction. */
 const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   magicLink: true,
   studentInvite: true,

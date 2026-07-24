@@ -1,14 +1,10 @@
 // automations context — action runners. `executeAction` maps one
 // AutomationAction against the DomainEvent that triggered its run.
 //
-// sendEmail derives its recipient + template params from the triggering
-// event: only entitlement.created|deleted carry a full Entitlement snapshot
-// today, so those are the only derivable (trigger, template) pairings. This
-// table is the single source of truth — catalog.ts builds its
-// `validTemplatesByTrigger` from it rather than duplicating the pairing list.
-// Anything else (including courseCompleted — no event carries its data yet)
-// has no entry here, so `executeAction` throws a clear, named error and the
-// engine records the action as failed.
+// SEND_EMAIL_DERIVATIONS is the single source of truth for which (trigger,
+// template) pairings are derivable; catalog.ts builds `validTemplatesByTrigger`
+// from it. A template with no entry (e.g. courseCompleted) makes `executeAction`
+// throw a named error, recorded by the engine as a failed action.
 import type { EmailTemplateId, EmailTemplateParams } from '@headless-lms/types';
 import type { Entitlement } from '../entitlements/index.js';
 import type { Mailer } from '../shared/mailer.js';
@@ -36,8 +32,6 @@ function hasEntitlement(event: DomainEvent): event is EntitlementEventLike {
   );
 }
 
-/** The single source of truth for which sendEmail templates are derivable,
- *  from which trigger, and how. */
 export const SEND_EMAIL_DERIVATIONS: SendEmailDerivations = {
   accessGranted: {
     trigger: 'entitlement.created',
@@ -65,8 +59,7 @@ export const SEND_EMAIL_DERIVATIONS: SendEmailDerivations = {
   },
 };
 
-/** Runs one automation action against the event that triggered it. Throws on
- *  any failure — the engine owns retry policy and failure bookkeeping. */
+/** Throws on any failure — the engine owns retry policy and failure bookkeeping. */
 export async function executeAction(
   action: AutomationAction,
   event: DomainEvent,

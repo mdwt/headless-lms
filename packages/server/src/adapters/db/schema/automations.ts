@@ -42,10 +42,7 @@ export const automationRuns = pgTable(
       .$defaultFn(() => genId('automationRun')),
     automationId: text('automation_id').notNull(),
     trigger: text('trigger').notNull(),
-    // The triggering event's id — the outbox relay is at-least-once, so a
-    // redelivered event must not open a second run. Not part of the domain
-    // `AutomationRun` type (DB-internal dedupe key only; the event snapshot
-    // below already carries it).
+    // At-least-once dedupe key for the triggering event; DB-internal, not part of the domain `AutomationRun` type.
     eventId: text('event_id').notNull(),
     event: jsonb('event').$type<DomainEvent>().notNull(),
     status: text('status', { enum: ['running', 'completed', 'failed'] }).notNull(),

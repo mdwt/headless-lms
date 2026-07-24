@@ -39,8 +39,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
   });
 
-  // Registered before `/api/automations/:id` — otherwise `:id` would swallow
-  // this path segment.
+  // Before `/api/automations/:id` — otherwise `:id` would swallow this path segment.
   r.route({
     method: 'GET',
     url: '/api/automations/available',
@@ -153,13 +152,9 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      // No existence pre-check: runs deliberately survive automation deletion
-      // (audit trail), so an unknown/deleted id just serves an empty page,
-      // not a 404.
+      // No existence pre-check: runs deliberately survive automation deletion (audit trail).
       const page = await automations.listRuns(scope.orgId, req.params.id, req.query);
-      // DomainEvent has no index signature (a closed, typed interface); the
-      // contract models the run's event snapshot loosely (z.record) since its
-      // shape varies per trigger — cast at the boundary.
+      // DomainEvent has no index signature; the contract models the event loosely (z.record) — cast at the boundary.
       return {
         ...page,
         rows: page.rows.map((run) => ({

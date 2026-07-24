@@ -10,10 +10,7 @@ export type {
   Page,
 } from '@headless-lms/types';
 
-/** A trigger in the `automation.*` namespace is rejected at authoring time —
- *  the service itself emits `automation.*` events, so wiring one up as a
- *  trigger would create a self-triggering loop (each run's own event fires
- *  the next run). */
+/** Rejected at authoring time: automation.* is reserved to avoid a self-triggering loop. */
 export class InvalidTriggerError extends Error {
   constructor(readonly trigger: string) {
     super(`trigger "${trigger}" is reserved: automations cannot trigger on automation.* events`);
