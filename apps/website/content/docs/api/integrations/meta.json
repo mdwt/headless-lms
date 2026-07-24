@@ -1,0 +1,13 @@
+{
+  "title": "Integrations",
+  "description": "Third-party integration connections",
+  "pages": [
+    "listAvailableIntegrations",
+    "listConnections",
+    "connectIntegration",
+    "getConnection",
+    "configureConnection",
+    "disconnectIntegration",
+    "reconnectIntegration"
+  ]
+}

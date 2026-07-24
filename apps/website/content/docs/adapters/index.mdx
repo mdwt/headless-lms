@@ -1,9 +1,15 @@
 ---
-title: Overview
-description: What adapters are, which slots exist, and how an installation injects them.
+title: Adapters
+description: Adapters are what makes headless-lms incredibly extendable.
 ---
 
-Adapters are vendor implementations of the deployment ports declared in `@headless-lms/types` — email delivery, email templates, object storage, and durable workflows. The server never constructs them and reads none of their environment. Your installation builds each adapter from its own config and injects it via `createContainer`:
+Adapters are implementations of the outbound ports declared in `@headless-lms/server/core`. These are the
+capabilities like email delivery, email templates, object storage, durable workflows etc.
+
+For example, system emails are sent using Resend. If you want to use a different email provider, then implement your
+own Email adapter and pass it in to the server.
+
+A running server wires these adapters together at startup:
 
 ```ts title="main.ts"
 import { createContainer, buildServer } from "@headless-lms/server";
@@ -22,7 +28,10 @@ const container = await createContainer(config, {
 });
 ```
 
-Every slot is optional. An absent slot falls back to a sensible default, so you can start with nothing configured and add adapters as you need them.
+Every slot is optional, with a sensible default, so you can start with nothing configured and add adapters as you need them.
+
+
+## Available adapters
 
 | Slot | Port | Default adapter | Absent → |
 | --- | --- | --- | --- |

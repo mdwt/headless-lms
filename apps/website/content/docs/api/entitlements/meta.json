@@ -1,0 +1,9 @@
+{
+  "title": "Entitlements",
+  "description": "Access grants to content",
+  "pages": [
+    "listEntitlements",
+    "grantEntitlement",
+    "setEntitlementStatus"
+  ]
+}

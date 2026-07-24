@@ -1,0 +1,13 @@
+{
+  "title": "Learn",
+  "description": "Student-facing course delivery",
+  "pages": [
+    "listLearnCourses",
+    "getLearnOrg",
+    "getLearnCourse",
+    "listLearnModules",
+    "requestLearnAssetDownload",
+    "reportProgress",
+    "getLearnCourseProgress"
+  ]
+}

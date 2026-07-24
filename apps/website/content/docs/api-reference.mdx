@@ -1,24 +1,11 @@
 ---
-title: API reference
-description: How the API, OpenAPI spec, and typed SDK relate, and where to find the interactive reference.
+title: API & SDK
+description: How the API, OpenAPI spec, and typed SDK relate.
 ---
 
 Every route validates its request and response against shared Zod schemas. Those schemas produce an OpenAPI spec, and the typed SDK is generated from that spec — so the API, docs, and client never drift.
 
-## Interactive reference
-
-A running API serves an interactive OpenAPI reference at `/docs`. Point it at your installation to explore and try every endpoint against live data.
-
-## Common endpoints
-
-| Method   | Path                     | Description          |
-| -------- | ------------------------ | -------------------- |
-| `POST`   | `/orgs/:orgId/courses`   | Create a course      |
-| `GET`    | `/orgs/:orgId/courses`   | List courses         |
-| `POST`   | `/entitlements`          | Grant student access |
-| `DELETE` | `/entitlements/:id`      | Revoke access        |
-| `GET`    | `/students/:id/progress` | Read progress        |
-| `POST`   | `/mcp`                   | MCP endpoint (OAuth) |
+Browse every endpoint in the [API reference](/docs/api), generated from the same spec. A running API also serves its own interactive reference at `/docs`.
 
 ## Using the SDK
 

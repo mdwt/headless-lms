@@ -11,6 +11,7 @@
     "---Adapters---",
     "...adapters",
     "---Plugins---",
-    "...plugins"
+    "...plugins",
+    "api"
   ]
 }

@@ -1,0 +1,17 @@
+{
+  "title": "API reference",
+  "root": true,
+  "pages": [
+    "index",
+    "organizations",
+    "courses",
+    "learn",
+    "students",
+    "entitlements",
+    "automations",
+    "dashboard",
+    "assets",
+    "connectedapps",
+    "integrations"
+  ]
+}

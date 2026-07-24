@@ -22,8 +22,8 @@ The core is split into eight self-contained contexts. Each exposes one public su
 
 | Context | Owns |
 | --- | --- |
-| **identity** | User identity and authentication; the user record other contexts reference |
-| **organizations** | The tenant root: organizations, memberships, invitations, roles |
+| **identity** | Everyone in the system: the staff **User** and the learner **Student**, two separate identity models other contexts reference by id |
+| **organizations** | The tenant root: the organization, its staff memberships and roles, and invitations |
 | **content** | Authored content — courses, modules, activities, drip rules |
 | **entitlements** | Access grants: who can access what, and why |
 | **progress** | Per-student completion and derived progress |
@@ -32,6 +32,10 @@ The core is split into eight self-contained contexts. Each exposes one public su
 | **automations** | Trigger/action workflows that react to domain events |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
+
+## Staff and learners
+
+Staff and learners are different populations, modelled separately. Staff hold an org **membership** carrying a role — `owner`, `admin`, or `instructor`, with instructors scoped to the courses assigned to them. Learners never hold memberships or roles: a learner is a **Student**, and what they can access is governed entirely by their entitlements.
 
 ## Reporting
 
@@ -43,7 +47,9 @@ Cross-context reads live in a dedicated reporting layer outside the core. It com
 
 ## Multi-tenancy
 
-Organizations are the tenant root: every org-scoped context keys its data to an organization, and students belong to exactly one org. Authentication is a single global account; the boundary a request comes through determines which organization it operates in.
+The organization is the tenant root: every org-scoped record belongs to exactly one organization. Users are global — the link between a user and an org is their membership — while a student belongs to exactly one org. Authentication is a single global account; the boundary a request comes through determines which organization it operates in.
+
+Better Auth is the **system of record** for accounts, organizations, and memberships. The core holds a read-only mirror and reacts to changes; every member write goes through Better Auth. Swapping it for another provider is a data migration, not an adapter swap.
 
 ## API surface
 
