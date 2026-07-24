@@ -1,5 +1,5 @@
 {
-  "id": "805db046-ae84-4617-b734-5d1edf3f6014",
+  "id": "c98c7420-3d74-44e5-bdb0-d4e2cbc68733",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1786,21 +1786,6 @@
             "id"
           ],
           "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "automation_runs_org_id_automation_id_automations_org_id_id_fk": {
-          "name": "automation_runs_org_id_automation_id_automations_org_id_id_fk",
-          "tableFrom": "automation_runs",
-          "tableTo": "automations",
-          "columnsFrom": [
-            "org_id",
-            "automation_id"
-          ],
-          "columnsTo": [
-            "org_id",
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

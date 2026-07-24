@@ -51,10 +51,5 @@ export const automationRuns = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     automationIdx: index('automation_runs_org_automation_idx').on(t.orgId, t.automationId),
-    // Runs die with their automation: deleting the definition cascades to history.
-    automationFk: foreignKey({
-      columns: [t.orgId, t.automationId],
-      foreignColumns: [automations.orgId, automations.id],
-    }).onDelete('cascade'),
   }),
 );
