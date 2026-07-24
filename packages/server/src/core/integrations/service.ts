@@ -9,7 +9,7 @@
 // Mutations run inside the context's UnitOfWork: credential writes, connection
 // writes, and the outbox append commit in ONE transaction (transactional
 // outbox; this also closed the historical orphan-credential window). The
-// outbox relay — not this service — publishes to EventBus subscribers.
+// outbox relay — not this service — publishes to the EventBus.
 import { genId } from '../shared/id.js';
 import { AlreadyConnectedError, InvalidConfigError, UnknownIntegrationError } from './model.js';
 import type { ConfigureInput, ConnectInput, Connection } from './model.js';

@@ -366,8 +366,8 @@ export async function buildContainer(
 
   const eventBus = new InMemoryEventBus();
   registerNotificationSubscribers(eventBus, mailer);
-  // handle() never throws — the outbox relay's dispatch fans out to every
-  // subscriber, and a rejection here would break sibling subscribers.
+  // handle() never throws — the EventBus fans out to every subscriber
+  // sequentially, and a rejection here would break sibling subscribers.
   eventBus.subscribeAll((event) => automations.handle(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(

@@ -2,8 +2,8 @@
 //
 // Mutations run inside the context's UnitOfWork: the domain write and the
 // outbox append commit in ONE transaction (transactional outbox). This
-// service never publishes — the outbox relay dispatches committed events to
-// EventBus subscribers at-least-once.
+// service never publishes — the outbox relay republishes committed events to
+// the EventBus at-least-once.
 import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from './model.js';
 import type {
   EntitlementsRepository,

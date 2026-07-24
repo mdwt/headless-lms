@@ -1,6 +1,7 @@
-// Email side-effects of domain events, subscribed on the EventBus. Handlers
-// run on the outbox relay's at-least-once dispatch: a mailer failure throws,
-// and the relay retries with backoff — no email is silently dropped.
+// Email side-effects of domain events, subscribed on the EventBus. Events
+// reach the bus via the outbox relay at-least-once: a mailer failure throws
+// through publish, and the relay retries with backoff — no email is silently
+// dropped.
 import type { EventBus } from '../core/shared/ports.js';
 import type { Mailer } from '../core/shared/mailer.js';
 import type { EntitlementCreated, EntitlementDeleted } from '../core/entitlements/index.js';

@@ -76,7 +76,7 @@ export interface OutboxMessage {
 export interface OutboxStore {
   /** Due, unexhausted, unprocessed messages in id order; claims them for this reader. */
   fetchBatch(limit: number): Promise<OutboxMessage[]>;
-  /** Dispatched to every subscriber — stamps processedAt. */
+  /** Published to the EventBus — stamps processedAt. */
   markProcessed(id: string): Promise<void>;
   /** Dispatch failed — increments attempts, records the error, schedules the retry. */
   markFailed(id: string, error: string, nextAttemptAt: Date): Promise<void>;
