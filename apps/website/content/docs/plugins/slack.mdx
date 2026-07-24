@@ -1,0 +1,26 @@
+---
+title: Slack
+description: Post domain events to a Slack channel with the Slack plugin.
+---
+
+`@headless-lms/plugin-slack` posts domain events — entitlement grants, updates, expiries — to a Slack channel, formatted per event type.
+
+## Actions
+
+| Action | What it does |
+| --- | --- |
+| `postToChannel` | Posts a domain event to a channel. `entitlement.*` events get rich Block Kit formatting; unknown types post generically. The channel falls back to the connection's `defaultChannel`. |
+| `listChannels` | Lists public channels (for channel pickers), paginated. |
+
+Formatted events: `entitlement.created`, `entitlement.updated`, `entitlement.deleted`, `entitlement.expired`. Course grants read "enrolled"; other content types read "granted access to".
+
+## Setup
+
+1. Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps).
+2. Under **OAuth & Permissions**, add the bot scopes `chat:write` (post) and `channels:read` (list).
+3. Install the app to your workspace and copy the Bot User OAuth Token (`xoxb-…`).
+4. Connect the integration with the secret `botToken` and config `defaultChannel`, and invite the bot to that channel.
+
+## Wiring
+
+The reference installation loads it through the plugin folder convention: `apps/api/src/plugins/slack/index.ts` re-exports this package's default export. In your own installation, add a `slack/` folder to your plugins directory that does the same.

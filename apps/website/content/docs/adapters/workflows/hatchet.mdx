@@ -1,0 +1,44 @@
+---
+title: Hatchet
+description: Run automations durably with the workflow-hatchet adapter.
+---
+
+`@headless-lms/adapter-workflow-hatchet` implements the `AutomationEngine` port with [Hatchet](https://hatchet.run), giving dispatched automations durable execution.
+
+Without it, the container falls back to the in-process `InlineAutomationEngine`: automations run immediately in the API process, with one attempt per action and no recovery if the process dies mid-run. That's fine for development; use Hatchet in production.
+
+## How it runs automations
+
+The adapter declares one workflow, `automation-run`: a durable parent task that iterates the dispatched actions, spawning one child task per action with up to 3 retries. Because children are spawned through Hatchet's durable event log, a crash mid-run resumes after the last completed action instead of restarting the sequence. A child that exhausts its retries stops the sequence, and the run is finalized with the results collected so far.
+
+## Setup
+
+1. Get a Hatchet tenant — [Hatchet Cloud](https://cloud.onhatchet.run) or [self-hosted](https://docs.hatchet.run/self-hosting).
+2. Create an API token for the tenant and set `HATCHET_CLIENT_TOKEN`.
+3. Inject the adapter.
+
+```ts title="main.ts"
+import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
+
+const container = await createContainer(config, {
+  adapters: {
+    workflows: process.env.HATCHET_CLIENT_TOKEN
+      ? new HatchetAutomationEngine()
+      : undefined, // falls back to the inline engine
+  },
+});
+```
+
+The Hatchet SDK reads its own environment — the adapter reads none of it. For tests or non-default setups, pass a pre-built client as the first constructor argument.
+
+## Environment variables
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `HATCHET_CLIENT_TOKEN` | yes | Hatchet API token for the target tenant. In the reference installation, unset → inline engine instead. |
+
+The SDK supports further `HATCHET_CLIENT_*` variables (host/port, TLS, namespace, …) — see the [Hatchet setup docs](https://docs.hatchet.run/home/setup).
+
+## Worker lifecycle
+
+The engine embeds a Hatchet worker in the API process. Your installation's entry point starts it after the server begins listening (`container.automationEngine.start()`); `buildServer` stops it on close. See `apps/api/src/main.ts` for the reference wiring.

@@ -1,0 +1,60 @@
+---
+title: Architecture
+description: A hexagonal core of bounded contexts, composed with adapters and plugins at build time.
+---
+
+Headless LMS provides the building blocks to compose an LMS from npm packages. The backend is a library — `@headless-lms/server` — that holds the domain core and web server. An _installation_ is a small project that composes the library with its own config, [adapters](/docs/adapters), and [plugins](/docs/plugins), then runs it. Everything is swappable, and everything ships with a sane default so it works out of the box.
+
+## Hexagonal core
+
+The core holds all business logic and depends on nothing outward — no framework, no database, no vendor SDKs. Everything external sits outside the core behind **ports**:
+
+- An **inbound port** is what a context _offers_: its use cases, like "list courses" or "grant access".
+- An **outbound port** is what a context _needs_: capabilities like "store a file" or "send an email".
+
+Adapters implement the outbound ports — Postgres for persistence, Better Auth for identity, S3-compatible storage for files, Resend for email, Hatchet for durable workflows. Because the core only knows the port interfaces, any adapter can be replaced without touching business logic.
+
+The inbound entry point is the HTTP layer. It calls into the core's services and owns no business logic of its own.
+
+## Bounded contexts
+
+The core is split into eight self-contained contexts. Each exposes one public surface, and contexts talk to each other only through those surfaces — never by reaching into another context's internals. A use case that spans contexts lives in the context whose responsibility it is; there is no orchestration tier above them.
+
+| Context | Owns |
+| --- | --- |
+| **identity** | User identity and authentication; the user record other contexts reference |
+| **organizations** | The tenant root: organizations, memberships, invitations, roles |
+| **content** | Authored content — courses, modules, activities, drip rules |
+| **entitlements** | Access grants: who can access what, and why |
+| **progress** | Per-student completion and derived progress |
+| **assets** | The org media library, served via presigned URLs |
+| **integrations** | Which third-party integrations an org has connected |
+| **automations** | Trigger/action workflows that react to domain events |
+
+Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
+
+## Reporting
+
+Cross-context reads live in a dedicated reporting layer outside the core. It composes each context's public service into views — the students list, the dashboard overview — and owns no data and no rules. It exists because a domain context depends on nothing outward, whereas reporting must read across many of them.
+
+## Plugins and automations
+
+[Plugins](/docs/plugins) extend an installation with third-party functionality — notifications, CRM integrations, analytics. A plugin defines **actions** the automation engine can invoke, so behavior like "send a Slack message when a student is granted access" is a configured automation, not custom code.
+
+## Multi-tenancy
+
+Organizations are the tenant root: every org-scoped context keys its data to an organization, and students belong to exactly one org. Authentication is a single global account; the boundary a request comes through determines which organization it operates in.
+
+## API surface
+
+The HTTP API is schema-first. Request and response shapes come from a shared Zod contract, which every route validates against — and the same contract produces the OpenAPI spec, from which the typed SDK is generated. The API, docs, and client can't drift apart. The admin dashboard and student portal are SDK consumers like any other frontend. An MCP endpoint exposes the platform to AI agents, authenticated via OAuth.
+
+## Dependency direction
+
+Dependencies point inward, always:
+
+- Entry points (HTTP, CLI) → application wiring → core
+- Adapters → core, via ports
+- The core points nowhere outward
+
+The application layer builds the object graph — instantiating adapters and wiring each context's service — and starts nothing; each entry point starts its own process.
