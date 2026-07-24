@@ -1,10 +1,10 @@
 // automations context — action runners. `executeAction` maps one
 // AutomationAction against the DomainEvent that triggered its run.
 //
-// SEND_EMAIL_DERIVATIONS is the single source of truth for which (trigger,
-// template) pairings are derivable; catalog.ts builds `validTemplatesByTrigger`
-// from it. A template with no entry (e.g. courseCompleted) makes `executeAction`
-// throw a named error, recorded by the engine as a failed action.
+// SEND_EMAIL_DERIVATIONS is the sendEmail runner's internal derivation table:
+// which (trigger, template) pairings are derivable. A template with no entry
+// (e.g. courseCompleted) makes `executeAction` throw a named error, recorded
+// by the engine as a failed action.
 import type { EmailTemplateId, EmailTemplateParams } from '@headless-lms/types';
 import type { Entitlement } from '../entitlements/index.js';
 import type { Mailer } from '../shared/mailer.js';

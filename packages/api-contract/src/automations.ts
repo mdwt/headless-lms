@@ -54,32 +54,14 @@ export type UpdateAutomationBody = z.infer<typeof UpdateAutomationBody>;
 export const AutomationIdParam = z.object({ id: z.string() });
 export type AutomationIdParam = z.infer<typeof AutomationIdParam>;
 
-/** Which actions an automation can use: built-in action types plus every
- *  loaded integration's own actions. */
-export const AvailableActions = z.object({
-  actions: z.array(
-    z.object({
-      type: z.literal("sendEmail"),
-      description: z.string(),
-      config: z.record(z.string(), z.unknown()),
-      validTemplatesByTrigger: z.record(z.string(), z.array(EmailTemplateId)),
-    }),
-  ),
-  integrations: z.array(
-    z.object({
-      id: z.string(),
-      actions: z.array(
-        z.object({
-          id: z.string(),
-          description: z.string(),
-          inputSchema: z.record(z.string(), z.unknown()),
-          outputSchema: z.record(z.string(), z.unknown()),
-        }),
-      ),
-    }),
-  ),
+/** An action an automation can use: a built-in type (`sendEmail`) or a loaded
+ *  integration's own (`<integrationId>.<actionId>`). */
+export const AvailableAction = z.object({
+  type: z.string(),
+  description: z.string(),
+  inputSchema: z.record(z.string(), z.unknown()),
 });
-export type AvailableActions = z.infer<typeof AvailableActions>;
+export type AvailableAction = z.infer<typeof AvailableAction>;
 
 /** Which domain events an automation can react to. */
 export const AvailableTriggers = z.object({

@@ -1152,40 +1152,13 @@ export type ListAutomationActionsResponses = {
   /**
    * Default Response
    */
-  200: {
-    actions: Array<{
-      type: "sendEmail";
-      description: string;
-      config: {
-        [key: string]: unknown;
-      };
-      validTemplatesByTrigger: {
-        [key: string]: Array<
-          | "magicLink"
-          | "studentInvite"
-          | "memberInvite"
-          | "passwordReset"
-          | "emailVerification"
-          | "accessGranted"
-          | "accessRevoked"
-          | "courseCompleted"
-        >;
-      };
-    }>;
-    integrations: Array<{
-      id: string;
-      actions: Array<{
-        id: string;
-        description: string;
-        inputSchema: {
-          [key: string]: unknown;
-        };
-        outputSchema: {
-          [key: string]: unknown;
-        };
-      }>;
-    }>;
-  };
+  200: Array<{
+    type: string;
+    description: string;
+    inputSchema: {
+      [key: string]: unknown;
+    };
+  }>;
 };
 
 export type ListAutomationActionsResponse =

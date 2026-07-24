@@ -257,13 +257,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   availableActions(): AvailableActions {
-    return {
-      actions: catalogActions(),
-      integrations: this.integrations.available().map((integration) => ({
-        id: integration.id,
-        actions: integration.actions,
-      })),
-    };
+    return [
+      ...catalogActions(),
+      ...this.integrations.available().flatMap((integration) =>
+        integration.actions.map((action) => ({
+          type: `${integration.id}.${action.id}`,
+          description: action.description,
+          inputSchema: action.inputSchema,
+        })),
+      ),
+    ];
   }
 
   availableTriggers(): AvailableTriggers {

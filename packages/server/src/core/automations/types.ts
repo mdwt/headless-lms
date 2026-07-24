@@ -3,6 +3,7 @@ export type {
   CreateAutomationInput,
   UpdateAutomationInput,
   AutomationRunsQuery,
+  AvailableAction,
   AvailableActions,
   AvailableTriggers,
 } from '@headless-lms/types';

@@ -33,24 +33,13 @@ export interface AutomationRunsQuery {
   sort?: string | undefined;
 }
 
-/** Which actions an automation can use: built-in types plus every loaded integration's own. */
-export interface AvailableActions {
-  actions: {
-    type: AutomationAction["type"];
-    description: string;
-    config: Record<string, unknown>;
-    validTemplatesByTrigger: Record<string, EmailTemplateId[]>;
-  }[];
-  integrations: {
-    id: string;
-    actions: {
-      id: string;
-      description: string;
-      inputSchema: Record<string, unknown>;
-      outputSchema: Record<string, unknown>;
-    }[];
-  }[];
+/** An action an automation can use: a built-in type or `<integrationId>.<actionId>`. */
+export interface AvailableAction {
+  type: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
 }
+export type AvailableActions = AvailableAction[];
 
 /** Which domain events an automation can react to. */
 export interface AvailableTriggers {

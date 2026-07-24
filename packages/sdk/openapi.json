@@ -3463,106 +3463,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "actions": {
-                      "type": "array",
-                      "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "inputSchema": {
                         "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": [
-                              "sendEmail"
-                            ]
-                          },
-                          "description": {
-                            "type": "string"
-                          },
-                          "config": {
-                            "type": "object",
-                            "additionalProperties": {}
-                          },
-                          "validTemplatesByTrigger": {
-                            "type": "object",
-                            "additionalProperties": {
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "enum": [
-                                  "magicLink",
-                                  "studentInvite",
-                                  "memberInvite",
-                                  "passwordReset",
-                                  "emailVerification",
-                                  "accessGranted",
-                                  "accessRevoked",
-                                  "courseCompleted"
-                                ]
-                              }
-                            }
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "description",
-                          "config",
-                          "validTemplatesByTrigger"
-                        ],
-                        "additionalProperties": false
+                        "additionalProperties": {}
                       }
                     },
-                    "integrations": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "actions": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "string"
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "inputSchema": {
-                                  "type": "object",
-                                  "additionalProperties": {}
-                                },
-                                "outputSchema": {
-                                  "type": "object",
-                                  "additionalProperties": {}
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "description",
-                                "inputSchema",
-                                "outputSchema"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "actions"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "actions",
-                    "integrations"
-                  ],
-                  "additionalProperties": false
+                    "required": [
+                      "type",
+                      "description",
+                      "inputSchema"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               }
             }

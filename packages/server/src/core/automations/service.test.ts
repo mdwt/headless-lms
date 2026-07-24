@@ -469,7 +469,7 @@ describe('AutomationsService CRUD', () => {
 });
 
 describe('AutomationsService.availableActions', () => {
-  it("composes the catalog with every loaded integration's actions", () => {
+  it("returns a flat list: built-ins first, then each loaded integration's actions namespaced by id", () => {
     const integrations = fakeIntegrations({
       available: vi.fn().mockReturnValue([
         {
@@ -478,9 +478,9 @@ describe('AutomationsService.availableActions', () => {
           secretsSchema: { type: 'object' },
           actions: [
             {
-              id: 'postMessageToChannel',
+              id: 'send-message',
               description: 'Post a message to a channel.',
-              inputSchema: { type: 'object' },
+              inputSchema: { type: 'object', required: ['channel'] },
               outputSchema: { type: 'object' },
             },
           ],
@@ -489,30 +489,23 @@ describe('AutomationsService.availableActions', () => {
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), fakeMailer(), integrations);
 
-    const available = svc.availableActions();
-
-    expect(available.actions).toEqual([
-      expect.objectContaining({
-        type: 'sendEmail',
-        validTemplatesByTrigger: {
-          'entitlement.created': ['accessGranted'],
-          'entitlement.deleted': ['accessRevoked'],
-        },
-      }),
-    ]);
-    expect(available.integrations).toEqual([
+    expect(svc.availableActions()).toEqual([
       {
-        id: 'slack',
-        actions: [
-          {
-            id: 'postMessageToChannel',
-            description: 'Post a message to a channel.',
-            inputSchema: { type: 'object' },
-            outputSchema: { type: 'object' },
-          },
-        ],
+        type: 'sendEmail',
+        description: expect.any(String),
+        inputSchema: expect.objectContaining({ type: 'object', required: ['template'] }),
+      },
+      {
+        type: 'slack.send-message',
+        description: 'Post a message to a channel.',
+        inputSchema: { type: 'object', required: ['channel'] },
       },
     ]);
+  });
+
+  it('returns only the built-ins when no integrations are loaded', () => {
+    const { svc } = build();
+    expect(svc.availableActions().map((a) => a.type)).toEqual(['sendEmail']);
   });
 });
 

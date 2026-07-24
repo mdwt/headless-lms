@@ -9,7 +9,7 @@ import {
   AutomationIdParam,
   AutomationRunsPage,
   AutomationRunsQuery,
-  AvailableActions,
+  AvailableAction,
   AvailableTriggers,
   CreateAutomationBody,
   ErrorBody,
@@ -49,7 +49,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       operationId: 'listAutomationActions',
       tags,
       summary: 'List the actions automations can use',
-      response: { 200: AvailableActions },
+      response: { 200: z.array(AvailableAction) },
     },
     handler: async (req) => {
       await resolveScope(container, req);

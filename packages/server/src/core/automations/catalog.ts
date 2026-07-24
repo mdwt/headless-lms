@@ -1,10 +1,7 @@
 // automations context — the code-owned catalogs `availableActions()` and
 // `availableTriggers()` serve: built-in action definitions and the domain
-// event types automations may react to. Valid trigger→template pairings are
-// derived from actions.ts's derivation table (one source of truth, nothing
-// duplicated here).
+// event types automations may react to.
 import type { EmailTemplateId } from '@headless-lms/types';
-import { SEND_EMAIL_DERIVATIONS } from './actions.js';
 import type { AvailableActions, AvailableTriggers } from './types.js';
 
 /** Every EmailTemplateId — a missing key here is a compile error, kept exhaustive by construction. */
@@ -19,29 +16,18 @@ const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   courseCompleted: true,
 };
 
-export function catalogActions(): AvailableActions['actions'] {
-  const validTemplatesByTrigger: Record<string, EmailTemplateId[]> = {};
-  for (const [template, derivation] of Object.entries(SEND_EMAIL_DERIVATIONS) as [
-    EmailTemplateId,
-    (typeof SEND_EMAIL_DERIVATIONS)[EmailTemplateId],
-  ][]) {
-    if (!derivation) {
-      continue;
-    }
-    (validTemplatesByTrigger[derivation.trigger] ??= []).push(template);
-  }
+export function catalogActions(): AvailableActions {
   return [
     {
       type: 'sendEmail',
       description: 'Send a transactional email using a built-in template.',
-      config: {
+      inputSchema: {
         type: 'object',
         required: ['template'],
         properties: {
           template: { enum: Object.keys(ALL_EMAIL_TEMPLATE_IDS) },
         },
       },
-      validTemplatesByTrigger,
     },
   ];
 }
