@@ -96,6 +96,27 @@ describe("createVideoTracker", () => {
     expect(tracker.flush()).toHaveLength(0);
   });
 
+  it("watched accumulates continuous playback only — seeks add nothing", () => {
+    const { tracker, ev, tick } = harness();
+    ev("play", 0);
+    ev("timeupdate", 1);
+    ev("timeupdate", 2);   // watched 2
+    tick(5000);
+    ev("seeked", 80);      // jump — adds nothing
+    ev("timeupdate", 81);  // watched 3
+    expect(tracker.flush()[0]).toMatchObject({ watched: 3, furthest: 81, seconds: 81 });
+  });
+
+  it("seeds watched across sessions", () => {
+    const { sent, ev } = harness({
+      initial: () => ({ seconds: 10, watched: 30, furthest: 40, duration: 90 }),
+    });
+    ev("play", 10);
+    ev("timeupdate", 11);
+    ev("pause", 11);
+    expect(sent.at(-1)![0]).toMatchObject({ watched: 31, furthest: 40 });
+  });
+
   it("seeds furthest and duration from prior state so a revisit never rewinds them", () => {
     const { sent, ev } = harness({
       initial: () => ({ seconds: 32.4, furthest: 70, duration: 90 }),
@@ -123,6 +144,7 @@ describe("recordSessionItems", () => {
       asset: "vid_1",
       seconds,
       furthest: seconds,
+      watched: seconds,
       duration: 90,
     });
     recordSessionItems(map, "act_1", [item(10)]);

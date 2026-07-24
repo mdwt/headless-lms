@@ -6,8 +6,12 @@ import type { ReportProgressData } from "@headless-lms/sdk";
 export interface VideoReportItem {
   asset: string;
   seconds: number;
-  /** Monotonic high-water mark of continuously watched position. */
+  /** Monotonic high-water mark of continuously watched position. Position-based:
+   *  seeking ahead and watching from there raises it — lenient by nature. */
   furthest: number;
+  /** Cumulative seconds of continuous playback, across sessions. The
+   *  seek-proof basis for a future watch-percent rule. */
+  watched: number;
   duration: number | null;
   [key: string]: unknown;
 }
@@ -18,6 +22,7 @@ export interface VideoReportItem {
 export interface VideoAssetSeed {
   seconds?: unknown;
   furthest?: unknown;
+  watched?: unknown;
   duration?: unknown;
 }
 
@@ -35,6 +40,7 @@ const SEEK_MIN_INTERVAL_MS = 1_000;
 
 interface AssetState {
   furthest: number;
+  watched: number;
   lastTick: number;
   duration: number | null;
   lastSent: string | null;
@@ -62,6 +68,7 @@ export function createVideoTracker(opts: {
       const seconds = typeof seed?.seconds === "number" ? seed.seconds : 0;
       s = {
         furthest: typeof seed?.furthest === "number" ? seed.furthest : 0,
+        watched: typeof seed?.watched === "number" ? seed.watched : 0,
         lastTick: seconds,
         duration: typeof seed?.duration === "number" ? seed.duration : null,
         lastSent: null,
@@ -77,6 +84,7 @@ export function createVideoTracker(opts: {
     asset: id,
     seconds: Math.round(seconds * 10) / 10,
     furthest: Math.round(s.furthest * 10) / 10,
+    watched: Math.round(s.watched * 10) / 10,
     duration: s.duration,
   });
 
@@ -106,6 +114,7 @@ export function createVideoTracker(opts: {
           const delta = event.seconds - s.lastTick;
           if (delta > 0 && delta <= CONTINUOUS_S) {
             s.furthest = Math.max(s.furthest, event.seconds);
+            s.watched += delta;
           }
           s.lastTick = event.seconds;
           s.pending = item(event.assetId, s, event.seconds);
