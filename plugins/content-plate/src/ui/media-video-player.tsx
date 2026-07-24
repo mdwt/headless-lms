@@ -49,7 +49,7 @@ export function MediaVideoPlayer({ assetId, url }: { assetId?: string; url: stri
           (!resumedRef.current && assetId ? (startPosition?.(assetId) ?? null) : null);
         resumedRef.current = true;
         resumeAtRef.current = null;
-        if (target && playerRef.current) playerRef.current.currentTime = target;
+        if (target != null && target > 0 && playerRef.current) playerRef.current.currentTime = target;
       }}
       onPlay={() => emit('play', playerRef.current?.currentTime ?? 0)}
       onPause={() => emit('pause', playerRef.current?.currentTime ?? 0)}
@@ -59,10 +59,13 @@ export function MediaVideoPlayer({ assetId, url }: { assetId?: string; url: stri
       onError={() => {
         if (retriedRef.current || !assetId || !refreshUrl) return;
         retriedRef.current = true;
-        resumeAtRef.current = playerRef.current?.currentTime ?? null;
-        void refreshUrl(assetId).then((fresh) => {
-          if (fresh) setSrc(fresh);
-        });
+        const t = playerRef.current?.currentTime;
+        resumeAtRef.current = t && t > 0 ? t : null;
+        void refreshUrl(assetId)
+          .then((fresh) => {
+            if (fresh) setSrc(fresh);
+          })
+          .catch(() => {});
       }}
     >
       <VidstackMediaProvider />
