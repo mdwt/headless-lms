@@ -22,11 +22,3 @@ export interface ConfigureSdkOptions {
 export function configureSdk({ baseUrl, credentials = "include" }: ConfigureSdkOptions): void {
   client.setConfig({ baseUrl, credentials });
 }
-
-export { progressReporter } from "./progress";
-export type {
-  ProgressReporter,
-  ProgressReportItem,
-  ProgressStatusValue,
-  ProgressTargetRef,
-} from "./progress";

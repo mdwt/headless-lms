@@ -19,7 +19,7 @@ import {
 import { useApp, useCompletion } from "@/lib/store";
 import type { Completion, Course } from "@/lib/types";
 import { ensureClientSdk } from "@/lib/api/client-sdk";
-import { progressReporter } from "@headless-lms/sdk";
+import { progressReporter } from "@/lib/progress-reporter";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";

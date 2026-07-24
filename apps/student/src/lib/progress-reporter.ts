@@ -1,7 +1,7 @@
-// Ergonomic usage reporting over the generated Learn client. Frontends report
-// facts; the server decides completion — completed() resolves with the server's
+// Ergonomic usage reporting over the generated SDK. The app reports facts;
+// the server decides completion — completed() resolves with the server's
 // answer, opened()/report() never throw.
-import { Learn } from "./generated";
+import { Learn } from "@headless-lms/sdk";
 
 export type ProgressTargetRef = { activity: string };
 
