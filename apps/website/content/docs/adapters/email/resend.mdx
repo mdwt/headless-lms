@@ -1,0 +1,40 @@
+---
+title: Resend
+description: Send transactional email through Resend with the email-resend adapter.
+---
+
+`@headless-lms/adapter-email-resend` implements the `EmailSender` port with [Resend](https://resend.com). The server hands it fully rendered emails (subject, HTML, plain text) — rendering is the [templates adapter's](/docs/adapters/email/react-email) job.
+
+## Setup
+
+1. Create a [Resend](https://resend.com) account and an API key.
+2. Verify your sending domain in Resend so you can send from your own address.
+3. Set the environment variables and inject the adapter.
+
+```ts title="main.ts"
+import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
+
+const container = await createContainer(config, {
+  adapters: {
+    email: new ResendEmailAdapter({
+      apiKey: process.env.RESEND_API_KEY!,
+      from: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
+    }),
+  },
+});
+```
+
+The adapter reads no environment itself — your installation parses env into a `ResendEmailConfig` and constructs it. In the reference installation, an unset `RESEND_API_KEY` means no adapter is injected and email sends fail loudly instead of silently dropping.
+
+## Environment variables
+
+These are the variables the reference installation (`apps/api`) maps to the adapter's config:
+
+| Variable | Required | Maps to | Notes |
+| --- | --- | --- | --- |
+| `RESEND_API_KEY` | yes | `apiKey` | Unset → no adapter injected; sends fail loudly. |
+| `EMAIL_FROM` | no | `from` | e.g. `Acme LMS <noreply@acme.com>`, on a verified Resend domain. Defaults to `onboarding@resend.dev`. |
+
+## Using a different provider
+
+Implement the `EmailSender` port from `@headless-lms/types` — a single `send(message)` method — and pass your implementation in the `email` slot instead.

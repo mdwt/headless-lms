@@ -11,6 +11,7 @@ export const siteConfig = {
 
 export const primaryNav = [
   { title: 'Docs', href: '/docs' },
+  { title: 'API', href: '/docs/api' },
   { title: 'Blog', href: '/blog' },
   { title: 'Changelog', href: '/changelog' },
 ]

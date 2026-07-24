@@ -1,0 +1,14 @@
+{
+  "title": "Organizations",
+  "description": "Organizations and member management",
+  "pages": [
+    "activateInvite",
+    "createOrganization",
+    "updateOrganization",
+    "listMembers",
+    "updateMemberRole",
+    "removeMember",
+    "createInvite",
+    "acceptInvite"
+  ]
+}

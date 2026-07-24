@@ -1,0 +1,14 @@
+{
+  "title": "Automations",
+  "description": "Trigger/action workflows",
+  "pages": [
+    "listAutomations",
+    "createAutomation",
+    "listAutomationActions",
+    "listAutomationTriggers",
+    "getAutomation",
+    "updateAutomation",
+    "deleteAutomation",
+    "listAutomationRuns"
+  ]
+}

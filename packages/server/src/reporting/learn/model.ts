@@ -18,4 +18,6 @@ export interface CourseProgressView {
   percent: number;
   /** The course target's own record says so. */
   completed: boolean;
+  /** Per-activity reported state (the record's position map); absent key = none reported. */
+  positions: Record<string, unknown>;
 }

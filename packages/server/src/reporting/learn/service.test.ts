@@ -163,6 +163,7 @@ describe('LearnReportServiceImpl.courseProgress', () => {
       activities: { a1: 'completed', a2: 'in-progress' },
       percent: 50,
       completed: false,
+      positions: {},
     });
   });
 
@@ -178,5 +179,24 @@ describe('LearnReportServiceImpl.courseProgress', () => {
     );
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     expect(view).toMatchObject({ percent: 100, completed: true });
+  });
+
+  it('includes stored positions keyed by activity, omitting recordless activities', async () => {
+    const svc = new LearnReportServiceImpl(
+      fakeReader([{ orgId: 'o1', courseId: 'c1' }]),
+      fakeContent({ c1: course('c1') }, { c1: progressModules }),
+      fakeProgress([
+        progressRecord({
+          targetType: 'activity',
+          targetId: 'a1',
+          position: { vid_1: { seconds: 612, furthest: 700, duration: 1475 } },
+        }),
+        progressRecord({ targetType: 'activity', targetId: 'a2' }),
+      ]),
+    );
+    const view = await svc.courseProgress('o1', 'stu_1', 'c1');
+    expect(view?.positions).toEqual({
+      a1: { vid_1: { seconds: 612, furthest: 700, duration: 1475 } },
+    });
   });
 });

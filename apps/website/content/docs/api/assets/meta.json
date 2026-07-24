@@ -1,0 +1,12 @@
+{
+  "title": "Assets",
+  "description": "Media library and uploads",
+  "pages": [
+    "requestUpload",
+    "confirmAsset",
+    "listAssets",
+    "getAsset",
+    "deleteAsset",
+    "requestAssetDownload"
+  ]
+}

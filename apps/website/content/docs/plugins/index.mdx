@@ -1,0 +1,25 @@
+---
+title: Overview
+description: How plugins extend an installation, and which ones ship with the platform.
+---
+
+Plugins are third-party integrations loaded by your installation. Each one is a folder in the installation's plugins directory — the **directory name is the integration id** — default-exporting a module that satisfies the `Integration` contract from `@headless-lms/types`. Composition scans that directory at startup, so adding an integration is adding a folder; there is nothing else to register.
+
+```ts title="main.ts"
+const container = await createContainer(config, {
+  pluginsDir: fileURLToPath(new URL("./plugins/", import.meta.url)),
+});
+```
+
+A plugin folder can be a thin re-export of a published package — the reference installation's `plugins/slack/index.ts` just re-exports `@headless-lms/plugin-slack`.
+
+## Available plugins
+
+| Plugin | Package | What it does |
+| --- | --- | --- |
+| [Slack](/docs/plugins/slack) | `@headless-lms/plugin-slack` | Posts domain events (e.g. entitlements) to a Slack channel |
+| [Plate editor](/docs/plugins/content-plate) | `@headless-lms/content-plate` | Notion-style activity content editor for the admin app |
+
+## Writing your own
+
+Implement the `Integration` contract from `@headless-lms/types` (the zod helpers in `@headless-lms/utils` cover input validation), drop the folder into your installation's plugins directory, and restart. Integration packages depend only on `@headless-lms/types` and `@headless-lms/utils` — never on the server.

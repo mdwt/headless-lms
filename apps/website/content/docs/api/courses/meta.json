@@ -1,0 +1,20 @@
+{
+  "title": "Courses",
+  "description": "Course authoring: courses, modules, activities",
+  "pages": [
+    "listCourses",
+    "createCourse",
+    "getCourse",
+    "updateCourse",
+    "deleteCourse",
+    "listModules",
+    "createModule",
+    "reorderModules",
+    "updateModule",
+    "deleteModule",
+    "reorderActivities",
+    "createActivity",
+    "updateActivity",
+    "deleteActivity"
+  ]
+}

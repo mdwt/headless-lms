@@ -1,0 +1,16 @@
+---
+title: Plate editor
+description: Notion-style activity content editing with the content-plate plugin.
+---
+
+`@headless-lms/content-plate` is the [Plate](https://platejs.org)-based implementation of the swappable activity content editor. It default-exports an `EditorModule` satisfying `@headless-lms/editor-contract`; the content blob is the Plate node array, stored opaquely by the backend — the server never interprets it.
+
+## What's included
+
+- **Text blocks** — paragraphs, headings, blockquote, code blocks with syntax highlighting, bulleted/numbered/to-do lists, toggle, callout, columns, tables, dates, emoji, links, font and background color.
+- **Media** — image, video, audio, file and URL embeds, with captions, resize, preview, and upload placeholders (uploads go through the [storage adapter](/docs/adapters/storage/minio)'s presigned URLs).
+- **Notion-style UX** — `/` slash command menu, drag handles and drop targets, multi-block selection, right-click block context menu (turn into, color, align, duplicate, delete), floating formatting toolbar, and autoformat shortcuts (`#`, `>`, ` ``` `, `-`, …).
+
+## Swapping the editor
+
+The editor is behind `@headless-lms/editor-contract`: an `EditorModule` bundles the client-side `Editor`, an RSC-safe `Renderer`, a `validate` function, and `meta: { type, version }` identifying the content format. Implement the contract and register your module in the frontend to replace Plate entirely — existing content keeps working as long as your module declares the format it can render.

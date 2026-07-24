@@ -24,6 +24,7 @@ services:
       - "8005:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d headless_lms"]
       interval: 5s
@@ -48,6 +49,37 @@ services:
     volumes:
       - minio-data:/data
 
+  # Hatchet Lite — durable execution for the automations engine.
+  #   Dashboard: http://localhost:8009  (login admin@example.com / Admin123!!)
+  #   gRPC:      localhost:8008  (workers connect here via HATCHET_CLIENT_TOKEN)
+  # Uses the postgres service above with its own `hatchet` database (created by
+  # docker/initdb on fresh volumes). Generate the API token for .env with:
+  #   docker exec headless-lms-hatchet /hatchet-admin token create --config /config \
+  #     --tenant-id 707d0855-80ab-4e1f-a156-f1c4546cbf52
+  hatchet:
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:latest
+    container_name: headless-lms-hatchet
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/hatchet?sslmode=disable"
+      SERVER_AUTH_COOKIE_DOMAIN: localhost
+      SERVER_AUTH_COOKIE_INSECURE: "t"
+      SERVER_GRPC_BIND_ADDRESS: "0.0.0.0"
+      SERVER_GRPC_INSECURE: "t"
+      SERVER_GRPC_BROADCAST_ADDRESS: localhost:8008
+      SERVER_GRPC_PORT: "7077"
+      SERVER_URL: http://localhost:8009
+      SERVER_AUTH_SET_EMAIL_VERIFIED: "t"
+    ports:
+      - "8008:7077"
+      - "8009:8888"
+    volumes:
+      - hatchet-config:/config
+
 volumes:
   postgres-data:
   minio-data:
+  hatchet-config:

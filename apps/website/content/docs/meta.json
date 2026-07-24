@@ -5,7 +5,13 @@
     "index",
     "self-hosting",
     "---Concepts---",
+    "architecture",
     "project-structure",
-    "api-reference"
+    "api-reference",
+    "---Adapters---",
+    "...adapters",
+    "---Plugins---",
+    "...plugins",
+    "api"
   ]
 }

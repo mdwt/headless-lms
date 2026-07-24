@@ -1,0 +1,42 @@
+---
+title: MinIO
+description: Store course assets in MinIO or any S3-compatible store with the storage-minio adapter.
+---
+
+`@headless-lms/adapter-storage-minio` implements the `ObjectStorage` port with [MinIO](https://min.io) — and works against any S3-compatible store. Buckets are private; all access goes through short-lived presigned URLs, so the browser uploads and downloads directly against the store without files passing through the API.
+
+## Setup
+
+Point the adapter at your store and inject it. The bucket is created (private) if it doesn't exist.
+
+```ts title="main.ts"
+import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
+
+const container = await createContainer(config, {
+  adapters: { storage: new MinioStorageAdapter(storageConfig) },
+});
+```
+
+The adapter reads no environment itself — your installation parses env into a `MinioStorageConfig` and constructs it.
+
+For local development, the repo's docker compose file brings up MinIO on `:8006` (API) and `:8007` (console) alongside Postgres — see [self-hosting](/docs/self-hosting). The reference installation's defaults match that setup, so no storage env is needed locally.
+
+## Environment variables
+
+These are the variables the reference installation (`apps/api`) maps to the adapter's config:
+
+| Variable | Required | Maps to | Notes |
+| --- | --- | --- | --- |
+| `STORAGE_ENDPOINT` | yes | `endPoint` | Host only, no scheme. |
+| `STORAGE_PORT` | yes | `port` | |
+| `STORAGE_USE_SSL` | yes | `useSSL` | `"true"` / `"false"`. |
+| `STORAGE_ACCESS_KEY` | yes | `accessKey` | |
+| `STORAGE_SECRET_KEY` | yes | `secretKey` | |
+| `STORAGE_REGION` | yes | `region` | |
+| `STORAGE_BUCKET` | yes | `bucket` | Created private if missing. |
+| `STORAGE_UPLOAD_EXPIRY` | no | `uploadExpirySeconds` | Presigned upload lifetime. Default 300. |
+| `STORAGE_DOWNLOAD_EXPIRY` | no | `downloadExpirySeconds` | Presigned download lifetime. Default 300. |
+
+## Using a different store
+
+Any S3-compatible service (AWS S3, Cloudflare R2, …) works with this adapter — set the endpoint, credentials, and region accordingly. For something else entirely, implement the `ObjectStorage` port from `@headless-lms/types` (`presignUpload`, `presignDownload`, `stat`, `remove`) and pass it in the `storage` slot.

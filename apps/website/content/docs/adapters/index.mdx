@@ -1,0 +1,43 @@
+---
+title: Adapters
+description: Adapters are what makes headless-lms incredibly extendable.
+---
+
+Adapters are implementations of the outbound ports declared in `@headless-lms/server/core`. These are the
+capabilities like email delivery, email templates, object storage, durable workflows etc.
+
+For example, system emails are sent using Resend. If you want to use a different email provider, then implement your
+own Email adapter and pass it in to the server.
+
+A running server wires these adapters together at startup:
+
+```ts title="main.ts"
+import { createContainer, buildServer } from "@headless-lms/server";
+import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
+import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
+import { ReactEmailTemplateRenderer } from "@headless-lms/adapter-email-templates";
+import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
+
+const container = await createContainer(config, {
+  adapters: {
+    email: new ResendEmailAdapter({ apiKey, from }),
+    storage: new MinioStorageAdapter(storageConfig),
+    templates: new ReactEmailTemplateRenderer(),
+    workflows: new HatchetAutomationEngine(),
+  },
+});
+```
+
+Every slot is optional, with a sensible default, so you can start with nothing configured and add adapters as you need them.
+
+
+## Available adapters
+
+| Slot | Port | Default adapter | Absent → |
+| --- | --- | --- | --- |
+| `email` | `EmailSender` | [`@headless-lms/adapter-email-resend`](/docs/adapters/email/resend) | Stub that fails loudly on send |
+| `templates` | `TemplateRenderer` | [`@headless-lms/adapter-email-templates`](/docs/adapters/email/react-email) | Stub that fails loudly on render |
+| `storage` | `ObjectStorage` | [`@headless-lms/adapter-storage-minio`](/docs/adapters/storage/minio) | Stub that fails loudly on use |
+| `workflows` | `AutomationEngine` | [`@headless-lms/adapter-workflow-hatchet`](/docs/adapters/workflows/hatchet) | In-process engine, one attempt per action |
+
+Because each slot is just an interface, you can replace any adapter with your own implementation — implement the port from `@headless-lms/types` and pass it in the same way. Installations scaffolded with `npm create headless-lms` come wired with the default adapters shown above.

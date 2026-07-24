@@ -1307,12 +1307,17 @@
                     },
                     "completed": {
                       "type": "boolean"
+                    },
+                    "positions": {
+                      "type": "object",
+                      "additionalProperties": {}
                     }
                   },
                   "required": [
                     "activities",
                     "percent",
-                    "completed"
+                    "completed",
+                    "positions"
                   ],
                   "additionalProperties": false
                 }
@@ -6723,6 +6728,52 @@
   "servers": [
     {
       "url": "http://localhost:8000"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Organizations",
+      "description": "Organizations and member management"
+    },
+    {
+      "name": "Courses",
+      "description": "Course authoring: courses, modules, activities"
+    },
+    {
+      "name": "Learn",
+      "description": "Student-facing course delivery"
+    },
+    {
+      "name": "Students",
+      "description": "Students and their enrollments"
+    },
+    {
+      "name": "Entitlements",
+      "description": "Access grants to content"
+    },
+    {
+      "name": "Progress",
+      "description": "Completion tracking"
+    },
+    {
+      "name": "Automations",
+      "description": "Trigger/action workflows"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Back-office overview"
+    },
+    {
+      "name": "Assets",
+      "description": "Media library and uploads"
+    },
+    {
+      "name": "ConnectedApps",
+      "description": "OAuth clients connected to the MCP endpoint"
+    },
+    {
+      "name": "Integrations",
+      "description": "Third-party integration connections"
     }
   ]
 }
