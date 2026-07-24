@@ -15,6 +15,7 @@ export function MediaVideoElementStatic(
   const { align = 'center', caption, url, width } = props.element;
   // Stable asset reference persisted by the upload flow; absent on external URLs.
   const assetId = (props.element as { assetId?: unknown }).assetId;
+  const name = (props.element as { name?: unknown }).name;
 
   return (
     <SlateElement className="py-2.5" {...props}>
@@ -26,6 +27,7 @@ export function MediaVideoElementStatic(
           <MediaVideoPlayer
             assetId={typeof assetId === 'string' ? assetId : undefined}
             url={url}
+            name={typeof name === 'string' ? name : undefined}
           />
           {caption && <figcaption>{NodeApi.string(caption[0])}</figcaption>}
         </figure>

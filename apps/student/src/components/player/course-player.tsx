@@ -20,7 +20,13 @@ import { useApp, useCompletion } from "@/lib/store";
 import type { Completion, Course } from "@/lib/types";
 import { ensureClientSdk } from "@/lib/api/client-sdk";
 import { progressReporter } from "@/lib/progress-reporter";
-import { createVideoTracker, flushKeepalive } from "@/lib/video-tracking";
+import {
+  createVideoTracker,
+  flushKeepalive,
+  recordSessionItems,
+  type SessionPositions,
+  type VideoAssetSeed,
+} from "@/lib/video-tracking";
 import editorMedia from "@/editor-media.config";
 import type { MediaTrackingEvent } from "@headless-lms/editor-contract";
 import { Learn } from "@headless-lms/sdk";
@@ -42,6 +48,8 @@ export interface CoursePlayerProps {
   initialCompletion?: Completion;
   /** Server-hydrated per-activity position maps (activity id → asset id → state). */
   initialPositions?: Record<string, unknown>;
+  /** Lesson to open (from the `?lesson=` param) — survives refresh. */
+  initialLessonId?: string;
   sidebarStyle?: SidebarStyle;
   sequentialLocking?: boolean;
   autoAdvance?: boolean;
@@ -56,6 +64,7 @@ export function CoursePlayer({
   renderedContent,
   initialCompletion,
   initialPositions,
+  initialLessonId,
   sidebarStyle = "detailed",
   sequentialLocking = true,
   autoAdvance = true,
@@ -66,11 +75,14 @@ export function CoursePlayer({
   const isNarrow = useIsNarrow();
 
   const flat = React.useMemo(() => flattenLessons(course), [course]);
-  const firstLessonId = flat[0]?.id ?? "";
+  const startLessonId =
+    (initialLessonId && flat.some((l) => l.id === initialLessonId) ? initialLessonId : null) ??
+    flat[0]?.id ??
+    "";
 
-  const [lessonId, setLessonId] = React.useState(firstLessonId);
+  const [lessonId, setLessonId] = React.useState(startLessonId);
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>(() => {
-    const mod = moduleOfLesson(course, firstLessonId);
+    const mod = moduleOfLesson(course, startLessonId);
     return mod ? { [mod.id]: true } : {};
   });
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
@@ -86,13 +98,39 @@ export function CoursePlayer({
   const reporter = React.useMemo(() => {
     ensureClientSdk();
     return curLessonId ? progressReporter({ activity: curLessonId }) : null;
-  }, [course.id, curLessonId]);
+  }, [curLessonId]);
 
-  // Fresh tracker per lesson — per-asset watch state must not leak across lessons.
-  const tracker = React.useMemo(
-    () => (reporter ? createVideoTracker({ send: (items) => void reporter.report(items) }) : null),
-    [reporter],
+  // Latest reported state this session, per activity/asset. Preferred over the
+  // page-load hydration so within-session navigation never rewinds progress.
+  // A stable useState object (never set) rather than a ref: it's read from
+  // callbacks the lint can't prove are event-time.
+  const [sessionPositions] = React.useState<SessionPositions>(() => ({}));
+
+  const assetSeed = React.useCallback(
+    (lessonId: string, assetId: string): VideoAssetSeed | undefined => {
+      const local = sessionPositions[lessonId]?.[assetId];
+      if (local) return local;
+      const hydrated = initialPositions?.[lessonId] as
+        | Record<string, VideoAssetSeed | undefined>
+        | undefined;
+      return hydrated?.[assetId];
+    },
+    [sessionPositions, initialPositions],
   );
+
+  // Fresh tracker per lesson — per-asset watch state must not leak across
+  // lessons — seeded with prior state so revisits keep the high-water mark.
+  const tracker = React.useMemo(() => {
+    if (!reporter || !curLessonId) return null;
+    const lessonId = curLessonId;
+    return createVideoTracker({
+      send: (items) => {
+        recordSessionItems(sessionPositions, lessonId, items);
+        void reporter.report(items);
+      },
+      initial: (assetId) => assetSeed(lessonId, assetId),
+    });
+  }, [reporter, curLessonId, sessionPositions, assetSeed]);
 
   const onMediaEvent = React.useCallback(
     (e: MediaTrackingEvent) => tracker?.handleEvent(e),
@@ -101,13 +139,10 @@ export function CoursePlayer({
 
   const startPosition = React.useCallback(
     (assetId: string): number | undefined => {
-      const byAsset = initialPositions?.[curLessonId] as
-        | Record<string, { seconds?: unknown } | undefined>
-        | undefined;
-      const seconds = byAsset?.[assetId]?.seconds;
+      const seconds = assetSeed(curLessonId, assetId)?.seconds;
       return typeof seconds === "number" ? seconds : undefined;
     },
-    [initialPositions, curLessonId],
+    [assetSeed, curLessonId],
   );
 
   const refreshUrl = React.useCallback(async (assetId: string): Promise<string | null> => {
@@ -123,7 +158,12 @@ export function CoursePlayer({
   // Flush unsent watch state when the tab hides or the lesson unmounts.
   React.useEffect(() => {
     if (!tracker || !curLessonId) return;
-    const flush = () => flushKeepalive(curLessonId, tracker.flush());
+    const lessonId = curLessonId;
+    const flush = () => {
+      const items = tracker.flush();
+      recordSessionItems(sessionPositions, lessonId, items);
+      flushKeepalive(lessonId, items);
+    };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") flush();
     };
@@ -134,7 +174,7 @@ export function CoursePlayer({
       document.removeEventListener("visibilitychange", onVisibility);
       flush();
     };
-  }, [tracker, curLessonId]);
+  }, [tracker, curLessonId, sessionPositions]);
 
   // Seed once per mount — local state (set by later reports) wins over the seed.
   React.useEffect(() => {
@@ -155,6 +195,9 @@ export function CoursePlayer({
       const mod = moduleOfLesson(course, id);
       setLessonId(id);
       setExpanded((e) => (mod ? { ...e, [mod.id]: true } : e));
+      // Keep the lesson in the URL so refresh/share reopens it — replaceState
+      // avoids re-running the RSC page on every lesson switch.
+      window.history.replaceState(null, "", `?lesson=${encodeURIComponent(id)}`);
     },
     [course],
   );

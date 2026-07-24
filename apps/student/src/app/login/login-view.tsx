@@ -19,6 +19,9 @@ export function LoginView() {
   const reset = params.get("reset") === "1";
   const { data: session } = useSession();
   const resetHandled = React.useRef(false);
+  // Held so a sign-in submitted while the reset sign-out is still in flight
+  // waits for it — otherwise the late sign-out can revoke the fresh session.
+  const resetSignOut = React.useRef<Promise<unknown> | null>(null);
 
   React.useEffect(() => {
     if (reset) {
@@ -28,7 +31,7 @@ export function LoginView() {
       // would re-enable the next-redirect below and bounce. Signing in is the exit.
       if (!resetHandled.current) {
         resetHandled.current = true;
-        void signOut().catch(() => {
+        resetSignOut.current = signOut().catch(() => {
           // Best-effort: the form is usable either way; the server already rejected the session.
         });
       }
@@ -54,7 +57,10 @@ export function LoginView() {
                 Welcome back. Enter your credentials to continue your courses.
               </p>
             </div>
-            <SignInForm onDone={() => router.replace(next)} />
+            <SignInForm
+              beforeSignIn={() => resetSignOut.current ?? Promise.resolve()}
+              onDone={() => router.replace(next)}
+            />
           </div>
         </div>
       </div>
@@ -75,7 +81,13 @@ export function LoginView() {
   );
 }
 
-function SignInForm({ onDone }: { onDone: () => void }) {
+function SignInForm({
+  beforeSignIn,
+  onDone,
+}: {
+  beforeSignIn: () => Promise<unknown>;
+  onDone: () => void;
+}) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -85,6 +97,7 @@ function SignInForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+    await beforeSignIn();
     const { error } = await signIn.email({ email, password });
     if (error) {
       setError(error.message ?? "Invalid email or password");

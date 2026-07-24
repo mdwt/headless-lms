@@ -7,7 +7,7 @@ import type { ServerConfig } from '../config.js';
 export function registerCors(app: FastifyInstance, config: ServerConfig): void {
   app.register(cors, {
     origin: config.clientOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
     maxAge: 86400,

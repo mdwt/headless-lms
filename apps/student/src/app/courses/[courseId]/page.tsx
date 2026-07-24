@@ -10,10 +10,13 @@ import { CoursePlayer } from "@/components/player/course-player";
 
 export default async function CoursePlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ lesson?: string | string[] }>;
 }) {
   const { courseId } = await params;
+  const { lesson } = await searchParams;
   const session = await requireAuth();
   const [course, modules, org, progress] = await Promise.all([
     learnApi.getCourse(courseId),
@@ -46,6 +49,7 @@ export default async function CoursePlayerPage({
       renderedContent={renderedContent}
       initialCompletion={progress?.activities ?? {}}
       initialPositions={progress?.positions ?? {}}
+      initialLessonId={typeof lesson === "string" ? lesson : undefined}
     />
   );
 }
