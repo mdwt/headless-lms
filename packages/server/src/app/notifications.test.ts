@@ -6,7 +6,7 @@ import type {
   EntitlementCreated,
   EntitlementDeleted,
   EntitlementUpdated,
-} from '../core/entitlements/index.js';
+} from '@headless-lms/types';
 
 const ENTITLEMENT: Entitlement = {
   id: 'e1',

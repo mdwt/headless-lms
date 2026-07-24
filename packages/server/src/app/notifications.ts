@@ -2,8 +2,8 @@
 // run on the outbox relay's at-least-once dispatch: a mailer failure throws,
 // and the relay retries with backoff — no email is silently dropped.
 import type { EventBus } from '../core/shared/ports.js';
-import type { Mailer } from '../core/shared/mailer.js';
-import type { EntitlementCreated, EntitlementDeleted } from '../core/entitlements/index.js';
+import type { Mailer } from '@headless-lms/server';
+import type { EntitlementCreated, EntitlementDeleted } from '@headless-lms/types';
 
 export function registerNotificationSubscribers(bus: EventBus, mailer: Pick<Mailer, 'send'>): void {
   bus.subscribe('entitlement.created', async (event) => {
