@@ -2,48 +2,49 @@
 
 ## Overview
 
-A headless LMS: student UI + (eventual) checkout, bring-your-own-funnel. REST API, TypeScript, Postgres. No website builder.
+The idea is to provide the building blocks to compose a LMS using any technologies 
+or plugins. Pluggable and adaptable using npm packages.
 
-The backend ships as a library — `@headless-lms/server` (`packages/server`). An
-installation composes it with its own config and integration plugins; `apps/api`
-is this repo's installation, and `create-headless-lms` scaffolds standalone ones.
-All seven contexts are built and Drizzle-persisted against real Postgres schema.
+### Composition
+Eveerything ships as packages and are composable at build time. 
+
+The backend is a library — `@headless-lms/server` (`packages/server`) that provides
+the domain core and web server. 
+
+An installation composes it with its own config and integration plugins; `apps/api`
+is this repo's installation example, and `create-headless-lms` scaffolds standalone ones.
+
+All plugins and adapters are 
 
 ## Architecture
 
 **Hexagonal core, organized into bounded contexts.**
 
-- The **core** holds all business logic and depends on nothing outward. It is framework-free **and persistence-free** (the boundary linter forbids `drizzle-orm` in `core/`).
-- The core is split into **bounded contexts** (not technical layers). Each is self-contained and exposes one public surface.
+- The **core** holds all business logic and depends on nothing outward.
+- The core is split into **bounded contexts**. Each is self-contained and exposes one public surface.
 - Contexts talk to each other **service-to-service**, through public surfaces only — never reaching into another context's internals.
 - External dependencies (Postgres, Better Auth, object storage, email, video) sit **outside** the core as adapters, behind ports the core defines.
-- The inbound entry point (HTTP, including the MCP endpoint) calls into context services; it owns no business logic. The `headless-lms` CLI lives in its own package (`@headless-lms/cli`) and calls the server's exported operational functions.
+- The inbound entry point (HTTP) calls into context services; it owns no business logic.
 
 ### Ports
 
-A context defines its own ports. The service sits in the middle: it **implements** its inbound ports and **depends on** its outbound ports.
+Ports are interfaces that define what a context needs and offers.
 
-- **Inbound port** — the use-case interface the context *offers*. The **service implements it**; callers (HTTP, the auth adapter) depend on it, not the concrete service. E.g. `IdentityService.registerStudent` is the inbound port the HTTP layer and auth hooks call.
-- **Outbound port** — something the context *needs*. The **service depends on it**; an adapter or another context's public service implements it. Injected at composition. Two kinds:
-  - **Repository** — persistence the context needs without knowing the DB (e.g. `OrganizationRepository`). The interface lives in `core/<ctx>/ports.ts`; the Drizzle implementation lives in `adapters/db/repositories/`.
-  - **Capability from elsewhere** — the slice it needs from another context, named by the consumer (e.g. `StudentProvisioner { registerStudent() }`, which the auth adapter depends on and `identity` satisfies).
+- **Inbound port** —  what the domain **offers**. A domain service implements the inbound ports (they are use cases
+  like `fetchStudent` or `listCourses`.
+- **Outbound port** — what the context *needs*. Adapters implement the outbound ports (they are capabilities like `uploadFile`, `sendEmail`, etc.).
 
-A context never defines a port into another context's internals — only its public surface.
-
-### Use cases
-
-- A use case is a method on the owning context's service.
-- Single-context use case → method on that context's service.
-- A use case spanning contexts → lives in the context whose responsibility it is, calling the others' public services. No orchestration tier above the contexts.
+### Orchastration
+A use case is a method on the owning context's service. A use case spanning contexts lives in the context whose responsibility it is, calling the others' public services. No orchestration tier above the contexts.
 
 ### Communication
 
-- **Synchronous** (need a result now, e.g. create-then-use) → direct call to the other context's public service.
-- **Decoupled fan-out** (react-after) → event bus; consumers call context services. The auth adapter also drives core directly via Better Auth database/organization hooks (mirroring users → `identity`, orgs → `organizations`).
+- **Synchronous**  direct call to the other context's public service.
+- **Decoupled fan-out** event bus; automations and integrations call domain services.
 
 ## Contexts
 
-Seven domains.
+Eight domains.
 
 - **identity** — user identity and authentication only. Owns the domain user record other contexts reference by id; mirrors Better Auth (the credentials/session system of record) via hooks. No org/membership/roles.
 - **organizations** — the tenant root every org-scoped context FKs to. Owns Organization, Membership, Invitation, the role/permission matrix (`owner | admin | instructor | student`; instructor course-scoped), course assignments, and the member-management operations (invite / change-role / remove / list). Better Auth's organization plugin is the source of truth, mirrored read-only via `organizationHooks`; writes go through Better Auth via the `OrgAdmin` port.
@@ -52,6 +53,7 @@ Seven domains.
 - **progress** — per-student completion records and derived percentage against the content's current structure. References content activities + identity user by id.
 - **assets** — the org media library: a registry row per stored object, served via short-lived presigned URLs over the object-storage (MinIO/S3) adapter. Org-scoped.
 - **integrations** — third-party integration connections: which integrations an org has connected, their validated config/secrets, and dispatching domain events + actions to them. The integration *implementations* are plugins outside core (see Layout). See `docs/domain/integrations.md`.
+- **automations** — automation workflows: trigger/action pairs that react to domain events and invoke actions (e.g. send email on entitlement grant). Backed by a durable workflow engine adapter (`AutomationEngine` port).
 
 **Cross-cutting**
 - **shared** — cross-cutting ports (Clock, EventBus, Logger, EmailSender, ObjectStorage).
@@ -74,9 +76,6 @@ packages/server/src/
 
   adapters/             # outbound infra; implement core ports
     db/
-      index.ts          # drizzle client + pool
-      schema/           # Drizzle tables, one file per context (the migration source)
-      repositories/     # Drizzle repository implementations
     auth/               # Better Auth: user SoR, org plugin, OAuth/OIDC provider
     storage/            # MinIO / S3-compatible object storage (presigned URLs)
     email/  video/      # stubs
@@ -150,6 +149,3 @@ Persistence is **not** in core: a context's Drizzle table lives in `adapters/db/
 
 ## Boundaries
 
-TypeScript does not enforce module boundaries at runtime. A boundary linter (`.eslintrc.cjs`, `eslint-plugin-boundaries` + scoped `no-restricted-imports`) enforces: a context may import another context only via its public `index.ts`; `core/` may not import `adapters/`, inbound, wiring, `reporting/`, or `drizzle-orm`; `adapters/` may import `core/` ports only. Violations fail CI.
-
-**Reporting rules:** `reporting/` may import any `core/<ctx>/index.ts` public surface (the only place allowed to read multiple contexts); it may not import `adapters/`, `http/`, or a context's internals. `core/` may not import `reporting/`. Inbound (`http/`) and `app/` may import `reporting/`.

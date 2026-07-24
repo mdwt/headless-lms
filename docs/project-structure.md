@@ -18,8 +18,9 @@ packages/
 plugins/
   slack/        @headless-lms/plugin-slack — the Slack integration
 adapters/
-  email-resend/   @headless-lms/adapter-email-resend — EmailSender via Resend
-  storage-minio/  @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
+  email-resend/      @headless-lms/adapter-email-resend — EmailSender via Resend
+  storage-minio/     @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
+  workflow-hatchet/  @headless-lms/adapter-workflow-hatchet — AutomationEngine via Hatchet
 ```
 
 ## Builds
