@@ -3,7 +3,7 @@
 import type {
   EmailSender,
   EmailTemplateId,
-  EmailTemplatePayloads,
+  EmailTemplateParams,
   TemplateContext,
   TemplateRenderer,
 } from './ports.js';
@@ -18,10 +18,10 @@ export class Mailer {
   async send<K extends EmailTemplateId>(
     to: string,
     id: K,
-    payload: EmailTemplatePayloads[K],
+    params: EmailTemplateParams[K],
     ctx?: Partial<TemplateContext>,
   ): Promise<void> {
-    const content = await this.templates.render(id, { ...this.ctx, ...ctx }, payload);
+    const content = await this.templates.render(id, { ...this.ctx, ...ctx }, params);
     await this.email.send({ to, subject: content.subject, text: content.text, html: content.html });
   }
 }

@@ -14,6 +14,14 @@ export function loadEmailConfig(): ResendEmailConfig | undefined {
   return { apiKey, from: process.env.EMAIL_FROM ?? "onboarding@resend.dev" };
 }
 
+/** HATCHET_CLIENT_TOKEN unset → no durable engine; the container falls back
+ *  to the in-process InlineAutomationEngine. Set → the installation
+ *  constructs a HatchetAutomationEngine (the Hatchet SDK reads the token,
+ *  and the rest of its client config, from its own env). */
+export function hatchetEnabled(): boolean {
+  return Boolean(process.env.HATCHET_CLIENT_TOKEN);
+}
+
 export function loadStorageConfig(): MinioStorageConfig {
   return {
     endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",

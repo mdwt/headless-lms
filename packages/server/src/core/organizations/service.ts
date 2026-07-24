@@ -244,8 +244,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     const query = new URLSearchParams({ token, email });
     const inviteUrl = `${base}?${query.toString()}`;
     try {
-      const id = role === STUDENT_ROLE ? 'studentInvite' : 'memberInvite';
-      await this.mailer.send(email, id, { inviteUrl, invitation });
+      if (role === STUDENT_ROLE) {
+        await this.mailer.send(email, 'studentInvite', { inviteUrl, studentName: email });
+      } else {
+        await this.mailer.send(email, 'memberInvite', { inviteUrl, inviterName: 'Your team', role });
+      }
     } catch (err) {
       // A failed email must not abort invite creation: the token is already
       // minted and recorded, so the admin can fix transport and resend.

@@ -20,6 +20,8 @@ import type {
   ConnectIntegrationResponses,
   CreateActivityData,
   CreateActivityResponses,
+  CreateAutomationData,
+  CreateAutomationResponses,
   CreateCourseData,
   CreateCourseResponses,
   CreateInviteData,
@@ -37,6 +39,9 @@ import type {
   DeleteAssetData,
   DeleteAssetErrors,
   DeleteAssetResponses,
+  DeleteAutomationData,
+  DeleteAutomationErrors,
+  DeleteAutomationResponses,
   DeleteCourseData,
   DeleteCourseErrors,
   DeleteCourseResponses,
@@ -53,6 +58,9 @@ import type {
   GetAssetData,
   GetAssetErrors,
   GetAssetResponses,
+  GetAutomationData,
+  GetAutomationErrors,
+  GetAutomationResponses,
   GetConnectionData,
   GetConnectionErrors,
   GetConnectionResponses,
@@ -79,6 +87,14 @@ import type {
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAutomationActionsData,
+  ListAutomationActionsResponses,
+  ListAutomationRunsData,
+  ListAutomationRunsResponses,
+  ListAutomationsData,
+  ListAutomationsResponses,
+  ListAutomationTriggersData,
+  ListAutomationTriggersResponses,
   ListAvailableIntegrationsData,
   ListAvailableIntegrationsErrors,
   ListAvailableIntegrationsResponses,
@@ -135,6 +151,9 @@ import type {
   SetEntitlementStatusResponses,
   UpdateActivityData,
   UpdateActivityResponses,
+  UpdateAutomationData,
+  UpdateAutomationErrors,
+  UpdateAutomationResponses,
   UpdateCourseData,
   UpdateCourseErrors,
   UpdateCourseResponses,
@@ -726,6 +745,118 @@ export class Entitlements {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Automations {
+  /**
+   * List automations
+   */
+  public static listAutomations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationsData, ThrowOnError>,
+  ): RequestResult<ListAutomationsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationsResponses, unknown, ThrowOnError>({
+      url: "/api/automations",
+      ...options,
+    });
+  }
+
+  /**
+   * Create an automation
+   */
+  public static createAutomation<ThrowOnError extends boolean = false>(
+    options: Options<CreateAutomationData, ThrowOnError>,
+  ): RequestResult<CreateAutomationResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<CreateAutomationResponses, unknown, ThrowOnError>({
+      url: "/api/automations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List the actions automations can use
+   */
+  public static listAutomationActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationActionsData, ThrowOnError>,
+  ): RequestResult<ListAutomationActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationActionsResponses, unknown, ThrowOnError>({
+      url: "/api/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * List the domain events automations can react to
+   */
+  public static listAutomationTriggers<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationTriggersData, ThrowOnError>,
+  ): RequestResult<ListAutomationTriggersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationTriggersResponses, unknown, ThrowOnError>({
+      url: "/api/automations/triggers",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete an automation
+   */
+  public static deleteAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAutomationData, ThrowOnError>,
+  ): RequestResult<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      DeleteAutomationResponses,
+      DeleteAutomationErrors,
+      ThrowOnError
+    >({ url: "/api/automations/{id}", ...options });
+  }
+
+  /**
+   * Get an automation by id
+   */
+  public static getAutomation<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationData, ThrowOnError>,
+  ): RequestResult<GetAutomationResponses, GetAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetAutomationResponses,
+      GetAutomationErrors,
+      ThrowOnError
+    >({ url: "/api/automations/{id}", ...options });
+  }
+
+  /**
+   * Update an automation
+   */
+  public static updateAutomation<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAutomationData, ThrowOnError>,
+  ): RequestResult<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateAutomationResponses,
+      UpdateAutomationErrors,
+      ThrowOnError
+    >({
+      url: "/api/automations/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List an automation's runs — a deleted automation's runs remain reachable (audit trail)
+   */
+  public static listAutomationRuns<ThrowOnError extends boolean = false>(
+    options: Options<ListAutomationRunsData, ThrowOnError>,
+  ): RequestResult<ListAutomationRunsResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).get<ListAutomationRunsResponses, unknown, ThrowOnError>({
+      url: "/api/automations/{id}/runs",
+      ...options,
     });
   }
 }

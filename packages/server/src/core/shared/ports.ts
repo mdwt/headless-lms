@@ -8,7 +8,7 @@ import type {
   EmailMessage,
   EmailSender,
   EmailTemplateId,
-  EmailTemplatePayloads,
+  EmailTemplateParams,
   ObjectStorage,
   PresignedUpload,
   StoredObjectInfo,
@@ -25,7 +25,7 @@ export type {
   EmailMessage,
   EmailSender,
   EmailTemplateId,
-  EmailTemplatePayloads,
+  EmailTemplateParams,
   ObjectStorage,
   PresignedUpload,
   StoredObjectInfo,
@@ -41,6 +41,9 @@ export interface Clock {
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
   subscribe(type: string, handler: (event: DomainEvent) => Promise<void>): void;
+  /** Runs for every published event, regardless of type — after the
+   *  type-specific handlers for that event. */
+  subscribeAll(handler: (event: DomainEvent) => Promise<void>): void;
 }
 
 // --- Transactional outbox ----------------------------------------------------
@@ -73,7 +76,7 @@ export interface OutboxMessage {
 export interface OutboxStore {
   /** Due, unexhausted, unprocessed messages in id order; claims them for this reader. */
   fetchBatch(limit: number): Promise<OutboxMessage[]>;
-  /** Dispatched to every subscriber — stamps processedAt. */
+  /** Published to the EventBus — stamps processedAt. */
   markProcessed(id: string): Promise<void>;
   /** Dispatch failed — increments attempts, records the error, schedules the retry. */
   markFailed(id: string, error: string, nextAttemptAt: Date): Promise<void>;

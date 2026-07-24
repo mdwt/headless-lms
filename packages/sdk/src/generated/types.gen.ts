@@ -1057,6 +1057,288 @@ export type SetEntitlementStatusResponses = {
 export type SetEntitlementStatusResponse =
   SetEntitlementStatusResponses[keyof SetEntitlementStatusResponses];
 
+export type ListAutomationsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/automations";
+};
+
+export type ListAutomationsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    trigger: string;
+    actions: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+    enabled: boolean;
+  }>;
+};
+
+export type ListAutomationsResponse = ListAutomationsResponses[keyof ListAutomationsResponses];
+
+export type CreateAutomationData = {
+  body: {
+    name: string;
+    description?: string;
+    trigger: string;
+    actions: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/automations";
+};
+
+export type CreateAutomationResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string;
+    description?: string;
+    trigger: string;
+    actions: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+    enabled: boolean;
+  };
+};
+
+export type CreateAutomationResponse = CreateAutomationResponses[keyof CreateAutomationResponses];
+
+export type ListAutomationActionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/automations/actions";
+};
+
+export type ListAutomationActionsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    type: string;
+    description: string;
+    inputSchema: {
+      [key: string]: unknown;
+    };
+    source: string;
+  }>;
+};
+
+export type ListAutomationActionsResponse =
+  ListAutomationActionsResponses[keyof ListAutomationActionsResponses];
+
+export type ListAutomationTriggersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/automations/triggers";
+};
+
+export type ListAutomationTriggersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    triggers: Array<{
+      type: string;
+      description: string;
+    }>;
+  };
+};
+
+export type ListAutomationTriggersResponse =
+  ListAutomationTriggersResponses[keyof ListAutomationTriggersResponses];
+
+export type DeleteAutomationData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/{id}";
+};
+
+export type DeleteAutomationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type DeleteAutomationError = DeleteAutomationErrors[keyof DeleteAutomationErrors];
+
+export type DeleteAutomationResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetAutomationData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/{id}";
+};
+
+export type GetAutomationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type GetAutomationError = GetAutomationErrors[keyof GetAutomationErrors];
+
+export type GetAutomationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    description?: string;
+    trigger: string;
+    actions: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+    enabled: boolean;
+  };
+};
+
+export type GetAutomationResponse = GetAutomationResponses[keyof GetAutomationResponses];
+
+export type UpdateAutomationData = {
+  body: {
+    name?: string;
+    description?: string;
+    trigger?: string;
+    actions?: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+    enabled?: boolean;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/{id}";
+};
+
+export type UpdateAutomationErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+  };
+};
+
+export type UpdateAutomationError = UpdateAutomationErrors[keyof UpdateAutomationErrors];
+
+export type UpdateAutomationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    description?: string;
+    trigger: string;
+    actions: Array<{
+      type: string;
+      input: {
+        [key: string]: unknown;
+      };
+    }>;
+    enabled: boolean;
+  };
+};
+
+export type UpdateAutomationResponse = UpdateAutomationResponses[keyof UpdateAutomationResponses];
+
+export type ListAutomationRunsData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: string;
+    status?: "running" | "completed" | "failed";
+  };
+  url: "/api/automations/{id}/runs";
+};
+
+export type ListAutomationRunsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      id: string;
+      orgId: string;
+      automationId: string;
+      trigger: string;
+      event: {
+        [key: string]: unknown;
+      };
+      status: "running" | "completed" | "failed";
+      actionResults: Array<{
+        index: number;
+        type: string;
+        status: "completed" | "failed";
+        error?: string;
+      }>;
+      startedAt: string;
+      finishedAt: string | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListAutomationRunsResponse =
+  ListAutomationRunsResponses[keyof ListAutomationRunsResponses];
+
 export type UpdateOrganizationData = {
   body: {
     name: string;

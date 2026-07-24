@@ -7,6 +7,7 @@ export * from "./activities.js";
 export * from "./learn.js";
 export * from "./students.js";
 export * from "./entitlements.js";
+export * from "./automations.js";
 export * from "./organizations.js";
 export * from "./members.js";
 export * from "./invites.js";

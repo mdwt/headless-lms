@@ -18,6 +18,7 @@
     "@headless-lms/adapter-email-resend": "workspace:*",
     "@headless-lms/adapter-email-templates": "workspace:*",
     "@headless-lms/adapter-storage-minio": "workspace:*",
+    "@headless-lms/adapter-workflow-hatchet": "workspace:*",
     "@headless-lms/plugin-slack": "workspace:*",
     "@headless-lms/server": "workspace:*",
     "@headless-lms/types": "workspace:*",

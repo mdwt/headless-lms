@@ -49,13 +49,18 @@ describe('notification subscribers', () => {
   it('sends accessGranted on entitlement.created', async () => {
     const { bus, send } = build();
     await bus.publish(created);
-    expect(send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', { entitlement: ENTITLEMENT });
+    expect(send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
+      contentTitle: 'Intro',
+      contentId: 'c1',
+    });
   });
 
   it('sends accessRevoked on entitlement.deleted', async () => {
     const { bus, send } = build();
     await bus.publish(deleted);
-    expect(send).toHaveBeenCalledWith('bob@example.com', 'accessRevoked', { entitlement: ENTITLEMENT });
+    expect(send).toHaveBeenCalledWith('bob@example.com', 'accessRevoked', {
+      contentTitle: 'Intro',
+    });
   });
 
   it('sends nothing on entitlement.updated (reactivation)', async () => {

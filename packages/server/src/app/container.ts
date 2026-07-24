@@ -6,6 +6,7 @@ import {
   PollingOutboxRelay,
   type PollingOutboxRelayConfig,
 } from '../adapters/events/outbox-relay.js';
+import { InlineAutomationEngine } from '../adapters/workflows/index.js';
 import { DrizzleOutboxAppender, DrizzleOutboxStore } from '../adapters/db/repositories/outbox.js';
 import { EmailAdapter, StubTemplateRenderer } from '../adapters/email/index.js';
 import {
@@ -31,6 +32,7 @@ import { IdentityServiceImpl } from '../core/identity/index.js';
 import { OrganizationServiceImpl, type OrgAdmin } from '../core/organizations/index.js';
 import { AssetsServiceImpl } from '../core/assets/index.js';
 import { IntegrationsServiceImpl } from '../core/integrations/index.js';
+import { AutomationsServiceImpl } from '../core/automations/index.js';
 import { loadIntegrations } from './integrations.js';
 import { registerNotificationSubscribers } from './notifications.js';
 import { StudentsReportServiceImpl } from '../reporting/students/index.js';
@@ -51,6 +53,10 @@ import { DrizzleDashboardRepository } from '../adapters/db/repositories/dashboar
 import { DrizzleLearnRepository } from '../adapters/db/repositories/learn.js';
 import { DrizzleCredentialStore } from '../adapters/db/repositories/credentials.js';
 import { DrizzleConnectionsRepository } from '../adapters/db/repositories/integrations.js';
+import {
+  DrizzleAutomationsRepository,
+  DrizzleAutomationRunsRepository,
+} from '../adapters/db/repositories/automations.js';
 import type {
   CredentialStore,
   EmailSender,
@@ -60,6 +66,7 @@ import type {
   TemplateContext,
   TemplateRenderer,
 } from '../core/shared/ports.js';
+import type { AutomationEngine } from '@headless-lms/types';
 
 /** Installation-supplied ports; an absent slot falls back to a fail-loudly stub. */
 export interface AdapterOverrides {
@@ -67,6 +74,8 @@ export interface AdapterOverrides {
   storage?: ObjectStorage;
   /** Resolves email templates to rendered content. Absent → fail-loudly stub. */
   templates?: TemplateRenderer;
+  /** Durable automation engine. Absent → InlineAutomationEngine (in-process, one attempt per action). */
+  workflows?: AutomationEngine;
 }
 
 export interface BuildContainerOptions {
@@ -149,6 +158,7 @@ export interface Container {
   progress: ProgressServiceImpl;
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
+  automations: AutomationsServiceImpl;
   // Reporting read layer (composed cross-context reads; owns no domain rules).
   reporting: {
     students: StudentsReportServiceImpl;
@@ -164,6 +174,10 @@ export interface Container {
    *  installation's entry point starts it after listen (gen-openapi must not
    *  poll). buildServer stops it onClose. */
   outboxRelay: OutboxRelay;
+  /** The automation engine — constructed but NEVER started by the container;
+   *  the installation's entry point starts it after listen (gen-openapi must
+   *  not run a worker). buildServer stops it onClose. */
+  automationEngine: AutomationEngine;
   /** Root logger port — components receive children bound with { name }. */
   logger: Logger;
   /** The raw pino root; buildServer hands it to Fastify so HTTP shares the stream. */
@@ -192,6 +206,7 @@ export async function buildContainer(
   const progressLogger = logger.child({ name: 'progress' });
   const assetsLogger = logger.child({ name: 'assets' });
   const integrationsLogger = logger.child({ name: 'integrations' });
+  const automationsLogger = logger.child({ name: 'automations' });
   const reportingLogger = logger.child({ name: 'reporting' });
   const outboxLogger = logger.child({ name: 'outbox' });
 
@@ -202,6 +217,8 @@ export async function buildContainer(
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
+  const automationEngine: AutomationEngine =
+    options?.adapters?.workflows ?? new InlineAutomationEngine();
   const mailer = new Mailer(templates, email, {
     ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
     studentPortalUrl: config.studentPortalUrl,
@@ -327,8 +344,31 @@ export async function buildContainer(
     integrationsLogger,
   );
 
+  // Automations: run writes + outbox append in one tx; the engine drives
+  // execution (register below), integrations supplies the loaded
+  // integrations' actions for `available`.
+  const automationsUow = new DrizzleUnitOfWork(db, (tx) => ({
+    automations: new DrizzleAutomationsRepository(tx, automationsLogger),
+    runs: new DrizzleAutomationRunsRepository(tx, automationsLogger),
+    outbox: new DrizzleOutboxAppender(tx, automationsLogger),
+  }));
+  const automations = new AutomationsServiceImpl(
+    new DrizzleAutomationsRepository(db, automationsLogger),
+    new DrizzleAutomationRunsRepository(db, automationsLogger),
+    automationsUow,
+    automationEngine,
+    mailer,
+    integrations,
+    () => new Date().toISOString(),
+    automationsLogger,
+  );
+  automationEngine.register(automations);
+
   const eventBus = new InMemoryEventBus();
   registerNotificationSubscribers(eventBus, mailer);
+  // handle() never throws — the EventBus fans out to every subscriber
+  // sequentially, and a rejection here would break sibling subscribers.
+  eventBus.subscribeAll((event) => automations.handle(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
     new DrizzleOutboxStore(db, outboxLogger),
@@ -368,12 +408,14 @@ export async function buildContainer(
     progress,
     assets,
     integrations,
+    automations,
     reporting,
     storage,
     mailer,
     connectedApps,
     credentials: credentialStore,
     outboxRelay,
+    automationEngine,
     logger,
     loggerInstance,
     requestContext: requestLogContext,

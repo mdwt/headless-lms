@@ -7,7 +7,7 @@ A headless LMS: student UI + (eventual) checkout, bring-your-own-funnel. REST AP
 The backend ships as a library — `@headless-lms/server` (`packages/server`). An
 installation composes it with its own config and integration plugins; `apps/api`
 is this repo's installation, and `create-headless-lms` scaffolds standalone ones.
-All seven contexts are built and Drizzle-persisted against real Postgres schema.
+All eight contexts are built and Drizzle-persisted against real Postgres schema.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ A context never defines a port into another context's internals — only its pub
 
 ## Contexts
 
-Seven domains.
+Eight domains.
 
 - **identity** — user identity and authentication only. Owns the domain user record other contexts reference by id; mirrors Better Auth (the credentials/session system of record) via hooks. No org/membership/roles.
 - **organizations** — the tenant root every org-scoped context FKs to. Owns Organization, Membership, Invitation, the role/permission matrix (`owner | admin | instructor | student`; instructor course-scoped), course assignments, and the member-management operations (invite / change-role / remove / list). Better Auth's organization plugin is the source of truth, mirrored read-only via `organizationHooks`; writes go through Better Auth via the `OrgAdmin` port.
@@ -52,6 +52,7 @@ Seven domains.
 - **progress** — per-student completion records and derived percentage against the content's current structure. References content activities + identity user by id.
 - **assets** — the org media library: a registry row per stored object, served via short-lived presigned URLs over the object-storage (MinIO/S3) adapter. Org-scoped.
 - **integrations** — third-party integration connections: which integrations an org has connected, their validated config/secrets, and dispatching domain events + actions to them. The integration *implementations* are plugins outside core (see Layout). See `docs/domain/integrations.md`.
+- **automations** — automation workflows: trigger/action pairs that react to domain events and invoke actions (e.g. send email on entitlement grant). Backed by a durable workflow engine adapter.
 
 **Cross-cutting**
 - **shared** — cross-cutting ports (Clock, EventBus, Logger, EmailSender, ObjectStorage).
@@ -65,7 +66,7 @@ Seven domains.
 ```
 packages/server/src/
   core/                 # framework- and persistence-free domain, one folder per context
-    identity/  organizations/  content/  entitlements/  progress/  assets/  integrations/
+    identity/  organizations/  content/  entitlements/  progress/  assets/  integrations/  automations/
     shared/             # cross-cutting ports
     # each context: service.ts model.ts types.ts events.ts ports.ts index.ts service.test.ts
 

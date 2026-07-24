@@ -25,6 +25,8 @@ export const ID_PREFIXES = {
   credential: 'crd',
   connection: 'con',
   event: 'evt',
+  automation: 'atm',
+  automationRun: 'run',
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;
