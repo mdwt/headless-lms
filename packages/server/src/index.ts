@@ -10,6 +10,7 @@ import type { ServerConfig } from './http/config.js';
 
 export { buildServer } from './http/server.js';
 export { loadIntegrations } from './app/integrations.js';
+export { InlineAutomationEngine } from './adapters/workflows/index.js';
 // Operational functions consumed by the @headless-lms/cli bin.
 export { runMigrations } from './app/migrate.js';
 export type { ServerConfig } from './http/config.js';
@@ -28,6 +29,7 @@ export type {
 } from './app/container.js';
 export type { EmailSender, EmailMessage, ObjectStorage } from './core/shared/ports.js';
 export type { Mailer } from './core/shared/mailer.js';
+export type { AutomationEngine } from './core/automations/index.js';
 
 export async function createContainer(
   config: ServerConfig,

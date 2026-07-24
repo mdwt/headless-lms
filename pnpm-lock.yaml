@@ -244,6 +244,9 @@ importers:
       '@headless-lms/adapter-storage-minio':
         specifier: workspace:*
         version: link:../../adapters/storage-minio
+      '@headless-lms/adapter-workflow-hatchet':
+        specifier: workspace:*
+        version: link:../../adapters/workflow-hatchet
       '@headless-lms/plugin-slack':
         specifier: workspace:*
         version: link:../../plugins/slack

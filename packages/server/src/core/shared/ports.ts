@@ -41,6 +41,9 @@ export interface Clock {
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
   subscribe(type: string, handler: (event: DomainEvent) => Promise<void>): void;
+  /** Runs for every published event, regardless of type — after the
+   *  type-specific handlers for that event. */
+  subscribeAll(handler: (event: DomainEvent) => Promise<void>): void;
 }
 
 // --- Transactional outbox ----------------------------------------------------
