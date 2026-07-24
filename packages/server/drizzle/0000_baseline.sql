@@ -203,6 +203,32 @@ CREATE TABLE "event_outbox" (
 	"processed_at" timestamp
 );
 --> statement-breakpoint
+CREATE TABLE "automation_runs" (
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"automation_id" text NOT NULL,
+	"trigger" text NOT NULL,
+	"event" jsonb NOT NULL,
+	"status" text NOT NULL,
+	"action_results" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"started_at" timestamp NOT NULL,
+	"finished_at" timestamp,
+	CONSTRAINT "automation_runs_org_id_id_pk" PRIMARY KEY("org_id","id")
+);
+--> statement-breakpoint
+CREATE TABLE "automations" (
+	"org_id" text NOT NULL,
+	"id" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"trigger" text NOT NULL,
+	"actions" jsonb NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "automations_org_id_id_pk" PRIMARY KEY("org_id","id")
+);
+--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -350,6 +376,9 @@ ALTER TABLE "assets" ADD CONSTRAINT "assets_org_id_organizations_id_fk" FOREIGN 
 ALTER TABLE "credentials" ADD CONSTRAINT "credentials_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "connections" ADD CONSTRAINT "connections_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "connections" ADD CONSTRAINT "connections_org_id_credential_ref_credentials_org_id_id_fk" FOREIGN KEY ("org_id","credential_ref") REFERENCES "public"."credentials"("org_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "automation_runs" ADD CONSTRAINT "automation_runs_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "automation_runs" ADD CONSTRAINT "automation_runs_org_id_automation_id_automations_org_id_id_fk" FOREIGN KEY ("org_id","automation_id") REFERENCES "public"."automations"("org_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "automations" ADD CONSTRAINT "automations_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -361,6 +390,8 @@ ALTER TABLE "oauth_consent" ADD CONSTRAINT "oauth_consent_user_id_user_id_fk" FO
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "invitations_pending_email_uq" ON "invitations" USING btree ("org_id","email") WHERE "invitations"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "event_outbox_pending_idx" ON "event_outbox" USING btree ("id") WHERE "event_outbox"."processed_at" is null;--> statement-breakpoint
+CREATE INDEX "automation_runs_org_automation_idx" ON "automation_runs" USING btree ("org_id","automation_id");--> statement-breakpoint
+CREATE INDEX "automations_org_trigger_idx" ON "automations" USING btree ("org_id","trigger");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_client_id_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_user_id_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "oauth_application_user_id_idx" ON "oauth_application" USING btree ("user_id");--> statement-breakpoint
