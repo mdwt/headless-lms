@@ -146,17 +146,16 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomationRuns',
       tags,
-      summary: "List an automation's runs",
+      summary: "List an automation's runs — a deleted automation's runs remain reachable (audit trail)",
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
-      response: { 200: AutomationRunsPage, 404: ErrorBody },
+      response: { 200: AutomationRunsPage },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const automation = await automations.get(scope.orgId, req.params.id);
-      if (!automation) {
-        throw new NotFoundError('Automation', req.params.id);
-      }
+      // No existence pre-check: runs deliberately survive automation deletion
+      // (audit trail), so an unknown/deleted id just serves an empty page,
+      // not a 404.
       const page = await automations.listRuns(scope.orgId, req.params.id, req.query);
       // DomainEvent has no index signature (a closed, typed interface); the
       // contract models the run's event snapshot loosely (z.record) since its

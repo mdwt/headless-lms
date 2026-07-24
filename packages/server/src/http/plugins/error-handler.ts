@@ -10,6 +10,7 @@ import {
   InvalidConfigError,
   UnknownIntegrationError,
 } from '../../core/integrations/index.js';
+import { InvalidTriggerError } from '../../core/automations/index.js';
 import { NoActiveOrgError } from '../scope.js';
 import { NoStudentError } from '../student-scope.js';
 
@@ -32,6 +33,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
     if (error instanceof InvalidConfigError) {
       return reply.status(400).send({ error: 'invalid_config', message: error.message });
+    }
+    if (error instanceof InvalidTriggerError) {
+      return reply.status(400).send({ error: 'invalid_trigger', message: error.message });
     }
     if (error instanceof NoActiveOrgError) {
       return reply.status(403).send({ error: 'forbidden', message: error.message });

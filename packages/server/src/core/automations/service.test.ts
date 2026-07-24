@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { AutomationsServiceImpl } from './service.js';
+import { InvalidTriggerError } from './model.js';
 import type { Automation, AutomationActionResult, AutomationRun } from './model.js';
 import type { CreateAutomationInput } from './types.js';
 import type {
@@ -9,7 +10,7 @@ import type {
   AutomationsRepository,
   AutomationsUnitOfWork,
 } from './ports.js';
-import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
+import type { DomainEvent, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer } from '../shared/mailer.js';
@@ -219,6 +220,40 @@ describe('AutomationsService.handle', () => {
     expect(runsRepo.insert).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
+
+  it('ignores an automation.run.started event even when a matching enabled automation exists', async () => {
+    const selfTriggering: Automation = { ...AUTOMATION, id: 'atm_loop', trigger: 'automation.run.started' };
+    const { svc, repo, runsRepo, engine } = build(
+      fakeRepo({ listByTrigger: vi.fn().mockResolvedValue([selfTriggering]) }),
+    );
+    await svc.handle({
+      type: 'automation.run.started',
+      id: 'evt_loop',
+      orgId: 'org-1',
+      createdAt: '2026-01-01T00:00:00Z',
+      run: RUN,
+    } as DomainEvent);
+    // The guard returns before even loading trigger matches.
+    expect(repo.listByTrigger).not.toHaveBeenCalled();
+    expect(runsRepo.insert).not.toHaveBeenCalled();
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('dedupes a redelivered trigger event: the second handle appends and dispatches nothing', async () => {
+    const runsRepo = fakeRunsRepo({
+      insert: vi.fn().mockResolvedValueOnce(RUN).mockResolvedValueOnce(null),
+    });
+    const { svc, engine, appended } = build(fakeRepo(), runsRepo, fakeEngine());
+
+    await svc.handle(ENTITLEMENT_CREATED_EVENT);
+    await svc.handle(ENTITLEMENT_CREATED_EVENT);
+
+    expect(runsRepo.insert).toHaveBeenCalledTimes(2);
+    expect(engine.dispatch).toHaveBeenCalledTimes(1);
+    expect(appended).toEqual([
+      expect.objectContaining({ type: 'automation.run.started', orgId: 'org-1', run: RUN }),
+    ]);
+  });
 });
 
 describe('AutomationsService.runAction', () => {
@@ -351,6 +386,27 @@ describe('AutomationsService CRUD', () => {
     expect(created).toEqual(AUTOMATION);
     expect(repo.insert).toHaveBeenCalledWith('org-1', input);
     expect(appended).toEqual([{ type: 'automation.created', orgId: 'org-1', automation: AUTOMATION }]);
+  });
+
+  it('rejects creating an automation whose trigger is in the automation.* namespace', async () => {
+    const { svc, repo, append } = build();
+    const input: CreateAutomationInput = {
+      name: 'Loop',
+      trigger: 'automation.run.started',
+      actions: [{ type: 'sendEmail', template: 'accessGranted' }],
+    };
+    await expect(svc.create('org-1', input)).rejects.toThrow(InvalidTriggerError);
+    expect(repo.insert).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
+    const { svc, repo, append } = build();
+    await expect(svc.update('org-1', 'atm_1', { trigger: 'automation.run.completed' })).rejects.toThrow(
+      InvalidTriggerError,
+    );
+    expect(repo.update).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
   });
 
   it('updates an automation and appends automation.updated when more than enabled changes', async () => {

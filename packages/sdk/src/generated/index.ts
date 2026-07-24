@@ -149,8 +149,6 @@ export type {
   ListAssetsResponse,
   ListAssetsResponses,
   ListAutomationRunsData,
-  ListAutomationRunsError,
-  ListAutomationRunsErrors,
   ListAutomationRunsResponse,
   ListAutomationRunsResponses,
   ListAutomationsData,

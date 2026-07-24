@@ -50,7 +50,12 @@ export interface AutomationsRepository {
 }
 
 export interface AutomationRunsRepository {
-  insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun>;
+  /** Inserts a run keyed by (orgId, automationId, event.id) — the outbox
+   *  relay is at-least-once, so a redelivery of the same trigger event for
+   *  the same automation hits the unique constraint and this returns `null`
+   *  instead of a second row. `null` means: this event was already handled
+   *  for this automation — the caller should treat the delivery as a no-op. */
+  insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun | null>;
   recordOutcome(
     orgId: string,
     id: string,

@@ -1351,18 +1351,6 @@ export type ListAutomationRunsData = {
   url: "/api/automations/{id}/runs";
 };
 
-export type ListAutomationRunsErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-  };
-};
-
-export type ListAutomationRunsError = ListAutomationRunsErrors[keyof ListAutomationRunsErrors];
-
 export type ListAutomationRunsResponses = {
   /**
    * Default Response

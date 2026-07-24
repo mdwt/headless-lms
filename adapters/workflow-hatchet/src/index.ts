@@ -136,6 +136,10 @@ export class HatchetAutomationEngine implements AutomationEngine {
       }
     }
 
+    // A crash between finalize's commit and this parent task completing
+    // replays finalize on resume (the durable event log restarts the task,
+    // not just the un-logged tail) — finalize, and anything downstream of the
+    // run.completed/run.failed events it appends, must tolerate duplicates.
     await executor.finalize(dispatch, results);
   }
 }

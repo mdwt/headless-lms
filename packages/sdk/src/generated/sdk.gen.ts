@@ -90,7 +90,6 @@ import type {
   ListAssetsErrors,
   ListAssetsResponses,
   ListAutomationRunsData,
-  ListAutomationRunsErrors,
   ListAutomationRunsResponses,
   ListAutomationsData,
   ListAutomationsResponses,
@@ -835,16 +834,15 @@ export class Automations {
   }
 
   /**
-   * List an automation's runs
+   * List an automation's runs — a deleted automation's runs remain reachable (audit trail)
    */
   public static listAutomationRuns<ThrowOnError extends boolean = false>(
     options: Options<ListAutomationRunsData, ThrowOnError>,
-  ): RequestResult<ListAutomationRunsResponses, ListAutomationRunsErrors, ThrowOnError> {
-    return (options.client ?? client).get<
-      ListAutomationRunsResponses,
-      ListAutomationRunsErrors,
-      ThrowOnError
-    >({ url: "/api/automations/{id}/runs", ...options });
+  ): RequestResult<ListAutomationRunsResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).get<ListAutomationRunsResponses, unknown, ThrowOnError>({
+      url: "/api/automations/{id}/runs",
+      ...options,
+    });
   }
 }
 

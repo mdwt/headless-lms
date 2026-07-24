@@ -2,7 +2,7 @@
 // history. `automations.actions` and `automation_runs.action_results` are
 // ordered jsonb blobs (contract types owned by @headless-lms/types); a run's
 // `event` is the triggering DomainEvent snapshot, stored verbatim.
-import { pgTable, text, boolean, jsonb, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, jsonb, timestamp, primaryKey, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { genId } from '../../../core/shared/id.js';
 import { organizations } from './organizations.js';
 import type { AutomationAction, AutomationActionResult } from '@headless-lms/types';
@@ -42,6 +42,11 @@ export const automationRuns = pgTable(
       .$defaultFn(() => genId('automationRun')),
     automationId: text('automation_id').notNull(),
     trigger: text('trigger').notNull(),
+    // The triggering event's id — the outbox relay is at-least-once, so a
+    // redelivered event must not open a second run. Not part of the domain
+    // `AutomationRun` type (DB-internal dedupe key only; the event snapshot
+    // below already carries it).
+    eventId: text('event_id').notNull(),
     event: jsonb('event').$type<DomainEvent>().notNull(),
     status: text('status', { enum: ['running', 'completed', 'failed'] }).notNull(),
     actionResults: jsonb('action_results').$type<AutomationActionResult[]>().notNull().default([]),
@@ -51,5 +56,10 @@ export const automationRuns = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     automationIdx: index('automation_runs_org_automation_idx').on(t.orgId, t.automationId),
+    eventDedupeIdx: uniqueIndex('automation_runs_org_automation_event_idx').on(
+      t.orgId,
+      t.automationId,
+      t.eventId,
+    ),
   }),
 );

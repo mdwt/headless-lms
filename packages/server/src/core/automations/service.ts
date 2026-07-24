@@ -13,6 +13,7 @@
 // self-registers.
 import { catalogActions, catalogTriggers } from './catalog.js';
 import { executeAction } from './actions.js';
+import { InvalidTriggerError } from './model.js';
 import type { Automation, AutomationActionResult, AutomationRun, Page } from './model.js';
 import type {
   AutomationsAvailable,
@@ -59,6 +60,11 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   ) {}
 
   async handle(event: DomainEvent): Promise<void> {
+    // The service itself emits automation.* events (run.started/completed/…) —
+    // matching one as a trigger would fire the next run in an infinite loop.
+    if (event.type.startsWith('automation.')) {
+      return;
+    }
     const automations = await this.safeListByTrigger(event);
     for (const automation of automations.filter((a) => a.enabled)) {
       await this.dispatchOne(automation, event);
@@ -79,7 +85,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   private async dispatchOne(automation: Automation, event: DomainEvent): Promise<void> {
-    let run: AutomationRun | undefined;
+    let run: AutomationRun | null | undefined;
     try {
       run = await this.uow.run(async ({ runs, outbox }) => {
         const inserted = await runs.insert(event.orgId, {
@@ -92,9 +98,19 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
           startedAt: this.now(),
           finishedAt: null,
         });
+        if (!inserted) {
+          // Redelivery (at-least-once outbox) of a trigger event already run
+          // for this automation — the unique (org, automation, event) index
+          // absorbed the insert. Append nothing and dispatch nothing: this
+          // delivery is a no-op.
+          return null;
+        }
         await outbox.append([{ type: 'automation.run.started', orgId: event.orgId, run: inserted }]);
         return inserted;
       });
+      if (!run) {
+        return;
+      }
       await this.engine.dispatch({
         runId: run.id,
         orgId: event.orgId,
@@ -184,6 +200,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   // --- CRUD -------------------------------------------------------------
 
   async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
+    if (input.trigger.startsWith('automation.')) {
+      throw new InvalidTriggerError(input.trigger);
+    }
     const automation = await this.uow.run(async ({ automations, outbox }) => {
       const created = await automations.insert(orgId, input);
       await outbox.append([{ type: 'automation.created', orgId, automation: created }]);
@@ -194,6 +213,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   async update(orgId: string, id: string, input: UpdateAutomationInput): Promise<Automation | null> {
+    if (input.trigger !== undefined && input.trigger.startsWith('automation.')) {
+      throw new InvalidTriggerError(input.trigger);
+    }
     const automation = await this.uow.run(async ({ automations, outbox }) => {
       const updated = await automations.update(orgId, id, input);
       if (!updated) {

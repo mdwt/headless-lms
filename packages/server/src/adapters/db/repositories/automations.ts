@@ -185,24 +185,27 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
     private readonly logger: Logger = noopLogger,
   ) {}
 
-  async insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun> {
+  async insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun | null> {
     const [inserted] = await this.db
       .insert(automationRuns)
       .values({
         orgId,
         automationId: run.automationId,
         trigger: run.trigger,
+        eventId: run.event.id,
         event: run.event,
         status: run.status,
         actionResults: run.actionResults,
         startedAt: new Date(run.startedAt),
         finishedAt: run.finishedAt ? new Date(run.finishedAt) : null,
       })
+      // Redelivery of the same trigger event for this automation — the unique
+      // (org, automation, event) index absorbs it; no row comes back.
+      .onConflictDoNothing({
+        target: [automationRuns.orgId, automationRuns.automationId, automationRuns.eventId],
+      })
       .returning(runSelection);
-    if (!inserted) {
-      throw new Error('failed to insert automation run');
-    }
-    return toAutomationRun(inserted);
+    return inserted ? toAutomationRun(inserted) : null;
   }
 
   async recordOutcome(

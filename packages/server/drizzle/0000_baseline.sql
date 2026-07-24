@@ -208,6 +208,7 @@ CREATE TABLE "automation_runs" (
 	"id" text NOT NULL,
 	"automation_id" text NOT NULL,
 	"trigger" text NOT NULL,
+	"event_id" text NOT NULL,
 	"event" jsonb NOT NULL,
 	"status" text NOT NULL,
 	"action_results" jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -390,6 +391,7 @@ ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("
 CREATE UNIQUE INDEX "invitations_pending_email_uq" ON "invitations" USING btree ("org_id","email") WHERE "invitations"."status" = 'pending';--> statement-breakpoint
 CREATE INDEX "event_outbox_pending_idx" ON "event_outbox" USING btree ("id") WHERE "event_outbox"."processed_at" is null;--> statement-breakpoint
 CREATE INDEX "automation_runs_org_automation_idx" ON "automation_runs" USING btree ("org_id","automation_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "automation_runs_org_automation_event_idx" ON "automation_runs" USING btree ("org_id","automation_id","event_id");--> statement-breakpoint
 CREATE INDEX "automations_org_trigger_idx" ON "automations" USING btree ("org_id","trigger");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_client_id_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_user_id_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
