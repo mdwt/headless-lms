@@ -26,6 +26,34 @@ export type UpdateAutomationInput = Partial<CreateAutomationInput> & {
   enabled?: boolean;
 };
 
+export interface AutomationRunsQuery {
+  page: number;
+  pageSize: number;
+  status?: AutomationRunStatus | undefined;
+  sort?: string | undefined;
+}
+
+/** The catalog `available()` serves: what an automation can be built from —
+ *  code-owned triggers/actions plus every loaded integration's own actions. */
+export interface AutomationsAvailable {
+  triggers: { type: string; description: string }[];
+  actions: {
+    type: AutomationAction["type"];
+    description: string;
+    config: Record<string, unknown>;
+    validTemplatesByTrigger: Record<string, EmailTemplateId[]>;
+  }[];
+  integrations: {
+    id: string;
+    actions: {
+      id: string;
+      description: string;
+      inputSchema: Record<string, unknown>;
+      outputSchema: Record<string, unknown>;
+    }[];
+  }[];
+}
+
 export type AutomationRunStatus = "running" | "completed" | "failed";
 
 export interface AutomationActionResult {
