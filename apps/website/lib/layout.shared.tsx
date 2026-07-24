@@ -16,6 +16,7 @@ export function baseOptions(): BaseLayoutProps {
     githubUrl: siteConfig.githubUrl,
     links: [
       { text: 'Docs', url: '/docs' },
+      { text: 'API', url: '/docs/api' },
       { text: 'Blog', url: '/blog' },
     ],
     themeSwitch: { enabled: false },
