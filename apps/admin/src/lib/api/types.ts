@@ -9,10 +9,13 @@
 
 import type {
   GetAssetResponse,
+  GetAutomationResponse,
   GetCourseResponse,
   GetOverviewResponse,
   GetStudentResponse,
   ListAssetsResponse,
+  ListAutomationActionsResponse,
+  ListAutomationTriggersResponse,
   ListAvailableIntegrationsResponse,
   ListConnectedAppsResponse,
   ListConnectionsResponse,
@@ -91,6 +94,13 @@ export type ConnectedApp = ListConnectedAppsResponse[number];
 export type AvailableIntegration = ListAvailableIntegrationsResponse[number];
 export type IntegrationConnection = ListConnectionsResponse[number];
 export type IntegrationStatus = "connected" | "inactive" | "not_connected";
+
+// --- automations ------------------------------------------------------------
+
+export type Automation = GetAutomationResponse;
+export type AutomationAction = Automation["actions"][number];
+export type AvailableAction = ListAutomationActionsResponse[number];
+export type AutomationTriggerInfo = ListAutomationTriggersResponse["triggers"][number];
 
 export type Asset = GetAssetResponse;
 export type AssetKind = Asset["kind"];

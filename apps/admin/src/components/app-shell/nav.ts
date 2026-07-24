@@ -4,6 +4,7 @@ import {
   Image,
   Library,
   Settings,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/lib/api/types";
@@ -21,6 +22,7 @@ const ALL_NAV: NavItem[] = [
   { href: "/courses", label: "Content", icon: Library, key: "courses" },
   { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
+  { href: "/automations", label: "Automations", icon: Workflow, key: "automations" },
   { href: "/settings", label: "Settings", icon: Settings, key: "settings" },
 ];
 
