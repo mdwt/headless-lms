@@ -12,3 +12,4 @@ export * from "./entitlements.js";
 export * from "./progress.js";
 export * from "./assets.js";
 export * from "./integrations.js";
+export * from "./automations.js";
