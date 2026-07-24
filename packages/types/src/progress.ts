@@ -34,31 +34,30 @@ export interface ProgressTarget {
   targetId: string;
 }
 
-/** Usage parameters the frontend reports — never a decision. `{}` is a bare
- *  touch, `position` a player update, `completed` a claim the service validates. */
-export interface ProgressReport {
-  position?: unknown;
+/** One reported fact. `asset` addresses a subject within the activity (absent =
+ *  the activity itself); `completed` is the learner's activity-level claim the
+ *  service validates. Every other field is the asset type's own vocabulary,
+ *  stored opaquely. */
+export interface ProgressReportItem {
+  asset?: string;
   completed?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ReportProgressInput {
   studentId: string;
-  courseId: string;
   activityId: string;
-  report: ProgressReport;
+  reports: ProgressReportItem[];
 }
 
 /** Domain events the progress context emits. */
 export interface ProgressStarted extends DomainEvent {
   type: "progress.started";
-  /** The course whose structure the target belongs to. */
-  courseId: string;
   record: ProgressRecord;
 }
 
 export interface ProgressCompleted extends DomainEvent {
   type: "progress.completed";
-  courseId: string;
   record: ProgressRecord;
 }
 

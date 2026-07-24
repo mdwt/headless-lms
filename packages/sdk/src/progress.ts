@@ -1,27 +1,36 @@
 // Ergonomic usage reporting over the generated Learn client. Frontends report
-// what happened; the server decides completion — completed() resolves with the
-// server's answer, opened()/position() are fire-and-forget.
+// facts; the server decides completion — completed() resolves with the server's
+// answer, opened()/report() never throw.
 import { Learn } from "./generated";
 
-export type ActivityStatus = "in-progress" | "completed";
+export type ProgressTargetRef = { activity: string };
 
-export interface ProgressReporter {
-  /** The student is on the activity — creates the record on first touch. */
-  opened(): void;
-  /** Player position update (opaque payload, interpreted server-side). */
-  position(position: unknown): void;
-  /** The learner claims done; resolves with the server's decision (null on transport failure). */
-  completed(): Promise<ActivityStatus | null>;
+export type ProgressStatusValue = "in-progress" | "completed";
+
+/** One reported fact: `asset` names the subject within the target (absent =
+ *  the target itself), `completed` is the learner's claim; every other field
+ *  is the asset type's own vocabulary, passed through opaquely. */
+export interface ProgressReportItem {
+  asset?: string;
+  completed?: boolean;
+  [key: string]: unknown;
 }
 
-export function progressReporter(courseId: string, activityId: string): ProgressReporter {
-  const path = { courseId, activityId };
-  const send = async (body: {
-    position?: unknown;
-    completed?: boolean;
-  }): Promise<ActivityStatus | null> => {
+export interface ProgressReporter {
+  /** The student is on the target — creates the record on first touch. */
+  opened(): void;
+  /** Send a batch of report items; resolves with the target's status. */
+  report(items: ProgressReportItem[]): Promise<ProgressStatusValue | null>;
+  /** The learner claims done; resolves with the server's decision (null on transport failure). */
+  completed(): Promise<ProgressStatusValue | null>;
+}
+
+export function progressReporter(target: ProgressTargetRef): ProgressReporter {
+  const send = async (items: ProgressReportItem[]): Promise<ProgressStatusValue | null> => {
     try {
-      const res = await Learn.reportActivityProgress({ path, body });
+      const res = await Learn.reportProgress({
+        body: { activity: target.activity, reports: items },
+      });
       return res.data?.status ?? null;
     } catch {
       return null;
@@ -29,13 +38,13 @@ export function progressReporter(courseId: string, activityId: string): Progress
   };
   return {
     opened() {
-      void send({});
+      void send([]);
     },
-    position(position: unknown) {
-      void send({ position });
+    report(items: ProgressReportItem[]) {
+      return send(items);
     },
     completed() {
-      return send({ completed: true });
+      return send([{ completed: true }]);
     },
   };
 }

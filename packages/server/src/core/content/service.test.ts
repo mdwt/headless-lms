@@ -35,6 +35,8 @@ function makeRepo(): ContentRepository {
 function makeStructureRepo(): CourseRepository {
   return {
     listForCourse: vi.fn(),
+    findActivity: vi.fn(),
+    findModule: vi.fn(),
     reorderModules: vi.fn(),
     createModule: vi.fn(),
     updateModule: vi.fn(),
@@ -200,6 +202,30 @@ describe('ContentServiceImpl', () => {
       { assetIds: ['a1'] },
       'act1',
     );
+  });
+});
+
+describe('hierarchy reads', () => {
+  it('getActivity and getModule delegate to the structure repository', async () => {
+    const structure = makeStructureRepo();
+    const activity = { id: 'a1', moduleId: 'm1', seq: 0, settings: {}, assetIds: [] };
+    const module = { id: 'm1', courseId: 'c1', title: 'M1', seq: 0, activities: [activity] };
+    vi.mocked(structure.findActivity).mockResolvedValue(activity);
+    vi.mocked(structure.findModule).mockResolvedValue(module);
+    const { svc } = build(makeRepo(), structure);
+    expect(await svc.getActivity('o1', 'a1')).toEqual(activity);
+    expect(await svc.getModule('o1', 'm1')).toEqual(module);
+    expect(structure.findActivity).toHaveBeenCalledWith('o1', 'a1');
+    expect(structure.findModule).toHaveBeenCalledWith('o1', 'm1');
+  });
+
+  it('resolve unknown ids to null', async () => {
+    const structure = makeStructureRepo();
+    vi.mocked(structure.findActivity).mockResolvedValue(null);
+    vi.mocked(structure.findModule).mockResolvedValue(null);
+    const { svc } = build(makeRepo(), structure);
+    expect(await svc.getActivity('o1', 'nope')).toBeNull();
+    expect(await svc.getModule('o1', 'nope')).toBeNull();
   });
 });
 

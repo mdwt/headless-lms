@@ -78,7 +78,7 @@ export function CoursePlayer({
 
   const reporter = React.useMemo(() => {
     ensureClientSdk();
-    return curLessonId ? progressReporter(course.id, curLessonId) : null;
+    return curLessonId ? progressReporter({ activity: curLessonId }) : null;
   }, [course.id, curLessonId]);
 
   // Seed once per mount — local state (set by later reports) wins over the seed.

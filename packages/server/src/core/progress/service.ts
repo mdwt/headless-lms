@@ -1,8 +1,10 @@
 // progress context — service implementation (inbound port).
 // The frontend only reports usage; this service makes every completion
-// decision. One report runs in one UoW transaction: ensure the record, apply
-// position, evaluate the activity's completion rule, then module/course
-// against current published structure — appending events with the writes.
+// decision. One report batch runs in one UoW transaction: ensure the record,
+// merge item payloads into the per-subject state map, evaluate the activity's
+// completion rule, then module/course against current published structure —
+// appending events with the writes. The container is resolved from the
+// hierarchy (activity → module → course), never supplied by the caller.
 // Percentage/resume are derived by readers, never stored here.
 import { genId } from '../shared/id.js';
 import { NotFoundError } from '../shared/errors.js';
@@ -13,7 +15,7 @@ import type {
   ProgressUnitOfWork,
   ProgressWriteScope,
 } from './ports.js';
-import type { ProgressTarget, ReportProgressInput } from './types.js';
+import type { ProgressReportItem, ProgressTarget, ReportProgressInput } from './types.js';
 import type { NewProgressEvent } from './events.js';
 import type { ContentService, Module } from '../content/index.js';
 import type { Logger, OutboxAppender } from '../shared/ports.js';
@@ -26,9 +28,32 @@ function isActivityPublished(settings: unknown): boolean {
   return (settings as { published?: boolean } | null)?.published !== false;
 }
 
+/** Fold a report batch into the record's per-subject state map. Reserved keys
+ *  (`asset` = subject, `completed` = claim) are stripped; the rest is the asset
+ *  type's own vocabulary, stored opaquely — latest report per subject wins. */
+function mergeReports(
+  position: unknown,
+  items: ProgressReportItem[],
+): { map: Record<string, unknown>; changed: boolean; claimed: boolean } {
+  const map = { ...((position as Record<string, unknown> | null) ?? {}) };
+  let changed = false;
+  let claimed = false;
+  for (const item of items) {
+    const { asset, completed, ...payload } = item;
+    if (completed === true) {
+      claimed = true;
+    }
+    if (Object.keys(payload).length > 0) {
+      map[asset ?? 'self'] = payload;
+      changed = true;
+    }
+  }
+  return { map, changed, claimed };
+}
+
 /** The completion-rule seam. Only `manual` ships: no authored rule → the
  *  learner's claim decides. Authored rules are never satisfied until their
- *  evaluators exist. */
+ *  evaluators exist. Future rules evaluate against the accumulated state map. */
 function completionSatisfied(settings: unknown, claimed: boolean): boolean {
   const rule = (settings as { completion?: { rule?: string } } | null)?.completion?.rule;
   if (!rule || rule === 'manual') {
@@ -51,13 +76,16 @@ export class ProgressServiceImpl implements ProgressService {
   }
 
   async report(orgId: string, input: ReportProgressInput): Promise<ProgressRecord> {
-    const modules = await this.content.listForCourse(orgId, input.courseId);
-    const activity = modules
-      .flatMap((m) => m.activities)
-      .find((a) => a.id === input.activityId);
+    const activity = await this.content.getActivity(orgId, input.activityId);
     if (!activity || !isActivityPublished(activity.settings)) {
       throw new NotFoundError('Activity', input.activityId);
     }
+    const module = await this.content.getModule(orgId, activity.moduleId);
+    if (!module) {
+      throw new NotFoundError('Module', activity.moduleId);
+    }
+    const courseId = module.courseId;
+    const modules = await this.content.listForCourse(orgId, courseId);
     return this.uow.run(async (scope) => {
       // Serializes concurrent reports for this student+course (locks are tx-scoped;
       // both racers lock in the same order, the loser waits and then sees committed state).
@@ -66,21 +94,21 @@ export class ProgressServiceImpl implements ProgressService {
           m.activities.filter((a) => isActivityPublished(a.settings)).map((a) => a.id),
         ),
         ...modules.map((m) => m.id),
-        input.courseId,
+        courseId,
       ];
       await scope.progress.findByTargets(orgId, input.studentId, lockIds, { forUpdate: true });
       const events: NewProgressEvent[] = [];
       let record = await this.ensureActivityRecord(orgId, input, scope, events);
-      if (input.report.position !== undefined && !record.completedAt) {
+      const state = mergeReports(record.position, input.reports);
+      if (state.changed && !record.completedAt) {
         record =
-          (await scope.progress.update(orgId, record.id, { position: input.report.position })) ??
-          record;
+          (await scope.progress.update(orgId, record.id, { position: state.map })) ?? record;
       }
-      if (!record.completedAt && completionSatisfied(activity.settings, input.report.completed === true)) {
+      if (!record.completedAt && completionSatisfied(activity.settings, state.claimed)) {
         record =
           (await scope.progress.update(orgId, record.id, { completedAt: this.now() })) ?? record;
-        events.push({ type: 'progress.completed', orgId, courseId: input.courseId, record });
-        await this.completeContainers(orgId, input, modules, scope, events);
+        events.push({ type: 'progress.completed', orgId, record });
+        await this.completeContainers(orgId, input, courseId, modules, scope, events);
         this.logger.info('progress completed', { orgId, recordId: record.id });
       }
       if (events.length > 0) {
@@ -124,7 +152,7 @@ export class ProgressServiceImpl implements ProgressService {
       }
       return winner;
     }
-    events.push({ type: 'progress.started', orgId, courseId: input.courseId, record });
+    events.push({ type: 'progress.started', orgId, record });
     this.logger.info('progress started', { orgId, recordId: record.id });
     return record;
   }
@@ -134,6 +162,7 @@ export class ProgressServiceImpl implements ProgressService {
   private async completeContainers(
     orgId: string,
     input: ReportProgressInput,
+    courseId: string,
     modules: Module[],
     scope: ProgressWriteScope,
     events: NewProgressEvent[],
@@ -152,7 +181,7 @@ export class ProgressServiceImpl implements ProgressService {
       await this.ensureContainerComplete(orgId, input, 'module', containing.id, scope, events);
     }
     if (allIds.length > 0 && allIds.every((id) => done.has(id))) {
-      await this.ensureContainerComplete(orgId, input, 'course', input.courseId, scope, events);
+      await this.ensureContainerComplete(orgId, input, 'course', courseId, scope, events);
     }
   }
 
@@ -181,7 +210,7 @@ export class ProgressServiceImpl implements ProgressService {
         completedAt: this.now(),
       });
       if (inserted) {
-        events.push({ type: 'progress.completed', orgId, courseId: input.courseId, record: inserted });
+        events.push({ type: 'progress.completed', orgId, record: inserted });
         return;
       }
       // Lost a concurrent insert: re-read the winner's row.
@@ -195,7 +224,7 @@ export class ProgressServiceImpl implements ProgressService {
     }
     const record =
       (await scope.progress.update(orgId, existing.id, { completedAt: this.now() })) ?? existing;
-    events.push({ type: 'progress.completed', orgId, courseId: input.courseId, record });
+    events.push({ type: 'progress.completed', orgId, record });
   }
 
   get(orgId: string, target: ProgressTarget): Promise<ProgressRecord | null> {

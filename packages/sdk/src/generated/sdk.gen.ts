@@ -115,9 +115,9 @@ import type {
   ReorderActivitiesResponses,
   ReorderModulesData,
   ReorderModulesResponses,
-  ReportActivityProgressData,
-  ReportActivityProgressErrors,
-  ReportActivityProgressResponses,
+  ReportProgressData,
+  ReportProgressErrors,
+  ReportProgressResponses,
   RequestAssetDownloadData,
   RequestAssetDownloadErrors,
   RequestAssetDownloadResponses,
@@ -588,17 +588,17 @@ export class Learn {
   }
 
   /**
-   * Report usage on an activity; the progress service decides completion
+   * Report usage on a target; the progress service decides completion
    */
-  public static reportActivityProgress<ThrowOnError extends boolean = false>(
-    options: Options<ReportActivityProgressData, ThrowOnError>,
-  ): RequestResult<ReportActivityProgressResponses, ReportActivityProgressErrors, ThrowOnError> {
+  public static reportProgress<ThrowOnError extends boolean = false>(
+    options: Options<ReportProgressData, ThrowOnError>,
+  ): RequestResult<ReportProgressResponses, ReportProgressErrors, ThrowOnError> {
     return (options.client ?? client).post<
-      ReportActivityProgressResponses,
-      ReportActivityProgressErrors,
+      ReportProgressResponses,
+      ReportProgressErrors,
       ThrowOnError
     >({
-      url: "/api/learn/courses/{courseId}/activities/{activityId}/progress",
+      url: "/api/learn/progress",
       ...options,
       headers: {
         "Content-Type": "application/json",

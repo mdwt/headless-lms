@@ -413,20 +413,21 @@ export type RequestLearnAssetDownloadResponses = {
 export type RequestLearnAssetDownloadResponse =
   RequestLearnAssetDownloadResponses[keyof RequestLearnAssetDownloadResponses];
 
-export type ReportActivityProgressData = {
+export type ReportProgressData = {
   body: {
-    position?: unknown;
-    completed?: boolean;
+    activity: string;
+    reports: Array<{
+      asset?: string;
+      completed?: boolean;
+      [key: string]: unknown;
+    }>;
   };
-  path: {
-    courseId: string;
-    activityId: string;
-  };
+  path?: never;
   query?: never;
-  url: "/api/learn/courses/{courseId}/activities/{activityId}/progress";
+  url: "/api/learn/progress";
 };
 
-export type ReportActivityProgressErrors = {
+export type ReportProgressErrors = {
   /**
    * Default Response
    */
@@ -436,10 +437,9 @@ export type ReportActivityProgressErrors = {
   };
 };
 
-export type ReportActivityProgressError =
-  ReportActivityProgressErrors[keyof ReportActivityProgressErrors];
+export type ReportProgressError = ReportProgressErrors[keyof ReportProgressErrors];
 
-export type ReportActivityProgressResponses = {
+export type ReportProgressResponses = {
   /**
    * Default Response
    */
@@ -448,8 +448,7 @@ export type ReportActivityProgressResponses = {
   };
 };
 
-export type ReportActivityProgressResponse =
-  ReportActivityProgressResponses[keyof ReportActivityProgressResponses];
+export type ReportProgressResponse = ReportProgressResponses[keyof ReportProgressResponses];
 
 export type GetLearnCourseProgressData = {
   body?: never;

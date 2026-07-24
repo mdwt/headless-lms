@@ -16,23 +16,19 @@ a downstream event handler.
 ```ts
 export interface ProgressStarted extends DomainEvent {
   type: "progress.started";
-  orgId: string;
-  /** The course whose structure the target belongs to. */
-  courseId: string;
   record: ProgressRecord;
 }
 
 export interface ProgressCompleted extends DomainEvent {
   type: "progress.completed";
-  orgId: string;
-  courseId: string;
   record: ProgressRecord;
 }
 
 export type ProgressEvent = ProgressStarted | ProgressCompleted;
 ```
 
-- `courseId` rides on the **event**, not the record — the schema is unchanged.
+- Events carry `orgId` (via `DomainEvent`) and the record — the progress fact
+  only. Consumers needing container context resolve it through content.
 - Events carry the record snapshot, matching how identity events carry the
   student.
 - Emission points: a record's first insert → `progress.started`; a record's
@@ -57,35 +53,36 @@ lessons and assessments (kinds of activity); no doc change.
 
 ## 3. Report input & the reworked inbound port (`core/progress`)
 
-A report is usage parameters about one activity, in one course, by one student
-— no verb vocabulary. The wire format is the domain's own; foreign dialects
-(xAPI statements, SCORM cmi calls) are translated to it at the boundary later,
-the same way every other external dialect in this system stays in an adapter.
+A report is a batch of self-describing items about one target, by one student.
+The wire format is the domain's own; foreign dialects (xAPI statements, SCORM
+cmi calls) are translated to it at the boundary later. Item reserved keys — the
+only keys the server assigns meaning to:
 
-- `{}` — bare touch: the student is on the activity; first report creates the
-  record (`startedAt`)
-- `{ position }` — where the player is (opaque payload)
-- `{ completed: true }` — the learner/player *asserts* completion — a claim the
+- `asset` — the subject within the activity (absent = the activity itself)
+- `completed: true` — the learner/player *asserts* completion — a claim the
   service validates, never a fact it accepts
 
-Student comes from the session; activity and course come from the URL — never
-from the body.
+Every other item field is the asset type's own vocabulary, stored opaquely in
+the record's per-subject state map (latest report per subject wins). `[]` is a
+bare touch — first report creates the record. Student comes from the session;
+the container is resolved server-side via the hierarchy (activity → module →
+course) — the caller never supplies a course.
 
 Per type ownership, the report/input types are declared in
 `@headless-lms/types` (`progress.ts`) and re-exported by the context's
 `types.ts`:
 
 ```ts
-export interface ProgressReport {
-  position?: unknown;
+export interface ProgressReportItem {
+  asset?: string;
   completed?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ReportProgressInput {
   studentId: string;
-  courseId: string;
   activityId: string;
-  report: ProgressReport;
+  reports: ProgressReportItem[];
 }
 ```
 
@@ -114,8 +111,9 @@ passthrough, no events, so existing service tests keep working):
 
 1. **Ensure the record** — first touch inserts it (`startedAt` now) and appends
    `progress.started`.
-2. **Apply position** — reports carrying `position` update the payload (stored
-   opaque). No event.
+2. **Apply items** — each payload item merges into the record's per-subject
+   state map under its `asset` key (`self` when absent); latest report per
+   subject wins. No event.
 3. **Evaluate completion** — the service reads the activity via
    `ContentService` (core→core through `content/index.js`) and interprets the
    completion-rule slice of the settings blob. Today the only interpretation is
@@ -146,12 +144,17 @@ an already-complete container, change nothing and emit nothing.
 ## 4. API contract (`packages/api-contract/src/learn.ts`)
 
 ```ts
-export const ProgressReport = z.object({
-  position: z.unknown().optional(),
+export const ProgressReportItem = z.looseObject({
+  asset: z.string().optional(),
   completed: z.boolean().optional(),
 });
 
-export const ActivityProgress = z.object({
+export const ReportProgress = z.object({
+  activity: z.string(),
+  reports: z.array(ProgressReportItem),
+});
+
+export const ProgressStatus = z.object({
   status: z.enum(["in-progress", "completed"]),
 });
 
@@ -164,27 +167,29 @@ export const CourseProgress = z.object({
 });
 ```
 
-### Report → effect
+### Item → effect
 
-| report               | Effect |
-| -------------------- | ------ |
-| `{}`                 | Ensure the record exists (start). |
-| `{ position }`       | Ensure record; store `position` as the opaque payload; evaluate the rule against it. |
-| `{ completed: true }`| Ensure record; completion claim — service evaluates the rule and records completion iff satisfied (no rule = satisfied). |
+| item                          | Effect |
+| ----------------------------- | ------ |
+| `[]` (empty batch)            | Ensure the record exists (start). |
+| `{ "asset"?: id, ...fields }` | Merge fields into the state map under the subject key. |
+| `{ "completed": true }`       | Activity-level claim — service evaluates the rule against accumulated state and records completion iff satisfied (no rule = satisfied). |
 
 ### Wire examples
 
 ```http
-POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{}
+POST /api/learn/progress
+{ "activity": "act_31c", "reports": [] }
 → 200 { "status": "in-progress" }
 
-POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "position": { "seconds": 612 } }
+POST /api/learn/progress
+{ "activity": "act_31c", "reports": [
+    { "asset": "ast_84h", "seconds": 612 },
+    { "asset": "ast_q1", "answers": { "q1": "b" }, "score": 0.8 } ] }
 → 200 { "status": "in-progress" }
 
-POST /api/learn/courses/crs_9f2/activities/act_31c/progress
-{ "completed": true }
+POST /api/learn/progress
+{ "activity": "act_31c", "reports": [{ "completed": true }] }
 → 200 { "status": "completed" }        // or "in-progress" when a rule is unmet
 
 GET /api/learn/courses/crs_9f2/progress
@@ -196,13 +201,14 @@ GET /api/learn/courses/crs_9f2/progress
 
 Both session-guarded via `resolveStudentScope`, like every Learn route.
 
-- `POST /api/learn/courses/:courseId/activities/:activityId/progress` — body
-  `ProgressReport`, response `200 ActivityProgress`. Always 200 when processed:
-  a `completed` claim with an unmet rule returns `status: "in-progress"` — that
-  *is* the answer. 4xx only for transport-level problems (bad body, no session,
-  unknown activity → 404). Future xAPI or SCORM support is a boundary
-  translation onto this same endpoint (a shim maps statements/cmi calls to
-  reports, `suspend_data` rides as the position payload) — no endpoint changes.
+- `POST /api/learn/progress` — body `ReportProgress` (the target key names the
+  content type; a future type widens the body union, never the URL), response
+  `200 ProgressStatus`. Always 200 when processed: a `completed` claim with an
+  unmet rule returns `status: "in-progress"` — that *is* the answer. 4xx only
+  for transport-level problems (bad body, no session, unknown activity → 404).
+  The route resolves the hierarchy (`getActivity` → `getModule` → courseId) and
+  applies the same enrollment gate as every Learn read. Future xAPI or SCORM
+  support is a boundary translation onto this same endpoint — no URL changes.
 - `GET /api/learn/courses/:courseId/progress` — response `200 CourseProgress`.
 
 The stub `http/routes/progress.ts` stays a stub — the student surface is Learn.
@@ -270,24 +276,29 @@ others show what the rule seam is for.
 ### Reports
 
 ```jsonc
-{}                                  // opened → record created (startedAt)
-{ "position": { "seconds": 612 } }  // video heartbeat (~10s) → resume point
-{ "position": { "seconds": 1310 } } // crosses 80% of 1475 → service completes
-{ "completed": true }               // the button
+{ "activity": "act_31c", "reports": [] }                     // opened → record created
+{ "activity": "act_31c", "reports": [
+    { "asset": "ast_84h", "seconds": 612 } ] }               // video heartbeat (~10s)
+{ "activity": "act_31c", "reports": [
+    { "asset": "ast_84h", "seconds": 1310 },                 // crosses 80% of 1475
+    { "asset": "ast_q1", "answers": { "q1": "b" }, "score": 0.8 } ] }
+{ "activity": "act_31c", "reports": [{ "completed": true }] }  // the button
 ```
 
-- **Text**: `{}` on open, `{ completed: true }` on click → `"completed"`.
+- **Text**: `[]` on open, `[{ "completed": true }]` on click → `"completed"`.
 - **Video**: the service notices `1310 / 1475 ≥ 80%` on an ordinary heartbeat
   and answers `{ "status": "completed" }`. The button at 40% watched →
   `{ "status": "in-progress" }` — claim heard, rule unmet, nothing recorded.
-- **Mixed**: `{ completed: true }` only lands once the video part passed 90%.
+- **Mixed**: the claim only lands once the video subject's state passed 90%;
+  each asset reports in its own vocabulary under its own key.
 
 ### Stored records (mid-course snapshot)
 
 ```jsonc
-// watching, not done — position is the resume point
+// watching, not done — position holds the per-subject state map
 { "targetType": "activity", "targetId": "act_31c", "studentId": "stu_7v",
-  "startedAt": "…T09:12:04Z", "position": { "seconds": 612 }, "completedAt": null }
+  "startedAt": "…T09:12:04Z",
+  "position": { "ast_84h": { "seconds": 612 } }, "completedAt": null }
 
 // text lesson, done via button
 { "targetType": "activity", "targetId": "act_58a",
@@ -306,15 +317,15 @@ Percent never appears — derived on read against current structure.
 ### Events (outbox, same transaction as the write that caused them)
 
 ```jsonc
-{ "type": "progress.started", "orgId": "org_1", "courseId": "crs_9f2",
+{ "type": "progress.started", "orgId": "org_1",
   "record": { "targetType": "activity", "targetId": "act_31c" } }
 
 // the heartbeat that crossed the threshold produces up to three, atomically:
-{ "type": "progress.completed", "courseId": "crs_9f2",
+{ "type": "progress.completed", "orgId": "org_1",
   "record": { "targetType": "activity", "targetId": "act_31c" } }
-{ "type": "progress.completed", "courseId": "crs_9f2",
+{ "type": "progress.completed", "orgId": "org_1",
   "record": { "targetType": "module", "targetId": "mod_c2f" } }
-{ "type": "progress.completed", "courseId": "crs_9f2",
+{ "type": "progress.completed", "orgId": "org_1",
   "record": { "targetType": "course", "targetId": "crs_9f2" } }
 ```
 

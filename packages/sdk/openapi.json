@@ -1175,10 +1175,10 @@
         }
       }
     },
-    "/api/learn/courses/{courseId}/activities/{activityId}/progress": {
+    "/api/learn/progress": {
       "post": {
-        "operationId": "reportActivityProgress",
-        "summary": "Report usage on an activity; the progress service decides completion",
+        "operationId": "reportProgress",
+        "summary": "Report usage on a target; the progress service decides completion",
         "tags": [
           "Learn"
         ],
@@ -1189,33 +1189,33 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "position": {},
-                  "completed": {
-                    "type": "boolean"
+                  "activity": {
+                    "type": "string"
+                  },
+                  "reports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "asset": {
+                          "type": "string"
+                        },
+                        "completed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": {}
+                    }
                   }
-                }
+                },
+                "required": [
+                  "activity",
+                  "reports"
+                ]
               }
             }
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "courseId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "activityId",
-            "required": true
-          }
-        ],
         "responses": {
           "200": {
             "description": "Default Response",

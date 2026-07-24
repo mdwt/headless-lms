@@ -24,20 +24,29 @@ export const LearnOrg = z.object({
 });
 export type LearnOrg = z.infer<typeof LearnOrg>;
 
-/** Usage parameters the student surface reports — never a completion decision.
- *  `{}` is a bare touch, `position` a player update, `completed` a claim the
- *  progress service validates. */
-export const ProgressReport = z.object({
-  position: z.unknown().optional(),
+/** One reported fact — never a decision. `asset` names the subject within the
+ *  activity (absent = the activity itself); `completed` is the learner's
+ *  activity-level claim. Every other field is the asset type's own vocabulary,
+ *  passed through opaquely. */
+export const ProgressReportItem = z.looseObject({
+  asset: z.string().optional(),
   completed: z.boolean().optional(),
 });
-export type ProgressReport = z.infer<typeof ProgressReport>;
+export type ProgressReportItem = z.infer<typeof ProgressReportItem>;
 
-/** The reported activity's state after the service decided. */
-export const ActivityProgress = z.object({
+/** The report envelope: the target (key names the content type) and a batch of
+ *  items. `[]` is a bare touch — it creates the record. */
+export const ReportProgress = z.object({
+  activity: z.string(),
+  reports: z.array(ProgressReportItem),
+});
+export type ReportProgress = z.infer<typeof ReportProgress>;
+
+/** The reported target's state after the service decided. */
+export const ProgressStatus = z.object({
   status: z.enum(["in-progress", "completed"]),
 });
-export type ActivityProgress = z.infer<typeof ActivityProgress>;
+export type ProgressStatus = z.infer<typeof ProgressStatus>;
 
 /** Per-course progress, derived on read against current structure. */
 export const CourseProgress = z.object({
@@ -49,8 +58,3 @@ export const CourseProgress = z.object({
 });
 export type CourseProgress = z.infer<typeof CourseProgress>;
 
-export const LearnActivityParams = z.object({
-  courseId: z.string(),
-  activityId: z.string(),
-});
-export type LearnActivityParams = z.infer<typeof LearnActivityParams>;

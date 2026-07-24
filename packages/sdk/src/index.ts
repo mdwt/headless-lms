@@ -24,4 +24,9 @@ export function configureSdk({ baseUrl, credentials = "include" }: ConfigureSdkO
 }
 
 export { progressReporter } from "./progress";
-export type { ProgressReporter, ActivityStatus } from "./progress";
+export type {
+  ProgressReporter,
+  ProgressReportItem,
+  ProgressStatusValue,
+  ProgressTargetRef,
+} from "./progress";

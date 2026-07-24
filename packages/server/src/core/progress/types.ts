@@ -2,6 +2,6 @@
 export type {
   ProgressId,
   ProgressTarget,
-  ProgressReport,
+  ProgressReportItem,
   ReportProgressInput,
 } from '@headless-lms/types';

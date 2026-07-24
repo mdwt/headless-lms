@@ -4,18 +4,17 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
-  ActivityProgress,
+  ProgressStatus,
   AssetIdParam,
   Course,
   CourseProgress,
   DownloadTicket,
   ErrorBody,
-  LearnActivityParams,
-  LearnCourseIdParam,
+    LearnCourseIdParam,
   LearnCourses,
   LearnModules,
   LearnOrg,
-  ProgressReport,
+  ReportProgress,
   RequestDownload,
 } from '@headless-lms/api-contract';
 import { NotFoundError } from '../../core/shared/errors.js';
@@ -133,28 +132,32 @@ export async function learnRoutes(app: FastifyInstance, container: Container): P
 
   r.route({
     method: 'POST',
-    url: '/api/learn/courses/:courseId/activities/:activityId/progress',
+    url: '/api/learn/progress',
     preHandler: app.requireSession,
     schema: {
-      operationId: 'reportActivityProgress',
+      operationId: 'reportProgress',
       tags: ['Learn'],
-      summary: 'Report usage on an activity; the progress service decides completion',
-      params: LearnActivityParams,
-      body: ProgressReport,
-      response: { 200: ActivityProgress, 404: ErrorBody },
+      summary: 'Report usage on a target; the progress service decides completion',
+      body: ReportProgress,
+      response: { 200: ProgressStatus, 404: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveStudentScope(container, req);
-      // Enrollment gate — same visibility rule as every Learn read.
-      const course = await learn.getCourse(scope.orgId, scope.studentId, req.params.courseId);
+      // Resolve the hierarchy (activity → module → course), then the same
+      // enrollment gate as every Learn read.
+      const activity = await container.content.getActivity(scope.orgId, req.body.activity);
+      const module = activity && (await container.content.getModule(scope.orgId, activity.moduleId));
+      if (!module) {
+        throw new NotFoundError('Activity', req.body.activity);
+      }
+      const course = await learn.getCourse(scope.orgId, scope.studentId, module.courseId);
       if (!course) {
-        throw new NotFoundError('Course', req.params.courseId);
+        throw new NotFoundError('Activity', req.body.activity);
       }
       const record = await container.progress.report(scope.orgId, {
         studentId: scope.studentId,
-        courseId: req.params.courseId,
-        activityId: req.params.activityId,
-        report: req.body,
+        activityId: req.body.activity,
+        reports: req.body.reports,
       });
       return { status: record.completedAt ? ('completed' as const) : ('in-progress' as const) };
     },
