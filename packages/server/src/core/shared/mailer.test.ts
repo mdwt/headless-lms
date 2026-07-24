@@ -9,11 +9,11 @@ import type {
 } from './ports.js';
 
 function fakes() {
-  const rendered: { id: EmailTemplateId; ctx: TemplateContext; params: unknown }[] = [];
+  const rendered: { id: EmailTemplateId; ctx: TemplateContext; payload: unknown }[] = [];
   const sent: EmailMessage[] = [];
   const templates: TemplateRenderer = {
-    async render(id, ctx, params): Promise<EmailContent> {
-      rendered.push({ id, ctx, params });
+    async render(id, ctx, payload): Promise<EmailContent> {
+      rendered.push({ id, ctx, payload });
       return { subject: `subject:${id}`, html: `<p>${id}</p>`, text: `text:${id}` };
     },
   };
@@ -38,7 +38,7 @@ describe('Mailer', () => {
 
     await mailer.send('s@e.com', 'magicLink', { url: 'http://x/y' });
 
-    expect(rendered).toEqual([{ id: 'magicLink', ctx: CTX, params: { url: 'http://x/y' } }]);
+    expect(rendered).toEqual([{ id: 'magicLink', ctx: CTX, payload: { url: 'http://x/y' } }]);
     expect(sent).toEqual([
       { to: 's@e.com', subject: 'subject:magicLink', text: 'text:magicLink', html: '<p>magicLink</p>' },
     ]);
@@ -49,7 +49,19 @@ describe('Mailer', () => {
     const mailer = new Mailer(templates, email, CTX);
 
     await mailer.send('s@e.com', 'memberInvite',
-      { inviteUrl: 'http://x', inviterName: 'Ann', role: 'admin' },
+      {
+        inviteUrl: 'http://x',
+        invitation: {
+          id: 'inv1',
+          orgId: 'org1',
+          email: 'ann@example.com',
+          role: 'admin',
+          status: 'pending',
+          invitedBy: 'user1',
+          expiresAt: null,
+          createdAt: new Date('2026-07-01T00:00:00.000Z'),
+        },
+      },
       { brandName: 'Ann Org' },
     );
 

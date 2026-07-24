@@ -155,7 +155,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       await outbox.append([{ type: 'invitation.created', orgId, invitation: row }]);
       return row;
     });
-    await this.sendInviteEmail(email, role, token);
+    await this.sendInviteEmail(invitation, token);
     this.logger.info('invite created', { orgId, invitationId: invitation.id, role });
     return invitation;
   }
@@ -232,10 +232,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     return { orgExternalId: org.externalId, role: invitation.role };
   }
 
-  private async sendInviteEmail(email: string, role: InviteRole, token: string): Promise<void> {
+  private async sendInviteEmail(invitation: Invitation, token: string): Promise<void> {
     if (!this.mailer || !this.inviteUrls) {
       throw new Error('invite delivery is not configured (mailer / invite urls missing)');
     }
+    const { email, role } = invitation;
     const base =
       role === STUDENT_ROLE
         ? `${this.inviteUrls.studentPortalUrl}/welcome`
@@ -243,15 +244,8 @@ export class OrganizationServiceImpl implements OrganizationService {
     const query = new URLSearchParams({ token, email });
     const inviteUrl = `${base}?${query.toString()}`;
     try {
-      if (role === STUDENT_ROLE) {
-        await this.mailer.send(email, 'studentInvite', { inviteUrl, studentName: email });
-      } else {
-        await this.mailer.send(email, 'memberInvite', {
-          inviteUrl,
-          inviterName: 'Your team',
-          role,
-        });
-      }
+      const id = role === STUDENT_ROLE ? 'studentInvite' : 'memberInvite';
+      await this.mailer.send(email, id, { inviteUrl, invitation });
     } catch (err) {
       // A failed email must not abort invite creation: the token is already
       // minted and recorded, so the admin can fix transport and resend.

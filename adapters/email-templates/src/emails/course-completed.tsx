@@ -1,16 +1,31 @@
-import type { EmailTemplateParams, TemplateContext } from '@headless-lms/types';
+import type { EmailTemplatePayloads, TemplateContext } from '@headless-lms/types';
 import { Layout, Paragraph, PREVIEW_CTX } from './layout.js';
 
-type Params = EmailTemplateParams['courseCompleted'];
+type Payload = EmailTemplatePayloads['courseCompleted'];
 
-export const subject = (_ctx: TemplateContext, params: Params) => `You completed ${params.courseTitle} 🎉`;
+export const subject = (_ctx: TemplateContext, { course }: Payload) => `You completed ${course.title} 🎉`;
 
-export default function CourseCompleted({ ctx, params }: { ctx: TemplateContext; params: Params }) {
+export default function CourseCompleted({ ctx, payload }: { ctx: TemplateContext; payload: Payload }) {
   return (
     <Layout ctx={ctx} heading="Congratulations!">
-      <Paragraph>You've completed {params.courseTitle}. Nice work.</Paragraph>
+      <Paragraph>You've completed {payload.course.title}. Nice work.</Paragraph>
     </Layout>
   );
 }
 
-CourseCompleted.PreviewProps = { ctx: PREVIEW_CTX, params: { courseTitle: 'Fly Tying 101' } };
+CourseCompleted.PreviewProps = {
+  ctx: PREVIEW_CTX,
+  payload: {
+    student: {
+      id: 'stu1',
+      orgId: 'org1',
+      externalId: null,
+      email: 'sam@example.com',
+      firstName: 'Sam',
+      lastName: 'Doe',
+      createdAt: new Date('2026-07-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+    },
+    course: { id: 'demo', type: 'course', title: 'Fly Tying 101' },
+  },
+};

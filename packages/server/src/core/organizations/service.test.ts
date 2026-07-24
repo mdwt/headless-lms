@@ -302,14 +302,14 @@ describe('OrganizationService', () => {
   const inviteUrls = { studentPortalUrl: 'http://localhost:8002', adminAppUrl: 'http://localhost:8001' };
 
   function capturingMailer() {
-    const sent: Array<{ to: string; id: string; params: Record<string, unknown> }> = [];
+    const sent: Array<{ to: string; id: string; payload: Record<string, unknown> }> = [];
     const mailer = {
-      send: async (to: string, id: string, params: Record<string, unknown>) => {
-        sent.push({ to, id, params });
+      send: async (to: string, id: string, payload: Record<string, unknown>) => {
+        sent.push({ to, id, payload });
       },
     };
     const lastToken = () => {
-      const url = sent.at(-1)?.params.inviteUrl as string;
+      const url = sent.at(-1)?.payload.inviteUrl as string;
       return new URL(url).searchParams.get('token') ?? '';
     };
     return { mailer: mailer as never, sent, lastToken };
@@ -343,7 +343,7 @@ describe('OrganizationService', () => {
     expect(invitation.status).toBe('pending');
     expect(h.invitations).toHaveLength(1);
     expect(h.sent[0]?.id).toBe('memberInvite');
-    const url = h.sent[0]?.params.inviteUrl as string;
+    const url = h.sent[0]?.payload.inviteUrl as string;
     expect(url.startsWith('http://localhost:8001/invite?token=')).toBe(true);
     expect(h.lastToken().length).toBeGreaterThan(20);
   });
@@ -412,7 +412,7 @@ describe('OrganizationService', () => {
       inviterUserId: 'usr_1',
     });
     expect(h.sent[0]?.id).toBe('studentInvite');
-    const url = h.sent[0]?.params.inviteUrl as string;
+    const url = h.sent[0]?.payload.inviteUrl as string;
     expect(url.startsWith('http://localhost:8002/welcome?token=')).toBe(true);
   });
 
