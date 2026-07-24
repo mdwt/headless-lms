@@ -51,16 +51,8 @@ describe('Mailer', () => {
     await mailer.send('s@e.com', 'memberInvite',
       {
         inviteUrl: 'http://x',
-        invitation: {
-          id: 'inv1',
-          orgId: 'org1',
-          email: 'ann@example.com',
-          role: 'admin',
-          status: 'pending',
-          invitedBy: 'user1',
-          expiresAt: null,
-          createdAt: new Date('2026-07-01T00:00:00.000Z'),
-        },
+        inviterName: 'Ann',
+        role: 'admin',
       },
       { brandName: 'Ann Org' },
     );

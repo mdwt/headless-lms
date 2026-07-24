@@ -8,11 +8,16 @@ import type { EntitlementCreated, EntitlementDeleted } from '../core/entitlement
 export function registerNotificationSubscribers(bus: EventBus, mailer: Pick<Mailer, 'send'>): void {
   bus.subscribe('entitlement.created', async (event) => {
     const { entitlement } = event as EntitlementCreated;
-    await mailer.send(entitlement.studentEmail, 'accessGranted', { entitlement });
+    await mailer.send(entitlement.studentEmail, 'accessGranted', {
+      contentTitle: entitlement.content.title,
+      contentId: entitlement.content.id,
+    });
   });
 
   bus.subscribe('entitlement.deleted', async (event) => {
     const { entitlement } = event as EntitlementDeleted;
-    await mailer.send(entitlement.studentEmail, 'accessRevoked', { entitlement });
+    await mailer.send(entitlement.studentEmail, 'accessRevoked', {
+      contentTitle: entitlement.content.title,
+    });
   });
 }

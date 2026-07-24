@@ -4,7 +4,7 @@ import type { JSX } from 'react';
 import type {
   EmailContent,
   EmailTemplateId,
-  EmailTemplatePayloads,
+  EmailTemplateParams,
   TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/types';
@@ -18,8 +18,8 @@ import AccessRevoked, { subject as accessRevoked } from './emails/access-revoked
 import CourseCompleted, { subject as courseCompleted } from './emails/course-completed.js';
 
 interface Entry<K extends EmailTemplateId> {
-  subject: (ctx: TemplateContext, payload: EmailTemplatePayloads[K]) => string;
-  Component: (props: { ctx: TemplateContext; payload: EmailTemplatePayloads[K] }) => JSX.Element;
+  subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;
+  Component: (props: { ctx: TemplateContext; params: EmailTemplateParams[K] }) => JSX.Element;
 }
 
 // The catalog is closed: a missing key here is a compile error.
@@ -38,11 +38,11 @@ export class ReactEmailTemplateRenderer implements TemplateRenderer {
   async render<K extends EmailTemplateId>(
     id: K,
     ctx: TemplateContext,
-    payload: EmailTemplatePayloads[K],
+    params: EmailTemplateParams[K],
   ): Promise<EmailContent> {
     const entry = registry[id] as Entry<K>;
-    const element = <entry.Component ctx={ctx} payload={payload} />;
+    const element = <entry.Component ctx={ctx} params={params} />;
     const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
-    return { subject: entry.subject(ctx, payload), html, text };
+    return { subject: entry.subject(ctx, params), html, text };
   }
 }
