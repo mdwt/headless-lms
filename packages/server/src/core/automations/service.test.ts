@@ -468,8 +468,8 @@ describe('AutomationsService CRUD', () => {
   });
 });
 
-describe('AutomationsService.available', () => {
-  it("composes the catalog with every loaded integration's actions", async () => {
+describe('AutomationsService.availableActions', () => {
+  it("composes the catalog with every loaded integration's actions", () => {
     const integrations = fakeIntegrations({
       available: vi.fn().mockReturnValue([
         {
@@ -489,7 +489,7 @@ describe('AutomationsService.available', () => {
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), fakeMailer(), integrations);
 
-    const available = await svc.available();
+    const available = svc.availableActions();
 
     expect(available.actions).toEqual([
       expect.objectContaining({
@@ -513,5 +513,27 @@ describe('AutomationsService.available', () => {
         ],
       },
     ]);
+  });
+});
+
+describe('AutomationsService.availableTriggers', () => {
+  it('lists domain event types with descriptions, entitlement.created included', () => {
+    const { svc } = build();
+    const { triggers } = svc.availableTriggers();
+    expect(triggers.length).toBeGreaterThan(0);
+    for (const trigger of triggers) {
+      expect(trigger.type).toBeTruthy();
+      expect(trigger.description).toBeTruthy();
+    }
+    expect(triggers).toContainEqual({
+      type: 'entitlement.created',
+      description: 'a student was granted access to content',
+    });
+  });
+
+  it('excludes the automation.* family', () => {
+    const { svc } = build();
+    const { triggers } = svc.availableTriggers();
+    expect(triggers.filter((t) => t.type.startsWith('automation.'))).toEqual([]);
   });
 });

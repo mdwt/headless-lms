@@ -56,7 +56,7 @@ export type AutomationIdParam = z.infer<typeof AutomationIdParam>;
 
 /** Which actions an automation can use: built-in action types plus every
  *  loaded integration's own actions. */
-export const AutomationsAvailable = z.object({
+export const AvailableActions = z.object({
   actions: z.array(
     z.object({
       type: z.literal("sendEmail"),
@@ -79,7 +79,13 @@ export const AutomationsAvailable = z.object({
     }),
   ),
 });
-export type AutomationsAvailable = z.infer<typeof AutomationsAvailable>;
+export type AvailableActions = z.infer<typeof AvailableActions>;
+
+/** Which domain events an automation can react to. */
+export const AvailableTriggers = z.object({
+  triggers: z.array(z.object({ type: z.string(), description: z.string() })),
+});
+export type AvailableTriggers = z.infer<typeof AvailableTriggers>;
 
 export const AutomationRunStatus = z.enum(["running", "completed", "failed"]);
 export type AutomationRunStatus = z.infer<typeof AutomationRunStatus>;

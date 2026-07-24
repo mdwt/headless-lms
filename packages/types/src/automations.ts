@@ -34,7 +34,7 @@ export interface AutomationRunsQuery {
 }
 
 /** Which actions an automation can use: built-in types plus every loaded integration's own. */
-export interface AutomationsAvailable {
+export interface AvailableActions {
   actions: {
     type: AutomationAction["type"];
     description: string;
@@ -50,6 +50,11 @@ export interface AutomationsAvailable {
       outputSchema: Record<string, unknown>;
     }[];
   }[];
+}
+
+/** Which domain events an automation can react to. */
+export interface AvailableTriggers {
+  triggers: { type: string; description: string }[];
 }
 
 export type AutomationRunStatus = "running" | "completed" | "failed";

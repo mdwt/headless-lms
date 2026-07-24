@@ -9,7 +9,8 @@ import {
   AutomationIdParam,
   AutomationRunsPage,
   AutomationRunsQuery,
-  AutomationsAvailable,
+  AvailableActions,
+  AvailableTriggers,
   CreateAutomationBody,
   ErrorBody,
   UpdateAutomationBody,
@@ -39,20 +40,36 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
   });
 
-  // Before `/api/automations/:id` — otherwise `:id` would swallow this path segment.
+  // Before `/api/automations/:id` — otherwise `:id` would swallow these path segments.
   r.route({
     method: 'GET',
-    url: '/api/automations/available',
+    url: '/api/automations/actions',
     preHandler: app.requireSession,
     schema: {
-      operationId: 'getAvailableAutomations',
+      operationId: 'listAutomationActions',
       tags,
       summary: 'List the actions automations can use',
-      response: { 200: AutomationsAvailable },
+      response: { 200: AvailableActions },
     },
     handler: async (req) => {
       await resolveScope(container, req);
-      return automations.available();
+      return automations.availableActions();
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/automations/triggers',
+    preHandler: app.requireSession,
+    schema: {
+      operationId: 'listAutomationTriggers',
+      tags,
+      summary: 'List the domain events automations can react to',
+      response: { 200: AvailableTriggers },
+    },
+    handler: async (req) => {
+      await resolveScope(container, req);
+      return automations.availableTriggers();
     },
   });
 

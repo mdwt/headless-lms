@@ -1141,14 +1141,14 @@ export type CreateAutomationResponses = {
 
 export type CreateAutomationResponse = CreateAutomationResponses[keyof CreateAutomationResponses];
 
-export type GetAvailableAutomationsData = {
+export type ListAutomationActionsData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/automations/available";
+  url: "/api/automations/actions";
 };
 
-export type GetAvailableAutomationsResponses = {
+export type ListAutomationActionsResponses = {
   /**
    * Default Response
    */
@@ -1188,8 +1188,30 @@ export type GetAvailableAutomationsResponses = {
   };
 };
 
-export type GetAvailableAutomationsResponse =
-  GetAvailableAutomationsResponses[keyof GetAvailableAutomationsResponses];
+export type ListAutomationActionsResponse =
+  ListAutomationActionsResponses[keyof ListAutomationActionsResponses];
+
+export type ListAutomationTriggersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/automations/triggers";
+};
+
+export type ListAutomationTriggersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    triggers: Array<{
+      type: string;
+      description: string;
+    }>;
+  };
+};
+
+export type ListAutomationTriggersResponse =
+  ListAutomationTriggersResponses[keyof ListAutomationTriggersResponses];
 
 export type DeleteAutomationData = {
   body?: never;

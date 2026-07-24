@@ -3450,9 +3450,9 @@
         }
       }
     },
-    "/api/automations/available": {
+    "/api/automations/actions": {
       "get": {
-        "operationId": "getAvailableAutomations",
+        "operationId": "listAutomationActions",
         "summary": "List the actions automations can use",
         "tags": [
           "Automations"
@@ -3561,6 +3561,52 @@
                   "required": [
                     "actions",
                     "integrations"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/triggers": {
+      "get": {
+        "operationId": "listAutomationTriggers",
+        "summary": "List the domain events automations can react to",
+        "tags": [
+          "Automations"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "description"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "triggers"
                   ],
                   "additionalProperties": false
                 }

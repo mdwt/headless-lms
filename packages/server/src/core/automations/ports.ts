@@ -3,8 +3,9 @@
 // (inline, Hatchet-backed, …) shares one definition.
 import type { Automation, AutomationRun, Page } from './model.js';
 import type {
-  AutomationsAvailable,
   AutomationRunsQuery,
+  AvailableActions,
+  AvailableTriggers,
   CreateAutomationInput,
   UpdateAutomationInput,
 } from './types.js';
@@ -20,7 +21,9 @@ export interface AutomationsService {
   /** Matches `event` against enabled automations and dispatches a run per match; never throws. */
   handle(event: DomainEvent): Promise<void>;
   /** Built-in action types plus every loaded integration's declared actions. */
-  available(): Promise<AutomationsAvailable>;
+  availableActions(): AvailableActions;
+  /** The domain event types an automation may react to. */
+  availableTriggers(): AvailableTriggers;
   list(orgId: string): Promise<Automation[]>;
   get(orgId: string, id: string): Promise<Automation | null>;
   create(orgId: string, input: CreateAutomationInput): Promise<Automation>;

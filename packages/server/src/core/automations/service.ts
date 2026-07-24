@@ -5,13 +5,14 @@
 // against enabled automations for its trigger, opens one run per match, and
 // hands it to the injected AutomationEngine, which calls back into
 // `runAction`/`finalize`.
-import { catalogActions } from './catalog.js';
+import { catalogActions, catalogTriggers } from './catalog.js';
 import { executeAction } from './actions.js';
 import { InvalidTriggerError } from './model.js';
 import type { Automation, AutomationActionResult, AutomationRun, Page } from './model.js';
 import type {
-  AutomationsAvailable,
   AutomationRunsQuery,
+  AvailableActions,
+  AvailableTriggers,
   CreateAutomationInput,
   UpdateAutomationInput,
 } from './types.js';
@@ -255,14 +256,17 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return this.runsRepo.list(orgId, automationId, query);
   }
 
-  available(): Promise<AutomationsAvailable> {
-    const integrations = this.integrations.available();
-    return Promise.resolve({
+  availableActions(): AvailableActions {
+    return {
       actions: catalogActions(),
-      integrations: integrations.map((integration) => ({
+      integrations: this.integrations.available().map((integration) => ({
         id: integration.id,
         actions: integration.actions,
       })),
-    });
+    };
+  }
+
+  availableTriggers(): AvailableTriggers {
+    return { triggers: catalogTriggers() };
   }
 }

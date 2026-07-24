@@ -23,7 +23,8 @@ export type {
   CreateAutomationInput,
   UpdateAutomationInput,
   AutomationRunsQuery,
-  AutomationsAvailable,
+  AvailableActions,
+  AvailableTriggers,
 } from './types.js';
 export type {
   AutomationCreated,

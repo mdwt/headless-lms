@@ -61,8 +61,6 @@ import type {
   GetAutomationData,
   GetAutomationErrors,
   GetAutomationResponses,
-  GetAvailableAutomationsData,
-  GetAvailableAutomationsResponses,
   GetConnectionData,
   GetConnectionErrors,
   GetConnectionResponses,
@@ -89,10 +87,14 @@ import type {
   ListAssetsData,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAutomationActionsData,
+  ListAutomationActionsResponses,
   ListAutomationRunsData,
   ListAutomationRunsResponses,
   ListAutomationsData,
   ListAutomationsResponses,
+  ListAutomationTriggersData,
+  ListAutomationTriggersResponses,
   ListAvailableIntegrationsData,
   ListAvailableIntegrationsErrors,
   ListAvailableIntegrationsResponses,
@@ -779,12 +781,25 @@ export class Automations {
   /**
    * List the actions automations can use
    */
-  public static getAvailableAutomations<ThrowOnError extends boolean = false>(
-    options?: Options<GetAvailableAutomationsData, ThrowOnError>,
-  ): RequestResult<GetAvailableAutomationsResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<GetAvailableAutomationsResponses, unknown, ThrowOnError>(
-      { url: "/api/automations/available", ...options },
-    );
+  public static listAutomationActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationActionsData, ThrowOnError>,
+  ): RequestResult<ListAutomationActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationActionsResponses, unknown, ThrowOnError>({
+      url: "/api/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * List the domain events automations can react to
+   */
+  public static listAutomationTriggers<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationTriggersData, ThrowOnError>,
+  ): RequestResult<ListAutomationTriggersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationTriggersResponses, unknown, ThrowOnError>({
+      url: "/api/automations/triggers",
+      ...options,
+    });
   }
 
   /**
