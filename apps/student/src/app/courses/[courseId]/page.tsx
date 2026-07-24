@@ -10,13 +10,10 @@ import { CoursePlayer } from "@/components/player/course-player";
 
 export default async function CoursePlayerPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
-  searchParams: Promise<{ lesson?: string | string[] }>;
 }) {
   const { courseId } = await params;
-  const { lesson } = await searchParams;
   const session = await requireAuth();
   const [course, modules, org, progress] = await Promise.all([
     learnApi.getCourse(courseId),
@@ -27,6 +24,11 @@ export default async function CoursePlayerPage({
   if (!course || !modules) notFound();
 
   const adapted = adaptCourse(course, modules);
+  // Where the student left off: the first activity in course order they
+  // haven't completed.
+  const completion = progress?.activities ?? {};
+  const lessons = adapted.modules.flatMap((m) => m.lessons);
+  const resumeLessonId = (lessons.find((l) => completion[l.id] !== "completed") ?? lessons[0])?.id;
   // Render each activity's Plate content on the server so the client player
   // receives ready-made nodes (no client re-execution → no hydration mismatch).
   // Stored media URLs are upload-time presigns (long expired) — mint fresh
@@ -47,9 +49,9 @@ export default async function CoursePlayerPage({
       studentName={session.user.name}
       orgName={org.name}
       renderedContent={renderedContent}
-      initialCompletion={progress?.activities ?? {}}
+      initialCompletion={completion}
       initialPositions={progress?.positions ?? {}}
-      initialLessonId={typeof lesson === "string" ? lesson : undefined}
+      initialLessonId={resumeLessonId}
     />
   );
 }

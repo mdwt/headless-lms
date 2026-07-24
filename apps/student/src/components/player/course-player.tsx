@@ -48,7 +48,7 @@ export interface CoursePlayerProps {
   initialCompletion?: Completion;
   /** Server-hydrated per-activity position maps (activity id → asset id → state). */
   initialPositions?: Record<string, unknown>;
-  /** Lesson to open (from the `?lesson=` param) — survives refresh. */
+  /** Where the student left off — server-derived from their progress records. */
   initialLessonId?: string;
   sidebarStyle?: SidebarStyle;
   sequentialLocking?: boolean;
@@ -195,9 +195,6 @@ export function CoursePlayer({
       const mod = moduleOfLesson(course, id);
       setLessonId(id);
       setExpanded((e) => (mod ? { ...e, [mod.id]: true } : e));
-      // Keep the lesson in the URL so refresh/share reopens it — replaceState
-      // avoids re-running the RSC page on every lesson switch.
-      window.history.replaceState(null, "", `?lesson=${encodeURIComponent(id)}`);
     },
     [course],
   );
