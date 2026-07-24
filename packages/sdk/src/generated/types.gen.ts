@@ -482,6 +482,9 @@ export type GetLearnCourseProgressResponses = {
     };
     percent: number;
     completed: boolean;
+    positions: {
+      [key: string]: unknown;
+    };
   };
 };
 

@@ -63,6 +63,7 @@ export class LearnReportServiceImpl implements LearnReportService {
     );
     const records = await this.progress.listByTargets(ref.orgId, studentId, ids);
     const activities: CourseProgressView['activities'] = {};
+    const positions: CourseProgressView['positions'] = {};
     let done = 0;
     for (const r of records) {
       if (r.targetType !== 'activity') {
@@ -71,6 +72,9 @@ export class LearnReportServiceImpl implements LearnReportService {
       activities[r.targetId] = r.completedAt ? 'completed' : 'in-progress';
       if (r.completedAt) {
         done += 1;
+      }
+      if (r.position != null) {
+        positions[r.targetId] = r.position;
       }
     }
     const courseRecord = await this.progress.get(ref.orgId, {
@@ -82,6 +86,7 @@ export class LearnReportServiceImpl implements LearnReportService {
       activities,
       percent: ids.length > 0 ? Math.round((done / ids.length) * 100) : 0,
       completed: courseRecord?.completedAt != null,
+      positions,
     };
   }
 }

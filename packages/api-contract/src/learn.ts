@@ -55,6 +55,8 @@ export const CourseProgress = z.object({
   /** Integer 0–100, completed ÷ current activities, rounded. */
   percent: z.int().min(0).max(100),
   completed: z.boolean(),
+  /** Keyed by activity id: the per-asset reported state map (opaque). */
+  positions: z.record(z.string(), z.unknown()),
 });
 export type CourseProgress = z.infer<typeof CourseProgress>;
 

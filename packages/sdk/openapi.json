@@ -1307,12 +1307,17 @@
                     },
                     "completed": {
                       "type": "boolean"
+                    },
+                    "positions": {
+                      "type": "object",
+                      "additionalProperties": {}
                     }
                   },
                   "required": [
                     "activities",
                     "percent",
-                    "completed"
+                    "completed",
+                    "positions"
                   ],
                   "additionalProperties": false
                 }
