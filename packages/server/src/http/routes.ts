@@ -10,6 +10,7 @@ import { learnRoutes } from './routes/learn.js';
 import { activitiesRoutes } from './routes/activities.js';
 import { studentsRoutes } from './routes/students.js';
 import { entitlementsRoutes } from './routes/entitlements.js';
+import { automationsRoutes } from './routes/automations.js';
 import { organizationsRoutes, organizationsPublicRoutes } from './routes/organizations.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { assetsRoutes } from './routes/assets.js';
@@ -43,6 +44,7 @@ export function registerRoutes(
     await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);
     await entitlementsRoutes(instance, container);
+    await automationsRoutes(instance, container);
     await organizationsRoutes(instance, container);
     await dashboardRoutes(instance, container);
     await assetsRoutes(instance, container);
