@@ -2,7 +2,7 @@
 // history. `automations.actions` and `automation_runs.action_results` are
 // ordered jsonb blobs (contract types owned by @headless-lms/types); a run's
 // `event` is the triggering DomainEvent snapshot, stored verbatim.
-import { pgTable, text, boolean, jsonb, timestamp, primaryKey, foreignKey, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, boolean, jsonb, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
 import { genId } from '../../../core/shared/id.js';
 import { organizations } from './organizations.js';
 import type { AutomationAction, AutomationActionResult } from '@headless-lms/types';
