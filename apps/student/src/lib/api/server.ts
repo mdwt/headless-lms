@@ -45,9 +45,10 @@ export const learnApi = {
     }
     return res.data ?? null;
   },
-  async courseProgress(
-    courseId: string,
-  ): Promise<{ activities: Record<string, "in-progress" | "completed"> } | null> {
+  async courseProgress(courseId: string): Promise<{
+    activities: Record<string, "in-progress" | "completed">;
+    positions: Record<string, unknown>;
+  } | null> {
     ensureConfigured();
     const res = await Learn.getLearnCourseProgress({
       path: { courseId },

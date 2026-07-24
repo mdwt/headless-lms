@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MediaTrackingEvent } from "@headless-lms/editor-contract";
 
 import { createVideoTracker, type VideoReportItem } from "./video-tracking";

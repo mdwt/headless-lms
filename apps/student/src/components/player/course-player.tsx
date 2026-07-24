@@ -20,6 +20,10 @@ import { useApp, useCompletion } from "@/lib/store";
 import type { Completion, Course } from "@/lib/types";
 import { ensureClientSdk } from "@/lib/api/client-sdk";
 import { progressReporter } from "@/lib/progress-reporter";
+import { createVideoTracker, flushKeepalive } from "@/lib/video-tracking";
+import editorMedia from "@/editor-media.config";
+import type { MediaTrackingEvent } from "@headless-lms/editor-contract";
+import { Learn } from "@headless-lms/sdk";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";
@@ -36,6 +40,8 @@ export interface CoursePlayerProps {
   renderedContent: Record<string, React.ReactNode>;
   /** Server-hydrated completion, seeded into the store on mount. */
   initialCompletion?: Completion;
+  /** Server-hydrated per-activity position maps (activity id → asset id → state). */
+  initialPositions?: Record<string, unknown>;
   sidebarStyle?: SidebarStyle;
   sequentialLocking?: boolean;
   autoAdvance?: boolean;
@@ -49,6 +55,7 @@ export function CoursePlayer({
   orgName,
   renderedContent,
   initialCompletion,
+  initialPositions,
   sidebarStyle = "detailed",
   sequentialLocking = true,
   autoAdvance = true,
@@ -80,6 +87,54 @@ export function CoursePlayer({
     ensureClientSdk();
     return curLessonId ? progressReporter({ activity: curLessonId }) : null;
   }, [course.id, curLessonId]);
+
+  // Fresh tracker per lesson — per-asset watch state must not leak across lessons.
+  const tracker = React.useMemo(
+    () => (reporter ? createVideoTracker({ send: (items) => void reporter.report(items) }) : null),
+    [reporter],
+  );
+
+  const onMediaEvent = React.useCallback(
+    (e: MediaTrackingEvent) => tracker?.handleEvent(e),
+    [tracker],
+  );
+
+  const startPosition = React.useCallback(
+    (assetId: string): number | undefined => {
+      const byAsset = initialPositions?.[curLessonId] as
+        | Record<string, { seconds?: unknown } | undefined>
+        | undefined;
+      const seconds = byAsset?.[assetId]?.seconds;
+      return typeof seconds === "number" ? seconds : undefined;
+    },
+    [initialPositions, curLessonId],
+  );
+
+  const refreshUrl = React.useCallback(async (assetId: string): Promise<string | null> => {
+    ensureClientSdk();
+    try {
+      const res = await Learn.requestLearnAssetDownload({ path: { id: assetId }, body: {} });
+      return res.data?.url ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Flush unsent watch state when the tab hides or the lesson unmounts.
+  React.useEffect(() => {
+    if (!tracker || !curLessonId) return;
+    const flush = () => flushKeepalive(curLessonId, tracker.flush());
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flush();
+    };
+  }, [tracker, curLessonId]);
 
   // Seed once per mount — local state (set by later reports) wins over the seed.
   React.useEffect(() => {
@@ -225,7 +280,13 @@ export function CoursePlayer({
                 </span>
               </div>
             )}
-            <ContentArea node={curLesson ? renderedContent[curLessonId] : null} />
+            <editorMedia.MediaProvider
+              onEvent={onMediaEvent}
+              startPosition={startPosition}
+              refreshUrl={refreshUrl}
+            >
+              <ContentArea node={curLesson ? renderedContent[curLessonId] : null} />
+            </editorMedia.MediaProvider>
           </div>
 
           <FooterNav

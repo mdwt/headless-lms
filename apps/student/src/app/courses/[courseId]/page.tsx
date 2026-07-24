@@ -45,6 +45,7 @@ export default async function CoursePlayerPage({
       orgName={org.name}
       renderedContent={renderedContent}
       initialCompletion={progress?.activities ?? {}}
+      initialPositions={progress?.positions ?? {}}
     />
   );
 }
