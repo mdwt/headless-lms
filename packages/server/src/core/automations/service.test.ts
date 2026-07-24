@@ -489,14 +489,8 @@ describe('AutomationsService.available', () => {
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), fakeMailer(), integrations);
 
-    const available = await svc.available('org-1');
+    const available = await svc.available();
 
-    expect(available.triggers).toEqual(
-      expect.arrayContaining([
-        { type: 'entitlement.created', description: expect.any(String) },
-        { type: 'entitlement.deleted', description: expect.any(String) },
-      ]),
-    );
     expect(available.actions).toEqual([
       expect.objectContaining({
         type: 'sendEmail',

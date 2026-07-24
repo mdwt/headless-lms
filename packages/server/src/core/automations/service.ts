@@ -11,7 +11,7 @@
 // implements AutomationExecutor) to actually execute steps and close the run
 // out; the container wires `engine.register(service)` — this class never
 // self-registers.
-import { catalogActions, catalogTriggers } from './catalog.js';
+import { catalogActions } from './catalog.js';
 import { executeAction } from './actions.js';
 import { InvalidTriggerError } from './model.js';
 import type { Automation, AutomationActionResult, AutomationRun, Page } from './model.js';
@@ -271,10 +271,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return this.runsRepo.list(orgId, automationId, query);
   }
 
-  available(_orgId: string): Promise<AutomationsAvailable> {
+  available(): Promise<AutomationsAvailable> {
     const integrations = this.integrations.available();
     return Promise.resolve({
-      triggers: catalogTriggers(),
       actions: catalogActions(),
       integrations: integrations.map((integration) => ({
         id: integration.id,

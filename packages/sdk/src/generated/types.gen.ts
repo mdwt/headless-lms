@@ -1153,10 +1153,6 @@ export type GetAvailableAutomationsResponses = {
    * Default Response
    */
   200: {
-    triggers: Array<{
-      type: string;
-      description: string;
-    }>;
     actions: Array<{
       type: "sendEmail";
       description: string;

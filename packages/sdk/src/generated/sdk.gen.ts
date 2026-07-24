@@ -777,7 +777,7 @@ export class Automations {
   }
 
   /**
-   * List the triggers/actions automations can be built from
+   * List the actions automations can use
    */
   public static getAvailableAutomations<ThrowOnError extends boolean = false>(
     options?: Options<GetAvailableAutomationsData, ThrowOnError>,

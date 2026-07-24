@@ -22,8 +22,9 @@ export interface AutomationsService {
    *  run per match. Never throws — a per-automation failure is logged and
    *  recorded on the run, not propagated to the caller (the outbox relay). */
   handle(event: DomainEvent): Promise<void>;
-  /** The catalog's triggers/actions plus every loaded integration's actions. */
-  available(orgId: string): Promise<AutomationsAvailable>;
+  /** Which actions an automation can use: built-in action types plus every
+   *  loaded integration's declared actions. */
+  available(): Promise<AutomationsAvailable>;
   list(orgId: string): Promise<Automation[]>;
   get(orgId: string, id: string): Promise<Automation | null>;
   create(orgId: string, input: CreateAutomationInput): Promise<Automation>;

@@ -48,12 +48,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'getAvailableAutomations',
       tags,
-      summary: 'List the triggers/actions automations can be built from',
+      summary: 'List the actions automations can use',
       response: { 200: AutomationsAvailable },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return automations.available(scope.orgId);
+      await resolveScope(container, req);
+      return automations.available();
     },
   });
 

@@ -33,10 +33,9 @@ export interface AutomationRunsQuery {
   sort?: string | undefined;
 }
 
-/** The catalog `available()` serves: what an automation can be built from —
- *  code-owned triggers/actions plus every loaded integration's own actions. */
+/** The catalog `available()` serves: which actions an automation can use —
+ *  built-in action types plus every loaded integration's own actions. */
 export interface AutomationsAvailable {
-  triggers: { type: string; description: string }[];
   actions: {
     type: AutomationAction["type"];
     description: string;

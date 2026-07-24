@@ -54,10 +54,9 @@ export type UpdateAutomationBody = z.infer<typeof UpdateAutomationBody>;
 export const AutomationIdParam = z.object({ id: z.string() });
 export type AutomationIdParam = z.infer<typeof AutomationIdParam>;
 
-/** What an automation can be built from: code-owned triggers/actions plus
- *  every loaded integration's own actions. */
+/** Which actions an automation can use: built-in action types plus every
+ *  loaded integration's own actions. */
 export const AutomationsAvailable = z.object({
-  triggers: z.array(z.object({ type: z.string(), description: z.string() })),
   actions: z.array(
     z.object({
       type: z.literal("sendEmail"),

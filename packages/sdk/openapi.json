@@ -3453,7 +3453,7 @@
     "/api/automations/available": {
       "get": {
         "operationId": "getAvailableAutomations",
-        "summary": "List the triggers/actions automations can be built from",
+        "summary": "List the actions automations can use",
         "tags": [
           "Automations"
         ],
@@ -3465,25 +3465,6 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "triggers": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "description"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
                     "actions": {
                       "type": "array",
                       "items": {
@@ -3578,7 +3559,6 @@
                     }
                   },
                   "required": [
-                    "triggers",
                     "actions",
                     "integrations"
                   ],
