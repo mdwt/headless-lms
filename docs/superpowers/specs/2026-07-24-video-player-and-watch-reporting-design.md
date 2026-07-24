@@ -82,13 +82,13 @@ preserving the swap-point rule and contract typing.
 `course-player.tsx` (already `'use client'`) wraps the rendered tree:
 
 ```tsx
-<editorModule.MediaProvider
+<editorMedia.MediaProvider
   onEvent={onMediaEvent}
   startPosition={startPosition}
   refreshUrl={(assetId) => mintDownloadUrl(assetId)} // Learn.requestLearnAssetDownload
 >
   {renderedContent}
-</editorModule.MediaProvider>
+</editorMedia.MediaProvider>
 ```
 
 A new app-side module `lib/video-tracking.ts` owns the reporting policy —
