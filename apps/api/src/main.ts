@@ -32,6 +32,8 @@ try {
 // app.ready() during `pnpm gen:sdk` and must not begin polling/working.
 // buildServer's onClose stops both.
 container.outboxRelay.start();
-// HatchetAutomationEngine.start() runs the worker in the background
-// internally and never rejects; InlineAutomationEngine.start() is a no-op.
-container.automationEngine.start();
+container.automationEngine.start().catch((err) => {
+  container.logger.error('automation engine failed to start', {
+    err: err instanceof Error ? err : new Error(String(err)),
+  });
+});
