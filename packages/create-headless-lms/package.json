@@ -1,6 +1,6 @@
 {
   "name": "create-headless-lms",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "bin": {
     "create-headless-lms": "dist/index.js"
