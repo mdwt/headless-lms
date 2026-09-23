@@ -70,20 +70,34 @@ describe('DrizzleUnitOfWork', () => {
     await rejection.toThrow('slug "orgie" is already in use');
   });
 
-  it('translates a foreign key violation (23503) into ConflictError', async () => {
+  it('keeps a foreign key violation (23503) internal instead of a ConflictError', async () => {
     const { db } = fakeDb();
     const uow = new DrizzleUnitOfWork(db, () => ({}));
-    const pgError = Object.assign(new Error('violates foreign key constraint'), {
+    const drizzleError = Object.assign(new Error('Failed query: insert ...\nparams: owner-1'), {
+      query: 'insert into "organizations" ...',
+      params: ['owner-1'],
+      cause: Object.assign(new Error('violates foreign key constraint'), {
+        code: '23503',
+        constraint: 'organizations_owner_id_users_id_fk',
+      }),
+    });
+    const thrown = await uow
+      .run(async () => {
+        throw drizzleError;
+      })
+      .then(
+        () => null,
+        (err: unknown) => err,
+      );
+    expect(thrown).toBeInstanceOf(DbQueryError);
+    expect(thrown).not.toBeInstanceOf(ConflictError);
+    const dbError = thrown as DbQueryError;
+    expect(dbError.message).toBe('violates foreign key constraint');
+    expect(dbError.message).not.toContain('owner-1');
+    expect(dbError.pg).toEqual({
       code: '23503',
       constraint: 'organizations_owner_id_users_id_fk',
     });
-    const rejection = expect(
-      uow.run(async () => {
-        throw pgError;
-      }),
-    ).rejects;
-    await rejection.toBeInstanceOf(ConflictError);
-    await rejection.toThrow('A record this depends on does not exist');
   });
 
   it('sanitizes other query failures: driver message and pg fields, no bind params', async () => {

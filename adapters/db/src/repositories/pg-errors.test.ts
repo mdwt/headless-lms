@@ -42,7 +42,18 @@ describe('translateDbErrors (class boundary)', () => {
   });
 
   it('translates synchronous throws without leaking schema internals', () => {
-    expect(() => new FakeRepo().sync()).toThrow('A record this depends on does not exist');
+    let thrown: unknown;
+    try {
+      new FakeRepo().sync();
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(DbQueryError);
+    expect(thrown).not.toBeInstanceOf(ConflictError);
+    const dbError = thrown as DbQueryError;
+    expect(dbError.message).toBe('driver failure');
+    expect(dbError.message).not.toContain('secret');
+    expect(dbError.pg).toEqual({ code: '23503', constraint: 'fk' });
   });
 
   it('leaves successful calls untouched', async () => {
