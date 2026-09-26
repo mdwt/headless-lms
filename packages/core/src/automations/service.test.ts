@@ -667,10 +667,14 @@ describe('AutomationsService.availableTriggers', () => {
     expect(triggers.length).toBeGreaterThan(0);
     for (const trigger of triggers) {
       expect(trigger.type).toBeTruthy();
+      expect(trigger.label).toBeTruthy();
+      expect(trigger.category).toBeTruthy();
       expect(trigger.description).toBeTruthy();
     }
     expect(triggers).toContainEqual({
       type: 'entitlement.created',
+      label: 'Access granted',
+      category: 'Access',
       description: 'a student was granted access to content',
     });
   });
