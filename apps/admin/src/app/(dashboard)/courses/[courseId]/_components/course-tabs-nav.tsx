@@ -32,7 +32,7 @@ export function CourseTabsNav({ courseId }: { courseId: string }) {
   return (
     <nav
       aria-label="Course sections"
-      className="-mb-px flex items-center gap-1 overflow-x-auto border-b border-line"
+      className="flex items-center gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)]"
     >
       {TABS.map(({ segment, label, icon: Icon }) => {
         const href = `${base}/${segment}`;
@@ -43,7 +43,7 @@ export function CourseTabsNav({ courseId }: { courseId: string }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative -mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:text-ink",
+              "relative inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:text-ink",
               active
                 ? "border-brand text-ink"
                 : "border-transparent text-ink-3 hover:text-ink",
