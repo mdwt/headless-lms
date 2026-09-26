@@ -188,11 +188,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     // provider's member record, which does not exist until they join.
     const person =
       role === STUDENT_ROLE
-        ? await this.people.createUser({
+        ? ((await this.people.getUserByEmail(email)) ??
+          (await this.people.createUser({
             email,
             ...(firstName !== undefined && { firstName }),
             ...(lastName !== undefined && { lastName }),
-          })
+          })))
         : null;
 
     const invite = await this.uow.run(async ({ organizations, outbox }) => {
@@ -279,17 +280,18 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!person) {
       throw new NotFoundError('User', orgUser.userId);
     }
-    // Straight back through createInvite: it rotates the token on the pending
-    // row and finds the existing org user, so a resend is an invite that
-    // happens to be the second one.
-    await this.createInvite({
-      orgId,
-      email: person.email,
-      role: STUDENT_ROLE,
-      inviterUserId,
-      sendEmail: true,
-    });
-    this.logger.info('student invite resent', { orgId, orgUserId });
+    const pending = await this.repo.findPendingInvite(orgId, person.email);
+    if (!pending) {
+      throw new NotFoundError('Invite', person.email);
+    }
+    const { token, tokenHash } = generateInviteToken();
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+    const invite = await this.repo.setInviteToken(orgId, pending.id, tokenHash, expiresAt);
+    if (!invite) {
+      throw new NotFoundError('Invite', pending.id);
+    }
+    await this.sendInviteEmail(invite, token);
+    this.logger.info('student invite resent', { orgId, orgUserId, inviteId: invite.id, inviterUserId });
   }
 
   async peekInvite(token: string): Promise<Invite | null> {

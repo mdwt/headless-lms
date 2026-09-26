@@ -1,6 +1,7 @@
 // Email template catalog — every transactional email the system can send.
 // The closed EmailTemplateId union is the guarantee that templates exist: a
 // TemplateRenderer implementation must answer every member or fail typecheck.
+import type { ContentType } from "./schemas/content.js";
 
 /** Branding threaded into every template. */
 export interface TemplateContext {
@@ -27,7 +28,7 @@ export interface EmailTemplateParams {
   memberInvite: { inviteUrl: string; inviterName: string; role: string };
   passwordReset: { resetUrl: string };
   emailVerification: { verifyUrl: string };
-  accessGranted: { contentTitle: string; contentId: string };
+  accessGranted: { contentTitle: string; contentId: string; contentType: ContentType };
   accessRevoked: { contentTitle: string };
   courseCompleted: { courseTitle: string };
 }

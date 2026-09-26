@@ -6,11 +6,19 @@ type Params = EmailTemplateParams['accessGranted'];
 export const subject = (_ctx: TemplateContext, params: Params) =>
   `You now have access to ${params.contentTitle}`;
 
+const PORTAL_PATH: Record<Params['contentType'], string> = {
+  course: 'courses',
+  download: 'downloads',
+};
+
 export default function AccessGranted({ ctx, params }: { ctx: TemplateContext; params: Params }) {
+  const href = `${ctx.studentPortalUrl}/${PORTAL_PATH[params.contentType]}/${params.contentId}`;
   return (
     <Layout ctx={ctx} heading={`${params.contentTitle} is ready for you`}>
       <Paragraph>You've been granted access. Jump in whenever you're ready.</Paragraph>
-      <EmailButton href={`${ctx.studentPortalUrl}/courses/${params.contentId}`}>Start learning</EmailButton>
+      <EmailButton href={href}>
+        {params.contentType === 'download' ? 'View download' : 'Start learning'}
+      </EmailButton>
     </Layout>
   );
 }
@@ -20,5 +28,6 @@ AccessGranted.PreviewProps = {
   params: {
     contentTitle: 'Fly Tying 101',
     contentId: 'demo',
+    contentType: 'course',
   },
 };

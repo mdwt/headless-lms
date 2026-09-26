@@ -7,12 +7,16 @@ import type {
   TemplateContext,
   TemplateRenderer,
 } from './ports.js';
+import type { ContentType } from '../types/schemas/content.js';
 
 /** Resolves the recipient/content details a template needs when the
  *  triggering event carries only row ids. Wired by the app layer. */
 export interface MailerLookups {
   orgUserEmail(orgId: string, orgUserId: string): Promise<string | null>;
-  contentInfo(orgId: string, contentId: string): Promise<{ id: string; title: string } | null>;
+  contentInfo(
+    orgId: string,
+    contentId: string,
+  ): Promise<{ id: string; title: string; type: ContentType } | null>;
 }
 
 export class Mailer {

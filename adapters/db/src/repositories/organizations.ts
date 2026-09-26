@@ -164,6 +164,35 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return row ? toInvite(row) : null;
   }
 
+  async findPendingInvite(orgId: string, email: string): Promise<Invite | null> {
+    const [row] = await this.db
+      .select()
+      .from(invites)
+      .where(
+        and(
+          eq(invites.orgId, orgId),
+          sql`lower(${invites.email}) = lower(${email})`,
+          eq(invites.status, 'pending'),
+        ),
+      )
+      .limit(1);
+    return row ? toInvite(row) : null;
+  }
+
+  async setInviteToken(
+    orgId: string,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<Invite | null> {
+    const [row] = await this.db
+      .update(invites)
+      .set({ tokenHash, expiresAt })
+      .where(and(eq(invites.orgId, orgId), eq(invites.id, id)))
+      .returning();
+    return row ? toInvite(row) : null;
+  }
+
   async findOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
     const [row] = await this.db
       .select()

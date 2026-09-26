@@ -18,7 +18,7 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
   },
   passwordReset: { resetUrl: 'http://localhost:8002/reset?token=t' },
   emailVerification: { verifyUrl: 'http://localhost:8002/verify?token=t' },
-  accessGranted: { contentTitle: 'Fly Tying 101', contentId: 'c1' },
+  accessGranted: { contentTitle: 'Fly Tying 101', contentId: 'c1', contentType: 'course' },
   accessRevoked: { contentTitle: 'Fly Tying 101' },
   courseCompleted: { courseTitle: 'Fly Tying 101' },
 };
@@ -41,6 +41,19 @@ describe('ReactEmailTemplateRenderer', () => {
     expect(content.text).toContain('http://localhost:8002/welcome?token=t');
   });
 
+  it.each([
+    ['course', 'http://localhost:8002/courses/c1'],
+    ['download', 'http://localhost:8002/downloads/c1'],
+  ] as const)('links an accessGranted %s to its portal page', async (contentType, url) => {
+    const content = await renderer.render('accessGranted', CTX, {
+      contentTitle: 'Fly Tying 101',
+      contentId: 'c1',
+      contentType,
+    });
+    expect(content.html).toContain(url);
+    expect(content.text).toContain(url);
+  });
+
   it('brands every email with the context brand name', async () => {
     const content = await renderer.render('magicLink', CTX, SAMPLE_PARAMS.magicLink);
     expect(content.html).toContain('Acme LMS');
@@ -50,6 +63,7 @@ describe('ReactEmailTemplateRenderer', () => {
     const content = await renderer.render('accessGranted', CTX, {
       contentTitle: '<script>alert(1)</script>',
       contentId: 'c1',
+      contentType: 'course',
     });
     expect(content.html).not.toContain('<script>');
   });

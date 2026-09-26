@@ -382,10 +382,10 @@ export async function buildContainer(
     contentInfo: async (orgId, contentId) => {
       const course = await content.getCourse(orgId, contentId);
       if (course) {
-        return { id: course.id, title: course.title };
+        return { id: course.id, title: course.title, type: course.type };
       }
       const download = await content.getDownload(orgId, contentId);
-      return download ? { id: download.id, title: download.title } : null;
+      return download ? { id: download.id, title: download.title, type: download.type } : null;
     },
   };
 

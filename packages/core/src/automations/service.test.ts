@@ -156,7 +156,7 @@ function fakeUow(repo: AutomationsRepository, runsRepo: AutomationRunsRepository
 function fakeLookups(over?: Partial<MailerLookups>): MailerLookups {
   return {
     orgUserEmail: vi.fn().mockResolvedValue('bob@example.com'),
-    contentInfo: vi.fn().mockResolvedValue({ id: 'c1', title: 'Intro' }),
+    contentInfo: vi.fn().mockResolvedValue({ id: 'c1', title: 'Intro', type: 'course' }),
     ...over,
   };
 }
@@ -341,6 +341,7 @@ describe('AutomationsService.runAction', () => {
     expect(mailer.send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
       contentTitle: 'Intro',
       contentId: 'c1',
+      contentType: 'course',
     });
   });
 

@@ -45,7 +45,7 @@ const updated = {
 function fakeLookups(over?: Partial<MailerLookups>): MailerLookups {
   return {
     orgUserEmail: vi.fn().mockResolvedValue('bob@example.com'),
-    contentInfo: vi.fn().mockResolvedValue({ id: 'c1', title: 'Intro' }),
+    contentInfo: vi.fn().mockResolvedValue({ id: 'c1', title: 'Intro', type: 'course' }),
     ...over,
   };
 }
@@ -64,6 +64,7 @@ describe('notification subscribers', () => {
     expect(send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
       contentTitle: 'Intro',
       contentId: 'c1',
+      contentType: 'course',
     });
   });
 

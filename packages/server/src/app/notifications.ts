@@ -27,6 +27,7 @@ export function registerNotificationSubscribers(
     await mailer.send(to, 'accessGranted', {
       contentTitle: content.title,
       contentId: content.id,
+      contentType: content.type,
     });
   });
 

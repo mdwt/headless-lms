@@ -46,7 +46,7 @@ export const SEND_EMAIL_DERIVATIONS: SendEmailDerivations = {
       }
       return {
         to,
-        params: { contentTitle: content.title, contentId: content.id },
+        params: { contentTitle: content.title, contentId: content.id, contentType: content.type },
       };
     },
   },
