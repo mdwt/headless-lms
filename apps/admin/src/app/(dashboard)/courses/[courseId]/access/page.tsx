@@ -1,7 +1,6 @@
 import { serverApi } from "@/lib/api/server";
 import { AccessGrantsList } from "@/components/access-grants-list";
-
-import { GrantCourseAccessButton } from "../_components/grant-course-access-button";
+import { GrantAccessButton } from "@/components/grant-access-button";
 
 // Access tab: the students granted access to this course (entitlements), plus
 // the course-scoped grant form.
@@ -26,9 +25,14 @@ export default async function CourseAccessTab({
     <AccessGrantsList
       grants={grants}
       emptyDescription="Students granted access to this course will appear here."
-      action={<GrantCourseAccessButton courseId={courseId} students={candidates} />}
+      action={<GrantAccessButton contentId={courseId} contentNoun="course" students={candidates} />}
       emptyAction={
-        <GrantCourseAccessButton courseId={courseId} students={candidates} variant="secondary" />
+        <GrantAccessButton
+          contentId={courseId}
+          contentNoun="course"
+          students={candidates}
+          variant="secondary"
+        />
       }
     />
   );

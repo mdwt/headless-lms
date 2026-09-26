@@ -91,11 +91,6 @@ export function DownloadFormDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={isEdit ? "Edit download" : "New download"}
-      description={
-        isEdit
-          ? "Update the download details. Files are managed on the download's page."
-          : "Create a draft download. You can add files next."
-      }
       formId={FORM_ID}
       submitLabel={isEdit ? "Save" : "Create download"}
       pending={pending}
