@@ -80,6 +80,7 @@ function FlowCanvasInner({
         width: NODE_WIDTH,
         data: {
           triggerType: draft.trigger,
+          triggerLabel: triggerInfo?.label ?? draft.trigger,
           description: triggerInfo?.description ?? null,
           isSelected: selection?.kind === "trigger",
           invalid: attempted && !draft.trigger,

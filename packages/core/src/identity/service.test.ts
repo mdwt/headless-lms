@@ -67,6 +67,31 @@ describe('linkOrCreateUser', () => {
     expect(appended.map((e) => e.type)).toEqual(['identity.user.created']);
   });
 
+  it('links a self-signup to its own id via externalId', async () => {
+    const { service, repo } = build();
+
+    const user = await service.linkOrCreateUser({
+      id: 'usr_new',
+      email: 'new@example.com',
+    });
+
+    expect(repo.insertUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'usr_new', externalId: 'usr_new' }),
+    );
+    expect(user.externalId).toBe('usr_new');
+  });
+
+  it('mints one id for both id and externalId when none is given', async () => {
+    const { service, repo } = build();
+
+    const user = await service.linkOrCreateUser({ email: 'new@example.com' });
+
+    const input = vi.mocked(repo.insertUser).mock.calls[0]![0];
+    expect(input.id).toMatch(/^usr_/);
+    expect(input.externalId).toBe(input.id);
+    expect(user.externalId).toBe(user.id);
+  });
+
   it('links a provisioned user instead of inserting a duplicate', async () => {
     const repo = fakeRepo({ findUserByEmail: vi.fn().mockResolvedValue(PROVISIONED) });
     const { service, appended } = build(repo);

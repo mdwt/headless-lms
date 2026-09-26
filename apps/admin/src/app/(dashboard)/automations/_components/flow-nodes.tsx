@@ -20,6 +20,7 @@ export const NODE_WIDTH = 300;
 
 export type TriggerNodeData = {
   triggerType: string;
+  triggerLabel: string;
   description: string | null;
   isSelected: boolean;
   invalid: boolean;
@@ -73,7 +74,7 @@ export function TriggerNode({ data }: NodeProps<TriggerFlowNode>) {
         <div className="min-w-0">
           <div className="text-[11px] font-medium tracking-wide text-ink-4 uppercase">When</div>
           <div className={cn("truncate text-sm font-medium", data.triggerType ? "text-ink" : "text-ink-4")}>
-            {data.triggerType || "Choose a trigger"}
+            {data.triggerLabel || "Choose a trigger"}
           </div>
         </div>
       </div>

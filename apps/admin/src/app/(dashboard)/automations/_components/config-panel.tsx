@@ -80,27 +80,38 @@ function PanelHeading({ overline, title }: { overline: string; title: string }) 
 
 function TriggerPanel({ draft, triggers, onTriggerChange }: ConfigPanelProps) {
   const selected = triggers.find((t) => t.type === draft.trigger);
+  const groups = useMemo(() => {
+    const byCategory = new Map<string, AutomationTriggerInfo[]>();
+    for (const t of triggers) {
+      const list = byCategory.get(t.category) ?? [];
+      list.push(t);
+      byCategory.set(t.category, list);
+    }
+    return [...byCategory.entries()];
+  }, [triggers]);
+
   return (
     <div className="flex flex-col gap-5 p-5">
-      <p className="text-sm text-ink-2">Choose the event that starts this automation.</p>
-      <Field id="trigger" label="Event" required>
+      <p className="text-sm text-ink-2">Choose what starts this automation.</p>
+      <Field id="trigger" label="When" required>
         <Select value={draft.trigger || undefined} onValueChange={onTriggerChange}>
           <SelectTrigger id="trigger">
-            <SelectValue placeholder="Choose an event">{selected?.type}</SelectValue>
+            <SelectValue placeholder="Choose an event">{selected?.label}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {triggers.map((t) => (
-              <SelectItem key={t.type} value={t.type} textValue={t.type}>
-                <div className="flex flex-col items-start gap-0.5">
-                  <span className="font-medium">{t.type}</span>
-                  <span className="text-xs text-ink-3">{t.description}</span>
-                </div>
-              </SelectItem>
+            {groups.map(([category, items]) => (
+              <SelectGroup key={category}>
+                <SelectLabel>{category}</SelectLabel>
+                {items.map((t) => (
+                  <SelectItem key={t.type} value={t.type} textValue={t.label}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>
       </Field>
-      {selected ? <p className="text-sm text-ink-3">Runs when {selected.description}.</p> : null}
     </div>
   );
 }

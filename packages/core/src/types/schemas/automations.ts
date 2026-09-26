@@ -83,6 +83,13 @@ export type AvailableAction = z.infer<typeof availableActionSchema>;
 export type AvailableActions = AvailableAction[];
 
 export const availableTriggersSchema = z.object({
-  triggers: z.array(z.object({ type: z.string().trim().min(1), description: z.string() }).strict()),
+  triggers: z.array(
+    z.object({
+      type: z.string().trim().min(1),
+      label: z.string().min(1),
+      category: z.string().min(1),
+      description: z.string(),
+    }).strict(),
+  ),
 }).strict();
 export type AvailableTriggers = z.infer<typeof availableTriggersSchema>;

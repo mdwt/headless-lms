@@ -3209,6 +3209,8 @@ export type ListAutomationTriggersResponses = {
   200: {
     triggers: Array<{
       type: string;
+      label: string;
+      category: string;
       description: string;
     }>;
   };

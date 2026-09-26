@@ -91,14 +91,11 @@ function AutomationsTableInner({
     });
   }, [deleteTarget]);
 
-  const triggerDescriptions = useMemo(
-    () => new Map(triggers.map((t) => [t.type, t.description])),
-    [triggers],
-  );
+  const triggerInfo = useMemo(() => new Map(triggers.map((t) => [t.type, t])), [triggers]);
 
   const columns = useMemo(
-    () => automationColumns(triggerDescriptions, onToggleEnabled, onEdit, onDelete),
-    [triggerDescriptions, onToggleEnabled, onEdit, onDelete],
+    () => automationColumns(triggerInfo, onToggleEnabled, onEdit, onDelete),
+    [triggerInfo, onToggleEnabled, onEdit, onDelete],
   );
 
   if (!isManager(user.role)) return <ForbiddenView />;
@@ -134,7 +131,7 @@ function AutomationsTableInner({
           {
             columnId: "trigger",
             title: "Trigger",
-            options: triggers.map((t) => ({ label: t.type, value: t.type })),
+            options: triggers.map((t) => ({ label: t.label, value: t.type })),
           },
         ]}
         toolbarActions={

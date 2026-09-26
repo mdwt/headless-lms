@@ -3,6 +3,7 @@ import type { User } from './model.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
+import { genId } from '../shared/id.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
 import { identityEvents } from './events.js';
@@ -40,7 +41,8 @@ export class IdentityServiceImpl implements IdentityService {
   async linkOrCreateUser(input: CreateUserInput): Promise<User> {
     const existing = await this.repo.findUserByEmail(input.email);
     if (!existing) {
-      return this.createUser(input);
+      const id = input.id ?? genId('user');
+      return this.createUser({ ...input, id, externalId: id });
     }
     if (existing.externalId !== null) {
       throw new ConflictError('That email already has an account');

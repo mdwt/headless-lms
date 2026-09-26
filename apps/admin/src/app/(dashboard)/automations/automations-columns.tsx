@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
-import type { Automation } from "@/lib/api/types";
+import type { Automation, AutomationTriggerInfo } from "@/lib/api/types";
 
 /**
  * Column defs for the automations list. Toggle/edit/delete are wired to the
@@ -15,7 +15,7 @@ import type { Automation } from "@/lib/api/types";
  * The page is manager-gated at the server and again in the island.
  */
 export function automationColumns(
-  triggerDescriptions: Map<string, string>,
+  triggerInfo: Map<string, AutomationTriggerInfo>,
   onToggleEnabled: (automation: Automation, enabled: boolean) => void,
   onEdit: (automation: Automation) => void,
   onDelete: (automation: Automation) => void,
@@ -39,11 +39,14 @@ export function automationColumns(
     {
       accessorKey: "trigger",
       header: ({ column }) => <ColumnHeader column={column} title="Trigger" />,
-      cell: ({ row }) => (
-        <Badge variant="outline" title={triggerDescriptions.get(row.original.trigger)}>
-          {row.original.trigger}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const info = triggerInfo.get(row.original.trigger);
+        return (
+          <Badge variant="outline" title={info?.description}>
+            {info?.label ?? row.original.trigger}
+          </Badge>
+        );
+      },
     },
     {
       id: "steps",
