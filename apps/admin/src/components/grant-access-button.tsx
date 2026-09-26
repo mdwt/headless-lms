@@ -4,15 +4,17 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import { GrantCourseAccessDialog, type LiteStudent } from "./grant-course-access-dialog";
+import { GrantAccessDialog, type LiteStudent } from "./grant-access-dialog";
 
-/** Opens the course-scoped grant sheet — the Access tab's only interactive bit. */
-export function GrantCourseAccessButton({
-  courseId,
+/** Opens the content-scoped grant sheet — the Access tab's only interactive bit. */
+export function GrantAccessButton({
+  contentId,
+  contentNoun,
   students,
   variant = "primary",
 }: {
-  courseId: string;
+  contentId: string;
+  contentNoun: string;
   students: LiteStudent[];
   variant?: "primary" | "secondary";
 }) {
@@ -23,10 +25,11 @@ export function GrantCourseAccessButton({
       <Button variant={variant} size="sm" onClick={() => setOpen(true)}>
         Grant access
       </Button>
-      <GrantCourseAccessDialog
+      <GrantAccessDialog
         open={open}
         onOpenChange={setOpen}
-        courseId={courseId}
+        contentId={contentId}
+        contentNoun={contentNoun}
         students={students}
       />
     </>

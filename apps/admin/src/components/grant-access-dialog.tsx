@@ -19,9 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { grantEntitlementAction } from "../../../entitlements/actions";
+import { grantEntitlementAction } from "@/app/(dashboard)/entitlements/actions";
 
-const FORM_ID = "course-grant-access-form";
+const FORM_ID = "grant-access-form";
 
 export type LiteStudent = { id: string; name: string; email: string };
 
@@ -38,17 +38,19 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-/** Grant one student access to this course — the content side is fixed by the
- *  page, so only the student and the expiry are picked here. */
-export function GrantCourseAccessDialog({
+/** Grant one student access to a piece of content — the content side is fixed
+ *  by the page, so only the student and the expiry are picked here. */
+export function GrantAccessDialog({
   open,
   onOpenChange,
-  courseId,
+  contentId,
+  contentNoun,
   students,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  courseId: string;
+  contentId: string;
+  contentNoun: string;
   students: LiteStudent[];
 }) {
   const router = useRouter();
@@ -79,7 +81,7 @@ export function GrantCourseAccessDialog({
   const onSubmit = handleSubmit((values) => {
     const input = {
       orgUserId: values.studentId,
-      contentId: courseId,
+      contentId,
       expiresAt:
         values.expiryMode === "never" || !values.expiresAt
           ? null
@@ -103,7 +105,7 @@ export function GrantCourseAccessDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Grant access"
-      description="Grant a student access to this course. They'll get immediate access."
+      description={`Grant a student access to this ${contentNoun}. They'll get immediate access.`}
       formId={FORM_ID}
       submitLabel="Grant access"
       pending={pending}
