@@ -248,8 +248,6 @@ export async function buildContainer(
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
-  // Better Auth's hooks need the organizations service, and the service needs
-  // Better Auth for member writes, so it is handed over once auth exists.
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const organizations = new OrganizationServiceImpl({
     repo: new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' })),

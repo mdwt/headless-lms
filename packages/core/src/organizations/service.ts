@@ -378,8 +378,6 @@ export class OrganizationServiceImpl implements OrganizationService {
     });
   }
 
-  // Better Auth owns staff membership: granting it fires beforeAddMember, which
-  // creates the org user through addOrgUser.
   private async acceptStaffInvite(invite: Invite, org: Organization, userId: string): Promise<OrgUser> {
     const person = await this.people.getUserById(userId);
     if (!person?.externalId) {

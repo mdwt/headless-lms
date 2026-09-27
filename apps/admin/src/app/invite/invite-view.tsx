@@ -17,23 +17,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Stage = "activating" | "create" | "signin" | "invalid";
 
-/** Stages the token in the API's activation cookie (or consumes it when a session exists). */
-async function activateInvite(
-  token: string,
-): Promise<
-  { status: "accepted" | "auth-required"; accountExists: boolean } | { error: string }
-> {
-  const res = await fetch(`${API_URL}/api/organizations/invites/activate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+async function getInvite(token: string): Promise<{ email: string } | null> {
+  const res = await fetch(`${API_URL}/api/organizations/invites/${encodeURIComponent(token)}`, {
     credentials: "include",
-    body: JSON.stringify({ token }),
   });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    return { error: body?.error ?? "This invitation link is invalid or has expired." };
-  }
-  return (await res.json()) as { status: "accepted" | "auth-required"; accountExists: boolean };
+  if (!res.ok) return null;
+  return (await res.json()) as { email: string };
 }
 
 /** Claims the invite for the fresh session, then refreshes the cookie cache. */
@@ -61,43 +50,45 @@ const signInSchema = z.object({
 type SignInValues = z.infer<typeof signInSchema>;
 
 /**
- * Landing page for staff invite links (`/invite?token=…&email=…`). Same stage
- * machine as the student portal's `/welcome`: activate stages the token, then
+ * Landing page for staff invite links (`/invite?token=…`). Same flow as the
+ * student portal's `/welcome`: the token is read to find the invited email, then
  * sign-up/in followed by an explicit accept call grants the membership.
  */
 export function InviteView() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
-  const email = params.get("email") ?? "";
+  const [email, setEmail] = useState("");
   const [stage, setStage] = useState<Stage>("activating");
   const [error, setError] = useState<string | null>(null);
-  const activateStarted = useRef(false);
+  const loadStarted = useRef(false);
 
   useEffect(() => {
     if (!token) {
       setStage("invalid");
       return;
     }
-    // Strict-mode double-mount fires this effect twice; the token activate must run once.
+    // Strict-mode double-mount fires this effect twice; the invite load must run once.
     // Results apply unconditionally — the ref keeps the call single-flight, and the strict-mode remount wants this exact result.
-    if (activateStarted.current) return;
-    activateStarted.current = true;
-    activateInvite(token)
-      .then((result) => {
-        if ("error" in result) {
-          setError(result.error);
+    if (loadStarted.current) return;
+    loadStarted.current = true;
+    getInvite(token)
+      .then(async (invite) => {
+        if (!invite) {
           setStage("invalid");
           return;
         }
-        if (result.status === "accepted") {
-          // Session existed — invite consumed and the membership was added.
-          // Full reload so the server session resolver picks up the new org.
-          window.location.assign("/");
+        const session = await authClient.getSession();
+        if (session.data) {
+          if (await acceptInvite(token)) {
+            window.location.assign("/");
+            return;
+          }
+          setError("Signed in, but the invitation could not be accepted.");
+          setStage("invalid");
           return;
         }
-        // An email that already has an account can only sign in — signing up
-        // again is refused by the auth provider.
-        setStage(result.accountExists ? "signin" : "create");
+        setEmail(invite.email);
+        setStage("create");
       })
       .catch(() => {
         setError("This invitation link is invalid or has expired.");
@@ -143,7 +134,11 @@ export function InviteView() {
                   accept.
                 </p>
               </div>
-              <CreateAccountForm email={email} token={token} />
+              <CreateAccountForm
+                email={email}
+                token={token}
+                onAccountExists={() => setStage("signin")}
+              />
               <p className="mt-4 text-center text-sm text-ink-3">
                 Already have an account?{" "}
                 <button
@@ -185,7 +180,15 @@ export function InviteView() {
   );
 }
 
-function CreateAccountForm({ email, token }: { email: string; token: string }) {
+function CreateAccountForm({
+  email,
+  token,
+  onAccountExists,
+}: {
+  email: string;
+  token: string;
+  onAccountExists: () => void;
+}) {
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -199,6 +202,10 @@ function CreateAccountForm({ email, token }: { email: string; token: string }) {
   async function onSubmit(values: SignUpValues) {
     setFormError(null);
     const { error } = await signUp.email({ email, password: values.password, name: values.name });
+    if (error && (error.code?.startsWith("USER_ALREADY_EXISTS") || error.status === 422)) {
+      onAccountExists();
+      return;
+    }
     if (error) {
       setFormError(error.message ?? "Couldn't create your account");
       return;
