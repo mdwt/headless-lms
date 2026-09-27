@@ -80,6 +80,12 @@ export const createOrgUserInputSchema = z.object({
 }).strict();
 export type CreateOrgUserInput = z.infer<typeof createOrgUserInputSchema>;
 
+export const updateOrgUserInputSchema = z.object({
+  role: roleSchema.optional(),
+  status: orgUserStatusSchema.optional(),
+}).strict();
+export type UpdateOrgUserInput = z.infer<typeof updateOrgUserInputSchema>;
+
 export const createInviteInputSchema = z.object({
   orgId: idSchema,
   email: emailSchema,

@@ -2,9 +2,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
-  normalizeRole,
   parseRole,
-  type AddOrgUserInput,
   type CreateOrgUserInput,
   type Invite,
   type NewInviteRow,
@@ -13,6 +11,7 @@ import {
   type OrganizationsRepository,
   type OrgUser,
   type UpdateOrganizationInput,
+  type UpdateOrgUserInput,
 } from '@headless-lms/core/organizations';
 import { invites, organizations, orgUsers } from '../schema/organizations.js';
 import type { Logger } from '@headless-lms/core/shared/ports';
@@ -104,19 +103,6 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return row ?? null;
   }
 
-  async upsertOrgUser(orgId: string, input: AddOrgUserInput): Promise<OrgUser> {
-    const role = normalizeRole(input.role);
-    const [row] = await this.db
-      .insert(orgUsers)
-      .values({ orgId, userId: input.userId, role })
-      .onConflictDoUpdate({ target: [orgUsers.orgId, orgUsers.userId], set: { role } })
-      .returning();
-    if (!row) {
-      throw new Error('failed to upsert orgUser');
-    }
-    return { ...row, role: parseRole(row.role) };
-  }
-
   async upsertPendingInvite(orgId: string, input: NewInviteRow): Promise<Invite> {
     const [row] = await this.db
       .insert(invites)
@@ -188,7 +174,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const [row] = await this.db
       .update(invites)
       .set({ tokenHash, expiresAt })
-      .where(and(eq(invites.orgId, orgId), eq(invites.id, id)))
+      .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, 'pending')))
       .returning();
     return row ? toInvite(row) : null;
   }
@@ -243,33 +229,16 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     }
   }
 
-  async ensureOrgUser(input: CreateOrgUserInput): Promise<{ orgUser: OrgUser; created: boolean }> {
-    const status = input.status ?? 'active';
-    const [inserted] = await this.db
-      .insert(orgUsers)
-      .values({
-        orgId: input.orgId,
-        userId: input.userId,
-        role: input.role,
-        status,
+  async updateOrgUser(orgId: string, id: string, patch: UpdateOrgUserInput): Promise<OrgUser | null> {
+    const [row] = await this.db
+      .update(orgUsers)
+      .set({
+        ...(patch.role !== undefined && { role: patch.role }),
+        ...(patch.status !== undefined && { status: patch.status }),
       })
-      .onConflictDoNothing({ target: [orgUsers.orgId, orgUsers.userId] })
+      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
       .returning();
-    if (inserted) {
-      return { orgUser: { ...inserted, role: parseRole(inserted.role) }, created: true };
-    }
-
-    const where = and(eq(orgUsers.orgId, input.orgId), eq(orgUsers.userId, input.userId));
-    // Only an acceptance writes. A re-invite asks for 'invited' against a row
-    // that already exists, and has nothing to say about it.
-    const [existing] =
-      status === 'active'
-        ? await this.db.update(orgUsers).set({ status }).where(where).returning()
-        : await this.db.select().from(orgUsers).where(where).limit(1);
-    if (!existing) {
-      throw new Error('failed to ensure org user');
-    }
-    return { orgUser: { ...existing, role: parseRole(existing.role) }, created: false };
+    return row ? { ...row, role: parseRole(row.role) } : null;
   }
 
   async findStudentOrgUsers(userId: string): Promise<OrgUser[]> {

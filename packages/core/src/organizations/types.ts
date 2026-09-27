@@ -11,6 +11,7 @@ export type {
   AcceptInviteInput,
   InviteRole,
   CreateOrgUserInput,
+  UpdateOrgUserInput,
   OrgUserStatus,
 } from '../types/index.js';
 

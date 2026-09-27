@@ -232,9 +232,16 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
     role: string,
   ): Promise<void> {
     // Server-side (no session): the accepted invitation is the authorisation.
-    await this.auth.api.addMember({
-      body: { userId: userExternalId, organizationId: orgExternalId, role: parseRole(role) },
-    });
+    try {
+      await this.auth.api.addMember({
+        body: { userId: userExternalId, organizationId: orgExternalId, role: parseRole(role) },
+      });
+    } catch (err) {
+      if (err instanceof APIError && err.body?.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION') {
+        return;
+      }
+      throw err;
+    }
   }
   async updateRole(ctx: MemberWriteContext, userExternalId: string, role: Role): Promise<void> {
     await this.auth.api.updateMemberRole({

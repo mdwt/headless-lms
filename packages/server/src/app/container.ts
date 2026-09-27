@@ -248,11 +248,20 @@ export async function buildContainer(
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
+  // Better Auth's hooks need the organizations service, and the service needs
+  // Better Auth for member writes, so it is handed over once auth exists.
+  const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const organizations = new OrganizationServiceImpl({
     repo: new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' })),
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
     uow: organizationsUow,
+    orgAdmin: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('orgAdmin not initialised');
+      }
+      return orgAdminRef.current;
+    },
     logger: logger.child({ name: 'org' }),
     mailer,
     inviteUrls: { studentPortalUrl: config.studentPortalUrl, adminAppUrl: config.adminAppUrl },
@@ -510,6 +519,11 @@ export async function buildContainer(
           role: parseRole(member.role),
         });
       }),
+      beforeUpdateMemberRole: authHook('beforeUpdateMemberRole', async ({ member, newRole }) => {
+        await organizations.updateOrgUser(member.organizationId, member.userId, {
+          role: parseRole(newRole),
+        });
+      }),
       beforeRemoveMember: authHook('beforeRemoveMember', async ({ member }) => {
         await organizations.removeOrgUser(member.organizationId, member.userId);
       }),
@@ -518,6 +532,7 @@ export async function buildContainer(
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
   });
+  orgAdminRef.current = auth;
 
   return {
     auth,

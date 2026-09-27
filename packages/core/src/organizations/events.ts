@@ -41,6 +41,11 @@ export const organizationEvents = {
     version: 1,
     data: inviteSchema,
   }),
+  inviteCanceled: defineEvent({
+    type: 'organization.invite.canceled',
+    version: 1,
+    data: inviteSchema,
+  }),
   studentCreated: defineEvent({
     type: 'organization.student.created',
     version: 1,
@@ -65,6 +70,7 @@ export type OrgUserLinked = EventOf<typeof organizationEvents.orgUserLinked>;
 export type OrgUserDeleted = EventOf<typeof organizationEvents.orgUserDeleted>;
 export type InviteCreated = EventOf<typeof organizationEvents.inviteCreated>;
 export type InviteAccepted = EventOf<typeof organizationEvents.inviteAccepted>;
+export type InviteCanceled = EventOf<typeof organizationEvents.inviteCanceled>;
 export type StudentCreated = EventOf<typeof organizationEvents.studentCreated>;
 export type StudentDeleted = EventOf<typeof organizationEvents.studentDeleted>;
 export type StudentLinked = EventOf<typeof organizationEvents.studentLinked>;

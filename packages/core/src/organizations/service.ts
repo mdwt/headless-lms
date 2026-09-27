@@ -3,6 +3,7 @@ import type {
   MemberRecord,
   MembersRepository,
   MemberWriteContext,
+  OrgAdmin,
   OrganizationService,
   OrganizationsRepository,
   OrganizationsUnitOfWork,
@@ -23,6 +24,7 @@ import type {
   CreateOrganizationInput,
   ResendStudentInviteInput,
   UpdateOrganizationInput,
+  UpdateOrgUserInput,
   UpdateStudentInput,
 } from './types.js';
 import { organizationEvents, type OrganizationEvent } from './events.js';
@@ -62,6 +64,7 @@ export type OrganizationServiceParams = {
   membersRepo: MembersRepository;
   people: IdentityService;
   uow: OrganizationsUnitOfWork;
+  orgAdmin: () => OrgAdmin;
   logger?: Logger;
   mailer?: Pick<Mailer, 'send'>;
   inviteUrls?: InviteUrls;
@@ -72,6 +75,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
   private readonly uow: OrganizationsUnitOfWork;
+  private readonly orgAdmin: () => OrgAdmin;
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
@@ -81,6 +85,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.membersRepo = params.membersRepo;
     this.people = params.people;
     this.uow = params.uow;
+    this.orgAdmin = params.orgAdmin;
     this.logger = params.logger ?? noopLogger;
     this.mailer = params.mailer;
     this.inviteUrls = params.inviteUrls;
@@ -158,11 +163,15 @@ export class OrganizationServiceImpl implements OrganizationService {
     return orgUser;
   }
 
-  async removeOrgUser(orgId: string, id: string): Promise<OrgUser> {
+  async removeOrgUser(orgId: string, userId: string): Promise<OrgUser> {
     const deleted = await this.uow.run(async ({ organizations, outbox }) => {
-      const deletedUser = await organizations.deleteOrgUser(orgId, id);
+      const orgUser = await organizations.findOrgUser(orgId, userId);
+      if (!orgUser) {
+        throw new NotFoundError('OrgUser', userId);
+      }
+      const deletedUser = await organizations.deleteOrgUser(orgId, orgUser.id);
       if (!deletedUser) {
-        throw new NotFoundError('OrgUser', id);
+        throw new NotFoundError('OrgUser', orgUser.id);
       }
       await outbox.append([
         organizationEvents.orgUserDeleted.make({
@@ -172,8 +181,21 @@ export class OrganizationServiceImpl implements OrganizationService {
       ]);
       return deletedUser;
     });
-    this.logger.info('organization deleted', { orgId: deleted.id });
+    this.logger.info('org user removed', { orgId, userId, orgUserId: deleted.id });
     return deleted;
+  }
+
+  async updateOrgUser(orgId: string, userId: string, patch: UpdateOrgUserInput): Promise<OrgUser> {
+    const orgUser = await this.repo.findOrgUser(orgId, userId);
+    if (!orgUser) {
+      throw new NotFoundError('OrgUser', userId);
+    }
+    const updated = await this.repo.updateOrgUser(orgId, orgUser.id, patch);
+    if (!updated) {
+      throw new NotFoundError('OrgUser', orgUser.id);
+    }
+    this.logger.info('org user updated', { orgId, userId, orgUserId: updated.id, patch });
+    return updated;
   }
 
   async createInvite(input: CreateInviteInput): Promise<Invite> {
@@ -197,6 +219,16 @@ export class OrganizationServiceImpl implements OrganizationService {
         : null;
 
     const invite = await this.uow.run(async ({ organizations, outbox }) => {
+      const events: NewOrganizationEvent[] = [];
+      if (person) {
+        const orgUser = await organizations.createOrgUser({
+          orgId,
+          userId: person.id,
+          role: STUDENT_ROLE,
+          status: 'invited',
+        });
+        events.push(organizationEvents.studentCreated.make({ orgId, data: orgUser }));
+      }
       const row = await organizations.upsertPendingInvite(orgId, {
         email,
         role,
@@ -204,31 +236,24 @@ export class OrganizationServiceImpl implements OrganizationService {
         tokenHash,
         expiresAt,
       });
-      const events: NewOrganizationEvent[] = [
-        organizationEvents.inviteCreated.make({ orgId, data: row }),
-      ];
-      if (person) {
-        // Idempotent: re-inviting an address rotates the token without
-        // producing a second org user or a second student.created.
-        const { orgUser, created } = await organizations.ensureOrgUser({
-          orgId,
-          userId: person.id,
-          role: STUDENT_ROLE,
-          status: 'invited',
-        });
-        if (created) {
-          events.push(
-            organizationEvents.studentCreated.make({ orgId, data: orgUser }),
-          );
-        }
-      }
+      events.push(organizationEvents.inviteCreated.make({ orgId, data: row }));
       await outbox.append(events);
       return row;
     });
 
     if (sendEmail) {
       // TODO make this workflow durable
-      await this.sendInviteEmail(invite, token);
+      try {
+        await this.sendInviteEmail(invite, token);
+      } catch (err) {
+        // A failed email must not abort invite creation: the token is already
+        // minted and recorded, so the admin can fix transport and resend.
+        this.logger.error('failed to send invite email', {
+          email: invite.email,
+          role: invite.role,
+          err: err instanceof Error ? err : new Error(String(err)),
+        });
+      }
     }
 
     this.logger.info('invite created', { orgId, inviteId: invite.id, role, sendEmail });
@@ -323,50 +348,58 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new InviteError('Org not found');
     }
 
-    const orgUser = await this.uow.run(async ({ organizations, outbox }) => {
-      // A student provisioned at invite time already has a row — acceptance
-      // activates it. Staff have none yet, so this inserts one.
-      const { orgUser: row, created } = await organizations.ensureOrgUser({
-        orgId: invite.orgId,
-        userId: input.userId,
-        role: invite.role,
-        status: 'active',
-      });
+    const orgUser =
+      invite.role === STUDENT_ROLE
+        ? await this.acceptStudentInvite(invite, input.userId)
+        : await this.acceptStaffInvite(invite, org, input.userId);
+    this.logger.info('invite accepted', { orgId: invite.orgId, userId: input.userId });
+    return orgUser;
+  }
+
+  private async acceptStudentInvite(invite: Invite, userId: string): Promise<OrgUser> {
+    return this.uow.run(async ({ organizations, outbox }) => {
+      const existing = await organizations.findOrgUser(invite.orgId, userId);
+      if (!existing) {
+        throw new NotFoundError('OrgUser', userId);
+      }
+      const activated = await organizations.updateOrgUser(invite.orgId, existing.id, { status: 'active' });
+      if (!activated) {
+        throw new NotFoundError('OrgUser', existing.id);
+      }
       const acceptedInvite = await organizations.setInviteStatus(invite.orgId, invite.id, 'accepted');
       if (!acceptedInvite) {
         throw new NotFoundError('Invite', invite.id);
       }
-      const events: NewOrganizationEvent[] = [
-        organizationEvents.inviteAccepted.make({
-          orgId: invite.orgId,
-          data: acceptedInvite,
-        }),
-      ];
-      if (row.role === STUDENT_ROLE) {
-        events.push(
-          created
-            ? organizationEvents.studentCreated.make({
-                orgId: invite.orgId,
-                data: row,
-              })
-            : organizationEvents.studentLinked.make({
-                orgId: invite.orgId,
-                data: row,
-              }),
-        );
-      } else if (created) {
-        events.push(
-          organizationEvents.orgUserLinked.make({
-            orgId: invite.orgId,
-            data: row,
-          }),
-        );
-      }
-      await outbox.append(events);
-      return row;
+      await outbox.append([
+        organizationEvents.inviteAccepted.make({ orgId: invite.orgId, data: acceptedInvite }),
+        organizationEvents.studentLinked.make({ orgId: invite.orgId, data: activated }),
+      ]);
+      return activated;
     });
-    this.logger.info('invite accepted', { orgId: invite.orgId, userId: input.userId });
-    return orgUser;
+  }
+
+  // Better Auth owns staff membership: granting it fires beforeAddMember, which
+  // creates the org user through addOrgUser.
+  private async acceptStaffInvite(invite: Invite, org: Organization, userId: string): Promise<OrgUser> {
+    const person = await this.people.getUserById(userId);
+    if (!person?.externalId) {
+      throw new NotFoundError('User', userId);
+    }
+    await this.orgAdmin().grantMembership(org.externalId ?? org.id, person.externalId, invite.role);
+    return this.uow.run(async ({ organizations, outbox }) => {
+      const orgUser = await organizations.findOrgUser(invite.orgId, userId);
+      if (!orgUser) {
+        throw new NotFoundError('OrgUser', userId);
+      }
+      const acceptedInvite = await organizations.setInviteStatus(invite.orgId, invite.id, 'accepted');
+      if (!acceptedInvite) {
+        throw new NotFoundError('Invite', invite.id);
+      }
+      await outbox.append([
+        organizationEvents.inviteAccepted.make({ orgId: invite.orgId, data: acceptedInvite }),
+      ]);
+      return orgUser;
+    });
   }
 
   // By identity USER id — `(org_id, user_id)` is unique. Every caller (scope
@@ -423,23 +456,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       ? new URLSearchParams({ token })
       : new URLSearchParams({ token, email });
     const inviteUrl = `${base}?${query.toString()}`;
-    try {
-      if (role === STUDENT_ROLE) {
-        await this.mailer.send(email, 'studentInvite', { inviteUrl, studentName: email });
-      } else {
-        await this.mailer.send(email, 'memberInvite', {
-          inviteUrl,
-          inviterName: 'Your team',
-          role,
-        });
-      }
-    } catch (err) {
-      // A failed email must not abort invite creation: the token is already
-      // minted and recorded, so the admin can fix transport and resend.
-      this.logger.error('failed to send invite email', {
-        email,
+    if (role === STUDENT_ROLE) {
+      await this.mailer.send(email, 'studentInvite', { inviteUrl, studentName: email });
+    } else {
+      await this.mailer.send(email, 'memberInvite', {
+        inviteUrl,
+        inviterName: 'Your team',
         role,
-        err: err instanceof Error ? err : new Error(String(err)),
       });
     }
   }
@@ -475,13 +498,39 @@ export class OrganizationServiceImpl implements OrganizationService {
       });
       throw new OrganizationRuleError('Only active members can have their role changed');
     }
-
+    await this.orgAdmin().updateRole(ctx, member.userExternalId, role);
     const updated = await this.membersRepo.findById(ctx.orgId, id);
     this.logger.info('member role updated', { orgId: ctx.orgId, memberId: id, role });
     return updated ? toMember(updated) : null;
   }
 
-  async removeMember(_ctx: MemberWriteContext, _id: string): Promise<boolean> {
+  async removeMember(ctx: MemberWriteContext, id: string): Promise<boolean> {
+    const member = await this.membersRepo.findById(ctx.orgId, id);
+    if (!member) {
+      return false;
+    }
+    if (member.role === 'owner') {
+      this.logger.warn('member removal rejected: owner cannot be removed', {
+        orgId: ctx.orgId,
+        memberId: id,
+      });
+      throw new OrganizationRuleError('The owner cannot be removed');
+    }
+    if (member.kind === 'member' && member.userExternalId) {
+      await this.orgAdmin().removeMember(ctx, member.userExternalId);
+    } else if (member.kind === 'invite' && member.inviteId) {
+      const inviteId = member.inviteId;
+      await this.uow.run(async ({ organizations, outbox }) => {
+        const canceled = await organizations.setInviteStatus(ctx.orgId, inviteId, 'canceled');
+        if (!canceled) {
+          throw new NotFoundError('Invite', inviteId);
+        }
+        await outbox.append([
+          organizationEvents.inviteCanceled.make({ orgId: ctx.orgId, data: canceled }),
+        ]);
+      });
+    }
+    this.logger.info('member removed', { orgId: ctx.orgId, memberId: id });
     return true;
   }
 }

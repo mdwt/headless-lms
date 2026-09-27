@@ -12,6 +12,7 @@ export type {
   NewOrganizationInput,
   AddOrgUserInput,
   CreateOrgUserInput,
+  UpdateOrgUserInput,
   CreateInviteInput,
   AcceptInviteInput,
 } from "./schemas/organizations.js";
