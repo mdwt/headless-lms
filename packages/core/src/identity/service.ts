@@ -91,6 +91,10 @@ export class IdentityServiceImpl implements IdentityService {
     await this.mailer.send(input.email, 'passwordReset', { resetUrl: input.url });
   }
 
+  async sendPasswordChanged(input: { email: string }): Promise<void> {
+    await this.mailer.send(input.email, 'passwordChanged', {});
+  }
+
   async sendMagicLink(input: { email: string; url: string }): Promise<void> {
     await this.mailer.send(input.email, 'magicLink', { url: input.url });
   }

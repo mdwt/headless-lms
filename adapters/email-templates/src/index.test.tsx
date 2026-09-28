@@ -21,6 +21,7 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     role: "admin",
   },
   passwordReset: { resetUrl: "http://localhost:8002/reset?token=t" },
+  passwordChanged: {},
   emailVerification: { verifyUrl: "http://localhost:8002/verify?token=t" },
   accessGranted: { contentTitle: "Fly Tying 101", contentId: "c1", contentType: "course" },
   accessRevoked: { contentTitle: "Fly Tying 101" },
@@ -43,6 +44,14 @@ describe("ReactEmailTemplateRenderer", () => {
     const content = await renderer.render("studentInvite", CTX, SAMPLE_PARAMS.studentInvite);
     expect(content.html).toContain("http://localhost:8002/welcome?token=t");
     expect(content.text).toContain("http://localhost:8002/welcome?token=t");
+  });
+
+  it("links passwordReset to the reset url", async () => {
+    const resetUrl =
+      "http://localhost:8000/api/auth/reset-password/t?callbackURL=http%3A%2F%2Flocalhost%3A8001%2Freset-password";
+    const content = await renderer.render("passwordReset", CTX, { resetUrl });
+    expect(content.html).toContain(`href="${resetUrl}"`);
+    expect(content.text).toContain(resetUrl);
   });
 
   it.each([

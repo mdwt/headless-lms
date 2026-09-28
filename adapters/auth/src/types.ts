@@ -27,10 +27,13 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
         data: Session & Record<string, unknown>;
       }
   >;
+  /** Runs detached from the request; the adapter logs a failure. */
   sendResetPassword: (
     data: { user: User; url: string; token: string },
     request?: Request,
   ) => Promise<void>;
+  /** Runs detached from the request, after the new password is stored; the adapter logs a failure. */
+  onPasswordReset: (data: { user: User }, request?: Request) => Promise<void>;
   sendMagicLink: (
     data: {
       email: string;

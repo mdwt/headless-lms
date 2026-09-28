@@ -23,4 +23,12 @@ export const authClient = createAuthClient({
   plugins: [organizationClient()],
 });
 
-export const { signIn, signOut, signUp, organization, useSession } = authClient;
+export const {
+  signIn,
+  signOut,
+  signUp,
+  requestPasswordReset,
+  resetPassword,
+  organization,
+  useSession,
+} = authClient;

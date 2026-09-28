@@ -12,6 +12,7 @@ import MagicLink, { subject as magicLink } from "./emails/magic-link.js";
 import StudentInvite, { subject as studentInvite } from "./emails/student-invite.js";
 import MemberInvite, { subject as memberInvite } from "./emails/member-invite.js";
 import PasswordReset, { subject as passwordReset } from "./emails/password-reset.js";
+import PasswordChanged, { subject as passwordChanged } from "./emails/password-changed.js";
 import EmailVerification, { subject as emailVerification } from "./emails/email-verification.js";
 import AccessGranted, { subject as accessGranted } from "./emails/access-granted.js";
 import AccessRevoked, { subject as accessRevoked } from "./emails/access-revoked.js";
@@ -28,6 +29,7 @@ const registry: { [K in EmailTemplateId]: Entry<K> } = {
   studentInvite: { subject: studentInvite, Component: StudentInvite },
   memberInvite: { subject: memberInvite, Component: MemberInvite },
   passwordReset: { subject: passwordReset, Component: PasswordReset },
+  passwordChanged: { subject: passwordChanged, Component: PasswordChanged },
   emailVerification: { subject: emailVerification, Component: EmailVerification },
   accessGranted: { subject: accessGranted, Component: AccessGranted },
   accessRevoked: { subject: accessRevoked, Component: AccessRevoked },

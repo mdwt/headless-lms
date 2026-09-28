@@ -447,12 +447,12 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     hooks: {
-      sendResetPassword: authHook('sendResetPassword', async (data) => {
-        await identity.sendPasswordReset({
-          email: data.user.email,
-          url: '',
-        });
-      }),
+      sendResetPassword: async ({ user, url }) => {
+        await identity.sendPasswordReset({ email: user.email, url });
+      },
+      onPasswordReset: async ({ user }) => {
+        await identity.sendPasswordChanged({ email: user.email });
+      },
       sendMagicLink: authHook('sendMagicLink', async ({ email, url }) => {
         await identity.sendMagicLink({
           email,

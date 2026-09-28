@@ -18,6 +18,7 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   studentInvite: true,
   memberInvite: true,
   passwordReset: true,
+  passwordChanged: true,
   emailVerification: true,
   accessGranted: true,
   accessRevoked: true,

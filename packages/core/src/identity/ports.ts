@@ -9,6 +9,7 @@ export interface UserProvisioner {
    *  Throws ConflictError when the email is already linked to an account. */
   linkOrCreateUser(input: CreateUserInput): Promise<User>;
   sendPasswordReset(input: { email: string; url: string }): Promise<void>;
+  sendPasswordChanged(input: { email: string }): Promise<void>;
   sendMagicLink(input: { email: string; url: string }): Promise<void>;
 }
 

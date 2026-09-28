@@ -48,8 +48,31 @@ function build(repo = fakeRepo()) {
   };
   const mailer = { send: vi.fn() } as unknown as Mailer;
   const service = new IdentityServiceImpl({ repo, uow, mailer });
-  return { service, repo, appended };
+  return { service, repo, appended, mailer };
 }
+
+describe('password reset emails', () => {
+  it('sends the reset link in the passwordReset email', async () => {
+    const { service, mailer } = build();
+
+    await service.sendPasswordReset({
+      email: 'ada@example.com',
+      url: 'http://localhost:8000/api/auth/reset-password/t',
+    });
+
+    expect(mailer.send).toHaveBeenCalledWith('ada@example.com', 'passwordReset', {
+      resetUrl: 'http://localhost:8000/api/auth/reset-password/t',
+    });
+  });
+
+  it('confirms a completed reset with the passwordChanged email', async () => {
+    const { service, mailer } = build();
+
+    await service.sendPasswordChanged({ email: 'ada@example.com' });
+
+    expect(mailer.send).toHaveBeenCalledWith('ada@example.com', 'passwordChanged', {});
+  });
+});
 
 describe('linkOrCreateUser', () => {
   it('creates a new user when the email is unknown', async () => {

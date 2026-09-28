@@ -30,5 +30,7 @@ export function proxy(req: NextRequest) {
 export const config = {
   // Guard everything except the pages that exist to be reached without a
   // session, Next internals, and the (unused here) /api namespace.
-  matcher: ["/((?!login|signup|invite|_next/static|_next/image|favicon.ico|api).*)"],
+  matcher: [
+    "/((?!login|signup|invite|forgot-password|reset-password|_next/static|_next/image|favicon.ico|api).*)",
+  ],
 };

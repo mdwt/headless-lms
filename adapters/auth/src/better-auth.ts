@@ -27,7 +27,20 @@ import {
 import type { SessionAdmin } from "@headless-lms/core/identity";
 
 export function createAuth(opts: CreateAuthOptions) {
-  const { sendResetPassword, sendMagicLink, beforeUserCreate, beforeCreateSession } = opts.hooks;
+  const {
+    sendResetPassword,
+    onPasswordReset,
+    sendMagicLink,
+    beforeUserCreate,
+    beforeCreateSession,
+  } = opts.hooks;
+  const detached =
+    <A extends unknown[]>(name: string, hook: (...args: A) => Promise<void>) =>
+    async (...args: A): Promise<void> => {
+      void hook(...args).catch((err: unknown) =>
+        opts.logger.error(`auth hook ${name} failed`, { err }),
+      );
+    };
 
   const auth = betterAuth({
     baseURL: opts.baseUrl,
@@ -71,7 +84,10 @@ export function createAuth(opts: CreateAuthOptions) {
     }),
     emailAndPassword: {
       enabled: true,
-      sendResetPassword,
+      // Detached so send time can't reveal which emails have accounts, and a failed notice can't fail the reset.
+      sendResetPassword: detached("sendResetPassword", sendResetPassword),
+      onPasswordReset: detached("onPasswordReset", onPasswordReset),
+      revokeSessionsOnPasswordReset: true,
     },
     plugins: [
       magicLink({

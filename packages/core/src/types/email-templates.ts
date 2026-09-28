@@ -27,6 +27,7 @@ export interface EmailTemplateParams {
   studentInvite: { inviteUrl: string; studentName: string };
   memberInvite: { inviteUrl: string; inviterName: string; role: string };
   passwordReset: { resetUrl: string };
+  passwordChanged: Record<string, never>;
   emailVerification: { verifyUrl: string };
   accessGranted: { contentTitle: string; contentId: string; contentType: ContentType };
   accessRevoked: { contentTitle: string };

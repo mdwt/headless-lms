@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { Logo } from "@/components/app-shell/logo";
 
-// Shared by /login and /signup: the form on a solid surface column, a calm dark
+// Shared by the signed-out pages: the form on a solid surface column, a calm dark
 // panel beside it from `lg:` up. Each page supplies only its heading, its form,
 // and the link to the other one.
 export default function AuthLayout({ children }: { children: ReactNode }) {
