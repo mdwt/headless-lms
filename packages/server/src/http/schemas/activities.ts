@@ -1,13 +1,13 @@
 // Course modules + activities resource schemas. A module holds an ordered list
 // of activities directly; each activity is a uniform, orderable unit placing an
 // opaque settings blob at a position (`seq`) with a set of linked assets.
-import { z } from "zod";
+import { z } from 'zod';
 import {
   activityAssetSchema,
   activitySchema,
   moduleSchema,
   saveActivityInputSchema,
-} from "@headless-lms/core/schemas";
+} from '@headless-lms/core/schemas';
 
 export const Activity = activitySchema;
 export type Activity = z.infer<typeof Activity>;

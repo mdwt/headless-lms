@@ -155,9 +155,7 @@ function DownloadsTableInner({
         ]}
         emptyTitle="No downloads found"
         emptyDescription={
-          canCreate
-            ? "Get started by creating your first download."
-            : "There are no downloads yet."
+          canCreate ? "Get started by creating your first download." : "There are no downloads yet."
         }
         emptyAction={
           canCreate ? (
@@ -181,8 +179,8 @@ function DownloadsTableInner({
           toDelete ? (
             <>
               This permanently deletes{" "}
-              <span className="font-medium text-ink">{toDelete.title}</span>, along with its
-              files. This can&apos;t be undone.
+              <span className="font-medium text-ink">{toDelete.title}</span>, along with its files.
+              This can&apos;t be undone.
             </>
           ) : null
         }

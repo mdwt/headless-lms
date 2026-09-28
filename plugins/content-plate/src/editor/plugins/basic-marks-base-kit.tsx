@@ -6,9 +6,9 @@ import {
   BaseSubscriptPlugin,
   BaseSuperscriptPlugin,
   BaseUnderlinePlugin,
-} from '@platejs/basic-nodes';
+} from "@platejs/basic-nodes";
 
-import { CodeLeafStatic } from '../../ui/code-node-static';
+import { CodeLeafStatic } from "../../ui/code-node-static";
 
 export const BaseBasicMarksKit = [
   BaseBoldPlugin,

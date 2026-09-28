@@ -157,10 +157,7 @@ export function CoursePlayer({
     });
   }, [reporter, curLessonId, sessionPositions, assetSeed]);
 
-  const onMediaEvent = useCallback(
-    (e: MediaTrackingEvent) => tracker?.handleEvent(e),
-    [tracker],
-  );
+  const onMediaEvent = useCallback((e: MediaTrackingEvent) => tracker?.handleEvent(e), [tracker]);
 
   const startPosition = useCallback(
     (assetId: string): number | undefined => {

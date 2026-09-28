@@ -1,5 +1,5 @@
-import type { DomainEvent } from "./shared.js";
-import type { AutomationAction, AutomationActionResult } from "./schemas/automations.js";
+import type { DomainEvent } from './shared.js';
+import type { AutomationAction, AutomationActionResult } from './schemas/automations.js';
 
 export type {
   Automation,
@@ -14,7 +14,7 @@ export type {
   AvailableTriggers,
   CreateAutomationInput,
   UpdateAutomationInput,
-} from "./schemas/automations.js";
+} from './schemas/automations.js';
 
 export interface AutomationDispatch {
   runId: string;

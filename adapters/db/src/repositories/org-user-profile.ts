@@ -12,9 +12,9 @@
 // chained call, so a generic wrapper around `.innerJoin(...).leftJoin(...)`
 // can't be typed without widening it to `unknown` — each repository chains the
 // two joins inline instead.
-import { orgUsers } from '../schema/organizations.js';
-import { users } from '../schema/identity.js';
-import { user } from '../schema/better-auth.js';
+import { orgUsers } from "../schema/organizations.js";
+import { users } from "../schema/identity.js";
+import { user } from "../schema/better-auth.js";
 
 /** Spread into a `.select({ ... })` to get the profile columns. */
 export const orgUserProfileColumns = {

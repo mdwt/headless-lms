@@ -96,8 +96,7 @@ function fakeContent(modules: Module[], activities: Activity[]): CourseManagemen
   return {
     listCourseModules: async () => modules,
     listCourseActivities: async () => activities,
-    getActivity: async (_orgId: string, id: string) =>
-      activities.find((a) => a.id === id) ?? null,
+    getActivity: async (_orgId: string, id: string) => activities.find((a) => a.id === id) ?? null,
     getModule: async (_orgId: string, id: string) => modules.find((m) => m.id === id) ?? null,
   } as unknown as CourseManagementService;
 }

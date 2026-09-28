@@ -12,8 +12,7 @@ import type { Invite, Organization, OrgUser } from './model.js';
 import { OrganizationRuleError } from './members.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { generateInviteToken } from '../shared/invite-token.js';
-import type { IdentityService } from '../identity/index.js';
-import type { User } from '../identity/model.js';
+import type { IdentityService, User } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 
 const NOW = new Date('2026-01-01');
@@ -90,31 +89,33 @@ function fakeRepo(over?: Partial<OrganizationsRepository>): OrganizationsReposit
     findById: vi.fn().mockResolvedValue(ORG),
     findByExternalId: vi.fn().mockResolvedValue(ORG),
     findBySlug: vi.fn().mockResolvedValue(ORG),
-    upsertPendingInvite: vi.fn().mockImplementation((orgId, input) =>
-      Promise.resolve(invite({ orgId, ...input })),
-    ),
-    setInviteStatus: vi.fn().mockImplementation((orgId, id, status) =>
-      Promise.resolve(invite({ orgId, id, status })),
-    ),
+    upsertPendingInvite: vi
+      .fn()
+      .mockImplementation((orgId, input) => Promise.resolve(invite({ orgId, ...input }))),
+    setInviteStatus: vi
+      .fn()
+      .mockImplementation((orgId, id, status) => Promise.resolve(invite({ orgId, id, status }))),
     findInviteByTokenHash: vi.fn().mockResolvedValue(invite()),
     findPendingInvite: vi.fn().mockResolvedValue(invite()),
-    setInviteToken: vi.fn().mockImplementation((orgId, id, tokenHash, expiresAt) =>
-      Promise.resolve(invite({ orgId, id, tokenHash, expiresAt })),
-    ),
+    setInviteToken: vi
+      .fn()
+      .mockImplementation((orgId, id, tokenHash, expiresAt) =>
+        Promise.resolve(invite({ orgId, id, tokenHash, expiresAt })),
+      ),
     findOrgUser: vi.fn().mockResolvedValue(STUDENT),
     findOrgUsersByUser: vi.fn().mockResolvedValue([]),
     findOrgUserById: vi.fn().mockResolvedValue(STUDENT),
-    createOrgUser: vi.fn().mockImplementation((input) =>
-      Promise.resolve({ ...STUDENT, ...input }),
-    ),
-    updateOrgUser: vi.fn().mockImplementation((orgId, id, patch) =>
-      Promise.resolve({ ...STUDENT, orgId, id, ...patch }),
-    ),
+    createOrgUser: vi.fn().mockImplementation((input) => Promise.resolve({ ...STUDENT, ...input })),
+    updateOrgUser: vi
+      .fn()
+      .mockImplementation((orgId, id, patch) =>
+        Promise.resolve({ ...STUDENT, orgId, id, ...patch }),
+      ),
     findStudentOrgUsers: vi.fn().mockResolvedValue([]),
     cancelPendingInvite: vi.fn().mockResolvedValue(null),
-    deleteOrgUser: vi.fn().mockImplementation((orgId, id) =>
-      Promise.resolve({ ...STUDENT, orgId, id }),
-    ),
+    deleteOrgUser: vi
+      .fn()
+      .mockImplementation((orgId, id) => Promise.resolve({ ...STUDENT, orgId, id })),
     ...over,
   };
 }
@@ -197,7 +198,9 @@ describe('createInvite', () => {
       inviterUserId: 'usr_owner',
     });
 
-    expect(people.createUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'ada@example.com' }));
+    expect(people.createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'ada@example.com' }),
+    );
     expect(repo.createOrgUser).toHaveBeenCalledWith({
       orgId: 'org_1',
       userId: 'usr_1',
@@ -326,7 +329,11 @@ describe('acceptInvite', () => {
     });
     const { service, orgAdmin, appended } = build({ repo });
 
-    const orgUser = await service.acceptInvite({ token, userId: 'usr_1', email: 'ada@example.com' });
+    const orgUser = await service.acceptInvite({
+      token,
+      userId: 'usr_1',
+      email: 'ada@example.com',
+    });
 
     expect(repo.updateOrgUser).toHaveBeenCalledWith('org_1', 'orm_1', { status: 'active' });
     expect(repo.createOrgUser).not.toHaveBeenCalled();
@@ -361,7 +368,11 @@ describe('acceptInvite', () => {
     });
     const { service, orgAdmin, appended } = build({ repo });
 
-    const orgUser = await service.acceptInvite({ token, userId: 'usr_1', email: 'ada@example.com' });
+    const orgUser = await service.acceptInvite({
+      token,
+      userId: 'usr_1',
+      email: 'ada@example.com',
+    });
 
     expect(orgAdmin.grantMembership).toHaveBeenCalledWith('org_1', 'usr_1', 'admin');
     expect(repo.createOrgUser).not.toHaveBeenCalled();
@@ -402,7 +413,9 @@ describe('member writes', () => {
   it('refuses to remove the owner', async () => {
     const { service, orgAdmin } = build({ members: member({ role: 'owner' as never }) });
 
-    await expect(service.removeMember(CTX, 'orm_staff')).rejects.toBeInstanceOf(OrganizationRuleError);
+    await expect(service.removeMember(CTX, 'orm_staff')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
     expect(orgAdmin.removeMember).not.toHaveBeenCalled();
   });
 });

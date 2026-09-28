@@ -12,8 +12,7 @@ const { Editor } = editorModule;
 
 // Stored configs embed save-time presigns that expire; media nodes re-sign
 // per asset through this. Module-scoped for a stable identity across renders.
-const resolveAssetUrl = (assetId: string) =>
-  getAssetUrlAction(assetId).catch(() => null);
+const resolveAssetUrl = (assetId: string) => getAssetUrlAction(assetId).catch(() => null);
 
 /** Prop-free: reads the activity-editor context and mounts the installed
  *  editor, with media uploads and the media-library picker wired to the

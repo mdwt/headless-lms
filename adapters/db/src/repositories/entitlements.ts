@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
-import type { DbExecutor } from '../client.js';
-import type { EntitlementsRepository } from '@headless-lms/core/entitlements';
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import type { DbExecutor } from "../client.js";
+import type { EntitlementsRepository } from "@headless-lms/core/entitlements";
 import type {
   Entitlement,
   EntitlementStatus,
@@ -9,13 +9,13 @@ import type {
   GrantEntitlementInput,
   Logger,
   Page,
-} from '@headless-lms/core/types';
-import { entitlements, orgUsers, users } from '../schema/index.js';
-import { bundleItems, bundles, contentItems, courses, downloads } from '../schema/content.js';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/types";
+import { entitlements, orgUsers, users } from "../schema/index.js";
+import { bundleItems, bundles, contentItems, courses, downloads } from "../schema/content.js";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
-type ResolvedStatus = 'active' | 'expired' | 'revoked';
+type ResolvedStatus = "active" | "expired" | "revoked";
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.
@@ -109,7 +109,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .leftJoin(
         contentItems,
-        and(eq(contentItems.orgId, entitlements.orgId), eq(contentItems.id, entitlements.contentId)),
+        and(
+          eq(contentItems.orgId, entitlements.orgId),
+          eq(contentItems.id, entitlements.contentId),
+        ),
       )
       .leftJoin(
         bundles,
@@ -162,7 +165,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     // Sort: `-field` for descending; default to most-recently granted first.
     let orderBy: SQL;
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const field = (isDesc ? query.sort.slice(1) : query.sort) as keyof typeof sortColumns;
       const col = sortColumns[field] ?? entitlements.grantedAt;
       orderBy = isDesc ? desc(col) : asc(col);
@@ -184,7 +187,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .leftJoin(
         contentItems,
-        and(eq(contentItems.orgId, entitlements.orgId), eq(contentItems.id, entitlements.contentId)),
+        and(
+          eq(contentItems.orgId, entitlements.orgId),
+          eq(contentItems.id, entitlements.contentId),
+        ),
       )
       .leftJoin(
         bundles,
@@ -225,23 +231,23 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
         orgUserId: input.orgUserId,
         bundleId,
         contentId,
-        status: 'active',
-        source: 'manual',
+        status: "active",
+        source: "manual",
         grantedAt: new Date(),
         expiresAt: input.expiresAt,
       })
       .onConflictDoUpdate({
         target,
         set: {
-          status: 'active',
-          source: 'manual',
+          status: "active",
+          source: "manual",
           grantedAt: new Date(),
           expiresAt: input.expiresAt,
         },
       })
       .returning(selection);
     if (!row) {
-      throw new Error('failed to insert entitlement');
+      throw new Error("failed to insert entitlement");
     }
     return toEntitlement(row);
   }
@@ -249,7 +255,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
   async setStatus(
     orgId: string,
     id: string,
-    status: 'active' | 'revoked',
+    status: "active" | "revoked",
   ): Promise<Entitlement | null> {
     const [row] = await this.db
       .update(entitlements)
@@ -269,13 +275,16 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
    *  content_items and constrained to type = 'course', so a grant on some other
    *  content type can never be mistaken for course access. */
   async hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    const bundledItems = alias(contentItems, 'bundled_content_items');
+    const bundledItems = alias(contentItems, "bundled_content_items");
     const rows = await this.db
       .select({ id: entitlements.id })
       .from(entitlements)
       .leftJoin(
         contentItems,
-        and(eq(contentItems.orgId, entitlements.orgId), eq(contentItems.id, entitlements.contentId)),
+        and(
+          eq(contentItems.orgId, entitlements.orgId),
+          eq(contentItems.id, entitlements.contentId),
+        ),
       )
       .leftJoin(
         bundleItems,
@@ -293,8 +302,8 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           eq(entitlements.orgId, orgId),
           eq(entitlements.orgUserId, orgUserId),
           or(
-            and(eq(entitlements.contentId, courseId), eq(contentItems.type, 'course')),
-            and(eq(bundleItems.contentId, courseId), eq(bundledItems.type, 'course')),
+            and(eq(entitlements.contentId, courseId), eq(contentItems.type, "course")),
+            and(eq(bundleItems.contentId, courseId), eq(bundledItems.type, "course")),
           ),
           sql`${derivedStatus} = 'active'`,
         ),

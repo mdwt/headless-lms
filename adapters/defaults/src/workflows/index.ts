@@ -5,7 +5,7 @@ import type {
   AutomationDispatch,
   AutomationEngine,
   AutomationExecutor,
-} from '@headless-lms/core/types';
+} from "@headless-lms/core/types";
 
 export class InlineAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;
@@ -16,7 +16,7 @@ export class InlineAutomationEngine implements AutomationEngine {
 
   async dispatch(d: AutomationDispatch): Promise<void> {
     if (!this.executor) {
-      throw new Error('InlineAutomationEngine.dispatch called before register()');
+      throw new Error("InlineAutomationEngine.dispatch called before register()");
     }
     const executor = this.executor;
 
@@ -26,7 +26,12 @@ export class InlineAutomationEngine implements AutomationEngine {
         results.push(await executor.runAction(d, index));
       } catch (err) {
         const message = (err as { message?: unknown } | undefined)?.message ?? err;
-        results.push({ index, type: d.actions[index]!.type, status: 'failed', error: String(message) });
+        results.push({
+          index,
+          type: d.actions[index]!.type,
+          status: "failed",
+          error: String(message),
+        });
         break;
       }
     }

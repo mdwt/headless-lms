@@ -1,17 +1,11 @@
-import type { ReactElement } from 'react';
-import { renderToString } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import type { ReactElement } from "react";
+import { renderToString } from "react-dom/server";
+import { describe, expect, it } from "vitest";
 
-import {
-  type PickAssetHandler,
-  PickAssetProvider,
-  usePickAsset,
-} from './use-pick-asset';
+import { type PickAssetHandler, PickAssetProvider, usePickAsset } from "./use-pick-asset";
 
 /** Renders `tree` and returns whatever the probe inside it read from context. */
-function seenIn(
-  render: (Probe: () => null) => ReactElement,
-): PickAssetHandler | null | undefined {
+function seenIn(render: (Probe: () => null) => ReactElement): PickAssetHandler | null | undefined {
   let seen: PickAssetHandler | null | undefined;
   const Probe = () => {
     seen = usePickAsset();
@@ -21,8 +15,8 @@ function seenIn(
   return seen;
 }
 
-describe('usePickAsset', () => {
-  it('passes the host handler through the provider', () => {
+describe("usePickAsset", () => {
+  it("passes the host handler through the provider", () => {
     const pickAsset: PickAssetHandler = async () => null;
 
     const seen = seenIn((Probe) => (
@@ -34,7 +28,7 @@ describe('usePickAsset', () => {
     expect(seen).toBe(pickAsset);
   });
 
-  it('is null with no host handler, so the library affordance stays hidden', () => {
+  it("is null with no host handler, so the library affordance stays hidden", () => {
     const seen = seenIn((Probe) => (
       <PickAssetProvider pickAsset={null}>
         <Probe />
@@ -44,7 +38,7 @@ describe('usePickAsset', () => {
     expect(seen).toBeNull();
   });
 
-  it('is null outside a provider', () => {
+  it("is null outside a provider", () => {
     expect(seenIn((Probe) => <Probe />)).toBeNull();
   });
 });

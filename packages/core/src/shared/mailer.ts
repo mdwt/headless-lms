@@ -35,6 +35,4 @@ export class Mailer {
     const content = await this.templates.render(id, { ...this.ctx, ...ctx }, params);
     await this.email.send({ to, subject: content.subject, text: content.text, html: content.html });
   }
-
-
 }

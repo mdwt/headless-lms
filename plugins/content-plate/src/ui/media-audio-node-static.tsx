@@ -1,9 +1,9 @@
-import type { TAudioElement } from 'platejs';
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import type { TAudioElement } from "platejs";
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
-import type { ResolveAssetUrl } from '@headless-lms/editor';
+import type { ResolveAssetUrl } from "@headless-lms/editor";
 
-import { freshMediaUrl } from '../lib/media-url';
+import { freshMediaUrl } from "../lib/media-url";
 
 export async function MediaAudioElementStatic({
   resolveAssetUrl,

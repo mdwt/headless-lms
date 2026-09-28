@@ -1,39 +1,30 @@
-'use client';
+"use client";
 
-import { setMediaNode } from '@platejs/media';
+import { setMediaNode } from "@platejs/media";
 import {
   PlaceholderPlugin,
   PlaceholderProvider,
   usePlaceholderElementState,
   usePlaceholderPopoverState,
-} from '@platejs/media/react';
-import { AudioLinesIcon, FileUpIcon, FilmIcon, ImageIcon } from 'lucide-react';
-import { KEYS } from 'platejs';
-import {
-  PlateElement,
-  type PlateElementProps,
-  useEditorPlugin,
-  withHOC,
-} from 'platejs/react';
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { toast } from 'sonner';
-import { useFilePicker } from 'use-file-picker';
+} from "@platejs/media/react";
+import { AudioLinesIcon, FileUpIcon, FilmIcon, ImageIcon } from "lucide-react";
+import { KEYS } from "platejs";
+import { PlateElement, type PlateElementProps, useEditorPlugin, withHOC } from "platejs/react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { toast } from "sonner";
+import { useFilePicker } from "use-file-picker";
 
-import { cn } from '../lib/utils';
-import { type PickAssetKind, usePickAsset } from '../hooks/use-pick-asset';
-import {
-  getErrorMessage,
-  type UploadedFile,
-  useUploadFile,
-} from '../hooks/use-upload-file';
+import { cn } from "../lib/utils";
+import { type PickAssetKind, usePickAsset } from "../hooks/use-pick-asset";
+import { getErrorMessage, type UploadedFile, useUploadFile } from "../hooks/use-upload-file";
 
-import { BlockActionButton } from './block-context-menu';
-import { Button } from './button';
-import { Input } from './input';
-import { mediaNodeProps } from './media-node-props';
-import { Popover, PopoverContent, PopoverTrigger } from './popover';
-import { Spinner } from './spinner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
+import { BlockActionButton } from "./block-context-menu";
+import { Button } from "./button";
+import { Input } from "./input";
+import { mediaNodeProps } from "./media-node-props";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { Spinner } from "./spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 
 const CONTENT: Record<
   string,
@@ -43,92 +34,89 @@ const CONTENT: Record<
   }
 > = {
   [KEYS.audio]: {
-    content: 'Add an audio file',
+    content: "Add an audio file",
     icon: <AudioLinesIcon />,
   },
   [KEYS.file]: {
-    content: 'Add a file',
+    content: "Add a file",
     icon: <FileUpIcon />,
   },
   [KEYS.img]: {
-    content: 'Add an image',
+    content: "Add an image",
     icon: <ImageIcon />,
   },
   [KEYS.video]: {
-    content: 'Add a video',
+    content: "Add a video",
     icon: <FilmIcon />,
   },
 };
 
-export const PlaceholderElement = withHOC(
-  PlaceholderProvider,
-  (props: PlateElementProps) => {
-    const { mediaType, progresses, progressing, setSize, updatedFiles } =
-      usePlaceholderElementState();
+export const PlaceholderElement = withHOC(PlaceholderProvider, (props: PlateElementProps) => {
+  const { mediaType, progresses, progressing, setSize, updatedFiles } =
+    usePlaceholderElementState();
 
-    const currentContent = CONTENT[mediaType];
+  const currentContent = CONTENT[mediaType];
 
-    const isImage = mediaType === KEYS.img;
+  const isImage = mediaType === KEYS.img;
 
-    const file: File | undefined = updatedFiles?.[0];
-    const progress = file ? progresses?.[file.name] : undefined;
+  const file: File | undefined = updatedFiles?.[0];
+  const progress = file ? progresses?.[file.name] : undefined;
 
-    const imageRef = useRef<HTMLImageElement>(null);
-    useEffect(() => {
-      if (!imageRef.current) return;
+  const imageRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    if (!imageRef.current) return;
 
-      const { height, width } = imageRef.current;
+    const { height, width } = imageRef.current;
 
-      setSize?.({
-        height,
-        width,
-      });
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [imageRef.current]);
+    setSize?.({
+      height,
+      width,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageRef.current]);
 
-    return (
-      <PlateElement className="my-1" {...props}>
-        <MediaPlaceholderPopover>
-          {(!progressing || !isImage) && (
-            <div
-              className={cn(
-                'flex cursor-pointer select-none items-center rounded-sm bg-muted p-3 pr-9 transition-bg-ease hover:bg-primary/10'
-              )}
-              contentEditable={false}
-              role="button"
-            >
-              <div className="relative mr-3 flex text-muted-foreground/80 [&_svg]:size-6">
-                {currentContent.icon}
-              </div>
-              <div className="whitespace-nowrap text-muted-foreground text-sm">
-                <div>{progressing ? file?.name : currentContent.content}</div>
-
-                {progressing && !isImage && (
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <div>{formatBytes(file.size)}</div>
-                    <div>–</div>
-                    <div className="flex items-center">
-                      <Spinner className="mr-1 size-3.5" />
-                      {progress ?? 0}%
-                    </div>
-                  </div>
-                )}
-              </div>
+  return (
+    <PlateElement className="my-1" {...props}>
+      <MediaPlaceholderPopover>
+        {(!progressing || !isImage) && (
+          <div
+            className={cn(
+              "flex cursor-pointer select-none items-center rounded-sm bg-muted p-3 pr-9 transition-bg-ease hover:bg-primary/10",
+            )}
+            contentEditable={false}
+            role="button"
+          >
+            <div className="relative mr-3 flex text-muted-foreground/80 [&_svg]:size-6">
+              {currentContent.icon}
             </div>
-          )}
-        </MediaPlaceholderPopover>
+            <div className="whitespace-nowrap text-muted-foreground text-sm">
+              <div>{progressing ? file?.name : currentContent.content}</div>
 
-        {isImage && progressing && file && (
-          <ImageProgress file={file} imageRef={imageRef} progress={progress} />
+              {progressing && !isImage && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <div>{formatBytes(file.size)}</div>
+                  <div>–</div>
+                  <div className="flex items-center">
+                    <Spinner className="mr-1 size-3.5" />
+                    {progress ?? 0}%
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
+      </MediaPlaceholderPopover>
 
-        <BlockActionButton />
+      {isImage && progressing && file && (
+        <ImageProgress file={file} imageRef={imageRef} progress={progress} />
+      )}
 
-        {props.children}
-      </PlateElement>
-    );
-  }
-);
+      <BlockActionButton />
+
+      {props.children}
+    </PlateElement>
+  );
+});
 
 const MEDIA_CONFIG: Record<
   string,
@@ -141,32 +129,32 @@ const MEDIA_CONFIG: Record<
   }
 > = {
   [KEYS.audio]: {
-    accept: ['audio/*'],
-    browseText: 'Browse library',
-    buttonText: 'Upload Audio',
-    embedText: 'Embed audio',
-    pickKind: 'audio',
+    accept: ["audio/*"],
+    browseText: "Browse library",
+    buttonText: "Upload Audio",
+    embedText: "Embed audio",
+    pickKind: "audio",
   },
   [KEYS.file]: {
-    accept: ['*'],
-    browseText: 'Browse library',
-    buttonText: 'Choose a file',
-    embedText: 'Embed file',
-    pickKind: 'file',
+    accept: ["*"],
+    browseText: "Browse library",
+    buttonText: "Choose a file",
+    embedText: "Embed file",
+    pickKind: "file",
   },
   [KEYS.img]: {
-    accept: ['image/*'],
-    browseText: 'Browse library',
-    buttonText: 'Upload file',
-    embedText: 'Embed image',
-    pickKind: 'image',
+    accept: ["image/*"],
+    browseText: "Browse library",
+    buttonText: "Upload file",
+    embedText: "Embed image",
+    pickKind: "image",
   },
   [KEYS.video]: {
-    accept: ['video/*'],
-    browseText: 'Browse library',
-    buttonText: 'Upload video',
-    embedText: 'Embed video',
-    pickKind: 'video',
+    accept: ["video/*"],
+    browseText: "Browse library",
+    buttonText: "Upload video",
+    embedText: "Embed video",
+    pickKind: "video",
   },
 };
 
@@ -188,10 +176,9 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
 
   const currentMedia = MEDIA_CONFIG[mediaType];
 
-  const multiple = getOption('multiple') ?? true;
+  const multiple = getOption("multiple") ?? true;
 
-  const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } =
-    useUploadFile();
+  const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } = useUploadFile();
 
   const pickAsset = usePickAsset();
 
@@ -201,7 +188,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
       void uploadFile(file);
       api.placeholder.addUploadingFile(element.id as string, file);
     },
-    [element.id, setUpdatedFiles, uploadFile, api.placeholder]
+    [element.id, setUpdatedFiles, uploadFile, api.placeholder],
   );
 
   /** Open file picker */
@@ -251,10 +238,10 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
           placeholderId: element.id as string,
           size,
         }),
-        { at: path }
+        { at: path },
       );
     },
-    [editor, element, mediaType, size]
+    [editor, element, mediaType, size],
   );
 
   useEffect(() => {
@@ -285,7 +272,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
     }
   }, [pickAsset, currentMedia.pickKind, commitMedia]);
 
-  const [embedValue, setEmbedValue] = useState('');
+  const [embedValue, setEmbedValue] = useState("");
 
   const onEmbed = useCallback(
     (value: string) => {
@@ -294,7 +281,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
         url: value,
       });
     },
-    [editor, mediaType]
+    [editor, mediaType],
   );
 
   useEffect(() => {
@@ -308,7 +295,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
   }, [isUploading]);
 
   useEffect(() => {
-    setProgresses({ [uploadingFile?.name ?? '']: progress });
+    setProgresses({ [uploadingFile?.name ?? ""]: progress });
     setIsUploading(isUploading);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, progress, isUploading, uploadingFile]);
@@ -324,10 +311,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
         onOpenAutoFocus={(e) => e.preventDefault()}
         variant="media"
       >
-        <Tabs
-          className="w-full shrink-0"
-          defaultValue={pickAsset ? 'library' : 'upload'}
-        >
+        <Tabs className="w-full shrink-0" defaultValue={pickAsset ? "library" : "upload"}>
           <TabsList className="px-2" onMouseDown={(e) => e.preventDefault()}>
             {pickAsset && <TabsTrigger value="library">Library</TabsTrigger>}
             <TabsTrigger value="upload">Upload</TabsTrigger>
@@ -359,10 +343,7 @@ function MediaPlaceholderPopover({ children }: { children: ReactNode }) {
             </div>
           </TabsContent>
 
-          <TabsContent
-            className="w-[300px] px-3 pt-2 pb-3 text-center"
-            value="embed"
-          >
+          <TabsContent className="w-[300px] px-3 pt-2 pb-3 text-center" value="embed">
             <Input
               onChange={(e) => setEmbedValue(e.target.value)}
               placeholder="Paste the link..."
@@ -412,7 +393,7 @@ function ImageProgress({
   }
 
   return (
-    <div className={cn('relative', className)} contentEditable={false}>
+    <div className={cn("relative", className)} contentEditable={false}>
       <img
         alt={file.name}
         className="h-auto w-full rounded-xs object-cover"
@@ -422,9 +403,7 @@ function ImageProgress({
       {progress < 100 && (
         <div className="absolute right-1 bottom-1 flex items-center space-x-2 rounded-full bg-black/50 px-1 py-0.5">
           <Spinner />
-          <span className="font-medium text-white text-xs">
-            {Math.round(progress)}%
-          </span>
+          <span className="font-medium text-white text-xs">{Math.round(progress)}%</span>
         </div>
       )}
     </div>
@@ -435,21 +414,19 @@ function formatBytes(
   bytes: number,
   opts: {
     decimals?: number;
-    sizeType?: 'accurate' | 'normal';
-  } = {}
+    sizeType?: "accurate" | "normal";
+  } = {},
 ) {
-  const { decimals = 0, sizeType = 'normal' } = opts;
+  const { decimals = 0, sizeType = "normal" } = opts;
 
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const accurateSizes = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const accurateSizes = ["Bytes", "KiB", "MiB", "GiB", "TiB"];
 
-  if (bytes === 0) return '0 Byte';
+  if (bytes === 0) return "0 Byte";
 
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
 
   return `${(bytes / 1024 ** i).toFixed(decimals)} ${
-    sizeType === 'accurate'
-      ? (accurateSizes[i] ?? 'Bytest')
-      : (sizes[i] ?? 'Bytes')
+    sizeType === "accurate" ? (accurateSizes[i] ?? "Bytest") : (sizes[i] ?? "Bytes")
   }`;
 }

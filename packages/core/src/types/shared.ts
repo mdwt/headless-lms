@@ -1,10 +1,5 @@
 export type JsonValue =
-  | null
-  | string
-  | number
-  | boolean
-  | JsonValue[]
-  | { readonly [key: string]: JsonValue };
+  null | string | number | boolean | JsonValue[] | { readonly [key: string]: JsonValue };
 
 export type EventMetadata = Readonly<Record<string, JsonValue>>;
 
@@ -24,7 +19,7 @@ export interface DomainEvent<
 
 export type ContractNewDomainEvent<E extends DomainEvent = DomainEvent> = Omit<
   E,
-  "id" | "occurredAt"
+  'id' | 'occurredAt'
 >;
 
 export type NewDomainEvent<E extends DomainEvent = DomainEvent> = ContractNewDomainEvent<E>;

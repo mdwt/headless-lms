@@ -18,12 +18,14 @@ const PROVISIONED: User = {
 
 function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   return {
-    insertUser: vi.fn().mockImplementation((input) =>
-      Promise.resolve({ ...PROVISIONED, ...input, externalId: input.externalId ?? null }),
-    ),
-    updateUser: vi.fn().mockImplementation((id, input) =>
-      Promise.resolve({ ...PROVISIONED, id, ...input }),
-    ),
+    insertUser: vi
+      .fn()
+      .mockImplementation((input) =>
+        Promise.resolve({ ...PROVISIONED, ...input, externalId: input.externalId ?? null }),
+      ),
+    updateUser: vi
+      .fn()
+      .mockImplementation((id, input) => Promise.resolve({ ...PROVISIONED, id, ...input })),
     findUserById: vi.fn().mockResolvedValue(null),
     findUserByExternalId: vi.fn().mockResolvedValue(null),
     findUserByEmail: vi.fn().mockResolvedValue(null),

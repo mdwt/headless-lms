@@ -30,10 +30,10 @@ The adapter reads no environment itself — your installation parses env into a 
 
 These are the variables the reference installation (`apps/api`) maps to the adapter's config:
 
-| Variable | Required | Maps to | Notes |
-| --- | --- | --- | --- |
-| `RESEND_API_KEY` | yes | `apiKey` | Unset → no adapter injected; sends fail loudly. |
-| `EMAIL_FROM` | no | `from` | e.g. `Acme LMS <noreply@acme.com>`, on a verified Resend domain. Defaults to `onboarding@resend.dev`. |
+| Variable         | Required | Maps to  | Notes                                                                                                 |
+| ---------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | yes      | `apiKey` | Unset → no adapter injected; sends fail loudly.                                                       |
+| `EMAIL_FROM`     | no       | `from`   | e.g. `Acme LMS <noreply@acme.com>`, on a verified Resend domain. Defaults to `onboarding@resend.dev`. |
 
 ## Using a different provider
 

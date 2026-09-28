@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useMediaState } from '@platejs/media/react';
-import { ResizableProvider } from '@platejs/resizable';
-import { PlateElement, type PlateElementProps, withHOC } from 'platejs/react';
+import { useMediaState } from "@platejs/media/react";
+import { ResizableProvider } from "@platejs/resizable";
+import { PlateElement, type PlateElementProps, withHOC } from "platejs/react";
 
-import { useFreshMediaUrl } from '../hooks/use-resolve-asset-url';
+import { useFreshMediaUrl } from "../hooks/use-resolve-asset-url";
 
-import { Caption, CaptionTextarea } from './caption';
+import { Caption, CaptionTextarea } from "./caption";
 
 export const MediaAudioElement = withHOC(
   ResizableProvider,
   function MediaAudioElement(props: PlateElementProps) {
-    const { align = 'center', readOnly, unsafeUrl } = useMediaState();
+    const { align = "center", readOnly, unsafeUrl } = useMediaState();
     const freshUrl = useFreshMediaUrl(props.element);
 
     return (
@@ -21,7 +21,7 @@ export const MediaAudioElement = withHOC(
             <audio className="size-full" controls src={freshUrl ?? unsafeUrl} />
           </div>
 
-          <Caption align={align} style={{ width: '100%' }}>
+          <Caption align={align} style={{ width: "100%" }}>
             <CaptionTextarea
               className="h-20"
               placeholder="Write a caption..."
@@ -32,5 +32,5 @@ export const MediaAudioElement = withHOC(
         {props.children}
       </PlateElement>
     );
-  }
+  },
 );

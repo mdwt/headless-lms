@@ -1,6 +1,6 @@
-import { KEYS, nanoid } from 'platejs';
+import { KEYS, nanoid } from "platejs";
 
-import type { UploadedFile } from '../hooks/use-upload-file';
+import type { UploadedFile } from "../hooks/use-upload-file";
 
 export interface MediaNodeSize {
   height?: number;
@@ -23,7 +23,7 @@ export function mediaNodeProps(
     initialHeight: opts.size?.height,
     initialWidth: opts.size?.width,
     isUpload: true,
-    name: mediaType === KEYS.file ? file.name : '',
+    name: mediaType === KEYS.file ? file.name : "",
     placeholderId: opts.placeholderId,
     type: mediaType,
     url: file.url,

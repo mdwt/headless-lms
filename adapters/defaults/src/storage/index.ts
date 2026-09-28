@@ -5,8 +5,8 @@ import type {
   PresignDownloadInput,
   PresignedUpload,
   StoredObjectInfo,
-} from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
+} from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
 
 export class StorageAdapter implements ObjectStorage {
   constructor(private readonly logger: Logger = noopLogger) {}
@@ -16,23 +16,23 @@ export class StorageAdapter implements ObjectStorage {
     contentType?: string;
     expiresInSeconds?: number;
   }): Promise<PresignedUpload> {
-    return this.fail('presignUpload');
+    return this.fail("presignUpload");
   }
 
   async presignDownload(_input: PresignDownloadInput): Promise<string> {
-    return this.fail('presignDownload');
+    return this.fail("presignDownload");
   }
 
   async stat(_key: string): Promise<StoredObjectInfo | null> {
-    return this.fail('stat');
+    return this.fail("stat");
   }
 
   async remove(_key: string): Promise<void> {
-    return this.fail('remove');
+    return this.fail("remove");
   }
 
   private fail(op: string): never {
     this.logger.error(`storage ${op} failed: no storage adapter configured`);
-    throw new Error('not implemented');
+    throw new Error("not implemented");
   }
 }

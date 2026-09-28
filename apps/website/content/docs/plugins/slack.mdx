@@ -7,10 +7,10 @@ description: Post domain events to a Slack channel with the Slack plugin.
 
 ## Actions
 
-| Action | What it does |
-| --- | --- |
+| Action          | What it does                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `postToChannel` | Posts a domain event to a channel. `entitlement.*` events get rich Block Kit formatting; unknown types post generically. The channel falls back to the connection's `defaultChannel`. |
-| `listChannels` | Lists public channels (for channel pickers), paginated. |
+| `listChannels`  | Lists public channels (for channel pickers), paginated.                                                                                                                               |
 
 Formatted events: `entitlement.created`, `entitlement.updated`, `entitlement.deleted`, `entitlement.expired`. Course grants read "enrolled"; other content types read "granted access to".
 

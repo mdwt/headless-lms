@@ -37,13 +37,9 @@ function StatusBadge({
 
 export function CourseStatusBadge({ status }: { status: CourseStatus }) {
   return status === "published" ? (
-    <StatusBadge variant="success">
-      Published
-    </StatusBadge>
+    <StatusBadge variant="success">Published</StatusBadge>
   ) : (
-    <StatusBadge variant="neutral">
-      Draft
-    </StatusBadge>
+    <StatusBadge variant="neutral">Draft</StatusBadge>
   );
 }
 

@@ -74,7 +74,11 @@ export async function organizationsRoutes(
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      const org = await container.orgProvider.updateOrganization(req.headers, scope.authOrgId, req.body);
+      const org = await container.orgProvider.updateOrganization(
+        req.headers,
+        scope.authOrgId,
+        req.body,
+      );
       return reply.send({
         id: org.id,
         name: org.name,

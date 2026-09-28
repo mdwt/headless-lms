@@ -1,6 +1,6 @@
 // assets — Drizzle repository (implements the core outbound port).
-import { and, eq, ilike, sql, asc, desc, type SQL } from 'drizzle-orm';
-import type { AssetsRepository } from '@headless-lms/core/assets';
+import { and, eq, ilike, sql, asc, desc, type SQL } from "drizzle-orm";
+import type { AssetsRepository } from "@headless-lms/core/assets";
 import type {
   Asset,
   AssetKind,
@@ -8,11 +8,11 @@ import type {
   AssetsQuery,
   Logger,
   Page,
-} from '@headless-lms/core/types';
-import { assets } from '../schema/assets.js';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import type { DbExecutor } from '../client.js';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/types";
+import { assets } from "../schema/assets.js";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import type { DbExecutor } from "../client.js";
+import { translateDbErrors } from "./pg-errors.js";
 
 type Row = typeof assets.$inferSelect;
 
@@ -47,7 +47,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
 
   async insert(orgId: string, asset: Asset): Promise<Asset> {
     if (asset.orgId !== orgId) {
-      throw new Error('asset org mismatch');
+      throw new Error("asset org mismatch");
     }
     const [row] = await this.db
       .insert(assets)
@@ -65,7 +65,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
       })
       .returning();
     if (!row) {
-      throw new Error('failed to insert asset');
+      throw new Error("failed to insert asset");
     }
     return toAsset(row);
   }
@@ -85,7 +85,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
       if (!query.sort) {
         return desc(assets.createdAt);
       }
-      const descending = query.sort.startsWith('-');
+      const descending = query.sort.startsWith("-");
       const field = descending ? query.sort.slice(1) : query.sort;
       const col = SORT_COLUMNS[field as keyof typeof SORT_COLUMNS] ?? assets.createdAt;
       return descending ? desc(col) : asc(col);
@@ -124,7 +124,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
 
   async update(
     id: string,
-    patch: Partial<Pick<Asset, 'size' | 'contentType' | 'status'>>,
+    patch: Partial<Pick<Asset, "size" | "contentType" | "status">>,
   ): Promise<Asset | null> {
     const [row] = await this.db
       .update(assets)

@@ -1,7 +1,7 @@
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { UnitOfWork } from '@headless-lms/core/shared/ports';
-import type { Tx } from './client.js';
-import { translateDbError } from './repositories/pg-errors.js';
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { UnitOfWork } from "@headless-lms/core/shared/ports";
+import type { Tx } from "./client.js";
+import { translateDbError } from "./repositories/pg-errors.js";
 
 export class DrizzleUnitOfWork<Scope> implements UnitOfWork<Scope> {
   constructor(

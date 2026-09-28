@@ -19,27 +19,27 @@ The adapter needs no configuration of its own — branding comes from the server
 
 The catalog is closed and typed: every template id in `EmailTemplateParams` (from `@headless-lms/core/types`) must have an entry, or the adapter fails to typecheck. The server ships these templates:
 
-| Template | Sent when |
-| --- | --- |
-| `magicLink` | A user signs in with a magic link |
-| `emailVerification` | A user must verify their email address |
-| `passwordReset` | A user requests a password reset |
-| `studentInvite` | A student is invited to the student portal |
-| `memberInvite` | A staff member is invited to an organization |
-| `accessGranted` | A student is granted access to content |
-| `accessRevoked` | A student's access to content is revoked |
-| `courseCompleted` | A student completes a course |
+| Template            | Sent when                                    |
+| ------------------- | -------------------------------------------- |
+| `magicLink`         | A user signs in with a magic link            |
+| `emailVerification` | A user must verify their email address       |
+| `passwordReset`     | A user requests a password reset             |
+| `studentInvite`     | A student is invited to the student portal   |
+| `memberInvite`      | A staff member is invited to an organization |
+| `accessGranted`     | A student is granted access to content       |
+| `accessRevoked`     | A student's access to content is revoked     |
+| `courseCompleted`   | A student completes a course                 |
 
 ## Branding
 
 Every template receives a `TemplateContext` — brand name, base URL, student portal URL, and an optional logo — threaded in from the server config. The reference installation maps these from env:
 
-| Variable | Maps to | Notes |
-| --- | --- | --- |
-| `BRAND_NAME` | `brandName` | Shown in every email. Defaults to `Headless LMS`. |
-| `EMAIL_LOGO_URL` | `logoUrl` | Optional logo at the top of each email. |
-| `ADMIN_APP_URL` | `baseUrl` | Origin staff-facing links resolve against. |
-| `STUDENT_PORTAL_URL` | `studentPortalUrl` | Origin student-facing links resolve against. |
+| Variable             | Maps to            | Notes                                             |
+| -------------------- | ------------------ | ------------------------------------------------- |
+| `BRAND_NAME`         | `brandName`        | Shown in every email. Defaults to `Headless LMS`. |
+| `EMAIL_LOGO_URL`     | `logoUrl`          | Optional logo at the top of each email.           |
+| `ADMIN_APP_URL`      | `baseUrl`          | Origin staff-facing links resolve against.        |
+| `STUDENT_PORTAL_URL` | `studentPortalUrl` | Origin student-facing links resolve against.      |
 
 ## Previewing templates
 

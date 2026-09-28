@@ -1,7 +1,7 @@
-import type { EmailTemplateParams, TemplateContext } from '@headless-lms/core/types';
-import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from './layout.js';
+import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
+import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-type Params = EmailTemplateParams['memberInvite'];
+type Params = EmailTemplateParams["memberInvite"];
 
 export const subject = (ctx: TemplateContext, _params: Params) =>
   `You've been invited to join ${ctx.brandName}`;
@@ -21,8 +21,8 @@ export default function MemberInvite({ ctx, params }: { ctx: TemplateContext; pa
 MemberInvite.PreviewProps = {
   ctx: PREVIEW_CTX,
   params: {
-    inviteUrl: 'http://localhost:8001/invite?token=demo',
-    inviterName: 'Ann',
-    role: 'admin',
+    inviteUrl: "http://localhost:8001/invite?token=demo",
+    inviterName: "Ann",
+    role: "admin",
   },
 };

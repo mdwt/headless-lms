@@ -1,20 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": [
-    "@changesets/changelog-github",
-    { "repo": "mdwt/headless-lms" }
-  ],
+  "changelog": ["@changesets/changelog-github", { "repo": "mdwt/headless-lms" }],
   "commit": false,
   "fixed": [],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "admin",
-    "student",
-    "website",
-    "@headless-lms/api",
-    "@headless-lms/content-plate"
-  ]
+  "ignore": ["admin", "student", "website", "@headless-lms/api", "@headless-lms/content-plate"]
 }

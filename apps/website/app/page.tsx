@@ -1,46 +1,46 @@
-import { SiteHeader } from '@/components/site-header'
-import { SiteFooter } from '@/components/site-footer'
-import { Hero } from '@/components/landing/hero'
-import { Features } from '@/components/landing/features'
-import { Architecture } from '@/components/landing/architecture'
-import { AppsMcp } from '@/components/landing/apps-mcp'
-import { Cta } from '@/components/landing/cta'
-import { absoluteUrl, siteConfig } from '@/lib/site'
-import { jsonLdProps } from '@/lib/structured-data'
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { Hero } from "@/components/landing/hero";
+import { Features } from "@/components/landing/features";
+import { Architecture } from "@/components/landing/architecture";
+import { AppsMcp } from "@/components/landing/apps-mcp";
+import { Cta } from "@/components/landing/cta";
+import { absoluteUrl, siteConfig } from "@/lib/site";
+import { jsonLdProps } from "@/lib/structured-data";
 
 const jsonLd = {
-  '@context': 'https://schema.org',
-  '@graph': [
+  "@context": "https://schema.org",
+  "@graph": [
     {
-      '@type': 'SoftwareApplication',
-      '@id': absoluteUrl('/#software'),
+      "@type": "SoftwareApplication",
+      "@id": absoluteUrl("/#software"),
       name: siteConfig.name,
-      applicationCategory: 'DeveloperApplication',
-      applicationSubCategory: 'Learning Management System',
-      operatingSystem: 'Any',
+      applicationCategory: "DeveloperApplication",
+      applicationSubCategory: "Learning Management System",
+      operatingSystem: "Any",
       url: siteConfig.url,
       description: siteConfig.description,
-      license: 'https://opensource.org/licenses/MIT',
-      softwareHelp: absoluteUrl('/docs'),
-      author: { '@id': absoluteUrl('/#organization') },
+      license: "https://opensource.org/licenses/MIT",
+      softwareHelp: absoluteUrl("/docs"),
+      author: { "@id": absoluteUrl("/#organization") },
       offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: 'USD',
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
       },
     },
     {
-      '@type': 'SoftwareSourceCode',
-      '@id': `${siteConfig.githubUrl}#source`,
+      "@type": "SoftwareSourceCode",
+      "@id": `${siteConfig.githubUrl}#source`,
       name: siteConfig.name,
       description: siteConfig.description,
       codeRepository: siteConfig.githubUrl,
-      programmingLanguage: 'TypeScript',
-      runtimePlatform: 'Node.js',
-      license: 'https://opensource.org/licenses/MIT',
+      programmingLanguage: "TypeScript",
+      runtimePlatform: "Node.js",
+      license: "https://opensource.org/licenses/MIT",
     },
   ],
-}
+};
 
 export default function HomePage() {
   return (

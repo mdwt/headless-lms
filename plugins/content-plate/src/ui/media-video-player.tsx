@@ -1,29 +1,26 @@
-'use client';
+"use client";
 // Vidstack island for the static video node. Emits media facts to the host's
 // MediaTracking context; plays plain progressive sources (no hls.js). The
 // resume/retry choreography lives in media-playback.ts, tested there.
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
 import {
   MediaPlayer,
   MediaProvider as VidstackMediaProvider,
   type MediaPlayerInstance,
   type MediaTimeUpdateEventDetail,
-} from '@vidstack/react';
-import {
-  DefaultVideoLayout,
-  defaultLayoutIcons,
-} from '@vidstack/react/player/layouts/default';
-import '@vidstack/react/player/styles/default/theme.css';
-import '@vidstack/react/player/styles/default/layouts/video.css';
+} from "@vidstack/react";
+import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
+import "@vidstack/react/player/styles/default/theme.css";
+import "@vidstack/react/player/styles/default/layouts/video.css";
 
-import { useMediaTracking, type MediaTrackingEvent } from '../media';
+import { useMediaTracking, type MediaTrackingEvent } from "../media";
 import {
   captureError,
   consumeSeekSuppression,
   createResumeState,
   resumeTarget,
   videoMimeType,
-} from './media-playback';
+} from "./media-playback";
 
 export function MediaVideoPlayer({
   assetId,
@@ -41,9 +38,9 @@ export function MediaVideoPlayer({
 
   const duration = () => {
     const raw = playerRef.current?.duration;
-    return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : null;
+    return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : null;
   };
-  const emit = (kind: MediaTrackingEvent['kind'], seconds: number) => {
+  const emit = (kind: MediaTrackingEvent["kind"], seconds: number) => {
     if (!assetId || !onEvent) return;
     onEvent({ assetId, kind, seconds, duration: duration() });
   };
@@ -62,17 +59,17 @@ export function MediaVideoPlayer({
           playerRef.current.currentTime = target;
         }
       }}
-      onPlay={() => emit('play', playerRef.current?.currentTime ?? 0)}
-      onPause={() => emit('pause', playerRef.current?.currentTime ?? 0)}
+      onPlay={() => emit("play", playerRef.current?.currentTime ?? 0)}
+      onPause={() => emit("pause", playerRef.current?.currentTime ?? 0)}
       onSeeked={() => {
         const { report, next } = consumeSeekSuppression(stateRef.current);
         stateRef.current = next;
         if (report) {
-          emit('seeked', playerRef.current?.currentTime ?? 0);
+          emit("seeked", playerRef.current?.currentTime ?? 0);
         }
       }}
-      onEnded={() => emit('ended', playerRef.current?.duration ?? 0)}
-      onTimeUpdate={(detail: MediaTimeUpdateEventDetail) => emit('timeupdate', detail.currentTime)}
+      onEnded={() => emit("ended", playerRef.current?.duration ?? 0)}
+      onTimeUpdate={(detail: MediaTimeUpdateEventDetail) => emit("timeupdate", detail.currentTime)}
       onError={() => {
         const { retry, next } = captureError(stateRef.current, playerRef.current?.currentTime);
         stateRef.current = next;

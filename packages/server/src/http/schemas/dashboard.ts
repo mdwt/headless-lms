@@ -1,5 +1,5 @@
 // Dashboard / overview resource schemas.
-import { z } from "zod";
+import { z } from 'zod';
 
 export const OverviewStats = z.object({
   publishedCourses: z.number().int(),

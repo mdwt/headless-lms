@@ -71,7 +71,9 @@ function ReportsBadge({ reports }: { reports: CommentListItem["reports"] }) {
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
-        {reports.map((r) => `${fullName(r.reporter)}${r.reason ? ` — ${r.reason}` : ""}`).join(" · ")}
+        {reports
+          .map((r) => `${fullName(r.reporter)}${r.reason ? ` — ${r.reason}` : ""}`)
+          .join(" · ")}
       </TooltipContent>
     </Tooltip>
   );

@@ -2,7 +2,7 @@
 
 Organizations owns the tenant: the organization itself, everyone who belongs to it, and the role each of them holds. It is the tenant root that every other context scopes to. Better Auth's organization plugin is the source of truth for staff membership; core holds a mirror, and staff membership writes go through Better Auth.
 
-An **org user** links a *person* (from the identity domain) to an organization under one role. Staff and learners are the same kind of link, distinguished only by role — a learner is an org user whose role is `student`. This is what makes it possible to say "whoever did this" about any actor in an organization without first asking which population they came from.
+An **org user** links a _person_ (from the identity domain) to an organization under one role. Staff and learners are the same kind of link, distinguished only by role — a learner is an org user whose role is `student`. This is what makes it possible to say "whoever did this" about any actor in an organization without first asking which population they came from.
 
 ## Scope
 
@@ -36,15 +36,15 @@ The first three are the staff roles, and only they reach the back office.
 
 The table-stakes permission map — the starting set, not a fixed contract.
 
-| Action | Owner | Admin | Instructor | Student |
-|---|---|---|---|---|
-| Manage org / ownership | ✓ | | | |
-| Manage org settings | ✓ | ✓ | | |
-| Manage members | ✓ | ✓ | | |
-| Create / edit any course | ✓ | ✓ | | |
-| Edit assigned course | ✓ | ✓ | ✓ (assigned) | |
-| View student progress | ✓ | ✓ | ✓ (assigned) | |
-| Consume content | | | | ✓ (entitled) |
+| Action                   | Owner | Admin | Instructor   | Student      |
+| ------------------------ | ----- | ----- | ------------ | ------------ |
+| Manage org / ownership   | ✓     |       |              |              |
+| Manage org settings      | ✓     | ✓     |              |              |
+| Manage members           | ✓     | ✓     |              |              |
+| Create / edit any course | ✓     | ✓     |              |              |
+| Edit assigned course     | ✓     | ✓     | ✓ (assigned) |              |
+| View student progress    | ✓     | ✓     | ✓ (assigned) |              |
+| Consume content          |       |       |              | ✓ (entitled) |
 
 ## Member management
 

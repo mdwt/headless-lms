@@ -1,19 +1,14 @@
-'use client';
+"use client";
 
-import { useMediaState } from '@platejs/media/react';
-import { ResizableProvider } from '@platejs/resizable';
-import { FileUpIcon } from 'lucide-react';
-import {
-  PlateElement,
-  type PlateElementProps,
-  useReadOnly,
-  withHOC,
-} from 'platejs/react';
+import { useMediaState } from "@platejs/media/react";
+import { ResizableProvider } from "@platejs/resizable";
+import { FileUpIcon } from "lucide-react";
+import { PlateElement, type PlateElementProps, useReadOnly, withHOC } from "platejs/react";
 
-import { useFreshMediaUrl } from '../hooks/use-resolve-asset-url';
+import { useFreshMediaUrl } from "../hooks/use-resolve-asset-url";
 
-import { BlockActionButton } from './block-context-menu';
-import { Caption, CaptionTextarea } from './caption';
+import { BlockActionButton } from "./block-context-menu";
+import { Caption, CaptionTextarea } from "./caption";
 
 export const MediaFileElement = withHOC(
   ResizableProvider,
@@ -53,5 +48,5 @@ export const MediaFileElement = withHOC(
         {props.children}
       </PlateElement>
     );
-  }
+  },
 );

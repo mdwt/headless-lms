@@ -207,8 +207,7 @@ export const serverApi = {
       ...coursesPage.rows.map((c) => [c.id, c.title] as const),
       ...downloadsPage.rows.map((d) => [d.id, d.title] as const),
     ]);
-    const byTitle = (a: { title: string }, b: { title: string }) =>
-      a.title.localeCompare(b.title);
+    const byTitle = (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title);
     const bundles = bundlesPage.rows
       .map((b, i) => ({
         id: b.id,
@@ -245,7 +244,10 @@ export const serverApi = {
 
   // downloads
   async listDownloads(params: ListParams): Promise<Paginated<Download>> {
-    return await Content.listDownloads(toQuery(params, ["status", "category"]), await authHeaders());
+    return await Content.listDownloads(
+      toQuery(params, ["status", "category"]),
+      await authHeaders(),
+    );
   },
   async getDownload(downloadId: string): Promise<Download> {
     return await Content.getDownload({ downloadId }, await authHeaders());

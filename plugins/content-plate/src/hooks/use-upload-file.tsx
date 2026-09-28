@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 // Host-provided uploads. The app embedding the editor supplies an
 // `UploadHandler` wired to its own media API (for the LMS admin:
@@ -7,8 +7,8 @@
 // kept as a local object URL so the editor still works in demos — but nothing
 // is persisted.
 
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { toast } from 'sonner';
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 export interface UploadedFile {
   /** Host-side asset id (empty for local object-URL fallbacks). */
@@ -33,9 +33,7 @@ export function UploadProvider({
   children: ReactNode;
   uploadFile: UploadHandler | null;
 }) {
-  return (
-    <UploadContext.Provider value={uploadFile}>{children}</UploadContext.Provider>
-  );
+  return <UploadContext.Provider value={uploadFile}>{children}</UploadContext.Provider>;
 }
 
 interface UseUploadFileProps {
@@ -43,10 +41,7 @@ interface UseUploadFileProps {
   onUploadError?: (error: unknown) => void;
 }
 
-export function useUploadFile({
-  onUploadComplete,
-  onUploadError,
-}: UseUploadFileProps = {}) {
+export function useUploadFile({ onUploadComplete, onUploadError }: UseUploadFileProps = {}) {
   const handler = useContext(UploadContext);
   const [uploadedFile, setUploadedFile] = useState<UploadedFile>();
   const [uploadingFile, setUploadingFile] = useState<File>();
@@ -62,15 +57,14 @@ export function useUploadFile({
 
       if (handler) {
         result = await handler(file, {
-          onProgress: (fraction) =>
-            setProgress(Math.min(Math.round(fraction * 100), 100)),
+          onProgress: (fraction) => setProgress(Math.min(Math.round(fraction * 100), 100)),
         });
       } else {
         // No host uploader configured — keep the file locally so the editor
         // stays usable, but warn: the media won't survive a reload.
-        toast.warning('Uploads are not configured; this file is not persisted.');
+        toast.warning("Uploads are not configured; this file is not persisted.");
         result = {
-          id: '',
+          id: "",
           name: file.name,
           size: file.size,
           type: file.type,
@@ -106,5 +100,5 @@ export function useUploadFile({
 export function getErrorMessage(err: unknown) {
   if (err instanceof Error && err.message.length > 0) return err.message;
 
-  return 'Something went wrong, please try again later.';
+  return "Something went wrong, please try again later.";
 }

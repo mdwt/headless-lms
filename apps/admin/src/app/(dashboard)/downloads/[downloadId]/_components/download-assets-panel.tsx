@@ -159,7 +159,11 @@ function RenameDialog({
           }}
           className="flex flex-col gap-4"
         >
-          <Field id="asset-display-name" label="Name" hint="Leave blank to use the original filename.">
+          <Field
+            id="asset-display-name"
+            label="Name"
+            hint="Leave blank to use the original filename."
+          >
             <Input
               id="asset-display-name"
               autoFocus

@@ -15,9 +15,8 @@ the Plate/Slate node array (`editor.children`), stored opaquely by the backend.
 - **Notion-style UX** — `/` slash command menu to insert any block, drag
   handles + drop targets (dnd), multi-block selection, right-click block
   context menu (turn into, color, align, duplicate, delete), floating
-  formatting toolbar, autoformat shortcuts (`#`, `>`, `` ``` ``, `-` …),
+  formatting toolbar, autoformat shortcuts (`#`, `>`, ` ``` `, `-` …),
   block placeholders.
-
 
 ## Layout
 

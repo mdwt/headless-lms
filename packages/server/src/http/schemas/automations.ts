@@ -3,7 +3,7 @@
 // every run is recorded. Payload shapes are owned by
 // @headless-lms/core/schemas; route-local schemas define endpoint-only
 // concerns such as params and pagination envelopes.
-import { z } from "zod";
+import { z } from 'zod';
 import {
   automationActionResultSchema,
   automationActionSchema,
@@ -15,8 +15,8 @@ import {
   availableTriggersSchema,
   createAutomationInputSchema,
   updateAutomationInputSchema,
-} from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+} from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
 /** One step of an automation: which action, and its input per that action's inputSchema. */
 export const AutomationAction = automationActionSchema;

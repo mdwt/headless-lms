@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { CaptionPlugin } from '@platejs/caption/react';
+import { CaptionPlugin } from "@platejs/caption/react";
 import {
   AudioPlugin,
   FilePlugin,
@@ -8,17 +8,17 @@ import {
   MediaEmbedPlugin,
   PlaceholderPlugin,
   VideoPlugin,
-} from '@platejs/media/react';
-import { KEYS } from 'platejs';
+} from "@platejs/media/react";
+import { KEYS } from "platejs";
 
-import { MediaAudioElement } from '../../ui/media-audio-node';
-import { MediaEmbedElement } from '../../ui/media-embed-node';
-import { MediaFileElement } from '../../ui/media-file-node';
-import { ImageElement } from '../../ui/media-image-node';
-import { PlaceholderElement } from '../../ui/media-placeholder-node';
-import { ImagePreview } from '../../ui/media-preview-dialog';
-import { MediaUploadToast } from '../../ui/media-upload-toast';
-import { MediaVideoElement } from '../../ui/media-video-node';
+import { MediaAudioElement } from "../../ui/media-audio-node";
+import { MediaEmbedElement } from "../../ui/media-embed-node";
+import { MediaFileElement } from "../../ui/media-file-node";
+import { ImageElement } from "../../ui/media-image-node";
+import { PlaceholderElement } from "../../ui/media-placeholder-node";
+import { ImagePreview } from "../../ui/media-preview-dialog";
+import { MediaUploadToast } from "../../ui/media-upload-toast";
+import { MediaVideoElement } from "../../ui/media-video-node";
 
 export const MediaKit = [
   PlaceholderPlugin.configure({

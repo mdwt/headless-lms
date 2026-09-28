@@ -1,13 +1,13 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { SiteHeader } from '@/components/site-header'
-import { SiteFooter } from '@/components/site-footer'
-import { primaryNav } from '@/lib/site'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { primaryNav } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: 'Page not found',
-  description: 'This page does not exist.',
-}
+  title: "Page not found",
+  description: "This page does not exist.",
+};
 
 export default function NotFound() {
   return (
@@ -29,5 +29,5 @@ export default function NotFound() {
       </main>
       <SiteFooter />
     </div>
-  )
+  );
 }

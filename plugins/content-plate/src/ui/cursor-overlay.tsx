@@ -1,21 +1,20 @@
-'use client';
+"use client";
 
 import {
   type CursorData,
   type CursorOverlayState,
   useCursorOverlay,
-} from '@platejs/selection/react';
-import { getTableGridAbove } from '@platejs/table';
-import { RangeApi } from 'platejs';
-import { useEditorRef } from 'platejs/react';
+} from "@platejs/selection/react";
+import { getTableGridAbove } from "@platejs/table";
+import { RangeApi } from "platejs";
+import { useEditorRef } from "platejs/react";
 
-import { cn } from '../lib/utils';
+import { cn } from "../lib/utils";
 
-const OVERLAY_ID = '__plate_cursor_overlay__';
+const OVERLAY_ID = "__plate_cursor_overlay__";
 
 // TODO:Move to core
-export const getCursorOverlayElement = () =>
-  document.querySelector(`#${OVERLAY_ID}`);
+export const getCursorOverlayElement = () => document.querySelector(`#${OVERLAY_ID}`);
 
 export function Cursor({
   id,
@@ -29,10 +28,10 @@ export function Cursor({
   const isCursor = RangeApi.isCollapsed(selection);
 
   // Skip overlay for multi-cell table selection (table has its own selection UI)
-  if (id === 'selection' && selection) {
+  if (id === "selection" && selection) {
     const cellEntries = getTableGridAbove(editor, {
       at: selection,
-      format: 'cell',
+      format: "cell",
     });
 
     if (cellEntries.length > 1) {
@@ -45,9 +44,9 @@ export function Cursor({
       {selectionRects.map((position, i) => (
         <div
           className={cn(
-            'pointer-events-none absolute z-10',
-            id === 'selection' && 'bg-brand/25',
-            id === 'selection' && isCursor && 'bg-primary'
+            "pointer-events-none absolute z-10",
+            id === "selection" && "bg-brand/25",
+            id === "selection" && isCursor && "bg-primary",
           )}
           id={OVERLAY_ID}
           key={i}
@@ -60,8 +59,8 @@ export function Cursor({
       {caretPosition && (
         <div
           className={cn(
-            'pointer-events-none absolute z-10 w-0.5',
-            id === 'drag' && 'w-px bg-brand'
+            "pointer-events-none absolute z-10 w-0.5",
+            id === "drag" && "w-px bg-brand",
           )}
           id={OVERLAY_ID}
           style={{ ...caretPosition, ...style }}

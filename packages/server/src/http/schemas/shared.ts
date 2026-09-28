@@ -1,5 +1,5 @@
 // Shared contract primitives reused across resource contracts.
-import { z } from "zod";
+import { z } from 'zod';
 
 /** Fails typecheck when a schema and its domain type drift apart. */
 export type Matches<A, _B extends A> = true;
@@ -38,7 +38,7 @@ export function paginated<T extends z.ZodTypeAny>(row: T) {
 
 /** All four org roles. `members.ts` exports a staff-only three-value `Role`;
  *  this is the full set, used wherever a learner can also appear. */
-export const OrgRole = z.enum(["owner", "admin", "instructor", "student"]);
+export const OrgRole = z.enum(['owner', 'admin', 'instructor', 'student']);
 export type OrgRole = z.infer<typeof OrgRole>;
 
 /** Mirrors UserProfile in @headless-lms/core/types — keyed on the auth user id. */

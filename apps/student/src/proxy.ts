@@ -14,10 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * forms better-auth emits. We never reconstruct or parse the cookie by name for
  * validation — that stays server-side by forwarding the whole `Cookie:` header.
  */
-const SESSION_COOKIE_HINTS = [
-  "better-auth.session_token",
-  "__Secure-better-auth.session_token",
-];
+const SESSION_COOKIE_HINTS = ["better-auth.session_token", "__Secure-better-auth.session_token"];
 
 export function proxy(req: NextRequest) {
   const hasSession = SESSION_COOKIE_HINTS.some((name) => req.cookies.has(name));

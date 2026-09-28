@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { ResizableProvider } from '@platejs/resizable';
+import { ResizableProvider } from "@platejs/resizable";
 
-import type { TColumnElement } from 'platejs';
+import type { TColumnElement } from "platejs";
 import {
   PlateElement,
   type PlateElementProps,
   useElement,
   useReadOnly,
   withHOC,
-} from 'platejs/react';
+} from "platejs/react";
 
-import { cn } from '../lib/utils';
+import { cn } from "../lib/utils";
 
 export const ColumnElement = withHOC(
   ResizableProvider,
@@ -21,12 +21,12 @@ export const ColumnElement = withHOC(
 
     return (
       <PlateElement
-        className={cn(!readOnly && 'rounded-lg border border-dashed p-1.5')}
-        style={{ width: width ?? '100%' }}
+        className={cn(!readOnly && "rounded-lg border border-dashed p-1.5")}
+        style={{ width: width ?? "100%" }}
         {...props}
       />
     );
-  }
+  },
 );
 
 export function ColumnGroupElement(props: PlateElementProps) {

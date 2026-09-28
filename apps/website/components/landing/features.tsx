@@ -8,70 +8,70 @@ import {
   FileCode2,
   Mail,
   HardDrive,
-} from 'lucide-react'
+} from "lucide-react";
 
 const groups = [
   {
-    label: 'Domain',
+    label: "Domain",
     features: [
       {
         icon: BookOpen,
-        title: 'Course builder',
-        body: 'Author structured course content; students work through it activity by activity.',
+        title: "Course builder",
+        body: "Author structured course content; students work through it activity by activity.",
       },
       {
         icon: BarChart3,
-        title: 'Progress tracking',
-        body: 'Per-student, per-activity completion, rolled up into course progress and reporting.',
+        title: "Progress tracking",
+        body: "Per-student, per-activity completion, rolled up into course progress and reporting.",
       },
       {
         icon: KeyRound,
-        title: 'Entitlements',
-        body: 'Grant and revoke student access to content with a first-class access model.',
+        title: "Entitlements",
+        body: "Grant and revoke student access to content with a first-class access model.",
       },
     ],
   },
   {
-    label: 'Platform',
+    label: "Platform",
     features: [
       {
         icon: Building2,
-        title: 'Multi-tenant',
-        body: 'One deployment serves many orgs. Every student, course, and session is org-scoped.',
+        title: "Multi-tenant",
+        body: "One deployment serves many orgs. Every student, course, and session is org-scoped.",
       },
       {
         icon: HardDrive,
-        title: 'Media & file assets',
-        body: 'Object storage with presigned upload and download URLs, behind a swappable adapter.',
+        title: "Media & file assets",
+        body: "Object storage with presigned upload and download URLs, behind a swappable adapter.",
       },
       {
         icon: Mail,
-        title: 'Transactional email',
-        body: 'Invitation and auth mail, swappable behind an adapter you control.',
+        title: "Transactional email",
+        body: "Invitation and auth mail, swappable behind an adapter you control.",
       },
     ],
   },
   {
-    label: 'Interfaces',
+    label: "Interfaces",
     features: [
       {
         icon: FileCode2,
-        title: 'Typed SDK & OpenAPI',
-        body: 'Routes validate against shared Zod schemas; the SDK is generated from the spec.',
+        title: "Typed SDK & OpenAPI",
+        body: "Routes validate against shared Zod schemas; the SDK is generated from the spec.",
       },
       {
         icon: Bot,
-        title: 'MCP endpoint',
-        body: 'AI agents are first-class clients, connecting over OAuth.',
+        title: "MCP endpoint",
+        body: "AI agents are first-class clients, connecting over OAuth.",
       },
       {
         icon: Plug,
-        title: 'Plugins',
+        title: "Plugins",
         body: "Drop a plugin folder into your installation and it's live at startup. Write your own.",
       },
     ],
   },
-]
+];
 
 export function Features() {
   return (
@@ -81,8 +81,8 @@ export function Features() {
           A complete learning platform, headless by design
         </h2>
         <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
-          The full domain of an LMS, exposed as a typed API. Compose the pieces
-          you need and swap the ones you don&apos;t.
+          The full domain of an LMS, exposed as a typed API. Compose the pieces you need and swap
+          the ones you don&apos;t.
         </p>
 
         <div className="mt-16 grid gap-x-8 gap-y-12 md:grid-cols-3">
@@ -107,5 +107,5 @@ export function Features() {
         </div>
       </div>
     </section>
-  )
+  );
 }

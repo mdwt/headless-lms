@@ -55,8 +55,9 @@ export interface RuntimeEventDefinition<
 export type EventOf<TDefinition extends EventDefinition<DomainEvent, unknown>> =
   TDefinition extends EventDefinition<infer E, unknown> ? E : never;
 
-export type EventOfValues<TDefinitions extends Record<string, EventDefinition<DomainEvent, unknown>>> =
-  EventOf<TDefinitions[keyof TDefinitions]>;
+export type EventOfValues<
+  TDefinitions extends Record<string, EventDefinition<DomainEvent, unknown>>,
+> = EventOf<TDefinitions[keyof TDefinitions]>;
 
 export interface DefineEventInput<
   TType extends string,
@@ -79,20 +80,24 @@ export function defineEvent<
   z.input<TDataSchema>
 > {
   type Event = VersionedDomainEvent<z.output<TDataSchema>, TType, TVersion>;
-  const makeInputSchema = z.object({
-    orgId: eventIdSchema,
-    data: input.data,
-    metadata: eventMetadataSchema.optional(),
-  }).strict();
-  const eventSchema = z.object({
-    type: z.literal(input.type),
-    version: z.literal(input.version),
-    id: eventIdSchema,
-    orgId: eventIdSchema,
-    occurredAt: z.string().trim().min(1),
-    data: input.data,
-    metadata: eventMetadataSchema.optional(),
-  }).strict();
+  const makeInputSchema = z
+    .object({
+      orgId: eventIdSchema,
+      data: input.data,
+      metadata: eventMetadataSchema.optional(),
+    })
+    .strict();
+  const eventSchema = z
+    .object({
+      type: z.literal(input.type),
+      version: z.literal(input.version),
+      id: eventIdSchema,
+      orgId: eventIdSchema,
+      occurredAt: z.string().trim().min(1),
+      data: input.data,
+      metadata: eventMetadataSchema.optional(),
+    })
+    .strict();
 
   return {
     type: input.type,
@@ -137,8 +142,4 @@ function invalidEvent(type: string, error: z.ZodError): InvalidDomainEventError 
   );
 }
 
-export type {
-  EventDefinition,
-  EventParseResult,
-  MakeEventInput,
-};
+export type { EventDefinition, EventParseResult, MakeEventInput };

@@ -2,15 +2,15 @@
 // ordered set of media-library assets. The Fastify routes validate
 // requests/responses against these, the OpenAPI spec is built from them, and
 // the frontend SDK is generated off that spec.
-import { z } from "zod";
+import { z } from 'zod';
 import {
   addDownloadAssetInputSchema,
   downloadAssetSchema,
   downloadSchema,
   downloadStatusSchema,
   reorderDownloadAssetsInputSchema,
-} from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+} from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
 export const DownloadStatus = downloadStatusSchema;
 export type DownloadStatus = z.infer<typeof DownloadStatus>;
@@ -23,8 +23,8 @@ export type DownloadAsset = z.infer<typeof DownloadAsset>;
 
 export const CreateDownload = z.object({
   title: z.string().min(1),
-  description: z.string().default(""),
-  category: z.string().default(""),
+  description: z.string().default(''),
+  category: z.string().default(''),
 });
 export type CreateDownload = z.infer<typeof CreateDownload>;
 

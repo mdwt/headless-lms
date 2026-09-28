@@ -19,15 +19,18 @@ export const metadata: Metadata = {
   description: "Student course platform for a headless LMS.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     // suppressHydrationWarning: next-themes sets the theme class on <html>
     // before hydration.
     <html lang="en" className={pretendard.variable} suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           <AppProvider>
             {children}
             <Toast />

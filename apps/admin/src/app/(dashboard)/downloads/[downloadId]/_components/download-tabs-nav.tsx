@@ -37,9 +37,7 @@ export function DownloadTabsNav({ downloadId }: { downloadId: string }) {
             aria-current={active ? "page" : undefined}
             className={cn(
               "relative inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:text-ink",
-              active
-                ? "border-brand text-ink"
-                : "border-transparent text-ink-3 hover:text-ink",
+              active ? "border-brand text-ink" : "border-transparent text-ink-3 hover:text-ink",
             )}
           >
             <Icon className="size-4 shrink-0" />

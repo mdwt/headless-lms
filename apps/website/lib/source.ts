@@ -1,20 +1,20 @@
-import { docs, blog as blogCollection, changelog as changelogCollection } from 'collections/server'
-import { loader } from 'fumadocs-core/source'
-import { toFumadocsSource } from 'fumadocs-mdx/runtime/server'
-import { openapiPlugin } from 'fumadocs-openapi/server'
+import { docs, blog as blogCollection, changelog as changelogCollection } from "collections/server";
+import { loader } from "fumadocs-core/source";
+import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
+import { openapiPlugin } from "fumadocs-openapi/server";
 
 export const source = loader({
-  baseUrl: '/docs',
+  baseUrl: "/docs",
   source: docs.toFumadocsSource(),
   plugins: [openapiPlugin()],
-})
+});
 
 export const blog = loader({
-  baseUrl: '/blog',
+  baseUrl: "/blog",
   source: toFumadocsSource(blogCollection, []),
-})
+});
 
 export const changelog = loader({
-  baseUrl: '/changelog',
+  baseUrl: "/changelog",
   source: toFumadocsSource(changelogCollection, []),
-})
+});

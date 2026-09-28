@@ -61,7 +61,11 @@ export function RowActions({
           pending={isPending}
           onCancel={() => setReplying(false)}
           onSubmit={(body) =>
-            run("Reply posted", () => replyToCommentAction(id, body), () => setReplying(false))
+            run(
+              "Reply posted",
+              () => replyToCommentAction(id, body),
+              () => setReplying(false),
+            )
           }
         />
       )}

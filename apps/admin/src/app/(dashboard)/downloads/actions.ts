@@ -130,10 +130,7 @@ export async function reorderDownloadAssetsAction(
   downloadId: string,
   assetIds: string[],
 ): Promise<DownloadAsset[]> {
-  const links = await Content.reorderDownloadAssets(
-    { downloadId, assetIds },
-    await authHeaders(),
-  );
+  const links = await Content.reorderDownloadAssets({ downloadId, assetIds }, await authHeaders());
   revalidateDownload();
   return composeDownloadAssets(links);
 }

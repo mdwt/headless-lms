@@ -1,15 +1,10 @@
-import {
-  NodeApi,
-  type TCaptionElement,
-  type TResizableProps,
-  type TVideoElement,
-} from 'platejs';
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import { NodeApi, type TCaptionElement, type TResizableProps, type TVideoElement } from "platejs";
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
-import type { ResolveAssetUrl } from '@headless-lms/editor';
+import type { ResolveAssetUrl } from "@headless-lms/editor";
 
-import { freshMediaUrl } from '../lib/media-url';
-import { MediaVideoPlayer } from './media-video-player';
+import { freshMediaUrl } from "../lib/media-url";
+import { MediaVideoPlayer } from "./media-video-player";
 
 export async function MediaVideoElementStatic({
   resolveAssetUrl,
@@ -17,7 +12,7 @@ export async function MediaVideoElementStatic({
 }: SlateElementProps<TVideoElement & TCaptionElement & TResizableProps> & {
   resolveAssetUrl?: ResolveAssetUrl;
 }) {
-  const { align = 'center', caption, width } = props.element;
+  const { align = "center", caption, width } = props.element;
   // Stable asset reference persisted by the upload flow; absent on external URLs.
   const assetId = (props.element as { assetId?: unknown }).assetId;
   const name = (props.element as { name?: unknown }).name;
@@ -26,14 +21,11 @@ export async function MediaVideoElementStatic({
   return (
     <SlateElement className="py-2.5" {...props}>
       <div style={{ textAlign: align }}>
-        <figure
-          className="group relative m-0 inline-block cursor-default"
-          style={{ width }}
-        >
+        <figure className="group relative m-0 inline-block cursor-default" style={{ width }}>
           <MediaVideoPlayer
-            assetId={typeof assetId === 'string' ? assetId : undefined}
-            url={url ?? ''}
-            name={typeof name === 'string' ? name : undefined}
+            assetId={typeof assetId === "string" ? assetId : undefined}
+            url={url ?? ""}
+            name={typeof name === "string" ? name : undefined}
           />
           {caption && <figcaption>{NodeApi.string(caption[0])}</figcaption>}
         </figure>

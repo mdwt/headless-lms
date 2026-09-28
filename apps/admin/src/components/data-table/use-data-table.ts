@@ -10,11 +10,7 @@ import type {
 } from "@tanstack/react-table";
 
 import type { ListParams } from "@/lib/api/types";
-import {
-  FILTER_PREFIX,
-  parseListParams,
-  serializeSort,
-} from "@/lib/table/parse-list-params";
+import { FILTER_PREFIX, parseListParams, serializeSort } from "@/lib/table/parse-list-params";
 
 /**
  * URL-backed table state. All server-affecting state (page, pageSize, search,
@@ -89,8 +85,7 @@ export function useDataTable(opts?: { pageSize?: number; initialSort?: SortingSt
     [writeUrl],
   );
   const setPageSize = useCallback(
-    (s: number) =>
-      writeUrl({ pageSize: s === pageSizeDefault ? null : String(s), page: null }),
+    (s: number) => writeUrl({ pageSize: s === pageSizeDefault ? null : String(s), page: null }),
     [writeUrl, pageSizeDefault],
   );
 

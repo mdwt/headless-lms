@@ -42,7 +42,11 @@ export function StatusChip({
     "not-started": "bg-status-idle-bg text-status-idle-fg",
     completed: "bg-brand-soft text-brand",
   } as const;
-  const label = { "in-progress": "In progress", "not-started": "Not started", completed: "Completed" };
+  const label = {
+    "in-progress": "In progress",
+    "not-started": "Not started",
+    completed: "Completed",
+  };
   return (
     <span
       className={cn(

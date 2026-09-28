@@ -18,10 +18,7 @@ function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive
   );
 }
 
-function CommandInput({
-  className,
-  ...props
-}: ComponentProps<typeof CommandPrimitive.Input>) {
+function CommandInput({ className, ...props }: ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div className="flex h-9 items-center gap-2 border-b border-line px-2">
       <Search className="size-4 shrink-0 text-ink-4" />
@@ -58,10 +55,7 @@ function CommandEmpty(props: ComponentProps<typeof CommandPrimitive.Empty>) {
   );
 }
 
-function CommandGroup({
-  className,
-  ...props
-}: ComponentProps<typeof CommandPrimitive.Group>) {
+function CommandGroup({ className, ...props }: ComponentProps<typeof CommandPrimitive.Group>) {
   return (
     <CommandPrimitive.Group
       data-slot="command-group"

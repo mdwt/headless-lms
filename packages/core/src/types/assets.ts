@@ -6,4 +6,4 @@ export type {
   DownloadTicket,
   RequestUploadInput,
   UploadTicket,
-} from "./schemas/assets.js";
+} from './schemas/assets.js';

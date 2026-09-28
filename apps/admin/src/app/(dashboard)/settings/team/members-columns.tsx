@@ -42,11 +42,12 @@ function RoleCell({
   }
 
   return (
-    <Select
-      value={member.role}
-      onValueChange={(role) => onChange(member.id, role as Role)}
-    >
-      <SelectTrigger size="sm" className="w-[9.5rem]" aria-label={`Change role for ${fullName(member)}`}>
+    <Select value={member.role} onValueChange={(role) => onChange(member.id, role as Role)}>
+      <SelectTrigger
+        size="sm"
+        className="w-[9.5rem]"
+        aria-label={`Change role for ${fullName(member)}`}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

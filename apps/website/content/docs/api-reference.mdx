@@ -12,9 +12,9 @@ Browse every endpoint in the [API reference](/docs/api), generated from the same
 The generated SDK mirrors these routes with full type safety, including request payloads and response shapes. Point it at an API origin once at startup with `configureSdk`, then call the service for the area you want — `Students`, `Courses`, `Entitlements`, `Learn`, `Organizations`, `Assets`, `Automations`, `Dashboard`, `Discussion`, `Downloads`, `Integrations`. A failed request throws rather than resolving to `undefined`.
 
 ```ts title="usage.ts"
-import { configureSdk, Students } from "@headless-lms/sdk"
+import { configureSdk, Students } from "@headless-lms/sdk";
 
-configureSdk({ baseUrl })
+configureSdk({ baseUrl });
 
-const student = await Students.getStudent({ id: studentId })
+const student = await Students.getStudent({ id: studentId });
 ```

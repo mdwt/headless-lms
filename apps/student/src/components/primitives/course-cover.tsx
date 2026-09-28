@@ -40,7 +40,10 @@ export function CourseCover({
         }}
       />
       {expired && (
-        <div className="pointer-events-none absolute inset-0" style={{ background: "rgba(18,18,16,0.46)" }} />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "rgba(18,18,16,0.46)" }}
+        />
       )}
       {/* giant faint initial, bottom-right */}
       <span

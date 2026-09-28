@@ -44,7 +44,6 @@ interface ConfigPanelProps {
   onRemoveStep: (index: number) => void;
 }
 
-
 /** Right-hand configuration for whatever is selected on the canvas. */
 export function ConfigPanel(props: ConfigPanelProps) {
   const { selection, draft } = props;
@@ -54,7 +53,12 @@ export function ConfigPanel(props: ConfigPanelProps) {
   if (!action) return <EmptyPanel />;
   return (
     // Keyed so switching step or action type remounts the input form with fresh defaults.
-    <ActionPanel key={`${selection.index}:${action.type}`} {...props} index={selection.index} action={action} />
+    <ActionPanel
+      key={`${selection.index}:${action.type}`}
+      {...props}
+      index={selection.index}
+      action={action}
+    />
   );
 }
 
@@ -63,7 +67,9 @@ function EmptyPanel() {
     <div className="grid h-full min-h-[200px] place-items-center p-6 text-center">
       <div className="flex max-w-[220px] flex-col items-center gap-2">
         <MousePointerClick className="size-5 text-ink-4" />
-        <p className="text-sm text-ink-3">Select the trigger or a step on the canvas to configure it.</p>
+        <p className="text-sm text-ink-3">
+          Select the trigger or a step on the canvas to configure it.
+        </p>
       </div>
     </div>
   );
@@ -214,7 +220,10 @@ function ActionPanel({
       </div>
 
       <Field id="action-type" label="Action" required>
-        <Select value={action.type || undefined} onValueChange={(t) => onActionTypeChange(index, t)}>
+        <Select
+          value={action.type || undefined}
+          onValueChange={(t) => onActionTypeChange(index, t)}
+        >
           <SelectTrigger id="action-type">
             <SelectValue placeholder="Choose an action">
               {action.type ? actionLabel(action.type) : undefined}

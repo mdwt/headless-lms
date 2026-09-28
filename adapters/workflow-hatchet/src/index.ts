@@ -3,7 +3,13 @@
 // ("automation-run-action", retries: 3) per action through the durable event
 // log, stopping on the first exhausted child; the parent then finalizes once
 // with the results collected so far.
-import type { Logger, AutomationDispatch, AutomationExecutor, AutomationEngine, AutomationActionResult } from "@headless-lms/core/types";
+import type {
+  Logger,
+  AutomationDispatch,
+  AutomationExecutor,
+  AutomationEngine,
+  AutomationActionResult,
+} from "@headless-lms/core/types";
 import { Hatchet } from "@hatchet-dev/typescript-sdk";
 
 const WORKFLOW_NAME = "automation-run";
@@ -17,7 +23,11 @@ interface ActionTaskInput {
 
 /** Subset of `DurableContext` the parent task uses; hand-rolled so tests can fake it without a real Hatchet client. */
 interface DurableCtxLike {
-  spawnChild(task: unknown, input: ActionTaskInput, options?: Record<string, unknown>): Promise<AutomationActionResult>;
+  spawnChild(
+    task: unknown,
+    input: ActionTaskInput,
+    options?: Record<string, unknown>,
+  ): Promise<AutomationActionResult>;
 }
 
 interface RunnableTask<I> {
@@ -34,7 +44,10 @@ export interface HatchetClientLike {
   task(opts: {
     name: string;
     retries?: number;
-    fn: (input: ActionTaskInput, ctx: unknown) => Promise<AutomationActionResult> | AutomationActionResult;
+    fn: (
+      input: ActionTaskInput,
+      ctx: unknown,
+    ) => Promise<AutomationActionResult> | AutomationActionResult;
   }): unknown;
   durableTask(opts: {
     name: string;
@@ -115,7 +128,12 @@ export class HatchetAutomationEngine implements AutomationEngine {
         results.push(await ctx.spawnChild(this.actionTask, { dispatch, index }));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        results.push({ index, type: dispatch.actions[index]!.type, status: "failed", error: message });
+        results.push({
+          index,
+          type: dispatch.actions[index]!.type,
+          status: "failed",
+          error: message,
+        });
         break;
       }
     }

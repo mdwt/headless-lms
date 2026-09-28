@@ -66,12 +66,12 @@ describe("createVideoTracker", () => {
     ev("timeupdate", 1);
     ev("timeupdate", 2);
     tick(5000);
-    ev("seeked", 80);       // jump — not watched; immediate send (first seek)
+    ev("seeked", 80); // jump — not watched; immediate send (first seek)
     ev("timeupdate", 81);
-    ev("seeked", 5);        // scrub-burst window — stays pending
+    ev("seeked", 5); // scrub-burst window — stays pending
     ev("timeupdate", 6);
     const last = sent.at(-1)![0]!;
-    expect(last.furthest).toBe(2);  // the jump itself credits nothing
+    expect(last.furthest).toBe(2); // the jump itself credits nothing
     expect(last.seconds).toBe(80);
     expect(tracker.flush()[0]).toMatchObject({ seconds: 6, furthest: 81 }); // 80→81 was continuous
   });
@@ -100,10 +100,10 @@ describe("createVideoTracker", () => {
     const { tracker, ev, tick } = harness();
     ev("play", 0);
     ev("timeupdate", 1);
-    ev("timeupdate", 2);   // watched 2
+    ev("timeupdate", 2); // watched 2
     tick(5000);
-    ev("seeked", 80);      // jump — adds nothing
-    ev("timeupdate", 81);  // watched 3
+    ev("seeked", 80); // jump — adds nothing
+    ev("timeupdate", 81); // watched 3
     expect(tracker.flush()[0]).toMatchObject({ watched: 3, furthest: 81, seconds: 81 });
   });
 

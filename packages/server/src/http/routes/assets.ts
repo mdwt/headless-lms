@@ -22,10 +22,7 @@ import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 
 /** Resolve the session's active org to the domain org id, or 400 and return null. */
-async function resolveOrgId(
-  req: FastifyRequest,
-  reply: FastifyReply,
-): Promise<string | null> {
+async function resolveOrgId(req: FastifyRequest, reply: FastifyReply): Promise<string | null> {
   if (!req.orgId) {
     await reply.code(400).send({ error: 'no_active_org', message: 'No active organization' });
     return null;

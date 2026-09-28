@@ -4,17 +4,13 @@ import {
   BaseH2Plugin,
   BaseH3Plugin,
   BaseHorizontalRulePlugin,
-} from '@platejs/basic-nodes';
-import { BaseParagraphPlugin } from 'platejs';
+} from "@platejs/basic-nodes";
+import { BaseParagraphPlugin } from "platejs";
 
-import { BlockquoteElementStatic } from '../../ui/blockquote-node-static';
-import {
-  H1ElementStatic,
-  H2ElementStatic,
-  H3ElementStatic,
-} from '../../ui/heading-node-static';
-import { HrElementStatic } from '../../ui/hr-node-static';
-import { ParagraphElementStatic } from '../../ui/paragraph-node-static';
+import { BlockquoteElementStatic } from "../../ui/blockquote-node-static";
+import { H1ElementStatic, H2ElementStatic, H3ElementStatic } from "../../ui/heading-node-static";
+import { HrElementStatic } from "../../ui/hr-node-static";
+import { ParagraphElementStatic } from "../../ui/paragraph-node-static";
 
 export const BaseBasicBlocksKit = [
   BaseParagraphPlugin.withComponent(ParagraphElementStatic),

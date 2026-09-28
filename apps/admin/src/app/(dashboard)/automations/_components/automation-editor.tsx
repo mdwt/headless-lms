@@ -62,15 +62,9 @@ export function AutomationEditor({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const defs = useMemo(
-    () => new Map(availableActions.map((a) => [a.type, a])),
-    [availableActions],
-  );
+  const defs = useMemo(() => new Map(availableActions.map((a) => [a.type, a])), [availableActions]);
 
-  const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(initial),
-    [draft, initial],
-  );
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial]);
 
   const incomplete = useMemo(() => {
     const set = new Set<number>();

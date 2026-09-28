@@ -1,11 +1,11 @@
 // integrations — Drizzle repository (implements the core outbound port).
-import { and, asc, eq } from 'drizzle-orm';
-import type { DbExecutor } from '../client.js';
-import type { Connection, ConnectionsRepository } from '@headless-lms/core/integrations';
-import { connections } from '../schema/integrations.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+import { and, asc, eq } from "drizzle-orm";
+import type { DbExecutor } from "../client.js";
+import type { Connection, ConnectionsRepository } from "@headless-lms/core/integrations";
+import { connections } from "../schema/integrations.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 type Row = typeof connections.$inferSelect;
 
@@ -30,7 +30,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
 
   async insert(orgId: string, connection: Connection): Promise<Connection> {
     if (connection.orgId !== orgId) {
-      throw new Error('connection org mismatch');
+      throw new Error("connection org mismatch");
     }
     const [row] = await this.db
       .insert(connections)
@@ -46,7 +46,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
       })
       .returning();
     if (!row) {
-      throw new Error('failed to insert connection');
+      throw new Error("failed to insert connection");
     }
     return toConnection(row);
   }
@@ -81,7 +81,7 @@ export class DrizzleConnectionsRepository implements ConnectionsRepository {
   async update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<Connection, 'config' | 'active' | 'updatedAt'>>,
+    patch: Partial<Pick<Connection, "config" | "active" | "updatedAt">>,
   ): Promise<Connection | null> {
     const [row] = await this.db
       .update(connections)

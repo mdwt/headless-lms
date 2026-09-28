@@ -5,18 +5,18 @@
 // numbers describe the current roster. An activity counts toward the
 // denominator when its settings blob does not say published=false (missing ⇒
 // published), mirroring reporting/learn.
-import { and, eq, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, eq, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   CourseAnalytics,
   CourseActivityEngagement,
   CourseEnrollmentPoint,
   CoursesReportRepository,
-} from '@headless-lms/core/reporting/courses';
-import { courses, entitlements } from '../schema/index.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/reporting/courses";
+import { courses, entitlements } from "../schema/index.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 export class DrizzleCourseAnalyticsRepository implements CoursesReportRepository {
   constructor(

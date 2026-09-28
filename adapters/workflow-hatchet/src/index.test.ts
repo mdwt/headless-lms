@@ -12,7 +12,12 @@ function fakeHatchetClient() {
   const workerStart = vi.fn(async () => {});
   const workerStop = vi.fn(async () => {});
 
-  let actionFn: ((input: { dispatch: AutomationDispatch; index: number }, ctx: unknown) => Promise<AutomationActionResult>) | undefined;
+  let actionFn:
+    | ((
+        input: { dispatch: AutomationDispatch; index: number },
+        ctx: unknown,
+      ) => Promise<AutomationActionResult>)
+    | undefined;
   let runDispatchFn: ((dispatch: AutomationDispatch, ctx: unknown) => Promise<void>) | undefined;
   let actionTaskHandle: unknown;
 
@@ -74,7 +79,9 @@ describe("HatchetAutomationEngine", () => {
       expect.objectContaining({ name: "automation-run-action", retries: 3 }),
     );
     expect(fake.client.durableTask).toHaveBeenCalledTimes(1);
-    expect(fake.client.durableTask).toHaveBeenCalledWith(expect.objectContaining({ name: "automation-run" }));
+    expect(fake.client.durableTask).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "automation-run" }),
+    );
   });
 
   it("throws when dispatch is called before register", async () => {
@@ -129,11 +136,13 @@ describe("HatchetAutomationEngine", () => {
     const d = dispatch();
     const spawnOrder: number[] = [];
     const ctx = {
-      spawnChild: vi.fn(async (task: unknown, input: { dispatch: AutomationDispatch; index: number }) => {
-        expect(task).toBe(fake.getActionTaskHandle());
-        spawnOrder.push(input.index);
-        return fake.callAction(input);
-      }),
+      spawnChild: vi.fn(
+        async (task: unknown, input: { dispatch: AutomationDispatch; index: number }) => {
+          expect(task).toBe(fake.getActionTaskHandle());
+          spawnOrder.push(input.index);
+          return fake.callAction(input);
+        },
+      ),
     };
 
     await fake.callRunDispatch(d, ctx);
@@ -162,14 +171,16 @@ describe("HatchetAutomationEngine", () => {
       ],
     };
     const ctx = {
-      spawnChild: vi.fn(async (_task: unknown, input: { dispatch: AutomationDispatch; index: number }) => {
-        if (input.index === 0) {
-          return { index: 0, type: "sendEmail", status: "completed" } as AutomationActionResult;
-        }
-        // Simulates Hatchet exhausting the child task's retries: 3 and the
-        // parent's spawnChild ultimately rejecting.
-        throw new Error("boom");
-      }),
+      spawnChild: vi.fn(
+        async (_task: unknown, input: { dispatch: AutomationDispatch; index: number }) => {
+          if (input.index === 0) {
+            return { index: 0, type: "sendEmail", status: "completed" } as AutomationActionResult;
+          }
+          // Simulates Hatchet exhausting the child task's retries: 3 and the
+          // parent's spawnChild ultimately rejecting.
+          throw new Error("boom");
+        },
+      ),
     };
 
     await fake.callRunDispatch(d, ctx);

@@ -24,9 +24,7 @@
       "@headless-lms/server": ["./packages/server/src/index.ts"],
       "@headless-lms/adapter-auth": ["./adapters/auth/src/index.ts"],
       "@headless-lms/adapter-db": ["./adapters/db/src/index.ts"],
-      "@headless-lms/adapter-db/schema/better-auth": [
-        "./adapters/db/src/schema/better-auth.ts"
-      ],
+      "@headless-lms/adapter-db/schema/better-auth": ["./adapters/db/src/schema/better-auth.ts"],
       "@headless-lms/adapter-defaults/*": [
         "./adapters/defaults/src/*/index.ts",
         "./adapters/defaults/src/*.ts"

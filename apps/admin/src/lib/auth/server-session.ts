@@ -112,7 +112,8 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
           )
           .map((o) => ({ id: o.id, name: o.name ?? "", slug: o.slug ?? "" }))
       : [];
-    status = organizations.length > 0 ? "no-active-org" : activeOrgId ? "denied" : "no-organization";
+    status =
+      organizations.length > 0 ? "no-active-org" : activeOrgId ? "denied" : "no-organization";
     organization = null;
   }
 

@@ -1,21 +1,12 @@
 // entitlements context — ports.
-import type {
-  Entitlement,
-  EntitlementsQuery,
-  GrantEntitlementInput,
-  Page,
-} from './model.js';
+import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
 // Inbound port (use cases the service exposes).
 export interface EntitlementsService {
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
   grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
-  setStatus(
-    orgId: string,
-    id: string,
-    status: 'active' | 'revoked',
-  ): Promise<Entitlement | null>;
+  setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
   /** Whether this org user currently holds active access to the course.
    *  The authority for course access — a reporting read must never be used to
    *  infer it. */

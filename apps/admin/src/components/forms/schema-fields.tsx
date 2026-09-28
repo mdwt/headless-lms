@@ -242,9 +242,7 @@ function RemoteOptionsSelect({
   // Keep a stored value selectable even when it no longer appears in the listing.
   const listed = current?.options ?? [];
   const options =
-    value && !listed.some((o) => o.value === value)
-      ? [{ value, label: value }, ...listed]
-      : listed;
+    value && !listed.some((o) => o.value === value) ? [{ value, label: value }, ...listed] : listed;
 
   return (
     <Select value={value || undefined} onValueChange={onChange}>

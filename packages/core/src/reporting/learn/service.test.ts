@@ -1,12 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LearnReportServiceImpl } from './service.js';
 import type { LearnEntitlementReader, ContentRef } from './index.js';
-import type {
-  Activity,
-  ContentServicePort,
-  Course,
-  Module,
-} from '../../content/index.js';
+import type { Activity, ContentServicePort, Course, Module } from '../../content/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
 import type { Asset, AssetsService } from '../../assets/index.js';
 

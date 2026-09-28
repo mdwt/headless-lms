@@ -1,5 +1,5 @@
-import { and, asc, eq, isNull, lt, lte, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, asc, eq, isNull, lt, lte, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   DomainEvent,
   NewDomainEvent,
@@ -7,12 +7,12 @@ import type {
   OutboxMessage,
   OutboxStore,
   Logger,
-} from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import type { EventOutbox } from '@headless-lms/core/schemas';
-import type { DbExecutor } from '../client.js';
-import { eventOutbox } from '../schema/outbox.js';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import type { EventOutbox } from "@headless-lms/core/schemas";
+import type { DbExecutor } from "../client.js";
+import { eventOutbox } from "../schema/outbox.js";
+import { translateDbErrors } from "./pg-errors.js";
 
 /** A message that fails this many dispatches is parked: fetchBatch stops
  *  claiming it, leaving the row (with its last_error) for inspection. */
@@ -32,7 +32,7 @@ export class DrizzleOutboxAppender implements OutboxAppender {
       events.map((event) => ({
         type: event.type,
         orgId: event.orgId,
-        payload: event as unknown as EventOutbox['payload'],
+        payload: event as unknown as EventOutbox["payload"],
       })),
     );
   }
@@ -58,7 +58,7 @@ export class DrizzleOutboxStore implements OutboxStore {
         )
         .orderBy(asc(eventOutbox.id))
         .limit(limit)
-        .for('update', { skipLocked: true }),
+        .for("update", { skipLocked: true }),
     );
     return rows.map((row) => ({
       id: row.id,

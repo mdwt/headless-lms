@@ -111,7 +111,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      req.log.info( { body: req.body },'update course settings',);
+      req.log.info({ body: req.body }, 'update course settings');
       return courses.patchCourseSettings(scope.orgId, req.params.id, req.body);
     },
   });

@@ -1,11 +1,7 @@
 // Public surface of @headless-lms/server. Installations compose these:
 //   const container = await createContainer(config, { pluginsDir, adapters })
 //   const app = await buildServer(config, container)
-import {
-  buildContainer,
-  type BuildContainerOptions,
-  type Container,
-} from './app/container.js';
+import { buildContainer, type BuildContainerOptions, type Container } from './app/container.js';
 import type { ServerConfig } from './http/config.js';
 
 export { buildServer } from './http/server.js';

@@ -1,6 +1,6 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { and, eq, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, eq, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   parseRole,
   type CreateOrgUserInput,
@@ -12,17 +12,17 @@ import {
   type OrgUser,
   type UpdateOrganizationInput,
   type UpdateOrgUserInput,
-} from '@headless-lms/core/organizations';
-import { invites, organizations, orgUsers } from '../schema/organizations.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { ConflictError } from '@headless-lms/core/shared/errors';
-import { isUniqueViolation, translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/organizations";
+import { invites, organizations, orgUsers } from "../schema/organizations.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { ConflictError } from "@headless-lms/core/shared/errors";
+import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
 
-const INVITE_STATUSES = ['pending', 'accepted', 'rejected', 'canceled'] as const;
+const INVITE_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InviteStatus = (typeof INVITE_STATUSES)[number];
 const toStatus = (s: string): InviteStatus =>
-  (INVITE_STATUSES as readonly string[]).includes(s) ? (s as InviteStatus) : 'pending';
+  (INVITE_STATUSES as readonly string[]).includes(s) ? (s as InviteStatus) : "pending";
 
 function toInvite(row: typeof invites.$inferSelect): Invite {
   return {
@@ -57,7 +57,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .returning();
     if (!row) {
-      throw new Error('failed to insert organization');
+      throw new Error("failed to insert organization");
     }
     return row!;
   }
@@ -75,7 +75,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const [row] = await this.db.delete(organizations).where(eq(organizations.id, id)).returning();
 
     if (!row) {
-      throw new Error('failed to delete organization');
+      throw new Error("failed to delete organization");
     }
     return row;
   }
@@ -110,7 +110,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         orgId,
         email: input.email,
         role: input.role,
-        status: 'pending',
+        status: "pending",
         invitedBy: input.invitedBy,
         tokenHash: input.tokenHash,
         expiresAt: input.expiresAt,
@@ -127,7 +127,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       })
       .returning();
     if (!row) {
-      throw new Error('failed to upsert invite');
+      throw new Error("failed to upsert invite");
     }
     return toInvite(row);
   }
@@ -158,7 +158,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         and(
           eq(invites.orgId, orgId),
           sql`lower(${invites.email}) = lower(${email})`,
-          eq(invites.status, 'pending'),
+          eq(invites.status, "pending"),
         ),
       )
       .limit(1);
@@ -174,7 +174,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const [row] = await this.db
       .update(invites)
       .set({ tokenHash, expiresAt })
-      .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, 'pending')))
+      .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, "pending")))
       .returning();
     return row ? toInvite(row) : null;
   }
@@ -214,22 +214,26 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
           orgId: input.orgId,
           userId: input.userId,
           role: input.role,
-          status: input.status ?? 'active',
+          status: input.status ?? "active",
         })
         .returning();
       if (!row) {
-        throw new Error('failed to insert org user');
+        throw new Error("failed to insert org user");
       }
       return { ...row, role: parseRole(row.role) };
     } catch (err) {
       if (isUniqueViolation(err)) {
-        throw new ConflictError('That account already belongs to this organization');
+        throw new ConflictError("That account already belongs to this organization");
       }
       throw err;
     }
   }
 
-  async updateOrgUser(orgId: string, id: string, patch: UpdateOrgUserInput): Promise<OrgUser | null> {
+  async updateOrgUser(
+    orgId: string,
+    id: string,
+    patch: UpdateOrgUserInput,
+  ): Promise<OrgUser | null> {
     const [row] = await this.db
       .update(orgUsers)
       .set({
@@ -245,7 +249,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const rows = await this.db
       .select()
       .from(orgUsers)
-      .where(and(eq(orgUsers.userId, userId), eq(orgUsers.role, 'student')))
+      .where(and(eq(orgUsers.userId, userId), eq(orgUsers.role, "student")))
       .orderBy(orgUsers.createdAt);
     return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
   }
@@ -253,12 +257,12 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   async cancelPendingInvite(orgId: string, email: string): Promise<Invite | null> {
     const [row] = await this.db
       .update(invites)
-      .set({ status: 'canceled' })
+      .set({ status: "canceled" })
       .where(
         and(
           eq(invites.orgId, orgId),
           sql`lower(${invites.email}) = lower(${email})`,
-          eq(invites.status, 'pending'),
+          eq(invites.status, "pending"),
         ),
       )
       .returning();

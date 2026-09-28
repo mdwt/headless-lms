@@ -105,7 +105,12 @@ export interface OrganizationsRepository {
   setInviteStatus(orgId: string, id: string, status: string): Promise<Invite | null>;
   findInviteByTokenHash(tokenHash: string): Promise<Invite | null>;
   findPendingInvite(orgId: string, email: string): Promise<Invite | null>;
-  setInviteToken(orgId: string, id: string, tokenHash: string, expiresAt: Date): Promise<Invite | null>;
+  setInviteToken(
+    orgId: string,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<Invite | null>;
   /** The person's row in one org. `(org_id, user_id)` is unique. */
   findOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   /** Every org this person belongs to, oldest first. */

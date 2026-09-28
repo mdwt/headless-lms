@@ -1,13 +1,19 @@
 // Default when no EmailSender is injected — fails loudly on use.
-import type { EmailSender, EmailMessage, EmailTemplateId, Logger, TemplateRenderer } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
+import type {
+  EmailSender,
+  EmailMessage,
+  EmailTemplateId,
+  Logger,
+  TemplateRenderer,
+} from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
 
 export class EmailAdapter implements EmailSender {
   constructor(private readonly logger: Logger = noopLogger) {}
 
   async send(_message: EmailMessage): Promise<void> {
-    this.logger.error('email send failed: no transport configured');
-    throw new Error('not implemented');
+    this.logger.error("email send failed: no transport configured");
+    throw new Error("not implemented");
   }
 }
 
@@ -15,7 +21,7 @@ export class StubTemplateRenderer implements TemplateRenderer {
   constructor(private readonly logger: Logger = noopLogger) {}
 
   async render(id: EmailTemplateId): Promise<never> {
-    this.logger.error('template render failed: no renderer configured', { id });
-    throw new Error('no template renderer configured');
+    this.logger.error("template render failed: no renderer configured", { id });
+    throw new Error("no template renderer configured");
   }
 }

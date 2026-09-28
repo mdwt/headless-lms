@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { PlateElement, type PlateElementProps } from 'platejs/react';
+import { PlateElement, type PlateElementProps } from "platejs/react";
 
 export function ParagraphElement(props: PlateElementProps) {
   return (

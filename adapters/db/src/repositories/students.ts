@@ -5,8 +5,8 @@
 // aggregated count. Name/email come from the identity `users` row (INNER, since
 // user_id is NOT NULL); the avatar comes from the better-auth `user` table,
 // LEFT JOINed via that same identity row.
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   Page,
   Student,
@@ -14,15 +14,15 @@ import type {
   StudentCourseProgress,
   StudentsQuery,
   StudentsReportRepository,
-} from '@headless-lms/core/reporting/students';
-import { orgUsers, users, entitlements } from '../schema/index.js';
-import { STUDENT_ROLE } from '@headless-lms/core/organizations';
-import { user } from '../schema/better-auth.js';
-import type { OrgUserStatus } from '@headless-lms/core/types';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { orgUserProfileColumns } from './org-user-profile.js';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/reporting/students";
+import { orgUsers, users, entitlements } from "../schema/index.js";
+import { STUDENT_ROLE } from "@headless-lms/core/organizations";
+import { user } from "../schema/better-auth.js";
+import type { OrgUserStatus } from "@headless-lms/core/types";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { orgUserProfileColumns } from "./org-user-profile.js";
+import { translateDbErrors } from "./pg-errors.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
@@ -78,11 +78,7 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     if (q) {
       const like = `%${q}%`;
       filters.push(
-        or(
-          ilike(users.firstName, like),
-          ilike(users.lastName, like),
-          ilike(users.email, like),
-        )!,
+        or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.email, like))!,
       );
     }
     const where = and(...filters);
@@ -254,23 +250,23 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
   }
 
   private resolveOrder(sort?: string): SQL[] {
-    const descending = sort?.startsWith('-') ?? false;
-    const field = sort ? (descending ? sort.slice(1) : sort) : 'firstName';
+    const descending = sort?.startsWith("-") ?? false;
+    const field = sort ? (descending ? sort.slice(1) : sort) : "firstName";
     const dir = descending ? desc : asc;
     switch (field) {
-      case 'email':
+      case "email":
         return [dir(users.email)];
-      case 'entitlementCount':
+      case "entitlementCount":
         return [dir(entitlementCountExpr)];
-      case 'avgProgress':
+      case "avgProgress":
         return [dir(avgProgressExpr)];
-      case 'joinedAt':
+      case "joinedAt":
         return [dir(orgUsers.createdAt)];
-      case 'lastActiveAt':
+      case "lastActiveAt":
         return [dir(lastActiveExpr)];
-      case 'lastName':
+      case "lastName":
         return [dir(users.lastName), dir(users.firstName)];
-      case 'firstName':
+      case "firstName":
       default:
         return [dir(users.firstName), dir(users.lastName)];
     }

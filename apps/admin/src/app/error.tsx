@@ -41,9 +41,7 @@ export default function RootError({
           <Link href="/">Go to overview</Link>
         </Button>
       </div>
-      {error.digest ? (
-        <p className="font-mono text-xs text-ink-4">ref: {error.digest}</p>
-      ) : null}
+      {error.digest ? <p className="font-mono text-xs text-ink-4">ref: {error.digest}</p> : null}
     </main>
   );
 }

@@ -29,7 +29,6 @@ export interface Page<T> {
   pageSize: number;
 }
 
-
 export class OrganizationRuleError extends Error {}
 export class InviteError extends Error {
   constructor(message: string) {

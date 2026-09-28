@@ -1,38 +1,38 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from "vitest";
 import type {
   AutomationActionResult,
   AutomationDispatch,
   AutomationExecutor,
-} from '@headless-lms/core/types';
-import { InlineAutomationEngine } from './index.js';
+} from "@headless-lms/core/types";
+import { InlineAutomationEngine } from "./index.js";
 
 function dispatch(): AutomationDispatch {
   return {
-    runId: 'run-1',
-    orgId: 'org-1',
-    automationId: 'automation-1',
+    runId: "run-1",
+    orgId: "org-1",
+    automationId: "automation-1",
     actions: [
-      { type: 'sendEmail', input: { template: 'magicLink' } },
-      { type: 'sendEmail', input: { template: 'magicLink' } },
+      { type: "sendEmail", input: { template: "magicLink" } },
+      { type: "sendEmail", input: { template: "magicLink" } },
     ],
     event: {
-      type: 'organization.student.created',
+      type: "organization.student.created",
       version: 1,
-      id: 'evt_1',
-      orgId: 'org-1',
-      occurredAt: '2026-01-01T00:00:00.000Z',
+      id: "evt_1",
+      orgId: "org-1",
+      occurredAt: "2026-01-01T00:00:00.000Z",
       data: {},
     },
   };
 }
 
-describe('InlineAutomationEngine', () => {
-  it('runs all actions in order and finalizes with all-completed results', async () => {
+describe("InlineAutomationEngine", () => {
+  it("runs all actions in order and finalizes with all-completed results", async () => {
     const engine = new InlineAutomationEngine();
     const order: number[] = [];
     const results: AutomationActionResult[] = [
-      { index: 0, type: 'sendEmail', status: 'completed' },
-      { index: 1, type: 'sendEmail', status: 'completed' },
+      { index: 0, type: "sendEmail", status: "completed" },
+      { index: 1, type: "sendEmail", status: "completed" },
     ];
     const executor: AutomationExecutor = {
       runAction: vi.fn(async (_d: AutomationDispatch, index: number) => {
@@ -54,15 +54,17 @@ describe('InlineAutomationEngine', () => {
     expect(executor.finalize).toHaveBeenCalledWith(d, results);
   });
 
-  it('stops after a throwing action and finalizes once with completed-then-failed results', async () => {
+  it("stops after a throwing action and finalizes once with completed-then-failed results", async () => {
     const engine = new InlineAutomationEngine();
     const executor: AutomationExecutor = {
-      runAction: vi.fn(async (_d: AutomationDispatch, index: number): Promise<AutomationActionResult> => {
-        if (index === 0) {
-          return { index: 0, type: 'sendEmail', status: 'completed' };
-        }
-        throw new Error('boom');
-      }),
+      runAction: vi.fn(
+        async (_d: AutomationDispatch, index: number): Promise<AutomationActionResult> => {
+          if (index === 0) {
+            return { index: 0, type: "sendEmail", status: "completed" };
+          }
+          throw new Error("boom");
+        },
+      ),
       finalize: vi.fn(async () => {}),
     };
     engine.register(executor);
@@ -70,9 +72,9 @@ describe('InlineAutomationEngine', () => {
     const d: AutomationDispatch = {
       ...dispatch(),
       actions: [
-        { type: 'sendEmail', input: { template: 'magicLink' } },
-        { type: 'sendEmail', input: { template: 'magicLink' } },
-        { type: 'sendEmail', input: { template: 'magicLink' } },
+        { type: "sendEmail", input: { template: "magicLink" } },
+        { type: "sendEmail", input: { template: "magicLink" } },
+        { type: "sendEmail", input: { template: "magicLink" } },
       ],
     };
     await engine.dispatch(d);
@@ -80,19 +82,19 @@ describe('InlineAutomationEngine', () => {
     expect(executor.runAction).toHaveBeenCalledTimes(2);
     expect(executor.finalize).toHaveBeenCalledTimes(1);
     expect(executor.finalize).toHaveBeenCalledWith(d, [
-      { index: 0, type: 'sendEmail', status: 'completed' },
-      { index: 1, type: 'sendEmail', status: 'failed', error: 'boom' },
+      { index: 0, type: "sendEmail", status: "completed" },
+      { index: 1, type: "sendEmail", status: "failed", error: "boom" },
     ]);
   });
 
-  it('passes the same dispatch object reference to finalize', async () => {
+  it("passes the same dispatch object reference to finalize", async () => {
     const engine = new InlineAutomationEngine();
     let seen: AutomationDispatch | undefined;
     const executor: AutomationExecutor = {
       runAction: vi.fn(async (_d, index) => ({
         index,
-        type: 'sendEmail' as const,
-        status: 'completed' as const,
+        type: "sendEmail" as const,
+        status: "completed" as const,
       })),
       finalize: vi.fn(async (d) => {
         seen = d;
@@ -106,12 +108,12 @@ describe('InlineAutomationEngine', () => {
     expect(seen).toBe(d);
   });
 
-  it('throws when dispatch is called before register', async () => {
+  it("throws when dispatch is called before register", async () => {
     const engine = new InlineAutomationEngine();
     await expect(engine.dispatch(dispatch())).rejects.toThrow();
   });
 
-  it('start and stop resolve as no-ops', async () => {
+  it("start and stop resolve as no-ops", async () => {
     const engine = new InlineAutomationEngine();
     await expect(engine.start()).resolves.toBeUndefined();
     await expect(engine.stop()).resolves.toBeUndefined();

@@ -118,9 +118,7 @@ function BundlesTableInner({
         onRowClick={canEdit ? openEdit : undefined}
         emptyTitle="No bundles found"
         emptyDescription={
-          canCreate
-            ? "Get started by creating your first bundle."
-            : "There are no bundles yet."
+          canCreate ? "Get started by creating your first bundle." : "There are no bundles yet."
         }
         emptyAction={
           canCreate ? (
@@ -148,9 +146,8 @@ function BundlesTableInner({
         description={
           toDelete ? (
             <>
-              This permanently deletes{" "}
-              <span className="font-medium text-ink">{toDelete.name}</span>. The courses and
-              downloads it contains are not affected.
+              This permanently deletes <span className="font-medium text-ink">{toDelete.name}</span>
+              . The courses and downloads it contains are not affected.
             </>
           ) : null
         }

@@ -66,14 +66,24 @@ function cardClasses(isSelected: boolean, dashed = false): string {
 
 export function TriggerNode({ data }: NodeProps<TriggerFlowNode>) {
   return (
-    <div className={cn(cardClasses(data.isSelected, !data.triggerType), data.invalid && "border-danger")}>
+    <div
+      className={cn(
+        cardClasses(data.isSelected, !data.triggerType),
+        data.invalid && "border-danger",
+      )}
+    >
       <div className="flex items-center gap-2.5">
         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-ink text-white">
           <Zap className="size-3.5" />
         </span>
         <div className="min-w-0">
           <div className="text-[11px] font-medium tracking-wide text-ink-4 uppercase">When</div>
-          <div className={cn("truncate text-sm font-medium", data.triggerType ? "text-ink" : "text-ink-4")}>
+          <div
+            className={cn(
+              "truncate text-sm font-medium",
+              data.triggerType ? "text-ink" : "text-ink-4",
+            )}
+          >
             {data.triggerLabel || "Choose a trigger"}
           </div>
         </div>
@@ -97,7 +107,12 @@ export function ActionNode({ data }: NodeProps<ActionFlowNode>) {
           <div className="text-[11px] font-medium tracking-wide text-ink-4 uppercase">
             Step {data.index + 1}
           </div>
-          <div className={cn("truncate text-sm font-medium", data.actionType ? "text-ink" : "text-ink-4")}>
+          <div
+            className={cn(
+              "truncate text-sm font-medium",
+              data.actionType ? "text-ink" : "text-ink-4",
+            )}
+          >
             {data.actionType || "Choose an action"}
           </div>
         </div>
@@ -126,7 +141,14 @@ export function AddNode() {
 }
 
 /** Straight edge with a centered "+" button that inserts a step at its target's position. */
-export function InsertEdge({ sourceX, sourceY, targetX, targetY, style, data }: EdgeProps<InsertFlowEdge>) {
+export function InsertEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  style,
+  data,
+}: EdgeProps<InsertFlowEdge>) {
   const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   return (
     <>

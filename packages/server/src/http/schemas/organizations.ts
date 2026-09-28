@@ -1,7 +1,7 @@
 // Organization resource schemas. Org creation is served by the API's own
 // `/api/organizations` route (which drives Better Auth under the hood), so the
 // created org is part of the typed contract and SDK — not the auth namespace.
-import { z } from "zod";
+import { z } from 'zod';
 
 export const Organization = z.object({
   id: z.string(),
@@ -25,6 +25,6 @@ export const UpdateOrganization = z.object({
     .string()
     .min(1)
     .max(50)
-    .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and hyphens only"),
+    .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only'),
 });
 export type UpdateOrganization = z.infer<typeof UpdateOrganization>;

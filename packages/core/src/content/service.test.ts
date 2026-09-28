@@ -121,7 +121,11 @@ describe('ContentServiceImpl', () => {
     const { svc } = build(repo);
     const result = await svc.createCourse('org1', { title: 'My New Course' });
 
-    expect(repo.createCourse).toHaveBeenCalledWith('org1', { title: 'My New Course' }, 'my-new-course');
+    expect(repo.createCourse).toHaveBeenCalledWith(
+      'org1',
+      { title: 'My New Course' },
+      'my-new-course',
+    );
     expect(result).toEqual(created);
   });
 
@@ -148,7 +152,9 @@ describe('ContentServiceImpl', () => {
     const { svc } = build(repo);
     const result = await svc.patchCourseSettings('org1', 'c1', { transcriptDownloads: true });
 
-    expect(repo.patchCourseSettings).toHaveBeenCalledWith('org1', 'c1', { transcriptDownloads: true });
+    expect(repo.patchCourseSettings).toHaveBeenCalledWith('org1', 'c1', {
+      transcriptDownloads: true,
+    });
     expect(result).toEqual({ transcriptDownloads: true });
   });
 
@@ -827,9 +833,9 @@ describe('download assets', () => {
 describe('contentEvents validation', () => {
   it('rejects a blank orgId', async () => {
     const { contentEvents } = await import('./events.js');
-    expect(() =>
-      contentEvents.courseCreated.make({ orgId: '', data: makeCourse() }),
-    ).toThrow(/orgId/);
+    expect(() => contentEvents.courseCreated.make({ orgId: '', data: makeCourse() })).toThrow(
+      /orgId/,
+    );
   });
 
   it('rejects a snapshot without an id', async () => {

@@ -140,9 +140,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       await credentials.update(orgId, connection.credentialRef, secrets);
       const result = await connections.update(orgId, id, { updatedAt: new Date() });
       if (result) {
-        await outbox.append([
-          integrationEvents.connectionUpdated.make({ orgId, data: result }),
-        ]);
+        await outbox.append([integrationEvents.connectionUpdated.make({ orgId, data: result })]);
       }
       return result;
     });
@@ -169,9 +167,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
         updatedAt: new Date(),
       });
       if (result) {
-        await outbox.append([
-          integrationEvents.connectionUpdated.make({ orgId, data: result }),
-        ]);
+        await outbox.append([integrationEvents.connectionUpdated.make({ orgId, data: result })]);
       }
       return result;
     });
@@ -192,9 +188,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       // Connection first: it holds the FK onto the credential row.
       const ok = await connections.delete(orgId, id);
       await credentials.destroy(orgId, connection.credentialRef);
-      await outbox.append([
-        integrationEvents.connectionRemoved.make({ orgId, data: connection }),
-      ]);
+      await outbox.append([integrationEvents.connectionRemoved.make({ orgId, data: connection })]);
       return ok;
     });
     this.logger.info('integration disconnected', {

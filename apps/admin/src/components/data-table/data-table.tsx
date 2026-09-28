@@ -173,8 +173,7 @@ export function DataTable<TData>({
                       style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                       className={cn(
                         "px-3 pb-3 text-left text-xs font-medium whitespace-nowrap text-ink-3",
-                        header.column.columnDef.meta?.align === "right" &&
-                          "text-right",
+                        header.column.columnDef.meta?.align === "right" && "text-right",
                       )}
                     >
                       {header.isPlaceholder
@@ -208,8 +207,7 @@ export function DataTable<TData>({
                         key={cell.id}
                         className={cn(
                           "px-3 py-3.5 align-middle text-ink-2",
-                          cell.column.columnDef.meta?.align === "right" &&
-                            "text-right",
+                          cell.column.columnDef.meta?.align === "right" && "text-right",
                         )}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

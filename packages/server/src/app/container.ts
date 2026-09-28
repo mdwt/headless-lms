@@ -44,7 +44,11 @@ import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import { DiscussionServiceImpl } from '@headless-lms/core/discussion';
 import { IdentityServiceImpl, type SessionAdmin } from '@headless-lms/core/identity';
-import { type OrgAdmin, OrganizationServiceImpl, parseRole } from '@headless-lms/core/organizations';
+import {
+  type OrgAdmin,
+  OrganizationServiceImpl,
+  parseRole,
+} from '@headless-lms/core/organizations';
 import { AssetsServiceImpl } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';

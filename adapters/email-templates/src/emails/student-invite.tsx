@@ -1,15 +1,17 @@
-import type { EmailTemplateParams, TemplateContext } from '@headless-lms/core/types';
-import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from './layout.js';
+import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
+import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-type Params = EmailTemplateParams['studentInvite'];
+type Params = EmailTemplateParams["studentInvite"];
 
-export const subject = (ctx: TemplateContext, _params: Params) => `You're invited to ${ctx.brandName}`;
+export const subject = (ctx: TemplateContext, _params: Params) =>
+  `You're invited to ${ctx.brandName}`;
 
 export default function StudentInvite({ ctx, params }: { ctx: TemplateContext; params: Params }) {
   return (
     <Layout ctx={ctx} heading="Welcome">
       <Paragraph>
-        {params.studentName}, you've been invited to {ctx.brandName}. Create your account to get started.
+        {params.studentName}, you've been invited to {ctx.brandName}. Create your account to get
+        started.
       </Paragraph>
       <EmailButton href={params.inviteUrl}>Create your account</EmailButton>
       <Paragraph>This invitation link is personal — please don't forward it.</Paragraph>
@@ -20,7 +22,7 @@ export default function StudentInvite({ ctx, params }: { ctx: TemplateContext; p
 StudentInvite.PreviewProps = {
   ctx: PREVIEW_CTX,
   params: {
-    inviteUrl: 'http://localhost:8002/welcome?token=demo',
-    studentName: 'Sam',
+    inviteUrl: "http://localhost:8002/welcome?token=demo",
+    studentName: "Sam",
   },
 };

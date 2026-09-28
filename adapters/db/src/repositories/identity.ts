@@ -2,13 +2,13 @@
 //
 // The person only. A person's link to an organization lives in the
 // organizations context (`org_users`), not here.
-import { eq, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { IdentityRepository } from '@headless-lms/core/identity';
-import type { CreateUserInput, Logger, UpdateUserInput, User } from '@headless-lms/core/types';
-import { users } from '../schema/identity.js';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+import { eq, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { IdentityRepository } from "@headless-lms/core/identity";
+import type { CreateUserInput, Logger, UpdateUserInput, User } from "@headless-lms/core/types";
+import { users } from "../schema/identity.js";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 export class DrizzleIdentityRepository implements IdentityRepository {
   constructor(
@@ -28,23 +28,17 @@ export class DrizzleIdentityRepository implements IdentityRepository {
       })
       .returning();
     if (!row) {
-      throw new Error('failed to insert user');
+      throw new Error("failed to insert user");
     }
     return row;
   }
 
-  async updateUser(
-    id: string,
-    input: UpdateUserInput,
-  ): Promise<User | null> {
+  async updateUser(id: string, input: UpdateUserInput): Promise<User | null> {
     // An empty patch would be an UPDATE with no SET — read the row back instead.
     if (Object.keys(input).length === 0) {
       return this.findUserById(id);
     }
-    const [row] = await this.db.update(users)
-      .set(input)
-      .where(eq(users.id, id))
-      .returning();
+    const [row] = await this.db.update(users).set(input).where(eq(users.id, id)).returning();
     return row ?? null;
   }
 

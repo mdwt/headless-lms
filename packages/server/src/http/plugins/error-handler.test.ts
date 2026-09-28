@@ -30,10 +30,10 @@ beforeAll(async () => {
     'invalid-config': () => {
       throw new InvalidConfigError('slack', ['channel is required']);
     },
-    'conflict': () => {
+    conflict: () => {
       throw new ConflictError('A student with this email already exists');
     },
-    'unhandled': () => {
+    unhandled: () => {
       throw new Error('boom');
     },
   };

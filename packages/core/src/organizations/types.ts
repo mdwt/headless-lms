@@ -27,7 +27,6 @@ export interface CreateOrganizationInput {
 
 export type UpdateOrganizationInput = Partial<Omit<Organization, 'createdAt,updatedAt'>>;
 
-
 export interface LinkOrgUserInput {
   orgId: string;
   userId: string;

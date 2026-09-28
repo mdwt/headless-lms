@@ -5,7 +5,7 @@
 // The author is the org user's profile minus its email — learners read each
 // other's comments and the list must not be a directory of the cohort's
 // addresses. The staff-facing comment list carries `authorEmail` separately.
-import type { CommentSettings as DomainCommentSettings } from "@headless-lms/core/types";
+import type { CommentSettings as DomainCommentSettings } from '@headless-lms/core/types';
 import {
   commentAuthorSchema,
   commentListItemSchema,
@@ -13,9 +13,9 @@ import {
   commentSchema,
   commentStatusSchema,
   commentViewSchema,
-} from "@headless-lms/core/schemas";
-import { z } from "zod";
-import { ListQuery, type Matches, paginated } from "./shared.js";
+} from '@headless-lms/core/schemas';
+import { z } from 'zod';
+import { ListQuery, type Matches, paginated } from './shared.js';
 
 export const CommentStatus = commentStatusSchema;
 export type CommentStatus = z.infer<typeof CommentStatus>;
@@ -79,7 +79,7 @@ export type EditComment = z.infer<typeof EditComment>;
  *  a pending comment and restoring a removed one. Revising the text is the
  *  author's own edit, under /api/learn. */
 export const PatchComment = z.object({
-  status: z.literal("published"),
+  status: z.literal('published'),
 });
 export type PatchComment = z.infer<typeof PatchComment>;
 
@@ -96,7 +96,7 @@ export const ReplyToComment = z.object({
 export type ReplyToComment = z.infer<typeof ReplyToComment>;
 
 export const ReportComment = z.object({
-  reason: z.string().max(1_000).default(""),
+  reason: z.string().max(1_000).default(''),
 });
 export type ReportComment = z.infer<typeof ReportComment>;
 
@@ -144,4 +144,3 @@ export type DiscussionActivityParam = z.infer<typeof DiscussionActivityParam>;
 
 export const CommentIdParam = z.object({ commentId: z.string() });
 export type CommentIdParam = z.infer<typeof CommentIdParam>;
-

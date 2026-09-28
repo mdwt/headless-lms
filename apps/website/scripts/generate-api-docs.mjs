@@ -1,28 +1,28 @@
 // Regenerates content/docs/api from packages/sdk/openapi.json.
 // Run after `pnpm gen:sdk`: pnpm --filter website gen:api-docs
-import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
-import { generateFiles } from 'fumadocs-openapi'
-import { createOpenAPI } from 'fumadocs-openapi/server'
+import { copyFile, readFile, readdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { generateFiles } from "fumadocs-openapi";
+import { createOpenAPI } from "fumadocs-openapi/server";
 
 const openapi = createOpenAPI({
-  input: ['../../packages/sdk/openapi.json'],
-})
+  input: ["../../packages/sdk/openapi.json"],
+});
 
 await generateFiles({
   input: openapi,
-  output: './content/docs/api',
-  per: 'operation',
-  groupBy: 'tag',
+  output: "./content/docs/api",
+  per: "operation",
+  groupBy: "tag",
   includeDescription: true,
   meta: true,
   index: {
-    url: { baseUrl: '/docs/api', contentDir: '.' },
+    url: { baseUrl: "/docs/api", contentDir: "." },
     // one landing page per tag folder, with a card per endpoint
     items: (ctx) =>
       Object.values(ctx.generatedEntries).flatMap((entries) =>
         entries
-          .filter((entry) => entry.type === 'group')
+          .filter((entry) => entry.type === "group")
           .map((group) => ({
             path: `${group.path}/index.mdx`,
             title: group.info.title,
@@ -31,59 +31,66 @@ await generateFiles({
           })),
       ),
   },
-})
+});
 
 // The generator rewrites meta.json; re-mark the folder as a root folder so it
 // renders as its own sidebar tree, and build the landing page off the tag metas.
-const out = './content/docs/api'
-const metaPath = path.join(out, 'meta.json')
-const meta = JSON.parse(await readFile(metaPath, 'utf8'))
+const out = "./content/docs/api";
+const metaPath = path.join(out, "meta.json");
+const meta = JSON.parse(await readFile(metaPath, "utf8"));
 await writeFile(
   metaPath,
-  JSON.stringify({ title: 'API reference', root: true, pages: ['index', ...meta.pages] }, null, 2),
-)
+  JSON.stringify({ title: "API reference", root: true, pages: ["index", ...meta.pages] }, null, 2),
+);
 
 // The spec carries summaries but no operation descriptions, so every endpoint page
 // would ship without a meta description. Derive one from the method, path and tag.
 for (const dir of meta.pages) {
-  const tag = JSON.parse(await readFile(path.join(out, dir, 'meta.json'), 'utf8')).title
+  const tag = JSON.parse(await readFile(path.join(out, dir, "meta.json"), "utf8")).title;
   const files = (await readdir(path.join(out, dir))).filter(
-    (name) => name.endsWith('.mdx') && name !== 'index.mdx',
-  )
+    (name) => name.endsWith(".mdx") && name !== "index.mdx",
+  );
 
   for (const name of files) {
-    const file = path.join(out, dir, name)
-    const raw = await readFile(file, 'utf8')
-    if (/^description:/m.test(raw)) {continue}
+    const file = path.join(out, dir, name);
+    const raw = await readFile(file, "utf8");
+    if (/^description:/m.test(raw)) {
+      continue;
+    }
 
     // `title` may be a folded YAML scalar spanning several indented lines.
     const title = raw
       .match(/^title:[ \t]*([\s\S]*?)\n(?=\S)/m)?.[1]
-      .split('\n')
+      .split("\n")
       .map((line) => line.trim())
-      .join(' ')
-      .replace(/^['"]|['"]$/g, '')
-    const operation = JSON.parse(raw.match(/operations=\{(\[[\s\S]*?])\}/)?.[1] ?? '[]')[0]
-    if (!title || !operation) {continue}
+      .join(" ")
+      .replace(/^['"]|['"]$/g, "");
+    const operation = JSON.parse(raw.match(/operations=\{(\[[\s\S]*?])\}/)?.[1] ?? "[]")[0];
+    if (!title || !operation) {
+      continue;
+    }
 
-    const endpoint = `${operation.method.toUpperCase()} ${operation.path}`
+    const endpoint = `${operation.method.toUpperCase()} ${operation.path}`;
     const summary = title
       .replace(/\s*—\s*(.)/g, (_, letter) => `. ${letter.toUpperCase()}`)
-      .replace(/\.$/, '')
-    const description = `${endpoint}. ${summary}. Headless LMS ${tag} API reference.`
-    await writeFile(file, raw.replace('---\n', `---\ndescription: ${JSON.stringify(description)}\n`))
+      .replace(/\.$/, "");
+    const description = `${endpoint}. ${summary}. Headless LMS ${tag} API reference.`;
+    await writeFile(
+      file,
+      raw.replace("---\n", `---\ndescription: ${JSON.stringify(description)}\n`),
+    );
   }
 }
 
 const cards = await Promise.all(
   meta.pages.map(async (dir) => {
-    const m = JSON.parse(await readFile(path.join(out, dir, 'meta.json'), 'utf8'))
-    const description = m.description ? ` description=${JSON.stringify(m.description)}` : ''
-    return `  <Card href="/docs/api/${dir}" title=${JSON.stringify(m.title)}${description} />`
+    const m = JSON.parse(await readFile(path.join(out, dir, "meta.json"), "utf8"));
+    const description = m.description ? ` description=${JSON.stringify(m.description)}` : "";
+    return `  <Card href="/docs/api/${dir}" title=${JSON.stringify(m.title)}${description} />`;
   }),
-)
+);
 await writeFile(
-  path.join(out, 'index.mdx'),
+  path.join(out, "index.mdx"),
   `---
 title: API reference
 description: Every Headless LMS REST endpoint, grouped by domain, generated from the OpenAPI spec at https://headless-lms.dev/openapi.json.
@@ -92,10 +99,10 @@ description: Every Headless LMS REST endpoint, grouped by domain, generated from
 {/* This file was generated by scripts/generate-api-docs.mjs. Do not edit directly. */}
 
 <Cards>
-${cards.join('\n')}
+${cards.join("\n")}
 </Cards>
 `,
-)
+);
 
 // Serve the spec itself so agents and codegen tools can fetch it from the site.
-await copyFile('../../packages/sdk/openapi.json', './public/openapi.json')
+await copyFile("../../packages/sdk/openapi.json", "./public/openapi.json");

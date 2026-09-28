@@ -1,11 +1,11 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, sql, type SQL } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, asc, desc, eq, ilike, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   AuthorRecord,
   CommentReactions,
   CommentWithContext,
   DiscussionRepository,
-} from '@headless-lms/core/discussion';
+} from "@headless-lms/core/discussion";
 import type {
   Comment,
   CommentReport,
@@ -14,15 +14,15 @@ import type {
   Page,
   ReactionEmoji,
   Role,
-} from '@headless-lms/core/types';
-import { commentReactions, commentReports, comments } from '../schema/index.js';
-import { activities } from '../schema/content.js';
-import { orgUsers } from '../schema/organizations.js';
-import { users } from '../schema/identity.js';
-import { user } from '../schema/better-auth.js';
-import { orgUserProfileColumns } from './org-user-profile.js';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/types";
+import { commentReactions, commentReports, comments } from "../schema/index.js";
+import { activities } from "../schema/content.js";
+import { orgUsers } from "../schema/organizations.js";
+import { users } from "../schema/identity.js";
+import { user } from "../schema/better-auth.js";
+import { orgUserProfileColumns } from "./org-user-profile.js";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 type CommentRow = typeof comments.$inferSelect;
 
@@ -91,14 +91,14 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
   async updateComment(
     orgId: string,
     id: string,
-    patch: Partial<Pick<Comment, 'body' | 'status' | 'removedBy' | 'updatedAt'>>,
+    patch: Partial<Pick<Comment, "body" | "status" | "removedBy" | "updatedAt">>,
   ): Promise<Comment | null> {
     const [row] = await this.db
       .update(comments)
       .set({
-        ...('body' in patch ? { body: patch.body } : {}),
-        ...('status' in patch ? { status: patch.status } : {}),
-        ...('removedBy' in patch ? { removedBy: patch.removedBy ?? null } : {}),
+        ...("body" in patch ? { body: patch.body } : {}),
+        ...("status" in patch ? { status: patch.status } : {}),
+        ...("removedBy" in patch ? { removedBy: patch.removedBy ?? null } : {}),
       })
       .where(and(eq(comments.orgId, orgId), eq(comments.id, id)))
       .returning();
@@ -312,7 +312,7 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     // order a moderator works in.
     let orderBy: SQL;
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const field = (isDesc ? query.sort.slice(1) : query.sort) as keyof typeof sortColumns;
       const col = sortColumns[field] ?? comments.createdAt;
       orderBy = isDesc ? desc(col) : asc(col);

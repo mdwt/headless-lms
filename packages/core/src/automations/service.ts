@@ -230,9 +230,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     const automation = await this.uow.run(async ({ automations, outbox }) => {
       const created = await automations.insert(orgId, input);
-      await outbox.append([
-        automationEvents.automationCreated.make({ orgId, data: created }),
-      ]);
+      await outbox.append([automationEvents.automationCreated.make({ orgId, data: created })]);
       return created;
     });
     this.logger.info('automation created', { orgId, automationId: automation.id });
@@ -265,9 +263,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
               }),
         ]);
       } else {
-        await outbox.append([
-          automationEvents.automationUpdated.make({ orgId, data: updated }),
-        ]);
+        await outbox.append([automationEvents.automationUpdated.make({ orgId, data: updated })]);
       }
       return updated;
     });
@@ -283,9 +279,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       if (!removed) {
         return null;
       }
-      await outbox.append([
-        automationEvents.automationDeleted.make({ orgId, data: removed }),
-      ]);
+      await outbox.append([automationEvents.automationDeleted.make({ orgId, data: removed })]);
       return removed;
     });
     if (deleted) {

@@ -39,7 +39,6 @@ describe('roles', () => {
     expect(capability('instructor', 'manage_users')).toBe(false);
     expect(capability('instructor', 'create_course')).toBe(false);
   });
-
 });
 
 describe('normalizeRole', () => {

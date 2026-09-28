@@ -1,4 +1,4 @@
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
 export function BlockquoteElementStatic(props: SlateElementProps) {
   return (

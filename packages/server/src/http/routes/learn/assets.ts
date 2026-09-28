@@ -22,7 +22,6 @@ export async function learnAssetsRoutes(app: FastifyInstance, container: Contain
       response: { 200: DownloadTicket, 401: ErrorBody, 404: ErrorBody },
     },
     handler: async (req) => {
-
       // No body: the student surface never renames a download, so the asset's
       // own filename stands.
       const ticket = await container.assets.requestDownload(req.orgId, req.params.id);

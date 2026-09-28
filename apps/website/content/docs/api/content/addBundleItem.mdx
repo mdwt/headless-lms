@@ -22,7 +22,11 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="../../packages/sdk/openapi.json" operations={[{"path":"/api/bundles/{bundleId}/items","method":"post"}]} showDescription />
+      <Comp
+        document="../../packages/sdk/openapi.json"
+        operations={[{ path: "/api/bundles/{bundleId}/items", method: "post" }]}
+        showDescription
+      />
     </>
   );
 }

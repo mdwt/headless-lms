@@ -2,12 +2,7 @@ import { genId } from '../shared/id.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import type {
-  Comment,
-  CommentAuthor,
-  CommentReport,
-  CommentSettings,
-} from './model.js';
+import type { Comment, CommentAuthor, CommentReport, CommentSettings } from './model.js';
 import type { ActivitySettings, CourseSettings } from '../types/index.js';
 import type {
   CommentListItem,
@@ -215,9 +210,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     };
     const saved = await this.uow.run(async (scope) => {
       const row = await scope.discussion.insertComment(orgId, comment);
-      await scope.outbox.append([
-        discussionEvents.commentCreated.make({ orgId, data: row }),
-      ]);
+      await scope.outbox.append([discussionEvents.commentCreated.make({ orgId, data: row })]);
       this.logger.info('comment created', { orgId, commentId: row.id, status });
       return row;
     });
@@ -321,9 +314,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.outbox.append([
-        discussionEvents.commentRemoved.make({ orgId, data: updated }),
-      ]);
+      await scope.outbox.append([discussionEvents.commentRemoved.make({ orgId, data: updated })]);
       this.logger.info('comment removed', { orgId, commentId, by: actor.id });
       return updated;
     });
@@ -412,9 +403,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.outbox.append([
-        discussionEvents.commentPublished.make({ orgId, data: updated }),
-      ]);
+      await scope.outbox.append([discussionEvents.commentPublished.make({ orgId, data: updated })]);
       this.logger.info('comment published', { orgId, commentId });
       return updated;
     });
@@ -490,9 +479,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         }
         return report;
       }
-      await scope.outbox.append([
-        discussionEvents.commentReported.make({ orgId, data: saved }),
-      ]);
+      await scope.outbox.append([discussionEvents.commentReported.make({ orgId, data: saved })]);
       this.logger.info('comment reported', { orgId, commentId });
       return saved;
     });

@@ -1,56 +1,61 @@
-import { Layers, ShieldCheck, Boxes, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Layers, ShieldCheck, Boxes, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const layers = [
   {
-    label: 'Your apps',
+    label: "Your apps",
     detail: (
       <>
-        Admin | Student portal | <span className="text-foreground">Your frontend</span> |{' '}
+        Admin | Student portal | <span className="text-foreground">Your frontend</span> |{" "}
         <span className="text-foreground">AI agents</span>
       </>
     ),
     core: false,
   },
   {
-    label: 'One API for every client',
-    detail: 'OpenAPI · generated SDK',
+    label: "One API for every client",
+    detail: "OpenAPI · generated SDK",
     core: false,
   },
   {
-    label: 'Domain core',
-    detail: 'Courses · Progress · Entitlements · Orgs',
+    label: "Domain core",
+    detail: "Courses · Progress · Entitlements · Orgs",
     core: true,
   },
-]
+];
 
-const adapterSlots = ['Database', 'Storage', 'Email', 'Auth']
+const adapterSlots = ["Database", "Storage", "Email", "Auth"];
 
 const principles = [
   {
     icon: Layers,
-    title: 'Layered by design',
-    body: 'A framework-free domain core allows you to use any tech stack you want.',
+    title: "Layered by design",
+    body: "A framework-free domain core allows you to use any tech stack you want.",
   },
   {
     icon: Boxes,
-    title: 'Composable installations',
-    body: 'An installation composes what it wants with sane defaults. Swap in your own storage, email, and auth adapters freely.',
+    title: "Composable installations",
+    body: "An installation composes what it wants with sane defaults. Swap in your own storage, email, and auth adapters freely.",
   },
   {
     icon: ShieldCheck,
-    title: 'Secure by default',
-    body: 'Authentication, org-scoped multi-tenancy, encrypted credential storage, and validated I/O throughout.',
+    title: "Secure by default",
+    body: "Authentication, org-scoped multi-tenancy, encrypted credential storage, and validated I/O throughout.",
   },
-]
+];
 
 function Connector({ dashed = false }: { dashed?: boolean }) {
   return (
     <div className="flex flex-col items-center py-0.5" aria-hidden="true">
-      <div className={cn('h-3 w-px', dashed ? 'border-l border-dashed border-primary/50' : 'bg-primary/50')} />
+      <div
+        className={cn(
+          "h-3 w-px",
+          dashed ? "border-l border-dashed border-primary/50" : "bg-primary/50",
+        )}
+      />
       <ChevronDown className="-mt-1 size-3 text-primary/60" />
     </div>
-  )
+  );
 }
 
 export function Architecture() {
@@ -63,11 +68,11 @@ export function Architecture() {
               Bring your own adapters
             </h2>
             <p className="mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
-              The backend ships as two libraries:{' '}
+              The backend ships as two libraries:{" "}
               <code className="rounded-md bg-card px-1.5 py-0.5 font-mono text-foreground/90">
                 @headless-lms/core
               </code>
-              , a framework-free domain, and{' '}
+              , a framework-free domain, and{" "}
               <code className="rounded-md bg-card px-1.5 py-0.5 font-mono text-foreground/90">
                 @headless-lms/server
               </code>
@@ -94,8 +99,8 @@ export function Architecture() {
               <div key={layer.label}>
                 <div
                   className={cn(
-                    'rounded-2xl border p-5',
-                    layer.core ? 'border-primary/40 bg-primary/5' : 'border-border bg-card',
+                    "rounded-2xl border p-5",
+                    layer.core ? "border-primary/40 bg-primary/5" : "border-border bg-card",
                   )}
                 >
                   <p className="font-medium">{layer.label}</p>
@@ -122,5 +127,5 @@ export function Architecture() {
         </div>
       </div>
     </section>
-  )
+  );
 }

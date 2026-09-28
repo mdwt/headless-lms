@@ -26,7 +26,7 @@ export interface EmailSender {
 /** A presigned URL the browser uses to PUT a file straight to the store. */
 export interface PresignedUpload {
   url: string;
-  method: "PUT";
+  method: 'PUT';
   key: string;
   expiresInSeconds: number;
   /** Headers the client must send on the PUT (e.g. Content-Type). */

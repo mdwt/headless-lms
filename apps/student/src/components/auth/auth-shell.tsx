@@ -26,9 +26,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
               Your courses, in one calm place. Pick up right where you left off.
             </p>
-            <footer className="mt-4 text-sm text-surface/60">
-              Headless LMS · Course platform
-            </footer>
+            <footer className="mt-4 text-sm text-surface/60">Headless LMS · Course platform</footer>
           </blockquote>
         </div>
       </aside>
@@ -37,13 +35,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
 }
 
 /** Heading + supporting line above a form. Server-rendered with the shell. */
-export function AuthHeading({
-  title,
-  children,
-}: {
-  title: string;
-  children?: ReactNode;
-}) {
+export function AuthHeading({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <h1 className="text-2xl font-semibold tracking-tight text-ink text-balance">{title}</h1>

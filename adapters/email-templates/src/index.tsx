@@ -1,21 +1,21 @@
 // Default TemplateRenderer: react-email components rendered at call time.
-import { render } from '@react-email/render';
-import type { JSX } from 'react';
+import { render } from "@react-email/render";
+import type { JSX } from "react";
 import type {
   EmailContent,
   EmailTemplateId,
   EmailTemplateParams,
   TemplateContext,
   TemplateRenderer,
-} from '@headless-lms/core/types';
-import MagicLink, { subject as magicLink } from './emails/magic-link.js';
-import StudentInvite, { subject as studentInvite } from './emails/student-invite.js';
-import MemberInvite, { subject as memberInvite } from './emails/member-invite.js';
-import PasswordReset, { subject as passwordReset } from './emails/password-reset.js';
-import EmailVerification, { subject as emailVerification } from './emails/email-verification.js';
-import AccessGranted, { subject as accessGranted } from './emails/access-granted.js';
-import AccessRevoked, { subject as accessRevoked } from './emails/access-revoked.js';
-import CourseCompleted, { subject as courseCompleted } from './emails/course-completed.js';
+} from "@headless-lms/core/types";
+import MagicLink, { subject as magicLink } from "./emails/magic-link.js";
+import StudentInvite, { subject as studentInvite } from "./emails/student-invite.js";
+import MemberInvite, { subject as memberInvite } from "./emails/member-invite.js";
+import PasswordReset, { subject as passwordReset } from "./emails/password-reset.js";
+import EmailVerification, { subject as emailVerification } from "./emails/email-verification.js";
+import AccessGranted, { subject as accessGranted } from "./emails/access-granted.js";
+import AccessRevoked, { subject as accessRevoked } from "./emails/access-revoked.js";
+import CourseCompleted, { subject as courseCompleted } from "./emails/course-completed.js";
 
 interface Entry<K extends EmailTemplateId> {
   subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;

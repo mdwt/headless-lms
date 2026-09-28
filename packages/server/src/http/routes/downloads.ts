@@ -169,11 +169,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return content.reorderDownloadAssets(
-        scope.orgId,
-        req.params.downloadId,
-        req.body.assetIds,
-      );
+      return content.reorderDownloadAssets(scope.orgId, req.params.downloadId, req.body.assetIds);
     },
   });
 
@@ -213,11 +209,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return content.removeDownloadAsset(
-        scope.orgId,
-        req.params.downloadId,
-        req.params.assetId,
-      );
+      return content.removeDownloadAsset(scope.orgId, req.params.downloadId, req.params.assetId);
     },
   });
 }

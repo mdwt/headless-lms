@@ -14,14 +14,21 @@ export function ProgressBar({
 }) {
   return (
     <div
-      className={cn("h-[6px] w-full overflow-hidden rounded-full bg-track-card", trackClassName, className)}
+      className={cn(
+        "h-[6px] w-full overflow-hidden rounded-full bg-track-card",
+        trackClassName,
+        className,
+      )}
       role="progressbar"
       aria-valuenow={Math.round(percent)}
       aria-valuemin={0}
       aria-valuemax={100}
     >
       <div
-        className={cn("h-full rounded-full bg-brand transition-[width] duration-300", fillClassName)}
+        className={cn(
+          "h-full rounded-full bg-brand transition-[width] duration-300",
+          fillClassName,
+        )}
         style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
       />
     </div>

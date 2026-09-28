@@ -6,12 +6,7 @@
 import type { Role } from '../types/index.js';
 
 export type { Role };
-export const ROLES = [
-  'owner',
-  'admin',
-  'instructor',
-  'student',
-] as const satisfies readonly Role[];
+export const ROLES = ['owner', 'admin', 'instructor', 'student'] as const satisfies readonly Role[];
 
 /**
  * The roles that operate the back office. `student` belongs to the org but

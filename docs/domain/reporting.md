@@ -10,7 +10,7 @@ A read-only domain for cross-domain aggregation — the reports no single domain
 
 ## Why it's a read domain
 
-Domains own per-entity facts: progress knows one student's progress through one course, entitlements knows one grant. None aggregates *across* entities, and they shouldn't — that would mean one context reaching across many. Reporting is where that aggregation lives: it reads the domains and rolls their facts up into reports. It owns nothing; every report is computed fresh from the domains' current data.
+Domains own per-entity facts: progress knows one student's progress through one course, entitlements knows one grant. None aggregates _across_ entities, and they shouldn't — that would mean one context reaching across many. Reporting is where that aggregation lives: it reads the domains and rolls their facts up into reports. It owns nothing; every report is computed fresh from the domains' current data.
 
 ## Reports
 

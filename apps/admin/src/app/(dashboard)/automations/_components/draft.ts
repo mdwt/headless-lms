@@ -31,9 +31,7 @@ export function draftFromAutomation(automation: Automation | null): AutomationDr
 
 export function requiredInputKeys(def: AvailableAction | undefined): string[] {
   const required = (def?.inputSchema as { required?: unknown } | undefined)?.required;
-  return Array.isArray(required)
-    ? required.filter((k): k is string => typeof k === "string")
-    : [];
+  return Array.isArray(required) ? required.filter((k): k is string => typeof k === "string") : [];
 }
 
 const isBlank = (v: unknown) => v == null || v === "";

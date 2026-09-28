@@ -1,4 +1,4 @@
-import { ConflictError } from '@headless-lms/core/shared/errors';
+import { ConflictError } from "@headless-lms/core/shared/errors";
 
 /**
  * Structured fields off a node-postgres DatabaseError. The driver (and
@@ -18,13 +18,13 @@ const PG_CODE = /^[0-9A-Z]{5}$/;
 export function pgErrorFields(err: unknown): PgErrorFields | undefined {
   for (const level of [err, (err as { cause?: unknown } | undefined)?.cause]) {
     const e = level as Partial<PgErrorFields> | undefined;
-    if (typeof e?.code === 'string' && PG_CODE.test(e.code)) {
+    if (typeof e?.code === "string" && PG_CODE.test(e.code)) {
       return {
         code: e.code,
-        ...(typeof e.constraint === 'string' && { constraint: e.constraint }),
-        ...(typeof e.table === 'string' && { table: e.table }),
-        ...(typeof e.column === 'string' && { column: e.column }),
-        ...(typeof e.detail === 'string' && { detail: e.detail }),
+        ...(typeof e.constraint === "string" && { constraint: e.constraint }),
+        ...(typeof e.table === "string" && { table: e.table }),
+        ...(typeof e.column === "string" && { column: e.column }),
+        ...(typeof e.detail === "string" && { detail: e.detail }),
       };
     }
   }
@@ -33,7 +33,7 @@ export function pgErrorFields(err: unknown): PgErrorFields | undefined {
 
 /** Postgres unique_violation (23505). */
 export function isUniqueViolation(err: unknown): boolean {
-  return pgErrorFields(err)?.code === '23505';
+  return pgErrorFields(err)?.code === "23505";
 }
 
 /**
@@ -47,7 +47,7 @@ export class DbQueryError extends Error {
 
   constructor(message: string, opts: { pg?: PgErrorFields; query?: string; cause?: Error }) {
     super(message, opts.cause && { cause: opts.cause });
-    this.name = 'DbQueryError';
+    this.name = "DbQueryError";
     if (opts.pg) {
       this.pg = opts.pg;
     }
@@ -71,10 +71,10 @@ export function translateDbError(err: unknown): unknown {
     return conflict;
   }
   const e = err as { query?: unknown; params?: unknown; cause?: unknown; message?: unknown };
-  if (typeof e?.query === 'string' && Array.isArray(e.params)) {
+  if (typeof e?.query === "string" && Array.isArray(e.params)) {
     const cause = e.cause instanceof Error ? e.cause : undefined;
     const pg = pgErrorFields(err);
-    return new DbQueryError(cause?.message ?? 'database query failed', {
+    return new DbQueryError(cause?.message ?? "database query failed", {
       ...(cause && { cause }),
       query: e.query,
       ...(pg && { pg }),
@@ -92,11 +92,11 @@ export function translateDbError(err: unknown): unknown {
 export function translateDbErrors(cls: { prototype: object }): void {
   const proto = cls.prototype as Record<string, unknown>;
   for (const name of Object.getOwnPropertyNames(proto)) {
-    if (name === 'constructor') {
+    if (name === "constructor") {
       continue;
     }
     const desc = Object.getOwnPropertyDescriptor(proto, name);
-    if (!desc || typeof desc.value !== 'function') {
+    if (!desc || typeof desc.value !== "function") {
       continue;
     }
     const original = desc.value as (...args: unknown[]) => unknown;
@@ -131,12 +131,12 @@ const KEY_DETAIL = /^Key \((.+?)\)=\((.+?)\)/;
  */
 export function translateConstraintViolation(err: unknown): ConflictError | undefined {
   const pg = pgErrorFields(err);
-  if (pg?.code !== '23505') {
+  if (pg?.code !== "23505") {
     return undefined;
   }
   const key = pg.detail?.match(KEY_DETAIL);
   const conflict = new ConflictError(
-    key ? `${key[1]} "${key[2]}" is already in use` : 'This value is already in use',
+    key ? `${key[1]} "${key[2]}" is already in use` : "This value is already in use",
   );
   return Object.assign(conflict, { cause: err });
 }

@@ -15,11 +15,13 @@ export function totalLessons(course: Course): number {
 }
 
 export function completedCount(course: Course, completion: Completion): number {
-  return flattenLessons(course).filter((l) => lessonStatus(completion, l.id) === "completed").length;
+  return flattenLessons(course).filter((l) => lessonStatus(completion, l.id) === "completed")
+    .length;
 }
 
 export function inProgressCount(course: Course, completion: Completion): number {
-  return flattenLessons(course).filter((l) => lessonStatus(completion, l.id) === "in-progress").length;
+  return flattenLessons(course).filter((l) => lessonStatus(completion, l.id) === "in-progress")
+    .length;
 }
 
 /** round(100 * (completed + 0.5*inProgress) / total) — in-progress counts as half. */
@@ -79,11 +81,7 @@ export function moduleOfLesson(course: Course, lessonId: string) {
   return course.modules.find((m) => m.lessons.some((l) => l.id === lessonId));
 }
 
-export function adjacentLesson(
-  course: Course,
-  lessonId: string,
-  dir: 1 | -1,
-): Lesson | undefined {
+export function adjacentLesson(course: Course, lessonId: string, dir: 1 | -1): Lesson | undefined {
   const flat = flattenLessons(course);
   const idx = flat.findIndex((l) => l.id === lessonId);
   if (idx === -1) return undefined;

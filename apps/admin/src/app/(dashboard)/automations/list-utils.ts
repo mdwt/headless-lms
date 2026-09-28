@@ -14,10 +14,7 @@ function compareBy(id: string, a: Automation, b: Automation): number {
 }
 
 /** Search/facet/sort/slice the full automations set against `ListParams`. */
-export function shapeAutomationsList(
-  all: Automation[],
-  params: ListParams,
-): Paginated<Automation> {
+export function shapeAutomationsList(all: Automation[], params: ListParams): Paginated<Automation> {
   let rows = all;
 
   const q = params.search?.trim().toLowerCase();

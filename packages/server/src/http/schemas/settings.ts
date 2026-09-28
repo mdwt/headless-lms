@@ -1,10 +1,9 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /** A namespace's values. The owning domain defines the shape; the contract
  *  carries it opaquely so a new namespace needs no contract change. */
 export const SettingsValue = z.record(z.string(), z.unknown());
 export type SettingsValue = z.infer<typeof SettingsValue>;
-
 
 export const ScopeSettings = z.object({
   scopeId: z.string(),

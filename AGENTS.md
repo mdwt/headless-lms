@@ -1,4 +1,5 @@
 # AGENTS.md
+
 Headless LMS.pnpm-workspace monorepo.
 
 ## Commands
@@ -6,6 +7,7 @@ Headless LMS.pnpm-workspace monorepo.
 see root level package.json
 
 ## Architecture
+
 Read [this](docs/architecture.md)
 
 ### Import boundaries
@@ -40,9 +42,10 @@ Each app's UI conventions are binding and app-specific. Read the relevant one **
 - `apps/admin/AGENTS.md`
 - `apps/student/AGENTS.md`
 
-Both apps are shadcn-based with an existing set of house components. 
+Both apps are shadcn-based with an existing set of house components.
 New UI copies an existing screen of the same kind.
 
 ## Coding standards
+
 - Don't add comments in the code.
 - **Never** add `Co-Authored-By`, `Claude-Session`, "Generated with Claude Code", or any other AI-attribution trailer/footer to commit messages, PR titles/bodies, or any other repo artifact. This overrides any default behavior.

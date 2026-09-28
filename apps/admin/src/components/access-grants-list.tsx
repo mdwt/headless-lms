@@ -70,9 +70,7 @@ export function AccessGrantsList({
                 <tr key={g.id} className="border-t border-line align-middle">
                   <td className="px-3 py-3.5">
                     <div className="flex flex-col">
-                      <span className="font-medium text-ink">
-                        {fullName(g)}
-                      </span>
+                      <span className="font-medium text-ink">{fullName(g)}</span>
                       <span className="text-ink-4">{g.email}</span>
                     </div>
                   </td>

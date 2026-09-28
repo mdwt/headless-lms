@@ -83,7 +83,11 @@ describe("toCourseView", () => {
 });
 
 describe("filterCourses", () => {
-  const views = [view("a", "in-progress", 40), view("b", "completed", 100), view("c", "not-started", 0)];
+  const views = [
+    view("a", "in-progress", 40),
+    view("b", "completed", 100),
+    view("c", "not-started", 0),
+  ];
 
   it("passes everything through on all", () => {
     expect(filterCourses(views, "all")).toHaveLength(3);
@@ -134,7 +138,11 @@ describe("countByState", () => {
 
 describe("pickHero", () => {
   it("takes the first in-progress course", () => {
-    const views = [view("a", "not-started", 0), view("b", "in-progress", 40), view("c", "in-progress", 80)];
+    const views = [
+      view("a", "not-started", 0),
+      view("b", "in-progress", 40),
+      view("c", "in-progress", 80),
+    ];
     expect(pickHero(views)?.course.id).toBe("b");
   });
 

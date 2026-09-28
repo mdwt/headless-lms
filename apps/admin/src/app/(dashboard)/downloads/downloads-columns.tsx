@@ -67,9 +67,7 @@ export function downloadsColumns(opts: {
       accessorKey: "updatedAt",
       header: ({ column }) => <ColumnHeader column={column} title="Updated" align="right" />,
       meta: { align: "right" },
-      cell: ({ row }) => (
-        <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>
-      ),
+      cell: ({ row }) => <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>,
     },
     {
       id: "actions",

@@ -16,7 +16,11 @@ import type { Entitlement, ListParams } from "@/lib/api/types";
 
 import { entitlementColumns } from "./entitlements-columns";
 import { fullName } from "@/lib/format";
-import { GrantAccessDialog, type LiteContent, type LiteStudent } from "./_components/grant-access-dialog";
+import {
+  GrantAccessDialog,
+  type LiteContent,
+  type LiteStudent,
+} from "./_components/grant-access-dialog";
 import { setEntitlementStatusAction } from "./actions";
 
 /** Deep-equal on the small, JSON-safe `ListParams` shape (both sides built by
@@ -92,18 +96,13 @@ function EntitlementsTableInner({
     });
   }, [revokeTarget, applyOptimistic]);
 
-  const columns = useMemo(
-    () => entitlementColumns(onRevoke, onReinstate),
-    [onRevoke, onReinstate],
-  );
+  const columns = useMemo(() => entitlementColumns(onRevoke, onReinstate), [onRevoke, onReinstate]);
 
   if (!isManager(user.role)) return <ForbiddenView />;
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Entitlements"
-      />
+      <PageHeader title="Entitlements" />
 
       <DataTable<Entitlement>
         columns={columns}

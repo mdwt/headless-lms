@@ -85,7 +85,10 @@ describe('resolveScope', () => {
 
   it('throws when the session user belongs to no org', async () => {
     await expect(
-      resolveScope(container({ org: acme, user: { id: 'usr_1' }, orgUsers: {} }), req({ id: 'usr_1' })),
+      resolveScope(
+        container({ org: acme, user: { id: 'usr_1' }, orgUsers: {} }),
+        req({ id: 'usr_1' }),
+      ),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 
@@ -110,13 +113,19 @@ describe('resolveScope', () => {
 
   it('throws NoActiveOrgError when the session carries no active org', async () => {
     await expect(
-      resolveScope(container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner }), req({ id: 'usr_1' }, null)),
+      resolveScope(
+        container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner }),
+        req({ id: 'usr_1' }, null),
+      ),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 
   it('throws NoActiveOrgError when the active org is not found', async () => {
     await expect(
-      resolveScope(container({ org: null, user: { id: 'usr_1' }, orgUsers: owner }), req({ id: 'usr_1' })),
+      resolveScope(
+        container({ org: null, user: { id: 'usr_1' }, orgUsers: owner }),
+        req({ id: 'usr_1' }),
+      ),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 

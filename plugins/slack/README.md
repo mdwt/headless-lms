@@ -5,10 +5,10 @@ entitlements) to a Slack channel, formatted per event type.
 
 ## Actions
 
-| id | What it does |
-| --- | --- |
+| id              | What it does                                                                                                                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `postToChannel` | Posts a domain event to a channel. Input: `{ channel?, body }` where `body` is the event (`{ type, ...metadata }`). `entitlement.*` events get rich Block Kit formatting; unknown types post generically. `channel` falls back to the connection's `defaultChannel`. |
-| `listChannels` | Lists public channels (for channel pickers). Paginated via `cursor`/`limit`. |
+| `listChannels`  | Lists public channels (for channel pickers). Paginated via `cursor`/`limit`.                                                                                                                                                                                         |
 
 Formatted entitlement events: `entitlement.created`, `entitlement.updated`,
 `entitlement.deleted`, `entitlement.expired` — each carrying an `entitlement`

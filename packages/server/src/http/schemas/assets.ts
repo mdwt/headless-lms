@@ -3,15 +3,15 @@
 // presigned GET. Domain objects (e.g. a lesson) reference an asset by id.
 // The Asset payload shape is owned by @headless-lms/core/schemas; route-local
 // schemas define endpoint-only concerns such as params and pagination.
-import { z } from "zod";
+import { z } from 'zod';
 import {
   assetKindSchema,
   assetSchema,
   assetStatusSchema,
   downloadTicketSchema,
   uploadTicketSchema,
-} from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+} from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
 export const AssetKind = assetKindSchema;
 export type AssetKind = z.infer<typeof AssetKind>;

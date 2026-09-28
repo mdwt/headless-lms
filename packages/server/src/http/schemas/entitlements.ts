@@ -1,14 +1,14 @@
 // Entitlements resource schemas. An entitlement is a student's access grant to
 // a piece of content — generic over content types (course today) — its
 // validity + source. Distinct from payment and from completion.
-import { z } from "zod";
-import { entitlementSchema } from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+import { z } from 'zod';
+import { entitlementSchema } from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
-export const EntitlementStatus = z.enum(["active", "expired", "revoked"]);
+export const EntitlementStatus = z.enum(['active', 'expired', 'revoked']);
 export type EntitlementStatus = z.infer<typeof EntitlementStatus>;
 
-export const ContentType = z.enum(["course", "download"]);
+export const ContentType = z.enum(['course', 'download']);
 export type ContentType = z.infer<typeof ContentType>;
 
 /** Reference to the granted content: identity + display name (join-derived).
@@ -47,13 +47,13 @@ export const GrantEntitlement = z
     expiresAt: z.coerce.date().nullable(),
   })
   .refine((v) => (v.contentId != null) !== (v.bundleId != null), {
-    message: "Provide exactly one of contentId or bundleId",
+    message: 'Provide exactly one of contentId or bundleId',
   });
 export type GrantEntitlement = z.infer<typeof GrantEntitlement>;
 
 /** Revoke/reinstate access by setting the active|revoked status. */
 export const SetEntitlementStatus = z.object({
-  status: z.enum(["active", "revoked"]),
+  status: z.enum(['active', 'revoked']),
 });
 export type SetEntitlementStatus = z.infer<typeof SetEntitlementStatus>;
 

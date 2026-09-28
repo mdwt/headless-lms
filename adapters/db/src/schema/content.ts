@@ -8,8 +8,8 @@ import {
   foreignKey,
   unique,
   check,
-} from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type {
   Activity,
   ActivityAsset,
@@ -20,12 +20,11 @@ import type {
   Download,
   DownloadAsset,
   Module,
-} from '@headless-lms/core/schemas';
-import { genId } from '@headless-lms/core/shared/id';
-import { organizations } from './organizations.js';
-import { assets } from './assets.js';
-import type { Expect, NoDrift } from './drift.js';
-
+} from "@headless-lms/core/schemas";
+import { genId } from "@headless-lms/core/shared/id";
+import { organizations } from "./organizations.js";
+import { assets } from "./assets.js";
+import type { Expect, NoDrift } from "./drift.js";
 
 // Bundles.
 export const bundles = pgTable(
@@ -47,7 +46,6 @@ export const bundles = pgTable(
     typeUq: unique().on(t.orgId, t.id, t.name),
   }),
 );
-
 
 // The content registry one row per piece of content, any
 // type. this is so we can PK to content items of different types.
@@ -104,33 +102,32 @@ export const bundleItems = pgTable(
   }),
 );
 
-
 export const courses = pgTable(
-  'courses',
+  "courses",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('course')),
+      .$defaultFn(() => genId("course")),
     // Pinned to 'course' so the composite FK below cannot attach this row to a
     // registry row of another content type.
-    type: text('type')
-      .$type<Course['type']>()
+    type: text("type")
+      .$type<Course["type"]>()
       .notNull()
       .generatedAlwaysAs(sql`'course'`),
-    title: text('title').notNull(),
-    slug: text('slug').notNull(),
-    description: text('description').notNull().default(''),
-    status: text('status', { enum: ['draft', 'published'] })
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] })
       .notNull()
-      .default('draft'),
-    category: text('category').notNull().default(''),
+      .default("draft"),
+    category: text("category").notNull().default(""),
     // Media-library asset rendered as the course's cover. Null = no cover.
-    thumbnailAssetId: text('thumbnail_asset_id'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+    thumbnailAssetId: text("thumbnail_asset_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -141,7 +138,7 @@ export const courses = pgTable(
     contentItemFk: foreignKey({
       columns: [t.orgId, t.id, t.type],
       foreignColumns: [contentItems.orgId, contentItems.id, contentItems.type],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     // Restrictive, like `activity_assets.assetFk` — the asset is owned by the
     // assets domain and must be unlinked before it can be deleted. MATCH SIMPLE
     // means the constraint is skipped entirely while the thumbnail is null.
@@ -153,19 +150,19 @@ export const courses = pgTable(
 );
 
 export const modules = pgTable(
-  'modules',
+  "modules",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('module')),
-    courseId: text('course_id').notNull(),
-    title: text('title').notNull(),
-    seq: integer('seq').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .$defaultFn(() => genId("module")),
+    courseId: text("course_id").notNull(),
+    title: text("title").notNull(),
+    seq: integer("seq").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -176,7 +173,7 @@ export const modules = pgTable(
     courseFk: foreignKey({
       columns: [t.orgId, t.courseId],
       foreignColumns: [courses.orgId, courses.id],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     // FK target for the course-pinned reference from activities.
     courseUq: unique().on(t.orgId, t.id, t.courseId),
   }),
@@ -184,25 +181,25 @@ export const modules = pgTable(
 
 // The leaf, directly in a module. Uniform content: seq + opaque settings blob.
 export const activities = pgTable(
-  'activities',
+  "activities",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('activity')),
-    moduleId: text('module_id').notNull(),
+      .$defaultFn(() => genId("activity")),
+    moduleId: text("module_id").notNull(),
     // Denormalised from the module: the course an activity belongs to is asked
     // for far more often than its module (progress, discussion, entitlements),
     // and the FK below pins the pair, so it cannot disagree with the module.
-    courseId: text('course_id').notNull(),
-    seq: integer('seq').notNull(),
+    courseId: text("course_id").notNull(),
+    seq: integer("seq").notNull(),
     // Opaque per-activity blob: title, type, body, completion rule — whatever the
     // content needs. Assets are the one thing kept out of the blob.
-    settings: jsonb('settings').$type<Activity['settings']>(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+    settings: jsonb("settings").$type<Activity["settings"]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -215,7 +212,7 @@ export const activities = pgTable(
     moduleFk: foreignKey({
       columns: [t.orgId, t.moduleId, t.courseId],
       foreignColumns: [modules.orgId, modules.id, modules.courseId],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     seqUq: unique().on(t.orgId, t.moduleId, t.seq),
   }),
 );
@@ -223,19 +220,19 @@ export const activities = pgTable(
 // activity ↔ asset: many-to-many (an activity uses many assets; an asset can be
 // reused by many activities). Assets owned by the assets domain, tracked here.
 export const activityAssets = pgTable(
-  'activity_assets',
+  "activity_assets",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('activityAsset')),
-    activityId: text('activity_id').notNull(),
-    assetId: text('asset_id').notNull(),
-    seq: integer('seq').notNull().default(0),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .$defaultFn(() => genId("activityAsset")),
+    activityId: text("activity_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    seq: integer("seq").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -247,7 +244,7 @@ export const activityAssets = pgTable(
     activityFk: foreignKey({
       columns: [t.orgId, t.activityId],
       foreignColumns: [activities.orgId, activities.id],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     assetFk: foreignKey({
       columns: [t.orgId, t.assetId],
       foreignColumns: [assets.orgId, assets.id],
@@ -259,30 +256,30 @@ export const activityAssets = pgTable(
 // A download: an ordered set of media-library assets. Shares its PK with a
 // registry row (same id) via the type-pinned composite FK, exactly like courses.
 export const downloads = pgTable(
-  'downloads',
+  "downloads",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('download')),
+      .$defaultFn(() => genId("download")),
     // Pinned to 'download' so the composite FK below cannot attach this row to
     // a registry row of another content type.
-    type: text('type')
-      .$type<Download['type']>()
+    type: text("type")
+      .$type<Download["type"]>()
       .notNull()
       .generatedAlwaysAs(sql`'download'`),
-    title: text('title').notNull(),
-    slug: text('slug').notNull(),
-    description: text('description').notNull().default(''),
-    status: text('status', { enum: ['draft', 'published'] })
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] })
       .notNull()
-      .default('draft'),
-    category: text('category').notNull().default(''),
-    thumbnailAssetId: text('thumbnail_asset_id'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .default("draft"),
+    category: text("category").notNull().default(""),
+    thumbnailAssetId: text("thumbnail_asset_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -293,7 +290,7 @@ export const downloads = pgTable(
     contentItemFk: foreignKey({
       columns: [t.orgId, t.id, t.type],
       foreignColumns: [contentItems.orgId, contentItems.id, contentItems.type],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     // Restrictive: a thumbnail in use blocks deleting the asset.
     thumbnailFk: foreignKey({
       columns: [t.orgId, t.thumbnailAssetId],
@@ -305,21 +302,21 @@ export const downloads = pgTable(
 // download ↔ asset: the ordered set. Mirrors activity_assets one level
 // shallower — a download has no intermediate structure.
 export const downloadAssets = pgTable(
-  'download_assets',
+  "download_assets",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id')
+    id: text("id")
       .notNull()
-      .$defaultFn(() => genId('downloadAsset')),
-    downloadId: text('download_id').notNull(),
-    assetId: text('asset_id').notNull(),
-    seq: integer('seq').notNull().default(0),
+      .$defaultFn(() => genId("downloadAsset")),
+    downloadId: text("download_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    seq: integer("seq").notNull().default(0),
     // Author's label; null falls back to the asset's filename.
-    displayName: text('display_name'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+    displayName: text("display_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -331,7 +328,7 @@ export const downloadAssets = pgTable(
     downloadFk: foreignKey({
       columns: [t.orgId, t.downloadId],
       foreignColumns: [downloads.orgId, downloads.id],
-    }).onDelete('cascade'),
+    }).onDelete("cascade"),
     assetFk: foreignKey({
       columns: [t.orgId, t.assetId],
       foreignColumns: [assets.orgId, assets.id],
@@ -344,7 +341,7 @@ export const downloadAssets = pgTable(
 type _BundlesDrift = Expect<NoDrift<typeof bundles.$inferSelect, Bundle>>;
 type _BundleItemsDrift = Expect<NoDrift<typeof bundleItems.$inferSelect, BundleItem>>;
 type _ContentItemsDrift = Expect<NoDrift<typeof contentItems.$inferSelect, ContentItem>>;
-type _CoursesDrift = Expect<NoDrift<typeof courses.$inferSelect, Omit<Course, 'settings'>>>;
+type _CoursesDrift = Expect<NoDrift<typeof courses.$inferSelect, Omit<Course, "settings">>>;
 type _ModulesDrift = Expect<NoDrift<typeof modules.$inferSelect, Module>>;
 type _ActivitiesDrift = Expect<NoDrift<typeof activities.$inferSelect, Activity>>;
 type _ActivityAssetsDrift = Expect<NoDrift<typeof activityAssets.$inferSelect, ActivityAsset>>;

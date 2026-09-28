@@ -8,8 +8,7 @@ import { EventBody } from "../notifications/schema.js";
 
 export const postToChannel = zodAction({
   id: "postToChannel",
-  description:
-    "Post a message to a Slack channel.",
+  description: "Post a message to a Slack channel.",
   input: z.object({
     channel: z
       .string()

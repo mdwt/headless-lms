@@ -13,7 +13,6 @@ import { useRouter } from "next/navigation";
 
 type Mode = "create" | "signin";
 
-
 export function InviteAuthForm({
   token,
   email,

@@ -34,9 +34,7 @@ export interface ListParamsDefaults {
  * Accepts either a `URLSearchParams`/`ReadonlyURLSearchParams` (client,
  * `useSearchParams()`) or a Server Component's awaited `searchParams` record.
  */
-export type SearchParamsInput =
-  | URLSearchParams
-  | Record<string, string | string[] | undefined>;
+export type SearchParamsInput = URLSearchParams | Record<string, string | string[] | undefined>;
 
 interface Getters {
   get: (key: string) => string | null;

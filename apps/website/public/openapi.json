@@ -70,9 +70,7 @@
       "post": {
         "operationId": "createOrganization",
         "summary": "Create an organization and make it active",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -89,10 +87,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "name",
-                  "slug"
-                ]
+                "required": ["name", "slug"]
               }
             }
           }
@@ -118,12 +113,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "slug",
-                    "createdAt"
-                  ],
+                  "required": ["id", "name", "slug", "createdAt"],
                   "additionalProperties": false
                 }
               }
@@ -134,9 +124,7 @@
       "patch": {
         "operationId": "updateOrganization",
         "summary": "Update the active organization",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -156,10 +144,7 @@
                     "pattern": "^[a-z0-9-]+$"
                   }
                 },
-                "required": [
-                  "name",
-                  "slug"
-                ]
+                "required": ["name", "slug"]
               }
             }
           }
@@ -185,12 +170,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "slug",
-                    "createdAt"
-                  ],
+                  "required": ["id", "name", "slug", "createdAt"],
                   "additionalProperties": false
                 }
               }
@@ -213,9 +193,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -228,9 +206,7 @@
       "get": {
         "operationId": "listMembers",
         "summary": "List organization members",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -273,11 +249,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "owner",
-                "admin",
-                "instructor"
-              ]
+              "enum": ["owner", "admin", "instructor"]
             },
             "in": "query",
             "name": "role",
@@ -286,10 +258,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "active",
-                "invited"
-              ]
+              "enum": ["active", "invited"]
             },
             "in": "query",
             "name": "status",
@@ -329,18 +298,11 @@
                           },
                           "role": {
                             "type": "string",
-                            "enum": [
-                              "owner",
-                              "admin",
-                              "instructor"
-                            ]
+                            "enum": ["owner", "admin", "instructor"]
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "active",
-                              "invited"
-                            ]
+                            "enum": ["active", "invited"]
                           },
                           "joinedAt": {
                             "nullable": true,
@@ -381,12 +343,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -399,9 +356,7 @@
       "patch": {
         "operationId": "updateMemberRole",
         "summary": "Change a member's role",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -411,16 +366,10 @@
                 "properties": {
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "owner",
-                      "admin",
-                      "instructor"
-                    ]
+                    "enum": ["owner", "admin", "instructor"]
                   }
                 },
-                "required": [
-                  "role"
-                ]
+                "required": ["role"]
               }
             }
           }
@@ -463,18 +412,11 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "admin",
-                        "instructor"
-                      ]
+                      "enum": ["owner", "admin", "instructor"]
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "active",
-                        "invited"
-                      ]
+                      "enum": ["active", "invited"]
                     },
                     "joinedAt": {
                       "nullable": true,
@@ -518,9 +460,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -543,9 +483,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -558,9 +496,7 @@
       "delete": {
         "operationId": "removeMember",
         "summary": "Remove an organization member",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -597,9 +533,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -622,9 +556,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -637,9 +569,7 @@
       "post": {
         "operationId": "createInvite",
         "summary": "Invite a member or student into the active organization",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -654,11 +584,7 @@
                   },
                   "role": {
                     "type": "string",
-                    "enum": [
-                      "admin",
-                      "instructor",
-                      "student"
-                    ]
+                    "enum": ["admin", "instructor", "student"]
                   },
                   "firstName": {
                     "type": "string",
@@ -673,10 +599,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": [
-                  "email",
-                  "role"
-                ]
+                "required": ["email", "role"]
               }
             }
           }
@@ -697,11 +620,7 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "admin",
-                        "instructor",
-                        "student"
-                      ]
+                      "enum": ["admin", "instructor", "student"]
                     },
                     "status": {
                       "type": "string"
@@ -716,14 +635,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "email",
-                    "role",
-                    "status",
-                    "expiresAt",
-                    "createdAt"
-                  ],
+                  "required": ["id", "email", "role", "status", "expiresAt", "createdAt"],
                   "additionalProperties": false
                 }
               }
@@ -746,9 +658,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -761,9 +671,7 @@
       "get": {
         "operationId": "getInvite",
         "summary": "Read an invite by its token",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -795,11 +703,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "email",
-                    "firstName",
-                    "lastName"
-                  ],
+                  "required": ["email", "firstName", "lastName"],
                   "additionalProperties": false
                 }
               }
@@ -822,9 +726,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -837,9 +739,7 @@
       "post": {
         "operationId": "acceptInvite",
         "summary": "Accept an invite with the logged-in account",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -852,9 +752,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "token"
-                ]
+                "required": ["token"]
               }
             }
           }
@@ -889,9 +787,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -904,9 +800,7 @@
       "get": {
         "operationId": "listCourses",
         "summary": "List courses",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -949,10 +843,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "draft",
-                "published"
-              ]
+              "enum": ["draft", "published"]
             },
             "in": "query",
             "name": "status",
@@ -990,9 +881,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "course"
-                            ]
+                            "enum": ["course"]
                           },
                           "title": {
                             "type": "string"
@@ -1005,10 +894,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "draft",
-                              "published"
-                            ]
+                            "enum": ["draft", "published"]
                           },
                           "category": {
                             "type": "string"
@@ -1040,18 +926,11 @@
                                     "type": "boolean"
                                   }
                                 },
-                                "required": [
-                                  "enabled",
-                                  "threaded",
-                                  "requireReview",
-                                  "reactions"
-                                ],
+                                "required": ["enabled", "threaded", "requireReview", "reactions"],
                                 "additionalProperties": false
                               }
                             },
-                            "required": [
-                              "transcriptDownloads"
-                            ],
+                            "required": ["transcriptDownloads"],
                             "additionalProperties": false
                           },
                           "createdAt": {
@@ -1096,12 +975,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -1112,9 +986,7 @@
       "post": {
         "operationId": "createCourse",
         "summary": "Create a course",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1135,9 +1007,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "title"
-                ]
+                "required": ["title"]
               }
             }
           }
@@ -1160,9 +1030,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "course"
-                      ]
+                      "enum": ["course"]
                     },
                     "title": {
                       "type": "string"
@@ -1175,10 +1043,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -1210,18 +1075,11 @@
                               "type": "boolean"
                             }
                           },
-                          "required": [
-                            "enabled",
-                            "threaded",
-                            "requireReview",
-                            "reactions"
-                          ],
+                          "required": ["enabled", "threaded", "requireReview", "reactions"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "transcriptDownloads"
-                      ],
+                      "required": ["transcriptDownloads"],
                       "additionalProperties": false
                     },
                     "createdAt": {
@@ -1259,9 +1117,7 @@
       "get": {
         "operationId": "getCourse",
         "summary": "Get a course by id",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -1290,9 +1146,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "course"
-                      ]
+                      "enum": ["course"]
                     },
                     "title": {
                       "type": "string"
@@ -1305,10 +1159,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -1340,18 +1191,11 @@
                               "type": "boolean"
                             }
                           },
-                          "required": [
-                            "enabled",
-                            "threaded",
-                            "requireReview",
-                            "reactions"
-                          ],
+                          "required": ["enabled", "threaded", "requireReview", "reactions"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "transcriptDownloads"
-                      ],
+                      "required": ["transcriptDownloads"],
                       "additionalProperties": false
                     },
                     "createdAt": {
@@ -1399,9 +1243,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -1412,9 +1254,7 @@
       "patch": {
         "operationId": "updateCourse",
         "summary": "Update a course",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1436,10 +1276,7 @@
                   },
                   "status": {
                     "type": "string",
-                    "enum": [
-                      "draft",
-                      "published"
-                    ]
+                    "enum": ["draft", "published"]
                   },
                   "thumbnailAssetId": {
                     "nullable": true,
@@ -1478,9 +1315,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "course"
-                      ]
+                      "enum": ["course"]
                     },
                     "title": {
                       "type": "string"
@@ -1493,10 +1328,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -1528,18 +1360,11 @@
                               "type": "boolean"
                             }
                           },
-                          "required": [
-                            "enabled",
-                            "threaded",
-                            "requireReview",
-                            "reactions"
-                          ],
+                          "required": ["enabled", "threaded", "requireReview", "reactions"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "transcriptDownloads"
-                      ],
+                      "required": ["transcriptDownloads"],
                       "additionalProperties": false
                     },
                     "createdAt": {
@@ -1587,9 +1412,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -1600,9 +1423,7 @@
       "delete": {
         "operationId": "deleteCourse",
         "summary": "Delete a course",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -1639,9 +1460,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -1654,9 +1473,7 @@
       "patch": {
         "operationId": "updateCourseSettings",
         "summary": "Update a course settings",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1683,12 +1500,7 @@
                         "type": "boolean"
                       }
                     },
-                    "required": [
-                      "enabled",
-                      "threaded",
-                      "requireReview",
-                      "reactions"
-                    ],
+                    "required": ["enabled", "threaded", "requireReview", "reactions"],
                     "additionalProperties": false
                   }
                 },
@@ -1734,18 +1546,11 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "enabled",
-                        "threaded",
-                        "requireReview",
-                        "reactions"
-                      ],
+                      "required": ["enabled", "threaded", "requireReview", "reactions"],
                       "additionalProperties": false
                     }
                   },
-                  "required": [
-                    "transcriptDownloads"
-                  ],
+                  "required": ["transcriptDownloads"],
                   "additionalProperties": false
                 }
               }
@@ -1768,9 +1573,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -1783,9 +1586,7 @@
       "get": {
         "operationId": "listDownloads",
         "summary": "List downloads",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -1828,10 +1629,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "draft",
-                "published"
-              ]
+              "enum": ["draft", "published"]
             },
             "in": "query",
             "name": "status",
@@ -1869,9 +1667,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "download"
-                            ]
+                            "enum": ["download"]
                           },
                           "title": {
                             "type": "string"
@@ -1884,10 +1680,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "draft",
-                              "published"
-                            ]
+                            "enum": ["draft", "published"]
                           },
                           "category": {
                             "type": "string"
@@ -1938,12 +1731,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -1954,9 +1742,7 @@
       "post": {
         "operationId": "createDownload",
         "summary": "Create a download",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1977,9 +1763,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "title"
-                ]
+                "required": ["title"]
               }
             }
           }
@@ -2002,9 +1786,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "download"
-                      ]
+                      "enum": ["download"]
                     },
                     "title": {
                       "type": "string"
@@ -2017,10 +1799,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -2064,9 +1843,7 @@
       "get": {
         "operationId": "getDownload",
         "summary": "Get a download by id",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -2095,9 +1872,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "download"
-                      ]
+                      "enum": ["download"]
                     },
                     "title": {
                       "type": "string"
@@ -2110,10 +1885,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -2167,9 +1939,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2180,9 +1950,7 @@
       "patch": {
         "operationId": "updateDownload",
         "summary": "Update a download",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2204,10 +1972,7 @@
                   },
                   "status": {
                     "type": "string",
-                    "enum": [
-                      "draft",
-                      "published"
-                    ]
+                    "enum": ["draft", "published"]
                   },
                   "thumbnailAssetId": {
                     "nullable": true,
@@ -2246,9 +2011,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "download"
-                      ]
+                      "enum": ["download"]
                     },
                     "title": {
                       "type": "string"
@@ -2261,10 +2024,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -2318,9 +2078,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2331,9 +2089,7 @@
       "delete": {
         "operationId": "deleteDownload",
         "summary": "Delete a download",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -2370,9 +2126,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2385,9 +2139,7 @@
       "get": {
         "operationId": "listDownloadAssets",
         "summary": "List a download's assets in order",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -2475,9 +2227,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2488,9 +2238,7 @@
       "post": {
         "operationId": "addDownloadAsset",
         "summary": "Link a media-library asset to a download",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2506,9 +2254,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "assetId"
-                ],
+                "required": ["assetId"],
                 "additionalProperties": false
               }
             }
@@ -2601,9 +2347,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2616,9 +2360,7 @@
       "put": {
         "operationId": "reorderDownloadAssets",
         "summary": "Reorder a download's assets (send the complete set)",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2634,9 +2376,7 @@
                     }
                   }
                 },
-                "required": [
-                  "assetIds"
-                ],
+                "required": ["assetIds"],
                 "additionalProperties": false
               }
             }
@@ -2729,9 +2469,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2754,9 +2492,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2769,9 +2505,7 @@
       "patch": {
         "operationId": "renameDownloadAsset",
         "summary": "Set an asset's display name within a download",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2784,9 +2518,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "displayName"
-                ]
+                "required": ["displayName"]
               }
             }
           }
@@ -2886,9 +2618,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -2899,9 +2629,7 @@
       "delete": {
         "operationId": "removeDownloadAsset",
         "summary": "Unlink an asset from a download (the asset itself survives)",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -2997,9 +2725,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3012,9 +2738,7 @@
       "get": {
         "operationId": "listBundles",
         "summary": "List bundles",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3088,13 +2812,7 @@
                             "format": "date-time"
                           }
                         },
-                        "required": [
-                          "orgId",
-                          "id",
-                          "name",
-                          "createdAt",
-                          "updatedAt"
-                        ],
+                        "required": ["orgId", "id", "name", "createdAt", "updatedAt"],
                         "additionalProperties": false
                       }
                     },
@@ -3114,12 +2832,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -3130,9 +2843,7 @@
       "post": {
         "operationId": "createBundle",
         "summary": "Create a bundle, optionally with initial content",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -3151,9 +2862,7 @@
                     }
                   }
                 },
-                "required": [
-                  "name"
-                ]
+                "required": ["name"]
               }
             }
           }
@@ -3186,13 +2895,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "orgId",
-                    "id",
-                    "name",
-                    "createdAt",
-                    "updatedAt"
-                  ],
+                  "required": ["orgId", "id", "name", "createdAt", "updatedAt"],
                   "additionalProperties": false
                 }
               }
@@ -3215,9 +2918,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3230,9 +2931,7 @@
       "get": {
         "operationId": "getBundle",
         "summary": "Get a bundle by id",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3271,13 +2970,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "orgId",
-                    "id",
-                    "name",
-                    "createdAt",
-                    "updatedAt"
-                  ],
+                  "required": ["orgId", "id", "name", "createdAt", "updatedAt"],
                   "additionalProperties": false
                 }
               }
@@ -3300,9 +2993,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3313,9 +3004,7 @@
       "patch": {
         "operationId": "updateBundle",
         "summary": "Update a bundle",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -3370,13 +3059,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "orgId",
-                    "id",
-                    "name",
-                    "createdAt",
-                    "updatedAt"
-                  ],
+                  "required": ["orgId", "id", "name", "createdAt", "updatedAt"],
                   "additionalProperties": false
                 }
               }
@@ -3399,9 +3082,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3412,9 +3093,7 @@
       "delete": {
         "operationId": "deleteBundle",
         "summary": "Delete a bundle (its content survives)",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3451,9 +3130,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3466,9 +3143,7 @@
       "get": {
         "operationId": "listBundleItems",
         "summary": "List a bundle's content items",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3510,13 +3185,7 @@
                         "format": "date-time"
                       }
                     },
-                    "required": [
-                      "orgId",
-                      "bundleId",
-                      "contentId",
-                      "createdAt",
-                      "updatedAt"
-                    ],
+                    "required": ["orgId", "bundleId", "contentId", "createdAt", "updatedAt"],
                     "additionalProperties": false
                   }
                 }
@@ -3540,9 +3209,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3553,9 +3220,7 @@
       "post": {
         "operationId": "addBundleItem",
         "summary": "Add a content item to a bundle",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -3567,9 +3232,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "contentId"
-                ]
+                "required": ["contentId"]
               }
             }
           }
@@ -3615,13 +3278,7 @@
                         "format": "date-time"
                       }
                     },
-                    "required": [
-                      "orgId",
-                      "bundleId",
-                      "contentId",
-                      "createdAt",
-                      "updatedAt"
-                    ],
+                    "required": ["orgId", "bundleId", "contentId", "createdAt", "updatedAt"],
                     "additionalProperties": false
                   }
                 }
@@ -3645,9 +3302,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3660,9 +3315,7 @@
       "delete": {
         "operationId": "removeBundleItem",
         "summary": "Remove a content item from a bundle (the content survives)",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3712,13 +3365,7 @@
                         "format": "date-time"
                       }
                     },
-                    "required": [
-                      "orgId",
-                      "bundleId",
-                      "contentId",
-                      "createdAt",
-                      "updatedAt"
-                    ],
+                    "required": ["orgId", "bundleId", "contentId", "createdAt", "updatedAt"],
                     "additionalProperties": false
                   }
                 }
@@ -3742,9 +3389,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -3757,9 +3402,7 @@
       "get": {
         "operationId": "getLearnOrg",
         "summary": "Get the portal org's public identity (branding)",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -3778,11 +3421,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "id",
-                    "name",
-                    "slug"
-                  ],
+                  "required": ["id", "name", "slug"],
                   "additionalProperties": false
                 }
               }
@@ -3795,9 +3434,7 @@
       "get": {
         "operationId": "getLearnViewer",
         "summary": "Get the caller's identity within the session's org",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -3811,18 +3448,10 @@
                     },
                     "role": {
                       "type": "string",
-                      "enum": [
-                        "owner",
-                        "admin",
-                        "instructor",
-                        "student"
-                      ]
+                      "enum": ["owner", "admin", "instructor", "student"]
                     }
                   },
-                  "required": [
-                    "orgUserId",
-                    "role"
-                  ],
+                  "required": ["orgUserId", "role"],
                   "additionalProperties": false
                 }
               }
@@ -3835,9 +3464,7 @@
       "get": {
         "operationId": "listLearnCourses",
         "summary": "List the student's enrolled courses",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -3858,9 +3485,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "enum": [
-                          "course"
-                        ]
+                        "enum": ["course"]
                       },
                       "title": {
                         "type": "string"
@@ -3873,10 +3498,7 @@
                       },
                       "status": {
                         "type": "string",
-                        "enum": [
-                          "draft",
-                          "published"
-                        ]
+                        "enum": ["draft", "published"]
                       },
                       "category": {
                         "type": "string"
@@ -3908,18 +3530,11 @@
                                 "type": "boolean"
                               }
                             },
-                            "required": [
-                              "enabled",
-                              "threaded",
-                              "requireReview",
-                              "reactions"
-                            ],
+                            "required": ["enabled", "threaded", "requireReview", "reactions"],
                             "additionalProperties": false
                           }
                         },
-                        "required": [
-                          "transcriptDownloads"
-                        ],
+                        "required": ["transcriptDownloads"],
                         "additionalProperties": false
                       },
                       "createdAt": {
@@ -3958,9 +3573,7 @@
       "get": {
         "operationId": "getLearnCourse",
         "summary": "Get one enrolled course",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -3989,9 +3602,7 @@
                     },
                     "type": {
                       "type": "string",
-                      "enum": [
-                        "course"
-                      ]
+                      "enum": ["course"]
                     },
                     "title": {
                       "type": "string"
@@ -4004,10 +3615,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
+                      "enum": ["draft", "published"]
                     },
                     "category": {
                       "type": "string"
@@ -4039,18 +3647,11 @@
                               "type": "boolean"
                             }
                           },
-                          "required": [
-                            "enabled",
-                            "threaded",
-                            "requireReview",
-                            "reactions"
-                          ],
+                          "required": ["enabled", "threaded", "requireReview", "reactions"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "transcriptDownloads"
-                      ],
+                      "required": ["transcriptDownloads"],
                       "additionalProperties": false
                     },
                     "createdAt": {
@@ -4098,9 +3699,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4113,9 +3712,7 @@
       "get": {
         "operationId": "listLearnModules",
         "summary": "List an enrolled course's module/activity tree",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -4197,9 +3794,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4212,9 +3807,7 @@
       "get": {
         "operationId": "listLearnActivities",
         "summary": "List an enrolled course's published activities",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -4305,9 +3898,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4320,9 +3911,7 @@
       "post": {
         "operationId": "reportProgress",
         "summary": "Report usage on a target; the progress service decides completion",
-        "tags": [
-          "Progress"
-        ],
+        "tags": ["Progress"],
         "requestBody": {
           "required": true,
           "content": {
@@ -4351,10 +3940,7 @@
                     }
                   }
                 },
-                "required": [
-                  "activity",
-                  "reports"
-                ]
+                "required": ["activity", "reports"]
               }
             }
           }
@@ -4369,15 +3955,10 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "in-progress",
-                        "completed"
-                      ]
+                      "enum": ["in-progress", "completed"]
                     }
                   },
-                  "required": [
-                    "status"
-                  ],
+                  "required": ["status"],
                   "additionalProperties": false
                 }
               }
@@ -4400,9 +3981,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4415,9 +3994,7 @@
       "get": {
         "operationId": "getLearnCourseProgress",
         "summary": "The student's progress in one course",
-        "tags": [
-          "Progress"
-        ],
+        "tags": ["Progress"],
         "parameters": [
           {
             "schema": {
@@ -4440,10 +4017,7 @@
                       "type": "object",
                       "additionalProperties": {
                         "type": "string",
-                        "enum": [
-                          "in-progress",
-                          "completed"
-                        ]
+                        "enum": ["in-progress", "completed"]
                       }
                     },
                     "percent": {
@@ -4459,12 +4033,7 @@
                       "additionalProperties": {}
                     }
                   },
-                  "required": [
-                    "activities",
-                    "percent",
-                    "completed",
-                    "positions"
-                  ],
+                  "required": ["activities", "percent", "completed", "positions"],
                   "additionalProperties": false
                 }
               }
@@ -4487,9 +4056,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4502,9 +4069,7 @@
       "get": {
         "operationId": "listActivityComments",
         "summary": "Read an activity's comments",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -4539,12 +4104,7 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "enabled",
-                        "threaded",
-                        "requireReview",
-                        "reactions"
-                      ],
+                      "required": ["enabled", "threaded", "requireReview", "reactions"],
                       "additionalProperties": false
                     },
                     "comments": {
@@ -4586,21 +4146,10 @@
                               },
                               "role": {
                                 "type": "string",
-                                "enum": [
-                                  "owner",
-                                  "admin",
-                                  "instructor",
-                                  "student"
-                                ]
+                                "enum": ["owner", "admin", "instructor", "student"]
                               }
                             },
-                            "required": [
-                              "id",
-                              "firstName",
-                              "lastName",
-                              "image",
-                              "role"
-                            ],
+                            "required": ["id", "firstName", "lastName", "image", "role"],
                             "additionalProperties": false
                           },
                           "body": {
@@ -4609,11 +4158,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "pending",
-                              "published",
-                              "removed"
-                            ]
+                            "enum": ["pending", "published", "removed"]
                           },
                           "removedBy": {
                             "nullable": true,
@@ -4637,21 +4182,10 @@
                               },
                               "role": {
                                 "type": "string",
-                                "enum": [
-                                  "owner",
-                                  "admin",
-                                  "instructor",
-                                  "student"
-                                ]
+                                "enum": ["owner", "admin", "instructor", "student"]
                               }
                             },
-                            "required": [
-                              "id",
-                              "firstName",
-                              "lastName",
-                              "image",
-                              "role"
-                            ],
+                            "required": ["id", "firstName", "lastName", "image", "role"],
                             "additionalProperties": false
                           },
                           "reactions": {
@@ -4690,10 +4224,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "config",
-                    "comments"
-                  ],
+                  "required": ["config", "comments"],
                   "additionalProperties": false
                 }
               }
@@ -4716,9 +4247,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4729,9 +4258,7 @@
       "post": {
         "operationId": "postComment",
         "summary": "Post a comment or reply on an activity",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -4750,9 +4277,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "body"
-                ]
+                "required": ["body"]
               }
             }
           }
@@ -4809,21 +4334,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "body": {
@@ -4832,11 +4346,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -4860,21 +4370,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "reactions": {
@@ -4931,9 +4430,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4956,9 +4453,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -4971,9 +4466,7 @@
       "patch": {
         "operationId": "editComment",
         "summary": "Revise your own comment",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -4987,9 +4480,7 @@
                     "maxLength": 10000
                   }
                 },
-                "required": [
-                  "body"
-                ]
+                "required": ["body"]
               }
             }
           }
@@ -5046,21 +4537,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "body": {
@@ -5069,11 +4549,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -5097,21 +4573,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "reactions": {
@@ -5168,9 +4633,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5193,9 +4656,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5206,9 +4667,7 @@
       "delete": {
         "operationId": "deleteComment",
         "summary": "Delete a comment",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -5253,11 +4712,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -5307,9 +4762,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5332,9 +4785,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5347,9 +4798,7 @@
       "put": {
         "operationId": "setCommentReaction",
         "summary": "Set your reaction to a comment, replacing any you already had",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -5363,9 +4812,7 @@
                     "maxLength": 16
                   }
                 },
-                "required": [
-                  "emoji"
-                ]
+                "required": ["emoji"]
               }
             }
           }
@@ -5402,9 +4849,7 @@
                       "maxLength": 16
                     }
                   },
-                  "required": [
-                    "reactions"
-                  ],
+                  "required": ["reactions"],
                   "additionalProperties": false
                 }
               }
@@ -5427,9 +4872,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5452,9 +4895,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5465,9 +4906,7 @@
       "delete": {
         "operationId": "clearCommentReaction",
         "summary": "Withdraw your reaction from a comment",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -5500,9 +4939,7 @@
                       "maxLength": 16
                     }
                   },
-                  "required": [
-                    "reactions"
-                  ],
+                  "required": ["reactions"],
                   "additionalProperties": false
                 }
               }
@@ -5525,9 +4962,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5550,9 +4985,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5565,9 +4998,7 @@
       "post": {
         "operationId": "reportComment",
         "summary": "Flag a comment for moderator attention",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -5625,14 +5056,7 @@
                       "format": "date-time"
                     }
                   },
-                  "required": [
-                    "id",
-                    "commentId",
-                    "orgUserId",
-                    "reason",
-                    "resolvedAt",
-                    "createdAt"
-                  ],
+                  "required": ["id", "commentId", "orgUserId", "reason", "resolvedAt", "createdAt"],
                   "additionalProperties": false
                 }
               }
@@ -5655,9 +5079,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5680,9 +5102,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5695,9 +5115,7 @@
       "post": {
         "operationId": "getAssetDownloadUrl",
         "summary": "Get a short-lived presigned URL to serve an asset to the student",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "parameters": [
           {
             "schema": {
@@ -5737,11 +5155,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "video",
-                            "download",
-                            "content"
-                          ]
+                          "enum": ["video", "download", "content"]
                         },
                         "filename": {
                           "type": "string",
@@ -5758,10 +5172,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "pending",
-                            "ready"
-                          ]
+                          "enum": ["pending", "ready"]
                         },
                         "uploadedBy": {
                           "type": "string",
@@ -5792,10 +5203,7 @@
                       "additionalProperties": false
                     }
                   },
-                  "required": [
-                    "url",
-                    "asset"
-                  ],
+                  "required": ["url", "asset"],
                   "additionalProperties": false
                 }
               }
@@ -5818,9 +5226,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5843,9 +5249,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -5858,9 +5262,7 @@
       "get": {
         "operationId": "listLearnDownloads",
         "summary": "Downloads the student is actively entitled to",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -5881,9 +5283,7 @@
                       },
                       "type": {
                         "type": "string",
-                        "enum": [
-                          "download"
-                        ]
+                        "enum": ["download"]
                       },
                       "title": {
                         "type": "string"
@@ -5896,10 +5296,7 @@
                       },
                       "status": {
                         "type": "string",
-                        "enum": [
-                          "draft",
-                          "published"
-                        ]
+                        "enum": ["draft", "published"]
                       },
                       "category": {
                         "type": "string"
@@ -5944,9 +5341,7 @@
       "get": {
         "operationId": "getLearnDownload",
         "summary": "One entitled download and its ordered assets",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -5978,9 +5373,7 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "download"
-                          ]
+                          "enum": ["download"]
                         },
                         "title": {
                           "type": "string"
@@ -5993,10 +5386,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "draft",
-                            "published"
-                          ]
+                          "enum": ["draft", "published"]
                         },
                         "category": {
                           "type": "string"
@@ -6083,10 +5473,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "download",
-                    "assets"
-                  ],
+                  "required": ["download", "assets"],
                   "additionalProperties": false
                 }
               }
@@ -6109,9 +5496,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6124,9 +5509,7 @@
       "get": {
         "operationId": "getLearnDownloadAsset",
         "summary": "Redirect to a short-lived signed URL for an entitled asset",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -6171,9 +5554,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6186,9 +5567,7 @@
       "get": {
         "operationId": "listComments",
         "summary": "List comments, filtered by course, activity, author, status or reports",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -6231,11 +5610,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "pending",
-                "published",
-                "removed"
-              ]
+              "enum": ["pending", "published", "removed"]
             },
             "in": "query",
             "name": "status",
@@ -6312,11 +5687,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "pending",
-                              "published",
-                              "removed"
-                            ]
+                            "enum": ["pending", "published", "removed"]
                           },
                           "author": {
                             "type": "object",
@@ -6339,21 +5710,10 @@
                               },
                               "role": {
                                 "type": "string",
-                                "enum": [
-                                  "owner",
-                                  "admin",
-                                  "instructor",
-                                  "student"
-                                ]
+                                "enum": ["owner", "admin", "instructor", "student"]
                               }
                             },
-                            "required": [
-                              "id",
-                              "firstName",
-                              "lastName",
-                              "image",
-                              "role"
-                            ],
+                            "required": ["id", "firstName", "lastName", "image", "role"],
                             "additionalProperties": false
                           },
                           "authorEmail": {
@@ -6392,21 +5752,10 @@
                                     },
                                     "role": {
                                       "type": "string",
-                                      "enum": [
-                                        "owner",
-                                        "admin",
-                                        "instructor",
-                                        "student"
-                                      ]
+                                      "enum": ["owner", "admin", "instructor", "student"]
                                     }
                                   },
-                                  "required": [
-                                    "id",
-                                    "firstName",
-                                    "lastName",
-                                    "image",
-                                    "role"
-                                  ],
+                                  "required": ["id", "firstName", "lastName", "image", "role"],
                                   "additionalProperties": false
                                 },
                                 "reason": {
@@ -6417,11 +5766,7 @@
                                   "format": "date-time"
                                 }
                               },
-                              "required": [
-                                "reporter",
-                                "reason",
-                                "createdAt"
-                              ],
+                              "required": ["reporter", "reason", "createdAt"],
                               "additionalProperties": false
                             }
                           },
@@ -6468,12 +5813,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -6486,9 +5826,7 @@
       "delete": {
         "operationId": "moderateRemoveComment",
         "summary": "Remove a comment as a moderator",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -6533,11 +5871,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -6587,9 +5921,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6612,9 +5944,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6625,9 +5955,7 @@
       "patch": {
         "operationId": "publishComment",
         "summary": "Publish a comment: approves a pending one, restores a removed one",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -6637,14 +5965,10 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": [
-                      "published"
-                    ]
+                    "enum": ["published"]
                   }
                 },
-                "required": [
-                  "status"
-                ]
+                "required": ["status"]
               }
             }
           }
@@ -6693,11 +6017,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -6747,9 +6067,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6772,9 +6090,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6787,9 +6103,7 @@
       "delete": {
         "operationId": "dismissCommentReports",
         "summary": "Dismiss every open report on a comment",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "parameters": [
           {
             "schema": {
@@ -6826,9 +6140,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6851,9 +6163,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -6866,9 +6176,7 @@
       "post": {
         "operationId": "replyToComment",
         "summary": "Reply to a comment from the moderation queue",
-        "tags": [
-          "Discussion"
-        ],
+        "tags": ["Discussion"],
         "requestBody": {
           "required": true,
           "content": {
@@ -6882,9 +6190,7 @@
                     "maxLength": 10000
                   }
                 },
-                "required": [
-                  "body"
-                ]
+                "required": ["body"]
               }
             }
           }
@@ -6941,21 +6247,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "body": {
@@ -6964,11 +6259,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "published",
-                        "removed"
-                      ]
+                      "enum": ["pending", "published", "removed"]
                     },
                     "removedBy": {
                       "nullable": true,
@@ -6992,21 +6283,10 @@
                         },
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "owner",
-                            "admin",
-                            "instructor",
-                            "student"
-                          ]
+                          "enum": ["owner", "admin", "instructor", "student"]
                         }
                       },
-                      "required": [
-                        "id",
-                        "firstName",
-                        "lastName",
-                        "image",
-                        "role"
-                      ],
+                      "required": ["id", "firstName", "lastName", "image", "role"],
                       "additionalProperties": false
                     },
                     "reactions": {
@@ -7063,9 +6343,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -7088,9 +6366,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -7103,9 +6379,7 @@
       "get": {
         "operationId": "listModules",
         "summary": "List a course's modules",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -7175,9 +6449,7 @@
       "post": {
         "operationId": "createModule",
         "summary": "Add a module",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -7190,9 +6462,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "title"
-                ]
+                "required": ["title"]
               }
             }
           }
@@ -7268,9 +6538,7 @@
       "get": {
         "operationId": "listActivities",
         "summary": "List a course's activities",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -7351,9 +6619,7 @@
       "get": {
         "operationId": "listActivityAssets",
         "summary": "List a course's activity→asset links",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -7426,9 +6692,7 @@
       "post": {
         "operationId": "reorderModules",
         "summary": "Reorder modules",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -7443,9 +6707,7 @@
                     }
                   }
                 },
-                "required": [
-                  "orderedIds"
-                ]
+                "required": ["orderedIds"]
               }
             }
           }
@@ -7521,9 +6783,7 @@
       "patch": {
         "operationId": "updateModule",
         "summary": "Rename a module",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -7536,9 +6796,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "title"
-                ]
+                "required": ["title"]
               }
             }
           }
@@ -7620,9 +6878,7 @@
       "delete": {
         "operationId": "deleteModule",
         "summary": "Delete a module",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -7702,9 +6958,7 @@
       "post": {
         "operationId": "reorderActivities",
         "summary": "Reorder activities in a module",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -7719,9 +6973,7 @@
                     }
                   }
                 },
-                "required": [
-                  "orderedIds"
-                ]
+                "required": ["orderedIds"]
               }
             }
           }
@@ -7805,9 +7057,7 @@
       "post": {
         "operationId": "createActivity",
         "summary": "Add an activity",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -7914,9 +7164,7 @@
       "patch": {
         "operationId": "updateActivity",
         "summary": "Update an activity",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "requestBody": {
           "required": true,
           "content": {
@@ -8029,9 +7277,7 @@
       "delete": {
         "operationId": "deleteActivity",
         "summary": "Delete an activity",
-        "tags": [
-          "Content"
-        ],
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
@@ -8119,9 +7365,7 @@
       "get": {
         "operationId": "listStudents",
         "summary": "List students",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -8205,10 +7449,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "invited",
-                              "active"
-                            ]
+                            "enum": ["invited", "active"]
                           },
                           "joinedAt": {
                             "type": "string"
@@ -8249,12 +7490,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -8267,9 +7503,7 @@
       "get": {
         "operationId": "getStudent",
         "summary": "Get a student by id",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -8318,10 +7552,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "invited",
-                        "active"
-                      ]
+                      "enum": ["invited", "active"]
                     },
                     "joinedAt": {
                       "type": "string"
@@ -8365,9 +7596,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8378,9 +7607,7 @@
       "patch": {
         "operationId": "updateStudent",
         "summary": "Update a student's profile",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -8402,11 +7629,7 @@
                     "pattern": "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
                   }
                 },
-                "required": [
-                  "firstName",
-                  "lastName",
-                  "email"
-                ]
+                "required": ["firstName", "lastName", "email"]
               }
             }
           }
@@ -8459,10 +7682,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "invited",
-                        "active"
-                      ]
+                      "enum": ["invited", "active"]
                     },
                     "joinedAt": {
                       "type": "string"
@@ -8506,9 +7726,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8531,9 +7749,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8544,9 +7760,7 @@
       "delete": {
         "operationId": "deleteStudent",
         "summary": "Delete a student",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -8583,9 +7797,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8598,9 +7810,7 @@
       "get": {
         "operationId": "getStudentAnalytics",
         "summary": "A student's learner record: per-course progress and completion",
-        "tags": [
-          "Reporting"
-        ],
+        "tags": ["Reporting"],
         "parameters": [
           {
             "schema": {
@@ -8692,13 +7902,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "enrolled",
-                    "started",
-                    "completed",
-                    "avgProgress",
-                    "courses"
-                  ],
+                  "required": ["enrolled", "started", "completed", "avgProgress", "courses"],
                   "additionalProperties": false
                 }
               }
@@ -8721,9 +7925,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8736,9 +7938,7 @@
       "post": {
         "operationId": "resendStudentInvite",
         "summary": "Re-send a pending student's invite email",
-        "tags": [
-          "Organizations"
-        ],
+        "tags": ["Organizations"],
         "parameters": [
           {
             "schema": {
@@ -8775,9 +7975,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8800,9 +7998,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -8815,9 +8011,7 @@
       "get": {
         "operationId": "listEntitlements",
         "summary": "List entitlements",
-        "tags": [
-          "Entitlements"
-        ],
+        "tags": ["Entitlements"],
         "parameters": [
           {
             "schema": {
@@ -8860,11 +8054,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "active",
-                "expired",
-                "revoked"
-              ]
+              "enum": ["active", "expired", "revoked"]
             },
             "in": "query",
             "name": "status",
@@ -8897,10 +8087,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "course",
-                "download"
-              ]
+              "enum": ["course", "download"]
             },
             "in": "query",
             "name": "type",
@@ -8944,10 +8131,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "active",
-                              "revoked"
-                            ]
+                            "enum": ["active", "revoked"]
                           },
                           "source": {
                             "type": "string"
@@ -9002,12 +8186,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -9018,9 +8197,7 @@
       "post": {
         "operationId": "grantEntitlement",
         "summary": "Grant a student access to a piece of content",
-        "tags": [
-          "Entitlements"
-        ],
+        "tags": ["Entitlements"],
         "requestBody": {
           "required": true,
           "content": {
@@ -9043,10 +8220,7 @@
                     "nullable": true
                   }
                 },
-                "required": [
-                  "orgUserId",
-                  "expiresAt"
-                ]
+                "required": ["orgUserId", "expiresAt"]
               }
             }
           }
@@ -9083,10 +8257,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "active",
-                        "revoked"
-                      ]
+                      "enum": ["active", "revoked"]
                     },
                     "source": {
                       "type": "string"
@@ -9134,9 +8305,7 @@
       "patch": {
         "operationId": "setEntitlementStatus",
         "summary": "Revoke or reinstate an entitlement",
-        "tags": [
-          "Entitlements"
-        ],
+        "tags": ["Entitlements"],
         "requestBody": {
           "required": true,
           "content": {
@@ -9146,15 +8315,10 @@
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": [
-                      "active",
-                      "revoked"
-                    ]
+                    "enum": ["active", "revoked"]
                   }
                 },
-                "required": [
-                  "status"
-                ]
+                "required": ["status"]
               }
             }
           }
@@ -9201,10 +8365,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "active",
-                        "revoked"
-                      ]
+                      "enum": ["active", "revoked"]
                     },
                     "source": {
                       "type": "string"
@@ -9262,9 +8423,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -9277,9 +8436,7 @@
       "get": {
         "operationId": "listAutomations",
         "summary": "List automations",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -9325,10 +8482,7 @@
                               }
                             }
                           },
-                          "required": [
-                            "type",
-                            "input"
-                          ],
+                          "required": ["type", "input"],
                           "additionalProperties": false
                         }
                       },
@@ -9366,9 +8520,7 @@
       "post": {
         "operationId": "createAutomation",
         "summary": "Create an automation",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -9402,19 +8554,12 @@
                           }
                         }
                       },
-                      "required": [
-                        "type",
-                        "input"
-                      ],
+                      "required": ["type", "input"],
                       "additionalProperties": false
                     }
                   }
                 },
-                "required": [
-                  "name",
-                  "trigger",
-                  "actions"
-                ],
+                "required": ["name", "trigger", "actions"],
                 "additionalProperties": false
               }
             }
@@ -9463,10 +8608,7 @@
                             }
                           }
                         },
-                        "required": [
-                          "type",
-                          "input"
-                        ],
+                        "required": ["type", "input"],
                         "additionalProperties": false
                       }
                     },
@@ -9505,9 +8647,7 @@
       "get": {
         "operationId": "listAutomationActions",
         "summary": "List the actions automations can use",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -9535,12 +8675,7 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "type",
-                      "description",
-                      "inputSchema",
-                      "source"
-                    ],
+                    "required": ["type", "description", "inputSchema", "source"],
                     "additionalProperties": false
                   }
                 }
@@ -9554,9 +8689,7 @@
       "get": {
         "operationId": "listAutomationTriggers",
         "summary": "List the domain events automations can react to",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -9578,17 +8711,12 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "type",
-                          "description"
-                        ],
+                        "required": ["type", "description"],
                         "additionalProperties": false
                       }
                     }
                   },
-                  "required": [
-                    "triggers"
-                  ],
+                  "required": ["triggers"],
                   "additionalProperties": false
                 }
               }
@@ -9601,9 +8729,7 @@
       "get": {
         "operationId": "getAutomation",
         "summary": "Get an automation by id",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "parameters": [
           {
             "schema": {
@@ -9657,10 +8783,7 @@
                             }
                           }
                         },
-                        "required": [
-                          "type",
-                          "input"
-                        ],
+                        "required": ["type", "input"],
                         "additionalProperties": false
                       }
                     },
@@ -9709,9 +8832,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -9722,9 +8843,7 @@
       "patch": {
         "operationId": "updateAutomation",
         "summary": "Update an automation",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -9758,10 +8877,7 @@
                           }
                         }
                       },
-                      "required": [
-                        "type",
-                        "input"
-                      ],
+                      "required": ["type", "input"],
                       "additionalProperties": false
                     }
                   },
@@ -9827,10 +8943,7 @@
                             }
                           }
                         },
-                        "required": [
-                          "type",
-                          "input"
-                        ],
+                        "required": ["type", "input"],
                         "additionalProperties": false
                       }
                     },
@@ -9879,9 +8992,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -9892,9 +9003,7 @@
       "delete": {
         "operationId": "deleteAutomation",
         "summary": "Delete an automation",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "parameters": [
           {
             "schema": {
@@ -9931,9 +9040,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -9946,9 +9053,7 @@
       "get": {
         "operationId": "listAutomationRuns",
         "summary": "List an automation's runs — a deleted automation's runs remain reachable (audit trail)",
-        "tags": [
-          "Automations"
-        ],
+        "tags": ["Automations"],
         "parameters": [
           {
             "schema": {
@@ -9991,11 +9096,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "running",
-                "completed",
-                "failed"
-              ]
+              "enum": ["running", "completed", "failed"]
             },
             "in": "query",
             "name": "status",
@@ -10078,23 +9179,12 @@
                                 }
                               }
                             },
-                            "required": [
-                              "type",
-                              "version",
-                              "id",
-                              "orgId",
-                              "occurredAt",
-                              "data"
-                            ],
+                            "required": ["type", "version", "id", "orgId", "occurredAt", "data"],
                             "additionalProperties": false
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "running",
-                              "completed",
-                              "failed"
-                            ]
+                            "enum": ["running", "completed", "failed"]
                           },
                           "actionResults": {
                             "type": "array",
@@ -10112,20 +9202,13 @@
                                 },
                                 "status": {
                                   "type": "string",
-                                  "enum": [
-                                    "completed",
-                                    "failed"
-                                  ]
+                                  "enum": ["completed", "failed"]
                                 },
                                 "error": {
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "index",
-                                "type",
-                                "status"
-                              ],
+                              "required": ["index", "type", "status"],
                               "additionalProperties": false
                             }
                           },
@@ -10180,12 +9263,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -10198,9 +9276,7 @@
       "get": {
         "operationId": "getOverview",
         "summary": "Back-office overview stats",
-        "tags": [
-          "Reporting"
-        ],
+        "tags": ["Reporting"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -10248,9 +9324,7 @@
       "get": {
         "operationId": "getEnrollmentSeries",
         "summary": "Enrollments granted per day over a trailing window",
-        "tags": [
-          "Reporting"
-        ],
+        "tags": ["Reporting"],
         "parameters": [
           {
             "schema": {
@@ -10283,10 +9357,7 @@
                         "maximum": 9007199254740991
                       }
                     },
-                    "required": [
-                      "date",
-                      "count"
-                    ],
+                    "required": ["date", "count"],
                     "additionalProperties": false
                   }
                 }
@@ -10300,9 +9371,7 @@
       "get": {
         "operationId": "getCourseAnalytics",
         "summary": "Completion and engagement stats for a course",
-        "tags": [
-          "Reporting"
-        ],
+        "tags": ["Reporting"],
         "parameters": [
           {
             "schema": {
@@ -10381,13 +9450,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "enrolled",
-                    "started",
-                    "completed",
-                    "avgProgress",
-                    "activities"
-                  ],
+                  "required": ["enrolled", "started", "completed", "avgProgress", "activities"],
                   "additionalProperties": false
                 }
               }
@@ -10410,9 +9473,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10425,9 +9486,7 @@
       "get": {
         "operationId": "getCourseEnrollmentSeries",
         "summary": "Enrollments granted per day for a course over a trailing window",
-        "tags": [
-          "Reporting"
-        ],
+        "tags": ["Reporting"],
         "parameters": [
           {
             "schema": {
@@ -10468,10 +9527,7 @@
                         "maximum": 9007199254740991
                       }
                     },
-                    "required": [
-                      "date",
-                      "count"
-                    ],
+                    "required": ["date", "count"],
                     "additionalProperties": false
                   }
                 }
@@ -10495,9 +9551,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10510,9 +9564,7 @@
       "post": {
         "operationId": "requestUpload",
         "summary": "Register an asset and get a presigned upload URL",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "requestBody": {
           "required": true,
           "content": {
@@ -10530,18 +9582,10 @@
                   },
                   "kind": {
                     "type": "string",
-                    "enum": [
-                      "video",
-                      "download",
-                      "content"
-                    ]
+                    "enum": ["video", "download", "content"]
                   }
                 },
-                "required": [
-                  "filename",
-                  "contentType",
-                  "kind"
-                ]
+                "required": ["filename", "contentType", "kind"]
               }
             }
           }
@@ -10571,11 +9615,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "video",
-                            "download",
-                            "content"
-                          ]
+                          "enum": ["video", "download", "content"]
                         },
                         "filename": {
                           "type": "string",
@@ -10592,10 +9632,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "pending",
-                            "ready"
-                          ]
+                          "enum": ["pending", "ready"]
                         },
                         "uploadedBy": {
                           "type": "string",
@@ -10631,9 +9668,7 @@
                     },
                     "method": {
                       "type": "string",
-                      "enum": [
-                        "PUT"
-                      ]
+                      "enum": ["PUT"]
                     },
                     "expiresInSeconds": {
                       "type": "integer",
@@ -10648,13 +9683,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "asset",
-                    "uploadUrl",
-                    "method",
-                    "expiresInSeconds",
-                    "headers"
-                  ],
+                  "required": ["asset", "uploadUrl", "method", "expiresInSeconds", "headers"],
                   "additionalProperties": false
                 }
               }
@@ -10677,9 +9706,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10702,9 +9729,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10717,9 +9742,7 @@
       "post": {
         "operationId": "confirmAsset",
         "summary": "Confirm an upload completed (captures size + content type)",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "parameters": [
           {
             "schema": {
@@ -10752,11 +9775,7 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "video",
-                        "download",
-                        "content"
-                      ]
+                      "enum": ["video", "download", "content"]
                     },
                     "filename": {
                       "type": "string",
@@ -10773,10 +9792,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "ready"
-                      ]
+                      "enum": ["pending", "ready"]
                     },
                     "uploadedBy": {
                       "type": "string",
@@ -10826,9 +9842,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10851,9 +9865,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10876,9 +9888,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -10891,9 +9901,7 @@
       "get": {
         "operationId": "listAssets",
         "summary": "Browse the organization's media library",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "parameters": [
           {
             "schema": {
@@ -10936,11 +9944,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "video",
-                "download",
-                "content"
-              ]
+              "enum": ["video", "download", "content"]
             },
             "in": "query",
             "name": "kind",
@@ -10974,11 +9978,7 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": [
-                              "video",
-                              "download",
-                              "content"
-                            ]
+                            "enum": ["video", "download", "content"]
                           },
                           "filename": {
                             "type": "string",
@@ -10995,10 +9995,7 @@
                           },
                           "status": {
                             "type": "string",
-                            "enum": [
-                              "pending",
-                              "ready"
-                            ]
+                            "enum": ["pending", "ready"]
                           },
                           "uploadedBy": {
                             "type": "string",
@@ -11045,12 +10042,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "pageSize"
-                  ],
+                  "required": ["rows", "total", "page", "pageSize"],
                   "additionalProperties": false
                 }
               }
@@ -11073,9 +10065,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11098,9 +10088,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11113,9 +10101,7 @@
       "get": {
         "operationId": "getAsset",
         "summary": "Get an asset's metadata",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "parameters": [
           {
             "schema": {
@@ -11148,11 +10134,7 @@
                     },
                     "kind": {
                       "type": "string",
-                      "enum": [
-                        "video",
-                        "download",
-                        "content"
-                      ]
+                      "enum": ["video", "download", "content"]
                     },
                     "filename": {
                       "type": "string",
@@ -11169,10 +10151,7 @@
                     },
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "pending",
-                        "ready"
-                      ]
+                      "enum": ["pending", "ready"]
                     },
                     "uploadedBy": {
                       "type": "string",
@@ -11222,9 +10201,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11247,9 +10224,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11272,9 +10247,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11285,9 +10258,7 @@
       "delete": {
         "operationId": "deleteAsset",
         "summary": "Delete an asset (removes the object from storage)",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "parameters": [
           {
             "schema": {
@@ -11324,9 +10295,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11349,9 +10318,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11374,9 +10341,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11389,9 +10354,7 @@
       "post": {
         "operationId": "requestAssetDownload",
         "summary": "Get a short-lived presigned URL to download/serve an asset",
-        "tags": [
-          "Assets"
-        ],
+        "tags": ["Assets"],
         "requestBody": {
           "required": true,
           "content": {
@@ -11446,11 +10409,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": [
-                            "video",
-                            "download",
-                            "content"
-                          ]
+                          "enum": ["video", "download", "content"]
                         },
                         "filename": {
                           "type": "string",
@@ -11467,10 +10426,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "pending",
-                            "ready"
-                          ]
+                          "enum": ["pending", "ready"]
                         },
                         "uploadedBy": {
                           "type": "string",
@@ -11501,10 +10457,7 @@
                       "additionalProperties": false
                     }
                   },
-                  "required": [
-                    "url",
-                    "asset"
-                  ],
+                  "required": ["url", "asset"],
                   "additionalProperties": false
                 }
               }
@@ -11527,9 +10480,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11552,9 +10503,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11577,9 +10526,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11592,9 +10539,7 @@
       "get": {
         "operationId": "listAvailableIntegrations",
         "summary": "List the integrations this deployment supports, with their config schemas",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -11636,22 +10581,12 @@
                               "additionalProperties": {}
                             }
                           },
-                          "required": [
-                            "id",
-                            "description",
-                            "inputSchema",
-                            "outputSchema"
-                          ],
+                          "required": ["id", "description", "inputSchema", "outputSchema"],
                           "additionalProperties": false
                         }
                       }
                     },
-                    "required": [
-                      "id",
-                      "configSchema",
-                      "secretsSchema",
-                      "actions"
-                    ],
+                    "required": ["id", "configSchema", "secretsSchema", "actions"],
                     "additionalProperties": false
                   }
                 }
@@ -11675,9 +10610,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11690,9 +10623,7 @@
       "get": {
         "operationId": "listConnections",
         "summary": "List the organization's integration connections",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "responses": {
           "200": {
             "description": "Default Response",
@@ -11765,9 +10696,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11790,9 +10719,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11803,9 +10730,7 @@
       "post": {
         "operationId": "connectIntegration",
         "summary": "Connect an integration (stores its secrets encrypted)",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -11830,10 +10755,7 @@
                     }
                   }
                 },
-                "required": [
-                  "integrationId",
-                  "secrets"
-                ]
+                "required": ["integrationId", "secrets"]
               }
             }
           }
@@ -11907,9 +10829,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11932,9 +10852,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11957,9 +10875,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -11972,9 +10888,7 @@
       "get": {
         "operationId": "getConnection",
         "summary": "Get a connection",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "parameters": [
           {
             "schema": {
@@ -12054,9 +10968,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12079,9 +10991,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12104,9 +11014,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12117,9 +11025,7 @@
       "patch": {
         "operationId": "configureConnection",
         "summary": "Change a connection's configuration or active flag",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -12220,9 +11126,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12245,9 +11149,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12270,9 +11172,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12283,9 +11183,7 @@
       "delete": {
         "operationId": "disconnectIntegration",
         "summary": "Disconnect an integration (destroys its stored secrets)",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "parameters": [
           {
             "schema": {
@@ -12322,9 +11220,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12347,9 +11243,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12372,9 +11266,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12387,9 +11279,7 @@
       "post": {
         "operationId": "reconnectIntegration",
         "summary": "Replace a connection's secrets (re-authenticate)",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -12404,9 +11294,7 @@
                     }
                   }
                 },
-                "required": [
-                  "secrets"
-                ]
+                "required": ["secrets"]
               }
             }
           }
@@ -12490,9 +11378,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12515,9 +11401,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12540,9 +11424,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12555,9 +11437,7 @@
       "post": {
         "operationId": "invokeConnectionAction",
         "summary": "Invoke one of a connection's actions (e.g. a listing that feeds a picker)",
-        "tags": [
-          "Integrations"
-        ],
+        "tags": ["Integrations"],
         "requestBody": {
           "required": true,
           "content": {
@@ -12605,9 +11485,7 @@
                       "additionalProperties": {}
                     }
                   },
-                  "required": [
-                    "output"
-                  ],
+                  "required": ["output"],
                   "additionalProperties": false
                 }
               }
@@ -12630,9 +11508,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12655,9 +11531,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12680,9 +11554,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12705,9 +11577,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }
@@ -12730,9 +11600,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "additionalProperties": false
                 }
               }

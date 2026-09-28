@@ -64,9 +64,7 @@ export function coursesColumns(opts: {
       accessorKey: "updatedAt",
       header: ({ column }) => <ColumnHeader column={column} title="Updated" align="right" />,
       meta: { align: "right" },
-      cell: ({ row }) => (
-        <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>
-      ),
+      cell: ({ row }) => <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>,
     },
     {
       id: "actions",
@@ -78,9 +76,7 @@ export function coursesColumns(opts: {
           <div className="flex justify-end">
             <RowActions>
               <DropdownMenuItem onClick={() => onView(course)}>View</DropdownMenuItem>
-              {canEdit && (
-                <DropdownMenuItem onClick={() => onEdit(course)}>Edit</DropdownMenuItem>
-              )}
+              {canEdit && <DropdownMenuItem onClick={() => onEdit(course)}>Edit</DropdownMenuItem>}
               {canPublish && (
                 <DropdownMenuItem onClick={() => onTogglePublish(course)}>
                   {course.status === "published" ? "Unpublish" : "Publish"}

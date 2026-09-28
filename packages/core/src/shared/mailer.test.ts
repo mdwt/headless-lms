@@ -40,7 +40,12 @@ describe('Mailer', () => {
 
     expect(rendered).toEqual([{ id: 'magicLink', ctx: CTX, payload: { url: 'http://x/y' } }]);
     expect(sent).toEqual([
-      { to: 's@e.com', subject: 'subject:magicLink', text: 'text:magicLink', html: '<p>magicLink</p>' },
+      {
+        to: 's@e.com',
+        subject: 'subject:magicLink',
+        text: 'text:magicLink',
+        html: '<p>magicLink</p>',
+      },
     ]);
   });
 
@@ -48,7 +53,9 @@ describe('Mailer', () => {
     const { rendered, templates, email } = fakes();
     const mailer = new Mailer(templates, email, CTX);
 
-    await mailer.send('s@e.com', 'memberInvite',
+    await mailer.send(
+      's@e.com',
+      'memberInvite',
       {
         inviteUrl: 'http://x',
         inviterName: 'Ann',

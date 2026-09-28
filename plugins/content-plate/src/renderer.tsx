@@ -7,19 +7,19 @@
 // overridden with wrappers that carry the broker: each node awaits a fresh
 // URL for its own assetId during server render, so the stored (expired)
 // presign in the config is never what reaches the browser.
-import type { ComponentProps } from 'react';
+import type { ComponentProps } from "react";
 
-import { createSlateEditor, KEYS, type Value } from 'platejs';
+import { createSlateEditor, KEYS, type Value } from "platejs";
 
-import type { ResolveAssetUrl } from '@headless-lms/editor';
+import type { ResolveAssetUrl } from "@headless-lms/editor";
 
-import { BaseEditorKit } from './editor/editor-base-kit';
-import { EditorStatic } from './ui/editor-static';
-import { MediaAudioElementStatic } from './ui/media-audio-node-static';
-import { MediaFileElementStatic } from './ui/media-file-node-static';
-import { ImageElementStatic } from './ui/media-image-node-static';
-import { MediaVideoElementStatic } from './ui/media-video-node-static';
-import { isNodeList } from './validate';
+import { BaseEditorKit } from "./editor/editor-base-kit";
+import { EditorStatic } from "./ui/editor-static";
+import { MediaAudioElementStatic } from "./ui/media-audio-node-static";
+import { MediaFileElementStatic } from "./ui/media-file-node-static";
+import { ImageElementStatic } from "./ui/media-image-node-static";
+import { MediaVideoElementStatic } from "./ui/media-video-node-static";
+import { isNodeList } from "./validate";
 
 const mediaComponents = (resolveAssetUrl: ResolveAssetUrl) => ({
   [KEYS.img]: (props: ComponentProps<typeof ImageElementStatic>) => (
@@ -45,9 +45,7 @@ export function Renderer({
 }) {
   const editor = createSlateEditor({
     plugins: BaseEditorKit,
-    ...(resolveAssetUrl
-      ? { override: { components: mediaComponents(resolveAssetUrl) } }
-      : {}),
+    ...(resolveAssetUrl ? { override: { components: mediaComponents(resolveAssetUrl) } } : {}),
     value: isNodeList(config) ? (config as Value) : [],
   });
 

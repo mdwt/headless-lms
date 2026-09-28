@@ -1,13 +1,9 @@
 // Content resource schemas (courses). The Course payload shape is owned by
 // @headless-lms/core/schemas; route-local schemas define endpoint-only
 // concerns such as defaults, params, and pagination envelopes.
-import { z } from "zod";
-import {
-  courseSchema,
-  courseSettingsSchema,
-  courseStatusSchema,
-} from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+import { z } from 'zod';
+import { courseSchema, courseSettingsSchema, courseStatusSchema } from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
 export const CourseStatus = courseStatusSchema;
 export type CourseStatus = z.infer<typeof CourseStatus>;
@@ -23,8 +19,8 @@ export type Course = z.infer<typeof Course>;
 
 export const CreateCourse = z.object({
   title: z.string().min(1),
-  description: z.string().default(""),
-  category: z.string().default(""),
+  description: z.string().default(''),
+  category: z.string().default(''),
 });
 export type CreateCourse = z.infer<typeof CreateCourse>;
 

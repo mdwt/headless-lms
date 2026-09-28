@@ -70,10 +70,7 @@ function AutomationsTableInner({
     [applyOptimistic],
   );
 
-  const onEdit = useCallback(
-    (a: Automation) => router.push(`/automations/${a.id}`),
-    [router],
-  );
+  const onEdit = useCallback((a: Automation) => router.push(`/automations/${a.id}`), [router]);
 
   const onDelete = useCallback((a: Automation) => setDeleteTarget(a), []);
 

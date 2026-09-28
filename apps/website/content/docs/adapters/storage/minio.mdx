@@ -25,17 +25,17 @@ For local development, the repo's docker compose file brings up MinIO on `:8006`
 
 These are the variables the reference installation (`apps/api`) maps to the adapter's config:
 
-| Variable | Required | Maps to | Notes |
-| --- | --- | --- | --- |
-| `STORAGE_ENDPOINT` | yes | `endPoint` | Host only, no scheme. |
-| `STORAGE_PORT` | yes | `port` | |
-| `STORAGE_USE_SSL` | yes | `useSSL` | `"true"` / `"false"`. |
-| `STORAGE_ACCESS_KEY` | yes | `accessKey` | |
-| `STORAGE_SECRET_KEY` | yes | `secretKey` | |
-| `STORAGE_REGION` | yes | `region` | |
-| `STORAGE_BUCKET` | yes | `bucket` | Created private if missing. |
-| `STORAGE_UPLOAD_EXPIRY` | no | `uploadExpirySeconds` | Presigned upload lifetime. Default 300. |
-| `STORAGE_DOWNLOAD_EXPIRY` | no | `downloadExpirySeconds` | Presigned download lifetime. Default 300. |
+| Variable                  | Required | Maps to                 | Notes                                     |
+| ------------------------- | -------- | ----------------------- | ----------------------------------------- |
+| `STORAGE_ENDPOINT`        | yes      | `endPoint`              | Host only, no scheme.                     |
+| `STORAGE_PORT`            | yes      | `port`                  |                                           |
+| `STORAGE_USE_SSL`         | yes      | `useSSL`                | `"true"` / `"false"`.                     |
+| `STORAGE_ACCESS_KEY`      | yes      | `accessKey`             |                                           |
+| `STORAGE_SECRET_KEY`      | yes      | `secretKey`             |                                           |
+| `STORAGE_REGION`          | yes      | `region`                |                                           |
+| `STORAGE_BUCKET`          | yes      | `bucket`                | Created private if missing.               |
+| `STORAGE_UPLOAD_EXPIRY`   | no       | `uploadExpirySeconds`   | Presigned upload lifetime. Default 300.   |
+| `STORAGE_DOWNLOAD_EXPIRY` | no       | `downloadExpirySeconds` | Presigned download lifetime. Default 300. |
 
 ## Using a different store
 

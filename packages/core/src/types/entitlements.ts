@@ -3,5 +3,5 @@ export type {
   Entitlement,
   EntitlementsQuery,
   GrantEntitlementInput,
-} from "./schemas/entitlements.js";
-export type { Page } from "./shared.js";
+} from './schemas/entitlements.js';
+export type { Page } from './shared.js';

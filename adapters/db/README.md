@@ -8,19 +8,19 @@ any other adapter.
 
 ## Layout
 
-| Path                | What lives there                                                      |
-| ------------------- | --------------------------------------------------------------------- |
-| `src/schema/`       | Drizzle tables, grouped by owning context, barrelled in `index.ts`     |
-| `src/repositories/` | One `Drizzle*Repository` per context port, plus pg error translation   |
-| `src/client.ts`     | `createDb` — pool + drizzle instance; `Db`, `Tx`, `DbExecutor` types   |
-| `src/unit-of-work.ts` | `DrizzleUnitOfWork` — transaction scope for the core `UnitOfWork` port |
-| `src/migrate.ts`    | `runMigrations(databaseUrl)` against the packaged `drizzle/` folder    |
-| `drizzle/`          | Generated SQL migrations and snapshots (committed, shipped in the package) |
+| Path                  | What lives there                                                           |
+| --------------------- | -------------------------------------------------------------------------- |
+| `src/schema/`         | Drizzle tables, grouped by owning context, barrelled in `index.ts`         |
+| `src/repositories/`   | One `Drizzle*Repository` per context port, plus pg error translation       |
+| `src/client.ts`       | `createDb` — pool + drizzle instance; `Db`, `Tx`, `DbExecutor` types       |
+| `src/unit-of-work.ts` | `DrizzleUnitOfWork` — transaction scope for the core `UnitOfWork` port     |
+| `src/migrate.ts`      | `runMigrations(databaseUrl)` against the packaged `drizzle/` folder        |
+| `drizzle/`            | Generated SQL migrations and snapshots (committed, shipped in the package) |
 
 ## Usage
 
 ```ts
-import { createDb, runMigrations, DrizzleProgressRepository } from '@headless-lms/adapter-db';
+import { createDb, runMigrations, DrizzleProgressRepository } from "@headless-lms/adapter-db";
 
 await runMigrations(process.env.DATABASE_URL!);
 
@@ -38,7 +38,9 @@ const uow = new DrizzleUnitOfWork(db, (tx) => ({
   outbox: new DrizzleOutboxRepository(tx),
 }));
 
-await uow.run(async ({ progress, outbox }) => { /* ... */ });
+await uow.run(async ({ progress, outbox }) => {
+  /* ... */
+});
 ```
 
 ## Error translation

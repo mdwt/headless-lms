@@ -15,10 +15,7 @@ import { courseAnalyticsRoutes } from './routes/course-analytics.js';
 import { assetsRoutes } from './routes/assets.js';
 import { integrationsRoutes } from './routes/integrations.js';
 
-export function registerRoutes(
-  app: FastifyInstance,
-  container: Container,
-): void {
+export function registerRoutes(app: FastifyInstance, container: Container): void {
   app.get('/health', async () => ({ status: 'ok' }));
 
   app.register(async (instance) => {

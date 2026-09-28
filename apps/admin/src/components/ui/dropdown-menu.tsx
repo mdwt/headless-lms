@@ -153,10 +153,7 @@ const DropdownMenuSubTrigger = ({
     <ChevronRight className="ml-auto size-4 text-ink-3" />
   </DM.SubTrigger>
 );
-const DropdownMenuSubContent = ({
-  className,
-  ...props
-}: ComponentProps<typeof DM.SubContent>) => (
+const DropdownMenuSubContent = ({ className, ...props }: ComponentProps<typeof DM.SubContent>) => (
   <DM.SubContent
     className={cn(
       "z-50 min-w-32 overflow-hidden rounded-lg border border-line bg-surface p-1 shadow-lg",

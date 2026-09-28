@@ -1,8 +1,25 @@
-import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Section, Tailwind, Text } from '@react-email/components';
-import type { ReactNode } from 'react';
-import type { TemplateContext } from '@headless-lms/core/types';
+import {
+  Body,
+  Button,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Img,
+  Link,
+  Section,
+  Tailwind,
+  Text,
+} from "@react-email/components";
+import type { ReactNode } from "react";
+import type { TemplateContext } from "@headless-lms/core/types";
 
-export function Layout({ ctx, heading, children }: {
+export function Layout({
+  ctx,
+  heading,
+  children,
+}: {
   ctx: TemplateContext;
   heading: string;
   children: ReactNode;
@@ -51,7 +68,7 @@ export function Paragraph({ children }: { children: ReactNode }) {
 }
 
 export const PREVIEW_CTX: TemplateContext = {
-  brandName: 'Acme LMS',
-  baseUrl: 'http://localhost:8001',
-  studentPortalUrl: 'http://localhost:8002',
+  brandName: "Acme LMS",
+  baseUrl: "http://localhost:8001",
+  studentPortalUrl: "http://localhost:8002",
 };

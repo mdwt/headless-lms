@@ -25,4 +25,4 @@ export type {
   UpdateBundleInput,
   UpdateCourseInput,
   UpdateDownloadInput,
-} from "./schemas/content.js";
+} from './schemas/content.js';

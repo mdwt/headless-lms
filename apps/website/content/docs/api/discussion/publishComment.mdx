@@ -1,6 +1,6 @@
 ---
 description: "PATCH /api/comments/{commentId}. Publish a comment: approves a pending one, restores a removed one. Headless LMS Discussion API reference."
-title: 'Publish a comment: approves a pending one, restores a removed one'
+title: "Publish a comment: approves a pending one, restores a removed one"
 full: true
 _openapi:
   preload:
@@ -22,7 +22,11 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="../../packages/sdk/openapi.json" operations={[{"path":"/api/comments/{commentId}","method":"patch"}]} showDescription />
+      <Comp
+        document="../../packages/sdk/openapi.json"
+        operations={[{ path: "/api/comments/{commentId}", method: "patch" }]}
+        showDescription
+      />
     </>
   );
 }

@@ -1,9 +1,9 @@
 // Bundles resource schemas — a named grouping of content items. The Fastify
 // routes validate requests/responses against these, the OpenAPI spec is built
 // from them, and the frontend SDK is generated off that spec.
-import { z } from "zod";
-import { bundleItemSchema, bundleSchema } from "@headless-lms/core/schemas";
-import { ListQuery, paginated } from "./shared.js";
+import { z } from 'zod';
+import { bundleItemSchema, bundleSchema } from '@headless-lms/core/schemas';
+import { ListQuery, paginated } from './shared.js';
 
 export const Bundle = bundleSchema;
 export type Bundle = z.infer<typeof Bundle>;

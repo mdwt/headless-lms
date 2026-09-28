@@ -73,7 +73,12 @@ export function ReconnectDialog({
       pending={pending}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
-        <SchemaFields schema={integration.secretsSchema} control={control} namePrefix="secrets" secret />
+        <SchemaFields
+          schema={integration.secretsSchema}
+          control={control}
+          namePrefix="secrets"
+          secret
+        />
       </form>
     </FormDialog>
   );

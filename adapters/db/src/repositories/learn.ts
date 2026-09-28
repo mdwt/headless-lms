@@ -5,13 +5,13 @@
 // org bounds the read (`entitlements.org_id`), so no cross-org grants leak.
 // The inner join to `courses` on the content id restricts to course grants —
 // no explicit content-type filter needed.
-import { and, eq, gt, isNull, or, sql, type SQL } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { LearnEntitlementReader, ContentRef } from '@headless-lms/core/reporting/learn';
-import { entitlements, courses, downloads, downloadAssets } from '../schema/index.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+import { and, eq, gt, isNull, or, sql, type SQL } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { LearnEntitlementReader, ContentRef } from "@headless-lms/core/reporting/learn";
+import { entitlements, courses, downloads, downloadAssets } from "../schema/index.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 export class DrizzleLearnRepository implements LearnEntitlementReader {
   constructor(
@@ -23,9 +23,9 @@ export class DrizzleLearnRepository implements LearnEntitlementReader {
     return and(
       eq(entitlements.orgId, orgId),
       eq(entitlements.orgUserId, orgUserId),
-      eq(entitlements.status, 'active'),
+      eq(entitlements.status, "active"),
       or(isNull(entitlements.expiresAt), gt(entitlements.expiresAt, sql`now()`))!,
-      eq(courses.status, 'published'),
+      eq(courses.status, "published"),
     )!;
   }
 
@@ -58,9 +58,9 @@ export class DrizzleLearnRepository implements LearnEntitlementReader {
     return and(
       eq(entitlements.orgId, orgId),
       eq(entitlements.orgUserId, orgUserId),
-      eq(entitlements.status, 'active'),
+      eq(entitlements.status, "active"),
       or(isNull(entitlements.expiresAt), gt(entitlements.expiresAt, sql`now()`))!,
-      eq(downloads.status, 'published'),
+      eq(downloads.status, "published"),
     )!;
   }
 

@@ -154,9 +154,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   async addOrgUser({ orgId, userId, role }: AddOrgUserInput): Promise<OrgUser> {
     const orgUser = await this.uow.run(async ({ organizations, outbox }) => {
       const created = await organizations.createOrgUser({ orgId, role, userId, status: 'active' });
-      await outbox.append([
-        organizationEvents.orgUserLinked.make({ orgId, data: created }),
-      ]);
+      await outbox.append([organizationEvents.orgUserLinked.make({ orgId, data: created })]);
       return created;
     });
     this.logger.info('user added to organization', { orgId, userId, role });
@@ -316,7 +314,12 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new NotFoundError('Invite', pending.id);
     }
     await this.sendInviteEmail(invite, token);
-    this.logger.info('student invite resent', { orgId, orgUserId, inviteId: invite.id, inviterUserId });
+    this.logger.info('student invite resent', {
+      orgId,
+      orgUserId,
+      inviteId: invite.id,
+      inviterUserId,
+    });
   }
 
   async peekInvite(token: string): Promise<Invite | null> {
@@ -362,11 +365,17 @@ export class OrganizationServiceImpl implements OrganizationService {
       if (!existing) {
         throw new NotFoundError('OrgUser', userId);
       }
-      const activated = await organizations.updateOrgUser(invite.orgId, existing.id, { status: 'active' });
+      const activated = await organizations.updateOrgUser(invite.orgId, existing.id, {
+        status: 'active',
+      });
       if (!activated) {
         throw new NotFoundError('OrgUser', existing.id);
       }
-      const acceptedInvite = await organizations.setInviteStatus(invite.orgId, invite.id, 'accepted');
+      const acceptedInvite = await organizations.setInviteStatus(
+        invite.orgId,
+        invite.id,
+        'accepted',
+      );
       if (!acceptedInvite) {
         throw new NotFoundError('Invite', invite.id);
       }
@@ -378,7 +387,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     });
   }
 
-  private async acceptStaffInvite(invite: Invite, org: Organization, userId: string): Promise<OrgUser> {
+  private async acceptStaffInvite(
+    invite: Invite,
+    org: Organization,
+    userId: string,
+  ): Promise<OrgUser> {
     const person = await this.people.getUserById(userId);
     if (!person?.externalId) {
       throw new NotFoundError('User', userId);
@@ -389,7 +402,11 @@ export class OrganizationServiceImpl implements OrganizationService {
       if (!orgUser) {
         throw new NotFoundError('OrgUser', userId);
       }
-      const acceptedInvite = await organizations.setInviteStatus(invite.orgId, invite.id, 'accepted');
+      const acceptedInvite = await organizations.setInviteStatus(
+        invite.orgId,
+        invite.id,
+        'accepted',
+      );
       if (!acceptedInvite) {
         throw new NotFoundError('Invite', invite.id);
       }
@@ -419,9 +436,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       }
       const events: NewOrganizationEvent[] = [];
       if (deletedUser.role === STUDENT_ROLE) {
-        events.push(
-          organizationEvents.studentDeleted.make({ orgId, data: orgUser }),
-        );
+        events.push(organizationEvents.studentDeleted.make({ orgId, data: orgUser }));
       }
 
       await outbox.append(events);

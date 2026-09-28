@@ -1,4 +1,4 @@
-import { SlateLeaf, type SlateLeafProps } from 'platejs/static';
+import { SlateLeaf, type SlateLeafProps } from "platejs/static";
 
 export function CodeLeafStatic(props: SlateLeafProps) {
   return (

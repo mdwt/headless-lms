@@ -1,37 +1,37 @@
-import Link from 'next/link'
-import { Logo, GithubIcon } from '@/components/logo'
-import { siteConfig } from '@/lib/site'
+import Link from "next/link";
+import { Logo, GithubIcon } from "@/components/logo";
+import { siteConfig } from "@/lib/site";
 
 const footerLinks = [
   {
-    title: 'Product',
+    title: "Product",
     links: [
-      { label: 'Features', href: '/#features' },
-      { label: 'Architecture', href: '/#architecture' },
-      { label: 'MCP endpoint', href: '/#mcp' },
+      { label: "Features", href: "/#features" },
+      { label: "Architecture", href: "/#architecture" },
+      { label: "MCP endpoint", href: "/#mcp" },
     ],
   },
   {
-    title: 'Docs',
+    title: "Docs",
     links: [
-      { label: 'Getting started', href: '/docs' },
-      { label: 'Self-hosting', href: '/docs/self-hosting' },
-      { label: 'Project structure', href: '/docs/project-structure' },
-      { label: 'API reference', href: '/docs/api-reference' },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Changelog', href: '/changelog' },
+      { label: "Getting started", href: "/docs" },
+      { label: "Self-hosting", href: "/docs/self-hosting" },
+      { label: "Project structure", href: "/docs/project-structure" },
+      { label: "API reference", href: "/docs/api-reference" },
+      { label: "Blog", href: "/blog" },
+      { label: "Changelog", href: "/changelog" },
     ],
   },
   {
-    title: 'Community',
+    title: "Community",
     links: [
-      { label: 'GitHub', href: siteConfig.githubUrl },
-      { label: 'Contributing', href: `${siteConfig.githubUrl}/blob/main/CONTRIBUTING.md` },
-      { label: 'MIT License', href: `${siteConfig.githubUrl}/blob/main/LICENSE` },
-      { label: 'Issues', href: `${siteConfig.githubUrl}/issues` },
+      { label: "GitHub", href: siteConfig.githubUrl },
+      { label: "Contributing", href: `${siteConfig.githubUrl}/blob/main/CONTRIBUTING.md` },
+      { label: "MIT License", href: `${siteConfig.githubUrl}/blob/main/LICENSE` },
+      { label: "Issues", href: `${siteConfig.githubUrl}/issues` },
     ],
   },
-]
+];
 
 export function SiteFooter() {
   return (
@@ -43,7 +43,8 @@ export function SiteFooter() {
             <span className="font-semibold">Headless LMS</span>
           </Link>
           <p className="max-w-[48ch] text-sm text-pretty text-muted-foreground">
-            An open-source, API-first LMS platform for building learning systems in modern TypeScript.
+            An open-source, API-first LMS platform for building learning systems in modern
+            TypeScript.
           </p>
           <a
             href={siteConfig.githubUrl}
@@ -58,13 +59,11 @@ export function SiteFooter() {
 
         {footerLinks.map((group) => (
           <div key={group.title}>
-            <h3 className="mb-3 text-sm font-medium text-foreground">
-              {group.title}
-            </h3>
+            <h3 className="mb-3 text-sm font-medium text-foreground">{group.title}</h3>
             <ul role="list" className="space-y-2.5">
               {group.links.map((link) => (
                 <li key={link.label}>
-                  {link.href.startsWith('http') ? (
+                  {link.href.startsWith("http") ? (
                     <a
                       href={link.href}
                       target="_blank"
@@ -94,5 +93,5 @@ export function SiteFooter() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

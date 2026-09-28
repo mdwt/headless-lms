@@ -30,14 +30,13 @@ const container = await createContainer(config, {
 
 Every slot is optional, with a sensible default, so you can start with nothing configured and add adapters as you need them.
 
-
 ## Available adapters
 
-| Slot | Port | Default adapter | Absent → |
-| --- | --- | --- | --- |
-| `email` | `EmailSender` | [`@headless-lms/adapter-email-resend`](/docs/adapters/email/resend) | Stub that fails loudly on send |
-| `templates` | `TemplateRenderer` | [`@headless-lms/adapter-email-templates`](/docs/adapters/email/react-email) | Stub that fails loudly on render |
-| `storage` | `ObjectStorage` | [`@headless-lms/adapter-storage-minio`](/docs/adapters/storage/minio) | Stub that fails loudly on use |
+| Slot        | Port               | Default adapter                                                              | Absent →                                  |
+| ----------- | ------------------ | ---------------------------------------------------------------------------- | ----------------------------------------- |
+| `email`     | `EmailSender`      | [`@headless-lms/adapter-email-resend`](/docs/adapters/email/resend)          | Stub that fails loudly on send            |
+| `templates` | `TemplateRenderer` | [`@headless-lms/adapter-email-templates`](/docs/adapters/email/react-email)  | Stub that fails loudly on render          |
+| `storage`   | `ObjectStorage`    | [`@headless-lms/adapter-storage-minio`](/docs/adapters/storage/minio)        | Stub that fails loudly on use             |
 | `workflows` | `AutomationEngine` | [`@headless-lms/adapter-workflow-hatchet`](/docs/adapters/workflows/hatchet) | In-process engine, one attempt per action |
 
 Because each slot is just an interface, you can replace any adapter with your own implementation — implement the port from `@headless-lms/core/types` and pass it in the same way.

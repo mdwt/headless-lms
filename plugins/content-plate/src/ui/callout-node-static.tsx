@@ -1,4 +1,4 @@
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
 export function CalloutElementStatic(props: SlateElementProps) {
   return (
@@ -17,9 +17,7 @@ export function CalloutElementStatic(props: SlateElementProps) {
               '"Apple Color Emoji", "Segoe UI Emoji", NotoColorEmoji, "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", EmojiSymbols',
           }}
         >
-          <span data-plate-prevent-deserialization>
-            {(props.element.icon as any) || '💡'}
-          </span>
+          <span data-plate-prevent-deserialization>{(props.element.icon as any) || "💡"}</span>
         </div>
         <div className="w-full">{props.children}</div>
       </div>
@@ -31,32 +29,31 @@ export function CalloutElementStatic(props: SlateElementProps) {
  * DOCX-compatible callout component using table layout for side-by-side icon and content.
  */
 export function CalloutElementDocx({ children, ...props }: SlateElementProps) {
-  const backgroundColor =
-    (props.element.backgroundColor as string) || '#f4f4f5';
-  const icon = (props.element.icon as string) || '💡';
+  const backgroundColor = (props.element.backgroundColor as string) || "#f4f4f5";
+  const icon = (props.element.icon as string) || "💡";
 
   return (
     <SlateElement {...props}>
       <table
         style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          border: 'none',
+          width: "100%",
+          borderCollapse: "collapse",
+          border: "none",
           backgroundColor,
-          borderRadius: '4px',
-          marginTop: '4pt',
-          marginBottom: '4pt',
+          borderRadius: "4px",
+          marginTop: "4pt",
+          marginBottom: "4pt",
         }}
       >
         <tbody>
           <tr>
             <td
               style={{
-                width: '30px',
-                verticalAlign: 'top',
-                padding: '8px 4px 8px 8px',
-                border: 'none',
-                fontSize: '18px',
+                width: "30px",
+                verticalAlign: "top",
+                padding: "8px 4px 8px 8px",
+                border: "none",
+                fontSize: "18px",
                 fontFamily:
                   '"Apple Color Emoji", "Segoe UI Emoji", NotoColorEmoji, "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", EmojiSymbols',
               }}
@@ -65,9 +62,9 @@ export function CalloutElementDocx({ children, ...props }: SlateElementProps) {
             </td>
             <td
               style={{
-                verticalAlign: 'top',
-                padding: '8px 8px 8px 4px',
-                border: 'none',
+                verticalAlign: "top",
+                padding: "8px 8px 8px 4px",
+                border: "none",
               }}
             >
               {children}

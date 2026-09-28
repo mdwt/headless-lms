@@ -15,7 +15,7 @@ const container = await createContainer(config, {
 
 ## Environment variables (reference installation)
 
-| Variable         | Required | Maps to  | Notes                                                    |
-| ---------------- | -------- | -------- | -------------------------------------------------------- |
-| `RESEND_API_KEY` | yes      | `apiKey` | Unset → no adapter injected; email sends fail loudly.    |
+| Variable         | Required | Maps to  | Notes                                                                                                 |
+| ---------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | yes      | `apiKey` | Unset → no adapter injected; email sends fail loudly.                                                 |
 | `EMAIL_FROM`     | no       | `from`   | e.g. `Acme LMS <noreply@acme.com>`, on a verified Resend domain. Defaults to `onboarding@resend.dev`. |

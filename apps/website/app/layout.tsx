@@ -1,21 +1,21 @@
-import type { ReactNode } from 'react';
-import { Analytics } from '@vercel/analytics/next'
-import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { RootProvider } from 'fumadocs-ui/provider/next'
-import { siteConfig } from '@/lib/site'
-import { jsonLdProps, siteGraph } from '@/lib/structured-data'
-import './globals.css'
+import type { ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/next";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import { siteConfig } from "@/lib/site";
+import { jsonLdProps, siteGraph } from "@/lib/structured-data";
+import "./globals.css";
 
 const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-geist-sans',
-})
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
 
 const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
-})
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -28,34 +28,34 @@ export const metadata: Metadata = {
   authors: [{ name: siteConfig.author, url: siteConfig.githubUrl }],
   creator: siteConfig.author,
   publisher: siteConfig.name,
-  category: 'technology',
-  referrer: 'origin-when-cross-origin',
+  category: "technology",
+  referrer: "origin-when-cross-origin",
   formatDetection: { telephone: false, address: false, email: false },
   keywords: [
-    'headless LMS',
-    'open source LMS',
-    'LMS API',
-    'learning management system',
-    'TypeScript LMS',
-    'API-first LMS',
-    'self-hosted LMS',
+    "headless LMS",
+    "open source LMS",
+    "LMS API",
+    "learning management system",
+    "TypeScript LMS",
+    "API-first LMS",
+    "self-hosted LMS",
   ],
   alternates: {
-    canonical: './',
+    canonical: "./",
     types: {
-      'application/rss+xml': [{ url: '/blog/rss.xml', title: `${siteConfig.name} Blog` }],
+      "application/rss+xml": [{ url: "/blog/rss.xml", title: `${siteConfig.name} Blog` }],
     },
   },
   openGraph: {
-    type: 'website',
+    type: "website",
     siteName: siteConfig.name,
     url: siteConfig.url,
     title: `${siteConfig.name}: ${siteConfig.tagline}`,
     description: siteConfig.description,
-    locale: 'en_US',
+    locale: "en_US",
   },
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
     site: siteConfig.twitterHandle,
     creator: siteConfig.twitterHandle,
     title: `${siteConfig.name}: ${siteConfig.tagline}`,
@@ -67,24 +67,24 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
-}
+};
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
+  colorScheme: "light dark",
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#faf9f7' },
-    { media: '(prefers-color-scheme: dark)', color: '#171512' },
+    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#171512" },
   ],
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: ReactNode
+  children: ReactNode;
 }>) {
   return (
     <html
@@ -95,8 +95,8 @@ export default function RootLayout({
       <body className="bg-background font-sans antialiased">
         <script {...jsonLdProps(siteGraph)} />
         <RootProvider>{children}</RootProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
-  )
+  );
 }

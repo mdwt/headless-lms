@@ -1,5 +1,5 @@
-import type { TColumnElement } from 'platejs';
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import type { TColumnElement } from "platejs";
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
 export function ColumnElementStatic(props: SlateElementProps<TColumnElement>) {
   const { width } = props.element;
@@ -7,7 +7,7 @@ export function ColumnElementStatic(props: SlateElementProps<TColumnElement>) {
   return (
     <SlateElement
       className="border border-transparent p-1.5"
-      style={{ width: width ?? '100%' }}
+      style={{ width: width ?? "100%" }}
       {...props}
     />
   );
@@ -32,10 +32,10 @@ export function ColumnElementDocx(props: SlateElementProps<TColumnElement>) {
       {...props}
       as="td"
       style={{
-        width: width ?? 'auto',
-        verticalAlign: 'top',
-        padding: '4px 8px',
-        border: 'none',
+        width: width ?? "auto",
+        verticalAlign: "top",
+        padding: "4px 8px",
+        border: "none",
       }}
     >
       {props.children}
@@ -51,10 +51,10 @@ export function ColumnGroupElementDocx(props: SlateElementProps) {
     <SlateElement {...props}>
       <table
         style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          border: 'none',
-          tableLayout: 'fixed',
+          width: "100%",
+          borderCollapse: "collapse",
+          border: "none",
+          tableLayout: "fixed",
         }}
       >
         <tbody>

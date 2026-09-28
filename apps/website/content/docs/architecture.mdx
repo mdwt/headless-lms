@@ -27,17 +27,17 @@ The inbound entry point is the HTTP layer. It calls into the core's services and
 
 The core is split into nine self-contained contexts. Each exposes one public surface, and contexts talk to each other only through those surfaces — never by reaching into another context's internals. A use case that spans contexts lives in the context whose responsibility it is; there is no orchestration tier above them.
 
-| Context | Owns |
-| --- | --- |
-| **identity** | Everyone in the system: the staff **User** and the learner **Student**, two separate identity models other contexts reference by id |
-| **organizations** | The tenant root: the organization, its staff memberships and roles, and invitations |
-| **content** | Authored content — courses, modules, activities, drip rules |
-| **entitlements** | Access grants: who can access what, and why |
-| **progress** | Per-student completion and derived progress |
-| **assets** | The org media library, served via presigned URLs |
-| **integrations** | Which third-party integrations an org has connected |
-| **automations** | Trigger/action workflows that react to domain events |
-| **discussion** | Learner comments on activities — their replies, reactions, reports, and moderation state |
+| Context           | Owns                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **identity**      | Everyone in the system: the staff **User** and the learner **Student**, two separate identity models other contexts reference by id |
+| **organizations** | The tenant root: the organization, its staff memberships and roles, and invitations                                                 |
+| **content**       | Authored content — courses, modules, activities, drip rules                                                                         |
+| **entitlements**  | Access grants: who can access what, and why                                                                                         |
+| **progress**      | Per-student completion and derived progress                                                                                         |
+| **assets**        | The org media library, served via presigned URLs                                                                                    |
+| **integrations**  | Which third-party integrations an org has connected                                                                                 |
+| **automations**   | Trigger/action workflows that react to domain events                                                                                |
+| **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                            |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
 

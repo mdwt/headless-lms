@@ -31,9 +31,9 @@ Headless LMS ships with a backend api, an admin portal and course builder and a 
 
 ### Core Adapters
 
-|                                | Default adapters                | Package                               | 
-|--------------------------------|---------------------------------|---------------------------------------|
-| **HTTP Server**                | Fastify                         | @headless-lms/server                  |         
+|                                | Default adapters                | Package                               |
+| ------------------------------ | ------------------------------- | ------------------------------------- |
+| **HTTP Server**                | Fastify                         | @headless-lms/server                  |
 | **Database**                   | Postgresql with Drizzle         |                                       |
 | **Authentication**             | better-auth                     |                                       |
 | **Email**                      | Resend                          | @headless-lms/adapter-email-resend    |
@@ -44,21 +44,21 @@ Headless LMS ships with a backend api, an admin portal and course builder and a 
 
 ### Plugins
 
-|           | Description         | Package                    | 
-|-----------|---------------------|----------------------------|
-| **Slack** | Slack notifications | @headless-lms/plugin-slack | 
+|           | Description         | Package                    |
+| --------- | ------------------- | -------------------------- |
+| **Slack** | Slack notifications | @headless-lms/plugin-slack |
 
 ### Frontends
 
-|                    | Description                                                                 | Package      | 
-|--------------------|-----------------------------------------------------------------------------|--------------|
+|                    | Description                                                                 | Package      |
+| ------------------ | --------------------------------------------------------------------------- | ------------ |
 | **Admin Portal**   | NextJS,RCS,Tailwind/ShadCN                                                  | apps/admin   |
 | **Student Portal** | NextJS built with RCS, Tailwind/ShadCN. Fully featured learning experience. | apps/student |
 
 ## Features
 
 | Feature                 | Description                                                                                                                          |
-|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **Course Builder**      | author structured course content; students work through it activity by activity. Replace the course content UI engine with your own. |
 | **Progress tracking**   | per-student, per-activity completion, rolled up into course progress and reporting.                                                  |
 | **Entitlements**        | grant and revoke student access to content.                                                                                          |
@@ -88,14 +88,14 @@ domain of bounded contexts, and `@headless-lms/server`, the Fastify HTTP layer
 and the composition root that wires core to its adapters. Persistence is
 Drizzle/Postgres, in `@headless-lms/adapter-db`.
 
-An *installation* composes what it wants with sane defaults. See `apps/api` for an example project.
+An _installation_ composes what it wants with sane defaults. See `apps/api` for an example project.
 
 ## Documentation
 
-- [Architecture](docs/architecture.md)  layers, contexts, and how an
+- [Architecture](docs/architecture.md) layers, contexts, and how an
   installation composes the server
-- [Project structure](docs/project-structure.md)  what each workspace is
-- [`packages/server`](packages/server/README.md)  composition root + HTTP layer
+- [Project structure](docs/project-structure.md) what each workspace is
+- [`packages/server`](packages/server/README.md) composition root + HTTP layer
 - [`packages/create-headless-lms`](packages/create-headless-lms/README.md)
   the installation scaffolder
 - `/docs` on a running API interactive OpenAPI reference
@@ -117,7 +117,7 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md)  setup, the checks a PR must pass,
+See [CONTRIBUTING.md](CONTRIBUTING.md) setup, the checks a PR must pass,
 and where things go in the codebase.
 
 ## License

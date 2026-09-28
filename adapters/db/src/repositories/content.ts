@@ -14,9 +14,9 @@ import {
   inArray,
   type SQL,
   type AnyColumn,
-} from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { DbExecutor, Tx } from '../client.js';
+} from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { DbExecutor, Tx } from "../client.js";
 import type {
   Activity,
   ActivityAsset,
@@ -42,8 +42,8 @@ import type {
   UpdateBundleInput,
   UpdateCourseInput,
   UpdateDownloadInput,
-} from '@headless-lms/core/content';
-import { courseSettingsDefaults, type Setting } from '@headless-lms/core/schemas';
+} from "@headless-lms/core/content";
+import { courseSettingsDefaults, type Setting } from "@headless-lms/core/schemas";
 import {
   bundles,
   bundleItems,
@@ -54,19 +54,19 @@ import {
   activityAssets,
   downloads,
   downloadAssets,
-} from '../schema/content.js';
-import { settings } from '../schema/settings.js';
-import { deepMerge } from './settings.js';
-import { genId } from '@headless-lms/core/shared/id';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { NotFoundError, ConflictError } from '@headless-lms/core/shared/errors';
-import { isUniqueViolation, translateDbErrors } from './pg-errors.js';
+} from "../schema/content.js";
+import { settings } from "../schema/settings.js";
+import { deepMerge } from "./settings.js";
+import { genId } from "@headless-lms/core/shared/id";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { NotFoundError, ConflictError } from "@headless-lms/core/shared/errors";
+import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
 
 // A course's settings live in the shared `settings` table (namespace
 // 'content', scoped by course id) — joined here so the repository answers in
 // whole courses regardless of where the pieces are stored.
-const SETTINGS_NAMESPACE = 'content';
+const SETTINGS_NAMESPACE = "content";
 
 const courseSettingsJoin = and(
   eq(settings.orgId, courses.orgId),
@@ -81,7 +81,7 @@ function toCourse(
   return {
     ...row,
     status: row.status as CourseStatus,
-    settings: { ...courseSettingsDefaults, ...storedSettings } as Course['settings'],
+    settings: { ...courseSettingsDefaults, ...storedSettings } as Course["settings"],
   };
 }
 
@@ -147,18 +147,18 @@ export class DrizzleContentRepository implements ContentRepository {
     const where = and(...conditions);
 
     // Resolve sort: `-` prefix = desc, default createdAt desc.
-    let sortKey = 'createdAt';
-    let direction: 'asc' | 'desc' = 'desc';
+    let sortKey = "createdAt";
+    let direction: "asc" | "desc" = "desc";
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const key = isDesc ? query.sort.slice(1) : query.sort;
       if (key in sortColumns) {
         sortKey = key;
-        direction = isDesc ? 'desc' : 'asc';
+        direction = isDesc ? "desc" : "asc";
       }
     }
     const sortExpr = sortColumns[sortKey] ?? courses.createdAt;
-    const orderBy = direction === 'desc' ? desc(sortExpr) : asc(sortExpr);
+    const orderBy = direction === "desc" ? desc(sortExpr) : asc(sortExpr);
 
     const rows = await this.db
       .select({ course: courses, settingsValue: settings.value })
@@ -193,8 +193,8 @@ export class DrizzleContentRepository implements ContentRepository {
     // Registry row + concrete row share one id. Both inserts run on the same
     // executor — mutations reach this repository tx-bound (ContentUnitOfWork),
     // so they commit or roll back together.
-    const id = genId('course');
-    await this.db.insert(contentItems).values({ orgId, id, type: 'course' });
+    const id = genId("course");
+    await this.db.insert(contentItems).values({ orgId, id, type: "course" });
     const [inserted] = await this.db
       .insert(courses)
       .values({
@@ -202,16 +202,16 @@ export class DrizzleContentRepository implements ContentRepository {
         id,
         title: input.title,
         slug,
-        description: input.description ?? '',
-        category: input.category ?? '',
+        description: input.description ?? "",
+        category: input.category ?? "",
       })
       .returning({ id: courses.id });
     if (!inserted) {
-      throw new Error('failed to insert course');
+      throw new Error("failed to insert course");
     }
     const created = await this.findCourseById(orgId, inserted.id);
     if (!created) {
-      throw new Error('failed to load created course');
+      throw new Error("failed to load created course");
     }
     return created;
   }
@@ -261,30 +261,35 @@ export class DrizzleContentRepository implements ContentRepository {
     // and the write must be one atomic unit or concurrent patches would
     // clobber each other's sibling keys.
     const merged = await this.tx(async (tx) => {
-      let [existing] = await tx.select().from(settings).where(key).for('update');
+      let [existing] = await tx.select().from(settings).where(key).for("update");
 
       if (!existing) {
         const [inserted] = await tx
           .insert(settings)
-          .values({ orgId, namespace: SETTINGS_NAMESPACE, scopeId: id, value: value as Setting['value'] })
+          .values({
+            orgId,
+            namespace: SETTINGS_NAMESPACE,
+            scopeId: id,
+            value: value as Setting["value"],
+          })
           .onConflictDoNothing()
           .returning();
         if (inserted) {
           return inserted.value;
         }
-        [existing] = await tx.select().from(settings).where(key).for('update');
+        [existing] = await tx.select().from(settings).where(key).for("update");
         if (!existing) {
-          throw new Error('course settings patch: row vanished mid-transaction');
+          throw new Error("course settings patch: row vanished mid-transaction");
         }
       }
 
       const [updated] = await tx
         .update(settings)
-        .set({ value: deepMerge(existing.value, value) as Setting['value'], updatedAt: new Date() })
+        .set({ value: deepMerge(existing.value, value) as Setting["value"], updatedAt: new Date() })
         .where(key)
         .returning();
       if (!updated) {
-        throw new Error('course settings patch returned no row');
+        throw new Error("course settings patch returned no row");
       }
       return updated.value;
     });
@@ -299,7 +304,11 @@ export class DrizzleContentRepository implements ContentRepository {
     const deleted = await this.db
       .delete(contentItems)
       .where(
-        and(eq(contentItems.orgId, orgId), eq(contentItems.id, id), eq(contentItems.type, 'course')),
+        and(
+          eq(contentItems.orgId, orgId),
+          eq(contentItems.id, id),
+          eq(contentItems.type, "course"),
+        ),
       )
       .returning({ id: contentItems.id });
     return deleted.length > 0;
@@ -339,7 +348,10 @@ export class DrizzleContentRepository implements ContentRepository {
       .from(activityAssets)
       .innerJoin(
         activities,
-        and(eq(activities.orgId, activityAssets.orgId), eq(activities.id, activityAssets.activityId)),
+        and(
+          eq(activities.orgId, activityAssets.orgId),
+          eq(activities.id, activityAssets.activityId),
+        ),
       )
       .where(and(eq(activityAssets.orgId, orgId), eq(activities.courseId, courseId)))
       .orderBy(activityAssets.activityId, activityAssets.seq);
@@ -387,7 +399,7 @@ export class DrizzleContentRepository implements ContentRepository {
       )
       .limit(1);
     if (!row) {
-      throw new NotFoundError('Module', moduleId);
+      throw new NotFoundError("Module", moduleId);
     }
   }
 
@@ -552,7 +564,7 @@ export class DrizzleContentRepository implements ContentRepository {
           )
           .limit(1);
         if (!existing) {
-          throw new NotFoundError('Activity', activityId);
+          throw new NotFoundError("Activity", activityId);
         }
 
         await tx
@@ -575,7 +587,7 @@ export class DrizzleContentRepository implements ContentRepository {
           .values({ orgId, moduleId, courseId, seq: nextSeq, settings: input.settings ?? null })
           .returning({ id: activities.id });
         if (!ins) {
-          throw new Error('failed to insert activity');
+          throw new Error("failed to insert activity");
         }
         await this.replaceActivityAssets(tx, orgId, ins.id, input.assetIds ?? []);
         savedId = ins.id;
@@ -587,7 +599,7 @@ export class DrizzleContentRepository implements ContentRepository {
         .where(and(eq(activities.orgId, orgId), eq(activities.id, savedId)))
         .limit(1);
       if (!activity) {
-        throw new Error('failed to load saved activity');
+        throw new Error("failed to load saved activity");
       }
       return { modules: await this.listModules(tx, orgId, courseId), activity };
     });
@@ -643,18 +655,18 @@ export class DrizzleContentRepository implements ContentRepository {
     const where = and(...conditions);
 
     // Resolve sort: `-` prefix = desc, default createdAt desc.
-    let sortKey = 'createdAt';
-    let direction: 'asc' | 'desc' = 'desc';
+    let sortKey = "createdAt";
+    let direction: "asc" | "desc" = "desc";
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const key = isDesc ? query.sort.slice(1) : query.sort;
       if (key in downloadSortColumns) {
         sortKey = key;
-        direction = isDesc ? 'desc' : 'asc';
+        direction = isDesc ? "desc" : "asc";
       }
     }
     const sortExpr = downloadSortColumns[sortKey] ?? downloads.createdAt;
-    const orderBy = direction === 'desc' ? desc(sortExpr) : asc(sortExpr);
+    const orderBy = direction === "desc" ? desc(sortExpr) : asc(sortExpr);
 
     const rows = await this.db
       .select()
@@ -683,26 +695,22 @@ export class DrizzleContentRepository implements ContentRepository {
     return row ? toDownload(row) : null;
   }
 
-  async createDownload(
-    orgId: string,
-    input: CreateDownloadInput,
-    slug: string,
-  ): Promise<Download> {
+  async createDownload(orgId: string, input: CreateDownloadInput, slug: string): Promise<Download> {
     // Registry row + concrete row share one id, same as courses. Both inserts
     // run on the same executor — mutations reach this repository tx-bound.
-    const id = genId('download');
-    await this.db.insert(contentItems).values({ orgId, id, type: 'download' });
+    const id = genId("download");
+    await this.db.insert(contentItems).values({ orgId, id, type: "download" });
     await this.db.insert(downloads).values({
       orgId,
       id,
       title: input.title,
       slug,
-      description: input.description ?? '',
-      category: input.category ?? '',
+      description: input.description ?? "",
+      category: input.category ?? "",
     });
     const created = await this.getDownload(orgId, id);
     if (!created) {
-      throw new Error('failed to load created download');
+      throw new Error("failed to load created download");
     }
     return created;
   }
@@ -749,7 +757,7 @@ export class DrizzleContentRepository implements ContentRepository {
         and(
           eq(contentItems.orgId, orgId),
           eq(contentItems.id, id),
-          eq(contentItems.type, 'download'),
+          eq(contentItems.type, "download"),
         ),
       )
       .returning({ id: contentItems.id });
@@ -772,7 +780,7 @@ export class DrizzleContentRepository implements ContentRepository {
       .where(and(eq(downloads.orgId, orgId), eq(downloads.id, downloadId)))
       .limit(1);
     if (!row) {
-      throw new NotFoundError('Download', downloadId);
+      throw new NotFoundError("Download", downloadId);
     }
   }
 
@@ -797,7 +805,7 @@ export class DrizzleContentRepository implements ContentRepository {
       });
     } catch (err) {
       if (isUniqueViolation(err)) {
-        throw new ConflictError('This asset is already linked to the download');
+        throw new ConflictError("This asset is already linked to the download");
       }
       throw err;
     }
@@ -877,18 +885,18 @@ export class DrizzleContentRepository implements ContentRepository {
     const where = and(...conditions);
 
     // Resolve sort: `-` prefix = desc, default createdAt desc.
-    let sortKey = 'createdAt';
-    let direction: 'asc' | 'desc' = 'desc';
+    let sortKey = "createdAt";
+    let direction: "asc" | "desc" = "desc";
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const key = isDesc ? query.sort.slice(1) : query.sort;
       if (key in bundleSortColumns) {
         sortKey = key;
-        direction = isDesc ? 'desc' : 'asc';
+        direction = isDesc ? "desc" : "asc";
       }
     }
     const sortExpr = bundleSortColumns[sortKey] ?? bundles.createdAt;
-    const orderBy = direction === 'desc' ? desc(sortExpr) : asc(sortExpr);
+    const orderBy = direction === "desc" ? desc(sortExpr) : asc(sortExpr);
 
     const rows = await this.db
       .select()
@@ -926,10 +934,10 @@ export class DrizzleContentRepository implements ContentRepository {
       // content_items row of its own.
       const [row] = await tx
         .insert(bundles)
-        .values({ orgId, id: genId('bundle'), name: input.name })
+        .values({ orgId, id: genId("bundle"), name: input.name })
         .returning();
       if (!row) {
-        throw new Error('failed to load created bundle');
+        throw new Error("failed to load created bundle");
       }
 
       if (contentIds.length > 0) {
@@ -941,7 +949,7 @@ export class DrizzleContentRepository implements ContentRepository {
         const known = new Set(found.map((item) => item.id));
         const missing = contentIds.find((id) => !known.has(id));
         if (missing) {
-          throw new NotFoundError('Content', missing);
+          throw new NotFoundError("Content", missing);
         }
 
         await tx
@@ -993,7 +1001,7 @@ export class DrizzleContentRepository implements ContentRepository {
       .where(and(eq(bundles.orgId, orgId), eq(bundles.id, bundleId)))
       .limit(1);
     if (!row) {
-      throw new NotFoundError('Bundle', bundleId);
+      throw new NotFoundError("Bundle", bundleId);
     }
   }
 
@@ -1006,7 +1014,7 @@ export class DrizzleContentRepository implements ContentRepository {
       .where(and(eq(contentItems.orgId, orgId), eq(contentItems.id, contentId)))
       .limit(1);
     if (!item) {
-      throw new NotFoundError('Content', contentId);
+      throw new NotFoundError("Content", contentId);
     }
     await this.db
       .insert(bundleItems)

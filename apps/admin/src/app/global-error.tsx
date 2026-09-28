@@ -30,15 +30,12 @@ export default function GlobalError({
           gap: "12px",
           padding: "24px",
           textAlign: "center",
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+          fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
           background: "#fff",
           color: "#1a1a1a",
         }}
       >
-        <h1 style={{ margin: 0, fontSize: "16px", fontWeight: 500 }}>
-          Something went wrong
-        </h1>
+        <h1 style={{ margin: 0, fontSize: "16px", fontWeight: 500 }}>Something went wrong</h1>
         <p style={{ margin: 0, maxWidth: "42ch", fontSize: "14px", color: "#6b6b6b" }}>
           The app couldn&apos;t be loaded. Try again, or reload the page.
         </p>
@@ -59,7 +56,14 @@ export default function GlobalError({
           Try again
         </button>
         {error.digest ? (
-          <p style={{ margin: 0, fontSize: "12px", fontFamily: "ui-monospace, monospace", color: "#9a9a9a" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              fontFamily: "ui-monospace, monospace",
+              color: "#9a9a9a",
+            }}
+          >
             ref: {error.digest}
           </p>
         ) : null}

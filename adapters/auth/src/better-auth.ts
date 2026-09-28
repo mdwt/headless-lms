@@ -1,20 +1,30 @@
 import type {
   ActiveSession,
-  Logger, NewOrganizationInput,
+  Logger,
+  NewOrganizationInput,
   SessionVerifier,
-} from '@headless-lms/core/types';
-import type { IncomingHttpHeaders } from 'node:http';
-import { fromNodeHeaders } from 'better-auth/node';
-import { APIError, betterAuth } from 'better-auth';
-import type { CreateAuthOptions } from './types.js';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import * as authSchema from '@headless-lms/adapter-db/schema/better-auth';
-import { prefixId } from '@headless-lms/core/shared/id';
-import { customSession, magicLink, organization } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
-import { ac, roles } from './access.js';
-import  { type AuthHeaders, type AuthOrganization, type MemberWriteContext, type OrgAdmin, OrganizationRuleError, parseRole, type Role, type UpdateOrganizationInput } from '@headless-lms/core/organizations';
-import type { SessionAdmin } from '@headless-lms/core/identity';
+} from "@headless-lms/core/types";
+import type { IncomingHttpHeaders } from "node:http";
+import { fromNodeHeaders } from "better-auth/node";
+import { APIError, betterAuth } from "better-auth";
+import type { CreateAuthOptions } from "./types.js";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
+import { prefixId } from "@headless-lms/core/shared/id";
+import { customSession, magicLink, organization } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
+import { ac, roles } from "./access.js";
+import {
+  type AuthHeaders,
+  type AuthOrganization,
+  type MemberWriteContext,
+  type OrgAdmin,
+  OrganizationRuleError,
+  parseRole,
+  type Role,
+  type UpdateOrganizationInput,
+} from "@headless-lms/core/organizations";
+import type { SessionAdmin } from "@headless-lms/core/identity";
 
 export function createAuth(opts: CreateAuthOptions) {
   const { sendResetPassword, sendMagicLink, beforeUserCreate, beforeCreateSession } = opts.hooks;
@@ -36,7 +46,7 @@ export function createAuth(opts: CreateAuthOptions) {
     advanced: {
       database: {
         // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).
-        generateId: () => prefixId('id'),
+        generateId: () => prefixId("id"),
       },
       // Cross-subdomain shared session cookie for admin/api/web on one parent
       // domain (e.g. `.example.com` in prod). Left unset in local dev so the
@@ -50,13 +60,13 @@ export function createAuth(opts: CreateAuthOptions) {
       // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
       // (different registrable domains).
       defaultCookieAttributes: {
-        sameSite: 'lax',
+        sameSite: "lax",
         secure: opts.secureCookies ?? false,
         httpOnly: true,
       },
     },
     database: drizzleAdapter(opts.db, {
-      provider: 'pg',
+      provider: "pg",
       schema: authSchema,
     }),
     emailAndPassword: {
@@ -71,7 +81,7 @@ export function createAuth(opts: CreateAuthOptions) {
       organization({
         ac,
         roles,
-        creatorRole: 'owner',
+        creatorRole: "owner",
         organizationHooks: opts.hooks,
       }),
       // Enrich get-session with the caller's memberships (role + org) so BFFs
@@ -87,7 +97,10 @@ export function createAuth(opts: CreateAuthOptions) {
             slug: authSchema.organization.slug,
           })
           .from(authSchema.member)
-          .innerJoin(authSchema.organization, eq(authSchema.member.organizationId, authSchema.organization.id))
+          .innerJoin(
+            authSchema.organization,
+            eq(authSchema.member.organizationId, authSchema.organization.id),
+          )
           .where(eq(authSchema.member.userId, user.id));
         const activeOrgId =
           (session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null;
@@ -96,7 +109,9 @@ export function createAuth(opts: CreateAuthOptions) {
           user,
           session,
           activeMemberRole: active?.role ?? null,
-          activeOrganization: active ? { id: active.id, name: active.name, slug: active.slug } : null,
+          activeOrganization: active
+            ? { id: active.id, name: active.name, slug: active.slug }
+            : null,
           organizations: memberships.map(({ id, name, slug }) => ({ id, name, slug })),
         };
       }),
@@ -128,7 +143,7 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
     this.logger = opts.logger;
   }
 
-  async handler(request: Request) :Promise<Response>{
+  async handler(request: Request): Promise<Response> {
     return this.auth.handler(request);
   }
 
@@ -155,7 +170,6 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
       },
     };
   }
-
 
   /** Stamps the org onto the caller's session row. The 5-minute cookie cache
    *  still holds the pre-stamp session, so callers refresh it client-side with
@@ -208,7 +222,7 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
       // Surface Better Auth validation/permission failures (e.g. slug taken) as
       // a domain rule error the route maps to 409 rather than a raw 500.
       if (err instanceof APIError) {
-        throw new OrganizationRuleError(err.message || 'Could not update organization');
+        throw new OrganizationRuleError(err.message || "Could not update organization");
       }
       throw err;
     }
@@ -221,7 +235,7 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
       });
     } catch (err) {
       if (err instanceof APIError) {
-        throw new OrganizationRuleError(err.message || 'Could not delete organization');
+        throw new OrganizationRuleError(err.message || "Could not delete organization");
       }
       throw err;
     }
@@ -237,7 +251,10 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
         body: { userId: userExternalId, organizationId: orgExternalId, role: parseRole(role) },
       });
     } catch (err) {
-      if (err instanceof APIError && err.body?.code === 'USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION') {
+      if (
+        err instanceof APIError &&
+        err.body?.code === "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION"
+      ) {
         return;
       }
       throw err;
@@ -277,7 +294,7 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
     const res = await this.auth.api.listMembers({
       query: {
         organizationId: ctx.authOrgId,
-        filterField: 'userId',
+        filterField: "userId",
         filterValue: userExternalId,
         limit: 1,
       },
@@ -285,7 +302,7 @@ export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
     });
     const memberId = res?.members?.[0]?.id;
     if (!memberId) {
-      throw new OrganizationRuleError('That person is no longer a member of this organization');
+      throw new OrganizationRuleError("That person is no longer a member of this organization");
     }
     return memberId;
   }

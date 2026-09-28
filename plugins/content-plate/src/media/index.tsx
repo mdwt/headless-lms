@@ -1,8 +1,8 @@
-'use client';
+"use client";
 // Media tracking entry — a dumb pipe between the host and media islands.
 // No reporter, no timers, no LMS vocabulary; the host owns all policy.
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { MediaTracking } from '@headless-lms/editor';
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import type { MediaTracking } from "@headless-lms/editor";
 
 const MediaTrackingContext = createContext<MediaTracking>({});
 
@@ -24,4 +24,4 @@ export function useMediaTracking(): MediaTracking {
   return useContext(MediaTrackingContext);
 }
 
-export type { MediaTracking, MediaTrackingEvent } from '@headless-lms/editor';
+export type { MediaTracking, MediaTrackingEvent } from "@headless-lms/editor";

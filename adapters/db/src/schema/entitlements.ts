@@ -1,5 +1,4 @@
-
-import { sql } from 'drizzle-orm';
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -8,12 +7,12 @@ import {
   foreignKey,
   unique,
   check,
-} from 'drizzle-orm/pg-core';
-import type { Entitlement } from '@headless-lms/core/schemas';
-import { genId } from '@headless-lms/core/shared/id';
-import { organizations, orgUsers } from './organizations.js';
-import { bundles, contentItems } from './content.js';
-import type { Expect, NoDrift } from './drift.js';
+} from "drizzle-orm/pg-core";
+import type { Entitlement } from "@headless-lms/core/schemas";
+import { genId } from "@headless-lms/core/shared/id";
+import { organizations, orgUsers } from "./organizations.js";
+import { bundles, contentItems } from "./content.js";
+import type { Expect, NoDrift } from "./drift.js";
 
 export const entitlements = pgTable(
   "entitlements",
@@ -65,7 +64,7 @@ export const entitlements = pgTable(
     orgUserBundleUq: unique().on(t.orgId, t.orgUserId, t.bundleId),
     // A grant targets exactly one of: a bundle or a content item.
     targetCk: check(
-      'entitlements_target_check',
+      "entitlements_target_check",
       sql`num_nonnulls(${t.bundleId}, ${t.contentId}) = 1`,
     ),
   }),

@@ -63,11 +63,7 @@ export function PlayerHeader({
 
       <div className="flex flex-none items-center gap-4">
         <div className="flex items-center gap-2.5">
-          <ProgressRing
-            percent={coursePercent}
-            size={30}
-            innerClassName="bg-surface-warm"
-          />
+          <ProgressRing percent={coursePercent} size={30} innerClassName="bg-surface-warm" />
           <div className="flex flex-col leading-[1.15]">
             <span className="text-[12.5px] font-medium">
               {doneCount}/{total}

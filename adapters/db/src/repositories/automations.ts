@@ -4,8 +4,8 @@
 // column of their own in the domain type (mirrors the `Entitlement` shape) —
 // `AutomationRun` is the one exception, since it's the run's own `orgId`
 // field the service reads back off `handle`'s event.
-import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
-import type { DbExecutor } from '../client.js';
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import type { DbExecutor } from "../client.js";
 import type {
   Automation,
   AutomationRun,
@@ -16,11 +16,11 @@ import type {
   NewAutomationRun,
   Page,
   UpdateAutomationInput,
-} from '@headless-lms/core/automations';
-import { automations, automationRuns } from '../schema/index.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/automations";
+import { automations, automationRuns } from "../schema/index.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 const automationSelection = {
   orgId: automations.orgId,
@@ -40,7 +40,7 @@ interface AutomationRow {
   name: string;
   description: string | null;
   trigger: string;
-  actions: Automation['actions'];
+  actions: Automation["actions"];
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -78,16 +78,20 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
       })
       .returning({ id: automations.id });
     if (!inserted) {
-      throw new Error('failed to insert automation');
+      throw new Error("failed to insert automation");
     }
     const created = await this.findById(orgId, inserted.id);
     if (!created) {
-      throw new Error('failed to load created automation');
+      throw new Error("failed to load created automation");
     }
     return created;
   }
 
-  async update(orgId: string, id: string, patch: UpdateAutomationInput): Promise<Automation | null> {
+  async update(
+    orgId: string,
+    id: string,
+    patch: UpdateAutomationInput,
+  ): Promise<Automation | null> {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (patch.name !== undefined) {
       set.name = patch.name;
@@ -173,9 +177,9 @@ interface RunRow {
   automationId: string;
   trigger: string;
   eventId: string;
-  event: AutomationRun['event'];
-  status: AutomationRun['status'];
-  actionResults: AutomationRun['actionResults'];
+  event: AutomationRun["event"];
+  status: AutomationRun["status"];
+  actionResults: AutomationRun["actionResults"];
   startedAt: Date;
   finishedAt: Date | null;
   createdAt: Date;
@@ -238,8 +242,8 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
     orgId: string,
     id: string,
     outcome: {
-      status: AutomationRun['status'];
-      actionResults: AutomationRun['actionResults'];
+      status: AutomationRun["status"];
+      actionResults: AutomationRun["actionResults"];
       finishedAt: Date;
     },
   ): Promise<AutomationRun | null> {
@@ -255,7 +259,11 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
     return updated ? toAutomationRun(updated) : null;
   }
 
-  async list(orgId: string, automationId: string, query: AutomationRunsQuery): Promise<Page<AutomationRun>> {
+  async list(
+    orgId: string,
+    automationId: string,
+    query: AutomationRunsQuery,
+  ): Promise<Page<AutomationRun>> {
     const conditions: SQL[] = [
       eq(automationRuns.orgId, orgId),
       eq(automationRuns.automationId, automationId),
@@ -268,7 +276,7 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
     // Sort: `-field` for descending; default to most-recently started first.
     let orderBy: SQL;
     if (query.sort) {
-      const isDesc = query.sort.startsWith('-');
+      const isDesc = query.sort.startsWith("-");
       const field = (isDesc ? query.sort.slice(1) : query.sort) as keyof typeof sortColumns;
       const col = sortColumns[field] ?? automationRuns.startedAt;
       orderBy = isDesc ? desc(col) : asc(col);

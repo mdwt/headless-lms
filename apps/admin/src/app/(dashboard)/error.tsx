@@ -29,8 +29,7 @@ export default function DashboardError({
       <div className="flex flex-col gap-1.5">
         <h1 className="text-base font-medium tracking-tight text-ink">Something went wrong</h1>
         <p className="max-w-[42ch] text-pretty text-sm text-ink-3">
-          This page couldn&apos;t be loaded. Try again, or
-          head back to the overview.
+          This page couldn&apos;t be loaded. Try again, or head back to the overview.
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -42,9 +41,7 @@ export default function DashboardError({
           <Link href="/">Go to overview</Link>
         </Button>
       </div>
-      {error.digest ? (
-        <p className="font-mono text-xs text-ink-4">ref: {error.digest}</p>
-      ) : null}
+      {error.digest ? <p className="font-mono text-xs text-ink-4">ref: {error.digest}</p> : null}
     </div>
   );
 }

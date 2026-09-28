@@ -22,9 +22,7 @@ import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet"
 
 const container = await createContainer(config, {
   adapters: {
-    workflows: process.env.HATCHET_CLIENT_TOKEN
-      ? new HatchetAutomationEngine()
-      : undefined, // falls back to the inline engine
+    workflows: process.env.HATCHET_CLIENT_TOKEN ? new HatchetAutomationEngine() : undefined, // falls back to the inline engine
   },
 });
 ```
@@ -33,9 +31,9 @@ The Hatchet SDK reads its own environment — the adapter reads none of it. For 
 
 ## Environment variables
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `HATCHET_CLIENT_TOKEN` | yes | Hatchet API token for the target tenant. Read by the Hatchet SDK, not by the adapter. |
+| Variable               | Required | Notes                                                                                 |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------- |
+| `HATCHET_CLIENT_TOKEN` | yes      | Hatchet API token for the target tenant. Read by the Hatchet SDK, not by the adapter. |
 
 The SDK supports further `HATCHET_CLIENT_*` variables (host/port, TLS, namespace, …) — see the [Hatchet setup docs](https://docs.hatchet.run/home/setup).
 

@@ -156,9 +156,11 @@
   /* elevation — depth on the white sheet comes from a real, layered shadow plus
      the visible border, never a gray fill. Overlays (dialog/popover) keep their
      own heavier shadows. */
-  --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.06), 0 2px 5px -1px rgb(24 24 27 / 0.08),
+  --shadow-card:
+    0 1px 2px 0 rgb(24 24 27 / 0.06), 0 2px 5px -1px rgb(24 24 27 / 0.08),
     0 6px 16px -5px rgb(24 24 27 / 0.1);
-  --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.07), 0 6px 14px -3px rgb(24 24 27 / 0.12),
+  --shadow-card-hover:
+    0 2px 4px 0 rgb(24 24 27 / 0.07), 0 6px 14px -3px rgb(24 24 27 / 0.12),
     0 14px 28px -8px rgb(24 24 27 / 0.16);
 
   /* motion — calm, not flashy */

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import * as Ariakit from '@ariakit/react';
-import { useComposedRef } from '@udecode/cn';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { CornerDownLeftIcon } from 'lucide-react';
+import * as Ariakit from "@ariakit/react";
+import { useComposedRef } from "@udecode/cn";
+import { cva, type VariantProps } from "class-variance-authority";
+import { CornerDownLeftIcon } from "lucide-react";
 import {
   createContext,
   useContext,
@@ -13,10 +13,10 @@ import {
   type ComponentProps,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
-} from 'react';
+} from "react";
 
-import { cn } from '../lib/utils';
-import { useOnClickOutside } from '../hooks/use-on-click-outside';
+import { cn } from "../lib/utils";
+import { useOnClickOutside } from "../hooks/use-on-click-outside";
 
 export type Action = {
   filterItems?: boolean;
@@ -48,10 +48,10 @@ const MenuContext = createContext<{
 export type MenuProps = Ariakit.MenuProviderProps & {
   trigger?: ReactNode;
   value?: string;
-  onOpenChange?: Ariakit.MenuProviderProps['setOpen'];
+  onOpenChange?: Ariakit.MenuProviderProps["setOpen"];
   onRootMenuClose?: () => void;
-  onValueChange?: Ariakit.ComboboxProviderProps['setValue'];
-  onValuesChange?: Ariakit.MenuProviderProps['setValues'];
+  onValueChange?: Ariakit.ComboboxProviderProps["setValue"];
+  onValuesChange?: Ariakit.MenuProviderProps["setValues"];
 };
 
 export function Menu({
@@ -86,9 +86,7 @@ export function Menu({
       {trigger}
 
       <MenuContext.Provider value={{ isRootMenu, open: props.open ?? open }}>
-        <SearchableContext.Provider value={searchable}>
-          {children}
-        </SearchableContext.Provider>
+        <SearchableContext.Provider value={searchable}>{children}</SearchableContext.Provider>
       </MenuContext.Provider>
     </Ariakit.MenuProvider>
   );
@@ -127,28 +125,27 @@ export function MenuTrigger({
 
 const menuVariants = cva(
   cn(
-    'group/menu',
-    'z-50 flex h-full min-w-[180px] max-w-[calc(100vw-24px)] flex-col p-0 text-popover-foreground',
-    'data-[state=closed]:hidden'
+    "group/menu",
+    "z-50 flex h-full min-w-[180px] max-w-[calc(100vw-24px)] flex-col p-0 text-popover-foreground",
+    "data-[state=closed]:hidden",
   ),
   {
     defaultVariants: {
       animateZoom: false,
-      variant: 'default',
+      variant: "default",
     },
     variants: {
       animateZoom: {
-        false: 'data-[state=open]:animate-popover',
-        true: 'data-[side=bottom]:origin-top data-[side=left]:origin-right data-[side=right]:origin-left data-[side=top]:origin-bottom data-[state=open]:animate-zoom',
+        false: "data-[state=open]:animate-popover",
+        true: "data-[side=bottom]:origin-top data-[side=left]:origin-right data-[side=right]:origin-left data-[side=top]:origin-bottom data-[state=open]:animate-zoom",
       },
       variant: {
-        ai: 'w-full px-12 sm:px-[max(64px,calc(50%-350px))]',
-        aiSub: 'max-h-[70vh] w-[220px] rounded-xl bg-popover shadow-floating',
-        default:
-          'max-h-[70vh] w-[260px] overflow-y-auto rounded-xl bg-popover shadow-floating',
+        ai: "w-full px-12 sm:px-[max(64px,calc(50%-350px))]",
+        aiSub: "max-h-[70vh] w-[220px] rounded-xl bg-popover shadow-floating",
+        default: "max-h-[70vh] w-[260px] overflow-y-auto rounded-xl bg-popover shadow-floating",
       },
     },
-  }
+  },
 );
 
 export type MenuContentProps = Ariakit.MenuProps &
@@ -176,7 +173,7 @@ export function MenuContent({
     <Ariakit.Menu
       className={cn(menuVariants({ animateZoom, variant }), className)}
       data-side={side}
-      data-state={open ? 'open' : 'closed'}
+      data-state={open ? "open" : "closed"}
       fitViewport={true}
       flip
       gutter={4}
@@ -189,9 +186,7 @@ export function MenuContent({
   );
 }
 
-export function MenuSeparator(
-  props: ComponentProps<typeof Ariakit.MenuSeparator>
-) {
+export function MenuSeparator(props: ComponentProps<typeof Ariakit.MenuSeparator>) {
   return <Ariakit.MenuSeparator {...props} className={cn(props.className)} />;
 }
 
@@ -205,17 +200,17 @@ export function MenuGroup({
     <>
       <MenuSeparator
         className={cn(
-          'hidden',
-          'peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=option]]/menu-group:block'
+          "hidden",
+          "peer-has-[[role=menuitem]]/menu-group:block peer-has-[[role=option]]/menu-group:block",
         )}
       />
 
       <Ariakit.MenuGroup
         {...props}
         className={cn(
-          'hidden',
-          'peer/menu-group group/menu-group my-1.5 has-[[role=menuitem]]:block has-[[role=option]]:block',
-          props.className
+          "hidden",
+          "peer/menu-group group/menu-group my-1.5 has-[[role=menuitem]]:block has-[[role=option]]:block",
+          props.className,
         )}
       >
         {label && (
@@ -229,36 +224,31 @@ export function MenuGroup({
   );
 }
 
-export function MenuShortcut({ ...props }: ComponentProps<'span'>) {
-  return (
-    <span
-      {...props}
-      className={cn('text-muted-foreground/80 text-xs', props.className)}
-    />
-  );
+export function MenuShortcut({ ...props }: ComponentProps<"span">) {
+  return <span {...props} className={cn("text-muted-foreground/80 text-xs", props.className)} />;
 }
 
 const menuItemVariants = cva(
-  'group/menu-item relative flex min-h-[28px] select-none items-center justify-between gap-2 px-2.5 text-accent-foreground text-sm outline-hidden transition-bg-ease data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-4',
+  "group/menu-item relative flex min-h-[28px] select-none items-center justify-between gap-2 px-2.5 text-accent-foreground text-sm outline-hidden transition-bg-ease data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-4",
   {
     defaultVariants: {
       isEmpty: false,
-      variant: 'default',
+      variant: "default",
     },
     variants: {
       isEmpty: {
         false:
-          'cursor-pointer hover:bg-accent aria-expanded:bg-accent aria-selected:bg-accent data-active-item:bg-accent data-active-item:text-accent-foreground',
-        true: 'text-muted-foreground',
+          "cursor-pointer hover:bg-accent aria-expanded:bg-accent aria-selected:bg-accent data-active-item:bg-accent data-active-item:text-accent-foreground",
+        true: "text-muted-foreground",
       },
       variant: {
-        default: 'mx-1 w-[calc(100%-8px)] rounded-sm',
+        default: "mx-1 w-[calc(100%-8px)] rounded-sm",
       },
     },
-  }
+  },
 );
 
-export type MenuItemProps = Omit<Ariakit.ComboboxItemProps, 'store'> & {
+export type MenuItemProps = Omit<Ariakit.ComboboxItemProps, "store"> & {
   checked?: boolean;
   group?: string;
   icon?: ReactNode;
@@ -285,7 +275,7 @@ export function MenuItem({
   shortcutEnter,
   variant,
   ...props
-}: Omit<Ariakit.ComboboxItemProps, 'store'> & {
+}: Omit<Ariakit.ComboboxItemProps, "store"> & {
   checked?: boolean;
   group?: string;
   icon?: ReactNode;
@@ -299,7 +289,7 @@ export function MenuItem({
 } & VariantProps<typeof menuItemVariants>) {
   const menu = Ariakit.useMenuContext();
 
-  if (!menu) throw new Error('MenuItem should be used inside a Menu');
+  if (!menu) throw new Error("MenuItem should be used inside a Menu");
 
   const searchable = useContext(SearchableContext);
 
@@ -312,8 +302,8 @@ export function MenuItem({
     ...props,
     className: cn(
       menuItemVariants({ isEmpty, variant }),
-      !!hasShortcut && 'justify-between',
-      className
+      !!hasShortcut && "justify-between",
+      className,
     ),
     group: parentGroup,
     name: group,
@@ -322,9 +312,7 @@ export function MenuItem({
   baseProps.children = (
     <>
       <div className="flex w-full items-center gap-2 whitespace-nowrap">
-        {icon && (
-          <span className="menu-item-icon text-subtle-foreground">{icon}</span>
-        )}
+        {icon && <span className="menu-item-icon text-subtle-foreground">{icon}</span>}
         {baseProps.children ?? label}
       </div>
 
@@ -339,9 +327,7 @@ export function MenuItem({
             </MenuShortcut>
           )}
           {checked && searchable && (
-            <Ariakit.VisuallyHidden>
-              {checked ? 'checked' : 'not checked'}
-            </Ariakit.VisuallyHidden>
+            <Ariakit.VisuallyHidden>{checked ? "checked" : "not checked"}</Ariakit.VisuallyHidden>
           )}
         </div>
       )}
@@ -364,7 +350,7 @@ export function MenuItem({
   }
 
   const hideOnClick = (event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
-    const expandable = event.currentTarget.hasAttribute('aria-expanded');
+    const expandable = event.currentTarget.hasAttribute("aria-expanded");
 
     if (expandable) return false;
     if (preventClose) return false;
@@ -377,75 +363,63 @@ export function MenuItem({
   return <Ariakit.ComboboxItem {...baseProps} hideOnClick={hideOnClick} />;
 }
 
-export const comboboxVariants = cva('', {
+export const comboboxVariants = cva("", {
   defaultVariants: {
-    variant: 'default',
+    variant: "default",
   },
   variants: {
     variant: {
-      ai: 'min-w-[280px] max-w-[calc(100vw-24px)] rounded-xl bg-popover py-0.5 shadow-toolbar',
-      default: 'mx-3 pt-3.5 pb-1.5',
+      ai: "min-w-[280px] max-w-[calc(100vw-24px)] rounded-xl bg-popover py-0.5 shadow-toolbar",
+      default: "mx-3 pt-3.5 pb-1.5",
     },
   },
 });
 
 export function ComboboxContent({
   className,
-  variant = 'default',
+  variant = "default",
   ...props
-}: ComponentProps<'div'> & VariantProps<typeof comboboxVariants>) {
-  return (
-    <div className={cn(comboboxVariants({ variant }), className)} {...props} />
-  );
+}: ComponentProps<"div"> & VariantProps<typeof comboboxVariants>) {
+  return <div className={cn(comboboxVariants({ variant }), className)} {...props} />;
 }
 
 const comboboxListVariants = cva(
   cn(
-    'group/combobox-list',
-    'h-full max-h-[70vh] grow overflow-y-auto rounded-lg [&:has(>:last-child:not([role=group]))]:pb-1.5',
-    'hidden has-[[role=option]]:block'
+    "group/combobox-list",
+    "h-full max-h-[70vh] grow overflow-y-auto rounded-lg [&:has(>:last-child:not([role=group]))]:pb-1.5",
+    "hidden has-[[role=option]]:block",
   ),
   {
     defaultVariants: {
-      variant: 'default',
+      variant: "default",
     },
     variants: {
       variant: {
-        ai: 'my-1 h-full max-h-[min(40vh,320px)] w-fit min-w-[280px] max-w-[320px] overflow-y-auto bg-popover p-0 shadow-floating',
-        default: '',
+        ai: "my-1 h-full max-h-[min(40vh,320px)] w-fit min-w-[280px] max-w-[320px] overflow-y-auto bg-popover p-0 shadow-floating",
+        default: "",
       },
     },
-  }
+  },
 );
 
 export function ComboboxList({
   className,
-  variant = 'default',
+  variant = "default",
   ...props
-}: ComponentProps<typeof Ariakit.ComboboxList> &
-  VariantProps<typeof comboboxListVariants>) {
+}: ComponentProps<typeof Ariakit.ComboboxList> & VariantProps<typeof comboboxListVariants>) {
   return (
-    <Ariakit.ComboboxList
-      className={cn(comboboxListVariants({ variant }), className)}
-      {...props}
-    />
+    <Ariakit.ComboboxList className={cn(comboboxListVariants({ variant }), className)} {...props} />
   );
 }
 
-export function ComboboxInput({
-  children,
-  ...props
-}: ComponentProps<typeof Ariakit.Combobox>) {
+export function ComboboxInput({ children, ...props }: ComponentProps<typeof Ariakit.Combobox>) {
   return <Ariakit.Combobox autoSelect render={children as any} {...props} />;
 }
 
 export function ComboboxEmpty() {
   return (
     <div className="py-1.5 group-has-[[role=option]]/combobox-list:hidden">
-      <div
-        className={cn(menuItemVariants({ isEmpty: true }), '')}
-        role="menuitem"
-      >
+      <div className={cn(menuItemVariants({ isEmpty: true }), "")} role="menuitem">
         No results
       </div>
     </div>
@@ -453,16 +427,13 @@ export function ComboboxEmpty() {
 }
 
 // biome-ignore lint/performance/noBarrelFile: intentional re-export
-export * as Ariakit from '@ariakit/react';
+export * as Ariakit from "@ariakit/react";
 
-export function filterMenuItems(
-  { items = [], ...group }: Action,
-  searchValue: string
-): Action[] {
+export function filterMenuItems({ items = [], ...group }: Action, searchValue: string): Action[] {
   if (!searchValue) return items;
   if (
     [group.label, ...(group.keywords || [])]
-      .join(' ')
+      .join(" ")
       .toLowerCase()
       .includes(searchValue.toLowerCase())
   ) {
@@ -473,16 +444,13 @@ export function filterMenuItems(
     (item) =>
       item.filterItems ||
       [item.label, item.value, ...(item.keywords || [])]
-        .join(' ')
+        .join(" ")
         .toLowerCase()
-        .includes(searchValue.toLowerCase())
+        .includes(searchValue.toLowerCase()),
   );
 }
 
-export function filterMenuGroups(
-  menuGroups: Action[],
-  searchValue: string
-): Action[] {
+export function filterMenuGroups(menuGroups: Action[], searchValue: string): Action[] {
   if (!searchValue) return menuGroups;
 
   return menuGroups.reduce<Action[]>((acc, group) => {
@@ -501,14 +469,14 @@ export function filterMenuGroups(
 
 export function useComboboxValueState() {
   const store = Ariakit.useComboboxContext();
-  const searchValue = store?.useState('value') ?? '';
+  const searchValue = store?.useState("value") ?? "";
 
   return [searchValue, store!.setValue] as const;
 }
 
 export function useMenuSide() {
   const store = Ariakit.useMenuStore();
-  const currentPlacement = store?.useState('currentPlacement').split('-')[0];
+  const currentPlacement = store?.useState("currentPlacement").split("-")[0];
 
   return currentPlacement;
 }

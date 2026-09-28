@@ -25,8 +25,7 @@ export function resumeTarget(
 ): { target: number | null; next: ResumeState } {
   let candidate = st.resumeAt;
   if (candidate == null && !st.resumed) {
-    const finished =
-      saved != null && duration != null && duration > 0 && saved >= duration - 1;
+    const finished = saved != null && duration != null && duration > 0 && saved >= duration - 1;
     candidate = finished ? null : (saved ?? null);
   }
   const target = candidate != null && candidate > 0 ? candidate : null;

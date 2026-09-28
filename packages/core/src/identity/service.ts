@@ -29,9 +29,7 @@ export class IdentityServiceImpl implements IdentityService {
   async createUser(input: CreateUserInput): Promise<User> {
     const created = await this.uow.run(async ({ identity, outbox }) => {
       const user = await identity.insertUser(input);
-      await outbox.append([
-        identityEvents.userCreated.make({ orgId: '-', data: user }),
-      ]);
+      await outbox.append([identityEvents.userCreated.make({ orgId: '-', data: user })]);
       return user;
     });
     this.logger.info('user created', { user: created });
@@ -55,9 +53,7 @@ export class IdentityServiceImpl implements IdentityService {
         ...(input.firstName !== undefined && { firstName: input.firstName }),
         ...(input.lastName !== undefined && { lastName: input.lastName }),
       });
-      await outbox.append([
-        identityEvents.userUpdated.make({ orgId: '-', data: user! }),
-      ]);
+      await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
     this.logger.info('user linked to auth account', { user: linked });
@@ -72,9 +68,7 @@ export class IdentityServiceImpl implements IdentityService {
 
     const updated = await this.uow.run(async ({ identity, outbox }) => {
       const user = await identity.updateUser(id, input);
-      await outbox.append([
-        identityEvents.userUpdated.make({ orgId: '-', data: user! }),
-      ]);
+      await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
     this.logger.info('user updated', { user: updated });

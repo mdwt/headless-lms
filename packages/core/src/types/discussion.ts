@@ -10,9 +10,9 @@ export type {
   CommentReportSummary,
   CommentListItem,
   ListCommentsQuery,
-} from "./schemas/discussion.js";
-import type { Role } from "./organizations.js";
-import type { CommentStatus } from "./schemas/discussion.js";
+} from './schemas/discussion.js';
+import type { Role } from './organizations.js';
+import type { CommentStatus } from './schemas/discussion.js';
 
 export interface Comment {
   readonly id: string;
@@ -45,4 +45,4 @@ export interface CommentReport {
   readonly createdAt: Date;
   updatedAt: Date;
 }
-export type { Page } from "./shared.js";
+export type { Page } from './shared.js';

@@ -1,11 +1,11 @@
-import { FileUp } from 'lucide-react';
+import { FileUp } from "lucide-react";
 
-import type { TFileElement } from 'platejs';
-import { SlateElement, type SlateElementProps } from 'platejs/static';
+import type { TFileElement } from "platejs";
+import { SlateElement, type SlateElementProps } from "platejs/static";
 
-import type { ResolveAssetUrl } from '@headless-lms/editor';
+import type { ResolveAssetUrl } from "@headless-lms/editor";
 
-import { freshMediaUrl } from '../lib/media-url';
+import { freshMediaUrl } from "../lib/media-url";
 
 export async function MediaFileElementStatic({
   resolveAssetUrl,

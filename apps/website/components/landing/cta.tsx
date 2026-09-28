@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { GithubIcon } from '@/components/logo'
-import { CodeBlock } from '@/components/code-block'
-import { siteConfig } from '@/lib/site'
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GithubIcon } from "@/components/logo";
+import { CodeBlock } from "@/components/code-block";
+import { siteConfig } from "@/lib/site";
 
 export function Cta() {
   return (
@@ -14,8 +14,8 @@ export function Cta() {
             Spin up your own LMS in one command
           </h2>
           <p className="mx-auto mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
-            Create a standalone installation that owns its config and plugins, and
-            deploys anywhere Node and Postgres run.
+            Create a standalone installation that owns its config and plugins, and deploys anywhere
+            Node and Postgres run.
           </p>
 
           <div className="mx-auto mt-8 max-w-md">
@@ -39,5 +39,5 @@ export function Cta() {
         </div>
       </div>
     </section>
-  )
+  );
 }

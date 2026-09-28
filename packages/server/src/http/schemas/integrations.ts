@@ -2,8 +2,8 @@
 // service (Stripe, Slack, …). Secrets are WRITE-ONLY: accepted on
 // connect/reconnect, stored encrypted server-side, and never appear in any
 // response — responses carry configuration and state only.
-import { z } from "zod";
-import { connectionSchema, jsonRecordSchema } from "@headless-lms/core/schemas";
+import { z } from 'zod';
+import { connectionSchema, jsonRecordSchema } from '@headless-lms/core/schemas';
 
 /** An action an integration can be invoked with; schemas are JSON Schema. */
 export const IntegrationActionInfo = z.object({

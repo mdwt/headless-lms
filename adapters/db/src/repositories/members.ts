@@ -1,8 +1,8 @@
 // organizations members — Drizzle read repository. Reads the domain mirror of the
 // org's members (orgUsers) and pending invites, joined to the identity user for
 // display. Writes go through the auth provider (see adapters/auth/org-admin.ts).
-import { and, eq, ne } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, eq, ne } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   isStaffRole,
   STUDENT_ROLE,
@@ -12,19 +12,19 @@ import {
   type MembersRepository,
   type Page,
   type StaffRole,
-} from '@headless-lms/core/organizations';
-import { orgUsers, invites } from '../schema/organizations.js';
-import { users } from '../schema/identity.js';
-import { user } from '../schema/better-auth.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { orgUserProfileColumns } from './org-user-profile.js';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/organizations";
+import { orgUsers, invites } from "../schema/organizations.js";
+import { users } from "../schema/identity.js";
+import { user } from "../schema/better-auth.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { orgUserProfileColumns } from "./org-user-profile.js";
+import { translateDbErrors } from "./pg-errors.js";
 
 // The member surface is staff-only; a student org user never reaches here
 // (the queries below exclude it), so an unrecognized role falls back to the
 // least-privileged staff role rather than widening to the full Role union.
-const roleOf = (t: string): StaffRole => (isStaffRole(t) ? t : 'instructor');
+const roleOf = (t: string): StaffRole => (isStaffRole(t) ? t : "instructor");
 
 function toMember(r: MemberRecord): Member {
   return {
@@ -74,7 +74,7 @@ export class DrizzleMembersRepository implements MembersRepository {
       .where(
         and(
           eq(invites.orgId, orgId),
-          eq(invites.status, 'pending'),
+          eq(invites.status, "pending"),
           ne(invites.role, STUDENT_ROLE),
         ),
       );
@@ -86,10 +86,10 @@ export class DrizzleMembersRepository implements MembersRepository {
       email: m.email,
       image: m.image ?? null,
       role: roleOf(m.role),
-      status: 'active',
+      status: "active",
       joinedAt: m.joinedAt.toISOString(),
       invitedAt: null,
-      kind: 'member',
+      kind: "member",
       userExternalId: m.userExternalId,
       inviteId: null,
     }));
@@ -102,10 +102,10 @@ export class DrizzleMembersRepository implements MembersRepository {
       email: i.email,
       image: null,
       role: roleOf(i.role),
-      status: 'invited',
+      status: "invited",
       joinedAt: null,
       invitedAt: i.invitedAt.toISOString(),
-      kind: 'invite',
+      kind: "invite",
       userExternalId: null,
       inviteId: i.id,
     }));
@@ -128,20 +128,20 @@ export class DrizzleMembersRepository implements MembersRepository {
     }
 
     const sort = query.sort;
-    const desc = sort?.startsWith('-') ?? false;
+    const desc = sort?.startsWith("-") ?? false;
     const key = (desc ? sort!.slice(1) : sort) as keyof Member | undefined;
     // Nulls last whichever way the column is sorted — an unaccepted invite has
     // no name and belongs at the bottom, not interleaved.
     const byName = (a: string | null, b: string | null): number =>
       a === b ? 0 : a === null ? 1 : b === null ? -1 : a.localeCompare(b);
     rows.sort((a, b) => {
-      if (key === 'email') {
+      if (key === "email") {
         return desc ? -a.email.localeCompare(b.email) : a.email.localeCompare(b.email);
       }
-      if (key === 'role') {
+      if (key === "role") {
         return desc ? -a.role.localeCompare(b.role) : a.role.localeCompare(b.role);
       }
-      if (key === 'lastName') {
+      if (key === "lastName") {
         const cmp = byName(a.lastName, b.lastName) || byName(a.firstName, b.firstName);
         return desc ? -cmp : cmp;
       }

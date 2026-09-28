@@ -26,7 +26,10 @@ export function FilterEmpty({ showAllHref }: { showAllHref: string }) {
       </div>
       <div className="mb-1.5 text-[21px] font-semibold">Nothing here right now</div>
       <p className="mb-[18px] text-[14px] text-ink-3">No courses match this filter.</p>
-      <Link href={showAllHref} className={buttonVariants({ variant: "ghostOutline", size: "pillSm" })}>
+      <Link
+        href={showAllHref}
+        className={buttonVariants({ variant: "ghostOutline", size: "pillSm" })}
+      >
         Show all courses
       </Link>
     </div>

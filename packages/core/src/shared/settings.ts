@@ -5,7 +5,7 @@
 export interface SettingsRecord {
   namespace: string;
   scopeId: string;
-  value?: Record<string,unknown>;
+  value?: Record<string, unknown>;
 }
 
 export enum SettingsNamespace {

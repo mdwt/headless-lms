@@ -2,17 +2,17 @@
 // Back-office overview counts, every figure scoped to the active org. An
 // entitlement is "effective-active" when status='active' and it has not expired
 // (expires_at null or in the future) — expiry is derived at read time.
-import { and, eq, gte, isNull, or, sql } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   DashboardReportRepository,
   EnrollmentPoint,
   OverviewStats,
-} from '@headless-lms/core/reporting/dashboard';
-import { courses, entitlements } from '../schema/index.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/reporting/dashboard";
+import { courses, entitlements } from "../schema/index.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 export class DrizzleDashboardRepository implements DashboardReportRepository {
   constructor(
@@ -31,7 +31,7 @@ export class DrizzleDashboardRepository implements DashboardReportRepository {
 
     const effectiveActive = and(
       eq(entitlements.orgId, orgId),
-      eq(entitlements.status, 'active'),
+      eq(entitlements.status, "active"),
       or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
     );
 

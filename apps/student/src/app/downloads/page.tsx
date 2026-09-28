@@ -38,9 +38,7 @@ export default async function DownloadsPage() {
           <div className="mx-auto mb-6 grid size-16 place-items-center rounded-[18px] border border-line bg-surface text-ink-faintest">
             <Inbox className="size-7" strokeWidth={1.5} />
           </div>
-          <h2 className="mb-3 text-[21px] font-semibold tracking-[-0.01em]">
-            No downloads yet
-          </h2>
+          <h2 className="mb-3 text-[21px] font-semibold tracking-[-0.01em]">No downloads yet</h2>
           <p className="text-[14.5px] leading-[1.6] text-ink-2">
             You aren&apos;t entitled to any downloads right now.
           </p>

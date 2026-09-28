@@ -1,9 +1,10 @@
-import type { EmailTemplateParams, TemplateContext } from '@headless-lms/core/types';
-import { Layout, Paragraph, PREVIEW_CTX } from './layout.js';
+import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
+import { Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-type Params = EmailTemplateParams['courseCompleted'];
+type Params = EmailTemplateParams["courseCompleted"];
 
-export const subject = (_ctx: TemplateContext, params: Params) => `You completed ${params.courseTitle} 🎉`;
+export const subject = (_ctx: TemplateContext, params: Params) =>
+  `You completed ${params.courseTitle} 🎉`;
 
 export default function CourseCompleted({ ctx, params }: { ctx: TemplateContext; params: Params }) {
   return (
@@ -16,6 +17,6 @@ export default function CourseCompleted({ ctx, params }: { ctx: TemplateContext;
 CourseCompleted.PreviewProps = {
   ctx: PREVIEW_CTX,
   params: {
-    courseTitle: 'Fly Tying 101',
+    courseTitle: "Fly Tying 101",
   },
 };

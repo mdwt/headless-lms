@@ -162,7 +162,8 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomationRuns',
       tags,
-      summary: "List an automation's runs — a deleted automation's runs remain reachable (audit trail)",
+      summary:
+        "List an automation's runs — a deleted automation's runs remain reachable (audit trail)",
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
       response: { 200: AutomationRunsPage },

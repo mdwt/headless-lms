@@ -34,7 +34,11 @@ export interface CourseView {
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
-function pick<T extends string>(allowed: readonly T[], raw: string | string[] | undefined, fallback: T): T {
+function pick<T extends string>(
+  allowed: readonly T[],
+  raw: string | string[] | undefined,
+  fallback: T,
+): T {
   const value = Array.isArray(raw) ? raw[0] : raw;
   return allowed.includes(value as T) ? (value as T) : fallback;
 }
@@ -80,7 +84,8 @@ export function filterCourses(views: CourseView[], filter: FilterValue): CourseV
 /** "recent" is source order — the API already returns most-recent-first. */
 export function sortCourses(views: CourseView[], sort: SortValue): CourseView[] {
   if (sort === "progress") return [...views].sort((a, b) => b.percent - a.percent);
-  if (sort === "title") return [...views].sort((a, b) => a.course.title.localeCompare(b.course.title));
+  if (sort === "title")
+    return [...views].sort((a, b) => a.course.title.localeCompare(b.course.title));
   return views;
 }
 

@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { showCaption } from '@platejs/caption/react';
+import { showCaption } from "@platejs/caption/react";
 import {
   openImagePreview,
   useMediaController,
   useMediaControllerDropDownMenu,
   useMediaControllerState,
-} from '@platejs/media/react';
-import { BlockMenuPlugin } from '@platejs/selection/react';
+} from "@platejs/media/react";
+import { BlockMenuPlugin } from "@platejs/selection/react";
 import {
   AlignCenter,
   AlignLeft,
@@ -17,14 +17,14 @@ import {
   MoreHorizontalIcon,
   MoveUpRightIcon,
   ZoomInIcon,
-} from 'lucide-react';
-import { KEYS, type TMediaElement, type TTextAlignProps } from 'platejs';
-import { useEditorRef, useElement } from 'platejs/react';
-import type { ComponentProps, Dispatch, SetStateAction } from 'react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { KEYS, type TMediaElement, type TTextAlignProps } from "platejs";
+import { useEditorRef, useElement } from "platejs/react";
+import type { ComponentProps, Dispatch, SetStateAction } from "react";
+import { toast } from "sonner";
 
-import { cn } from '../lib/utils';
-import { downloadFile } from '../lib/download-file';
+import { cn } from "../lib/utils";
+import { downloadFile } from "../lib/download-file";
 
 import {
   DropdownMenu,
@@ -34,19 +34,16 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
   useOpenState,
-} from './dropdown-menu';
-import { Toolbar, ToolbarButton, toolbarButtonVariants } from './toolbar';
+} from "./dropdown-menu";
+import { Toolbar, ToolbarButton, toolbarButtonVariants } from "./toolbar";
 
-export function MediaToolbar({
-  className,
-  ...props
-}: ComponentProps<typeof Toolbar>) {
+export function MediaToolbar({ className, ...props }: ComponentProps<typeof Toolbar>) {
   return (
     <Toolbar
       className={cn(
-        'group-data-[readonly=true]/editor:hidden',
-        'top-1 right-1 opacity-0 group-hover/media:opacity-100',
-        'group-has-data-[resizing=true]/media:opacity-0 group-has-data-[state=open]/media:opacity-100 group-data-[state=open]/context-menu:opacity-0'
+        "group-data-[readonly=true]/editor:hidden",
+        "top-1 right-1 opacity-0 group-hover/media:opacity-100",
+        "group-has-data-[resizing=true]/media:opacity-0 group-has-data-[state=open]/media:opacity-100 group-data-[state=open]/context-menu:opacity-0",
       )}
       variant="media"
       {...props}
@@ -59,15 +56,15 @@ export function MediaToolbar({
 const alignItems = [
   {
     icon: AlignLeft,
-    value: 'left',
+    value: "left",
   },
   {
     icon: AlignCenter,
-    value: 'center',
+    value: "center",
   },
   {
     icon: AlignRight,
-    value: 'right',
+    value: "right",
   },
 ];
 
@@ -79,9 +76,9 @@ function MediaToolbarButtons() {
     useMediaController(state);
 
   const handleDownload = () => {
-    toast.promise(downloadFile(element.url, element.id || 'file'), {
-      error: 'Download failed. Please try again.',
-      loading: 'Downloading...',
+    toast.promise(downloadFile(element.url, element.id || "file"), {
+      error: "Download failed. Please try again.",
+      loading: "Downloading...",
     });
   };
 
@@ -110,12 +107,7 @@ function MediaToolbarButtons() {
       )}
 
       {element.type === KEYS.img && (
-        <ToolbarButton
-          onClick={handleDownload}
-          size="none"
-          tooltip="Download"
-          variant="media"
-        >
+        <ToolbarButton onClick={handleDownload} size="none" tooltip="Download" variant="media">
           <CircleArrowDownIcon />
         </ToolbarButton>
       )}
@@ -123,7 +115,7 @@ function MediaToolbarButtons() {
       {element.type !== KEYS.img && (
         <ToolbarButton
           onClick={() => {
-            window.open(element.url, '_blank');
+            window.open(element.url, "_blank");
           }}
           size="none"
           tooltip="Original"
@@ -135,12 +127,10 @@ function MediaToolbarButtons() {
 
       <ToolbarButton
         onClick={(e) => {
-          editor
-            .getApi(BlockMenuPlugin)
-            .blockMenu.showContextMenu(element.id as string, {
-              x: e.clientX,
-              y: e.clientY,
-            });
+          editor.getApi(BlockMenuPlugin).blockMenu.showContextMenu(element.id as string, {
+            x: e.clientX,
+            y: e.clientY,
+          });
         }}
         size="none"
         tooltip="More actions"
@@ -162,10 +152,9 @@ function MediaAlignButton({
   const element = useElement<TMediaElement & TTextAlignProps>();
   const openState = useOpenState();
 
-  const value = element.align ?? 'left';
+  const value = element.align ?? "left";
 
-  const IconValue =
-    alignItems.find((item) => item.value === value)?.icon ?? AlignLeft;
+  const IconValue = alignItems.find((item) => item.value === value)?.icon ?? AlignLeft;
 
   useMediaControllerDropDownMenu({
     openState,
@@ -176,7 +165,7 @@ function MediaAlignButton({
     <DropdownMenu modal={false} {...openState} {...props}>
       <DropdownMenuTrigger asChild>
         <ToolbarButton
-          data-state={openState.open ? 'open' : 'closed'}
+          data-state={openState.open ? "open" : "closed"}
           size="none"
           tooltip="Align"
           variant="media"
@@ -201,10 +190,10 @@ function MediaAlignButton({
             <DropdownMenuRadioItem
               className={cn(
                 toolbarButtonVariants({
-                  size: 'none',
-                  variant: 'media',
+                  size: "none",
+                  variant: "media",
                 }),
-                'size-[26px] opacity-60 hover:opacity-100 data-[state=checked]:bg-black/5 data-[state=checked]:opacity-100'
+                "size-[26px] opacity-60 hover:opacity-100 data-[state=checked]:bg-black/5 data-[state=checked]:opacity-100",
               )}
               hideIcon
               key={itemValue}

@@ -1,9 +1,9 @@
 // Students resource schemas.
-import { z } from "zod";
-import { emailSchema } from "@headless-lms/core/schemas";
-import { ListQuery, paginated, OrgUserProfileSchema } from "./shared.js";
+import { z } from 'zod';
+import { emailSchema } from '@headless-lms/core/schemas';
+import { ListQuery, paginated, OrgUserProfileSchema } from './shared.js';
 
-export const OrgUserStatus = z.enum(["invited", "active"]);
+export const OrgUserStatus = z.enum(['invited', 'active']);
 export type OrgUserStatus = z.infer<typeof OrgUserStatus>;
 
 export const Student = OrgUserProfileSchema.extend({

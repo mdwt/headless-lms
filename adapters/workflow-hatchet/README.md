@@ -27,9 +27,9 @@ setups.
 
 ## Environment variables (Hatchet client, read by the SDK)
 
-| Variable              | Required | Notes                                   |
-| --------------------- | -------- | ---------------------------------------- |
-| `HATCHET_CLIENT_TOKEN` | yes     | Hatchet API token for the target tenant. |
+| Variable               | Required | Notes                                    |
+| ---------------------- | -------- | ---------------------------------------- |
+| `HATCHET_CLIENT_TOKEN` | yes      | Hatchet API token for the target tenant. |
 
 See the Hatchet TypeScript SDK docs for the full set of `HATCHET_CLIENT_*` variables
 (host/port, TLS, namespace, …).

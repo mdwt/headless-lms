@@ -60,9 +60,7 @@ export function bundlesColumns(opts: {
       accessorKey: "updatedAt",
       header: ({ column }) => <ColumnHeader column={column} title="Updated" align="right" />,
       meta: { align: "right" },
-      cell: ({ row }) => (
-        <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>
-      ),
+      cell: ({ row }) => <span className="text-ink-3">{relativeTime(row.original.updatedAt)}</span>,
     },
     {
       id: "actions",
@@ -72,9 +70,7 @@ export function bundlesColumns(opts: {
         return (
           <div className="flex justify-end">
             <RowActions>
-              {canEdit && (
-                <DropdownMenuItem onClick={() => onEdit(bundle)}>Edit</DropdownMenuItem>
-              )}
+              {canEdit && <DropdownMenuItem onClick={() => onEdit(bundle)}>Edit</DropdownMenuItem>}
               {canDelete && (
                 <>
                   <DropdownMenuSeparator />

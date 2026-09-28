@@ -9,11 +9,7 @@ import {
   idSchema,
   moduleSchema,
 } from '../types/schemas/index.js';
-import {
-  defineEvent,
-  type EventOf,
-  type EventOfValues,
-} from '../shared/ports.js';
+import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.js';
 
 const downloadAssetsEventSchema = z
   .object({

@@ -32,7 +32,6 @@ an import, the fix is moving the code, not silencing the rule.
 ## Use of AI
 
 We use AI to improve the development speed and quality of the codebase.
-If you contribute code, please keep in mind that we'll review the PRs. We expect you to know the architecture of the system 
-and how everything fits together. We won't spend time reviewing massive AI generated PRs. Reach out to discuss 
+If you contribute code, please keep in mind that we'll review the PRs. We expect you to know the architecture of the system
+and how everything fits together. We won't spend time reviewing massive AI generated PRs. Reach out to discuss
 if you're planning on adding something :)
-

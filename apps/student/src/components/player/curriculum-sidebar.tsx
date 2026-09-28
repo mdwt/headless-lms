@@ -5,12 +5,7 @@ import { Check, ChevronDown, Lock, X } from "lucide-react";
 
 import { LESSON_ICON } from "@/components/icons";
 import { ProgressBar } from "@/components/primitives/progress-bar";
-import {
-  coursePercent,
-  isLessonLocked,
-  lessonStatus,
-  moduleCounts,
-} from "@/lib/progress";
+import { coursePercent, isLessonLocked, lessonStatus, moduleCounts } from "@/lib/progress";
 import type { Completion, Course, Lesson } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -74,9 +69,7 @@ export function CurriculumSidebar({
             <div className="mb-1.5 text-[10.5px] tracking-[0.04em] text-brand">
               {course.category}
             </div>
-            <h2 className="mb-[3px] text-[19px] font-semibold leading-[1.18]">
-              {course.title}
-            </h2>
+            <h2 className="mb-[3px] text-[19px] font-semibold leading-[1.18]">{course.title}</h2>
           </div>
           {isNarrow && (
             <button
@@ -90,10 +83,7 @@ export function CurriculumSidebar({
           )}
         </div>
         <div className="mt-4 flex items-center gap-2.5">
-          <ProgressBar
-            percent={coursePct}
-            trackClassName="h-[6px] bg-track-side"
-          />
+          <ProgressBar percent={coursePct} trackClassName="h-[6px] bg-track-side" />
           <span className="text-[12px] text-ink-2">{coursePct}%</span>
         </div>
       </div>
@@ -210,7 +200,11 @@ function LessonRow({
           isCurrent
             ? { background: "var(--brand)", color: "var(--brand-contrast)" }
             : isDone
-              ? { background: "var(--surface)", color: "var(--brand)", border: "1px solid var(--ring-conic)" }
+              ? {
+                  background: "var(--surface)",
+                  color: "var(--brand)",
+                  border: "1px solid var(--ring-conic)",
+                }
               : { background: "var(--hover-surface-2)", color: "var(--ink-3)" }
         }
       >

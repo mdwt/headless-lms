@@ -14,8 +14,6 @@ export function loadEmailConfig(): ResendEmailConfig | undefined {
   return { apiKey, from: process.env.EMAIL_FROM ?? "onboarding@resend.dev" };
 }
 
-
-
 export function loadStorageConfig(): MinioStorageConfig {
   return {
     endPoint: process.env.STORAGE_ENDPOINT ?? "localhost",

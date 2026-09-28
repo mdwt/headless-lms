@@ -107,7 +107,11 @@ function fakeRunsRepo(over?: Partial<AutomationRunsRepository>): AutomationRunsR
     insert: vi.fn().mockResolvedValue(RUN),
     recordOutcome: vi
       .fn()
-      .mockResolvedValue({ ...RUN, status: 'completed', finishedAt: new Date('2026-01-02T00:00:05Z') }),
+      .mockResolvedValue({
+        ...RUN,
+        status: 'completed',
+        finishedAt: new Date('2026-01-02T00:00:05Z'),
+      }),
     list: vi.fn().mockResolvedValue({ rows: [RUN], total: 1, page: 1, pageSize: 20 }),
     ...over,
   };
@@ -249,7 +253,11 @@ describe('AutomationsService.handle', () => {
     const runsRepo = fakeRunsRepo({
       recordOutcome: vi
         .fn()
-        .mockResolvedValue({ ...RUN, status: 'failed', finishedAt: new Date('2026-01-02T00:00:01Z') }),
+        .mockResolvedValue({
+          ...RUN,
+          status: 'failed',
+          finishedAt: new Date('2026-01-02T00:00:01Z'),
+        }),
     });
     const { svc, appended } = build(fakeRepo(), runsRepo, engine);
 
@@ -450,7 +458,11 @@ describe('AutomationsService.finalize', () => {
   });
 
   it('records a failed run and appends automation.run.failed + one automation.action.failed per failed result', async () => {
-    const failedRun = { ...RUN, status: 'failed' as const, finishedAt: new Date('2026-01-02T00:00:05Z') };
+    const failedRun = {
+      ...RUN,
+      status: 'failed' as const,
+      finishedAt: new Date('2026-01-02T00:00:05Z'),
+    };
     const runsRepo = fakeRunsRepo({ recordOutcome: vi.fn().mockResolvedValue(failedRun) });
     const { svc, appended } = build(fakeRepo(), runsRepo);
     const results: AutomationActionResult[] = [

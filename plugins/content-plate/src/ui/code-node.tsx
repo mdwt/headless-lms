@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { PlateLeaf, type PlateLeafProps } from 'platejs/react';
+import { PlateLeaf, type PlateLeafProps } from "platejs/react";
 
 export function CodeLeaf(props: PlateLeafProps) {
   return (

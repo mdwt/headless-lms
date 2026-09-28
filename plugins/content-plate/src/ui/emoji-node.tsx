@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { EmojiInlineIndexSearch, insertEmoji } from '@platejs/emoji';
-import { EmojiPlugin } from '@platejs/emoji/react';
-import { PlateElement, usePluginOption, type PlateElementProps } from 'platejs/react';
-import { useMemo, useState } from 'react';
+import { EmojiInlineIndexSearch, insertEmoji } from "@platejs/emoji";
+import { EmojiPlugin } from "@platejs/emoji/react";
+import { PlateElement, usePluginOption, type PlateElementProps } from "platejs/react";
+import { useMemo, useState } from "react";
 
-import { useDebounce } from '../hooks/use-debounce';
+import { useDebounce } from "../hooks/use-debounce";
 
 import {
   InlineCombobox,
@@ -14,14 +14,14 @@ import {
   InlineComboboxGroup,
   InlineComboboxInput,
   InlineComboboxItem,
-} from './inline-combobox';
+} from "./inline-combobox";
 
 const EMOJI_REGEX = /:$/;
 
 export function EmojiInputElement(props: PlateElementProps) {
-  const data = usePluginOption(EmojiPlugin, 'data')!;
+  const data = usePluginOption(EmojiPlugin, "data")!;
   const { children, editor, element } = props;
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
 
   const debouncedValue = useDebounce(value, 100);
   const isPending = value !== debouncedValue;
@@ -30,7 +30,7 @@ export function EmojiInputElement(props: PlateElementProps) {
     if (debouncedValue.trim().length === 0) return [];
 
     return EmojiInlineIndexSearch.getInstance(data)
-      .search(debouncedValue.replace(EMOJI_REGEX, ''))
+      .search(debouncedValue.replace(EMOJI_REGEX, ""))
       .get();
   }, [data, debouncedValue]);
 

@@ -1,16 +1,16 @@
 // progress — Drizzle repository (implements the core outbound port).
-import { and, eq, inArray } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { and, eq, inArray } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ProgressRecord,
   ProgressRepository,
   ProgressTarget,
   ProgressTargetType,
-} from '@headless-lms/core/progress';
-import { progressRecords } from '../schema/progress.js';
-import type { Logger } from '@headless-lms/core/shared/ports';
-import { noopLogger } from '@headless-lms/core/shared/logger';
-import { translateDbErrors } from './pg-errors.js';
+} from "@headless-lms/core/progress";
+import { progressRecords } from "../schema/progress.js";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { translateDbErrors } from "./pg-errors.js";
 
 type Row = typeof progressRecords.$inferSelect;
 
@@ -91,7 +91,7 @@ export class DrizzleProgressRepository implements ProgressRepository {
       );
     // Deterministic lock order prevents deadlock between overlapping reports.
     const rows = opts?.forUpdate
-      ? await base.orderBy(progressRecords.id).for('update')
+      ? await base.orderBy(progressRecords.id).for("update")
       : await base;
     return rows.map(toRecord);
   }
@@ -99,13 +99,13 @@ export class DrizzleProgressRepository implements ProgressRepository {
   async update(
     orgId: string,
     id: string,
-    patch: Partial<Pick<ProgressRecord, 'position' | 'completedAt'>>,
+    patch: Partial<Pick<ProgressRecord, "position" | "completedAt">>,
   ): Promise<ProgressRecord | null> {
     const [row] = await this.db
       .update(progressRecords)
       .set({
-        ...('position' in patch ? { position: patch.position ?? null } : {}),
-        ...('completedAt' in patch
+        ...("position" in patch ? { position: patch.position ?? null } : {}),
+        ...("completedAt" in patch
           ? { completedAt: patch.completedAt ? new Date(patch.completedAt) : null }
           : {}),
       })

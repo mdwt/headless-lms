@@ -1,5 +1,5 @@
 // Per-course analytics resource schemas.
-import { z } from "zod";
+import { z } from 'zod';
 
 export const CourseActivityEngagement = z.object({
   activityId: z.string(),

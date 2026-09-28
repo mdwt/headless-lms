@@ -32,7 +32,7 @@ adapters as reference when creating new ones.
 There are 3 ways to change or extend the core service.
 
 | Type             | Description                                                                                                                                  | Examples                                                                                                                                     |
-|------------------|----------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Video, Event Bus, Cache (Redis/in-memory) |
 | **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Extended comments, Community                                                                                                                 |
 | **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly, Outgoing webhooks                                                                                            |
@@ -49,7 +49,7 @@ their ports and service implementations, plus the wire types (`@headless-lms/cor
 (`@headless-lms/core/schemas`) and cross-context reporting (`@headless-lms/core/reporting/*`).
 `@headless-lms/server` (`packages/server`) is composition (`app/`) and the web server (`http/`) — nothing else.
 
-**Everything** in this project are replacable and is built like that from the start. The core service defines the 
+**Everything** in this project are replacable and is built like that from the start. The core service defines the
 interfaces that adapters implement.
 
 The core is organized by context (or domain), and each domain defines its ports and service implementations.
@@ -58,44 +58,43 @@ There is no orchastration layer at this point - and that's a decision that ensur
 owner as we build out the system.
 
 | Type        | Description                                                                                      |
-|-------------|--------------------------------------------------------------------------------------------------|
+| ----------- | ------------------------------------------------------------------------------------------------ |
 | **Fastify** | It's fast, easy to learn, automatic validation, spec generation is easy, plugin architecture, DX |
 | **Drizzle** | It's easy to understand, popular, no extra runtime                                               |
 
-
 ### Project Layout
 
-The project is a pnpm monorepo and should be easy to follow. 
+The project is a pnpm monorepo and should be easy to follow.
 
 ```
 apps/           ## Default frontends, bootstrapped server app
 packages/       ## Core packages - all published as npm packages and linkable as workspace:*
 plugins/        ## Platform and feature extensions
-integrations/   ## 3rd party integrations 
+integrations/   ## 3rd party integrations
 adapters/       ## Adapter implemenations (core infrastructure)
 ```
 
 ## Headlessness
-This is a headless LMS, meaning you can use anything to build your end user experiences. The idea is to have a 
+
+This is a headless LMS, meaning you can use anything to build your end user experiences. The idea is to have a
 backend service that gives you everything you need to build your own LMS frontend if you need to.
 
 This means you can use the existing Admin frontend to manage everyting ito users, signups, access, storage, files etc. and
-replace the course editor with your own. The system stores whatever you need and allows you to render whatever you want 
-with that data. 
+replace the course editor with your own. The system stores whatever you need and allows you to render whatever you want
+with that data.
 
-It defines the content structure - e.g. a **Course** 
+It defines the content structure - e.g. a **Course**
 
 I like Slate.js, and I've done other work using Plate.js, so the default course content builder is an engine built
 on Plate.js. Some people love TipTap, some people has existing SCORM frontends. The [editor contract](../packages/editor/src/index.ts)
 (`@headless-lms/editor`) is what you'll use to implement your frontend.
 
-
 ### Defaults
+
 Out of the box it's a fully functional system. It comes with frontends, a course builder, emails and everything you need.
 There is a fully funtional Admin portal and Student portal.
 
 | Type       | Description                                        |
-|------------|----------------------------------------------------|
+| ---------- | -------------------------------------------------- |
 | **Admin**  | NextJS, ShadCN, Plate.js course builder            |
 | **Emails** | It's easy to understand, popular, no extra runtime |
-

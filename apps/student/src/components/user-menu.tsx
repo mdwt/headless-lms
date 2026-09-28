@@ -58,9 +58,21 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
               value={(theme ?? "system") as ThemeValue}
               onChange={setTheme}
               options={[
-                { value: "light", title: "Light", icon: <Sun className="size-4" strokeWidth={1.7} /> },
-                { value: "system", title: "System", icon: <Monitor className="size-4" strokeWidth={1.7} /> },
-                { value: "dark", title: "Dark", icon: <Moon className="size-4" strokeWidth={1.7} /> },
+                {
+                  value: "light",
+                  title: "Light",
+                  icon: <Sun className="size-4" strokeWidth={1.7} />,
+                },
+                {
+                  value: "system",
+                  title: "System",
+                  icon: <Monitor className="size-4" strokeWidth={1.7} />,
+                },
+                {
+                  value: "dark",
+                  title: "Dark",
+                  icon: <Moon className="size-4" strokeWidth={1.7} />,
+                },
               ]}
             />
           </div>

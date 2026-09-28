@@ -60,7 +60,11 @@ export interface AutomationRunsRepository {
       finishedAt: Date;
     },
   ): Promise<AutomationRun | null>;
-  list(orgId: string, automationId: string, query: AutomationRunsQuery): Promise<Page<AutomationRun>>;
+  list(
+    orgId: string,
+    automationId: string,
+    query: AutomationRunsQuery,
+  ): Promise<Page<AutomationRun>>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

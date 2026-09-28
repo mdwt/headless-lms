@@ -42,9 +42,11 @@ describe("postToChannel action", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   function stubSlackOk() {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, ts: "1720000000.000100" }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ ok: true, ts: "1720000000.000100" }), { status: 200 }),
+      );
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
   }
@@ -100,18 +102,18 @@ describe("postToChannel action", () => {
 
   it("rejects an entitlement event with missing metadata before any external call", async () => {
     const fetchMock = stubSlackOk();
-    await expect(
-      action.invoke(ctx, { body: { type: "entitlement.created" } }),
-    ).rejects.toThrow();
+    await expect(action.invoke(ctx, { body: { type: "entitlement.created" } })).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("surfaces a slack API error", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ ok: false, error: "channel_not_found" }), { status: 200 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ ok: false, error: "channel_not_found" }), { status: 200 }),
+        ),
     );
     await expect(action.invoke(ctx, { body: createdEvent })).rejects.toThrow(/channel_not_found/);
   });
@@ -160,21 +162,23 @@ describe("listChannels action", () => {
   it("omits nextCursor when slack returns an empty cursor", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({ ok: true, channels: [], response_metadata: { next_cursor: "" } }),
-          { status: 200 },
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ ok: true, channels: [], response_metadata: { next_cursor: "" } }),
+            { status: 200 },
+          ),
         ),
-      ),
     );
     const out = await action.invoke(ctx, {});
     expect(out).toEqual({ channels: [] });
   });
 
   it("passes the pagination cursor through", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, channels: [] }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true, channels: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await action.invoke(ctx, { cursor: "cursor-2" });
     expect(fetchMock.mock.calls[0]?.[0]).toContain("cursor=cursor-2");
@@ -183,9 +187,11 @@ describe("listChannels action", () => {
   it("surfaces a missing_scope error", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ ok: false, error: "missing_scope" }), { status: 200 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ ok: false, error: "missing_scope" }), { status: 200 }),
+        ),
     );
     await expect(action.invoke(ctx, {})).rejects.toThrow(/missing_scope/);
   });

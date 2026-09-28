@@ -83,9 +83,7 @@ describe('notification subscribers', () => {
   });
 
   it('throws when the recipient cannot be resolved, so the relay retries', async () => {
-    const { bus, send } = build(
-      fakeLookups({ orgUserEmail: vi.fn().mockResolvedValue(null) }),
-    );
+    const { bus, send } = build(fakeLookups({ orgUserEmail: vi.fn().mockResolvedValue(null) }));
     await expect(bus.publish(created)).rejects.toThrow('lookups failed');
     expect(send).not.toHaveBeenCalled();
   });
@@ -93,8 +91,6 @@ describe('notification subscribers', () => {
   it('propagates a mailer failure so the relay retries the dispatch', async () => {
     const { bus, send } = build();
     send.mockRejectedValue(new Error('smtp down'));
-    await expect(
-      bus.publish(created),
-    ).rejects.toThrow('smtp down');
+    await expect(bus.publish(created)).rejects.toThrow('smtp down');
   });
 });

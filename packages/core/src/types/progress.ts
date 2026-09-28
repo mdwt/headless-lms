@@ -5,6 +5,6 @@ export type {
   ProgressTarget,
   ProgressTargetType,
   ReportProgressInput,
-} from "./schemas/progress.js";
+} from './schemas/progress.js';
 
 export type ProgressId = string;

@@ -1,12 +1,8 @@
-import { useToggleButton, useToggleButtonState } from '@platejs/toggle/react';
-import { ChevronRightIcon } from 'lucide-react';
-import {
-  PlateElement,
-  type PlateElementProps,
-  useElement,
-} from 'platejs/react';
+import { useToggleButton, useToggleButtonState } from "@platejs/toggle/react";
+import { ChevronRightIcon } from "lucide-react";
+import { PlateElement, type PlateElementProps, useElement } from "platejs/react";
 
-import { cn } from '../lib/utils';
+import { cn } from "../lib/utils";
 
 export function ToggleElement(props: PlateElementProps) {
   const element = useElement();
@@ -22,10 +18,7 @@ export function ToggleElement(props: PlateElementProps) {
           {...buttonProps}
         >
           <ChevronRightIcon
-            className={cn(
-              'transition-transform duration-75',
-              open ? 'rotate-90' : 'rotate-0'
-            )}
+            className={cn("transition-transform duration-75", open ? "rotate-90" : "rotate-0")}
           />
         </span>
         {props.children}

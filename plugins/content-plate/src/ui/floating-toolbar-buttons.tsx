@@ -1,18 +1,15 @@
-'use client';
+"use client";
 
-import { Bold, Code2, Italic, Strikethrough, Underline } from 'lucide-react';
-import { KEYS } from 'platejs';
-import {
-  useEditorReadOnly,
-  useSelectionAcrossBlocks,
-} from 'platejs/react';
+import { Bold, Code2, Italic, Strikethrough, Underline } from "lucide-react";
+import { KEYS } from "platejs";
+import { useEditorReadOnly, useSelectionAcrossBlocks } from "platejs/react";
 
-import { FontColorToolbarButton } from './font-color-toolbar-button';
-import { LinkToolbarButton } from './link-toolbar-button';
-import { MarkToolbarButton } from './mark-toolbar-button';
-import { MoreToolbarButton } from './more-toolbar-button';
-import { ToolbarGroup } from './toolbar';
-import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
+import { FontColorToolbarButton } from "./font-color-toolbar-button";
+import { LinkToolbarButton } from "./link-toolbar-button";
+import { MarkToolbarButton } from "./mark-toolbar-button";
+import { MoreToolbarButton } from "./more-toolbar-button";
+import { ToolbarGroup } from "./toolbar";
+import { TurnIntoToolbarButton } from "./turn-into-toolbar-button";
 
 export function FloatingToolbarButtons() {
   const readOnly = useEditorReadOnly();
@@ -23,8 +20,8 @@ export function FloatingToolbarButtons() {
     <div
       className="flex"
       style={{
-        transform: 'translateX(calc(-1px))',
-        whiteSpace: 'nowrap',
+        transform: "translateX(calc(-1px))",
+        whiteSpace: "nowrap",
       }}
     >
       {!readOnly && (
@@ -32,27 +29,15 @@ export function FloatingToolbarButtons() {
           <ToolbarGroup>
             <TurnIntoToolbarButton />
 
-            <MarkToolbarButton
-              nodeType={KEYS.bold}
-              shortcut="⌘+B"
-              tooltip="Bold"
-            >
+            <MarkToolbarButton nodeType={KEYS.bold} shortcut="⌘+B" tooltip="Bold">
               <Bold />
             </MarkToolbarButton>
 
-            <MarkToolbarButton
-              nodeType={KEYS.italic}
-              shortcut="⌘+I"
-              tooltip="Italic"
-            >
+            <MarkToolbarButton nodeType={KEYS.italic} shortcut="⌘+I" tooltip="Italic">
               <Italic />
             </MarkToolbarButton>
 
-            <MarkToolbarButton
-              nodeType={KEYS.underline}
-              shortcut="⌘+U"
-              tooltip="Underline"
-            >
+            <MarkToolbarButton nodeType={KEYS.underline} shortcut="⌘+U" tooltip="Underline">
               <Underline />
             </MarkToolbarButton>
 
@@ -64,11 +49,7 @@ export function FloatingToolbarButtons() {
               <Strikethrough />
             </MarkToolbarButton>
 
-            <MarkToolbarButton
-              nodeType={KEYS.code}
-              shortcut="⌘+E"
-              tooltip="Code"
-            >
+            <MarkToolbarButton nodeType={KEYS.code} shortcut="⌘+E" tooltip="Code">
               <Code2 />
             </MarkToolbarButton>
 
@@ -76,9 +57,7 @@ export function FloatingToolbarButtons() {
 
             <FontColorToolbarButton />
           </ToolbarGroup>
-          <ToolbarGroup>
-            {!isSelectionAcrossBlocks && <MoreToolbarButton />}
-          </ToolbarGroup>
+          <ToolbarGroup>{!isSelectionAcrossBlocks && <MoreToolbarButton />}</ToolbarGroup>
         </>
       )}
     </div>

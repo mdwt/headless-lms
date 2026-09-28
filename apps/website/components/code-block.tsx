@@ -1,28 +1,23 @@
-import { codeToHtml, createCssVariablesTheme, type BundledLanguage } from 'shiki'
-import { CopyButton } from '@/components/copy-button'
-import { cn } from '@/lib/utils'
+import { codeToHtml, createCssVariablesTheme, type BundledLanguage } from "shiki";
+import { CopyButton } from "@/components/copy-button";
+import { cn } from "@/lib/utils";
 
-const theme = createCssVariablesTheme({ name: 'site', variablePrefix: '--shiki-' })
+const theme = createCssVariablesTheme({ name: "site", variablePrefix: "--shiki-" });
 
 type CodeBlockProps = {
-  code: string
-  language?: BundledLanguage
-  filename?: string
-  className?: string
-}
+  code: string;
+  language?: BundledLanguage;
+  filename?: string;
+  className?: string;
+};
 
-export async function CodeBlock({
-  code,
-  language = 'bash',
-  filename,
-  className,
-}: CodeBlockProps) {
-  const html = await codeToHtml(code, { lang: language, theme })
+export async function CodeBlock({ code, language = "bash", filename, className }: CodeBlockProps) {
+  const html = await codeToHtml(code, { lang: language, theme });
 
   return (
     <div
       className={cn(
-        'group/code overflow-hidden rounded-2xl border border-border bg-card text-left',
+        "group/code overflow-hidden rounded-2xl border border-border bg-card text-left",
         className,
       )}
     >
@@ -35,5 +30,5 @@ export async function CodeBlock({
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
-  )
+  );
 }

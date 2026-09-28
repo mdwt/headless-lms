@@ -10,25 +10,25 @@ import {
   primaryKey,
   foreignKey,
   unique,
-} from 'drizzle-orm/pg-core';
-import type { Connection } from '@headless-lms/core/schemas';
-import { organizations } from './organizations.js';
-import { credentials } from './credentials.js';
-import type { Expect, NoDrift } from './drift.js';
+} from "drizzle-orm/pg-core";
+import type { Connection } from "@headless-lms/core/schemas";
+import { organizations } from "./organizations.js";
+import { credentials } from "./credentials.js";
+import type { Expect, NoDrift } from "./drift.js";
 
 export const connections = pgTable(
-  'connections',
+  "connections",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id').notNull(),
-    integrationId: text('integration_id').notNull(),
-    config: jsonb('config').$type<Connection['config']>().notNull().default({}),
-    active: boolean('active').notNull().default(true),
-    credentialRef: text('credential_ref').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+    id: text("id").notNull(),
+    integrationId: text("integration_id").notNull(),
+    config: jsonb("config").$type<Connection["config"]>().notNull().default({}),
+    active: boolean("active").notNull().default(true),
+    credentialRef: text("credential_ref").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

@@ -1,7 +1,14 @@
 import { type ContentServicePort } from '../../content/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetsService } from '../../assets/index.js';
-import type { Activity, Course, CourseProgressView, Download, DownloadAsset, Module, } from './model.js';
+import type {
+  Activity,
+  Course,
+  CourseProgressView,
+  Download,
+  DownloadAsset,
+  Module,
+} from './model.js';
 import type { LearnEntitlementReader, LearnReportService } from './ports.js';
 import type { Logger } from '../../shared/ports.js';
 import { noopLogger } from '../../shared/logger.js';

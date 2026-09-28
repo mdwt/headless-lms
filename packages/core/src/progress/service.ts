@@ -109,10 +109,16 @@ export class ProgressServiceImpl implements ProgressService {
           (await scope.progress.update(orgId, record.id, {
             completedAt: new Date(),
           })) ?? record;
-        events.push(
-          progressEvents.progressCompleted.make({ orgId, data: record }),
+        events.push(progressEvents.progressCompleted.make({ orgId, data: record }));
+        await this.completeContainers(
+          orgId,
+          input,
+          courseId,
+          modules,
+          courseActivities,
+          scope,
+          events,
         );
-        await this.completeContainers(orgId, input, courseId, modules, courseActivities, scope, events);
         this.logger.info('progress completed', { orgId, recordId: record.id });
       }
       if (events.length > 0) {
@@ -222,9 +228,7 @@ export class ProgressServiceImpl implements ProgressService {
         updatedAt: now,
       });
       if (inserted) {
-        events.push(
-          progressEvents.progressCompleted.make({ orgId, data: inserted }),
-        );
+        events.push(progressEvents.progressCompleted.make({ orgId, data: inserted }));
         return;
       }
       // Lost a concurrent insert: re-read the winner's row.

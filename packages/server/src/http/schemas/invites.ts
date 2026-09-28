@@ -1,9 +1,9 @@
 // Invites resource schemas — domain-owned invites (staff + student).
-import { z } from "zod";
-import { emailSchema } from "@headless-lms/core/schemas";
+import { z } from 'zod';
+import { emailSchema } from '@headless-lms/core/schemas';
 
 /** Roles an invitation can carry. Never owner. */
-export const InviteRole = z.enum(["admin", "instructor", "student"]);
+export const InviteRole = z.enum(['admin', 'instructor', 'student']);
 export type InviteRole = z.infer<typeof InviteRole>;
 
 export const Invite = z.object({
@@ -36,7 +36,7 @@ export type ActivateInvite = z.infer<typeof ActivateInvite>;
  *  accountExists says which of the two: the invitee's email already has an
  *  account (sign in to link it) or it does not (create one). */
 export const ActivateInviteResult = z.object({
-  status: z.enum(["accepted", "auth-required"]),
+  status: z.enum(['accepted', 'auth-required']),
   email: z.string(),
   role: InviteRole,
   accountExists: z.boolean(),
@@ -67,13 +67,11 @@ export const RedeemInvite = z.object({
 });
 export type RedeemInvite = z.infer<typeof RedeemInvite>;
 
-export const RedeemInviteResult = z.object({ status: z.literal("accepted") });
+export const RedeemInviteResult = z.object({ status: z.literal('accepted') });
 export type RedeemInviteResult = z.infer<typeof RedeemInviteResult>;
 
 export const AcceptInvite = z.object({ token: z.string().min(1) });
 export type AcceptInvite = z.infer<typeof AcceptInvite>;
 
-export const AcceptInviteResult = z.object({
-
-});
+export const AcceptInviteResult = z.object({});
 export type AcceptInviteResult = z.infer<typeof AcceptInviteResult>;

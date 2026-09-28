@@ -3,22 +3,22 @@
 // base64(iv ‖ auth tag ‖ data), AES-256-GCM with AAD = `${orgId}:${id}`, so a
 // row's payload cannot be decrypted if copied to another row or org.
 // `key_version` names the encryption key used, enabling rotation later.
-import { pgTable, text, integer, timestamp, primaryKey } from 'drizzle-orm/pg-core';
-import type { Credential } from '@headless-lms/core/schemas';
-import { organizations } from './organizations.js';
-import type { Expect, NoDrift } from './drift.js';
+import { pgTable, text, integer, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import type { Credential } from "@headless-lms/core/schemas";
+import { organizations } from "./organizations.js";
+import type { Expect, NoDrift } from "./drift.js";
 
 export const credentials = pgTable(
-  'credentials',
+  "credentials",
   {
-    orgId: text('org_id')
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
-    id: text('id').notNull(),
-    ciphertext: text('ciphertext').notNull(),
-    keyVersion: integer('key_version').notNull().default(1),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
+    id: text("id").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

@@ -42,7 +42,10 @@ export function CourseListRow({ course, percent, state }: CourseView) {
         </div>
         <div className="w-[160px] flex-none">
           <div className="flex items-center gap-[9px]">
-            <ProgressBar percent={percent} fillClassName={expired ? "bg-expired-bar" : "bg-brand"} />
+            <ProgressBar
+              percent={percent}
+              fillClassName={expired ? "bg-expired-bar" : "bg-brand"}
+            />
             <span className="text-[12px] text-ink-3">{percent}%</span>
           </div>
         </div>

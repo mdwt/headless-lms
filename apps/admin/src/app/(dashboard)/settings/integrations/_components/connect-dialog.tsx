@@ -77,7 +77,12 @@ export function ConnectDialog({
       pending={pending}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
-        <SchemaFields schema={integration.secretsSchema} control={control} namePrefix="secrets" secret />
+        <SchemaFields
+          schema={integration.secretsSchema}
+          control={control}
+          namePrefix="secrets"
+          secret
+        />
         <SchemaFields schema={integration.configSchema} control={control} namePrefix="config" />
       </form>
     </FormDialog>

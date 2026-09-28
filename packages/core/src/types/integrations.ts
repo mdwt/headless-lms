@@ -2,14 +2,14 @@
 // events. The contract (Integration, Action, ActionContext, Validation) is what
 // an integration package implements to be loaded by the platform; Connection is
 // an org's authenticated link to one external service.
-import type { Validation } from "./schemas/integrations.js";
+import type { Validation } from './schemas/integrations.js';
 
 export type {
   ConfigureInput,
   ConnectInput,
   Connection,
   Validation,
-} from "./schemas/integrations.js";
+} from './schemas/integrations.js';
 
 // --- The integration contract ------------------------------------------------
 

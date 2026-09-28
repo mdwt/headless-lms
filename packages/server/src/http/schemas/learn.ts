@@ -1,12 +1,12 @@
 // Learn resource schemas — the student-facing read surface. Reuses the Course
 // and Module payloads (identical wire shape to the back-office API, including
 // the opaque activity `settings` blob) so one renderer path serves both.
-import { z } from "zod";
-import { progressReportItemSchema } from "@headless-lms/core/schemas";
-import { Course } from "./content.js";
-import { Module } from "./activities.js";
-import { Download, DownloadAsset } from "./downloads.js";
-import { OrgRole } from "./shared.js";
+import { z } from 'zod';
+import { progressReportItemSchema } from '@headless-lms/core/schemas';
+import { Course } from './content.js';
+import { Module } from './activities.js';
+import { Download, DownloadAsset } from './downloads.js';
+import { OrgRole } from './shared.js';
 
 /** Courses the authenticated student is actively enrolled in (published only). */
 export const LearnCourses = z.array(Course);
@@ -63,14 +63,14 @@ export type ReportProgress = z.infer<typeof ReportProgress>;
 
 /** The reported target's state after the service decided. */
 export const ProgressStatus = z.object({
-  status: z.enum(["in-progress", "completed"]),
+  status: z.enum(['in-progress', 'completed']),
 });
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 
 /** Per-course progress, derived on read against current structure. */
 export const CourseProgress = z.object({
   /** Keyed by activity id; absent key = not started. */
-  activities: z.record(z.string(), z.enum(["in-progress", "completed"])),
+  activities: z.record(z.string(), z.enum(['in-progress', 'completed'])),
   /** Integer 0–100, completed ÷ current activities, rounded. */
   percent: z.int().min(0).max(100),
   completed: z.boolean(),
@@ -78,4 +78,3 @@ export const CourseProgress = z.object({
   positions: z.record(z.string(), z.unknown()),
 });
 export type CourseProgress = z.infer<typeof CourseProgress>;
-

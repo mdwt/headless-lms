@@ -114,9 +114,8 @@ export function DownloadHeader({
         title="Delete download?"
         description={
           <>
-            This permanently deletes{" "}
-            <span className="font-medium text-ink">{download.title}</span>, along with its files.
-            This can&apos;t be undone.
+            This permanently deletes <span className="font-medium text-ink">{download.title}</span>,
+            along with its files. This can&apos;t be undone.
           </>
         }
         confirmLabel="Delete download"
