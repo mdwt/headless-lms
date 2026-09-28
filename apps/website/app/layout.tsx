@@ -1,20 +1,26 @@
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Figtree, Fredoka, JetBrains_Mono } from "next/font/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { siteConfig } from "@/lib/site";
 import { jsonLdProps, siteGraph } from "@/lib/structured-data";
 import "./globals.css";
 
-const geistSans = Geist({
+const figtree = Figtree({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  variable: "--font-figtree",
 });
 
-const geistMono = Geist_Mono({
+const fredoka = Fredoka({
   subsets: ["latin"],
-  variable: "--font-geist-mono",
+  weight: ["500", "600", "700"],
+  variable: "--font-fredoka",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
@@ -76,8 +82,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#171512" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f9f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#15161a" },
   ],
 };
 
@@ -89,7 +95,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${figtree.variable} ${fredoka.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <body className="bg-background font-sans antialiased">

@@ -9,6 +9,7 @@ import {
   Mail,
   HardDrive,
 } from "lucide-react";
+import { IconTile } from "@/components/landing/icon-tile";
 
 const groups = [
   {
@@ -86,14 +87,16 @@ export function Features() {
         </p>
 
         <div className="mt-16 grid gap-x-8 gap-y-12 md:grid-cols-3">
-          {groups.map((group) => (
+          {groups.map((group, g) => (
             <div key={group.label}>
-              <h3 className="text-sm font-medium text-muted-foreground">{group.label}</h3>
+              <h3 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+                {group.label}
+              </h3>
               <dl className="mt-6 space-y-8">
-                {group.features.map((feature) => (
+                {group.features.map((feature, f) => (
                   <div key={feature.title}>
-                    <dt className="flex items-center gap-2.5 font-medium">
-                      <feature.icon aria-hidden className="size-5 shrink-0 text-primary" />
+                    <dt className="flex items-center gap-3 font-display text-lg font-semibold">
+                      <IconTile icon={feature.icon} index={g + f} />
                       {feature.title}
                     </dt>
                     <dd className="mt-2 text-base/7 text-pretty text-muted-foreground sm:text-sm/6">

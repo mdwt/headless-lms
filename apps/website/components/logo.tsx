@@ -1,4 +1,13 @@
 import type { SVGProps } from "react";
+import { cn } from "@/lib/utils";
+
+export const brand = {
+  violet: "#6a4bff",
+  mint: "#17c47c",
+  coral: "#ff6a4d",
+  paper: "#f8f9f3",
+  night: "#15161a",
+};
 
 export function GithubIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -14,29 +23,37 @@ export function GithubIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function Logo(props: SVGProps<SVGSVGElement>) {
+export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      {...props}
-    >
-      <path
-        d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        opacity="0.4"
-      />
-      <path
-        d="m8 9.5 3.5 2.5L8 14.5M13 15h3"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
+      <rect x="15" y="40" width="23" height="50" rx="11.5" fill={brand.violet} />
+      <rect x="62" y="10" width="23" height="80" rx="11.5" fill={brand.coral} />
+      <rect x="15" y="40" width="70" height="21" rx="10.5" fill={brand.violet} />
+      <rect
+        x="9"
+        y="6"
+        width="25"
+        height="25"
+        rx="8"
+        fill={brand.mint}
+        transform="rotate(-22 22 19)"
       />
     </svg>
+  );
+}
+
+export function Logo({ className, markClassName }: { className?: string; markClassName?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 font-display text-xl font-bold tracking-tight whitespace-nowrap",
+        className,
+      )}
+    >
+      <LogoMark className={cn("size-7 shrink-0", markClassName)} />
+      <span>
+        headless <span className="text-primary">lms</span>
+      </span>
+    </span>
   );
 }

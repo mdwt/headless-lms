@@ -5,12 +5,7 @@ import { siteConfig } from "@/lib/site";
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: (
-        <>
-          <Logo className="size-5 text-primary" />
-          <span className="font-semibold">{siteConfig.name}</span>
-        </>
-      ),
+      title: <Logo className="text-lg" markClassName="size-6" />,
       url: "/",
     },
     githubUrl: siteConfig.githubUrl,

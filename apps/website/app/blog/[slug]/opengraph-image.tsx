@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 import { notFound } from "next/navigation";
+import { brand } from "@/components/logo";
+import { loadOgFonts, OgLockup, ogFrame } from "@/lib/og";
 import { blog } from "@/lib/source";
 import { siteConfig } from "@/lib/site";
 
@@ -23,48 +25,27 @@ export default async function BlogOpengraphImage(props: Props) {
   }
 
   return new ImageResponse(
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        padding: 80,
-        backgroundColor: "#171512",
-        color: "#f4f1ea",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"
-            stroke="#ddb15f"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-            opacity="0.45"
-          />
-          <path
-            d="m8 9.5 3.5 2.5L8 14.5M13 15h3"
-            stroke="#ddb15f"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <div style={{ fontSize: 30, fontWeight: 600 }}>{siteConfig.name}</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <div style={{ fontSize: 60, fontWeight: 700, lineHeight: 1.1, maxWidth: 980 }}>
+    <div style={ogFrame}>
+      <OgLockup />
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        <div
+          style={{
+            display: "flex",
+            fontFamily: "Fredoka",
+            fontSize: 58,
+            lineHeight: 1.08,
+            letterSpacing: "-0.01em",
+            maxWidth: 1060,
+          }}
+        >
           {post.data.title}
         </div>
-        <div style={{ fontSize: 26, color: "#a59d8f", maxWidth: 900 }}>{post.data.description}</div>
+        <div style={{ fontSize: 28, color: "#5e6058", maxWidth: 960 }}>{post.data.description}</div>
       </div>
-      <div style={{ display: "flex", fontSize: 22, color: "#ddb15f" }}>
+      <div style={{ display: "flex", fontSize: 24, fontFamily: "Fredoka", color: brand.violet }}>
         {post.data.author} · {post.data.date}
       </div>
     </div>,
-    size,
+    { ...size, fonts: await loadOgFonts() },
   );
 }

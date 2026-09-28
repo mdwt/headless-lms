@@ -14,14 +14,15 @@ export function SiteHeader() {
     <header
       className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl"
       onKeyDown={(e) => {
-        if (e.key === "Escape") {setOpen(false);}
+        if (e.key === "Escape") {
+          setOpen(false);
+        }
       }}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" aria-label="Homepage" className="flex items-center gap-2.5">
-            <Logo className="size-6 shrink-0 text-primary" />
-            <span className="font-semibold tracking-tight">Headless LMS</span>
+          <Link href="/" aria-label="Homepage" className="flex items-center">
+            <Logo />
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             <div className="flex justify-center">
@@ -29,7 +30,7 @@ export function SiteHeader() {
                 <Link
                   key={item.title}
                   href={item.href}
-                  className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 >
                   {item.title}
                 </Link>

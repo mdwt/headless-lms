@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GithubIcon } from "@/components/logo";
+import { GithubIcon, LogoMark } from "@/components/logo";
 import { CodeBlock } from "@/components/code-block";
 import { siteConfig } from "@/lib/site";
 
@@ -9,7 +9,8 @@ export function Cta() {
   return (
     <section className="border-t border-border/70 py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-2xl border border-border bg-card px-6 py-14 text-center sm:px-12">
+        <div className="rounded-3xl border border-border bg-card px-6 py-14 text-center sm:px-12">
+          <LogoMark className="mx-auto mb-6 size-14" />
           <h2 className="mx-auto max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Spin up your own LMS in one command
           </h2>

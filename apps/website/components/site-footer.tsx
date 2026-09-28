@@ -38,9 +38,8 @@ export function SiteFooter() {
     <footer className="border-t border-border/70">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="space-y-4">
-          <Link href="/" aria-label="Homepage" className="flex items-center gap-2.5">
-            <Logo className="size-6 shrink-0 text-primary" />
-            <span className="font-semibold">Headless LMS</span>
+          <Link href="/" aria-label="Homepage" className="flex items-center">
+            <Logo />
           </Link>
           <p className="max-w-[48ch] text-sm text-pretty text-muted-foreground">
             An open-source, API-first LMS platform for building learning systems in modern

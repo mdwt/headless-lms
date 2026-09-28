@@ -1,55 +1,65 @@
 import { ImageResponse } from "next/og";
+import { brand } from "@/components/logo";
+import { loadOgFonts, OgLockup, ogFrame } from "@/lib/og";
 import { siteConfig } from "@/lib/site";
 
 export const alt = `${siteConfig.name}: ${siteConfig.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const chips = [
+    { label: "indie devs", color: brand.violet, tilt: -2 },
+    { label: "vibe coders", color: brand.coral, tilt: 1.5 },
+    { label: "course creators", color: brand.mint, tilt: -1 },
+  ];
+
   return new ImageResponse(
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        padding: 80,
-        backgroundColor: "#171512",
-        color: "#f4f1ea",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"
-            stroke="#ddb15f"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-            opacity="0.45"
-          />
-          <path
-            d="m8 9.5 3.5 2.5L8 14.5M13 15h3"
-            stroke="#ddb15f"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <div style={{ fontSize: 36, fontWeight: 600 }}>{siteConfig.name}</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <div style={{ fontSize: 64, fontWeight: 700, lineHeight: 1.1, maxWidth: 950 }}>
-          The API-first platform for building learning systems
+    <div style={ogFrame}>
+      <OgLockup />
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        <div style={{ display: "flex", gap: 14 }}>
+          {chips.map((chip) => (
+            <div
+              key={chip.label}
+              style={{
+                display: "flex",
+                fontFamily: "Fredoka",
+                fontSize: 26,
+                padding: "6px 20px",
+                borderRadius: 999,
+                color: chip.color,
+                backgroundColor: `${chip.color}22`,
+                transform: `rotate(${chip.tilt}deg)`,
+              }}
+            >
+              {chip.label}
+            </div>
+          ))}
         </div>
-        <div style={{ fontSize: 28, color: "#a59d8f", maxWidth: 900 }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            fontFamily: "Fredoka",
+            fontSize: 64,
+            lineHeight: 1.05,
+            letterSpacing: "-0.01em",
+            maxWidth: 1060,
+          }}
+        >
+          The API-first LMS for building&nbsp;
+          <span style={{ color: brand.violet }}>learning systems</span>
+        </div>
+        <div style={{ fontSize: 28, color: "#5e6058", maxWidth: 940 }}>
           Open-source headless LMS in modern TypeScript. Typed SDK, composable adapters, MCP
           endpoint.
         </div>
       </div>
-      <div style={{ display: "flex", fontSize: 24, color: "#ddb15f" }}>headless-lms.dev</div>
+      <div style={{ display: "flex", fontSize: 26, fontFamily: "Fredoka", color: brand.violet }}>
+        headless-lms.dev
+      </div>
     </div>,
-    size,
+    { ...size, fonts: await loadOgFonts() },
   );
 }

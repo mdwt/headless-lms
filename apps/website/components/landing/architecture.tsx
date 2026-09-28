@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
 import { Layers, ShieldCheck, Boxes, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IconTile } from "@/components/landing/icon-tile";
 
 const layers = [
   {
@@ -80,11 +82,11 @@ export function Architecture() {
             </p>
 
             <dl className="mt-8 space-y-6">
-              {principles.map((p) => (
-                <div key={p.title} className="flex gap-3">
-                  <p.icon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+              {principles.map((p, i) => (
+                <div key={p.title} className="flex gap-4">
+                  <IconTile icon={p.icon} index={i} />
                   <div>
-                    <dt className="font-medium">{p.title}</dt>
+                    <dt className="font-display text-lg font-semibold">{p.title}</dt>
                     <dd className="mt-1 text-base/7 text-pretty text-muted-foreground sm:text-sm/6">
                       {p.body}
                     </dd>
@@ -113,10 +115,20 @@ export function Architecture() {
             <div className="rounded-2xl border border-border p-5">
               <p className="font-medium">Swappable adapters</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {adapterSlots.map((slot) => (
+                {adapterSlots.map((slot, i) => (
                   <span
                     key={slot}
-                    className="rounded-md border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground"
+                    className="chip"
+                    style={
+                      {
+                        "--chip": [
+                          "var(--brand-violet)",
+                          "var(--brand-coral)",
+                          "var(--brand-mint)",
+                        ][i % 3],
+                        "--tilt": `${i % 2 ? 1.5 : -1.5}deg`,
+                      } as CSSProperties
+                    }
                   >
                     {slot}
                   </span>

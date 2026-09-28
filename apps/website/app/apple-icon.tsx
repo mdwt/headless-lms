@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brand } from "@/components/logo";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -12,23 +13,21 @@ export default function AppleIcon() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#171512",
+        backgroundColor: brand.paper,
       }}
     >
-      <svg width="120" height="120" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"
-          stroke="#ddb15f"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-          opacity="0.45"
-        />
-        <path
-          d="m8 9.5 3.5 2.5L8 14.5M13 15h3"
-          stroke="#ddb15f"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <svg width="132" height="132" viewBox="0 0 100 100">
+        <rect x="15" y="40" width="23" height="50" rx="11.5" fill={brand.violet} />
+        <rect x="62" y="10" width="23" height="80" rx="11.5" fill={brand.coral} />
+        <rect x="15" y="40" width="70" height="21" rx="10.5" fill={brand.violet} />
+        <rect
+          x="9"
+          y="6"
+          width="25"
+          height="25"
+          rx="8"
+          fill={brand.mint}
+          transform="rotate(-22 22 19)"
         />
       </svg>
     </div>,

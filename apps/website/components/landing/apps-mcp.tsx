@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { LayoutDashboard, GraduationCap, Bot, PaintbrushIcon } from "lucide-react";
+import { IconTile } from "@/components/landing/icon-tile";
 
 const surfaces = [
   {
@@ -39,11 +40,11 @@ export function AppsMcp() {
             </p>
 
             <dl className="mt-8 space-y-6">
-              {surfaces.map((s) => (
-                <div key={s.title} className="flex gap-3">
-                  <s.icon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+              {surfaces.map((s, i) => (
+                <div key={s.title} className="flex gap-4">
+                  <IconTile icon={s.icon} index={i} />
                   <div>
-                    <dt className="font-medium">{s.title}</dt>
+                    <dt className="font-display text-lg font-semibold">{s.title}</dt>
                     <dd className="mt-1 text-base/7 text-pretty text-muted-foreground sm:text-sm/6">
                       {s.body}
                     </dd>
