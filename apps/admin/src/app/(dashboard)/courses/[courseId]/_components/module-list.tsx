@@ -296,7 +296,7 @@ function SortableModule({
 // Inline "Add module" composer.
 // ---------------------------------------------------------------------------
 
-function ModuleComposer({ courseId }: { courseId: string }) {
+export function ModuleComposer({ courseId }: { courseId: string }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();

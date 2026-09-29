@@ -23,6 +23,7 @@ import { useEditorRef, useElement } from "platejs/react";
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { toast } from "sonner";
 
+import { useFixedToolbar } from "../hooks/use-host-slots";
 import { cn } from "../lib/utils";
 import { downloadFile } from "../lib/download-file";
 
@@ -38,6 +39,9 @@ import {
 import { Toolbar, ToolbarButton, toolbarButtonVariants } from "./toolbar";
 
 export function MediaToolbar({ className, ...props }: ComponentProps<typeof Toolbar>) {
+  const fixed = useFixedToolbar();
+  if (fixed) return null;
+
   return (
     <Toolbar
       className={cn(
@@ -68,7 +72,10 @@ const alignItems = [
   },
 ];
 
-function MediaToolbarButtons() {
+type MediaToolbarVariant = "media" | "default";
+
+export function MediaToolbarButtons({ variant = "media" }: { variant?: MediaToolbarVariant }) {
+  const size = variant === "media" ? "none" : "sm";
   const editor = useEditorRef();
   const element = useElement<TMediaElement>();
   const state = useMediaControllerState();
@@ -84,12 +91,12 @@ function MediaToolbarButtons() {
 
   return (
     <>
-      <MediaAlignButton {...mediaToolbarDropDownMenuProps} />
+      <MediaAlignButton variant={variant} {...mediaToolbarDropDownMenuProps} />
       <ToolbarButton
         onClick={() => showCaption(editor, element)}
-        size="none"
+        size={size}
         tooltip="Caption"
-        variant="media"
+        variant={variant}
       >
         <CaptionsIcon />
       </ToolbarButton>
@@ -98,16 +105,16 @@ function MediaToolbarButtons() {
           onClick={() => {
             openImagePreview(editor, element);
           }}
-          size="none"
+          size={size}
           tooltip="Expand"
-          variant="media"
+          variant={variant}
         >
           <ZoomInIcon />
         </ToolbarButton>
       )}
 
       {element.type === KEYS.img && (
-        <ToolbarButton onClick={handleDownload} size="none" tooltip="Download" variant="media">
+        <ToolbarButton onClick={handleDownload} size={size} tooltip="Download" variant={variant}>
           <CircleArrowDownIcon />
         </ToolbarButton>
       )}
@@ -117,9 +124,9 @@ function MediaToolbarButtons() {
           onClick={() => {
             window.open(element.url, "_blank");
           }}
-          size="none"
+          size={size}
           tooltip="Original"
-          variant="media"
+          variant={variant}
         >
           <MoveUpRightIcon />
         </ToolbarButton>
@@ -132,9 +139,9 @@ function MediaToolbarButtons() {
             y: e.clientY,
           });
         }}
-        size="none"
+        size={size}
         tooltip="More actions"
-        variant="media"
+        variant={variant}
       >
         <MoreHorizontalIcon />
       </ToolbarButton>
@@ -144,9 +151,11 @@ function MediaToolbarButtons() {
 
 function MediaAlignButton({
   children,
+  variant,
   ...props
 }: {
   setAlignOpen: Dispatch<SetStateAction<boolean>>;
+  variant: MediaToolbarVariant;
 } & DropdownMenuProps) {
   const editor = useEditorRef();
   const element = useElement<TMediaElement & TTextAlignProps>();
@@ -166,9 +175,9 @@ function MediaAlignButton({
       <DropdownMenuTrigger asChild>
         <ToolbarButton
           data-state={openState.open ? "open" : "closed"}
-          size="none"
+          size={variant === "media" ? "none" : "sm"}
           tooltip="Align"
-          variant="media"
+          variant={variant}
         >
           <IconValue className="size-4" />
         </ToolbarButton>
@@ -176,7 +185,10 @@ function MediaAlignButton({
 
       <DropdownMenuContent
         align="start"
-        className="min-w-0 rounded-md border-none bg-black/60 p-0 shadow-none"
+        className={cn(
+          "min-w-0 p-0",
+          variant === "media" && "rounded-md border-none bg-black/60 shadow-none",
+        )}
         portal={false}
       >
         <DropdownMenuRadioGroup
@@ -190,10 +202,11 @@ function MediaAlignButton({
             <DropdownMenuRadioItem
               className={cn(
                 toolbarButtonVariants({
-                  size: "none",
-                  variant: "media",
+                  size: variant === "media" ? "none" : "sm",
+                  variant,
                 }),
-                "size-[26px] opacity-60 hover:opacity-100 data-[state=checked]:bg-black/5 data-[state=checked]:opacity-100",
+                variant === "media" && "size-[26px]",
+                "opacity-60 hover:opacity-100 data-[state=checked]:bg-black/5 data-[state=checked]:opacity-100",
               )}
               hideIcon
               key={itemValue}

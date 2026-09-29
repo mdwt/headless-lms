@@ -11,6 +11,7 @@ const plateEditor: EditorModule = {
   Editor,
   Renderer,
   validate,
+  slots: ["toolbar", "blocks"],
   meta: { type: "plate", version: 1 },
 };
 

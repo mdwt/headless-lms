@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import type { PageEditorProps } from "@headless-lms/editor";
 
 import { EditorKit } from "./editor/editor-kit";
+import { HostSlotsProvider } from "./hooks/use-host-slots";
 import { PickAssetProvider } from "./hooks/use-pick-asset";
 import { ResolveAssetUrlProvider } from "./hooks/use-resolve-asset-url";
 import { UploadProvider } from "./hooks/use-upload-file";
@@ -19,6 +20,7 @@ import { Editor as EditorArea, EditorContainer } from "./ui/editor";
 import { isNodeList } from "./validate";
 
 const EMPTY_VALUE: Value = [{ type: "p", children: [{ text: "" }] }];
+const NO_SLOTS = {};
 
 export function Editor({
   initialConfig,
@@ -27,6 +29,7 @@ export function Editor({
   pickAsset,
   resolveAssetUrl,
   uploadFile,
+  slots,
 }: PageEditorProps) {
   const editor = usePlateEditor({
     plugins: EditorKit,
@@ -48,11 +51,13 @@ export function Editor({
     <UploadProvider uploadFile={uploadFile ?? null}>
       <PickAssetProvider pickAsset={pickAsset ?? null}>
         <ResolveAssetUrlProvider resolveAssetUrl={resolveAssetUrl ?? null}>
-          <Plate editor={editor} onChange={({ value }) => onChange?.(value)}>
-            <EditorContainer className="h-auto overflow-visible" variant="default">
-              <EditorArea placeholder="Type '/' for commands…" variant="default" />
-            </EditorContainer>
-          </Plate>
+          <HostSlotsProvider slots={slots ?? NO_SLOTS}>
+            <Plate editor={editor} onValueChange={({ value }) => onChange?.(value)}>
+              <EditorContainer className="h-auto overflow-visible" variant="default">
+                <EditorArea placeholder="Type '/' for commands…" variant="default" />
+              </EditorContainer>
+            </Plate>
+          </HostSlotsProvider>
         </ResolveAssetUrlProvider>
       </PickAssetProvider>
     </UploadProvider>

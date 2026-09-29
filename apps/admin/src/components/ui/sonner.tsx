@@ -11,7 +11,7 @@ function Toaster(props: ToasterProps) {
   return (
     <Sonner
       position="top-right"
-      offset={16}
+      offset={{ top: 64, right: 16, bottom: 16, left: 16 }}
       gap={10}
       toastOptions={{
         classNames: {

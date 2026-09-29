@@ -21,6 +21,7 @@ import { EmojiKit } from "./plugins/emoji-kit";
 import { ExitBreakKit } from "./plugins/exit-break-kit";
 import { FloatingToolbarKit } from "./plugins/floating-toolbar-kit";
 import { FontKit } from "./plugins/font-kit";
+import { HostSlotsKit } from "./plugins/host-slots-kit";
 import { LinkKit } from "./plugins/link-kit";
 import { ListKit } from "./plugins/list-kit";
 import { MediaKit } from "./plugins/media-kit";
@@ -61,6 +62,7 @@ export const EditorKit = [
   // UI
   ...BlockPlaceholderKit,
   ...FloatingToolbarKit,
+  ...HostSlotsKit,
 ];
 
 export type MyEditor = TPlateEditor<Value, (typeof EditorKit)[number]>;

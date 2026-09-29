@@ -30,6 +30,8 @@ export interface UploadedEditorFile {
  */
 export type ResolveAssetUrl = (assetId: string) => Promise<string | null>;
 
+export type EditorSlot = "toolbar" | "blocks";
+
 export interface PageEditorProps {
   /** The stored editor config blob, verbatim. `null`/invalid → start empty. */
   initialConfig: unknown;
@@ -65,6 +67,7 @@ export interface PageEditorProps {
    * this is supplied.
    */
   pickAsset?: (opts: { kind: EditorMediaKind }) => Promise<UploadedEditorFile | null>;
+  slots?: Partial<Record<EditorSlot, HTMLElement | null>>;
 }
 
 export interface EditorModule {
@@ -77,6 +80,7 @@ export interface EditorModule {
    *  render, so each node materializes with a currently-valid URL. */
   Renderer: ComponentType<{ config: unknown; resolveAssetUrl?: ResolveAssetUrl }>;
   validate?: (config: unknown) => { ok: true } | { ok: false; errors: string[] };
+  slots?: readonly EditorSlot[];
   meta: {
     /** Unique identifier for this editor's config format, stored with every
      *  config. Renderers refuse configs of a foreign type. */

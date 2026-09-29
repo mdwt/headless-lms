@@ -14,28 +14,37 @@ import type { PlateEditor } from "platejs/react";
 
 const ACTION_THREE_COLUMNS = "action_three_columns";
 
-const insertList = (editor: PlateEditor, type: string) => {
+type InsertAt = { at?: Path };
+
+const insertList = (editor: PlateEditor, type: string, options: InsertAt = {}) => {
   editor.tf.insertNodes(
     editor.api.create.block({
       indent: 1,
       listStyleType: type,
     }),
-    { select: true },
+    { select: true, ...options },
   );
 };
 
-const insertBlockMap: Record<string, (editor: PlateEditor, type: string) => void> = {
+const insertBlockMap: Record<
+  string,
+  (editor: PlateEditor, type: string, options?: InsertAt) => void
+> = {
   [KEYS.listTodo]: insertList,
   [KEYS.ol]: insertList,
   [KEYS.ul]: insertList,
-  [ACTION_THREE_COLUMNS]: (editor) => insertColumnGroup(editor, { columns: 3, select: true }),
-  [KEYS.audio]: (editor) => insertAudioPlaceholder(editor, { select: true }),
-  [KEYS.callout]: (editor) => insertCallout(editor, { select: true }),
-  [KEYS.codeBlock]: (editor) => insertCodeBlock(editor, { select: true }),
-  [KEYS.file]: (editor) => insertFilePlaceholder(editor, { select: true }),
-  [KEYS.img]: (editor) => insertImagePlaceholder(editor, { select: true }),
-  [KEYS.table]: (editor) => insertTable(editor, {}, { select: true }),
-  [KEYS.video]: (editor) => insertVideoPlaceholder(editor, { select: true }),
+  [ACTION_THREE_COLUMNS]: (editor, _type, options) =>
+    insertColumnGroup(editor, { columns: 3, select: true, ...options }),
+  [KEYS.audio]: (editor, _type, options) =>
+    insertAudioPlaceholder(editor, { select: true, ...options }),
+  [KEYS.callout]: (editor, _type, options) => insertCallout(editor, { select: true, ...options }),
+  [KEYS.codeBlock]: (editor, _type, options) =>
+    insertCodeBlock(editor, { select: true, ...options }),
+  [KEYS.file]: (editor, _type, options) => insertFilePlaceholder(editor, { select: true, ...options }),
+  [KEYS.img]: (editor, _type, options) => insertImagePlaceholder(editor, { select: true, ...options }),
+  [KEYS.table]: (editor, _type, options) => insertTable(editor, {}, { select: true, ...options }),
+  [KEYS.video]: (editor, _type, options) =>
+    insertVideoPlaceholder(editor, { select: true, ...options }),
 };
 
 const insertInlineMap: Record<string, (editor: PlateEditor, type: string) => void> = {
@@ -59,6 +68,14 @@ export const insertBlock = (editor: PlateEditor, type: string) => {
       editor.tf.removeNodes({ previousEmptyBlock: true });
     }
   });
+};
+
+export const insertBlockAt = (editor: PlateEditor, type: string, at: Path) => {
+  if (type in insertBlockMap) {
+    insertBlockMap[type](editor, type, { at });
+  } else {
+    editor.tf.insertNodes(editor.api.create.block({ type }), { at, select: true });
+  }
 };
 
 export const insertInlineElement = (editor: PlateEditor, type: string) => {

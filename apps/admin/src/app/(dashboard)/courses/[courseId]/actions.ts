@@ -7,7 +7,6 @@ import { Content, type JsonValueInput } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
 import type {
-  ActivityContent,
   ActivitySettings,
   Course,
   CourseSettings,
@@ -23,6 +22,7 @@ import type {
  */
 function revalidateBuilder(): void {
   revalidatePath("/courses/[courseId]", "page");
+  revalidatePath("/courses/[courseId]/content/[activityId]", "page");
   revalidatePath("/courses");
 }
 
@@ -91,17 +91,11 @@ export async function saveActivityAction(
   return modules;
 }
 
-/**
- * Persist the content editor's output for one activity. The blob is stored
- * verbatim under `settings.content`; every other settings field (title,
- * published, …) is preserved by re-reading the activity and merging. This
- * action knows nothing about the editor's format — it just stores the blob.
- */
-export async function saveActivityContentAction(
+export async function updateActivitySettingsAction(
   courseId: string,
   moduleId: string,
   activityId: string,
-  content: ActivityContent,
+  patch: Partial<ActivitySettings>,
 ): Promise<void> {
   const headers = await authHeaders();
   const [activities, links] = await Promise.all([
@@ -113,7 +107,7 @@ export async function saveActivityContentAction(
 
   const settings: ActivitySettings = {
     ...((activity.settings ?? {}) as ActivitySettings),
-    content,
+    ...patch,
   };
   const assetIds = links.filter((l) => l.activityId === activityId).map((l) => l.assetId);
   await Content.updateActivity(

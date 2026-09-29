@@ -110,13 +110,13 @@ export function ItemRow({
       {canEdit ? (
         <RowActions label="Item actions">
           <DropdownMenuItem asChild>
-            <Link href={`/courses/${courseId}/content/${item.id}/editor`}>
+            <Link href={`/courses/${courseId}/content/${item.id}`}>
               <FileText className="size-4" />
               Edit content
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={`/courses/${courseId}/content/${item.id}/settings`}>
+            <Link href={`/courses/${courseId}/content/${item.id}?panel=settings`}>
               <SlidersHorizontal className="size-4" />
               Settings
             </Link>
