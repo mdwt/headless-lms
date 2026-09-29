@@ -10,7 +10,7 @@ import { RowActions } from "@/components/data-table/row-actions";
 import type { Automation, AutomationTriggerInfo } from "@/lib/api/types";
 
 /**
- * Column defs for the automations list. Toggle/edit/delete are wired to the
+ * Column defs for the workflows list. Toggle/edit/delete are wired to the
  * caller's handlers (the table island owns the mutations + confirm dialog).
  * The page is manager-gated at the server and again in the island.
  */
@@ -37,14 +37,27 @@ export function automationColumns(
       },
     },
     {
-      accessorKey: "trigger",
+      id: "trigger",
+      accessorFn: (row) => row.triggers,
       header: ({ column }) => <ColumnHeader column={column} title="Trigger" />,
       cell: ({ row }) => {
-        const info = triggerInfo.get(row.original.trigger);
+        const [first, ...rest] = row.original.triggers;
+        if (!first) return <span className="text-ink-4">No trigger</span>;
+        const info = triggerInfo.get(first);
         return (
-          <Badge variant="outline" title={info?.description}>
-            {info?.label ?? row.original.trigger}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" title={info?.description}>
+              {info?.label ?? first}
+            </Badge>
+            {rest.length > 0 ? (
+              <span
+                className="text-sm text-ink-4"
+                title={rest.map((t) => triggerInfo.get(t)?.label ?? t).join(", ")}
+              >
+                +{rest.length}
+              </span>
+            ) : null}
+          </div>
         );
       },
     },

@@ -38,7 +38,7 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
         },
         { name: 'Discussion', description: 'Learner comments, replies, reactions and moderation' },
         { name: 'Assets', description: 'The org media library: uploads, serving and lifecycle' },
-        { name: 'Automations', description: 'Trigger/action workflows' },
+        { name: 'Automations', description: 'Workflows and webhooks that react to system events' },
         { name: 'Integrations', description: 'Connections to external services' },
         { name: 'Reporting', description: 'Reporting and analytics' },
       ],

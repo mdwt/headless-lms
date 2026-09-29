@@ -5,15 +5,23 @@ export type {
   Automation,
   AutomationAction,
   AutomationActionResult,
+  AutomationKind,
   AutomationRun,
   AutomationRunsQuery,
   AutomationRunStatus,
+  AutomationsQuery,
   AutomationTrigger,
   AvailableAction,
   AvailableActions,
   AvailableTriggers,
   CreateAutomationInput,
+  CreatedWebhook,
+  CreateWebhookInput,
+  DeliverWebhookInput,
   UpdateAutomationInput,
+  UpdateWebhookInput,
+  Webhook,
+  WebhookSecret,
 } from './schemas/automations.js';
 
 export interface AutomationDispatch {
@@ -34,4 +42,18 @@ export interface AutomationEngine {
   dispatch(d: AutomationDispatch): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
+}
+
+export interface WebhookRequest {
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface WebhookResponse {
+  status: number;
+}
+
+export interface WebhookSender {
+  send(request: WebhookRequest): Promise<WebhookResponse>;
 }

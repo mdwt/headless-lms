@@ -1,6 +1,6 @@
 {
   "title": "Automations",
-  "description": "Trigger/action workflows",
+  "description": "Workflows and webhooks that react to system events",
   "pages": [
     "listAutomations",
     "createAutomation",
@@ -9,6 +9,14 @@
     "getAutomation",
     "updateAutomation",
     "deleteAutomation",
-    "listAutomationRuns"
+    "listAutomationRuns",
+    "rerunAutomationRun",
+    "listWebhooks",
+    "createWebhook",
+    "getWebhook",
+    "updateWebhook",
+    "deleteWebhook",
+    "getWebhookSecret",
+    "rotateWebhookSecret"
   ]
 }

@@ -23,7 +23,8 @@ adapters/
                      tables), the repositories, unit of work, migrations + runMigrations
   auth/              @headless-lms/adapter-auth — Better Auth
   defaults/          @headless-lms/adapter-defaults — in-process event bus + outbox relay, pino
-                     logging, inline workflow engine, fail-loud email/storage/template stubs
+                     logging, inline workflow engine, fetch webhook sender, fail-loud
+                     email/storage/template stubs
   email-resend/      @headless-lms/adapter-email-resend — EmailSender via Resend
   email-templates/   @headless-lms/adapter-email-templates — TemplateRenderer via React Email
   storage-minio/     @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
@@ -110,7 +111,7 @@ const container = await createContainer(config, {
 
 A slot left absent falls back to the default from `@headless-lms/adapter-defaults`
 — for email, storage and templates, a stub that fails loudly on use; for workflows,
-the in-process `InlineAutomationEngine`. `apps/api/src/config.ts` is the only file
+the in-process `InlineAutomationEngine`; for webhooks, `FetchWebhookSender`. `apps/api/src/config.ts` is the only file
 on the backend that touches `process.env`; `adapters/email-resend`,
 `storage-minio` and `workflow-hatchet` each carry a README for the env they expect.
 

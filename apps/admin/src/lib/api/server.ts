@@ -41,6 +41,8 @@ import { authHeaders } from "./server-call";
 import type {
   Asset,
   Automation,
+  AutomationKind,
+  AutomationRunsPage,
   BundleRow,
   AutomationTriggerInfo,
   AvailableAction,
@@ -61,6 +63,7 @@ import type {
   CommentListItem,
   Student,
   StudentAnalytics,
+  Webhook,
 } from "./types";
 
 /** Resolve a granted content id to its type + display title. The grant row
@@ -359,8 +362,20 @@ export const serverApi = {
   },
 
   // automations
-  async listAutomations(): Promise<Automation[]> {
-    return await Automations.listAutomations(await authHeaders());
+  async listAutomations(kind?: AutomationKind): Promise<Automation[]> {
+    return await Automations.listAutomations({ kind }, await authHeaders());
+  },
+  async listAutomationRuns(id: string, params: ListParams): Promise<AutomationRunsPage> {
+    return await Automations.listAutomationRuns(
+      { id, ...toQuery(params, ["status"]) },
+      await authHeaders(),
+    );
+  },
+  async listWebhooks(): Promise<Webhook[]> {
+    return await Automations.listWebhooks(await authHeaders());
+  },
+  async getWebhook(id: string): Promise<Webhook> {
+    return await Automations.getWebhook({ id }, await authHeaders());
   },
   async getAutomation(id: string): Promise<Automation> {
     return await Automations.getAutomation({ id }, await authHeaders());

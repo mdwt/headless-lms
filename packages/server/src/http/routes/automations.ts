@@ -7,8 +7,11 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   Automation,
   AutomationIdParam,
+  AutomationRun,
+  AutomationRunParams,
   AutomationRunsPage,
   AutomationRunsQuery,
+  AutomationsQuery,
   AvailableAction,
   AvailableTriggers,
   CreateAutomationBody,
@@ -31,12 +34,13 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomations',
       tags,
-      summary: 'List automations',
+      summary: 'List automations, optionally only workflows or only webhooks',
+      querystring: AutomationsQuery,
       response: { 200: z.array(Automation) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return automations.list(scope.orgId);
+      return automations.list(scope.orgId, req.query);
     },
   });
 
@@ -80,7 +84,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'createAutomation',
       tags,
-      summary: 'Create an automation',
+      summary: 'Create a workflow automation',
       body: CreateAutomationBody,
       response: { 201: Automation },
     },
@@ -119,10 +123,10 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'updateAutomation',
       tags,
-      summary: 'Update an automation',
+      summary: 'Update a workflow automation (webhooks change through the webhook endpoints)',
       params: AutomationIdParam,
       body: UpdateAutomationBody,
-      response: { 200: Automation, 404: ErrorBody },
+      response: { 200: Automation, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -141,9 +145,9 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'deleteAutomation',
       tags,
-      summary: 'Delete an automation',
+      summary: 'Delete a workflow automation (webhooks are deleted through the webhook endpoints)',
       params: AutomationIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -172,6 +176,26 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       const scope = await resolveScope(container, req);
       // No existence pre-check: runs deliberately survive automation deletion (audit trail).
       return automations.listRuns(scope.orgId, req.params.id, req.query);
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/automations/:id/runs/:runId/rerun',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'rerunAutomationRun',
+      tags,
+      summary: "Run the automation again against a past run's event, as a new run",
+      description:
+        "Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.",
+      params: AutomationRunParams,
+      response: { 201: AutomationRun, 404: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      const run = await automations.rerun(scope.orgId, req.params.id, req.params.runId);
+      return reply.code(201).send(run);
     },
   });
 }

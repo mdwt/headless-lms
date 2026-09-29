@@ -24,7 +24,7 @@ function sameParams(a: ListParams, b: ListParams): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-// Automations table (client): rows come in as props; edits go through server actions.
+// Workflows table (client): rows come in as props; edits go through server actions.
 function AutomationsTableInner({
   rows,
   total,
@@ -61,16 +61,19 @@ function AutomationsTableInner({
         applyOptimistic({ id: a.id, enabled });
         try {
           await updateAutomationAction(a.id, { enabled });
-          toast.success(enabled ? "Automation enabled" : "Automation disabled");
+          toast.success(enabled ? "Workflow enabled" : "Workflow disabled");
         } catch (err) {
-          toast.error("Couldn't update automation", { description: (err as Error).message });
+          toast.error("Couldn't update workflow", { description: (err as Error).message });
         }
       });
     },
     [applyOptimistic],
   );
 
-  const onEdit = useCallback((a: Automation) => router.push(`/automations/${a.id}`), [router]);
+  const onEdit = useCallback(
+    (a: Automation) => router.push(`/automations/workflows/${a.id}`),
+    [router],
+  );
 
   const onDelete = useCallback((a: Automation) => setDeleteTarget(a), []);
 
@@ -80,10 +83,10 @@ function AutomationsTableInner({
     startTransition(async () => {
       try {
         await deleteAutomationAction(target.id);
-        toast.success("Automation deleted");
+        toast.success("Workflow deleted");
         setDeleteTarget(null);
       } catch (err) {
-        toast.error("Couldn't delete automation", { description: (err as Error).message });
+        toast.error("Couldn't delete workflow", { description: (err as Error).message });
       }
     });
   }, [deleteTarget]);
@@ -100,7 +103,7 @@ function AutomationsTableInner({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Automations"
+        title="Workflows"
         subtitle="React to events — when something happens, run a series of actions."
       />
 
@@ -115,7 +118,7 @@ function AutomationsTableInner({
         refetch={() => router.refresh()}
         getRowId={(r) => r.id}
         onRowClick={onEdit}
-        searchPlaceholder="Search automations…"
+        searchPlaceholder="Search workflows…"
         facets={[
           {
             columnId: "enabled",
@@ -133,14 +136,14 @@ function AutomationsTableInner({
         ]}
         toolbarActions={
           <Button variant="primary" size="sm" asChild>
-            <Link href="/automations/new">New automation</Link>
+            <Link href="/automations/workflows/new">New workflow</Link>
           </Button>
         }
-        emptyTitle="No automations yet"
-        emptyDescription="Create an automation to react to events — like emailing a student when they complete a course."
+        emptyTitle="No workflows yet"
+        emptyDescription="Create a workflow to react to events — like emailing a student when they complete a course."
         emptyAction={
           <Button variant="secondary" size="sm" asChild>
-            <Link href="/automations/new">New automation</Link>
+            <Link href="/automations/workflows/new">New workflow</Link>
           </Button>
         }
       />
@@ -148,13 +151,13 @@ function AutomationsTableInner({
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Delete automation?"
+        title="Delete workflow?"
         description={
           deleteTarget
             ? `"${deleteTarget.name}" will stop running and its configuration will be removed. Past run history is kept for auditing.`
             : ""
         }
-        confirmLabel="Delete automation"
+        confirmLabel="Delete workflow"
         destructive
         pending={isPending}
         onConfirm={confirmDelete}

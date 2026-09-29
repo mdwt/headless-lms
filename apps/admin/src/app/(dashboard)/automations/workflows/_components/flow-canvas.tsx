@@ -24,6 +24,19 @@ import {
 } from "./flow-nodes";
 
 const nodeTypes = { trigger: TriggerNode, action: ActionNode, add: AddNode };
+
+function triggerSummary(selected: AutomationTriggerInfo[]): string {
+  const [first] = selected;
+  if (!first) return "";
+  return selected.length === 1 ? first.label : `${first.label} +${selected.length - 1} more`;
+}
+
+function triggerDescription(selected: AutomationTriggerInfo[]): string | null {
+  const [first] = selected;
+  if (!first) return null;
+  if (selected.length === 1) return first.description ? `Runs when ${first.description}.` : null;
+  return `Runs on any of: ${selected.map((t) => t.label).join(", ")}.`;
+}
 const edgeTypes = { insert: InsertEdge };
 
 const GAP_Y = 148;
@@ -32,7 +45,7 @@ const FIT_VIEW = { padding: 0.25, maxZoom: 1 };
 
 interface FlowCanvasProps {
   draft: AutomationDraft;
-  triggerInfo: AutomationTriggerInfo | undefined;
+  selectedTriggers: AutomationTriggerInfo[];
   defs: Map<string, AvailableAction>;
   selection: EditorSelection;
   incomplete: ReadonlySet<number>;
@@ -44,7 +57,7 @@ interface FlowCanvasProps {
 
 function FlowCanvasInner({
   draft,
-  triggerInfo,
+  selectedTriggers,
   defs,
   selection,
   incomplete,
@@ -79,11 +92,11 @@ function FlowCanvasInner({
         position: { x: 0, y: 0 },
         width: NODE_WIDTH,
         data: {
-          triggerType: draft.trigger,
-          triggerLabel: triggerInfo?.label ?? draft.trigger,
-          description: triggerInfo?.description ?? null,
+          configured: selectedTriggers.length > 0,
+          triggerLabel: triggerSummary(selectedTriggers),
+          description: triggerDescription(selectedTriggers),
           isSelected: selection?.kind === "trigger",
-          invalid: attempted && !draft.trigger,
+          invalid: attempted && selectedTriggers.length === 0,
         },
       },
       ...actionNodes,
@@ -95,7 +108,7 @@ function FlowCanvasInner({
         data: {},
       },
     ];
-  }, [draft.trigger, draft.actions, triggerInfo, defs, selection, incomplete, attempted]);
+  }, [draft.actions, selectedTriggers, defs, selection, incomplete, attempted]);
 
   const edges = useMemo<Edge[]>(() => {
     const chain = ["trigger", ...draft.actions.map((_, i) => `action-${i}`), "add"];

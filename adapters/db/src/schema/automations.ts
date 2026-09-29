@@ -12,6 +12,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations } from "./organizations.js";
 import type {
@@ -33,8 +34,11 @@ export const automations = pgTable(
       .notNull()
       .$defaultFn(() => genId("automation")),
     name: text("name").notNull(),
+    kind: text("kind", { enum: ["workflow", "webhook"] })
+      .notNull()
+      .default("workflow"),
     description: text("description"),
-    trigger: text("trigger").notNull(),
+    triggers: text("triggers").array().notNull(),
     actions: jsonb("actions").$type<AutomationAction[]>().notNull(),
     enabled: boolean("enabled").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -45,7 +49,7 @@ export const automations = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
-    triggerIdx: index("automations_org_trigger_idx").on(t.orgId, t.trigger),
+    triggersIdx: index("automations_triggers_idx").using("gin", t.triggers),
   }),
 );
 
@@ -63,6 +67,7 @@ export const automationRuns = pgTable(
     // At-least-once dedupe key for the triggering event; DB-internal, not part of the domain `AutomationRun` type.
     eventId: text("event_id").notNull(),
     event: jsonb("event").$type<DomainEvent>().notNull(),
+    rerunOf: text("rerun_of"),
     status: text("status", { enum: ["running", "completed", "failed"] }).notNull(),
     actionResults: jsonb("action_results").$type<AutomationActionResult[]>().notNull().default([]),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
@@ -76,11 +81,9 @@ export const automationRuns = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     automationIdx: index("automation_runs_org_automation_idx").on(t.orgId, t.automationId),
-    eventDedupeIdx: uniqueIndex("automation_runs_org_automation_event_idx").on(
-      t.orgId,
-      t.automationId,
-      t.eventId,
-    ),
+    eventDedupeIdx: uniqueIndex("automation_runs_org_automation_event_idx")
+      .on(t.orgId, t.automationId, t.eventId)
+      .where(sql`${t.rerunOf} is null`),
   }),
 );
 

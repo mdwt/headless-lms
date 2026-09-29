@@ -3102,7 +3102,9 @@ export type SetEntitlementStatusResponse =
 export type ListAutomationsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    kind?: "workflow" | "webhook";
+  };
   url: "/api/automations";
 };
 
@@ -3114,8 +3116,9 @@ export type ListAutomationsResponses = {
     orgId: string;
     id: string;
     name: string;
+    kind: "workflow" | "webhook";
     description: string | null;
-    trigger: string;
+    triggers: Array<string>;
     actions: Array<{
       type: string;
       input: {
@@ -3134,7 +3137,7 @@ export type CreateAutomationData = {
   body: {
     name: string;
     description?: string;
-    trigger: string;
+    triggers: Array<string>;
     actions: Array<{
       type: string;
       input: {
@@ -3155,8 +3158,9 @@ export type CreateAutomationResponses = {
     orgId: string;
     id: string;
     name: string;
+    kind: "workflow" | "webhook";
     description: string | null;
-    trigger: string;
+    triggers: Array<string>;
     actions: Array<{
       type: string;
       input: {
@@ -3237,6 +3241,14 @@ export type DeleteAutomationErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type DeleteAutomationError = DeleteAutomationErrors[keyof DeleteAutomationErrors];
@@ -3278,8 +3290,9 @@ export type GetAutomationResponses = {
     orgId: string;
     id: string;
     name: string;
+    kind: "workflow" | "webhook";
     description: string | null;
-    trigger: string;
+    triggers: Array<string>;
     actions: Array<{
       type: string;
       input: {
@@ -3298,7 +3311,7 @@ export type UpdateAutomationData = {
   body: {
     name?: string;
     description?: string;
-    trigger?: string;
+    triggers?: Array<string>;
     actions?: Array<{
       type: string;
       input: {
@@ -3323,6 +3336,14 @@ export type UpdateAutomationErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type UpdateAutomationError = UpdateAutomationErrors[keyof UpdateAutomationErrors];
@@ -3335,8 +3356,9 @@ export type UpdateAutomationResponses = {
     orgId: string;
     id: string;
     name: string;
+    kind: "workflow" | "webhook";
     description: string | null;
-    trigger: string;
+    triggers: Array<string>;
     actions: Array<{
       type: string;
       input: {
@@ -3388,6 +3410,7 @@ export type ListAutomationRunsResponses = {
           [key: string]: JsonValue;
         };
       };
+      rerunOf: string | null;
       status: "running" | "completed" | "failed";
       actionResults: Array<{
         index: number;
@@ -3408,6 +3431,325 @@ export type ListAutomationRunsResponses = {
 
 export type ListAutomationRunsResponse =
   ListAutomationRunsResponses[keyof ListAutomationRunsResponses];
+
+export type RerunAutomationRunData = {
+  body?: never;
+  path: {
+    id: string;
+    runId: string;
+  };
+  query?: never;
+  url: "/api/automations/{id}/runs/{runId}/rerun";
+};
+
+export type RerunAutomationRunErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RerunAutomationRunError = RerunAutomationRunErrors[keyof RerunAutomationRunErrors];
+
+export type RerunAutomationRunResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    orgId: string;
+    id: string;
+    automationId: string;
+    trigger: string;
+    eventId: string;
+    event: {
+      type: string;
+      version: number;
+      id: string;
+      orgId: string;
+      occurredAt: string;
+      data: JsonValue;
+      metadata?: {
+        [key: string]: JsonValue;
+      };
+    };
+    rerunOf: string | null;
+    status: "running" | "completed" | "failed";
+    actionResults: Array<{
+      index: number;
+      type: string;
+      status: "completed" | "failed";
+      error?: string;
+    }>;
+    startedAt: string;
+    finishedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type RerunAutomationRunResponse =
+  RerunAutomationRunResponses[keyof RerunAutomationRunResponses];
+
+export type ListWebhooksData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/automations/webhooks";
+};
+
+export type ListWebhooksResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    orgId: string;
+    id: string;
+    url: string;
+    events: Array<string>;
+    description: string | null;
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
+export type ListWebhooksResponse = ListWebhooksResponses[keyof ListWebhooksResponses];
+
+export type CreateWebhookData = {
+  body: {
+    url: string;
+    events: Array<string>;
+    description?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/automations/webhooks";
+};
+
+export type CreateWebhookErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateWebhookError = CreateWebhookErrors[keyof CreateWebhookErrors];
+
+export type CreateWebhookResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    orgId: string;
+    id: string;
+    url: string;
+    events: Array<string>;
+    description: string | null;
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+    secret: string;
+  };
+};
+
+export type CreateWebhookResponse = CreateWebhookResponses[keyof CreateWebhookResponses];
+
+export type DeleteWebhookData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/webhooks/{id}";
+};
+
+export type DeleteWebhookErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteWebhookError = DeleteWebhookErrors[keyof DeleteWebhookErrors];
+
+export type DeleteWebhookResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetWebhookData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/webhooks/{id}";
+};
+
+export type GetWebhookErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetWebhookError = GetWebhookErrors[keyof GetWebhookErrors];
+
+export type GetWebhookResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    url: string;
+    events: Array<string>;
+    description: string | null;
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type GetWebhookResponse = GetWebhookResponses[keyof GetWebhookResponses];
+
+export type UpdateWebhookData = {
+  body: {
+    url?: string;
+    events?: Array<string>;
+    description?: string;
+    enabled?: boolean;
+  };
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/webhooks/{id}";
+};
+
+export type UpdateWebhookErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UpdateWebhookError = UpdateWebhookErrors[keyof UpdateWebhookErrors];
+
+export type UpdateWebhookResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    url: string;
+    events: Array<string>;
+    description: string | null;
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type UpdateWebhookResponse = UpdateWebhookResponses[keyof UpdateWebhookResponses];
+
+export type GetWebhookSecretData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/webhooks/{id}/secret";
+};
+
+export type GetWebhookSecretErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetWebhookSecretError = GetWebhookSecretErrors[keyof GetWebhookSecretErrors];
+
+export type GetWebhookSecretResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    secret: string;
+  };
+};
+
+export type GetWebhookSecretResponse = GetWebhookSecretResponses[keyof GetWebhookSecretResponses];
+
+export type RotateWebhookSecretData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/automations/webhooks/{id}/secret/rotate";
+};
+
+export type RotateWebhookSecretErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RotateWebhookSecretError = RotateWebhookSecretErrors[keyof RotateWebhookSecretErrors];
+
+export type RotateWebhookSecretResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    secret: string;
+  };
+};
+
+export type RotateWebhookSecretResponse =
+  RotateWebhookSecretResponses[keyof RotateWebhookSecretResponses];
 
 export type GetOverviewData = {
   body?: never;

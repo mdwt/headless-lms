@@ -39,7 +39,15 @@ const ALL_NAV: NavItem[] = [
   },
   { href: "/media", label: "Media", icon: Image, key: "media" },
   { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
-  { href: "/automations", label: "Automations", icon: Workflow, key: "automations" },
+  {
+    label: "Automations",
+    icon: Workflow,
+    key: "automations",
+    children: [
+      { href: "/automations/workflows", label: "Workflows" },
+      { href: "/automations/webhooks", label: "Webhooks" },
+    ],
+  },
   { href: "/settings", label: "Settings", icon: Settings, key: "settings" },
 ];
 

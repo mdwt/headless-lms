@@ -19,10 +19,12 @@ import type {
   GetOverviewResponse,
   GetStudentAnalyticsResponse,
   GetStudentResponse,
+  GetWebhookResponse,
   ListActivitiesResponse,
   ListActivityAssetsResponse,
   ListAssetsResponse,
   ListAutomationActionsResponse,
+  ListAutomationRunsResponse,
   ListAutomationTriggersResponse,
   ListAvailableIntegrationsResponse,
   ListBundleItemsResponse,
@@ -165,7 +167,12 @@ export type IntegrationStatus = "connected" | "inactive" | "not_connected";
 // --- automations ------------------------------------------------------------
 
 export type Automation = GetAutomationResponse;
+export type AutomationKind = Automation["kind"];
 export type AutomationAction = Automation["actions"][number];
+export type AutomationRunsPage = ListAutomationRunsResponse;
+export type AutomationRun = AutomationRunsPage["rows"][number];
+export type AutomationRunStatus = AutomationRun["status"];
+export type Webhook = GetWebhookResponse;
 export type AvailableAction = ListAutomationActionsResponse[number];
 export type AutomationTriggerInfo = ListAutomationTriggersResponse["triggers"][number];
 

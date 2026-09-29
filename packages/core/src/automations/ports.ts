@@ -1,17 +1,37 @@
-// automations context — ports. AutomationDispatch/Executor/Engine are owned by
-// @headless-lms/core/types and re-exported here so every engine implementation
-// (inline, Hatchet-backed, …) shares one definition.
-import type { Automation, AutomationRun, Page } from './model.js';
+// automations context — ports. AutomationDispatch/Executor/Engine and the
+// WebhookSender contract are owned by @headless-lms/core/types and re-exported
+// here so every adapter implementation shares one definition.
+import type {
+  Automation,
+  AutomationKind,
+  AutomationRun,
+  CreatedWebhook,
+  Page,
+  Webhook,
+  WebhookSecret,
+} from './model.js';
 import type {
   AutomationRunsQuery,
+  AutomationsQuery,
   AvailableActions,
   AvailableTriggers,
   CreateAutomationInput,
+  CreateWebhookInput,
   UpdateAutomationInput,
+  UpdateWebhookInput,
 } from './types.js';
-import type { DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { CredentialStore, DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
-export type { AutomationDispatch, AutomationExecutor, AutomationEngine } from '../types/index.js';
+export type {
+  AutomationDispatch,
+  AutomationExecutor,
+  AutomationEngine,
+  WebhookRequest,
+  WebhookResponse,
+  WebhookSender,
+} from '../types/index.js';
+
+export type NewAutomation = CreateAutomationInput & { kind: AutomationKind };
 
 /** A run row before persistence assigns its id and event_id. */
 export type NewAutomationRun = Omit<AutomationRun, 'id' | 'eventId'>;
@@ -24,7 +44,7 @@ export interface AutomationsService {
   availableActions(): AvailableActions;
   /** The domain event types an automation may react to. */
   availableTriggers(): AvailableTriggers;
-  list(orgId: string): Promise<Automation[]>;
+  list(orgId: string, query?: AutomationsQuery): Promise<Automation[]>;
   get(orgId: string, id: string): Promise<Automation | null>;
   create(orgId: string, input: CreateAutomationInput): Promise<Automation>;
   update(orgId: string, id: string, input: UpdateAutomationInput): Promise<Automation | null>;
@@ -34,23 +54,33 @@ export interface AutomationsService {
     automationId: string,
     query: AutomationRunsQuery,
   ): Promise<Page<AutomationRun>>;
+  rerun(orgId: string, automationId: string, runId: string): Promise<AutomationRun>;
+  listWebhooks(orgId: string): Promise<Webhook[]>;
+  getWebhook(orgId: string, id: string): Promise<Webhook | null>;
+  createWebhook(orgId: string, input: CreateWebhookInput): Promise<CreatedWebhook>;
+  updateWebhook(orgId: string, id: string, input: UpdateWebhookInput): Promise<Webhook | null>;
+  deleteWebhook(orgId: string, id: string): Promise<boolean>;
+  revealWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null>;
+  rotateWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null>;
 }
 
 // Outbound ports (persistence contracts the repositories fulfil).
 export interface AutomationsRepository {
-  insert(orgId: string, input: CreateAutomationInput): Promise<Automation>;
+  insert(orgId: string, input: NewAutomation): Promise<Automation>;
   update(orgId: string, id: string, patch: UpdateAutomationInput): Promise<Automation | null>;
   /** Returns the deleted row (the event snapshot), or null if it didn't exist. */
   delete(orgId: string, id: string): Promise<Automation | null>;
   findById(orgId: string, id: string): Promise<Automation | null>;
-  listByOrg(orgId: string): Promise<Automation[]>;
-  /** All rows matching `trigger`, enabled and disabled alike — the service filters to `enabled`. */
+  listByOrg(orgId: string, kind?: AutomationKind): Promise<Automation[]>;
+  /** All rows whose triggers include `trigger`, enabled and disabled alike — the service filters to `enabled`. */
   listByTrigger(orgId: string, trigger: string): Promise<Automation[]>;
 }
 
 export interface AutomationRunsRepository {
-  /** Keyed by (orgId, automationId, event.id); returns `null` if this event was already run for this automation (duplicate). */
+  /** Keyed by (orgId, automationId, event.id) for first runs; returns `null` if this event
+   *  was already run for this automation (duplicate). Reruns are never deduped. */
   insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun | null>;
+  findById(orgId: string, id: string): Promise<AutomationRun | null>;
   recordOutcome(
     orgId: string,
     id: string,
@@ -73,6 +103,7 @@ export interface AutomationRunsRepository {
 export interface AutomationsTxScope {
   automations: AutomationsRepository;
   runs: AutomationRunsRepository;
+  credentials: CredentialStore;
   outbox: OutboxAppender;
 }
 

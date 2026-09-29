@@ -6,7 +6,11 @@ import {
   InvalidConfigError,
   UnknownIntegrationError,
 } from '@headless-lms/core/integrations';
-import { InvalidTriggerError } from '@headless-lms/core/automations';
+import {
+  AutomationKindMismatchError,
+  InvalidTriggerError,
+  ReservedActionError,
+} from '@headless-lms/core/automations';
 import { NoActiveOrgError } from '../scope.js';
 import { UnauthorizedError } from './auth.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -38,6 +42,12 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
   }
   if (error instanceof InvalidTriggerError) {
     return reply.status(400).send({ error: 'invalid_trigger', message: error.message });
+  }
+  if (error instanceof ReservedActionError) {
+    return reply.status(400).send({ error: 'reserved_action', message: error.message });
+  }
+  if (error instanceof AutomationKindMismatchError) {
+    return reply.status(409).send({ error: 'kind_mismatch', message: error.message });
   }
   if (error instanceof NoActiveOrgError) {
     return reply.status(403).send({ error: 'forbidden', message: error.message });

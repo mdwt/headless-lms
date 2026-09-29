@@ -4,15 +4,16 @@
 // column of their own in the domain type (mirrors the `Entitlement` shape) —
 // `AutomationRun` is the one exception, since it's the run's own `orgId`
 // field the service reads back off `handle`'s event.
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
   Automation,
+  AutomationKind,
   AutomationRun,
   AutomationRunsQuery,
   AutomationRunsRepository,
   AutomationsRepository,
-  CreateAutomationInput,
+  NewAutomation,
   NewAutomationRun,
   Page,
   UpdateAutomationInput,
@@ -26,8 +27,9 @@ const automationSelection = {
   orgId: automations.orgId,
   id: automations.id,
   name: automations.name,
+  kind: automations.kind,
   description: automations.description,
-  trigger: automations.trigger,
+  triggers: automations.triggers,
   actions: automations.actions,
   enabled: automations.enabled,
   createdAt: automations.createdAt,
@@ -38,8 +40,9 @@ interface AutomationRow {
   orgId: string;
   id: string;
   name: string;
+  kind: AutomationKind;
   description: string | null;
-  trigger: string;
+  triggers: string[];
   actions: Automation["actions"];
   enabled: boolean;
   createdAt: Date;
@@ -51,8 +54,9 @@ function toAutomation(row: AutomationRow): Automation {
     orgId: row.orgId,
     id: row.id,
     name: row.name,
+    kind: row.kind,
     description: row.description,
-    trigger: row.trigger,
+    triggers: row.triggers,
     actions: row.actions,
     enabled: row.enabled,
     createdAt: row.createdAt,
@@ -66,14 +70,15 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     private readonly logger: Logger = noopLogger,
   ) {}
 
-  async insert(orgId: string, input: CreateAutomationInput): Promise<Automation> {
+  async insert(orgId: string, input: NewAutomation): Promise<Automation> {
     const [inserted] = await this.db
       .insert(automations)
       .values({
         orgId,
         name: input.name,
+        kind: input.kind,
         description: input.description,
-        trigger: input.trigger,
+        triggers: input.triggers,
         actions: input.actions,
       })
       .returning({ id: automations.id });
@@ -99,8 +104,8 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     if (patch.description !== undefined) {
       set.description = patch.description;
     }
-    if (patch.trigger !== undefined) {
-      set.trigger = patch.trigger;
+    if (patch.triggers !== undefined) {
+      set.triggers = patch.triggers;
     }
     if (patch.actions !== undefined) {
       set.actions = patch.actions;
@@ -137,11 +142,15 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     return row ? toAutomation(row) : null;
   }
 
-  async listByOrg(orgId: string): Promise<Automation[]> {
+  async listByOrg(orgId: string, kind?: AutomationKind): Promise<Automation[]> {
+    const conditions: SQL[] = [eq(automations.orgId, orgId)];
+    if (kind) {
+      conditions.push(eq(automations.kind, kind));
+    }
     const rows = await this.db
       .select(automationSelection)
       .from(automations)
-      .where(eq(automations.orgId, orgId))
+      .where(and(...conditions))
       .orderBy(desc(automations.createdAt));
     return rows.map(toAutomation);
   }
@@ -150,7 +159,7 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     const rows = await this.db
       .select(automationSelection)
       .from(automations)
-      .where(and(eq(automations.orgId, orgId), eq(automations.trigger, trigger)))
+      .where(and(eq(automations.orgId, orgId), arrayContains(automations.triggers, [trigger])))
       .orderBy(desc(automations.createdAt));
     return rows.map(toAutomation);
   }
@@ -163,6 +172,7 @@ const runSelection = {
   trigger: automationRuns.trigger,
   eventId: automationRuns.eventId,
   event: automationRuns.event,
+  rerunOf: automationRuns.rerunOf,
   status: automationRuns.status,
   actionResults: automationRuns.actionResults,
   startedAt: automationRuns.startedAt,
@@ -178,6 +188,7 @@ interface RunRow {
   trigger: string;
   eventId: string;
   event: AutomationRun["event"];
+  rerunOf: string | null;
   status: AutomationRun["status"];
   actionResults: AutomationRun["actionResults"];
   startedAt: Date;
@@ -194,6 +205,7 @@ function toAutomationRun(row: RunRow): AutomationRun {
     trigger: row.trigger,
     eventId: row.eventId,
     event: row.event,
+    rerunOf: row.rerunOf,
     status: row.status,
     actionResults: row.actionResults,
     startedAt: row.startedAt,
@@ -225,6 +237,7 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
         trigger: run.trigger,
         eventId: run.event.id,
         event: run.event,
+        rerunOf: run.rerunOf,
         status: run.status,
         actionResults: run.actionResults,
         startedAt: run.startedAt,
@@ -233,9 +246,19 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
       // A redelivered trigger event hits the unique (org, automation, event) index; no row comes back.
       .onConflictDoNothing({
         target: [automationRuns.orgId, automationRuns.automationId, automationRuns.eventId],
+        where: isNull(automationRuns.rerunOf),
       })
       .returning(runSelection);
     return inserted ? toAutomationRun(inserted) : null;
+  }
+
+  async findById(orgId: string, id: string): Promise<AutomationRun | null> {
+    const [row] = await this.db
+      .select(runSelection)
+      .from(automationRuns)
+      .where(and(eq(automationRuns.orgId, orgId), eq(automationRuns.id, id)))
+      .limit(1);
+    return row ? toAutomationRun(row) : null;
   }
 
   async recordOutcome(
