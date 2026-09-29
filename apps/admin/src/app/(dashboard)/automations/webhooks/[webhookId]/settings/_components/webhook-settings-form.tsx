@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Field } from "@/components/forms/field";
-import { EventMultiSelect } from "@/components/forms/event-multi-select";
+import { EventChecklist } from "@/components/forms/event-checklist";
 import { SettingsSection } from "@/components/forms/settings-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +98,7 @@ export function WebhookSettingsForm({
           name="events"
           render={({ field }) => (
             <Field id="events" label="Events" required error={errors.events?.message}>
-              <EventMultiSelect
+              <EventChecklist
                 id="events"
                 value={field.value}
                 onValueChange={field.onChange}

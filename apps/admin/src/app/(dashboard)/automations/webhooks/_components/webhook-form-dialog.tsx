@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { FormDialog } from "@/components/forms/form-dialog";
 import { Field } from "@/components/forms/field";
-import { EventMultiSelect } from "@/components/forms/event-multi-select";
+import { EventChecklist } from "@/components/forms/event-checklist";
 import { Input } from "@/components/ui/input";
 import type { AutomationTriggerInfo } from "@/lib/api/types";
 
@@ -101,7 +101,7 @@ export function WebhookFormDialog({
           name="events"
           render={({ field }) => (
             <Field id="events" label="Events" required error={errors.events?.message}>
-              <EventMultiSelect
+              <EventChecklist
                 id="events"
                 value={field.value}
                 onValueChange={field.onChange}
