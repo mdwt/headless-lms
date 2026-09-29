@@ -274,14 +274,18 @@ function ActionInputForm({
   onChange: (input: Record<string, unknown>) => void;
   remote: RemoteOptionsSource;
 }) {
-  const { control, watch } = useForm<{ input: Record<string, unknown> }>({
+  const { control, subscribe } = useForm<{ input: Record<string, unknown> }>({
     defaultValues: { input: schemaDefaults(def.inputSchema, input) },
   });
 
-  useEffect(() => {
-    const sub = watch((values) => onChange({ ...(values.input as Record<string, unknown>) }));
-    return () => sub.unsubscribe();
-  }, [watch, onChange]);
+  useEffect(
+    () =>
+      subscribe({
+        formState: { values: true },
+        callback: ({ values }) => onChange({ ...values.input }),
+      }),
+    [subscribe, onChange],
+  );
 
   return (
     <div className="flex flex-col gap-4">

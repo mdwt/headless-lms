@@ -29,7 +29,6 @@ export default async function OverviewPage({
     <OverviewView
       role={session.role}
       user={session.user}
-      organization={session.organization}
       stats={stats}
       enrollments={enrollments}
       range={range.key}

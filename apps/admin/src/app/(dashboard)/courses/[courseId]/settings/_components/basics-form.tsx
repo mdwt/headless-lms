@@ -2,7 +2,7 @@
 
 import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -52,7 +52,7 @@ export function BasicsForm({ course }: { course: Course }) {
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -69,7 +69,7 @@ export function BasicsForm({ course }: { course: Course }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [course.id, course.title, course.category, course.description]);
 
-  const category = watch("category");
+  const category = useWatch({ control, name: "category" });
 
   function onValid(values: FormValues) {
     startTransition(async () => {

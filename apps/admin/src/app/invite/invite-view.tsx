@@ -58,15 +58,12 @@ export function InviteView() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
   const [email, setEmail] = useState("");
-  const [stage, setStage] = useState<Stage>("activating");
+  const [stage, setStage] = useState<Stage>(token ? "activating" : "invalid");
   const [error, setError] = useState<string | null>(null);
   const loadStarted = useRef(false);
 
   useEffect(() => {
-    if (!token) {
-      setStage("invalid");
-      return;
-    }
+    if (!token) return;
     // Strict-mode double-mount fires this effect twice; the invite load must run once.
     // Results apply unconditionally — the ref keeps the call single-flight, and the strict-mode remount wants this exact result.
     if (loadStarted.current) return;

@@ -5,7 +5,9 @@ async function loadFont(family: string, weight: number) {
     `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`,
   ).then((res) => res.text());
   const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
-  if (!url) throw new Error(`Font not found: ${family}`);
+  if (!url) {
+    throw new Error(`Font not found: ${family}`);
+  }
   return fetch(url).then((res) => res.arrayBuffer());
 }
 

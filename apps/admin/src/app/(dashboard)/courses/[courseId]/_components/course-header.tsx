@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 
 import { CourseStatusBadge } from "@/components/status-badge";
 import type { Course } from "@/lib/api/types";
-import { formatNumber, relativeTime } from "@/lib/format";
+import { relativeTime } from "@/lib/format";
 
 import { CourseHeaderActions } from "./course-header-actions";
 import { CourseTabsNav } from "./course-tabs-nav";
@@ -34,13 +34,5 @@ export function CourseHeader({ course }: { course: Course }) {
 
       <CourseTabsNav courseId={course.id} />
     </div>
-  );
-}
-
-function Dot() {
-  return (
-    <span aria-hidden className="text-ink-4">
-      ·
-    </span>
   );
 }

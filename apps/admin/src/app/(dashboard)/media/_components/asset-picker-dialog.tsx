@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -49,19 +48,30 @@ export function AssetPickerDialog({
   const [debounced, setDebounced] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
-  const [rows, setRows] = useState<Asset[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState({ open, kind, count: 0 });
+  const [result, setResult] = useState<{
+    key: string;
+    rows: Asset[];
+    total: number;
+    error: string | null;
+  } | null>(null);
 
   // Reset per opening: a picker that remembers the last search is a picker
   // that looks empty when you open it for a different kind of media.
-  useEffect(() => {
-    if (!open) return;
-    setSearch("");
-    setDebounced("");
-    setPage(1);
-  }, [open, kind]);
+  if (opening.open !== open || opening.kind !== kind) {
+    setOpening({ open, kind, count: open ? opening.count + 1 : opening.count });
+    if (open) {
+      setSearch("");
+      setDebounced("");
+      setPage(1);
+    }
+  }
+
+  const requestKey = `${opening.count}|${kind}|${debounced}|${page}|${pageSize}`;
+  const loading = open && result?.key !== requestKey;
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
+  const error = result?.key === requestKey ? result.error : null;
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -74,8 +84,6 @@ export function AssetPickerDialog({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
     void listAssetsAction({
       page,
@@ -85,23 +93,22 @@ export function AssetPickerDialog({
     })
       .then((res) => {
         if (cancelled) return;
-        setRows(res.rows);
-        setTotal(res.total);
+        setResult({ key: requestKey, rows: res.rows, total: res.total, error: null });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setRows([]);
-        setTotal(0);
-        setError(e instanceof Error ? e.message : "Couldn't load the media library");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setResult({
+          key: requestKey,
+          rows: [],
+          total: 0,
+          error: e instanceof Error ? e.message : "Couldn't load the media library",
+        });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [open, kind, debounced, page, pageSize]);
+  }, [open, kind, debounced, page, pageSize, requestKey]);
 
   const noun = KIND_LABEL[kind];
 

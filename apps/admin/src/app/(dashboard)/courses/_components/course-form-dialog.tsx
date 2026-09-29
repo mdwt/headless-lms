@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -60,7 +60,7 @@ export function CourseFormDialog({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -85,7 +85,7 @@ export function CourseFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, course?.id]);
 
-  const category = watch("category");
+  const category = useWatch({ control, name: "category" });
 
   const onSubmit = handleSubmit((values) => {
     const input = {

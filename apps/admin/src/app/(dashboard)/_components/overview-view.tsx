@@ -29,7 +29,6 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: bool
 interface OverviewViewProps {
   role: ServerRole;
   user: { id: string; name: string; email: string; image: string | null };
-  organization: { id: string; name: string; slug: string };
   stats: OverviewStats;
   enrollments: EnrollmentSeries | null;
   range: EnrollmentRangeKey;
@@ -39,7 +38,6 @@ interface OverviewViewProps {
 export function OverviewView({
   role,
   user,
-  organization,
   stats: overview,
   enrollments,
   range,
