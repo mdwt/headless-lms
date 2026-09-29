@@ -101,7 +101,7 @@ To resend a delivery, choose **Resend** on it, or:
 await Automations.rerunAutomationRun({ id: webhook.id, runId });
 ```
 
-A resend is a new delivery. It goes to the webhook's current URL, signed with the current secret, keeps the original `webhook-id`, and its `rerunOf` points at the original delivery. Deleting a webhook keeps its delivery history.
+Resending sends the same delivery again: to the webhook's current URL, signed with its current secret, with the original `webhook-id`. The delivery's status and error are replaced by the new attempt's. A delivery that is still sending can't be resent. Deleting a webhook keeps its delivery history.
 
 ## Rotating the secret
 

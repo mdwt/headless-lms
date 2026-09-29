@@ -13,7 +13,7 @@ The domain owns the automations themselves — what they are, what triggers them
 
 - **Automation** — its kind, the events that trigger it, an ordered list of actions, and a flag for whether it's enabled. It fires when any one of its triggers happens. A workflow's actions run in order: grant access, add or remove a tag, send an email, call an integration, wait a set period, or branch on a condition. A drip sequence is just emails interleaved with waits. A webhook's single action delivers the triggering event to its URL.
 - **Webhook** — how a webhook automation is managed: its URL, the events it subscribes to, a description, and whether it's enabled. Each webhook has a signing secret, and every delivery is signed with it so the receiving system can verify the delivery came from this system. The webhook holds a reference to the secret, never the secret itself.
-- **AutomationRun** — a record of one automation firing: which automation ran, the event that triggered it, when it started and finished, its outcome, and the result of each action within it. For a webhook, each run is one delivery. A run can be a rerun of an earlier run, and records which one. This is the audit trail — how a user sees which automations fired, what set them off, when, and whether each step succeeded or failed.
+- **AutomationRun** — a record of one automation firing: which automation ran, the event that triggered it, when it started and finished, its outcome, and the result of each action within it. For a webhook, each run is one delivery. This is the audit trail — how a user sees which automations fired, what set them off, when, and whether each step succeeded or failed.
 
 The domain stores what an automation is and the history of every time it ran. What it does not hold is the live state of a run still in progress — where a paused drip currently sits, how long is left on its wait — which lives with the execution infrastructure until the run completes and its outcome is recorded here.
 
@@ -24,7 +24,7 @@ The domain stores what an automation is and the history of every time it ran. Wh
 - **Reveal or rotate a webhook's signing secret** — rotating replaces the secret at once; the old one stops verifying.
 - **Turn one on or off** — an automation only fires while it's enabled.
 - **Run the automations bound to an event** — when an event fires, find the enabled automations listening for it and set each running against it. An event runs at most once per automation, however many times it arrives.
-- **Rerun a run** — run the automation again, as it is now, against a past run's event. For a webhook, this resends the event.
+- **Rerun a run** — run a finished run again, with the automation as it is now; its new outcome replaces the previous one. For a webhook, this resends the delivery.
 - **Query run history** — see which automations ran, what triggered them, when, and what happened in each, down to the outcome of individual actions. History outlives the automation.
 
 ## Boundaries

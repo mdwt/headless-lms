@@ -3410,7 +3410,6 @@ export type ListAutomationRunsResponses = {
           [key: string]: JsonValue;
         };
       };
-      rerunOf: string | null;
       status: "running" | "completed" | "failed";
       actionResults: Array<{
         index: number;
@@ -3451,6 +3450,14 @@ export type RerunAutomationRunErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type RerunAutomationRunError = RerunAutomationRunErrors[keyof RerunAutomationRunErrors];
@@ -3459,7 +3466,7 @@ export type RerunAutomationRunResponses = {
   /**
    * Default Response
    */
-  201: {
+  200: {
     orgId: string;
     id: string;
     automationId: string;
@@ -3476,7 +3483,6 @@ export type RerunAutomationRunResponses = {
         [key: string]: JsonValue;
       };
     };
-    rerunOf: string | null;
     status: "running" | "completed" | "failed";
     actionResults: Array<{
       index: number;

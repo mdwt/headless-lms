@@ -3216,9 +3216,9 @@ export class Automations {
   }
 
   /**
-   * Run the automation again against a past run's event, as a new run
+   * Run a finished run again
    *
-   * Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.
+   * Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).
    */
   public static rerunAutomationRun<ThrowOnError extends boolean = false>(
     parameters: {

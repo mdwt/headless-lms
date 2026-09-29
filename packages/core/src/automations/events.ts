@@ -33,17 +33,17 @@ export const automationEvents = {
   }),
   runStarted: defineEvent({
     type: 'automation.run.started',
-    version: 2,
+    version: 1,
     data: automationRunSchema,
   }),
   runCompleted: defineEvent({
     type: 'automation.run.completed',
-    version: 2,
+    version: 1,
     data: automationRunSchema,
   }),
   runFailed: defineEvent({
     type: 'automation.run.failed',
-    version: 2,
+    version: 1,
     data: automationRunSchema,
   }),
   actionFailed: defineEvent({

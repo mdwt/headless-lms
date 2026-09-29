@@ -10214,11 +10214,6 @@
                             ],
                             "additionalProperties": false
                           },
-                          "rerunOf": {
-                            "nullable": true,
-                            "type": "string",
-                            "minLength": 1
-                          },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -10285,7 +10280,6 @@
                           "trigger",
                           "eventId",
                           "event",
-                          "rerunOf",
                           "status",
                           "actionResults",
                           "startedAt",
@@ -10329,11 +10323,11 @@
     "/api/automations/{id}/runs/{runId}/rerun": {
       "post": {
         "operationId": "rerunAutomationRun",
-        "summary": "Run the automation again against a past run's event, as a new run",
+        "summary": "Run a finished run again",
         "tags": [
           "Automations"
         ],
-        "description": "Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.",
+        "description": "Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).",
         "parameters": [
           {
             "schema": {
@@ -10353,7 +10347,7 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -10425,11 +10419,6 @@
                       ],
                       "additionalProperties": false
                     },
-                    "rerunOf": {
-                      "nullable": true,
-                      "type": "string",
-                      "minLength": 1
-                    },
                     "status": {
                       "type": "string",
                       "enum": [
@@ -10496,7 +10485,6 @@
                     "trigger",
                     "eventId",
                     "event",
-                    "rerunOf",
                     "status",
                     "actionResults",
                     "startedAt",
@@ -10510,6 +10498,31 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {

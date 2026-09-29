@@ -24,7 +24,7 @@ import type {
   NewDomainEvent,
   OutboxAppender,
 } from '../shared/ports.js';
-import { NotFoundError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
@@ -113,7 +113,6 @@ const RUN: AutomationRun = {
   trigger: 'entitlement.created',
   eventId: 'evt_1',
   event: ENTITLEMENT_CREATED_EVENT,
-  rerunOf: null,
   status: 'running',
   actionResults: [],
   startedAt: new Date('2026-01-02T00:00:00Z'),
@@ -138,6 +137,7 @@ function fakeRunsRepo(over?: Partial<AutomationRunsRepository>): AutomationRunsR
   return {
     insert: vi.fn().mockResolvedValue(RUN),
     findById: vi.fn().mockResolvedValue(RUN),
+    restart: vi.fn().mockResolvedValue(RUN),
     recordOutcome: vi.fn().mockResolvedValue({
       ...RUN,
       status: 'completed',
@@ -809,28 +809,31 @@ describe('AutomationsService workflow guards', () => {
 });
 
 describe('AutomationsService.rerun', () => {
-  const FAILED_RUN: AutomationRun = { ...RUN, id: 'run_0', status: 'failed' };
+  const FAILED_RUN: AutomationRun = {
+    ...RUN,
+    status: 'failed',
+    actionResults: [{ index: 0, type: 'sendEmail', status: 'failed', error: 'smtp down' }],
+    finishedAt: new Date('2026-01-02T00:00:05Z'),
+  };
 
-  it("opens a new run against the previous run's event and dispatches it", async () => {
+  it('restarts the same run and dispatches it again', async () => {
     const runsRepo = fakeRunsRepo({ findById: vi.fn().mockResolvedValue(FAILED_RUN) });
     const { svc, engine, appended } = build(fakeRepo(), runsRepo);
 
-    const run = await svc.rerun('org-1', 'atm_1', 'run_0');
+    const run = await svc.rerun('org-1', 'atm_1', 'run_1');
 
     expect(run).toEqual(RUN);
-    expect(runsRepo.insert).toHaveBeenCalledWith(
+    expect(runsRepo.restart).toHaveBeenCalledWith(
       'org-1',
-      expect.objectContaining({
-        automationId: 'atm_1',
-        trigger: 'entitlement.created',
-        event: ENTITLEMENT_CREATED_EVENT,
-        rerunOf: 'run_0',
-        status: 'running',
-      }),
+      'run_1',
+      new Date('2026-01-02T00:00:00.000Z'),
     );
-    expect(appended).toEqual([expect.objectContaining({ type: 'automation.run.started' })]);
+    expect(runsRepo.insert).not.toHaveBeenCalled();
+    expect(appended).toEqual([
+      expect.objectContaining({ type: 'automation.run.started', data: RUN }),
+    ]);
     expect(engine.dispatch).toHaveBeenCalledWith({
-      runId: RUN.id,
+      runId: 'run_1',
       orgId: 'org-1',
       automationId: 'atm_1',
       actions: AUTOMATION.actions,
@@ -838,12 +841,21 @@ describe('AutomationsService.rerun', () => {
     });
   });
 
+  it('refuses a run that is still running', async () => {
+    const runsRepo = fakeRunsRepo({ restart: vi.fn().mockResolvedValue(null) });
+    const { svc, engine, append } = build(fakeRepo(), runsRepo);
+    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(ConflictError);
+    expect(append).not.toHaveBeenCalled();
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
   it('throws NotFoundError when the run belongs to another automation', async () => {
     const runsRepo = fakeRunsRepo({
       findById: vi.fn().mockResolvedValue({ ...FAILED_RUN, automationId: 'atm_other' }),
     });
     const { svc, engine } = build(fakeRepo(), runsRepo);
-    await expect(svc.rerun('org-1', 'atm_1', 'run_0')).rejects.toThrow(NotFoundError);
+    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(NotFoundError);
+    expect(runsRepo.restart).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
 
@@ -853,12 +865,12 @@ describe('AutomationsService.rerun', () => {
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
       runsRepo,
     );
-    await expect(svc.rerun('org-1', 'atm_1', 'run_0')).rejects.toThrow(NotFoundError);
-    expect(runsRepo.insert).not.toHaveBeenCalled();
+    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(NotFoundError);
+    expect(runsRepo.restart).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
 
-  it('records the new run as failed when dispatch fails', async () => {
+  it('records the run as failed again when dispatch fails', async () => {
     const failed = { ...RUN, status: 'failed' as const };
     const runsRepo = fakeRunsRepo({
       findById: vi.fn().mockResolvedValue(FAILED_RUN),
@@ -866,7 +878,12 @@ describe('AutomationsService.rerun', () => {
     });
     const engine = fakeEngine({ dispatch: vi.fn().mockRejectedValue(new Error('queue down')) });
     const { svc } = build(fakeRepo(), runsRepo, engine);
-    await expect(svc.rerun('org-1', 'atm_1', 'run_0')).resolves.toEqual(failed);
+    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).resolves.toEqual(failed);
+    expect(runsRepo.recordOutcome).toHaveBeenCalledWith(
+      'org-1',
+      'run_1',
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 });
 

@@ -1857,12 +1857,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "rerun_of": {
-          "name": "rerun_of",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "status": {
           "name": "status",
           "type": "text",
@@ -1948,7 +1942,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"automation_runs\".\"rerun_of\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}

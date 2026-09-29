@@ -77,10 +77,11 @@ export interface AutomationsRepository {
 }
 
 export interface AutomationRunsRepository {
-  /** Keyed by (orgId, automationId, event.id) for first runs; returns `null` if this event
-   *  was already run for this automation (duplicate). Reruns are never deduped. */
+  /** Keyed by (orgId, automationId, event.id); returns `null` if this event was already run for this automation (duplicate). */
   insert(orgId: string, run: NewAutomationRun): Promise<AutomationRun | null>;
   findById(orgId: string, id: string): Promise<AutomationRun | null>;
+  /** Puts a finished run back to running with no results; `null` if it's missing or still running. */
+  restart(orgId: string, id: string, startedAt: Date): Promise<AutomationRun | null>;
   recordOutcome(
     orgId: string,
     id: string,

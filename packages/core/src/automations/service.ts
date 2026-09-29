@@ -45,7 +45,7 @@ import type {
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
 import type { JsonValue } from '../types/index.js';
 import { deliverWebhookInputSchema } from '../types/schemas/index.js';
-import { NotFoundError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { IntegrationsService } from '../integrations/index.js';
@@ -175,7 +175,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private async dispatchOne(automation: Automation, event: DomainEvent): Promise<void> {
     let run: AutomationRun | null = null;
     try {
-      run = await this.openRun(automation, event, null);
+      run = await this.openRun(automation, event);
       if (!run) {
         // At-least-once redelivery of a trigger event already run for this automation — no-op.
         return;
@@ -195,11 +195,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
   }
 
-  private openRun(
-    automation: Automation,
-    event: DomainEvent,
-    rerunOf: string | null,
-  ): Promise<AutomationRun | null> {
+  private openRun(automation: Automation, event: DomainEvent): Promise<AutomationRun | null> {
     const now = new Date();
     return this.uow.run(async ({ runs, outbox }) => {
       const inserted = await runs.insert(event.orgId, {
@@ -207,7 +203,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         automationId: automation.id,
         trigger: event.type,
         event,
-        rerunOf,
         status: 'running',
         actionResults: [],
         startedAt: now,
@@ -405,20 +400,27 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   async rerun(orgId: string, automationId: string, runId: string): Promise<AutomationRun> {
-    const previous = await this.runsRepo.findById(orgId, runId);
-    if (!previous || previous.automationId !== automationId) {
+    const existing = await this.runsRepo.findById(orgId, runId);
+    if (!existing || existing.automationId !== automationId) {
       throw new NotFoundError('Automation run', runId);
     }
     const automation = await this.repo.findById(orgId, automationId);
     if (!automation) {
       throw new NotFoundError('Automation', automationId);
     }
-    const run = await this.openRun(automation, previous.event, previous.id);
+    const run = await this.uow.run(async ({ runs, outbox }) => {
+      const restarted = await runs.restart(orgId, runId, new Date());
+      if (!restarted) {
+        return null;
+      }
+      await outbox.append([automationEvents.runStarted.make({ orgId, data: restarted })]);
+      return restarted;
+    });
     if (!run) {
-      throw new Error(`automation ${automationId}: rerun of run ${runId} was not recorded`);
+      throw new ConflictError(`automation run ${runId} is still running`);
     }
     try {
-      await this.engine.dispatch(this.dispatchFor(automation, run, previous.event));
+      await this.engine.dispatch(this.dispatchFor(automation, run, run.event));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error('automation rerun failed', {

@@ -4,7 +4,7 @@
 // column of their own in the domain type (mirrors the `Entitlement` shape) —
 // `AutomationRun` is the one exception, since it's the run's own `orgId`
 // field the service reads back off `handle`'s event.
-import { and, arrayContains, asc, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, ne, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
   Automation,
@@ -172,7 +172,6 @@ const runSelection = {
   trigger: automationRuns.trigger,
   eventId: automationRuns.eventId,
   event: automationRuns.event,
-  rerunOf: automationRuns.rerunOf,
   status: automationRuns.status,
   actionResults: automationRuns.actionResults,
   startedAt: automationRuns.startedAt,
@@ -188,7 +187,6 @@ interface RunRow {
   trigger: string;
   eventId: string;
   event: AutomationRun["event"];
-  rerunOf: string | null;
   status: AutomationRun["status"];
   actionResults: AutomationRun["actionResults"];
   startedAt: Date;
@@ -205,7 +203,6 @@ function toAutomationRun(row: RunRow): AutomationRun {
     trigger: row.trigger,
     eventId: row.eventId,
     event: row.event,
-    rerunOf: row.rerunOf,
     status: row.status,
     actionResults: row.actionResults,
     startedAt: row.startedAt,
@@ -237,7 +234,6 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
         trigger: run.trigger,
         eventId: run.event.id,
         event: run.event,
-        rerunOf: run.rerunOf,
         status: run.status,
         actionResults: run.actionResults,
         startedAt: run.startedAt,
@@ -246,7 +242,6 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
       // A redelivered trigger event hits the unique (org, automation, event) index; no row comes back.
       .onConflictDoNothing({
         target: [automationRuns.orgId, automationRuns.automationId, automationRuns.eventId],
-        where: isNull(automationRuns.rerunOf),
       })
       .returning(runSelection);
     return inserted ? toAutomationRun(inserted) : null;
@@ -259,6 +254,21 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
       .where(and(eq(automationRuns.orgId, orgId), eq(automationRuns.id, id)))
       .limit(1);
     return row ? toAutomationRun(row) : null;
+  }
+
+  async restart(orgId: string, id: string, startedAt: Date): Promise<AutomationRun | null> {
+    const [restarted] = await this.db
+      .update(automationRuns)
+      .set({ status: "running", actionResults: [], startedAt, finishedAt: null })
+      .where(
+        and(
+          eq(automationRuns.orgId, orgId),
+          eq(automationRuns.id, id),
+          ne(automationRuns.status, "running"),
+        ),
+      )
+      .returning(runSelection);
+    return restarted ? toAutomationRun(restarted) : null;
   }
 
   async recordOutcome(

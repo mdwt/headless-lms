@@ -87,7 +87,6 @@ export const automationRunSchema = z
     trigger: automationTriggerSchema,
     eventId: idSchema,
     event: domainEventSchema,
-    rerunOf: idSchema.nullable(),
     status: automationRunStatusSchema,
     actionResults: z.array(automationActionResultSchema),
     startedAt: z.coerce.date(),

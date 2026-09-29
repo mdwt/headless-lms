@@ -186,16 +186,15 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'rerunAutomationRun',
       tags,
-      summary: "Run the automation again against a past run's event, as a new run",
+      summary: 'Run a finished run again',
       description:
-        "Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.",
+        "Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).",
       params: AutomationRunParams,
-      response: { 201: AutomationRun, 404: ErrorBody },
+      response: { 200: AutomationRun, 404: ErrorBody, 409: ErrorBody },
     },
-    handler: async (req, reply) => {
+    handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const run = await automations.rerun(scope.orgId, req.params.id, req.params.runId);
-      return reply.code(201).send(run);
+      return automations.rerun(scope.orgId, req.params.id, req.params.runId);
     },
   });
 }

@@ -2,7 +2,6 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Badge } from "@/components/ui/badge";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
@@ -24,12 +23,9 @@ export function deliveryColumns(
         const run = row.original;
         return (
           <div className="flex min-w-0 max-w-[22rem] flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate font-medium text-ink">
-                {triggerInfo.get(run.trigger)?.label ?? run.trigger}
-              </span>
-              {run.rerunOf ? <Badge variant="outline">Resent</Badge> : null}
-            </div>
+            <span className="truncate font-medium text-ink">
+              {triggerInfo.get(run.trigger)?.label ?? run.trigger}
+            </span>
             <span className="truncate font-mono text-xs text-ink-4">{run.eventId}</span>
           </div>
         );
