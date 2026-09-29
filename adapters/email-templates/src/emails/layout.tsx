@@ -1,6 +1,7 @@
 import {
   Body,
   Button,
+  Column,
   Container,
   Head,
   Heading,
@@ -8,12 +9,16 @@ import {
   Html,
   Img,
   Link,
+  Row,
   Section,
   Tailwind,
   Text,
 } from "@react-email/components";
 import type { ReactNode } from "react";
 import type { TemplateContext } from "@headless-lms/core/types";
+
+const LOGO_URL = "https://headless-lms.dev/logo.png";
+const ICON_URL = "https://headless-lms.dev/apple-icon";
 
 export function Layout({
   ctx,
@@ -30,19 +35,22 @@ export function Layout({
         <Head />
         <Body className="bg-white font-sans">
           <Container className="mx-auto max-w-[560px] px-6 pt-5 pb-12">
-            {ctx.logoUrl ? (
-              <Img src={ctx.logoUrl} alt={ctx.brandName} height={42} className="h-[42px]" />
-            ) : (
-              <Text className="m-0 text-[15px] font-semibold text-[#3c4149]">{ctx.brandName}</Text>
-            )}
+            <Img src={LOGO_URL} alt={ctx.brandName} height={32} className="h-[32px]" />
             <Heading className="mt-[28px] mb-0 text-[24px] font-normal leading-[1.3] tracking-[-0.5px] text-[#484848]">
               {heading}
             </Heading>
             <Section>{children}</Section>
             <Hr className="mt-[42px] mb-[26px] border-[#dfe1e4]" />
-            <Link href={ctx.baseUrl} className="text-[14px] text-[#b4becc]">
-              {ctx.brandName}
-            </Link>
+            <Row>
+              <Column className="w-[24px]">
+                <Img src={ICON_URL} alt="" width={24} height={24} className="rounded-[6px]" />
+              </Column>
+              <Column className="pl-[8px]">
+                <Link href={ctx.baseUrl} className="text-[14px] text-[#b4becc]">
+                  {ctx.brandName}
+                </Link>
+              </Column>
+            </Row>
           </Container>
         </Body>
       </Tailwind>

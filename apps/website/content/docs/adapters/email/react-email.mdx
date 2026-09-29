@@ -33,12 +33,11 @@ The catalog is closed and typed: every template id in `EmailTemplateParams` (fro
 
 ## Branding
 
-Every template receives a `TemplateContext` — brand name, base URL, student portal URL, and an optional logo — threaded in from the server config. The reference installation maps these from env:
+Every template receives a `TemplateContext` — brand name, base URL, and student portal URL — threaded in from the server config. The reference installation maps these from env:
 
 | Variable             | Maps to            | Notes                                             |
 | -------------------- | ------------------ | ------------------------------------------------- |
 | `BRAND_NAME`         | `brandName`        | Shown in every email. Defaults to `Headless LMS`. |
-| `EMAIL_LOGO_URL`     | `logoUrl`          | Optional logo at the top of each email.           |
 | `ADMIN_APP_URL`      | `baseUrl`          | Origin staff-facing links resolve against.        |
 | `STUDENT_PORTAL_URL` | `studentPortalUrl` | Origin student-facing links resolve against.      |
 

@@ -72,6 +72,12 @@ describe("ReactEmailTemplateRenderer", () => {
     expect(content.html).toContain("Acme LMS");
   });
 
+  it("renders the Headless LMS logo and icon", async () => {
+    const content = await renderer.render("magicLink", CTX, SAMPLE_PARAMS.magicLink);
+    expect(content.html).toContain('src="https://headless-lms.dev/logo.png"');
+    expect(content.html).toContain('src="https://headless-lms.dev/apple-icon"');
+  });
+
   it("escapes html in user-supplied params data", async () => {
     const content = await renderer.render("accessGranted", CTX, {
       contentTitle: "<script>alert(1)</script>",

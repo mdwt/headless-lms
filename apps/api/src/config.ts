@@ -68,7 +68,6 @@ function loadContainerConfig(): ContainerConfig {
     emailBranding: {
       brandName: process.env.BRAND_NAME ?? "Headless LMS",
       baseUrl: adminAppUrl,
-      logoUrl: process.env.EMAIL_LOGO_URL || undefined,
     },
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,

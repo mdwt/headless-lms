@@ -11,7 +11,6 @@ export interface TemplateContext {
   baseUrl: string;
   /** Origin student-facing links resolve against (the student portal URL). */
   studentPortalUrl: string;
-  logoUrl?: string;
 }
 
 /** A fully rendered email, ready for an EmailSender. */
