@@ -26,17 +26,17 @@ export function GithubIcon(props: SVGProps<SVGSVGElement>) {
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
-      <rect x="15" y="40" width="23" height="50" rx="11.5" fill={brand.violet} />
-      <rect x="62" y="10" width="23" height="80" rx="11.5" fill={brand.coral} />
-      <rect x="15" y="40" width="70" height="21" rx="10.5" fill={brand.violet} />
+      <rect x="52" y="40" width="23" height="50" rx="11.5" fill={brand.violet} />
+      <rect x="5" y="40" width="70" height="21" rx="10.5" fill={brand.violet} />
+      <rect x="5" y="10" width="23" height="80" rx="11.5" fill={brand.coral} />
       <rect
-        x="9"
+        x="56"
         y="6"
         width="25"
         height="25"
         rx="8"
         fill={brand.mint}
-        transform="rotate(-22 22 19)"
+        transform="rotate(22 68 19)"
       />
     </svg>
   );
