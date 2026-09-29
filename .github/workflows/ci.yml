@@ -32,3 +32,13 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build:packages
+
+      - name: Check API docs are in sync with OpenAPI spec
+        run: |
+          pnpm --filter website gen:api-docs
+          if [ -n "$(git status --porcelain -- apps/website/content/docs/api)" ]; then
+            echo "apps/website/content/docs/api is out of sync with packages/sdk/openapi.json."
+            echo "Run: pnpm --filter website gen:api-docs"
+            git status --porcelain -- apps/website/content/docs/api
+            exit 1
+          fi
