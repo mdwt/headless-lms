@@ -8,7 +8,8 @@ import { LoginForm } from "./login-form";
 export const metadata: Metadata = { title: "Sign in — Headless LMS Management" };
 
 // Any session at all goes to /onboarding — including one that turns out to be
-// unusable, which /onboarding clears. That leaves this page one job: credentials.
+// unusable, which /onboarding explains or clears. That leaves this page one job:
+// credentials.
 export default async function LoginPage() {
   const session = await getServerSession();
   if (session) redirect("/onboarding");

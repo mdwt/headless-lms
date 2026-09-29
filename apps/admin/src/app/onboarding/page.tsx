@@ -18,6 +18,7 @@ export default async function OnboardingPage() {
   if (session?.status === "authenticated") redirect("/");
   if (session?.status === "no-active-org") redirect("/onboarding/select-organization");
   if (session?.status === "no-organization") redirect("/onboarding/create-organization");
+  if (session?.status === "denied") redirect("/onboarding/no-access");
   log.warn({ status: session?.status ?? "none" }, "session cannot be routed, resetting");
   return <SessionReset />;
 }

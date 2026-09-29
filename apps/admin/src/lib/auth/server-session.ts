@@ -153,7 +153,7 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
 export async function requireOrgSession(): Promise<ServerSession> {
   const session = await getServerSession();
   if (!session) redirect("/login");
-  // Valid cookie, no staff role — /onboarding clears it.
+  // Valid cookie, no staff role — /onboarding explains it.
   if (session.status === "denied") redirect("/onboarding");
   return session;
 }

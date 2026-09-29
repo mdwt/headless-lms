@@ -6,9 +6,9 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 
-// Reached when the session cannot be routed: no cookie, a rejected cookie, or a
-// valid cookie carrying no staff role. Clearing it is what stops /login from
-// sending the same unusable session straight back here.
+// Reached when the session cannot be routed: no cookie or a rejected cookie.
+// Clearing it is what stops /login from sending the same unusable session
+// straight back here.
 
 // signOut() resolves with { data, error } rather than rejecting on API-level
 // errors, so both a rejected promise and a truthy `error` count as failure.
