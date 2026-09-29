@@ -36,7 +36,7 @@ The core is split into nine self-contained contexts. Each exposes one public sur
 | **progress**      | Per-student completion and derived progress                                                                                         |
 | **assets**        | The org media library, served via presigned URLs                                                                                    |
 | **integrations**  | Which third-party integrations an org has connected                                                                                 |
-| **automations**   | Trigger/action workflows that react to domain events                                                                                |
+| **automations**   | Workflows and webhooks that react to domain events                                                                                  |
 | **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                            |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.

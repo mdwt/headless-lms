@@ -9276,9 +9276,23 @@
     "/api/automations": {
       "get": {
         "operationId": "listAutomations",
-        "summary": "List automations",
+        "summary": "List automations, optionally only workflows or only webhooks",
         "tags": [
           "Automations"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "workflow",
+                "webhook"
+              ]
+            },
+            "in": "query",
+            "name": "kind",
+            "required": false
+          }
         ],
         "responses": {
           "200": {
@@ -9301,13 +9315,23 @@
                       "name": {
                         "type": "string"
                       },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "workflow",
+                          "webhook"
+                        ]
+                      },
                       "description": {
                         "nullable": true,
                         "type": "string"
                       },
-                      "trigger": {
-                        "type": "string",
-                        "minLength": 1
+                      "triggers": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
                       },
                       "actions": {
                         "type": "array",
@@ -9348,8 +9372,9 @@
                       "orgId",
                       "id",
                       "name",
+                      "kind",
                       "description",
-                      "trigger",
+                      "triggers",
                       "actions",
                       "enabled",
                       "createdAt",
@@ -9365,7 +9390,7 @@
       },
       "post": {
         "operationId": "createAutomation",
-        "summary": "Create an automation",
+        "summary": "Create a workflow automation",
         "tags": [
           "Automations"
         ],
@@ -9382,9 +9407,13 @@
                   "description": {
                     "type": "string"
                   },
-                  "trigger": {
-                    "type": "string",
-                    "minLength": 1
+                  "triggers": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   },
                   "actions": {
                     "type": "array",
@@ -9412,7 +9441,7 @@
                 },
                 "required": [
                   "name",
-                  "trigger",
+                  "triggers",
                   "actions"
                 ],
                 "additionalProperties": false
@@ -9439,13 +9468,23 @@
                     "name": {
                       "type": "string"
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "workflow",
+                        "webhook"
+                      ]
+                    },
                     "description": {
                       "nullable": true,
                       "type": "string"
                     },
-                    "trigger": {
-                      "type": "string",
-                      "minLength": 1
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
                     },
                     "actions": {
                       "type": "array",
@@ -9486,8 +9525,9 @@
                     "orgId",
                     "id",
                     "name",
+                    "kind",
                     "description",
-                    "trigger",
+                    "triggers",
                     "actions",
                     "enabled",
                     "createdAt",
@@ -9643,13 +9683,23 @@
                     "name": {
                       "type": "string"
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "workflow",
+                        "webhook"
+                      ]
+                    },
                     "description": {
                       "nullable": true,
                       "type": "string"
                     },
-                    "trigger": {
-                      "type": "string",
-                      "minLength": 1
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
                     },
                     "actions": {
                       "type": "array",
@@ -9690,8 +9740,9 @@
                     "orgId",
                     "id",
                     "name",
+                    "kind",
                     "description",
-                    "trigger",
+                    "triggers",
                     "actions",
                     "enabled",
                     "createdAt",
@@ -9731,7 +9782,7 @@
       },
       "patch": {
         "operationId": "updateAutomation",
-        "summary": "Update an automation",
+        "summary": "Update a workflow automation (webhooks change through the webhook endpoints)",
         "tags": [
           "Automations"
         ],
@@ -9748,9 +9799,13 @@
                   "description": {
                     "type": "string"
                   },
-                  "trigger": {
-                    "type": "string",
-                    "minLength": 1
+                  "triggers": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   },
                   "actions": {
                     "type": "array",
@@ -9813,13 +9868,23 @@
                     "name": {
                       "type": "string"
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "workflow",
+                        "webhook"
+                      ]
+                    },
                     "description": {
                       "nullable": true,
                       "type": "string"
                     },
-                    "trigger": {
-                      "type": "string",
-                      "minLength": 1
+                    "triggers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
                     },
                     "actions": {
                       "type": "array",
@@ -9860,8 +9925,9 @@
                     "orgId",
                     "id",
                     "name",
+                    "kind",
                     "description",
-                    "trigger",
+                    "triggers",
                     "actions",
                     "enabled",
                     "createdAt",
@@ -9896,12 +9962,37 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
       "delete": {
         "operationId": "deleteAutomation",
-        "summary": "Delete an automation",
+        "summary": "Delete a workflow automation (webhooks are deleted through the webhook endpoints)",
         "tags": [
           "Automations"
         ],
@@ -9925,6 +10016,31 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -10098,6 +10214,11 @@
                             ],
                             "additionalProperties": false
                           },
+                          "rerunOf": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -10164,6 +10285,7 @@
                           "trigger",
                           "eventId",
                           "event",
+                          "rerunOf",
                           "status",
                           "actionResults",
                           "startedAt",
@@ -10195,6 +10317,854 @@
                     "total",
                     "page",
                     "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/{id}/runs/{runId}/rerun": {
+      "post": {
+        "operationId": "rerunAutomationRun",
+        "summary": "Run the automation again against a past run's event, as a new run",
+        "tags": [
+          "Automations"
+        ],
+        "description": "Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "runId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "automationId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "trigger": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "eventId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "event": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 9007199254740991
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "orgId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "occurredAt": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "data": {
+                          "$ref": "#/components/schemas/JsonValue"
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "version",
+                        "id",
+                        "orgId",
+                        "occurredAt",
+                        "data"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "rerunOf": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "completed",
+                        "failed"
+                      ]
+                    },
+                    "actionResults": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "type": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "completed",
+                              "failed"
+                            ]
+                          },
+                          "error": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "index",
+                          "type",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "startedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "finishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "automationId",
+                    "trigger",
+                    "eventId",
+                    "event",
+                    "rerunOf",
+                    "status",
+                    "actionResults",
+                    "startedAt",
+                    "finishedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/webhooks": {
+      "get": {
+        "operationId": "listWebhooks",
+        "summary": "List the organization's webhooks",
+        "tags": [
+          "Automations"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "orgId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "events": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "description": {
+                        "nullable": true,
+                        "type": "string"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "orgId",
+                      "id",
+                      "url",
+                      "events",
+                      "description",
+                      "enabled",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWebhook",
+        "summary": "Create a webhook — returns its signing secret",
+        "tags": [
+          "Automations"
+        ],
+        "description": "Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "events": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "events"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "url",
+                    "events",
+                    "description",
+                    "enabled",
+                    "createdAt",
+                    "updatedAt",
+                    "secret"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/webhooks/{id}": {
+      "get": {
+        "operationId": "getWebhook",
+        "summary": "Get a webhook by id",
+        "tags": [
+          "Automations"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "url",
+                    "events",
+                    "description",
+                    "enabled",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateWebhook",
+        "summary": "Change a webhook's URL, events, description or enabled flag",
+        "tags": [
+          "Automations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "events": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "description": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "url",
+                    "events",
+                    "description",
+                    "enabled",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWebhook",
+        "summary": "Delete a webhook and its signing secret — its delivery history is kept",
+        "tags": [
+          "Automations"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/webhooks/{id}/secret": {
+      "get": {
+        "operationId": "getWebhookSecret",
+        "summary": "Reveal a webhook's signing secret",
+        "tags": [
+          "Automations"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/automations/webhooks/{id}/secret/rotate": {
+      "post": {
+        "operationId": "rotateWebhookSecret",
+        "summary": "Replace a webhook's signing secret — the old one stops working immediately",
+        "tags": [
+          "Automations"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -12784,7 +13754,7 @@
     },
     {
       "name": "Automations",
-      "description": "Trigger/action workflows"
+      "description": "Workflows and webhooks that react to system events"
     },
     {
       "name": "Integrations",

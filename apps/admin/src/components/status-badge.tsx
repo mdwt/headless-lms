@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Badge, Dot } from "@/components/ui/badge";
 import { ROLE_LABEL } from "@/lib/roles";
 import type {
+  AutomationRunStatus,
   CourseStatus,
   EntitlementStatus,
   IntegrationStatus,
@@ -87,4 +88,30 @@ export function IntegrationStatusBadge({ status }: { status: IntegrationStatus }
 export function RoleBadge({ role }: { role: Role }) {
   const variant = role === "owner" ? "brand" : role === "admin" ? "neutral" : "outline";
   return <Badge variant={variant as "brand" | "neutral" | "outline"}>{ROLE_LABEL[role]}</Badge>;
+}
+
+export function EnabledBadge({ enabled }: { enabled: boolean }) {
+  return enabled ? (
+    <StatusBadge variant="success" dot>
+      Enabled
+    </StatusBadge>
+  ) : (
+    <StatusBadge variant="neutral" dot>
+      Disabled
+    </StatusBadge>
+  );
+}
+
+export function DeliveryStatusBadge({ status }: { status: AutomationRunStatus }) {
+  const map = {
+    completed: { variant: "success", label: "Delivered" },
+    failed: { variant: "danger", label: "Failed" },
+    running: { variant: "neutral", label: "Sending" },
+  } as const;
+  const { variant, label } = map[status];
+  return (
+    <StatusBadge variant={variant} dot>
+      {label}
+    </StatusBadge>
+  );
 }

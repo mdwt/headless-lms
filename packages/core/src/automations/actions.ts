@@ -6,11 +6,21 @@
 // (e.g. courseCompleted) makes `executeAction` throw a named error, recorded
 // by the engine as a failed action.
 import type { EmailTemplateId, EmailTemplateParams } from '../types/index.js';
+import { deliverWebhookInputSchema } from '../types/schemas/index.js';
 import { entitlementEvents } from '../entitlements/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
-import type { DomainEvent } from '../shared/ports.js';
+import type { CredentialStore, DomainEvent } from '../shared/ports.js';
 import type { AutomationAction } from './model.js';
-import { ALL_EMAIL_TEMPLATE_IDS } from './catalog.js';
+import type { WebhookSender } from './ports.js';
+import { ALL_EMAIL_TEMPLATE_IDS, DELIVER_WEBHOOK_ACTION } from './catalog.js';
+import { webhookHeaders } from './webhook-signing.js';
+
+export interface ActionDeps {
+  mailer: Pick<Mailer, 'send'>;
+  lookups: MailerLookups;
+  credentials: Pick<CredentialStore, 'reveal'>;
+  webhooks: WebhookSender;
+}
 
 interface SendEmailDerivation<K extends EmailTemplateId> {
   /** The only event type this template's params can be derived from. */
@@ -85,8 +95,7 @@ function isEmailTemplateId(value: unknown): value is EmailTemplateId {
 export async function executeAction(
   action: AutomationAction,
   event: DomainEvent,
-  mailer: Pick<Mailer, 'send'>,
-  lookups: MailerLookups,
+  deps: ActionDeps,
 ): Promise<void> {
   switch (action.type) {
     case 'sendEmail': {
@@ -100,17 +109,47 @@ export async function executeAction(
           `sendEmail: template "${template}" cannot be derived from event "${event.type}"`,
         );
       }
-      const derived = await derivation.derive(event, lookups);
+      const derived = await derivation.derive(event, deps.lookups);
       if (!derived) {
         throw new Error(
           `sendEmail: event "${event.type}" is missing the data required to derive template "${template}"`,
         );
       }
-      await mailer.send(derived.to, template, derived.params);
+      await deps.mailer.send(derived.to, template, derived.params);
+      return;
+    }
+    case DELIVER_WEBHOOK_ACTION: {
+      await deliverWebhook(action, event, deps);
       return;
     }
     default: {
       throw new Error(`unknown automation action type "${action.type}"`);
     }
+  }
+}
+
+async function deliverWebhook(
+  action: AutomationAction,
+  event: DomainEvent,
+  deps: ActionDeps,
+): Promise<void> {
+  const input = deliverWebhookInputSchema.safeParse(action.input);
+  if (!input.success) {
+    throw new Error(`${DELIVER_WEBHOOK_ACTION}: invalid input`);
+  }
+  const secrets = await deps.credentials.reveal(event.orgId, input.data.secretRef);
+  const secret = secrets?.['secret'];
+  if (typeof secret !== 'string') {
+    throw new Error(`${DELIVER_WEBHOOK_ACTION}: signing secret not found`);
+  }
+  const body = JSON.stringify(event);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const response = await deps.webhooks.send({
+    url: input.data.url,
+    headers: webhookHeaders(secret, event.id, timestamp, body),
+    body,
+  });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`${DELIVER_WEBHOOK_ACTION}: endpoint responded ${response.status}`);
   }
 }

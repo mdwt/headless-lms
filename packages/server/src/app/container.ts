@@ -28,6 +28,7 @@ import {
   type PollingOutboxRelayConfig,
 } from '@headless-lms/adapter-defaults/events/outbox-relay';
 import { InlineAutomationEngine } from '@headless-lms/adapter-defaults/workflows';
+import { FetchWebhookSender } from '@headless-lms/adapter-defaults/webhooks';
 import { EmailAdapter, StubTemplateRenderer } from '@headless-lms/adapter-defaults/email';
 import {
   createRootLogger,
@@ -70,7 +71,7 @@ import type {
   TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/core/shared/ports';
-import type { AutomationEngine } from '@headless-lms/core/types';
+import type { AutomationEngine, WebhookSender } from '@headless-lms/core/types';
 
 /** Installation-supplied ports; an absent slot falls back to a fail-loudly stub. */
 export interface AdapterOverrides {
@@ -80,6 +81,8 @@ export interface AdapterOverrides {
   templates?: TemplateRenderer;
   /** Durable automation engine. Absent → InlineAutomationEngine (in-process, one attempt per action). */
   workflows?: AutomationEngine;
+  /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (fetch, 10s timeout). */
+  webhooks?: WebhookSender;
 }
 
 export interface BuildContainerOptions {
@@ -383,6 +386,7 @@ export async function buildContainer(
   const automationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     automations: new DrizzleAutomationsRepository(tx, automationsLogger),
     runs: new DrizzleAutomationRunsRepository(tx, automationsLogger),
+    credentials: new DrizzleCredentialStore(tx, config.credentialStoreKey, automationsLogger),
     outbox: new DrizzleOutboxAppender(tx, automationsLogger),
   }));
   // Emails triggered by row-shaped events resolve their recipient and content
@@ -408,6 +412,8 @@ export async function buildContainer(
     mailer,
     lookups: mailerLookups,
     integrations,
+    credentials: credentialStore,
+    webhooks: options?.adapters?.webhooks ?? new FetchWebhookSender(),
     logger: automationsLogger,
   });
   automationEngine.register(automations);

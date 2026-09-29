@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 export const NODE_WIDTH = 300;
 
 export type TriggerNodeData = {
-  triggerType: string;
+  configured: boolean;
   triggerLabel: string;
   description: string | null;
   isSelected: boolean;
@@ -68,7 +68,7 @@ export function TriggerNode({ data }: NodeProps<TriggerFlowNode>) {
   return (
     <div
       className={cn(
-        cardClasses(data.isSelected, !data.triggerType),
+        cardClasses(data.isSelected, !data.configured),
         data.invalid && "border-danger",
       )}
     >
@@ -81,7 +81,7 @@ export function TriggerNode({ data }: NodeProps<TriggerFlowNode>) {
           <div
             className={cn(
               "truncate text-sm font-medium",
-              data.triggerType ? "text-ink" : "text-ink-4",
+              data.configured ? "text-ink" : "text-ink-4",
             )}
           >
             {data.triggerLabel || "Choose a trigger"}
@@ -89,7 +89,7 @@ export function TriggerNode({ data }: NodeProps<TriggerFlowNode>) {
         </div>
       </div>
       {data.description ? (
-        <p className="mt-2 line-clamp-2 text-xs text-ink-3">Runs when {data.description}.</p>
+        <p className="mt-2 line-clamp-2 text-xs text-ink-3">{data.description}</p>
       ) : null}
       <Handle type="source" position={Position.Bottom} style={hiddenHandle} />
     </div>

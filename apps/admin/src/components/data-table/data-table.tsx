@@ -49,6 +49,7 @@ export interface DataTableProps<TData> {
   refetch: () => void;
   getRowId: (row: TData) => string;
   searchPlaceholder?: string;
+  searchable?: boolean;
   facets?: FacetConfig[];
   /** Right-aligned toolbar slot — e.g. a "New course" primary button. */
   toolbarActions?: ReactNode;
@@ -76,6 +77,7 @@ export function DataTable<TData>({
   refetch,
   getRowId,
   searchPlaceholder = "Search…",
+  searchable = true,
   facets = [],
   toolbarActions,
   emptyTitle = "Nothing here yet",
@@ -112,26 +114,28 @@ export function DataTable<TData>({
       {/* Toolbar — search + facets + view options + page actions */}
       <div className="flex flex-col gap-3 pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-4" />
-            <Input
-              value={state.search}
-              onChange={(e) => state.setSearch(e.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label="Search"
-              className="pl-9"
-            />
-            {state.search && (
-              <button
-                type="button"
-                onClick={() => state.setSearch("")}
-                aria-label="Clear search"
-                className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded text-ink-4 transition-colors hover:text-ink"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
+          {searchable ? (
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-4" />
+              <Input
+                value={state.search}
+                onChange={(e) => state.setSearch(e.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label="Search"
+                className="pl-9"
+              />
+              {state.search && (
+                <button
+                  type="button"
+                  onClick={() => state.setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded text-ink-4 transition-colors hover:text-ink"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          ) : null}
           {facets.map((f) => {
             const column = table.getColumn(f.columnId);
             if (!column) return null; // facet column not mounted — skip gracefully

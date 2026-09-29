@@ -5,7 +5,7 @@ function compareBy(id: string, a: Automation, b: Automation): number {
     case "name":
       return a.name.localeCompare(b.name);
     case "trigger":
-      return a.trigger.localeCompare(b.trigger);
+      return (a.triggers[0] ?? "").localeCompare(b.triggers[0] ?? "");
     case "steps":
       return a.actions.length - b.actions.length;
     default:
@@ -13,14 +13,14 @@ function compareBy(id: string, a: Automation, b: Automation): number {
   }
 }
 
-/** Search/facet/sort/slice the full automations set against `ListParams`. */
+/** Search/facet/sort/slice the full workflows set against `ListParams`. */
 export function shapeAutomationsList(all: Automation[], params: ListParams): Paginated<Automation> {
   let rows = all;
 
   const q = params.search?.trim().toLowerCase();
   if (q) {
     rows = rows.filter((a) =>
-      [a.name, a.description ?? "", a.trigger, ...a.actions.map((x) => x.type)].some((v) =>
+      [a.name, a.description ?? "", ...a.triggers, ...a.actions.map((x) => x.type)].some((v) =>
         v.toLowerCase().includes(q),
       ),
     );
@@ -32,7 +32,7 @@ export function shapeAutomationsList(all: Automation[], params: ListParams): Pag
   }
   const triggerFilter = params.filters?.trigger;
   if (triggerFilter?.length) {
-    rows = rows.filter((a) => triggerFilter.includes(a.trigger));
+    rows = rows.filter((a) => a.triggers.some((t) => triggerFilter.includes(t)));
   }
 
   const sort = params.sort ?? [];

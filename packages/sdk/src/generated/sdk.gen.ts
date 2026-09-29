@@ -34,6 +34,8 @@ import type {
   CreateInviteResponses,
   CreateModuleResponses,
   CreateOrganizationResponses,
+  CreateWebhookErrors,
+  CreateWebhookResponses,
   DeleteActivityResponses,
   DeleteAssetErrors,
   DeleteAssetResponses,
@@ -50,6 +52,8 @@ import type {
   DeleteModuleResponses,
   DeleteStudentErrors,
   DeleteStudentResponses,
+  DeleteWebhookErrors,
+  DeleteWebhookResponses,
   DisconnectIntegrationErrors,
   DisconnectIntegrationResponses,
   DismissCommentReportsErrors,
@@ -91,6 +95,10 @@ import type {
   GetStudentAnalyticsResponses,
   GetStudentErrors,
   GetStudentResponses,
+  GetWebhookErrors,
+  GetWebhookResponses,
+  GetWebhookSecretErrors,
+  GetWebhookSecretResponses,
   GrantEntitlementResponses,
   InvokeConnectionActionErrors,
   InvokeConnectionActionResponses,
@@ -127,6 +135,7 @@ import type {
   ListMembersResponses,
   ListModulesResponses,
   ListStudentsResponses,
+  ListWebhooksResponses,
   ModerateRemoveCommentErrors,
   ModerateRemoveCommentResponses,
   PostCommentErrors,
@@ -157,8 +166,12 @@ import type {
   RequestAssetDownloadResponses,
   RequestUploadErrors,
   RequestUploadResponses,
+  RerunAutomationRunErrors,
+  RerunAutomationRunResponses,
   ResendStudentInviteErrors,
   ResendStudentInviteResponses,
+  RotateWebhookSecretErrors,
+  RotateWebhookSecretResponses,
   SetCommentReactionErrors,
   SetCommentReactionResponses,
   SetEntitlementStatusErrors,
@@ -181,6 +194,8 @@ import type {
   UpdateOrganizationResponses,
   UpdateStudentErrors,
   UpdateStudentResponses,
+  UpdateWebhookErrors,
+  UpdateWebhookResponses,
 } from "./types.gen";
 
 export type Options<
@@ -2957,28 +2972,33 @@ export class Entitlements {
 
 export class Automations {
   /**
-   * List automations
+   * List automations, optionally only workflows or only webhooks
    */
   public static listAutomations<ThrowOnError extends boolean = false>(
+    parameters?: {
+      kind?: "workflow" | "webhook";
+    },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListAutomationsResponses, unknown, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "kind" }] }]);
     return (options?.client ?? client).get<ListAutomationsResponses, unknown, ThrowOnError, "data">(
       {
         responseStyle: "data",
         url: "/api/automations",
         ...options,
+        ...params,
       },
     );
   }
 
   /**
-   * Create an automation
+   * Create a workflow automation
    */
   public static createAutomation<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       description?: string;
-      trigger: string;
+      triggers: Array<string>;
       actions: Array<{
         type: string;
         input: {
@@ -2995,7 +3015,7 @@ export class Automations {
           args: [
             { in: "body", key: "name" },
             { in: "body", key: "description" },
-            { in: "body", key: "trigger" },
+            { in: "body", key: "triggers" },
             { in: "body", key: "actions" },
           ],
         },
@@ -3056,7 +3076,7 @@ export class Automations {
   }
 
   /**
-   * Delete an automation
+   * Delete a workflow automation (webhooks are deleted through the webhook endpoints)
    */
   public static deleteAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3102,14 +3122,14 @@ export class Automations {
   }
 
   /**
-   * Update an automation
+   * Update a workflow automation (webhooks change through the webhook endpoints)
    */
   public static updateAutomation<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
       name?: string;
       description?: string;
-      trigger?: string;
+      triggers?: Array<string>;
       actions?: Array<{
         type: string;
         input: {
@@ -3128,7 +3148,7 @@ export class Automations {
             { in: "path", key: "id" },
             { in: "body", key: "name" },
             { in: "body", key: "description" },
-            { in: "body", key: "trigger" },
+            { in: "body", key: "triggers" },
             { in: "body", key: "actions" },
             { in: "body", key: "enabled" },
           ],
@@ -3190,6 +3210,235 @@ export class Automations {
     >({
       responseStyle: "data",
       url: "/api/automations/{id}/runs",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Run the automation again against a past run's event, as a new run
+   *
+   * Runs the automation's current steps; for a webhook this resends the event to its current URL. The new run references the original through `rerunOf`.
+   */
+  public static rerunAutomationRun<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+      runId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RerunAutomationRunResponses, RerunAutomationRunErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "path", key: "runId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RerunAutomationRunResponses,
+      RerunAutomationRunErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/{id}/runs/{runId}/rerun",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the organization's webhooks
+   */
+  public static listWebhooks<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListWebhooksResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<ListWebhooksResponses, unknown, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/automations/webhooks",
+      ...options,
+    });
+  }
+
+  /**
+   * Create a webhook — returns its signing secret
+   *
+   * Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
+   */
+  public static createWebhook<ThrowOnError extends boolean = false>(
+    parameters: {
+      url: string;
+      events: Array<string>;
+      description?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateWebhookResponses, CreateWebhookErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "url" },
+            { in: "body", key: "events" },
+            { in: "body", key: "description" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateWebhookResponses,
+      CreateWebhookErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete a webhook and its signing secret — its delivery history is kept
+   */
+  public static deleteWebhook<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteWebhookResponses, DeleteWebhookErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteWebhookResponses,
+      DeleteWebhookErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks/{id}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get a webhook by id
+   */
+  public static getWebhook<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetWebhookResponses, GetWebhookErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      GetWebhookResponses,
+      GetWebhookErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks/{id}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Change a webhook's URL, events, description or enabled flag
+   */
+  public static updateWebhook<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+      url?: string;
+      events?: Array<string>;
+      description?: string;
+      enabled?: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateWebhookResponses, UpdateWebhookErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "url" },
+            { in: "body", key: "events" },
+            { in: "body", key: "description" },
+            { in: "body", key: "enabled" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateWebhookResponses,
+      UpdateWebhookErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Reveal a webhook's signing secret
+   */
+  public static getWebhookSecret<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetWebhookSecretResponses, GetWebhookSecretErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      GetWebhookSecretResponses,
+      GetWebhookSecretErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks/{id}/secret",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Replace a webhook's signing secret — the old one stops working immediately
+   */
+  public static rotateWebhookSecret<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RotateWebhookSecretResponses, RotateWebhookSecretErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).post<
+      RotateWebhookSecretResponses,
+      RotateWebhookSecretErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations/webhooks/{id}/secret/rotate",
       ...options,
       ...params,
     });

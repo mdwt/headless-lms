@@ -8,42 +8,42 @@ import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.j
 export const automationEvents = {
   automationCreated: defineEvent({
     type: 'automation.created',
-    version: 1,
+    version: 2,
     data: automationSchema,
   }),
   automationUpdated: defineEvent({
     type: 'automation.updated',
-    version: 1,
+    version: 2,
     data: automationSchema,
   }),
   automationDeleted: defineEvent({
     type: 'automation.deleted',
-    version: 1,
+    version: 2,
     data: automationSchema,
   }),
   automationEnabled: defineEvent({
     type: 'automation.enabled',
-    version: 1,
+    version: 2,
     data: automationSchema,
   }),
   automationDisabled: defineEvent({
     type: 'automation.disabled',
-    version: 1,
+    version: 2,
     data: automationSchema,
   }),
   runStarted: defineEvent({
     type: 'automation.run.started',
-    version: 1,
+    version: 2,
     data: automationRunSchema,
   }),
   runCompleted: defineEvent({
     type: 'automation.run.completed',
-    version: 1,
+    version: 2,
     data: automationRunSchema,
   }),
   runFailed: defineEvent({
     type: 'automation.run.failed',
-    version: 1,
+    version: 2,
     data: automationRunSchema,
   }),
   actionFailed: defineEvent({

@@ -35,7 +35,7 @@ import { FlowCanvas } from "./flow-canvas";
 import { ConfigPanel } from "./config-panel";
 
 /**
- * The automation editor: a flow canvas (trigger → ordered steps) plus a config
+ * The workflow editor: a flow canvas (triggers → ordered steps) plus a config
  * panel for the selected node. Holds the whole draft locally; Save persists it
  * through the create/update server actions in one shot.
  */
@@ -76,8 +76,8 @@ export function AutomationEditor({
 
   // --- draft mutators --------------------------------------------------------
 
-  const setTrigger = useCallback((trigger: string) => {
-    setDraft((d) => ({ ...d, trigger }));
+  const setTriggers = useCallback((triggers: string[]) => {
+    setDraft((d) => ({ ...d, triggers }));
   }, []);
 
   const addStep = useCallback((index: number) => {
@@ -157,16 +157,16 @@ export function AutomationEditor({
             description: draft.description.trim(),
             enabled: draft.enabled,
           });
-          toast.success("Automation saved");
+          toast.success("Workflow saved");
         } else {
           const created = await createAutomationAction(payload);
           // Created rows default to enabled; honor an author who switched it off.
           if (!draft.enabled) await updateAutomationAction(created.id, { enabled: false });
-          toast.success("Automation created");
-          router.replace(`/automations/${created.id}`);
+          toast.success("Workflow created");
+          router.replace(`/automations/workflows/${created.id}`);
         }
       } catch (err) {
-        toast.error("Couldn't save automation", { description: (err as Error).message });
+        toast.error("Couldn't save workflow", { description: (err as Error).message });
       }
     });
   }, [automation, draft, defs, router]);
@@ -176,15 +176,27 @@ export function AutomationEditor({
     startTransition(async () => {
       try {
         await deleteAutomationAction(automation.id);
-        toast.success("Automation deleted");
-        router.push("/automations");
+        toast.success("Workflow deleted");
+        router.push("/automations/workflows");
       } catch (err) {
-        toast.error("Couldn't delete automation", { description: (err as Error).message });
+        toast.error("Couldn't delete workflow", { description: (err as Error).message });
       }
     });
   }, [automation, router]);
 
-  const triggerInfo = triggers.find((t) => t.type === draft.trigger);
+  const selectedTriggers = useMemo(
+    () =>
+      draft.triggers.map(
+        (type) =>
+          triggers.find((t) => t.type === type) ?? {
+            type,
+            label: type,
+            category: "",
+            description: "",
+          },
+      ),
+    [draft.triggers, triggers],
+  );
 
   if (!isManager(user.role)) return <ForbiddenView />;
 
@@ -194,7 +206,7 @@ export function AutomationEditor({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-1 items-start gap-1.5">
           <Button variant="ghost" size="icon-sm" asChild className="mt-0.5 shrink-0">
-            <Link href="/automations" aria-label="Back to automations">
+            <Link href="/automations/workflows" aria-label="Back to workflows">
               <ArrowLeft />
             </Link>
           </Button>
@@ -202,8 +214,8 @@ export function AutomationEditor({
             <input
               value={draft.name}
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="Untitled automation"
-              aria-label="Automation name"
+              placeholder="Untitled workflow"
+              aria-label="Workflow name"
               className={cn(
                 "-mx-1.5 w-full max-w-xl rounded-md bg-transparent px-1.5 py-0.5 text-xl font-semibold tracking-tight text-ink outline-none transition-colors placeholder:text-ink-faint hover:bg-hover/60 focus:bg-surface focus-visible:ring-2 focus-visible:ring-ring/40",
                 attempted && !draft.name.trim() && "ring-2 ring-danger/40",
@@ -213,7 +225,7 @@ export function AutomationEditor({
               value={draft.description}
               onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
               placeholder="Add a description…"
-              aria-label="Automation description"
+              aria-label="Workflow description"
               className="-mx-1.5 w-full max-w-xl rounded-md bg-transparent px-1.5 py-0.5 text-sm text-ink-2 outline-none transition-colors placeholder:text-ink-4 hover:bg-hover/60 focus:bg-surface focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </div>
@@ -239,7 +251,7 @@ export function AutomationEditor({
             disabled={pending || (automation != null && !dirty)}
           >
             {pending && <Loader2 className="animate-spin" />}
-            {automation ? "Save" : "Create automation"}
+            {automation ? "Save" : "Create workflow"}
           </Button>
         </div>
       </div>
@@ -249,7 +261,7 @@ export function AutomationEditor({
         <div className="relative h-[420px] flex-1 lg:h-auto">
           <FlowCanvas
             draft={draft}
-            triggerInfo={triggerInfo}
+            selectedTriggers={selectedTriggers}
             defs={defs}
             selection={selection}
             incomplete={incomplete}
@@ -266,7 +278,7 @@ export function AutomationEditor({
             availableActions={availableActions}
             connections={connections}
             defs={defs}
-            onTriggerChange={setTrigger}
+            onTriggersChange={setTriggers}
             onActionTypeChange={changeActionType}
             onActionInputChange={changeActionInput}
             onMoveStep={moveStep}
@@ -278,9 +290,9 @@ export function AutomationEditor({
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete automation?"
-        description={`"${draft.name || "This automation"}" will stop running and its configuration will be removed. Past run history is kept for auditing.`}
-        confirmLabel="Delete automation"
+        title="Delete workflow?"
+        description={`"${draft.name || "This workflow"}" will stop running and its configuration will be removed. Past run history is kept for auditing.`}
+        confirmLabel="Delete workflow"
         destructive
         pending={pending}
         onConfirm={confirmDelete}

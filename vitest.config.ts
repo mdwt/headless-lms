@@ -67,6 +67,10 @@ export default defineConfig({
         replacement: r("./adapters/defaults/src/workflows/index.ts"),
       },
       {
+        find: "@headless-lms/adapter-defaults/webhooks",
+        replacement: r("./adapters/defaults/src/webhooks/index.ts"),
+      },
+      {
         find: /^@headless-lms\/core\/shared\/([a-z-]+)$/,
         replacement: r("./packages/core/src/shared/$1.ts"),
       },

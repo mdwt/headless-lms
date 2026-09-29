@@ -11,6 +11,8 @@ Without it, the container falls back to the in-process `InlineAutomationEngine`:
 
 The adapter declares one workflow, `automation-run`: a durable parent task that iterates the dispatched actions, spawning one child task per action with up to 3 retries. Because children are spawned through Hatchet's durable event log, a crash mid-run resumes after the last completed action instead of restarting the sequence. A child that exhausts its retries stops the sequence, and the run is finalized with the results collected so far.
 
+[Webhook](/docs/webhooks) deliveries run through the same workflow: a webhook is an automation whose one action delivers the event, so a failed delivery gets the same retries.
+
 ## Setup
 
 1. Get a Hatchet tenant — [Hatchet Cloud](https://cloud.onhatchet.run) or [self-hosted](https://docs.hatchet.run/self-hosting).

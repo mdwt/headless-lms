@@ -11,6 +11,9 @@ child that exhausts its retries stops the sequence; the parent then calls
 spawned via the durable event log, a crash mid-run resumes after the last
 completed action instead of restarting the sequence from scratch.
 
+Webhook deliveries run through the same workflow: a webhook is an automation whose
+one action delivers the event, so a failed delivery is retried like any other action.
+
 ```ts
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
 

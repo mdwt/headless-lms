@@ -1,0 +1,124 @@
+---
+title: Webhooks
+description: Send an organization's events to your own endpoint as signed HTTP requests.
+---
+
+A webhook sends events from an organization to a URL you control. Choose the events, and each time one happens it is POSTed to your endpoint as JSON, signed with the webhook's secret.
+
+A webhook is an automation of kind `webhook` whose only step delivers the event. Its deliveries are that automation's runs, so they get the same run history, retries and reruns as workflows.
+
+## Create a webhook
+
+In the admin dashboard, go to **Automations → Webhooks → Add webhook**. Or use the SDK:
+
+```ts
+import { Automations } from "@headless-lms/sdk";
+
+const webhook = await Automations.createWebhook({
+  url: "https://crm.example.com/hooks/lms",
+  events: ["entitlement.created", "progress.record.completed"],
+  description: "CRM sync",
+});
+
+webhook.secret; // whsec_… — keep it to verify deliveries
+```
+
+`events` must be event types the system emits. [`GET /api/automations/triggers`](/docs/api/automations/listAutomationTriggers) lists them, the same list the workflow editor offers. Automation events (`automation.*`) can't be subscribed to.
+
+Signing secrets are encrypted at rest, so the API needs `CREDENTIAL_STORE_KEY` set. See [Self-hosting](/docs/self-hosting).
+
+## What gets delivered
+
+Each delivery is a `POST` whose body is the event:
+
+```json
+{
+  "id": "evt_2QZ4mK…",
+  "type": "entitlement.created",
+  "version": 1,
+  "orgId": "org_2QZ4mK…",
+  "occurredAt": "2026-09-29T10:15:00.000Z",
+  "data": {}
+}
+```
+
+`data` is the event's payload, in the same shape the event has everywhere else in the system. For `entitlement.created`, it's the entitlement.
+
+| Header              | Value                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `content-type`      | `application/json`                                                                 |
+| `webhook-id`        | The event id. It stays the same across retries and resends; use it to deduplicate. |
+| `webhook-timestamp` | Unix time, in seconds, when the attempt was signed.                                |
+| `webhook-signature` | `v1,` followed by the base64 HMAC-SHA256 signature.                                |
+
+## Verify a delivery
+
+Signatures follow the [Standard Webhooks](https://www.standardwebhooks.com) spec, so any Standard Webhooks library can verify them. The signed content is `{webhook-id}.{webhook-timestamp}.{body}`, and the key is the base64-decoded part of the secret after `whsec_`.
+
+```ts title="verify.ts"
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const TOLERANCE_SECONDS = 5 * 60;
+
+export function verifyWebhook(secret: string, headers: Headers, rawBody: string): boolean {
+  const id = headers.get("webhook-id") ?? "";
+  const timestamp = headers.get("webhook-timestamp") ?? "";
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > TOLERANCE_SECONDS) {
+    return false;
+  }
+
+  const key = Buffer.from(secret.slice("whsec_".length), "base64");
+  const expected = Buffer.from(
+    createHmac("sha256", key).update(`${id}.${timestamp}.${rawBody}`).digest("base64"),
+  );
+
+  return (headers.get("webhook-signature") ?? "")
+    .split(" ")
+    .map((entry) => Buffer.from(entry.split(",")[1] ?? ""))
+    .some(
+      (signature) => signature.length === expected.length && timingSafeEqual(signature, expected),
+    );
+}
+```
+
+Verify against the raw request body, byte for byte, before parsing it. The timestamp check rejects replayed requests.
+
+## Retries
+
+A delivery succeeds when your endpoint answers with a `2xx` status within 10 seconds. Any other status, a redirect (redirects are not followed), a timeout or a connection error is a failed attempt.
+
+The number of attempts depends on the workflow engine. With the [Hatchet adapter](/docs/adapters/workflows/hatchet), a failed delivery is retried up to 3 times. The default in-process engine makes a single attempt. A delivery that fails every attempt is recorded as failed.
+
+Answer with a `2xx` as soon as the request is received, and do the processing afterwards.
+
+## Delivery history and resending
+
+Every delivery is recorded with its event, status and time, plus the error when it failed. You can see them on the webhook's **Deliveries** tab, or with [`GET /api/automations/{id}/runs`](/docs/api/automations/listAutomationRuns).
+
+To resend a delivery, choose **Resend** on it, or:
+
+```ts
+await Automations.rerunAutomationRun({ id: webhook.id, runId });
+```
+
+A resend is a new delivery. It goes to the webhook's current URL, signed with the current secret, keeps the original `webhook-id`, and its `rerunOf` points at the original delivery. Deleting a webhook keeps its delivery history.
+
+## Rotating the secret
+
+**Rotate secret** on the webhook's settings, or [`POST /api/automations/webhooks/{id}/secret/rotate`](/docs/api/automations/rotateWebhookSecret), replaces the secret immediately. Every delivery after that is signed with the new secret. [`GET /api/automations/webhooks/{id}/secret`](/docs/api/automations/getWebhookSecret) reveals the current one.
+
+## API
+
+| Endpoint                                            | Does                                               |
+| --------------------------------------------------- | -------------------------------------------------- |
+| `GET /api/automations/webhooks`                     | List the organization's webhooks                   |
+| `POST /api/automations/webhooks`                    | Create a webhook; the response includes its secret |
+| `GET /api/automations/webhooks/{id}`                | Get a webhook                                      |
+| `PATCH /api/automations/webhooks/{id}`              | Change `url`, `events`, `description` or `enabled` |
+| `DELETE /api/automations/webhooks/{id}`             | Delete a webhook and its secret                    |
+| `GET /api/automations/webhooks/{id}/secret`         | Reveal the signing secret                          |
+| `POST /api/automations/webhooks/{id}/secret/rotate` | Replace the signing secret                         |
+| `GET /api/automations/{id}/runs`                    | List deliveries, filterable by `status`            |
+| `POST /api/automations/{id}/runs/{runId}/rerun`     | Resend a delivery                                  |
+
+Webhooks also appear in [`GET /api/automations`](/docs/api/automations/listAutomations) with `kind: "webhook"`; pass `?kind=workflow` or `?kind=webhook` to list one kind. A webhook changes only through the webhook endpoints: `PATCH` and `DELETE /api/automations/{id}` answer `409` for a webhook.

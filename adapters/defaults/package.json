@@ -30,6 +30,10 @@
     "./workflows": {
       "types": "./dist/workflows/index.d.ts",
       "default": "./dist/workflows/index.js"
+    },
+    "./webhooks": {
+      "types": "./dist/webhooks/index.d.ts",
+      "default": "./dist/webhooks/index.js"
     }
   },
   "files": [
@@ -51,7 +55,7 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "description": "Default in-process adapters (email, storage, events, logging, workflows) for the headless LMS",
+  "description": "Default in-process adapters (email, storage, events, logging, workflows, webhooks) for the headless LMS",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -15,6 +15,13 @@
       "when": 1786692996002,
       "tag": "0001_new_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790675689629,
+      "tag": "0002_automation_kinds",
+      "breakpoints": true
     }
   ]
 }

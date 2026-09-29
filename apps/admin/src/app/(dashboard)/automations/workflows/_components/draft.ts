@@ -4,7 +4,7 @@ import type { Automation, AutomationAction, AvailableAction } from "@/lib/api/ty
 export interface AutomationDraft {
   name: string;
   description: string;
-  trigger: string;
+  triggers: string[];
   actions: AutomationAction[];
   enabled: boolean;
 }
@@ -19,11 +19,11 @@ export function actionLabel(type: string): string {
 }
 
 export function draftFromAutomation(automation: Automation | null): AutomationDraft {
-  if (!automation) return { name: "", description: "", trigger: "", actions: [], enabled: true };
+  if (!automation) return { name: "", description: "", triggers: [], actions: [], enabled: true };
   return {
     name: automation.name,
     description: automation.description ?? "",
-    trigger: automation.trigger,
+    triggers: [...automation.triggers],
     actions: automation.actions.map((a) => ({ type: a.type, input: { ...a.input } })),
     enabled: automation.enabled,
   };
@@ -50,8 +50,8 @@ export function validateDraft(
   draft: AutomationDraft,
   defs: Map<string, AvailableAction>,
 ): string | null {
-  if (!draft.name.trim()) return "Give the automation a name before saving.";
-  if (!draft.trigger) return "Choose a trigger — the event this automation reacts to.";
+  if (!draft.name.trim()) return "Give the workflow a name before saving.";
+  if (draft.triggers.length === 0) return "Choose a trigger — the event this workflow reacts to.";
   for (const [i, action] of draft.actions.entries()) {
     if (!action.type) return `Step ${i + 1} needs an action.`;
     if (!isActionComplete(action, defs.get(action.type))) {
@@ -64,14 +64,14 @@ export function validateDraft(
 export function draftToPayload(draft: AutomationDraft): {
   name: string;
   description?: string;
-  trigger: string;
+  triggers: string[];
   actions: AutomationAction[];
 } {
   const description = draft.description.trim();
   return {
     name: draft.name.trim(),
     description: description || undefined,
-    trigger: draft.trigger,
+    triggers: draft.triggers,
     actions: draft.actions.map((a) => ({ type: a.type, input: a.input })),
   };
 }

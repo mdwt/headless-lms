@@ -23,7 +23,7 @@ Public surface (`src/index.ts`): `createContainer`, `buildServer`,
 `@headless-lms/adapter-db`, which ships the `drizzle/` migration assets;
 `@headless-lms/cli` wraps it as `headless-lms migrate`), and the types
 installations need (`ServerConfig`, `Container`, `AdapterOverrides`, shared ports
-like `EmailSender` / `ObjectStorage`). Everything else is internal.
+like `EmailSender` / `ObjectStorage` / `WebhookSender`). Everything else is internal.
 
 ## Layout
 

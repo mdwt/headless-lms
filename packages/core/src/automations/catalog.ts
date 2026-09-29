@@ -25,6 +25,8 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   courseCompleted: true,
 };
 
+export const DELIVER_WEBHOOK_ACTION = 'deliverWebhook';
+
 export function catalogActions(): AvailableActions {
   return [
     {

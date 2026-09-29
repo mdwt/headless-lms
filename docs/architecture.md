@@ -35,7 +35,7 @@ There are 3 ways to change or extend the core service.
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Video, Event Bus, Cache (Redis/in-memory) |
 | **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Extended comments, Community                                                                                                                 |
-| **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly, Outgoing webhooks                                                                                            |
+| **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly                                                                                                               |
 
 ## Composition
 

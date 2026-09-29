@@ -4,7 +4,7 @@ description: Adapters are what makes headless-lms incredibly extendable.
 ---
 
 Adapters are implementations of the outbound ports declared in `@headless-lms/core`. These are the
-capabilities like email delivery, email templates, object storage, durable workflows etc.
+capabilities like email delivery, email templates, object storage, durable workflows and webhook delivery.
 
 For example, system emails are sent using Resend. If you want to use a different email provider, then implement your
 own Email adapter and pass it in to the server.
@@ -38,6 +38,7 @@ Every slot is optional, with a sensible default, so you can start with nothing c
 | `templates` | `TemplateRenderer` | [`@headless-lms/adapter-email-templates`](/docs/adapters/email/react-email)  | Stub that fails loudly on render          |
 | `storage`   | `ObjectStorage`    | [`@headless-lms/adapter-storage-minio`](/docs/adapters/storage/minio)        | Stub that fails loudly on use             |
 | `workflows` | `AutomationEngine` | [`@headless-lms/adapter-workflow-hatchet`](/docs/adapters/workflows/hatchet) | In-process engine, one attempt per action |
+| `webhooks`  | `WebhookSender`    | Built in                                                                     | `fetch`, 10 s timeout, no redirects       |
 
 Because each slot is just an interface, you can replace any adapter with your own implementation — implement the port from `@headless-lms/core/types` and pass it in the same way.
 

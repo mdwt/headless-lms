@@ -7,6 +7,7 @@ import {
   InvalidConfigError,
   UnknownIntegrationError,
 } from '@headless-lms/core/integrations';
+import { AutomationKindMismatchError, ReservedActionError } from '@headless-lms/core/automations';
 import { errorHandler } from './error-handler.js';
 
 let app: FastifyInstance;
@@ -33,6 +34,12 @@ beforeAll(async () => {
     conflict: () => {
       throw new ConflictError('A student with this email already exists');
     },
+    'reserved-action': () => {
+      throw new ReservedActionError('deliverWebhook');
+    },
+    'kind-mismatch': () => {
+      throw new AutomationKindMismatchError('atm_1', 'webhook');
+    },
     unhandled: () => {
       throw new Error('boom');
     },
@@ -48,6 +55,24 @@ afterAll(async () => {
 });
 
 describe('central error handler', () => {
+  it('maps ReservedActionError to 400 reserved_action', async () => {
+    const res = await app.inject({ method: 'GET', url: '/reserved-action' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      error: 'reserved_action',
+      message: 'action "deliverWebhook" is reserved to webhooks',
+    });
+  });
+
+  it('maps AutomationKindMismatchError to 409 kind_mismatch', async () => {
+    const res = await app.inject({ method: 'GET', url: '/kind-mismatch' });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      error: 'kind_mismatch',
+      message: 'automation "atm_1" is a webhook and can\'t be changed through this operation',
+    });
+  });
+
   it('maps NotFoundError to 404 not_found', async () => {
     const res = await app.inject({ method: 'GET', url: '/not-found' });
     expect(res.statusCode).toBe(404);

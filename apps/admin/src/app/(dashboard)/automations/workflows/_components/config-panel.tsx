@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, MousePointerClick, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/forms/field";
+import { EventMultiSelect } from "@/components/forms/event-multi-select";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,7 @@ interface ConfigPanelProps {
   availableActions: AvailableAction[];
   connections: IntegrationConnection[];
   defs: Map<string, AvailableAction>;
-  onTriggerChange: (trigger: string) => void;
+  onTriggersChange: (triggers: string[]) => void;
   onActionTypeChange: (index: number, type: string) => void;
   onActionInputChange: (index: number, input: Record<string, unknown>) => void;
   onMoveStep: (index: number, delta: -1 | 1) => void;
@@ -84,39 +85,23 @@ function PanelHeading({ overline, title }: { overline: string; title: string }) 
   );
 }
 
-function TriggerPanel({ draft, triggers, onTriggerChange }: ConfigPanelProps) {
-  const selected = triggers.find((t) => t.type === draft.trigger);
-  const groups = useMemo(() => {
-    const byCategory = new Map<string, AutomationTriggerInfo[]>();
-    for (const t of triggers) {
-      const list = byCategory.get(t.category) ?? [];
-      list.push(t);
-      byCategory.set(t.category, list);
-    }
-    return [...byCategory.entries()];
-  }, [triggers]);
-
+function TriggerPanel({ draft, triggers, onTriggersChange }: ConfigPanelProps) {
   return (
     <div className="flex flex-col gap-5 p-5">
-      <p className="text-sm text-ink-2">Choose what starts this automation.</p>
-      <Field id="trigger" label="When" required>
-        <Select value={draft.trigger || undefined} onValueChange={onTriggerChange}>
-          <SelectTrigger id="trigger">
-            <SelectValue placeholder="Choose an event">{selected?.label}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {groups.map(([category, items]) => (
-              <SelectGroup key={category}>
-                <SelectLabel>{category}</SelectLabel>
-                {items.map((t) => (
-                  <SelectItem key={t.type} value={t.type} textValue={t.label}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
+      <p className="text-sm text-ink-2">Choose what starts this workflow.</p>
+      <Field
+        id="triggers"
+        label="When"
+        required
+        hint="The workflow runs when any of these events happen."
+      >
+        <EventMultiSelect
+          id="triggers"
+          value={draft.triggers}
+          onValueChange={onTriggersChange}
+          events={triggers}
+          placeholder="Choose an event"
+        />
       </Field>
     </div>
   );

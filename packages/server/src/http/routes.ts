@@ -9,6 +9,7 @@ import { activitiesRoutes } from './routes/activities.js';
 import { studentsRoutes } from './routes/students.js';
 import { entitlementsRoutes } from './routes/entitlements.js';
 import { automationsRoutes } from './routes/automations.js';
+import { webhooksRoutes } from './routes/webhooks.js';
 import { organizationsRoutes } from './routes/organizations.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { courseAnalyticsRoutes } from './routes/course-analytics.js';
@@ -34,6 +35,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
     await studentsRoutes(instance, container);
     await entitlementsRoutes(instance, container);
     await automationsRoutes(instance, container);
+    await webhooksRoutes(instance, container);
     await dashboardRoutes(instance, container);
     await courseAnalyticsRoutes(instance, container);
     await assetsRoutes(instance, container);
