@@ -47,9 +47,11 @@ export type VersionedDomainEvent<
 export interface RuntimeEventDefinition<
   E extends VersionedDomainEvent,
   TMakeData = E['data'],
+  TPublicSchema extends z.ZodType | undefined = z.ZodType | undefined,
 > extends EventDefinition<E, TMakeData> {
   readonly dataSchema: z.ZodType;
   readonly eventSchema: z.ZodType<E>;
+  readonly publicData: TPublicSchema;
 }
 
 export type EventOf<TDefinition extends EventDefinition<DomainEvent, unknown>> =
@@ -63,21 +65,25 @@ export interface DefineEventInput<
   TType extends string,
   TVersion extends number,
   TDataSchema extends z.ZodType,
+  TPublicSchema extends z.ZodType | undefined = undefined,
 > {
   readonly type: TType;
   readonly version: TVersion;
   readonly data: TDataSchema;
+  readonly publicData?: TPublicSchema;
 }
 
 export function defineEvent<
   const TType extends string,
   const TVersion extends number,
   TDataSchema extends z.ZodType,
+  TPublicSchema extends z.ZodType | undefined = undefined,
 >(
-  input: DefineEventInput<TType, TVersion, TDataSchema>,
+  input: DefineEventInput<TType, TVersion, TDataSchema, TPublicSchema>,
 ): RuntimeEventDefinition<
   VersionedDomainEvent<z.output<TDataSchema>, TType, TVersion>,
-  z.input<TDataSchema>
+  z.input<TDataSchema>,
+  TPublicSchema
 > {
   type Event = VersionedDomainEvent<z.output<TDataSchema>, TType, TVersion>;
   const makeInputSchema = z
@@ -104,6 +110,7 @@ export function defineEvent<
     version: input.version,
     dataSchema: input.data,
     eventSchema: eventSchema as unknown as z.ZodType<Event>,
+    publicData: input.publicData as TPublicSchema,
     make(value: MakeEventInput<z.input<TDataSchema>>) {
       const result = makeInputSchema.safeParse(value);
       if (!result.success) {

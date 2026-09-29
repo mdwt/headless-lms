@@ -25,96 +25,189 @@ const bundleItemsEventSchema = z
   })
   .strict();
 
+const publicCourse = courseSchema
+  .pick({
+    orgId: true,
+    id: true,
+    type: true,
+    title: true,
+    slug: true,
+    description: true,
+    status: true,
+    category: true,
+    thumbnailAssetId: true,
+    settings: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strip();
+
+const publicModule = moduleSchema
+  .pick({
+    orgId: true,
+    id: true,
+    courseId: true,
+    title: true,
+    seq: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strip();
+
+const publicActivity = activitySchema
+  .pick({
+    orgId: true,
+    id: true,
+    moduleId: true,
+    courseId: true,
+    seq: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strip();
+
+const publicDownload = downloadSchema
+  .pick({
+    orgId: true,
+    id: true,
+    type: true,
+    title: true,
+    slug: true,
+    description: true,
+    status: true,
+    category: true,
+    thumbnailAssetId: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strip();
+
+const publicDownloadAsset = downloadAssetSchema
+  .pick({
+    orgId: true,
+    id: true,
+    downloadId: true,
+    assetId: true,
+    seq: true,
+    displayName: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .strip();
+
+const publicDownloadAssets = z.object({
+  downloadId: idSchema,
+  assets: z.array(publicDownloadAsset),
+});
+
 export const contentEvents = {
   courseCreated: defineEvent({
     type: 'content.course.created',
     version: 1,
     data: courseSchema,
+    publicData: publicCourse,
   }),
   courseUpdated: defineEvent({
     type: 'content.course.updated',
     version: 1,
     data: courseSchema,
+    publicData: publicCourse,
   }),
   courseDeleted: defineEvent({
     type: 'content.course.deleted',
     version: 1,
     data: courseSchema,
+    publicData: publicCourse,
   }),
   moduleCreated: defineEvent({
     type: 'content.course.module.created',
     version: 1,
     data: moduleSchema,
+    publicData: publicModule,
   }),
   moduleUpdated: defineEvent({
     type: 'content.course.module.updated',
     version: 1,
     data: moduleSchema,
+    publicData: publicModule,
   }),
   moduleDeleted: defineEvent({
     type: 'content.course.module.deleted',
     version: 1,
     data: moduleSchema,
+    publicData: publicModule,
   }),
   modulesReordered: defineEvent({
     type: 'content.course.modules.reordered',
     version: 1,
     data: z.array(moduleSchema),
+    publicData: z.array(publicModule),
   }),
   activityCreated: defineEvent({
     type: 'content.course.activity.created',
     version: 1,
     data: activitySchema,
+    publicData: publicActivity,
   }),
   activityUpdated: defineEvent({
     type: 'content.course.activity.updated',
     version: 1,
     data: activitySchema,
+    publicData: publicActivity,
   }),
   activityDeleted: defineEvent({
     type: 'content.course.activity.deleted',
     version: 1,
     data: activitySchema,
+    publicData: publicActivity,
   }),
   activitiesReordered: defineEvent({
     type: 'content.course.activities.reordered',
     version: 1,
     data: moduleSchema,
+    publicData: publicModule,
   }),
   downloadCreated: defineEvent({
     type: 'content.download.created',
     version: 1,
     data: downloadSchema,
+    publicData: publicDownload,
   }),
   downloadUpdated: defineEvent({
     type: 'content.download.updated',
     version: 1,
     data: downloadSchema,
+    publicData: publicDownload,
   }),
   downloadDeleted: defineEvent({
     type: 'content.download.deleted',
     version: 1,
     data: downloadSchema,
+    publicData: publicDownload,
   }),
   downloadAssetAdded: defineEvent({
     type: 'content.download.asset.added',
     version: 1,
     data: downloadAssetsEventSchema,
+    publicData: publicDownloadAssets,
   }),
   downloadAssetRemoved: defineEvent({
     type: 'content.download.asset.removed',
     version: 1,
     data: downloadAssetsEventSchema,
+    publicData: publicDownloadAssets,
   }),
   downloadAssetRenamed: defineEvent({
     type: 'content.download.asset.renamed',
     version: 1,
     data: downloadAssetsEventSchema,
+    publicData: publicDownloadAssets,
   }),
   downloadAssetsReordered: defineEvent({
     type: 'content.download.assets.reordered',
     version: 1,
     data: downloadAssetsEventSchema,
+    publicData: publicDownloadAssets,
   }),
   bundleCreated: defineEvent({
     type: 'content.bundle.created',

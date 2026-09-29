@@ -30,7 +30,7 @@ The domain stores what an automation is and the history of every time it ran. Wh
 ## Boundaries
 
 1. **automations ↔ the contexts that act** — a workflow's actions are operations owned by other contexts. Automations doesn't grant access, add tags, or send email itself — it runs the action list in order and calls the context that owns each operation. Delivering a webhook is the one action automations owns: it sends the event, signed, to the webhook's URL.
-2. **automations ↔ the contexts that trigger** — automations listens for the events other contexts emit and resolves which automations each event runs. The emitting context doesn't know automations exists. Automations' own events never trigger an automation, so a webhook can't subscribe to them.
+2. **automations ↔ the contexts that trigger** — automations listens for the events other contexts emit and resolves which automations each event runs. The emitting context doesn't know automations exists. It does decide which of its events' fields may leave the system, and a webhook delivers only those. Automations' own events never trigger an automation, so a webhook can't subscribe to them.
 3. **automations ↔ execution infrastructure** — automations hands a definition off to be run; the infrastructure orders the steps, retries failures, waits between actions, and resumes after a restart. A webhook delivery is a run like any other and is retried the same way. Automations keeps the definition and none of the running state.
 4. **automations ↔ secure credential store** — a webhook's signing secret is held in the shared secure store, scoped to the org. Automations resolves it only to sign a delivery or when asked to reveal it.
 

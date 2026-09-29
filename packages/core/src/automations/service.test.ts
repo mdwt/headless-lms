@@ -1046,6 +1046,14 @@ describe('AutomationsService.runAction deliverWebhook', () => {
       webhooks,
     );
 
+  const deliver = async (event: DomainEvent) => {
+    const webhooks = fakeWebhooks(204);
+    const { svc } = buildWith(webhooks);
+    await svc.runAction({ ...dispatch, event }, 0);
+    const [request] = vi.mocked(webhooks.send).mock.calls[0]!;
+    return JSON.parse(request.body) as { data: Record<string, unknown> };
+  };
+
   it('POSTs the event, signed per Standard Webhooks', async () => {
     const webhooks = fakeWebhooks(204);
     const { svc } = buildWith(webhooks);
@@ -1054,22 +1062,190 @@ describe('AutomationsService.runAction deliverWebhook', () => {
 
     expect(result).toEqual({ index: 0, type: 'deliverWebhook', status: 'completed' });
     const [request] = vi.mocked(webhooks.send).mock.calls[0]!;
-    const body = JSON.stringify(ENTITLEMENT_CREATED_EVENT);
     const timestamp = String(Math.floor(new Date('2026-01-02T00:00:00Z').getTime() / 1000));
     const key = Buffer.from(WEBHOOK_SECRET.slice('whsec_'.length), 'base64');
     const expected = createHmac('sha256', key)
-      .update(`evt_1.${timestamp}.${body}`)
+      .update(`evt_1.${timestamp}.${request.body}`)
       .digest('base64');
-    expect(request).toEqual({
-      url: 'https://crm.example.com/hooks',
-      body,
-      headers: {
-        'content-type': 'application/json',
-        'webhook-id': 'evt_1',
-        'webhook-timestamp': timestamp,
-        'webhook-signature': `v1,${expected}`,
+    expect(request.url).toBe('https://crm.example.com/hooks');
+    expect(request.headers).toEqual({
+      'content-type': 'application/json',
+      'webhook-id': 'evt_1',
+      'webhook-timestamp': timestamp,
+      'webhook-signature': `v1,${expected}`,
+    });
+    expect(JSON.parse(request.body)).toEqual({
+      id: 'evt_1',
+      type: 'entitlement.created',
+      version: 1,
+      orgId: 'org-1',
+      occurredAt: '2026-01-01T00:00:00Z',
+      data: {
+        orgId: 'org-1',
+        id: 'e1',
+        orgUserId: 's1',
+        bundleId: null,
+        contentId: 'c1',
+        status: 'active',
+        source: 'manual',
+        grantedAt: '2026-01-01T00:00:00.000Z',
+        expiresAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
       },
     });
+  });
+
+  it('sends the envelope and only the fields the event publishes', async () => {
+    const body = await deliver({
+      type: 'content.course.activity.updated',
+      version: 1,
+      id: 'evt_3',
+      orgId: 'org-1',
+      occurredAt: '2026-09-29T13:21:17.819Z',
+      metadata: { requestId: 'req_1' },
+      data: {
+        orgId: 'org-1',
+        id: 'act_1',
+        moduleId: 'mod_1',
+        courseId: 'crs_1',
+        seq: 0,
+        settings: {
+          title: 'Instrumenting your first events',
+          published: true,
+          content: {
+            type: 'plate',
+            version: 1,
+            config: [{ type: 'video', url: 'https://storage.test/broll.mp4?X-Amz-Signature=abc' }],
+          },
+        },
+        createdAt: '2026-08-04T14:05:03.184Z',
+        updatedAt: '2026-09-29T13:21:17.821Z',
+      },
+    } as unknown as DomainEvent);
+
+    expect(body).toEqual({
+      id: 'evt_3',
+      type: 'content.course.activity.updated',
+      version: 1,
+      orgId: 'org-1',
+      occurredAt: '2026-09-29T13:21:17.819Z',
+      data: {
+        orgId: 'org-1',
+        id: 'act_1',
+        moduleId: 'mod_1',
+        courseId: 'crs_1',
+        seq: 0,
+        createdAt: '2026-08-04T14:05:03.184Z',
+        updatedAt: '2026-09-29T13:21:17.821Z',
+      },
+    });
+  });
+
+  it.each([
+    {
+      field: 'tokenHash',
+      type: 'organization.invite.created',
+      data: {
+        id: 'inv_1',
+        orgId: 'org-1',
+        email: 'ann@example.com',
+        role: 'student',
+        status: 'pending',
+        invitedBy: 'ou_1',
+        tokenHash: 'hash',
+        expiresAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+    {
+      field: 'credentialRef',
+      type: 'integration.connection.created',
+      data: {
+        orgId: 'org-1',
+        id: 'con_1',
+        integrationId: 'kit',
+        config: { list: 'l1' },
+        active: true,
+        credentialRef: 'crd_9',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+    {
+      field: 'position',
+      type: 'progress.record.completed',
+      data: {
+        id: 'prg_1',
+        orgId: 'org-1',
+        orgUserId: 'ou_1',
+        targetType: 'activity',
+        targetId: 'act_1',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        position: { seconds: 42 },
+        completedAt: '2026-01-01T00:10:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:10:00.000Z',
+      },
+    },
+    {
+      field: 'externalId',
+      type: 'identity.user.created',
+      data: {
+        id: 'usr_1',
+        externalId: 'ext_1',
+        email: 'ann@example.com',
+        firstName: 'Ann',
+        lastName: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+    {
+      field: 'externalId',
+      type: 'organization.updated',
+      data: {
+        id: 'org-1',
+        externalId: 'ext_org',
+        name: 'Acme',
+        slug: 'acme',
+        ownerId: 'usr_1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+  ])('leaves $field out of $type', async ({ field, type, data }) => {
+    const body = await deliver({
+      type,
+      version: 1,
+      id: 'evt_4',
+      orgId: 'org-1',
+      occurredAt: '2026-01-01T00:00:00Z',
+      data,
+    } as unknown as DomainEvent);
+
+    expect(body.data['id']).toBe(data.id);
+    expect(body.data).not.toHaveProperty(field);
+  });
+
+  it('fails the delivery for an event that is not published', async () => {
+    const webhooks = fakeWebhooks(204);
+    const { svc } = buildWith(webhooks);
+    const event = { ...ENTITLEMENT_CREATED_EVENT, type: 'automation.created' } as DomainEvent;
+
+    await expect(svc.runAction({ ...dispatch, event }, 0)).rejects.toThrow(/not published/);
+    expect(webhooks.send).not.toHaveBeenCalled();
+  });
+
+  it('fails the delivery when the event data does not match its published shape', async () => {
+    const webhooks = fakeWebhooks(204);
+    const { svc } = buildWith(webhooks);
+    const { contentId: _contentId, ...incomplete } = RELAYED_ENTITLEMENT;
+    const event = { ...ENTITLEMENT_CREATED_EVENT, data: incomplete } as DomainEvent;
+
+    await expect(svc.runAction({ ...dispatch, event }, 0)).rejects.toThrow(/published shape/);
+    expect(webhooks.send).not.toHaveBeenCalled();
   });
 
   it('throws on a non-2xx response so the engine retries', async () => {

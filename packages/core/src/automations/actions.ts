@@ -12,7 +12,7 @@ import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { CredentialStore, DomainEvent } from '../shared/ports.js';
 import type { AutomationAction } from './model.js';
 import type { WebhookSender } from './ports.js';
-import { ALL_EMAIL_TEMPLATE_IDS, DELIVER_WEBHOOK_ACTION } from './catalog.js';
+import { ALL_EMAIL_TEMPLATE_IDS, DELIVER_WEBHOOK_ACTION, publicDataSchema } from './catalog.js';
 import { webhookHeaders } from './webhook-signing.js';
 
 export interface ActionDeps {
@@ -137,12 +137,29 @@ async function deliverWebhook(
   if (!input.success) {
     throw new Error(`${DELIVER_WEBHOOK_ACTION}: invalid input`);
   }
+  const publicData = publicDataSchema(event.type);
+  if (!publicData) {
+    throw new Error(`${DELIVER_WEBHOOK_ACTION}: event "${event.type}" is not published`);
+  }
+  const data = publicData.safeParse(event.data);
+  if (!data.success) {
+    throw new Error(
+      `${DELIVER_WEBHOOK_ACTION}: event "${event.type}" does not match its published shape`,
+    );
+  }
   const secrets = await deps.credentials.reveal(event.orgId, input.data.secretRef);
   const secret = secrets?.['secret'];
   if (typeof secret !== 'string') {
     throw new Error(`${DELIVER_WEBHOOK_ACTION}: signing secret not found`);
   }
-  const body = JSON.stringify(event);
+  const body = JSON.stringify({
+    id: event.id,
+    type: event.type,
+    version: event.version,
+    orgId: event.orgId,
+    occurredAt: event.occurredAt,
+    data: data.data,
+  });
   const timestamp = Math.floor(Date.now() / 1000);
   const response = await deps.webhooks.send({
     url: input.data.url,

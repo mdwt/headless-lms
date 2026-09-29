@@ -42,7 +42,7 @@ Each delivery is a `POST` whose body is the event:
 }
 ```
 
-`data` is the event's payload, in the same shape the event has everywhere else in the system. For `entitlement.created`, it's the entitlement.
+`data` is what the event is about, with the same field names and types as the API. For `entitlement.created`, it's the entitlement. Fields that only matter inside the system are never sent: an activity's `settings` (its content), a progress record's `position`, an invite's `tokenHash`, a connection's `credentialRef`, and `externalId` on users and organizations.
 
 | Header              | Value                                                                              |
 | ------------------- | ---------------------------------------------------------------------------------- |
