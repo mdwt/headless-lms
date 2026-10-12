@@ -132,6 +132,10 @@ describe('POST /mcp tool list', () => {
     expect(await listed(granted(['courses:read', 'courses:write', 'courses:delete'], 'instructor'))).toEqual(['read_x']);
   });
 
+  it('lists no tools when the filter leaves none', async () => {
+    expect(await listed(granted(['courses:write'], 'instructor'))).toEqual([]);
+  });
+
   it('does not run a tool outside the list', async () => {
     ran.length = 0;
     const server = await build(granted(['courses:read']));
@@ -184,6 +188,33 @@ describe('POST /mcp tool list', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().result.tools.map((tool: { name: string }) => tool.name)).toEqual(['read_x']);
+  });
+
+  it('lists no tools to a 2026-07-28 client when the filter leaves none', async () => {
+    const server = await build(granted(['courses:write'], 'instructor'));
+    const res = await server.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/list',
+        authorization: 'Bearer token',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().result.tools).toEqual([]);
   });
 });
 
