@@ -49,3 +49,24 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
     authOrgId,
   };
 }
+
+export async function resolveScopeFor(
+  container: Container,
+  authUserId: string,
+  authOrgId: string,
+): Promise<OrgScope> {
+  const org = await container.organizations.getByExternalId(authOrgId);
+  if (!org) {
+    throw new NoActiveOrgError('active organization not found');
+  }
+  const user = await container.identity.getUserByExternalId(authUserId);
+  if (!user) {
+    throw new NoActiveOrgError('no domain user for the current user');
+  }
+  const orgUser = await container.organizations.getOrgUser(org.id, user.id);
+  if (!orgUser || !isStaffRole(orgUser.role)) {
+    throw new NoActiveOrgError('not a staff member of the active organization');
+  }
+  container.requestContext.set({ orgId: org.id });
+  return { orgId: org.id, userId: user.id, orgUserId: orgUser.id, role: orgUser.role, authOrgId };
+}

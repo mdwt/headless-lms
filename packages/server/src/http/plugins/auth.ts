@@ -15,13 +15,22 @@ export class UnauthorizedError extends Error {
 
 export function registerAuth(app: FastifyInstance, appServer: Container): void {
   const { auth } = appServer;
+  const origin = new URL(appServer.mcp.issuer).origin;
+
+  app.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
 
   // Mount better-auth: a catch-all that bridges Fastify <-> Web Request/Response.
   app.route({
     method: ['GET', 'POST'],
     url: '/api/auth/*',
     async handler(request, reply) {
-      await bridgeWebResponse(await auth.handler(toWebRequest(request)), reply);
+      await bridgeWebResponse(await auth.handler(toWebRequest(request, origin)), reply);
     },
   });
 

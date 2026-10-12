@@ -5,6 +5,7 @@ import type { ServerConfig } from './config.js';
 import { registerCors } from './plugins/cors.js';
 import { registerOpenApi } from './plugins/openapi.js';
 import { registerAuth } from './plugins/auth.js';
+import { registerWellKnown } from './well-known.js';
 import { errorHandler } from './plugins/error-handler.js';
 import { registerRoutes } from './routes.js';
 
@@ -42,6 +43,9 @@ export async function buildServer(
   registerCors(app, config);
   registerOpenApi(app, config);
   registerAuth(app, container);
+  if (container.mcp.oauthEnabled) {
+    registerWellKnown(app, container);
+  }
 
   registerRoutes(app, container);
 

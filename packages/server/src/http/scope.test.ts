@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveScope, NoActiveOrgError } from './scope.js';
+import { resolveScope, resolveScopeFor, NoActiveOrgError } from './scope.js';
 import type { Container } from '../app/container.js';
 import type { FastifyRequest } from 'fastify';
 
@@ -14,6 +14,7 @@ function container(opts: {
       // The session guard resolves the org before resolveScope runs, so the
       // lookup here is by domain id.
       getById: async () => opts.org ?? null,
+      getByExternalId: async (id: string) => (id === opts.org?.id ? opts.org : null),
       getOrgUser: async (orgId: string, userId: string) =>
         opts.orgUsers?.[`${orgId}:${userId}`] ?? null,
     },
@@ -133,5 +134,56 @@ describe('resolveScope', () => {
     await expect(
       resolveScope(container({ org: acme, user: null, orgUsers: owner }), req({ id: 'usr_1' })),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
+  });
+});
+
+describe('resolveScopeFor', () => {
+  const full = container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner });
+
+  it('resolves the staff scope for an auth user and org', async () => {
+    const scope = await resolveScopeFor(full, 'usr_1', 'org_1');
+    expect(scope).toEqual({
+      orgId: 'org_1',
+      userId: 'usr_1',
+      orgUserId: 'orm_1',
+      role: 'owner',
+      authOrgId: 'org_1',
+    });
+  });
+
+  it('refuses a student org user', async () => {
+    await expect(
+      resolveScopeFor(
+        container({
+          org: acme,
+          user: { id: 'usr_1' },
+          orgUsers: { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', role: 'student' } },
+        }),
+        'usr_1',
+        'org_1',
+      ),
+    ).rejects.toBeInstanceOf(NoActiveOrgError);
+  });
+
+  it('refuses a user with no org user in that org', async () => {
+    await expect(
+      resolveScopeFor(
+        container({ org: acme, user: { id: 'usr_1' }, orgUsers: {} }),
+        'usr_1',
+        'org_1',
+      ),
+    ).rejects.toBeInstanceOf(NoActiveOrgError);
+  });
+
+  it('refuses an unknown org', async () => {
+    await expect(resolveScopeFor(full, 'usr_1', 'org_missing')).rejects.toBeInstanceOf(
+      NoActiveOrgError,
+    );
+  });
+
+  it('refuses an unknown user', async () => {
+    await expect(resolveScopeFor(full, 'usr_missing', 'org_1')).rejects.toBeInstanceOf(
+      NoActiveOrgError,
+    );
   });
 });

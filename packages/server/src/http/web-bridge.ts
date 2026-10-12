@@ -6,8 +6,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { fromNodeHeaders } from 'better-auth/node';
 
 /** Builds a Web `Request` from an incoming Fastify request. */
-export function toWebRequest(request: FastifyRequest): Request {
-  const url = new URL(request.url, `http://${request.headers.host}`);
+export function toWebRequest(request: FastifyRequest, origin: string): Request {
+  const url = new URL(request.url, origin);
   // GET/HEAD/DELETE never carry a body; passing one to `Request` throws. For the
   // rest, forward a string body verbatim and JSON-encode a parsed object.
   const hasBody =
