@@ -24,6 +24,7 @@ import "server-only";
  */
 
 import {
+  Access,
   Assets,
   Automations,
   Content,
@@ -61,6 +62,7 @@ import type {
   OverviewStats,
   Paginated,
   CommentListItem,
+  ScopeOption,
   Student,
   StudentAnalytics,
   Webhook,
@@ -386,5 +388,9 @@ export const serverApi = {
   async automationTriggers(): Promise<AutomationTriggerInfo[]> {
     const { triggers } = await Automations.listAutomationTriggers(await authHeaders());
     return triggers;
+  },
+
+  async listAccessScopes(): Promise<ScopeOption[]> {
+    return await Access.listAccessScopes(await authHeaders());
   },
 };

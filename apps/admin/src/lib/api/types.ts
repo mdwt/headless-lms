@@ -20,6 +20,7 @@ import type {
   GetStudentAnalyticsResponse,
   GetStudentResponse,
   GetWebhookResponse,
+  ListAccessScopesResponse,
   ListActivitiesResponse,
   ListActivityAssetsResponse,
   ListAssetsResponse,
@@ -43,6 +44,9 @@ import type {
 } from "@headless-lms/sdk";
 
 // --- entities (straight from the SDK responses) ----------------------------
+
+export type ScopeOption = ListAccessScopesResponse[number];
+export type AccessScope = ScopeOption["scope"];
 
 export type Course = GetCourseResponse;
 export type CourseStatus = Course["status"];

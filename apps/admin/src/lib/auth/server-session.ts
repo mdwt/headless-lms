@@ -35,7 +35,7 @@ type SessionPerson = { id: string; name: string; email: string; image: string | 
 export type ServerSession = {
   user: SessionPerson;
   organization: { id: string; name: string; slug: string } | null;
-  /** Every org the user is a member of. Populated when no org is active yet. */
+  /** Every org the user is a member of. */
   organizations: { id: string; name: string; slug: string }[];
   role: ServerRole;
   status: "authenticated" | "no-organization" | "no-active-org" | "denied";
@@ -93,8 +93,17 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
       }
     : null;
 
+  const raw = data.organizations;
+  const organizations: ServerSession["organizations"] = Array.isArray(raw)
+    ? raw
+        .filter(
+          (o): o is { id: string; name?: string; slug?: string } =>
+            !!o && typeof o === "object" && typeof (o as { id?: unknown }).id === "string",
+        )
+        .map((o) => ({ id: o.id, name: o.name ?? "", slug: o.slug ?? "" }))
+    : [];
+
   let status: ServerSession["status"];
-  let organizations: ServerSession["organizations"] = [];
   if (organization && role) {
     status = "authenticated";
   } else {
@@ -103,15 +112,6 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
     //  - no memberships, but the session carries a stamped org → a student
     //    (or otherwise non-staff) cookie: deny
     //  - no memberships, nothing stamped → fresh staff signup, prompt to create
-    const raw = data.organizations;
-    organizations = Array.isArray(raw)
-      ? raw
-          .filter(
-            (o): o is { id: string; name?: string; slug?: string } =>
-              !!o && typeof o === "object" && typeof (o as { id?: unknown }).id === "string",
-          )
-          .map((o) => ({ id: o.id, name: o.name ?? "", slug: o.slug ?? "" }))
-      : [];
     status =
       organizations.length > 0 ? "no-active-org" : activeOrgId ? "denied" : "no-organization";
     organization = null;

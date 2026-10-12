@@ -13,14 +13,15 @@
 
 import { createAuthClient } from "better-auth/react";
 import { organizationClient } from "better-auth/client/plugins";
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export const authClient = createAuthClient({
   // better-auth appends its basePath (`/api/auth`) to this origin; the browser
   // carries the session cookie cross-origin via credentials:include.
   baseURL: API_URL,
-  plugins: [organizationClient()],
+  plugins: [organizationClient(), oauthProviderClient()],
 });
 
 export const {

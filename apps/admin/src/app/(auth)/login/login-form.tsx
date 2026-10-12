@@ -8,6 +8,7 @@ import { z } from "zod";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { signIn } from "@/lib/auth/client";
+import { isOAuthFlow } from "@/lib/auth/oauth-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,7 @@ export function LoginForm() {
       setFormError(error.message ?? "Invalid email or password");
       return;
     }
+    if (isOAuthFlow(new URLSearchParams(window.location.search))) return;
     // Full load: the cookie has just changed and /onboarding resolves it server-side.
     window.location.assign("/onboarding");
   }

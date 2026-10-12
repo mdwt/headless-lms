@@ -7,7 +7,7 @@ import { authClient } from "@/lib/auth/client";
 
 type Org = { id: string; name: string; slug: string };
 
-export function OrgPicker({ organizations }: { organizations: Org[] }) {
+export function OrgPicker({ organizations, oauth }: { organizations: Org[]; oauth?: boolean }) {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +18,14 @@ export function OrgPicker({ organizations }: { organizations: Org[] }) {
     if (failure) {
       setPending(null);
       setError(failure.message ?? "Couldn't switch to that organization");
+      return;
+    }
+    if (oauth) {
+      const { error: continueFailure } = await authClient.oauth2.continue({ postLogin: true });
+      if (continueFailure) {
+        setPending(null);
+        setError(continueFailure.message ?? "Couldn't continue to the app");
+      }
       return;
     }
     // Back to the decision point, not straight to the dashboard: it re-resolves
