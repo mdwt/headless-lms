@@ -24,7 +24,10 @@ export const CreateCourse = z.object({
 });
 export type CreateCourse = z.infer<typeof CreateCourse>;
 
-export const UpdateCourse = CreateCourse.partial().extend({
+export const UpdateCourse = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
   status: CourseStatus.optional(),
   /** null clears the cover. */
   thumbnailAssetId: z.string().nullable().optional(),

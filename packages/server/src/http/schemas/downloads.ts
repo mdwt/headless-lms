@@ -28,7 +28,10 @@ export const CreateDownload = z.object({
 });
 export type CreateDownload = z.infer<typeof CreateDownload>;
 
-export const UpdateDownload = CreateDownload.partial().extend({
+export const UpdateDownload = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
   status: DownloadStatus.optional(),
   thumbnailAssetId: z.string().nullable().optional(),
 });
