@@ -54,6 +54,7 @@ import { AssetsServiceImpl } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
+import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { registerNotificationSubscribers } from './notifications.js';
 import { StudentsReportServiceImpl } from '@headless-lms/core/reporting/students';
 import { DashboardReportServiceImpl } from '@headless-lms/core/reporting/dashboard';
@@ -156,6 +157,7 @@ export function resolveLoggingConfig(config: LoggingConfig = {}): Required<Loggi
 
 export interface Container {
   auth: BetterAuth;
+  mcp: McpEndpoints;
   // Org Provider
   orgProvider: OrgAdmin;
 
@@ -447,9 +449,23 @@ export async function buildContainer(
         throw err;
       }
     };
+  const mcp = mcpEndpoints(config);
+  if (!mcp.oauthEnabled) {
+    authLogger.warn(
+      'MCP OAuth is off: BETTER_AUTH_URL must be https or a loopback host; /mcp accepts API keys only',
+      { authBaseURL: config.authBaseURL },
+    );
+  }
   const auth = new BetterAuth({
     db,
     baseUrl: config.authBaseURL,
+    mcp: {
+      oauthEnabled: mcp.oauthEnabled,
+      resource: mcp.resource,
+      loginPage: mcp.loginPage,
+      consentPage: mcp.consentPage,
+      orgPickerPage: mcp.orgPickerPage,
+    },
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     hooks: {
@@ -544,6 +560,7 @@ export async function buildContainer(
 
   return {
     auth,
+    mcp,
     identity,
     organizations,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.

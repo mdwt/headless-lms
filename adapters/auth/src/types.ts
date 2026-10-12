@@ -45,6 +45,14 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   ) => Promise<void>;
 };
 
+export interface McpAuthOptions {
+  oauthEnabled: boolean;
+  resource: string;
+  loginPage: string;
+  consentPage: string;
+  orgPickerPage: string;
+}
+
 export interface CreateAuthOptions {
   db: NodePgDatabase;
   baseUrl: string;
@@ -54,6 +62,7 @@ export interface CreateAuthOptions {
   logger: Logger;
   /** Handlers for what the engine reports. The adapter owns no rules. */
   hooks: Hooks;
+  mcp: McpAuthOptions;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */

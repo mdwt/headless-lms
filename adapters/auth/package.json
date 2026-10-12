@@ -19,10 +19,16 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@better-auth/api-key": "1.7.7",
+    "@better-auth/cimd": "1.7.7",
+    "@better-auth/mcp": "1.7.7",
+    "@better-auth/oauth-provider": "1.7.7",
+    "@better-auth/utils": "0.4.2",
     "@headless-lms/adapter-db": "workspace:*",
     "@headless-lms/core": "workspace:*",
-    "better-auth": "^1.6.25",
-    "drizzle-orm": "^0.45.2"
+    "better-auth": "1.7.7",
+    "drizzle-orm": "^0.45.2",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

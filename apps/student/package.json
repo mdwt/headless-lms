@@ -15,7 +15,7 @@
     "@headless-lms/editor": "workspace:*",
     "@headless-lms/sdk": "workspace:*",
     "@hookform/resolvers": "^5.4.0",
-    "better-auth": "^1.6.25",
+    "better-auth": "1.7.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",

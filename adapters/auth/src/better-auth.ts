@@ -6,15 +6,21 @@ import type {
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
 import { fromNodeHeaders } from "better-auth/node";
-import { APIError, betterAuth } from "better-auth";
+import { APIError, betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import type { CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
-import { customSession, magicLink, organization } from "better-auth/plugins";
+import { customSession, jwt, magicLink, organization } from "better-auth/plugins";
+import { mcp } from "@better-auth/mcp";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { apiKey } from "@better-auth/api-key";
 import { eq } from "drizzle-orm";
 import { ac, roles } from "./access.js";
+import { needsOrgChoice } from "./access-grant.js";
 import {
+  ACCESS_SCOPES,
   type AuthHeaders,
   type AuthOrganization,
   type MemberWriteContext,
@@ -24,9 +30,50 @@ import {
   type Role,
   type UpdateOrganizationInput,
 } from "@headless-lms/core/organizations";
-import type { SessionAdmin } from "@headless-lms/core/identity";
+import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  ORG_CLAIM,
+  type SessionAdmin,
+} from "@headless-lms/core/identity";
 
-export function createAuth(opts: CreateAuthOptions) {
+function activeOrgOf(session: unknown): string | null {
+  const value = (session as { activeOrganizationId?: string | null } | null)?.activeOrganizationId;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+async function memberOrgIds(db: CreateAuthOptions["db"], userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ organizationId: authSchema.member.organizationId })
+    .from(authSchema.member)
+    .where(eq(authSchema.member.userId, userId));
+  return rows.map((row) => row.organizationId);
+}
+
+function mcpOAuthPlugins(opts: CreateAuthOptions): BetterAuthPlugin[] {
+  return [
+    mcp({
+      resource: opts.mcp.resource,
+      loginPage: opts.mcp.loginPage,
+      consentPage: opts.mcp.consentPage,
+      scopes: [...ACCESS_SCOPES, "offline_access"],
+      clientRegistrationDefaultScopes: [...ACCESS_SCOPES, "offline_access"],
+      accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      postLogin: {
+        page: opts.mcp.orgPickerPage,
+        shouldRedirect: ({ session, user }) =>
+          needsOrgChoice(activeOrgOf(session), () => memberOrgIds(opts.db, user.id)),
+        consentReferenceId: ({ session }) => activeOrgOf(session) ?? undefined,
+      },
+      customAccessTokenClaims: ({ referenceId }) =>
+        referenceId ? { [ORG_CLAIM]: referenceId } : {},
+    }) as BetterAuthPlugin,
+    cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }) as BetterAuthPlugin,
+  ];
+}
+
+export function buildAuthOptions(opts: CreateAuthOptions) {
   const {
     sendResetPassword,
     onPasswordReset,
@@ -42,7 +89,7 @@ export function createAuth(opts: CreateAuthOptions) {
       );
     };
 
-  const auth = betterAuth({
+  return {
     baseURL: opts.baseUrl,
     secret: opts.secret,
     trustedOrigins: opts.trustedOrigins,
@@ -100,6 +147,9 @@ export function createAuth(opts: CreateAuthOptions) {
         creatorRole: "owner",
         organizationHooks: opts.hooks,
       }),
+      jwt({ disableSettingJwtHeader: true }) as BetterAuthPlugin,
+      ...(opts.mcp.oauthEnabled ? mcpOAuthPlugins(opts) : []),
+      apiKey({ enableMetadata: true, rateLimit: { enabled: false } }) as BetterAuthPlugin,
       // Enrich get-session with the caller's memberships (role + org) so BFFs
       // resolve auth in one call instead of fanning out to get-active-member /
       // get-full-organization / organization/list. Custom fields bypass the
@@ -144,8 +194,11 @@ export function createAuth(opts: CreateAuthOptions) {
         },
       },
     },
-  });
-  return auth;
+  } satisfies BetterAuthOptions;
+}
+
+export function createAuth(opts: CreateAuthOptions) {
+  return betterAuth(buildAuthOptions(opts));
 }
 
 export type Auth = ReturnType<typeof createAuth>;
