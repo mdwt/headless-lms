@@ -1,0 +1,12 @@
+{
+  "title": "Access",
+  "description": "Access scopes, connected apps and API keys",
+  "pages": [
+    "listAccessScopes",
+    "listConnectedApps",
+    "revokeConnectedApp",
+    "listApiKeys",
+    "createApiKey",
+    "deleteApiKey"
+  ]
+}

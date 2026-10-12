@@ -11,6 +11,7 @@
     "reporting",
     "entitlements",
     "automations",
-    "integrations"
+    "integrations",
+    "access"
   ]
 }

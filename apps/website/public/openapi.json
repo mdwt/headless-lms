@@ -12911,6 +12911,10 @@
     {
       "name": "Reporting",
       "description": "Reporting and analytics"
+    },
+    {
+      "name": "Access",
+      "description": "Access scopes, connected apps and API keys"
     }
   ]
 }

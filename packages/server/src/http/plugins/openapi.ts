@@ -41,6 +41,7 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
         { name: 'Automations', description: 'Workflows and webhooks that react to system events' },
         { name: 'Integrations', description: 'Connections to external services' },
         { name: 'Reporting', description: 'Reporting and analytics' },
+        { name: 'Access', description: 'Access scopes, connected apps and API keys' },
       ],
     },
     transform: jsonSchemaTransform,
