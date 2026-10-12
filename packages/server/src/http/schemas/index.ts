@@ -19,3 +19,4 @@ export * from './assets.js';
 export * from './integrations.js';
 export * from './settings.js';
 export * from './discussion.js';
+export * from './access.js';

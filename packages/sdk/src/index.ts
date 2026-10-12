@@ -9,6 +9,7 @@ export { client } from "./generated/client.gen";
 
 import { client } from "./generated/client.gen";
 import {
+  Access as AccessGen,
   Assets as AssetsGen,
   Automations as AutomationsGen,
   Content as ContentGen,
@@ -33,6 +34,7 @@ type Throwing<S> = {
     : S[K];
 };
 
+export const Access = AccessGen as Throwing<typeof AccessGen>;
 export const Assets = AssetsGen as Throwing<typeof AssetsGen>;
 export const Automations = AutomationsGen as Throwing<typeof AutomationsGen>;
 export const Content = ContentGen as Throwing<typeof ContentGen>;

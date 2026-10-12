@@ -25,6 +25,8 @@ import type {
   ConnectIntegrationErrors,
   ConnectIntegrationResponses,
   CreateActivityResponses,
+  CreateApiKeyErrors,
+  CreateApiKeyResponses,
   CreateAutomationResponses,
   CreateBundleErrors,
   CreateBundleResponses,
@@ -37,6 +39,8 @@ import type {
   CreateWebhookErrors,
   CreateWebhookResponses,
   DeleteActivityResponses,
+  DeleteApiKeyErrors,
+  DeleteApiKeyResponses,
   DeleteAssetErrors,
   DeleteAssetResponses,
   DeleteAutomationErrors,
@@ -103,10 +107,12 @@ import type {
   InvokeConnectionActionErrors,
   InvokeConnectionActionResponses,
   JsonValueInput,
+  ListAccessScopesResponses,
   ListActivitiesResponses,
   ListActivityAssetsResponses,
   ListActivityCommentsErrors,
   ListActivityCommentsResponses,
+  ListApiKeysResponses,
   ListAssetsErrors,
   ListAssetsResponses,
   ListAutomationActionsResponses,
@@ -119,6 +125,7 @@ import type {
   ListBundleItemsResponses,
   ListBundlesResponses,
   ListCommentsResponses,
+  ListConnectedAppsResponses,
   ListConnectionsErrors,
   ListConnectionsResponses,
   ListCoursesResponses,
@@ -170,6 +177,7 @@ import type {
   RerunAutomationRunResponses,
   ResendStudentInviteErrors,
   ResendStudentInviteResponses,
+  RevokeConnectedAppResponses,
   RotateWebhookSecretErrors,
   RotateWebhookSecretResponses,
   SetCommentReactionErrors,
@@ -3717,6 +3725,164 @@ export class Integrations {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+}
+
+export class Access {
+  /**
+   * Every access scope and whether your role can grant it
+   */
+  public static listAccessScopes<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListAccessScopesResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListAccessScopesResponses,
+      unknown,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/scopes",
+      ...options,
+    });
+  }
+
+  /**
+   * Apps connected to this organization as you
+   */
+  public static listConnectedApps<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListConnectedAppsResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListConnectedAppsResponses,
+      unknown,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/apps",
+      ...options,
+    });
+  }
+
+  /**
+   * Disconnect an app
+   */
+  public static revokeConnectedApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      clientId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RevokeConnectedAppResponses, unknown, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "clientId" }] }]);
+    return (options?.client ?? client).delete<
+      RevokeConnectedAppResponses,
+      unknown,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/apps/{clientId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Your API keys for this organization
+   */
+  public static listApiKeys<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListApiKeysResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<ListApiKeysResponses, unknown, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/access/api-keys",
+      ...options,
+    });
+  }
+
+  /**
+   * Create an API key
+   */
+  public static createApiKey<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string;
+      scopes: Array<
+        | "courses:read"
+        | "courses:write"
+        | "courses:delete"
+        | "downloads:read"
+        | "downloads:write"
+        | "downloads:delete"
+        | "bundles:read"
+        | "bundles:write"
+        | "bundles:delete"
+        | "media:read"
+        | "students:read"
+        | "students:write"
+        | "students:invite"
+        | "access:read"
+        | "access:write"
+        | "analytics:read"
+        | "automations:read"
+        | "automations:write"
+        | "automations:delete"
+        | "comments:read"
+        | "comments:moderate"
+      >;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "name" },
+            { in: "body", key: "scopes" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateApiKeyResponses,
+      CreateApiKeyErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/api-keys",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an API key
+   */
+  public static deleteApiKey<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteApiKeyResponses,
+      DeleteApiKeyErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/api-keys/{id}",
+      ...options,
+      ...params,
     });
   }
 }

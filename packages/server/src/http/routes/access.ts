@@ -1,0 +1,129 @@
+import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { assertRoleHoldsScopes, scopeOptions } from '@headless-lms/core/organizations';
+import type { Container } from '../../app/container.js';
+import {
+  ApiKeyIdParam,
+  ApiKeyList,
+  ClientIdParam,
+  ConnectedAppList,
+  CreateApiKey,
+  CreatedApiKey,
+  ErrorBody,
+  ScopeOptionList,
+} from '../schemas/index.js';
+import { resolveScope } from '../scope.js';
+
+export async function accessRoutes(app: FastifyInstance, container: Container): Promise<void> {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+  const tags = ['Access'];
+
+  r.route({
+    method: 'GET',
+    url: '/api/access/scopes',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listAccessScopes',
+      tags,
+      summary: 'Every access scope and whether your role can grant it',
+      response: { 200: ScopeOptionList },
+    },
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return scopeOptions(scope.role);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/access/apps',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listConnectedApps',
+      tags,
+      summary: 'Apps connected to this organization as you',
+      response: { 200: ConnectedAppList },
+    },
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return container.auth.listConnectedApps(req.headers, scope.authOrgId);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/access/apps/:clientId',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'revokeConnectedApp',
+      tags,
+      summary: 'Disconnect an app',
+      params: ClientIdParam,
+      response: { 204: z.void() },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      await container.auth.revokeConnectedApp(req.headers, scope.authOrgId, req.params.clientId);
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/access/api-keys',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listApiKeys',
+      tags,
+      summary: 'Your API keys for this organization',
+      response: { 200: ApiKeyList },
+    },
+    handler: async (req) => {
+      const scope = await resolveScope(container, req);
+      return container.auth.listApiKeys(req.headers, scope.authOrgId);
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/access/api-keys',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'createApiKey',
+      tags,
+      summary: 'Create an API key',
+      body: CreateApiKey,
+      response: { 201: CreatedApiKey, 403: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      assertRoleHoldsScopes(scope.role, req.body.scopes);
+      const created = await container.auth.createApiKey({
+        authUserId: req.authUser.id,
+        orgId: scope.authOrgId,
+        name: req.body.name,
+        scopes: req.body.scopes,
+      });
+      return reply.code(201).send(created);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/access/api-keys/:id',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'deleteApiKey',
+      tags,
+      summary: 'Delete an API key',
+      params: ApiKeyIdParam,
+      response: { 204: z.void(), 409: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveScope(container, req);
+      await container.auth.deleteApiKey(req.headers, scope.authOrgId, req.params.id);
+      return reply.code(204).send();
+    },
+  });
+}

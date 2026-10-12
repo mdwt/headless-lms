@@ -4695,3 +4695,196 @@ export type InvokeConnectionActionResponses = {
 
 export type InvokeConnectionActionResponse =
   InvokeConnectionActionResponses[keyof InvokeConnectionActionResponses];
+
+export type ListAccessScopesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/access/scopes";
+};
+
+export type ListAccessScopesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    scope:
+      | "courses:read"
+      | "courses:write"
+      | "courses:delete"
+      | "downloads:read"
+      | "downloads:write"
+      | "downloads:delete"
+      | "bundles:read"
+      | "bundles:write"
+      | "bundles:delete"
+      | "media:read"
+      | "students:read"
+      | "students:write"
+      | "students:invite"
+      | "access:read"
+      | "access:write"
+      | "analytics:read"
+      | "automations:read"
+      | "automations:write"
+      | "automations:delete"
+      | "comments:read"
+      | "comments:moderate";
+    allowed: boolean;
+  }>;
+};
+
+export type ListAccessScopesResponse = ListAccessScopesResponses[keyof ListAccessScopesResponses];
+
+export type ListConnectedAppsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/access/apps";
+};
+
+export type ListConnectedAppsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    clientId: string;
+    name: string;
+    iconUrl: string | null;
+    scopes: Array<string>;
+    connectedAt: string;
+  }>;
+};
+
+export type ListConnectedAppsResponse =
+  ListConnectedAppsResponses[keyof ListConnectedAppsResponses];
+
+export type RevokeConnectedAppData = {
+  body?: never;
+  path: {
+    clientId: string;
+  };
+  query?: never;
+  url: "/api/access/apps/{clientId}";
+};
+
+export type RevokeConnectedAppResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type ListApiKeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/access/api-keys";
+};
+
+export type ListApiKeysResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    name: string | null;
+    start: string | null;
+    scopes: Array<string>;
+    createdAt: string;
+    lastUsedAt: string | null;
+  }>;
+};
+
+export type ListApiKeysResponse = ListApiKeysResponses[keyof ListApiKeysResponses];
+
+export type CreateApiKeyData = {
+  body: {
+    name: string;
+    scopes: Array<
+      | "courses:read"
+      | "courses:write"
+      | "courses:delete"
+      | "downloads:read"
+      | "downloads:write"
+      | "downloads:delete"
+      | "bundles:read"
+      | "bundles:write"
+      | "bundles:delete"
+      | "media:read"
+      | "students:read"
+      | "students:write"
+      | "students:invite"
+      | "access:read"
+      | "access:write"
+      | "analytics:read"
+      | "automations:read"
+      | "automations:write"
+      | "automations:delete"
+      | "comments:read"
+      | "comments:moderate"
+    >;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/access/api-keys";
+};
+
+export type CreateApiKeyErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateApiKeyError = CreateApiKeyErrors[keyof CreateApiKeyErrors];
+
+export type CreateApiKeyResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string | null;
+    start: string | null;
+    scopes: Array<string>;
+    createdAt: string;
+    lastUsedAt: string | null;
+    key: string;
+  };
+};
+
+export type CreateApiKeyResponse = CreateApiKeyResponses[keyof CreateApiKeyResponses];
+
+export type DeleteApiKeyData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/access/api-keys/{id}";
+};
+
+export type DeleteApiKeyErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteApiKeyError = DeleteApiKeyErrors[keyof DeleteApiKeyErrors];
+
+export type DeleteApiKeyResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
