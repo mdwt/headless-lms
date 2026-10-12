@@ -8,7 +8,7 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in — Headless LMS Management" };
 
-// Any session at all goes to /onboarding — including one that turns out to be
+// Outside an OAuth flow, any session at all goes to /onboarding — including one that turns out to be
 // unusable, which /onboarding explains or clears. That leaves this page one job:
 // credentials.
 export default async function LoginPage({

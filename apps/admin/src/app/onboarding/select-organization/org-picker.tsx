@@ -20,14 +20,7 @@ export function OrgPicker({ organizations, oauth }: { organizations: Org[]; oaut
       setError(failure.message ?? "Couldn't switch to that organization");
       return;
     }
-    if (oauth) {
-      const { error: continueFailure } = await authClient.oauth2.continue({ postLogin: true });
-      if (continueFailure) {
-        setPending(null);
-        setError(continueFailure.message ?? "Couldn't continue to the app");
-      }
-      return;
-    }
+    if (oauth) return;
     // Back to the decision point, not straight to the dashboard: it re-resolves
     // the session and routes on what actually landed.
     window.location.assign("/onboarding");
