@@ -13,3 +13,4 @@ export type {
 export type { User } from './model.js';
 export type { UserId, CreateUserInput, ProvisionUserInput, UpdateUserInput } from './types.js';
 export type { IdentityEvent, UserCreated, UserDeleted, UserUpdated } from './events.js';
+export * from './access.js';

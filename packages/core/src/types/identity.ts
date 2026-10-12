@@ -41,3 +41,56 @@ export interface AccountProvisioner {
 }
 
 export type UserId = string;
+
+export type HeaderBag = Record<string, string | string[] | undefined>;
+
+export type AccessGrant = {
+  userId: string;
+  orgId: string;
+  scopes: string[];
+  clientId: string;
+};
+
+export type AccessRequest = {
+  method: string;
+  url: string;
+  headers: HeaderBag;
+};
+
+export interface AccessTokenVerifier {
+  verifyAccess(request: AccessRequest): Promise<AccessGrant | null>;
+}
+
+export type ConnectedApp = {
+  clientId: string;
+  name: string;
+  iconUrl: string | null;
+  scopes: string[];
+  connectedAt: Date;
+};
+
+export type ApiKeySummary = {
+  id: string;
+  name: string | null;
+  start: string | null;
+  scopes: string[];
+  createdAt: Date;
+  lastUsedAt: Date | null;
+};
+
+export type CreatedApiKey = ApiKeySummary & { key: string };
+
+export type NewApiKey = {
+  authUserId: string;
+  orgId: string;
+  name: string;
+  scopes: string[];
+};
+
+export interface AppAccessAdmin {
+  listConnectedApps(headers: HeaderBag, orgId: string): Promise<ConnectedApp[]>;
+  revokeConnectedApp(headers: HeaderBag, orgId: string, clientId: string): Promise<void>;
+  listApiKeys(headers: HeaderBag, orgId: string): Promise<ApiKeySummary[]>;
+  createApiKey(input: NewApiKey): Promise<CreatedApiKey>;
+  deleteApiKey(headers: HeaderBag, orgId: string, keyId: string): Promise<void>;
+}

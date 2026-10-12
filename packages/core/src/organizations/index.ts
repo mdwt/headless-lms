@@ -62,3 +62,4 @@ export type {
   StudentDeleted,
   StudentLinked,
 } from './events.js';
+export * from './access-scopes.js';
