@@ -277,7 +277,7 @@ export const oauthClientAssertion = pgTable("ba_oauth_client_assertion", {
 });
 
 // better-auth's jwt plugin: the signing keys behind JWT access tokens.
-export const jwks =pgTable("ba_jwks", {
+export const jwks = pgTable("ba_jwks", {
   id: text("id").primaryKey(),
   publicKey: text("public_key").notNull(),
   privateKey: text("private_key").notNull(),
