@@ -8,6 +8,7 @@ import { registerAuth } from './plugins/auth.js';
 import { registerWellKnown } from './well-known.js';
 import { errorHandler } from './plugins/error-handler.js';
 import { registerRoutes } from './routes.js';
+import { registerMcp } from './mcp/route.js';
 
 export async function buildServer(
   config: ServerConfig,
@@ -48,6 +49,7 @@ export async function buildServer(
   }
 
   registerRoutes(app, container);
+  registerMcp(app, container);
 
   // Drain + stop the outbox relay and the automation engine on shutdown.
   // Harmless when neither was started (gen-openapi boots this app with
