@@ -155,6 +155,17 @@ describe("verifyAccess", () => {
     ).rejects.toMatchObject({ status: "FORBIDDEN" });
   });
 
+  it("refuses a client request to create an api key", async () => {
+    const { auth } = await setup();
+    const api = auth.api as unknown as { createApiKey(input: unknown): Promise<unknown> };
+    await expect(
+      api.createApiKey({
+        body: { name: "x", metadata: { organizationId: "org_2" } },
+        headers: new Headers(),
+      }),
+    ).rejects.toMatchObject({ status: "FORBIDDEN" });
+  });
+
   it("keeps only catalogue scopes from the token's scope claim", async () => {
     const { token, verify } = await setup();
     expect(await verify(`Bearer ${await token({ scope: "courses:read offline_access" })}`)).toEqual(

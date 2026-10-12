@@ -210,6 +210,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/api-key/create" && (ctx.request || ctx.headers)) {
+          throw new APIError("FORBIDDEN", { message: "API keys are created through the LMS" });
+        }
         if (ctx.path === "/api-key/update" && ctx.body?.metadata !== undefined) {
           throw new APIError("FORBIDDEN", {
             message: "An API key stays in the organization it was made for",
