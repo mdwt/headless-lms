@@ -33,6 +33,7 @@ const RULES: Array<[abstract new (...args: never[]) => Error, number, string]> =
   [ReservedActionError, 400, 'reserved_action'],
   [AutomationKindMismatchError, 409, 'kind_mismatch'],
   [NoActiveOrgError, 403, 'forbidden'],
+  // No session at all — 401 so the client bounces to login, not a generic 403.
   [UnauthorizedError, 401, 'unauthorized'],
 ];
 
