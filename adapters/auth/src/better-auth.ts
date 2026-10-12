@@ -1,24 +1,50 @@
 import type {
+  AccessGrant,
+  AccessRequest,
+  AccessTokenVerifier,
   ActiveSession,
+  ApiKeySummary,
+  AppAccessAdmin,
+  ConnectedApp,
+  CreatedApiKey,
+  HeaderBag,
   Logger,
+  NewApiKey,
   NewOrganizationInput,
   SessionVerifier,
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
 import { fromNodeHeaders } from "better-auth/node";
 import { APIError, betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import type { CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
 import { customSession, jwt, magicLink, organization } from "better-auth/plugins";
+import {
+  type AccessTokenAuthorization,
+  createDpopReplayStore,
+  enforceDpopBinding,
+  isDpopBindingError,
+  verifyJwsAccessToken,
+} from "better-auth/oauth2";
+import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
 import { eq } from "drizzle-orm";
 import { ac, roles } from "./access.js";
-import { needsOrgChoice } from "./access-grant.js";
+import {
+  accessTokenAuthorization,
+  grantFromClaims,
+  needsOrgChoice,
+  orgIdFromMetadata,
+  permissionsToScopes,
+  scopesToPermissions,
+} from "./access-grant.js";
+import { withLoopbackNativeDefault } from "./client-registration.js";
 import {
   ACCESS_SCOPES,
   type AuthHeaders,
@@ -182,6 +208,20 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         };
       }),
     ],
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/api-key/update" && ctx.body?.metadata !== undefined) {
+          throw new APIError("FORBIDDEN", {
+            message: "An API key stays in the organization it was made for",
+          });
+        }
+        if (ctx.path !== "/oauth2/register") {
+          return;
+        }
+        const body = withLoopbackNativeDefault(ctx.body);
+        return body ? { context: { body } } : undefined;
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
@@ -203,17 +243,238 @@ export function createAuth(opts: CreateAuthOptions) {
 
 export type Auth = ReturnType<typeof createAuth>;
 
-export class BetterAuth implements SessionVerifier, OrgAdmin, SessionAdmin {
+type JSONWebKeySet = { keys: Array<Record<string, unknown>> };
+
+type PluginApiKey = {
+  id: string;
+  name: string | null;
+  start: string | null;
+  referenceId: string;
+  metadata: unknown;
+  permissions: Record<string, string[]> | null;
+  createdAt: Date;
+  lastRequest: Date | null;
+};
+
+type PluginApi = {
+  getJwks(): Promise<JSONWebKeySet>;
+  verifyApiKey(input: {
+    body: { key: string };
+  }): Promise<{ valid: boolean; key: PluginApiKey | null }>;
+  createApiKey(input: {
+    body: {
+      name: string;
+      userId: string;
+      metadata: Record<string, unknown>;
+      permissions: Record<string, string[]>;
+    };
+  }): Promise<PluginApiKey & { key: string }>;
+  listApiKeys(input: { headers: Headers }): Promise<{ apiKeys: PluginApiKey[] }>;
+  deleteApiKey(input: { body: { keyId: string }; headers: Headers }): Promise<unknown>;
+};
+
+export class BetterAuth
+  implements SessionVerifier, OrgAdmin, SessionAdmin, AccessTokenVerifier, AppAccessAdmin
+{
   protected auth: Auth;
   protected logger: Logger;
+  protected mcp: CreateAuthOptions["mcp"];
+  protected issuer: string;
 
-  constructor(opts: CreateAuthOptions) {
-    this.auth = createAuth(opts);
+  constructor(opts: CreateAuthOptions, auth?: Auth) {
+    this.auth = auth ?? createAuth(opts);
     this.logger = opts.logger;
+    this.mcp = opts.mcp;
+    this.issuer = `${opts.baseUrl.replace(/\/+$/, "")}/api/auth`;
+  }
+
+  protected get pluginApi(): PluginApi {
+    return this.auth.api as unknown as PluginApi;
   }
 
   async handler(request: Request): Promise<Response> {
     return this.auth.handler(request);
+  }
+
+  async authorizationServerMetadata(request: Request): Promise<Response> {
+    return oauthProviderAuthServerMetadata(
+      this.auth as unknown as Parameters<typeof oauthProviderAuthServerMetadata>[0],
+    )(request);
+  }
+
+  async verifyAccess(request: AccessRequest): Promise<AccessGrant | null> {
+    const apiKeyHeader = request.headers["x-api-key"];
+    if (typeof apiKeyHeader === "string" && apiKeyHeader.length > 0) {
+      return this.verifyApiKey(apiKeyHeader);
+    }
+    const authorization = accessTokenAuthorization(request.headers.authorization);
+    return authorization && this.mcp.oauthEnabled
+      ? this.verifyAccessToken(authorization, request)
+      : null;
+  }
+
+  protected async verifyAccessToken(
+    authorization: AccessTokenAuthorization,
+    request: AccessRequest,
+  ): Promise<AccessGrant | null> {
+    let claims: Awaited<ReturnType<typeof verifyJwsAccessToken>>;
+    try {
+      claims = await verifyJwsAccessToken(authorization.token, {
+        jwksFetch: async () => this.pluginApi.getJwks(),
+        verifyOptions: { audience: this.mcp.resource, issuer: this.issuer },
+      });
+    } catch {
+      return null;
+    }
+    const ctx = await this.auth.$context;
+    const proof = request.headers.dpop;
+    try {
+      await enforceDpopBinding({
+        payload: claims,
+        authorization,
+        proofJwt: typeof proof === "string" ? proof : undefined,
+        method: request.method,
+        url: request.url,
+        replayStore: createDpopReplayStore(ctx.internalAdapter),
+      });
+    } catch (error) {
+      if (isDpopBindingError(error)) {
+        return null;
+      }
+      throw error;
+    }
+    const grant = grantFromClaims(claims);
+    if (!grant) {
+      return null;
+    }
+    const consent = await ctx.adapter.findOne<{ scopes: string[] }>({
+      model: "oauthConsent",
+      where: [
+        { field: "clientId", value: grant.clientId },
+        { field: "userId", value: grant.userId },
+        { field: "referenceId", value: grant.orgId },
+      ],
+    });
+    return consent
+      ? { ...grant, scopes: grant.scopes.filter((scope) => consent.scopes.includes(scope)) }
+      : null;
+  }
+
+  protected async verifyApiKey(key: string): Promise<AccessGrant | null> {
+    const result = await this.pluginApi.verifyApiKey({ body: { key } });
+    if (!result.valid || !result.key) {
+      return null;
+    }
+    const orgId = orgIdFromMetadata(result.key.metadata);
+    if (!orgId) {
+      return null;
+    }
+    return {
+      userId: result.key.referenceId,
+      orgId,
+      scopes: permissionsToScopes(result.key.permissions),
+      clientId: `api-key:${result.key.id}`,
+    };
+  }
+
+  protected async sessionUserId(headers: HeaderBag): Promise<string> {
+    const session = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
+    if (!session) {
+      throw new OrganizationRuleError("No session");
+    }
+    return session.user.id;
+  }
+
+  async listConnectedApps(headers: HeaderBag, orgId: string): Promise<ConnectedApp[]> {
+    const userId = await this.sessionUserId(headers);
+    if (!this.mcp.oauthEnabled) {
+      return [];
+    }
+    const ctx = await this.auth.$context;
+    const consents = await ctx.adapter.findMany<{
+      clientId: string;
+      scopes: string[];
+      createdAt: Date | null;
+    }>({
+      model: "oauthConsent",
+      where: [
+        { field: "userId", value: userId },
+        { field: "referenceId", value: orgId },
+      ],
+    });
+    return Promise.all(
+      consents.map(async (consent) => {
+        const client = await ctx.adapter.findOne<{ name: string | null; icon: string | null }>({
+          model: "oauthClient",
+          where: [{ field: "clientId", value: consent.clientId }],
+        });
+        return {
+          clientId: consent.clientId,
+          name: client?.name ?? consent.clientId,
+          iconUrl: client?.icon ?? null,
+          scopes: consent.scopes,
+          connectedAt: consent.createdAt ?? new Date(0),
+        };
+      }),
+    );
+  }
+
+  async revokeConnectedApp(headers: HeaderBag, orgId: string, clientId: string): Promise<void> {
+    const userId = await this.sessionUserId(headers);
+    if (!this.mcp.oauthEnabled) {
+      return;
+    }
+    const ctx = await this.auth.$context;
+    const where = [
+      { field: "clientId", value: clientId },
+      { field: "userId", value: userId },
+      { field: "referenceId", value: orgId },
+    ];
+    await ctx.adapter.deleteMany({ model: "oauthAccessToken", where });
+    await ctx.adapter.deleteMany({ model: "oauthRefreshToken", where });
+    await ctx.adapter.deleteMany({ model: "oauthConsent", where });
+  }
+
+  async listApiKeys(headers: HeaderBag, orgId: string): Promise<ApiKeySummary[]> {
+    const res = await this.pluginApi.listApiKeys({ headers: fromNodeHeaders(headers) });
+    return res.apiKeys
+      .filter((key) => orgIdFromMetadata(key.metadata) === orgId)
+      .map((key) => ({
+        id: key.id,
+        name: key.name ?? null,
+        start: key.start ?? null,
+        scopes: permissionsToScopes(key.permissions),
+        createdAt: new Date(key.createdAt),
+        lastUsedAt: key.lastRequest ? new Date(key.lastRequest) : null,
+      }));
+  }
+
+  async createApiKey(input: NewApiKey): Promise<CreatedApiKey> {
+    const created = await this.pluginApi.createApiKey({
+      body: {
+        name: input.name,
+        userId: input.authUserId,
+        metadata: { organizationId: input.orgId },
+        permissions: scopesToPermissions(input.scopes),
+      },
+    });
+    return {
+      id: created.id,
+      name: created.name ?? null,
+      start: created.start ?? null,
+      scopes: permissionsToScopes(created.permissions),
+      createdAt: new Date(created.createdAt),
+      lastUsedAt: null,
+      key: created.key,
+    };
+  }
+
+  async deleteApiKey(headers: HeaderBag, orgId: string, keyId: string): Promise<void> {
+    const owned = await this.listApiKeys(headers, orgId);
+    if (!owned.some((key) => key.id === keyId)) {
+      throw new OrganizationRuleError("That API key does not exist");
+    }
+    await this.pluginApi.deleteApiKey({ body: { keyId }, headers: fromNodeHeaders(headers) });
   }
 
   async verify(headers: IncomingHttpHeaders): Promise<ActiveSession | null> {
