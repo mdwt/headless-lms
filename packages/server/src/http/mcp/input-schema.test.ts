@@ -16,6 +16,8 @@ describe('toolInputSchema', () => {
 
   it('leaves validation to the runner, so input is parsed exactly once', async () => {
     const schema = toolInputSchema(z.object({ reported: z.stringbool() }));
-    expect(await schema['~standard'].validate({ reported: 'true' })).toEqual({ value: { reported: 'true' } });
+    expect(await schema['~standard'].validate({ reported: 'true' })).toEqual({
+      value: { reported: 'true' },
+    });
   });
 });

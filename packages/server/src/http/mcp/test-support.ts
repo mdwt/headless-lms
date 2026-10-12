@@ -8,22 +8,43 @@ import { toToolResult, type Tool, type ToolContext, type ToolKind } from './tool
 import { TOOLS } from './tools/index.js';
 
 export const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
-export const USER = { id: 'usr_1', email: 'owner@acme.test', firstName: 'Ada', lastName: 'Lovelace', externalId: 'usr_1' };
+export const USER = {
+  id: 'usr_1',
+  email: 'owner@acme.test',
+  firstName: 'Ada',
+  lastName: 'Lovelace',
+  externalId: 'usr_1',
+};
 export const ORG_USER = { id: 'ou_1', orgId: 'org_1', userId: 'usr_1', role: 'owner' };
 
 export function fakeContainer(overrides: Record<string, unknown> = {}): Container {
-  const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, child: () => logger };
+  const logger = {
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    child: () => logger,
+  };
   const base: Record<string, unknown> = {
-    mcp: mcpEndpoints({ authBaseURL: 'http://localhost:8100', adminAppUrl: 'http://localhost:8101' }),
+    mcp: mcpEndpoints({
+      authBaseURL: 'http://localhost:8100',
+      adminAppUrl: 'http://localhost:8101',
+    }),
     logger,
     requestContext: { set: () => {}, run: (_ctx: unknown, fn: () => void) => fn() },
     auth: {
-      verifyAccess: async () => ({ userId: USER.id, orgId: ORG.id, scopes: [...ACCESS_SCOPES], clientId: 'client_1' }),
+      verifyAccess: async () => ({
+        userId: USER.id,
+        orgId: ORG.id,
+        scopes: [...ACCESS_SCOPES],
+        clientId: 'client_1',
+      }),
     },
     organizations: {
       getById: async (id: string) => (id === ORG.id ? ORG : null),
       getByExternalId: async (id: string) => (id === ORG.externalId ? ORG : null),
-      getOrgUser: async (orgId: string, userId: string) => (orgId === ORG.id && userId === USER.id ? ORG_USER : null),
+      getOrgUser: async (orgId: string, userId: string) =>
+        orgId === ORG.id && userId === USER.id ? ORG_USER : null,
     },
     identity: {
       getUserByExternalId: async (id: string) => (id === USER.id ? USER : null),
@@ -33,7 +54,11 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
   for (const [key, value] of Object.entries(overrides)) {
     const current = base[key];
     base[key] =
-      current && typeof current === 'object' && value && typeof value === 'object' && !Array.isArray(value)
+      current &&
+      typeof current === 'object' &&
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
         ? { ...(current as object), ...(value as object) }
         : value;
   }
@@ -73,10 +98,18 @@ async function rpc(
     new Request('http://localhost:8100/mcp', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: { ...params, _meta: MODERN_META } }),
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method,
+        params: { ...params, _meta: MODERN_META },
+      }),
     }),
   );
-  const body = (await response.json()) as { result?: Record<string, unknown>; error?: { message: string } };
+  const body = (await response.json()) as {
+    result?: Record<string, unknown>;
+    error?: { message: string };
+  };
   if (body.error) {
     throw new Error(body.error.message);
   }
@@ -92,7 +125,12 @@ export async function listTools(ctx: ToolContext, tools: readonly Tool[] = TOOLS
   }>;
 }
 
-export async function callTool(name: string, args: unknown, ctx: ToolContext, tools: readonly Tool[] = TOOLS) {
+export async function callTool(
+  name: string,
+  args: unknown,
+  ctx: ToolContext,
+  tools: readonly Tool[] = TOOLS,
+) {
   return (await rpc(ctx, tools, 'tools/call', { name, arguments: args }, name)) as {
     isError?: boolean;
     structuredContent?: Record<string, unknown>;
@@ -100,7 +138,13 @@ export async function callTool(name: string, args: unknown, ctx: ToolContext, to
   };
 }
 
-export type ToolSpec = [name: string, scope: AccessScope, kind: ToolKind, idempotent: boolean, openWorld: boolean];
+export type ToolSpec = [
+  name: string,
+  scope: AccessScope,
+  kind: ToolKind,
+  idempotent: boolean,
+  openWorld: boolean,
+];
 
 export function toolSpecs(tools: readonly Tool[]): ToolSpec[] {
   return tools.map((tool) => [tool.name, tool.scope, tool.kind, tool.idempotent, tool.openWorld]);

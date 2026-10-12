@@ -3,7 +3,16 @@
 // `organizations`, …) it is mirrored into. The exported identifiers stay the
 // better-auth model names — that is the key `drizzleAdapter` looks each model
 // up by, so it must not carry the prefix.
-import { pgTable, text, timestamp, boolean, index, integer, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("ba_user", {
   id: text("id").primaryKey(),

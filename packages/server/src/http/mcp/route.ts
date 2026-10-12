@@ -11,7 +11,11 @@ import { TOOLS } from './tools/index.js';
 
 type Connection = { context: ToolContext; tools: Tool[] };
 
-export function registerMcp(app: FastifyInstance, container: Container, tools: readonly Tool[] = TOOLS): void {
+export function registerMcp(
+  app: FastifyInstance,
+  container: Container,
+  tools: readonly Tool[] = TOOLS,
+): void {
   const handler = createMcpHandler(
     (ctx) => {
       const connection = ctx.authInfo?.extra?.connection as Connection | undefined;
@@ -56,10 +60,17 @@ export function registerMcp(app: FastifyInstance, container: Container, tools: r
     }
     const connection: Connection = {
       context: { container, scope, requestId: request.id },
-      tools: tools.filter((tool) => grant.scopes.includes(tool.scope) && roleHoldsScope(scope.role, tool.scope)),
+      tools: tools.filter(
+        (tool) => grant.scopes.includes(tool.scope) && roleHoldsScope(scope.role, tool.scope),
+      ),
     };
     const response = await handler.fetch(await webRequest(request, reply), {
-      authInfo: { token: '', clientId: grant.clientId, scopes: grant.scopes, extra: { connection } },
+      authInfo: {
+        token: '',
+        clientId: grant.clientId,
+        scopes: grant.scopes,
+        extra: { connection },
+      },
       parsedBody: request.body,
     });
     return reply.send(response);
@@ -74,6 +85,10 @@ export function registerMcp(app: FastifyInstance, container: Container, tools: r
         .code(405)
         .header('allow', 'POST')
         .header('content-type', 'application/json')
-        .send({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null }),
+        .send({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Method not allowed.' },
+          id: null,
+        }),
   });
 }

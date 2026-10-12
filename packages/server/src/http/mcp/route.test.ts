@@ -45,8 +45,12 @@ async function build(container: Container) {
 
 const granted = (scopes: string[], role = 'owner') =>
   fakeContainer({
-    auth: { verifyAccess: async () => ({ userId: 'usr_1', orgId: 'org_1', scopes, clientId: 'client_1' }) },
-    organizations: { getOrgUser: async () => ({ id: 'ou_1', orgId: 'org_1', userId: 'usr_1', role }) },
+    auth: {
+      verifyAccess: async () => ({ userId: 'usr_1', orgId: 'org_1', scopes, clientId: 'client_1' }),
+    },
+    organizations: {
+      getOrgUser: async () => ({ id: 'ou_1', orgId: 'org_1', userId: 'usr_1', role }),
+    },
   });
 
 const legacyHeaders = {
@@ -57,11 +61,21 @@ const legacyHeaders = {
 };
 const listPayload = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 const parseSse = (text: string) =>
-  JSON.parse(text.split('\n').find((line) => line.startsWith('data: '))!.slice(6));
+  JSON.parse(
+    text
+      .split('\n')
+      .find((line) => line.startsWith('data: '))!
+      .slice(6),
+  );
 
 async function listed(container: Container) {
   const server = await build(container);
-  const res = await server.inject({ method: 'POST', url: '/mcp', headers: legacyHeaders, payload: listPayload });
+  const res = await server.inject({
+    method: 'POST',
+    url: '/mcp',
+    headers: legacyHeaders,
+    payload: listPayload,
+  });
   expect(res.statusCode).toBe(200);
   return parseSse(res.body).result.tools.map((tool: { name: string }) => tool.name);
 }
@@ -69,7 +83,12 @@ async function listed(container: Container) {
 describe('POST /mcp credentials', () => {
   it('challenges a request without a valid credential, naming every scope', async () => {
     const server = await build(fakeContainer({ auth: { verifyAccess: async () => null } }));
-    const res = await server.inject({ method: 'POST', url: '/mcp', headers: legacyHeaders, payload: listPayload });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: legacyHeaders,
+      payload: listPayload,
+    });
     expect(res.statusCode).toBe(401);
     expect(res.headers['www-authenticate']).toBe(
       `Bearer resource_metadata="http://localhost:8100/.well-known/oauth-protected-resource/mcp", scope="${ACCESS_SCOPES.join(' ')}"`,
@@ -78,19 +97,36 @@ describe('POST /mcp credentials', () => {
 
   it('challenges a person who is a student in the org', async () => {
     const server = await build(granted([...ACCESS_SCOPES], 'student'));
-    const res = await server.inject({ method: 'POST', url: '/mcp', headers: legacyHeaders, payload: listPayload });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: legacyHeaders,
+      payload: listPayload,
+    });
     expect(res.statusCode).toBe(401);
   });
 
   it('challenges a person with no org user in the org', async () => {
     const server = await build(fakeContainer({ organizations: { getOrgUser: async () => null } }));
-    const res = await server.inject({ method: 'POST', url: '/mcp', headers: legacyHeaders, payload: listPayload });
+    const res = await server.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: legacyHeaders,
+      payload: listPayload,
+    });
     expect(res.statusCode).toBe(401);
   });
 
   it('challenges a grant for an organization that does not exist', async () => {
-    const server = await build(fakeContainer({ organizations: { getByExternalId: async () => null } }));
-    const res = await server.inject({ method: 'POST', url: '/mcp', headers: legacyHeaders, payload: listPayload });
+    const server = await build(
+      fakeContainer({ organizations: { getByExternalId: async () => null } }),
+    );
+    const res = await server.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: legacyHeaders,
+      payload: listPayload,
+    });
     expect(res.statusCode).toBe(401);
   });
 
@@ -109,7 +145,12 @@ describe('POST /mcp credentials', () => {
     await server.inject({
       method: 'POST',
       url: '/mcp',
-      headers: { ...legacyHeaders, host: 'internal:3000', authorization: 'DPoP token', dpop: 'proof' },
+      headers: {
+        ...legacyHeaders,
+        host: 'internal:3000',
+        authorization: 'DPoP token',
+        dpop: 'proof',
+      },
       payload: listPayload,
     });
     expect(seen).toHaveLength(1);
@@ -125,11 +166,16 @@ describe('POST /mcp tool list', () => {
 
   it('hides delete tools unless their scope was granted', async () => {
     expect(await listed(granted(['courses:read']))).toEqual(['read_x']);
-    expect(await listed(granted(['courses:read', 'courses:delete']))).toEqual(['read_x', 'delete_x']);
+    expect(await listed(granted(['courses:read', 'courses:delete']))).toEqual([
+      'read_x',
+      'delete_x',
+    ]);
   });
 
   it('never lists a tool the role cannot hold, whatever was granted', async () => {
-    expect(await listed(granted(['courses:read', 'courses:write', 'courses:delete'], 'instructor'))).toEqual(['read_x']);
+    expect(
+      await listed(granted(['courses:read', 'courses:write', 'courses:delete'], 'instructor')),
+    ).toEqual(['read_x']);
   });
 
   it('lists no tools when the filter leaves none', async () => {
@@ -143,7 +189,12 @@ describe('POST /mcp tool list', () => {
       method: 'POST',
       url: '/mcp',
       headers: legacyHeaders,
-      payload: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'write_x', arguments: {} } },
+      payload: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'write_x', arguments: {} },
+      },
     });
     const body = parseSse(res.body);
     expect(body.error ?? body.result?.isError).toBeTruthy();
@@ -157,7 +208,12 @@ describe('POST /mcp tool list', () => {
       method: 'POST',
       url: '/mcp',
       headers: legacyHeaders,
-      payload: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'read_x', arguments: {} } },
+      payload: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'read_x', arguments: {} },
+      },
     });
     expect(parseSse(res.body).result.structuredContent).toEqual({ ran: 'read_x' });
     expect(ran).toEqual(['read_x']);

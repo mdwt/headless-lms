@@ -8,7 +8,13 @@ import { buildAuthOptions } from "./better-auth.js";
 import type { CreateAuthOptions } from "./types.js";
 
 const noop = async () => undefined;
-const logger = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {}, child: () => logger };
+const logger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  child: () => logger,
+};
 
 const options: CreateAuthOptions = {
   db: {} as NodePgDatabase,

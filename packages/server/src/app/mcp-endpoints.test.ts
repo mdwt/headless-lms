@@ -4,7 +4,10 @@ import { mcpEndpoints } from './mcp-endpoints.js';
 describe('mcpEndpoints', () => {
   it('derives every MCP url from the api and admin origins', () => {
     expect(
-      mcpEndpoints({ authBaseURL: 'https://api.example.com/', adminAppUrl: 'https://admin.example.com' }),
+      mcpEndpoints({
+        authBaseURL: 'https://api.example.com/',
+        adminAppUrl: 'https://admin.example.com',
+      }),
     ).toEqual({
       oauthEnabled: true,
       resource: 'https://api.example.com/mcp',
