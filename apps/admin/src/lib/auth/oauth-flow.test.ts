@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clientDisplayName,
+  clientHosts,
   defaultSelected,
   isDeleteScope,
   isOAuthFlow,
@@ -33,6 +34,38 @@ describe("clientDisplayName", () => {
     expect(clientDisplayName("cid", true, { client_name: "" })).toBe("cid");
     expect(clientDisplayName("cid", true, { client_name: 7 })).toBe("cid");
     expect(clientDisplayName("cid", true, null)).toBe("cid");
+  });
+});
+
+describe("clientHosts", () => {
+  it("reads the redirect host and an https client id's host", () => {
+    expect(
+      clientHosts({
+        client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata",
+        redirect_uri: "https://claude.ai/api/mcp/auth_callback",
+      }),
+    ).toEqual({ redirectHost: "claude.ai", clientIdHost: "claude.ai" });
+    expect(
+      clientHosts(
+        new URLSearchParams("client_id=abc&redirect_uri=http%3A%2F%2F127.0.0.1%3A9999%2Fcb"),
+      ),
+    ).toEqual({ redirectHost: "127.0.0.1:9999", clientIdHost: null });
+  });
+  it("ignores a client id that is not an https url", () => {
+    expect(clientHosts({ client_id: "http://evil.test/meta" }).clientIdHost).toBeNull();
+    expect(clientHosts({ client_id: "abc123" }).clientIdHost).toBeNull();
+  });
+  it("tolerates missing and invalid urls", () => {
+    expect(clientHosts({})).toEqual({ redirectHost: null, clientIdHost: null });
+    expect(clientHosts({ redirect_uri: "not a url", client_id: "" })).toEqual({
+      redirectHost: null,
+      clientIdHost: null,
+    });
+    expect(clientHosts({ redirect_uri: ["https://a.test/cb", "https://b.test/cb"] })).toEqual({
+      redirectHost: null,
+      clientIdHost: null,
+    });
+    expect(clientHosts({ redirect_uri: "com.example.app:/callback" }).redirectHost).toBeNull();
   });
 });
 

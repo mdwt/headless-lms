@@ -63,6 +63,30 @@ export function clientDisplayName(clientId: string, ok: boolean, body: unknown):
   return typeof name === "string" && name ? name : clientId;
 }
 
+function hostOf(value: unknown, httpsOnly: boolean): string | null {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    const url = new URL(value);
+    if (httpsOnly && url.protocol !== "https:") return null;
+    return url.host || null;
+  } catch {
+    return null;
+  }
+}
+
+export function clientHosts(
+  search: URLSearchParams | Record<string, string | string[] | undefined>,
+): {
+  redirectHost: string | null;
+  clientIdHost: string | null;
+} {
+  const get = (key: string) => (search instanceof URLSearchParams ? search.get(key) : search[key]);
+  return {
+    redirectHost: hostOf(get("redirect_uri"), false),
+    clientIdHost: hostOf(get("client_id"), true),
+  };
+}
+
 export function toSearchParams(
   search: Record<string, string | string[] | undefined>,
 ): URLSearchParams {

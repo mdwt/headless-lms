@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 
 import { API_URL } from "@/lib/api/api-url";
 import { serverApi } from "@/lib/api/server";
-import { clientDisplayName, pickerScopes, toSearchParams } from "@/lib/auth/oauth-flow";
+import {
+  clientDisplayName,
+  clientHosts,
+  pickerScopes,
+  toSearchParams,
+} from "@/lib/auth/oauth-flow";
 import { getServerSession } from "@/lib/auth/server-session";
 import { ConsentForm } from "./consent-form";
 
@@ -44,6 +49,11 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
   const scopes = pickerScopes(requested, options);
   const offlineAccess = requested.split(" ").includes("offline_access");
   const org = session.organization.name;
+  const { redirectHost, clientIdHost } = clientHosts(sp);
+  const origin = [
+    redirectHost && `Returns you to ${redirectHost}`,
+    clientIdHost && `Published at ${clientIdHost}`,
+  ].filter(Boolean);
 
   return (
     <>
@@ -51,6 +61,9 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
         <h1 className="text-2xl font-semibold tracking-tight text-ink text-balance">
           Connect {name}
         </h1>
+        {origin.length > 0 && (
+          <p className="text-sm text-ink-3 text-pretty">{origin.join(" · ")}</p>
+        )}
         <p className="text-sm text-ink-3 text-pretty">
           {scopes.length > 0
             ? `${name} will act in ${org} as you. Choose what it can do.`
