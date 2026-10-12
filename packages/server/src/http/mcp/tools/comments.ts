@@ -37,7 +37,7 @@ export const commentTools: Tool[] = [
   defineTool({
     name: 'dismiss_comment_reports',
     title: 'Dismiss comment reports',
-    description: 'Mark the reports on a comment as resolved and leave the comment up.',
+    description: "Mark the reports on a comment as resolved. The comment's status does not change.",
     scope: 'comments:moderate',
     kind: 'write',
     idempotent: true,

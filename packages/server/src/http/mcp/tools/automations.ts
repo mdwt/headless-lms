@@ -36,7 +36,7 @@ export const automationTools: Tool[] = [
     name: 'list_automations',
     title: 'List workflows and webhooks',
     description:
-      'Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook). Webhook signing secrets are only shown in the admin app.',
+      'Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook). Webhooks show a reference to their signing secret, never the secret itself.',
     scope: 'automations:read',
     kind: 'read',
     idempotent: true,
@@ -84,9 +84,9 @@ export const automationTools: Tool[] = [
   }),
   defineTool({
     name: 'rerun_automation_run',
-    title: 'Re-run workflow run',
+    title: 'Re-run workflow or webhook run',
     description:
-      'Run a past workflow run again with the same trigger event. Its actions run again, emails and webhooks included.',
+      "Run a finished workflow or webhook run again with its original trigger event, using the automation's current actions. Emails and webhook deliveries are sent again. The new outcome replaces the run's previous one. A run still in progress can't be re-run.",
     scope: 'automations:write',
     kind: 'write',
     idempotent: false,
