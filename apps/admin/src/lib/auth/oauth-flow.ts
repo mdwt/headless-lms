@@ -25,6 +25,17 @@ export const SCOPE_NOTES: Record<string, string> = {
   "comments:moderate": "Moderate includes removing comments.",
 };
 
+export const EXPIRED_SIGN_IN_LINK =
+  "This sign-in link has expired. Start connecting again from the app.";
+
+export function isExpiredSignInLink(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { error?: unknown }).error === "invalid_signature"
+  );
+}
+
 export function isOAuthFlow(
   search: URLSearchParams | Record<string, string | string[] | undefined>,
 ): boolean {

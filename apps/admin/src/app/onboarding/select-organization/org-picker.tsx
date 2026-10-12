@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
+import { EXPIRED_SIGN_IN_LINK, isExpiredSignInLink } from "@/lib/auth/oauth-flow";
 
 type Org = { id: string; name: string; slug: string };
 
@@ -17,7 +18,11 @@ export function OrgPicker({ organizations, oauth }: { organizations: Org[]; oaut
     const { error: failure } = await authClient.organization.setActive({ organizationId });
     if (failure) {
       setPending(null);
-      setError(failure.message ?? "Couldn't switch to that organization");
+      setError(
+        isExpiredSignInLink(failure)
+          ? EXPIRED_SIGN_IN_LINK
+          : (failure.message ?? "Couldn't switch to that organization"),
+      );
       return;
     }
     if (oauth) return;

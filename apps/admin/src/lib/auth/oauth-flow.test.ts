@@ -4,6 +4,7 @@ import {
   clientHosts,
   defaultSelected,
   isDeleteScope,
+  isExpiredSignInLink,
   isOAuthFlow,
   loginRedirect,
   pickerScopes,
@@ -66,6 +67,27 @@ describe("clientHosts", () => {
       clientIdHost: null,
     });
     expect(clientHosts({ redirect_uri: "com.example.app:/callback" }).redirectHost).toBeNull();
+  });
+});
+
+describe("isExpiredSignInLink", () => {
+  it("recognises a refused signed oauth query", () => {
+    expect(
+      isExpiredSignInLink({ error: "invalid_signature", status: 400, statusText: "Bad Request" }),
+    ).toBe(true);
+  });
+  it("ignores every other failure", () => {
+    expect(
+      isExpiredSignInLink({
+        code: "INVALID_EMAIL_OR_PASSWORD",
+        message: "Invalid email or password",
+        status: 401,
+        statusText: "Unauthorized",
+      }),
+    ).toBe(false);
+    expect(isExpiredSignInLink({ error: "invalid_request", status: 400 })).toBe(false);
+    expect(isExpiredSignInLink(null)).toBe(false);
+    expect(isExpiredSignInLink("invalid_signature")).toBe(false);
   });
 });
 

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { signIn } from "@/lib/auth/client";
-import { isOAuthFlow } from "@/lib/auth/oauth-flow";
+import { EXPIRED_SIGN_IN_LINK, isExpiredSignInLink, isOAuthFlow } from "@/lib/auth/oauth-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,11 @@ export function LoginForm() {
     setFormError(null);
     const { error } = await signIn.email(values);
     if (error) {
-      setFormError(error.message ?? "Invalid email or password");
+      setFormError(
+        isExpiredSignInLink(error)
+          ? EXPIRED_SIGN_IN_LINK
+          : (error.message ?? "Invalid email or password"),
+      );
       return;
     }
     if (isOAuthFlow(new URLSearchParams(window.location.search))) return;
