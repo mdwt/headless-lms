@@ -52,7 +52,10 @@ export function toToolResult(data: unknown): ToolResult {
     plain !== null && typeof plain === 'object' && !Array.isArray(plain)
       ? (plain as Record<string, unknown>)
       : { result: plain };
-  return { content: [{ type: 'text', text: JSON.stringify(structuredContent) }], structuredContent };
+  return {
+    content: [{ type: 'text', text: JSON.stringify(structuredContent) }],
+    structuredContent,
+  };
 }
 
 function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
@@ -60,7 +63,7 @@ function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
     return `Invalid input: ${z.prettifyError(error)}`;
   }
   const known = classifyError(error);
-  if (known && known.status < 500) {
+  if (known) {
     return known.message;
   }
   ctx.container.logger.error('mcp tool failed', {
