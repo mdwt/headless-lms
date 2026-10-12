@@ -102,6 +102,9 @@ export const invitation = pgTable("ba_invitation", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 
+// --- OAuth 2.1 provider tables (MCP). Owned by @better-auth/oauth-provider. ---
+// `reference_id` is the plugin's tenant slot: the organization the person chose
+// at consent. It is the only thing that tells a token which org it acts in.
 export const oauthClient = pgTable(
   "ba_oauth_client",
   {
@@ -273,7 +276,8 @@ export const oauthClientAssertion = pgTable("ba_oauth_client_assertion", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
-export const jwks = pgTable("ba_jwks", {
+// better-auth's jwt plugin: the signing keys behind JWT access tokens.
+export const jwks =pgTable("ba_jwks", {
   id: text("id").primaryKey(),
   publicKey: text("public_key").notNull(),
   privateKey: text("private_key").notNull(),
