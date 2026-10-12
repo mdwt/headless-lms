@@ -40,7 +40,9 @@ import { buildModuleTree, entitlementStatusOf } from "./compose";
 import { fullName } from "@/lib/format";
 import { authHeaders } from "./server-call";
 import type {
+  ApiKeySummary,
   Asset,
+  ConnectedApp,
   Automation,
   AutomationKind,
   AutomationRunsPage,
@@ -392,5 +394,11 @@ export const serverApi = {
 
   async listAccessScopes(): Promise<ScopeOption[]> {
     return await Access.listAccessScopes(await authHeaders());
+  },
+  async listConnectedApps(): Promise<ConnectedApp[]> {
+    return await Access.listConnectedApps(await authHeaders());
+  },
+  async listApiKeys(): Promise<ApiKeySummary[]> {
+    return await Access.listApiKeys(await authHeaders());
   },
 };

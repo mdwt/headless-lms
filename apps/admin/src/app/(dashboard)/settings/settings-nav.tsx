@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Blocks, Building2, User, Users, type LucideIcon } from "lucide-react";
+import { Blocks, Building2, KeyRound, PlugZap, User, Users, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,11 @@ const GROUPS: NavGroup[] = [
   {
     label: "Account",
     managerOnly: false,
-    items: [{ href: "/settings/account", label: "Profile", icon: User }],
+    items: [
+      { href: "/settings/account", label: "Profile", icon: User },
+      { href: "/settings/connected-apps", label: "Connected apps", icon: PlugZap },
+      { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
+    ],
   },
 ];
 

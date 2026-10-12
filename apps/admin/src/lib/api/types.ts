@@ -27,7 +27,9 @@ import type {
   ListAutomationActionsResponse,
   ListAutomationRunsResponse,
   ListAutomationTriggersResponse,
+  ListApiKeysResponse,
   ListAvailableIntegrationsResponse,
+  ListConnectedAppsResponse,
   ListBundleItemsResponse,
   ListBundlesResponse,
   ListConnectionsResponse,
@@ -47,6 +49,8 @@ import type {
 
 export type ScopeOption = ListAccessScopesResponse[number];
 export type AccessScope = ScopeOption["scope"];
+export type ConnectedApp = ListConnectedAppsResponse[number];
+export type ApiKeySummary = ListApiKeysResponse[number];
 
 export type Course = GetCourseResponse;
 export type CourseStatus = Course["status"];
