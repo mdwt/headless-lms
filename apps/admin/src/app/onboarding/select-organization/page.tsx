@@ -14,7 +14,7 @@ export default async function SelectOrganizationPage({
 }) {
   const oauth = isOAuthFlow(await searchParams);
   const session = await getServerSession();
-  // This page serves one state (any session with an organization, in an OAuth flow); every other one is /onboarding's to route.
+  // Outside OAuth this page serves no-active-org; in OAuth, any session with an organization. Every other state is /onboarding's to route.
   if (!session || (oauth ? session.organizations.length === 0 : session.status !== "no-active-org"))
     redirect("/onboarding");
 
