@@ -39,6 +39,7 @@ import { ac, roles } from "./access.js";
 import {
   accessTokenAuthorization,
   grantFromClaims,
+  isCompactJws,
   needsOrgChoice,
   orgIdFromMetadata,
   permissionsToScopes,
@@ -311,9 +312,13 @@ export class BetterAuth
       return this.verifyApiKey(apiKeyHeader);
     }
     const authorization = accessTokenAuthorization(request.headers.authorization);
-    return authorization && this.mcp.oauthEnabled
-      ? this.verifyAccessToken(authorization, request)
-      : null;
+    if (!authorization) {
+      return null;
+    }
+    if (authorization.scheme === "Bearer" && !isCompactJws(authorization.token)) {
+      return this.verifyApiKey(authorization.token);
+    }
+    return this.mcp.oauthEnabled ? this.verifyAccessToken(authorization, request) : null;
   }
 
   protected async verifyAccessToken(

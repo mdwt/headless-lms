@@ -16,6 +16,11 @@ export function accessTokenAuthorization(
   return authorization;
 }
 
+export function isCompactJws(token: string): boolean {
+  const parts = token.split(".");
+  return parts.length === 3 && parts.every((part) => part.length > 0);
+}
+
 export function grantFromClaims(claims: Record<string, unknown>): AccessGrant | null {
   const userId = claims.sub;
   const clientId = claims.client_id ?? claims.azp;

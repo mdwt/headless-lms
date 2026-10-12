@@ -274,6 +274,46 @@ describe("api keys", () => {
     });
   });
 
+  it("verifies a key sent as a bearer token to the key's grant", async () => {
+    const { verifier, verify } = await setup();
+    const created = await verifier.createApiKey({
+      authUserId: "usr_1",
+      orgId: "org_1",
+      name: "Connector",
+      scopes: ["analytics:read"],
+    });
+    expect(await verify(`Bearer ${created.key}`)).toEqual({
+      userId: "usr_1",
+      orgId: "org_1",
+      scopes: ["analytics:read"],
+      clientId: `api-key:${created.id}`,
+    });
+  });
+
+  it("refuses a bearer value that is neither a token nor a valid key", async () => {
+    const { verify } = await setup();
+    expect(await verify("Bearer not-a-key")).toBeNull();
+  });
+
+  it("still verifies a bearer api key when mcp oauth is off", async () => {
+    const { verifier, verify } = await setup({
+      ...options,
+      mcp: { ...options.mcp, oauthEnabled: false },
+    });
+    const created = await verifier.createApiKey({
+      authUserId: "usr_1",
+      orgId: "org_1",
+      name: "Connector",
+      scopes: ["courses:read"],
+    });
+    expect(await verify(`Bearer ${created.key}`)).toEqual({
+      userId: "usr_1",
+      orgId: "org_1",
+      scopes: ["courses:read"],
+      clientId: `api-key:${created.id}`,
+    });
+  });
+
   it("refuses a key created without an organization", async () => {
     const { auth, verifyKey } = await setup();
     const created = await (auth.api as unknown as ServerApiKeys).createApiKey({

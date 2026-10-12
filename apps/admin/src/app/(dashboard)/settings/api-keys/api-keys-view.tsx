@@ -39,7 +39,7 @@ export function ApiKeysView({ keys, scopes }: { keys: ApiKeySummary[]; scopes: A
     <SettingsSurface>
       <SettingsSection
         title="API keys"
-        description="Keys for scripts and agents that call this server's /mcp endpoint with an x-api-key header. A key acts as you in this organization."
+        description="Keys for scripts and agents that call this server's /mcp endpoint with the key sent as Authorization: Bearer <key> or in the x-api-key header. A key acts as you in this organization."
         footer={
           <Button variant="primary" onClick={() => setCreating(true)}>
             Create key

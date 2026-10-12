@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accessTokenAuthorization,
   grantFromClaims,
+  isCompactJws,
   needsOrgChoice,
   orgIdFromMetadata,
   permissionsToScopes,
@@ -37,6 +38,21 @@ describe("accessTokenAuthorization", () => {
     expect(accessTokenAuthorization("Bearer ")).toBeNull();
     expect(accessTokenAuthorization(undefined)).toBeNull();
     expect(accessTokenAuthorization(["Bearer a", "Bearer b"])).toBeNull();
+  });
+});
+
+describe("isCompactJws", () => {
+  it("accepts three non-empty dot-separated parts", () => {
+    expect(isCompactJws("aaa.bbb.ccc")).toBe(true);
+  });
+  it("rejects anything else", () => {
+    expect(isCompactJws("hlms_abcdef")).toBe(false);
+    expect(isCompactJws("aaa.bbb")).toBe(false);
+    expect(isCompactJws("aaa.bbb.ccc.ddd")).toBe(false);
+    expect(isCompactJws("aaa..ccc")).toBe(false);
+    expect(isCompactJws(".bbb.ccc")).toBe(false);
+    expect(isCompactJws("aaa.bbb.")).toBe(false);
+    expect(isCompactJws("")).toBe(false);
   });
 });
 
