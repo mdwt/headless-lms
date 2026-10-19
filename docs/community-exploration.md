@@ -9,7 +9,7 @@ A community is a **content type**, a product the org sells like a course. Inside
 and inside a space are **posts** and their **replies**. A feed is not a thing of its own: it is a
 list of posts.
 
-Direct messages between people in the org are part of the community too.
+Members message each other directly, too: DMs are part of the community.
 
 All of it fits the existing contexts. Content gains the community and event types. Entitlements,
 discussion, progress, identity, automations, organizations, reporting and assets each extend. It is
@@ -40,10 +40,10 @@ carries beyond a sensible default is up to the app built on it.
 | **Feed**             | A list of posts. A space's feed is its posts; a person's community feed is the posts from every space they can open |
 | **Profile**          | What others see about a person: a sensible default, such as their name, plus anything else the app wants, such as a photo or a bio |
 | **Directory**        | The people in the community: its members and the org's staff, each with their role and profile              |
-| **Conversation**     | A private conversation between people in the org, outside any space: direct, between two people, or a group of three or more |
+| **Conversation**     | A DM: a private conversation between members of the community, outside any space: direct, between two people, or a group of three or more |
 | **Message request**  | A direct conversation whose recipient hasn't accepted it yet                                                |
-| **Messaging policy** | The org's one set of messaging settings: who may message whom, limits, and how messages are moderated      |
-| **Audience**         | A named group of people the messaging policy defines by a condition, such as members who joined the org at least a week ago. Every messaging setting refers to audiences |
+| **Messaging policy** | The community's one set of DM settings: who may message whom, limits, and how messages are moderated      |
+| **Audience**         | A named group of members the messaging policy defines by a condition, such as members who joined the community at least a week ago. Every messaging setting refers to audiences |
 | **Block**, **mute**  | A person stopping contact with another person, or only stopping being notified by them                      |
 | **Case**             | The reports of one message, conversation or person, handled together by a moderator                        |
 | **Messaging restriction** | A moderator's limit on one person's messaging, for a time or permanently                              |
@@ -109,9 +109,9 @@ Org: Founder Collab
    with the bundle. She RSVPs. A member without a grant to the call sees the link but can't open it.
 9. **An instructor, Emma, posts an announcement in General.** She has no grant to the community;
    staff post anywhere, as they comment on any course. She appears in the directory as staff.
-10. **A week later, Sarah messages James directly.** Founder Collab's messaging policy lets members
-    who joined the org at least a week ago message other members, and makes a member's first message
-    to another member a request. James accepts it. The conversation is between the two of them,
+10. **A week later, Sarah messages James directly.** The community's messaging policy lets members
+    who joined at least a week ago message other members, and makes a member's first message to
+    another member a request. James accepts it. The conversation is between the two of them,
     outside any space.
 11. **Another member sends Sarah abusive messages.** She blocks them: neither can message the other,
     and they aren't told. She reports a message. The report keeps a copy of it and the messages
@@ -119,7 +119,7 @@ Org: Founder Collab
     admin restricts the sender from starting conversations for a month. The sender is told why and
     can appeal.
 12. **Tom bought only Fundraising 101.** He has no access to the community, so none of it exists
-    for him. Staff can still message him: the policy lets staff message anyone in the org.
+    for him: no spaces, no feed, no directory, and nobody can DM him.
 
 ## Where each piece lives
 
@@ -168,7 +168,7 @@ Following the example through the contexts:
   same read scoped to a space.
 - **The email** is automations reacting to the new post and asking entitlements who is in the space.
 - **Messaging James** goes to messaging. It works out which of the policy's audiences Sarah and James
-  are in, from their roles and when they joined the org (organizations), their access to the
+  are in, from their roles (organizations), when they joined and their access to the
   community (entitlements) and whether their email is verified (identity). Then it checks the
   policy, any block between them, and who James accepts messages from.
 - **Restricting the sender** is messaging. Removing or banning someone from the org is carried out
@@ -259,16 +259,16 @@ followers about new replies.
 
 ## Messaging
 
-Direct messages are part of the community: private conversations between people in an org, like
-Sarah writing to James in step 10. They aren't attached to a space, they're private to the people in
+DMs are part of the community: private conversations between its members, like Sarah writing to
+James in step 10. They aren't attached to a space, they're private to the people in
 them, and they bring their own concepts: requests, read and unread state, muting, blocking, a
 person's choice of who may message them, and moderation of content staff can't freely read.
 
 "Message everyone in the community or a space" is an automation that uses messaging.
 
 ```
-Org
-├─ Messaging policy    (one per org, versioned)
+Community
+├─ Messaging policy    (one per community, versioned)
 ├─ Blocks and mutes    (each between two people)
 └─ Conversation        (direct: two people, one per pair; group: three or more)
     ├─ Participants    (each with their own read position, mute and archive)
@@ -278,7 +278,7 @@ Org
 
 ### Conversations
 
-A conversation belongs to one org, and everyone in it is a person in that org. A direct conversation
+A conversation belongs to one community, and everyone in it is a member of it or staff. A direct conversation
 has two people, and there's only ever one per pair: messaging someone you've talked to before
 continues that conversation. A group has three or more, up to the policy's limit. Adding someone to a
 group needs the person adding them to be allowed to message them, and fails if they and anyone
@@ -299,13 +299,13 @@ reports it. Until they accept, the sender can send only as many messages as the 
 
 ### The messaging policy
 
-Each org has one messaging policy, and every messaging setting an org can choose is in it. Each
-change saves a new version.
+Each community has one messaging policy, and every DM setting the org can choose for it is in it.
+Each change saves a new version.
 
-The policy defines **audiences**: named groups of people, each a condition on role, access to a
-product, how long ago the person joined the org, whether their email is verified, a list of people,
-or other audiences combined. Every org has audiences for everyone, staff, students and each staff
-role. Every other setting names audiences:
+The policy defines **audiences**: named groups of members, each a condition on role, access to a
+product, how long ago the person joined the community, whether their email is verified, a list of
+people, or other audiences combined. Every community has audiences for everyone, staff, members and
+each staff role. Every other setting names audiences:
 
 - **Who may start a conversation with whom.** Pairs of audiences, such as staff to everyone and
   members to staff. Anything not listed is refused.
@@ -325,7 +325,7 @@ role. Every other setting names audiences:
 - **Filtered terms.** Words that flag a message for moderators, hold it for review, or refuse it.
 - **Editing and deleting.** Whether authors can, and for how long.
 - **Keeping messages.** How long messages are kept.
-- **When things change.** What a conversation becomes when someone in it loses access to the org,
+- **When things change.** What a conversation becomes when someone in it loses access to the community,
   when messaging is turned off, when a recipient stops accepting messages from the sender, and for
   someone who left a group.
 - **Moderation.** Which staff moderate messages, how much private content they can read (only what
