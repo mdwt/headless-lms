@@ -13,6 +13,8 @@ The domain owns all content types. Each defines its own structure and rules.
 - **Course** — modules grouping an ordered list of activities, with sequencing, gating (drip, unlock-on-completion), and completion toward 100%.
 - **Download** — an ordered set of files; access and retrieval, no progression.
 
+The domain also owns the **bundle**: a named set of content items sold together. A bundle is not itself consumed; a grant to it is access to each of its items (entitlements). A membership, in the business sense, is a bundle.
+
 **Future types the domain will hold** (illustrative, not built):
 
 - **Podcast** — a flat list of episodes; open, position tracked, with external distribution (RSS, directories).
@@ -72,7 +74,7 @@ Per type. For the course type:
 - `module.created`, `module.updated`, `module.deleted`
 - `activity.created`, `activity.updated`, `activity.deleted`
 
-Other types emit their own equivalents (e.g. `episode.published`, `issue.published`).
+Other types emit their own equivalents (e.g. `episode.published`, `issue.published`). The bundle emits `bundle.created`, `bundle.updated`, `bundle.deleted`.
 
 ## Mutable structure
 

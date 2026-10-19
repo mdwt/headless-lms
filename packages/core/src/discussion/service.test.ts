@@ -399,6 +399,26 @@ describe('post', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it('refuses to post for a learner without access to the course', async () => {
+    const s = await openCourse();
+    s.bar(learner.id, 'c1');
+    await expect(
+      s.service.postComment('o1', { actor: learner, activityId: 'a1', parentId: null, body: 'x' }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('lets staff post without a grant', async () => {
+    const s = await openCourse();
+    s.bar(staff.id, 'c1');
+    const view = await s.service.postComment('o1', {
+      actor: staff,
+      activityId: 'a1',
+      parentId: null,
+      body: 'x',
+    });
+    expect(view.body).toBe('x');
+  });
+
   it('refuses a reply when the course is not threaded', async () => {
     const { service, settings } = await openCourse();
     const root = await service.postComment('o1', {

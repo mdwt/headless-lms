@@ -1,12 +1,12 @@
 # Entitlements — Domain Spec
 
-Owns access truth: the student↔content access grant, its validity, and its lifecycle. The grant is **generic over content types** (course today; podcast, membership, … later): it references content by its identity, whatever the type, so one grant concept serves all content. Distinct from completion. This context absorbed the former `enrollments` surface.
+Owns access truth: the student↔content access grant, its validity, and its lifecycle. The grant is **generic over content types** (course and download today; community, event, podcast, … later): it references content by its identity, whatever the type, so one grant concept serves all content. A grant can also target a **bundle**, and then it is access to every item in it. Distinct from completion. This context absorbed the former `enrollments` surface.
 
 ## Scope
 
 - Owns the **access grant**: a student↔content grant, its status, and its source.
 - Owns granting access, listing grants, and changing a grant's status (revoke / reinstate).
-- The grant references content by its identity (see the content domain spec).
+- The grant references content by its identity, or a bundle by its identity (see the content domain spec).
 - Access ≠ completion: a grant and progress move independently.
 - Does **not** own money, content, or completion (progress).
 
@@ -22,7 +22,8 @@ Owns access truth: the student↔content access grant, its validity, and its lif
 - **Entitlement** — the access grant: the student it is for, a reference to the content it grants (identity, type, and display name), its status, its source, when it was granted, and when it expires (nullable = lifetime). Completion is not held here — it belongs to progress.
 - **Status** — `active | expired | revoked`. `expired` is not a transition anyone performs — it follows from the expiry date having passed.
 - **Source** — free text (`manual`, `import`, integration ids, …). How the grant originated; defaults to `manual`. There is no `purchase` source — entitlements has no billing footprint.
-- **Uniqueness** — one grant per student per piece of content, within an org. Identical for every content type.
+- **Target** — exactly one of a content item or a bundle. A grant to a bundle gives access to every item in the bundle for as long as the grant is active. The items are read from content when access is resolved, never copied onto the grant, so changing what's in the bundle changes what the grant opens.
+- **Uniqueness** — one grant per student per piece of content or bundle, within an org. Identical for every content type.
 
 Entitlement semantics are uniform across all content types: same lifecycle, same expiry rule, same uniqueness. The only per-type variation is which content type the grant points at.
 
@@ -33,7 +34,7 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 ## Boundaries
 
 1. **entitlements ↔ organizations** — entitlements references the _org user_ it grants access to, not the person: a grant is access within one organization, and the same person entitled in two organizations holds two independent grants. Organizations owns that record.
-2. **entitlements ↔ content** — entitlements references the content it grants and reads its gating rules during access resolution; content owns the content and those rules. Deleting content removes the grants to it.
+2. **entitlements ↔ content** — entitlements references the content or bundle it grants, reads a bundle's items and the content's gating rules during access resolution; content owns the content, the bundle and those rules. Deleting content or a bundle removes the grants to it.
 3. **entitlements ↔ progress** — entitlements reads completion during access resolution but never owns or stores it; progress owns completion.
 
 ## Events

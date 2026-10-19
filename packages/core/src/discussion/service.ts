@@ -155,20 +155,20 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   private async hasAccess(orgId: string, activityId: string, actor: Actor): Promise<boolean> {
-    return (
-      this.isStaff(actor) ||
-      (await (async () => {
-        const activity = await this.content.getActivity(orgId, activityId);
-        return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
-      })())
-    );
+    if (this.isStaff(actor)) {
+      return true;
+    }
+    const activity = await this.content.getActivity(orgId, activityId);
+    return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
   }
 
   async postComment(
     orgId: string,
     { activityId, actor, parentId, body }: PostCommentInput,
   ): Promise<CommentView> {
-    await this.hasAccess(orgId, activityId, actor);
+    if (!(await this.hasAccess(orgId, activityId, actor))) {
+      throw new ForbiddenError('no access to this activity');
+    }
     const config = await this.resolveConfig(orgId, activityId);
 
     if (!config.enabled) {
@@ -295,7 +295,9 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Comment', commentId);
     }
 
-    await this.hasAccess(orgId, comment.activityId, actor);
+    if (!(await this.hasAccess(orgId, comment.activityId, actor))) {
+      throw new ForbiddenError('no access to this activity');
+    }
     if (comment.orgUserId !== actor.id && !this.isStaff(actor)) {
       throw new ForbiddenError('only the author or a moderator may remove a comment');
     }
@@ -356,7 +358,9 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
     }
-    await this.hasAccess(orgId, comment.activityId, actor);
+    if (!(await this.hasAccess(orgId, comment.activityId, actor))) {
+      throw new ForbiddenError('no access to this activity');
+    }
     const config = await this.resolveConfig(orgId, comment.activityId);
     return { comment, config };
   }
