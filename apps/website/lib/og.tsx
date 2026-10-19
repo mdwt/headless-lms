@@ -2,22 +2,15 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { brand } from "@/components/logo";
 
-async function loadFont(family: string, weight: number) {
-  const css = await fetch(
-    `https://fonts.googleapis.com/css2?family=${family}:wght@${weight}&display=swap`,
-  ).then((res) => res.text());
-  const url = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
-  if (!url) {
-    throw new Error(`Font not found: ${family}`);
-  }
-  return fetch(url).then((res) => res.arrayBuffer());
+function loadFont(file: string) {
+  return readFile(join(process.cwd(), "assets", "fonts", file));
 }
 
 export async function loadOgFonts() {
   const [semibold, regular, mono] = await Promise.all([
-    loadFont("Geist", 600),
-    loadFont("Geist", 400),
-    loadFont("Geist+Mono", 500),
+    loadFont("Geist-SemiBold.ttf"),
+    loadFont("Geist-Regular.ttf"),
+    loadFont("GeistMono-Medium.ttf"),
   ]);
   return [
     { name: "Geist", data: semibold, weight: 600 as const, style: "normal" as const },
