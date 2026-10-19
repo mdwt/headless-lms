@@ -19,7 +19,6 @@
     "@headless-lms/api",
     "@headless-lms/content-plate",
     "@headless-lms/editor",
-    "@headless-lms/sdk",
     "@headless-lms/plugin-slack",
     "@headless-lms/adapter-email-resend",
     "@headless-lms/adapter-email-ses",
