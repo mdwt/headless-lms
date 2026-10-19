@@ -1,9 +1,12 @@
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Hero } from "@/components/landing/hero";
-import { Features } from "@/components/landing/features";
-import { Architecture } from "@/components/landing/architecture";
-import { AppsMcp } from "@/components/landing/apps-mcp";
+import { Strip } from "@/components/landing/strip";
+import { Platform } from "@/components/landing/platform";
+import { Agents } from "@/components/landing/agents";
+import { Apps } from "@/components/landing/apps";
+import { OpenSource } from "@/components/landing/open-source";
+import { Faq, faqs } from "@/components/landing/faq";
 import { Cta } from "@/components/landing/cta";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { jsonLdProps } from "@/lib/structured-data";
@@ -39,6 +42,15 @@ const jsonLd = {
       runtimePlatform: "Node.js",
       license: "https://opensource.org/licenses/MIT",
     },
+    {
+      "@type": "FAQPage",
+      "@id": absoluteUrl("/#faq"),
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
   ],
 };
 
@@ -55,10 +67,12 @@ export default function HomePage() {
       <SiteHeader />
       <main id="main-content" className="flex-1">
         <Hero />
-        <Features />
-        <AppsMcp />
-        <Architecture />
-
+        <Strip />
+        <Platform />
+        <Agents />
+        <Apps />
+        <OpenSource />
+        <Faq />
         <Cta />
       </main>
       <SiteFooter />

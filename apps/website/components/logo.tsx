@@ -5,7 +5,8 @@ export const brand = {
   violet: "#6a4bff",
   mint: "#17c47c",
   coral: "#ff6a4d",
-  paper: "#f8f9f3",
+  ink: "#0a0a0a",
+  paper: "#ffffff",
   night: "#15161a",
 };
 
@@ -25,19 +26,19 @@ export function GithubIcon(props: SVGProps<SVGSVGElement>) {
 
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
-      <rect x="52" y="40" width="23" height="50" rx="11.5" fill={brand.violet} />
-      <rect x="5" y="40" width="70" height="21" rx="10.5" fill={brand.violet} />
-      <rect x="5" y="10" width="23" height="80" rx="11.5" fill={brand.coral} />
-      <rect
-        x="56"
-        y="6"
-        width="25"
-        height="25"
-        rx="8"
-        fill={brand.mint}
-        transform="rotate(22 68 19)"
-      />
+    <svg
+      viewBox="0 0 100 100"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <g transform="translate(10 4)">
+        <rect x="52" y="40" width="23" height="50" rx="11.5" />
+        <rect x="5" y="40" width="70" height="21" rx="10.5" />
+        <rect x="5" y="2" width="23" height="88" rx="11.5" />
+        <rect x="52" y="2" width="23" height="23" rx="8" />
+      </g>
     </svg>
   );
 }
@@ -46,14 +47,12 @@ export function Logo({ className, markClassName }: { className?: string; markCla
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 font-display text-xl font-bold tracking-tight whitespace-nowrap",
+        "inline-flex items-center gap-2 font-sans text-xl font-semibold tracking-[-0.04em] whitespace-nowrap",
         className,
       )}
     >
       <LogoMark className={cn("size-7 shrink-0", markClassName)} />
-      <span>
-        headless <span className="text-primary">lms</span>
-      </span>
+      <span>headless lms</span>
     </span>
   );
 }

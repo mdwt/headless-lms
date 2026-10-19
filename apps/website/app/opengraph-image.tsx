@@ -1,65 +1,121 @@
 import { ImageResponse } from "next/og";
-import { brand } from "@/components/logo";
-import { loadOgFonts, OgLockup, ogFrame } from "@/lib/og";
+import { loadOgFonts, loadOgPainting, OgLockup } from "@/lib/og";
 import { siteConfig } from "@/lib/site";
 
 export const alt = `${siteConfig.name}: ${siteConfig.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+const shadow = "0 2px 24px rgba(10, 30, 80, 0.45)";
+
 export default async function OpengraphImage() {
-  const chips = [
-    { label: "indie devs", color: brand.violet, tilt: -2 },
-    { label: "vibe coders", color: brand.coral, tilt: 1.5 },
-    { label: "course creators", color: brand.mint, tilt: -1 },
-  ];
+  const [fonts, painting] = await Promise.all([loadOgFonts(), loadOgPainting()]);
 
   return new ImageResponse(
-    <div style={ogFrame}>
-      <OgLockup />
-      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-        <div style={{ display: "flex", gap: 14 }}>
-          {chips.map((chip) => (
-            <div
-              key={chip.label}
-              style={{
-                display: "flex",
-                fontFamily: "Fredoka",
-                fontSize: 26,
-                padding: "6px 20px",
-                borderRadius: 999,
-                color: chip.color,
-                backgroundColor: `${chip.color}22`,
-                transform: `rotate(${chip.tilt}deg)`,
-              }}
-            >
-              {chip.label}
-            </div>
-          ))}
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        position: "relative",
+        fontFamily: "Geist",
+        color: "#ffffff",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: 1200,
+          height: 630,
+          display: "flex",
+          backgroundImage: `url(${painting})`,
+          backgroundSize: "1200px 630px",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: 1200,
+          height: 630,
+          display: "flex",
+          backgroundImage:
+            "radial-gradient(ellipse 60% 50% at 50% 46%, rgba(16, 46, 116, 0.5), rgba(16, 46, 116, 0) 80%)",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          alignItems: "center",
+          width: "100%",
+          padding: "56px 64px",
+        }}
+      >
+        <OgLockup color="#ffffff" />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}>
+          <div
+            style={{
+              display: "flex",
+              textAlign: "center",
+              fontSize: 78,
+              fontWeight: 600,
+              letterSpacing: -3.5,
+              lineHeight: 1,
+              maxWidth: 980,
+              textShadow: shadow,
+            }}
+          >
+            The API-first LMS for building learning systems.
+          </div>
+          <div
+            style={{
+              display: "flex",
+              textAlign: "center",
+              fontSize: 27,
+              fontWeight: 400,
+              lineHeight: 1.4,
+              maxWidth: 820,
+              textShadow: shadow,
+            }}
+          >
+            Courses, progress, entitlements and multi-tenancy as a typed TypeScript API.
+          </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            fontFamily: "Fredoka",
-            fontSize: 64,
-            lineHeight: 1.05,
-            letterSpacing: "-0.01em",
-            maxWidth: 1060,
-          }}
-        >
-          The API-first LMS for building&nbsp;
-          <span style={{ color: brand.violet }}>learning systems</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div
+            style={{
+              display: "flex",
+              fontFamily: "Geist Mono",
+              fontSize: 22,
+              padding: "12px 22px",
+              borderRadius: 8,
+              backgroundColor: "rgba(255, 255, 255, 0.16)",
+              border: "1px solid rgba(255, 255, 255, 0.4)",
+            }}
+          >
+            $ {siteConfig.installCommand}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontFamily: "Geist Mono",
+              fontSize: 18,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              textShadow: shadow,
+            }}
+          >
+            MIT · headless-lms.dev
+          </div>
         </div>
-        <div style={{ fontSize: 28, color: "#5e6058", maxWidth: 940 }}>
-          Open-source headless LMS in modern TypeScript. Typed SDK, composable adapters, MCP
-          endpoint.
-        </div>
-      </div>
-      <div style={{ display: "flex", fontSize: 26, fontFamily: "Fredoka", color: brand.violet }}>
-        headless-lms.dev
       </div>
     </div>,
-    { ...size, fonts: await loadOgFonts() },
+    { ...size, fonts },
   );
 }

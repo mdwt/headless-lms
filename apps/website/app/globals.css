@@ -8,13 +8,28 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fredoka), var(--font-figtree), ui-rounded, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-brand-violet: var(--brand-violet);
   --color-brand-mint: var(--brand-mint);
   --color-brand-coral: var(--brand-coral);
+
+  --color-body: var(--body);
+  --color-subtle: var(--subtle);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-raised: var(--raised);
+  --color-inverse: var(--inverse);
+  --color-inverse-foreground: var(--inverse-foreground);
+
+  --shadow-card: var(--shadow);
+  --shadow-window: var(--shadow-window);
+  --shadow-float: var(--shadow-float);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -58,156 +73,315 @@
 
 :root {
   color-scheme: light;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 
   --brand-violet: #6a4bff;
   --brand-mint: #17c47c;
   --brand-coral: #ff6a4d;
 
-  --background: #f8f9f3;
-  --foreground: #1c1d22;
+  --ink: #0a0a0a;
+  --paper: #ffffff;
 
-  --card: #ffffff;
-  --card-foreground: #1c1d22;
+  --body: #3d3d3d;
+  --subtle: #8a8a8a;
+  --faint: #b5b5b5;
+  --line: #e4e4e4;
+  --line-soft: #f0f0f0;
+  --line-strong: #d4d4d4;
+  --surface: #f4f4f4;
+  --surface-2: #fafafa;
+  --raised: #ffffff;
+  --inverse: var(--ink);
+  --inverse-foreground: var(--paper);
+  --grid: rgb(10 10 10 / 4.5%);
+  --shadow: 0 1px 2px rgb(10 10 10 / 4%), 0 12px 32px -16px rgb(10 10 10 / 14%);
+  --shadow-window: 0 1px 2px rgb(10 10 10 / 5%), 0 30px 60px -30px rgb(10 10 10 / 32%);
+  --shadow-float: 0 1px 2px rgb(10 10 10 / 6%), 0 24px 48px -20px rgb(10 10 10 / 36%);
 
-  --popover: #ffffff;
-  --popover-foreground: #1c1d22;
+  --background: var(--paper);
+  --foreground: var(--ink);
 
-  --primary: #6a4bff;
-  --primary-foreground: #ffffff;
-  --primary-shadow: #4a30c9;
+  --card: var(--paper);
+  --card-foreground: var(--ink);
 
-  --secondary: #eef0e7;
-  --secondary-foreground: #1c1d22;
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
 
-  --muted: #f0f1ea;
-  --muted-foreground: #5e6058;
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
 
-  --accent: #ebe7ff;
-  --accent-foreground: #2c1f80;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--ink);
 
-  --destructive: #d9362b;
+  --muted: var(--surface);
+  --muted-foreground: #6b6b6b;
 
-  --border: rgb(28 29 34 / 11%);
-  --input: rgb(28 29 34 / 15%);
-  --ring: #6a4bff;
+  --accent: var(--surface);
+  --accent-foreground: var(--ink);
 
-  --chart-1: #6a4bff;
-  --chart-2: #ff6a4d;
-  --chart-3: #0f9a60;
-  --chart-4: #d4388a;
-  --chart-5: #8a8c84;
+  --destructive: #dc2626;
 
-  --sidebar: #f2f3ec;
-  --sidebar-foreground: #1c1d22;
-  --sidebar-primary: #6a4bff;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebe7ff;
-  --sidebar-accent-foreground: #2c1f80;
-  --sidebar-border: rgb(28 29 34 / 11%);
-  --sidebar-ring: #6a4bff;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--ink);
+
+  --chart-1: #2b6cf0;
+  --chart-2: #e8590c;
+  --chart-3: #12a150;
+  --chart-4: #7048e8;
+  --chart-5: #737373;
+
+  --sidebar: var(--surface-2);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--surface);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--ink);
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: #15161a;
-  --foreground: #f1f1ec;
+  --body: #d4d4d4;
+  --subtle: #7a7a7a;
+  --faint: #525252;
+  --line: #2c2d31;
+  --line-soft: #222326;
+  --line-strong: #3a3b40;
+  --surface: #202124;
+  --surface-2: #1a1b1e;
+  --raised: #1d1e21;
+  --inverse: var(--paper);
+  --inverse-foreground: var(--ink);
+  --grid: rgb(255 255 255 / 6%);
+  --shadow: 0 1px 0 rgb(255 255 255 / 3%), 0 24px 48px -24px rgb(0 0 0 / 80%);
+  --shadow-window: 0 30px 60px -30px rgb(0 0 0 / 90%);
+  --shadow-float: 0 24px 48px -20px rgb(0 0 0 / 90%);
 
-  --card: #1d1e23;
-  --card-foreground: #f1f1ec;
+  --background: #141416;
+  --foreground: var(--paper);
 
-  --popover: #1d1e23;
-  --popover-foreground: #f1f1ec;
+  --card: var(--raised);
+  --card-foreground: var(--paper);
 
-  --primary: #7a5fff;
-  --primary-foreground: #ffffff;
-  --primary-shadow: #3d27a8;
+  --popover: var(--raised);
+  --popover-foreground: var(--paper);
 
-  --secondary: #26272d;
-  --secondary-foreground: #f1f1ec;
+  --primary: var(--paper);
+  --primary-foreground: var(--ink);
 
-  --muted: #222328;
-  --muted-foreground: #a0a19b;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--paper);
 
-  --accent: #2a2446;
-  --accent-foreground: #ddd6ff;
+  --muted: var(--surface);
+  --muted-foreground: #a3a3a3;
 
-  --destructive: #ff6a5c;
+  --accent: var(--surface);
+  --accent-foreground: var(--paper);
 
-  --border: rgb(241 241 236 / 11%);
-  --input: rgb(241 241 236 / 15%);
-  --ring: #8f78ff;
+  --destructive: #ef4444;
 
-  --chart-1: #9a85ff;
-  --chart-2: #ff8a70;
-  --chart-3: #3ddc97;
-  --chart-4: #f06aae;
-  --chart-5: #7c7d78;
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--paper);
 
-  --sidebar: #18191d;
-  --sidebar-foreground: #f1f1ec;
-  --sidebar-primary: #7a5fff;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2a2446;
-  --sidebar-accent-foreground: #ddd6ff;
-  --sidebar-border: rgb(241 241 236 / 11%);
-  --sidebar-ring: #8f78ff;
+  --chart-1: #6b9bff;
+  --chart-2: #ff8a4c;
+  --chart-3: #3dd68c;
+  --chart-4: #9d85ff;
+  --chart-5: #a3a3a3;
+
+  --sidebar: var(--surface-2);
+  --sidebar-foreground: var(--paper);
+  --sidebar-primary: var(--paper);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: var(--surface);
+  --sidebar-accent-foreground: var(--paper);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--paper);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body {
+    overflow-x: clip;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
   }
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-display);
+  .grid > * {
+    min-width: 0;
+  }
+  ::selection {
+    background: var(--foreground);
+    color: var(--background);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
-.chip {
-  --chip: var(--brand-violet);
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0.2rem 0.75rem;
-  font-family: var(--font-display);
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: color-mix(in oklab, var(--chip) 15%, var(--background));
-  color: color-mix(in oklab, var(--chip) 72%, var(--foreground));
-  transform: rotate(var(--tilt, 0deg));
+@utility container-page {
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  @media (min-width: 768px) {
+    padding-inline: 2.5rem;
+  }
 }
 
-.icon-tile {
-  --tile: var(--brand-violet);
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.7rem;
-  background: var(--tile);
-  color: #ffffff;
-  transform: rotate(var(--tilt, 0deg));
+@layer components {
+  .h-section {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1.02;
+    text-wrap: balance;
+    color: var(--foreground);
+  }
+  @media (min-width: 768px) {
+    .h-section {
+      font-size: 56px;
+    }
+  }
+
+  .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: #525252;
+    text-wrap: pretty;
+  }
+  @media (min-width: 768px) {
+    .lede {
+      font-size: 18.5px;
+    }
+  }
+  .dark .lede {
+    color: var(--muted-foreground);
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 99px;
+    background: var(--foreground);
+    flex-shrink: 0;
+  }
+
+  .link-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--foreground);
+  }
+  .link-arrow svg {
+    transition: transform 200ms ease;
+  }
+  .link-arrow:hover svg {
+    transform: translateX(3px);
+  }
+
+  .graph {
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+  }
+
+  .tile-violet {
+    background:
+      radial-gradient(
+        90% 70% at 50% 0%,
+        color-mix(in oklab, var(--brand-violet) 16%, transparent),
+        transparent 70%
+      ),
+      color-mix(in oklab, var(--brand-violet) 5%, var(--surface));
+  }
+}
+
+.marquee {
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marquee-track {
+  animation: marquee 60s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(calc(-50% - 5px));
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: caret-blink 1.05s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .caret {
+    animation: none;
+  }
 }
 
 :root,
 .dark {
   --shiki-background: transparent;
-  --shiki-foreground: color-mix(in oklab, var(--foreground) 90%, transparent);
-  --shiki-token-comment: var(--muted-foreground);
-  --shiki-token-keyword: var(--chart-1);
+  --shiki-foreground: color-mix(in oklab, var(--foreground) 88%, transparent);
+  --shiki-token-comment: var(--subtle);
+  --shiki-token-keyword: var(--chart-4);
   --shiki-token-string: var(--chart-3);
   --shiki-token-string-expression: var(--chart-3);
-  --shiki-token-function: var(--chart-2);
-  --shiki-token-constant: var(--chart-4);
+  --shiki-token-function: var(--chart-1);
+  --shiki-token-constant: var(--chart-2);
   --shiki-token-parameter: var(--foreground);
-  --shiki-token-punctuation: color-mix(in oklab, var(--foreground) 65%, transparent);
-  --shiki-token-link: var(--primary);
+  --shiki-token-punctuation: color-mix(in oklab, var(--foreground) 55%, transparent);
+  --shiki-token-link: var(--foreground);
 }
 
 .landing-code pre {
@@ -215,7 +389,6 @@
   background-color: transparent;
 }
 
-/* Align fumadocs UI tokens with the site palette (dark-only). */
 :root,
 .dark {
   --color-fd-background: var(--background);

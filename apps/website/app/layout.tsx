@@ -1,26 +1,20 @@
 import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
-import { Figtree, Fredoka, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { siteConfig } from "@/lib/site";
 import { jsonLdProps, siteGraph } from "@/lib/structured-data";
 import "./globals.css";
 
-const figtree = Figtree({
+const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-figtree",
+  variable: "--font-geist",
 });
 
-const fredoka = Fredoka({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-fredoka",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -80,11 +74,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8f9f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#15161a" },
-  ],
+  colorScheme: siteConfig.forcedTheme ?? "light dark",
+  themeColor:
+    siteConfig.forcedTheme === "light"
+      ? "#ffffff"
+      : [
+          { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+          { media: "(prefers-color-scheme: dark)", color: "#141416" },
+        ],
 };
 
 export default function RootLayout({
@@ -93,14 +90,10 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${figtree.variable} ${fredoka.variable} ${jetbrainsMono.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="bg-background font-sans antialiased">
         <script {...jsonLdProps(siteGraph)} />
-        <RootProvider>{children}</RootProvider>
+        <RootProvider theme={{ forcedTheme: siteConfig.forcedTheme }}>{children}</RootProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>

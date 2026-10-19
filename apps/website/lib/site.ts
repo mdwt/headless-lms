@@ -10,6 +10,7 @@ export const siteConfig = {
   author: "Meiring de Wet",
   license: "MIT",
   repo: "mdwt/headless-lms",
+  forcedTheme: "light" as "light" | "dark" | undefined,
 };
 
 export const primaryNav = [
