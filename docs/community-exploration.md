@@ -42,11 +42,11 @@ carries beyond a sensible default is up to the app built on it.
 | **Directory**        | The people in the community: its members and the org's staff, each with their role and profile              |
 | **Conversation**     | A DM: a private conversation between members of the community, outside any space: direct, between two people, or a group of three or more |
 | **Message request**  | A direct conversation whose recipient hasn't accepted it yet                                                |
-| **Messaging policy** | The community's one set of DM settings: who may message whom, limits, and how messages are moderated      |
-| **Audience**         | A named group of members the messaging policy defines by a condition, such as members who joined the community at least a week ago. Every messaging setting refers to audiences |
+| **DM policy**        | The community's one set of DM settings: who may message whom, limits, and how messages are moderated      |
+| **Audience**         | A named group of members the DM policy defines by a condition, such as members who joined the community at least a week ago. Every DM setting refers to audiences |
 | **Block**, **mute**  | A person stopping contact with another person, or only stopping being notified by them                      |
 | **Case**             | The reports of one message, conversation or person, handled together by a moderator                        |
-| **Messaging restriction** | A moderator's limit on one person's messaging, for a time or permanently                              |
+| **DM restriction**   | A moderator's limit on one person's DMs, for a time or permanently                                          |
 | **Operator**         | Whoever runs the installation. Sits above every org's owner; owned by organizations                        |
 
 How they contain each other:
@@ -109,7 +109,7 @@ Org: Founder Collab
    with the bundle. She RSVPs. A member without a grant to the call sees the link but can't open it.
 9. **An instructor, Emma, posts an announcement in General.** She has no grant to the community;
    staff post anywhere, as they comment on any course. She appears in the directory as staff.
-10. **A week later, Sarah messages James directly.** The community's messaging policy lets members
+10. **A week later, Sarah messages James directly.** The community's DM policy lets members
     who joined at least a week ago message other members, and makes a member's first message to
     another member a request. James accepts it. The conversation is between the two of them,
     outside any space.
@@ -143,9 +143,9 @@ Org: Founder Collab
 | Sarah's grant to the monthly call                 | **entitlements**  |
 | Sarah's RSVP                                      | **progress**      |
 | The email when someone posts                       | **automations**   |
-| Sarah's conversation with James, his acceptance of her request | **messaging**   |
-| Founder Collab's messaging policy and its audiences | **messaging**   |
-| Sarah's block, her report, the sender's restriction | **messaging**   |
+| Sarah's conversation with James, his acceptance of her request | **discussion**  |
+| The community's DM policy and its audiences       | **discussion**    |
+| Sarah's block, her report, the sender's restriction | **discussion**  |
 | Files attached to a post or a message             | **assets**        |
 
 Following the example through the contexts:
@@ -167,12 +167,12 @@ Following the example through the contexts:
   org's staff (organizations) and each person's profile (identity). A space's member list is the
   same read scoped to a space.
 - **The email** is automations reacting to the new post and asking entitlements who is in the space.
-- **Messaging James** goes to messaging. It works out which of the policy's audiences Sarah and James
+- **Messaging James** goes to discussion. It works out which of the policy's audiences Sarah and James
   are in, from their roles (organizations), when they joined and their access to the
   community (entitlements) and whether their email is verified (identity). Then it checks the
   policy, any block between them, and who James accepts messages from.
-- **Restricting the sender** is messaging. Removing or banning someone from the org is carried out
-  by organizations and recorded in messaging.
+- **Restricting the sender** is discussion. Removing or banning someone from the org is carried out
+  by organizations and recorded in discussion.
 
 ### Organizations
 
@@ -194,12 +194,11 @@ and the operator.
 
 ### Who relies on whom
 
-- Discussion relies on content, entitlements and organizations.
+- Discussion relies on content, entitlements and organizations, and for DMs on identity and assets.
 - Entitlements relies on content.
 - Reporting relies on entitlements, organizations and identity for the directory.
-- Automations relies on entitlements, discussion and messaging.
+- Automations relies on entitlements and discussion.
 - Progress relies on content and entitlements for events, as it does for courses.
-- Messaging relies on organizations, entitlements, identity and assets.
 - Content, organizations and identity take on no new dependencies.
 
 ## Topics
@@ -257,18 +256,18 @@ followers about new replies.
 - **There is no operator.** Nobody sits above an org's owner, so nothing can act on illegal content
   in every org or set limits for all of them.
 
-## Messaging
+## Direct messages
 
-DMs are part of the community: private conversations between its members, like Sarah writing to
-James in step 10. They aren't attached to a space, they're private to the people in
+DMs are part of the community and discussion owns them: private conversations between its
+members, like Sarah writing to James in step 10, are what members write, as posts are. They aren't attached to a space, they're private to the people in
 them, and they bring their own concepts: requests, read and unread state, muting, blocking, a
 person's choice of who may message them, and moderation of content staff can't freely read.
 
-"Message everyone in the community or a space" is an automation that uses messaging.
+"Message everyone in the community or a space" is an automation that uses discussion.
 
 ```
 Community
-├─ Messaging policy    (one per community, versioned)
+├─ DM policy           (one per community, versioned)
 ├─ Blocks and mutes    (each between two people)
 └─ Conversation        (direct: two people, one per pair; group: three or more)
     ├─ Participants    (each with their own read position, mute and archive)
@@ -297,9 +296,9 @@ digest, or not at all.
 A first message can arrive as a **message request**. The recipient accepts, ignores, blocks or
 reports it. Until they accept, the sender can send only as many messages as the policy allows.
 
-### The messaging policy
+### The DM policy
 
-Each community has one messaging policy, and every DM setting the org can choose for it is in it.
+Each community has one DM policy, and every DM setting the org can choose for it is in it.
 Each change saves a new version.
 
 The policy defines **audiences**: named groups of members, each a condition on role, access to a
@@ -326,7 +325,7 @@ each staff role. Every other setting names audiences:
 - **Editing and deleting.** Whether authors can, and for how long.
 - **Keeping messages.** How long messages are kept.
 - **When things change.** What a conversation becomes when someone in it loses access to the community,
-  when messaging is turned off, when a recipient stops accepting messages from the sender, and for
+  when DMs are turned off, when a recipient stops accepting messages from the sender, and for
   someone who left a group.
 - **Moderation.** Which staff moderate messages, how much private content they can read (only what
   was reported, the whole reported conversation, or everything), how many surrounding messages a
@@ -376,9 +375,9 @@ until it's reviewed, and enough blocks or reports of one person open a case on t
 recorded as an automatic moderation action.
 
 A moderator can dismiss a case, hide or delete a message, lock a conversation, restrict a person's
-messaging, or remove or ban them from the org. A restriction stops someone starting conversations,
+DMs, or remove or ban them from the org. A restriction stops someone starting conversations,
 sending, or sending attachments, until a set time or permanently. Organizations carries out a
-removal or ban; messaging records it.
+removal or ban; discussion records it.
 
 ### Operator settings
 
