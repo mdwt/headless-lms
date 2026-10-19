@@ -47,7 +47,6 @@ carries beyond a sensible default is up to the app built on it.
 | **Block**, **mute**  | A person stopping contact with another person, or only stopping being notified by them                      |
 | **Case**             | The reports of one message, conversation or person, handled together by a moderator                        |
 | **DM restriction**   | A moderator's limit on one person's DMs, for a time or permanently                                          |
-| **Operator**         | Whoever runs the installation. Sits above every org's owner; owned by organizations                        |
 
 How they contain each other:
 
@@ -127,7 +126,6 @@ Org: Founder Collab
 | -------------------------------------------------- | ----------------- |
 | Founder Collab, the tenant, its people, staff roles, when each person joined | **organizations** |
 | James's assignment as moderator of SaaS founders  | **organizations** |
-| Removing or banning someone from the org; the operator | **organizations** |
 | Sarah as a person, her profile                    | **identity**      |
 | The community, its spaces, each space's access rule, capacity, topics and links | **content** |
 | The bundle and what's in it                       | **content**       |
@@ -171,13 +169,11 @@ Following the example through the contexts:
   are in, from their roles (organizations), when they joined and their access to the
   community (entitlements) and whether their email is verified (identity). Then it checks the
   policy, any block between them, and who James accepts messages from.
-- **Restricting the sender** is discussion. Removing or banning someone from the org is carried out
-  by organizations and recorded in discussion.
+- **Restricting the sender** is discussion.
 
 ### Organizations
 
-Organizations is what the community stands on. It gains three things: a scoped assignment, a ban,
-and the operator.
+Organizations is what the community stands on. It gains one thing: a scoped assignment.
 
 - **Tenant.** The community and everything in it belong to one org, and nothing crosses orgs.
 - **People.** Sarah, James, Emma and Tom are each an org user: a person's place in that org. A
@@ -187,10 +183,6 @@ and the operator.
 - **Space moderator.** An org user assigned to moderate one space. Organizations already describes
   the instructor role as course-scoped, narrowed to a subset of courses; a space moderator is the
   same shape, a student narrowed to one space, and the assignment is recorded the same way.
-- **Ban.** A moderator of messages can remove someone from the org or ban them from it.
-  Organizations carries it out.
-- **Operator.** Whoever runs the installation. Sits above every org's owner, acts on illegal content
-  in any org, and sets limits no org can go beyond.
 
 ### Who relies on whom
 
@@ -250,11 +242,8 @@ followers about new replies.
 - **A person has only a name and an email today.** An app can't add anything else to a profile.
 - **Identity doesn't say whether an email is verified.** Sign-in records it, but the person identity
   serves doesn't carry it, and an audience can depend on it.
-- **Nobody can be banned from an org.** Organizations can remove an org user, but not keep them out.
 - **Uploaded files aren't checked.** An asset is ready as soon as its upload is confirmed. A file
   attached to a message has to be checked before anyone else can open it.
-- **There is no operator.** Nobody sits above an org's owner, so nothing can act on illegal content
-  in every org or set limits for all of them.
 
 ## Direct messages
 
@@ -334,8 +323,8 @@ each staff role. Every other setting names audiences:
 - **Notification emails.** Whether they include the message, and how long to wait before sending a
   digest.
 
-A policy is refused if it names an audience that doesn't exist, leaves someone without limits, makes
-anyone but staff a moderator, or goes beyond the operator's limits.
+A policy is refused if it names an audience that doesn't exist, leaves someone without limits, or
+makes anyone but staff a moderator.
 
 ### Rules every org gets
 
@@ -343,8 +332,7 @@ These hold whatever the policy says. Most come from what app stores require of a
 user-generated content, and from the EU Digital Services Act.
 
 - Only the people in a conversation read it. Staff read private messages only as far as the
-  policy's moderation setting allows. The operator can too, to act on illegal content or answer a
-  legal request. Every read by someone outside the conversation is logged.
+  policy's moderation setting allows. Every read by someone outside the conversation is logged.
 - When a refusal comes from the recipient, through a block, their choice of who they hear from or
   an unaccepted request, the sender is told only that they can't message them, never why.
 - Every person can block, mute and report. A policy can make some audiences unblockable, but it
@@ -357,8 +345,6 @@ user-generated content, and from the EU Digital Services Act.
   force, and the reason. The person it's against is told why and can appeal. A policy version is
   kept as long as an action refers to it.
 - Moderators can delete a message at any time.
-- The operator can act on illegal content in any org, whatever its policy, and sets limits no policy
-  can go beyond.
 
 ### Reports and moderation
 
@@ -367,24 +353,15 @@ sexual content, threats or violence, self-harm, illegal content, impersonation, 
 optional detail. Reporting offers to block in the same step, and the reporter is told the outcome.
 
 Reports of the same thing form one **case**: open, then in review, then actioned or dismissed. A case
-left open past the policy's escalation time goes to every moderator and is flagged to the operator. A
-report of illegal content also goes to the operator.
+left open past the policy's escalation time goes to every moderator.
 
 Some cases open on their own: a filtered term opens a report, enough reports of one message hide it
 until it's reviewed, and enough blocks or reports of one person open a case on them. Each is
 recorded as an automatic moderation action.
 
-A moderator can dismiss a case, hide or delete a message, lock a conversation, restrict a person's
-DMs, or remove or ban them from the org. A restriction stops someone starting conversations,
-sending, or sending attachments, until a set time or permanently. Organizations carries out a
-removal or ban; discussion records it.
-
-### Operator settings
-
-The operator sets, for every org on the installation: a ceiling for each limit in the policy, the
-longest a case can stay open before it escalates (at most 24 hours, as app stores require), whether a
-deleted account's messages are anonymised or deleted, how long evidence and moderation records are
-kept, and where illegal content is reported.
+A moderator can dismiss a case, hide or delete a message, lock a conversation, or restrict a person's
+DMs. A restriction stops someone starting conversations, sending, or sending attachments, until a
+set time or permanently.
 
 ## Why not a plugin
 
