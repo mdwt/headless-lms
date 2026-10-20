@@ -42,7 +42,7 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 
 ### Course type — entities
 
-- **Course** — the root: title, status (draft/published), ordered modules.
+- **Course** — the root: title, status (draft/published), ordered modules, and its settings, including the discussion settings that discussion reads.
 - **Module** — title, `seq` (order within the course), parent course, an ordered list of activities.
 - **Activity** — the leaf, sitting directly in a module. It is a unit of content: a `seq` (order within the module), a **settings blob** holding whatever that content needs, a completion rule, and links to any assets it uses. An activity that is a video has a video asset linked; one that is an assessment carries its rules in the blob. The domain doesn't categorise it — it stores the content, and the learner-facing surface renders whatever is there.
 - **Activity–asset link** — the many-to-many relation between an activity and the assets it uses. Assets are linked here rather than held in the activity's blob, because they are owned by the assets domain and tracked for usage, which a blob can't express.
@@ -65,6 +65,7 @@ An activity is just content. Its settings blob holds whatever that piece of cont
 1. **content ↔ assets** — content references the assets it uses; assets owns the stored objects. A piece of content can reference many assets, and an asset can be used by many. Content never reads bytes; assets never reads structure.
 2. **content → progress** — content owns the structure and what counts as a completable unit; progress reads that structure to track and derive a learner's progress. Content knows nothing of per-learner progress.
 3. **content → entitlements** — content owns the gating rules a type defines on its structure; entitlements reads them (with access start and progress) to resolve what a learner can access now. Content provides the rules but never evaluates per-learner access.
+4. **content → discussion** — content owns a course's discussion settings and an activity's comments state as part of the course's definition and is their only writer; discussion reads them to decide what it accepts and serves.
 
 ## Events
 

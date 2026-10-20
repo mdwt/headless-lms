@@ -10,8 +10,9 @@ the author made.
 - Owns the **comment**: its author, the activity it attaches to, what it replies
   to, its body, and its moderation state.
 - Owns **reactions** to comments and **reports** of comments.
-- Owns **discussion settings** for a course, and the **comments state** of an
-  individual activity.
+- Reads the **discussion settings** on a course and the **comments state** on an
+  activity. Content owns both as part of the course's definition and is the only
+  writer; discussion applies them.
 - Owns the **moderation lifecycle**: what state a comment is in and who may
   change it.
 - Comments attach to an activity — the leaf a learner opens. There are no
@@ -33,8 +34,9 @@ the author made.
   restore a removed one, resolve a report.
 - **Work a queue** — list what awaits a moderator across a course or the org:
   comments pending review, and comments carrying unresolved reports.
-- **Configure** — set a course's discussion settings; set or clear an activity's
-  comments state.
+- **Resolve settings** — read a course's discussion settings and an activity's
+  comments state from content and resolve what the activity accepts and serves.
+  Setting them is a content capability.
 
 ## Model
 
@@ -47,6 +49,12 @@ the author made.
   per person, per comment, per kind.
 - **Report** — one person's flag against one comment: an optional reason and
   whether it has been resolved. One per person, per comment.
+
+### Settings discussion reads
+
+Neither is a discussion entity. Both are part of the course's definition in
+content, written only by content and read by discussion.
+
 - **Discussion settings** — per course: whether discussion is enabled, whether
   replies are allowed, whether comments require review, whether reactions are
   enabled.
@@ -132,8 +140,11 @@ is read rather than copied onto every comment.
 1. **discussion → content** — discussion references the activity its comments
    attach to; content owns it and knows nothing of discussion. Which course
    an activity sits in is content's fact — discussion resolves it when scoping
-   settings or a queue and never stores a copy. Removing an activity removes
-   its comments, reactions, reports and comments state.
+   settings or a queue and never stores a copy. A course's discussion settings
+   and an activity's comments state are content's too: content defines and
+   writes them as part of the course, discussion reads them to decide what it
+   accepts and serves. Removing an activity removes its comments, reactions and
+   reports.
 2. **discussion → identity** — discussion references the person's org user
    in the org on every comment, reaction and report, and reads their role from
    it. Identity owns the org user and the role; discussion stores neither.
