@@ -40,12 +40,12 @@ The API enforces the rules: who can open, see, post, moderate and message. What 
 | **Space** | A place inside the community. The org defines each space: a name, an access rule (all members, by request or by invite), an optional capacity, the topics its posts may take, and the defaults for its posts. A community holds a flat list of spaces in the order the org sets; there are no spaces inside spaces, and every post belongs to exactly one space. The org splits the community by subject (Growth, Hiring), by who's in (a pod of six), or by what it's attached to (a cohort's course). A space also links to any number of resources of any kind, such as a course, a download or an event. Other products call these channels or circles | content. Part of the community's structure, as a module is part of a course |
 | **Access rule** | Each space's rule for who can open it. All members: every member can open it. By request: every member can see it and ask to join. By invite: only its space members can see it. A space by request or invite can limit how many space members it has | content. A setting on the space; entitlements reads it to answer who can open the space |
 | **Space member** | A person's access to one space, with a status: requested, invited or active. Exists only where access to the community isn't enough: in a space by request or invite | entitlements. Access to one space, as a grant is access to one product |
-| **Space moderator** | A member assigned to moderate one space. An assignment organizations records, like an instructor assigned to a course | organizations. A role assigned to a person, scoped to a space |
+| **Moderator** | A member who holds the moderator role. Moderates every space of the communities they are a member of | organizations. An org role beside owner, admin, instructor and student |
 | **Topic** | A subject defined on a space, such as SEO or Paid Ads. Where a space defines topics, each post has one of them, and the space's feed filters by topic | content. Defined on the space |
 | **Post** | Something a member writes in a space: a title and a body, plus anything else the app wants on it, such as a cover image | discussion |
 | **Comment** | A response to a post or another comment | discussion |
 | **Reaction** | A person putting an emoji on a post, a comment or a message. It shows on the item and does nothing else | discussion |
-| **Flag** | A person marking a post, a comment or a message for review, with an optional reason. Nothing changes on the item; the flag goes into a queue that staff or the space's moderator work through, and ends in an action: dismiss, remove, delete, lock the DM. See Flagging | discussion. The queue and its actions; who may act is asked of organizations |
+| **Flag** | A person marking a post, a comment or a message for review, with an optional reason. Nothing changes on the item; the flag goes into a queue that staff or a moderator work through, and ends in an action: dismiss, remove, delete, lock the DM. See Flagging | discussion. The queue and its actions; who may act is asked of organizations |
 | **Event** | A content type with a time and a place, such as a monthly call or a meetup. It follows the same rules as a course: opening it needs a grant, and a space can link to it | content. Events are a future content type: a plausible use case, not designed and not part of this spec |
 | **RSVP** | A person with access to an event saying they'll attend | with the event, not designed here |
 | **Feed** | A list of posts. There are two kinds. A space feed belongs to the space: its posts, filtered by topic where the space defines any; everyone who can open the space sees the same one. A member feed belongs to the person: the posts from every space that member can open, merged into one, so no two members see the same feed | discussion. The member feed asks entitlements which spaces the person can open |
@@ -99,7 +99,7 @@ Org: Maker's Lounge
 ├─ Community: Maker's Lounge
 │    ├─ Space: Show your work       all members
 │    ├─ Space: Feedback             all members                    topics: Landing page, Pricing, Product
-│    ├─ Space: Jobs                 by invite, moderated by a member
+│    ├─ Space: Jobs                 by invite
 │    └─ Space: Meetups              all members                    links: Monthly meetup
 └─ Automation: grant Maker's Lounge when a person joins the org
 DMs: on, members may message members, no request step, groups allowed
@@ -127,7 +127,7 @@ All of them are the same model: an org, its products, a community of spaces with
 Founder Collab is a business that runs a community for early stage business founders, the **org**. It sells a course, an event, a community and a bundle of all three:
 
 ```
-Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
+Org: Founder Collab                    staff: Rachel (owner), Emma (instructor); moderator: James
 ├─ Course: Fundraising 101
 ├─ Event: Monthly founders call       first Thursday, online
 ├─ Community: Founder Collab Community
@@ -137,8 +137,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
 │    │                                           links: Fundraising 101, Monthly founders call
 │    ├─ Space: Wins             all members      comments on, reactions on
 │    ├─ Space: SaaS founders    by request, at most 12 people     topics: Growth, Pricing, Other
-│    │                                           moderator: James (a member)
-│    └─ Space: Hiring           by invite        moderator: James
+│    └─ Space: Hiring           by invite
 │    DM settings: on; members may message members; first message is a request; groups on, up to 8
 ├─ Bundle: Founder Collab Membership   (the community, Fundraising 101 and the monthly founders call)
 └─ Automations
@@ -147,7 +146,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
      └─ when a post is published in Announcements → email every member
 ```
 
-1. **Rachel sets the community up.** She creates the community as a product, then its spaces. Announcements is for her and Emma to speak to everyone, so posts there are reviewed before they publish and comments are off. General gets three topics so questions can be filtered. SaaS founders is by request and capped at twelve, so it stays small; she assigns James, a long-time member, as moderator. Hiring is by invite: nobody sees it unless they're invited. She turns DMs on, with a first message as a request so nobody can be cold-messaged, and allows group chats. She puts the community, the course and the monthly call in one bundle and sells that as the membership.
+1. **Rachel sets the community up.** She creates the community as a product, then its spaces. Announcements is for her and Emma to speak to everyone, so posts there are reviewed before they publish and comments are off. General gets three topics so questions can be filtered. SaaS founders is by request and capped at twelve, so it stays small; she gives James, a long-time member, the moderator role. Hiring is by invite: nobody sees it unless they're invited. She turns DMs on, with a first message as a request so nobody can be cold-messaged, and allows group chats. She puts the community, the course and the monthly call in one bundle and sells that as the membership.
 2. **Sarah buys the Founder Collab Membership and is granted it.** The grant is to the bundle, so she now has access to the community, the course and the monthly call. Access to the community makes her a member. The welcome automation fires and emails her. She fills in her profile: name, a photo, one line about her company. That profile is what every other member sees of her.
 3. **She opens the community.** Her member feed is empty of her own posts but already full: the posts from every space she can open, newest first. She can open Announcements, Introductions, General and Wins, because every member can. SaaS founders is listed with a Request to join button and a note that it has 11 of 12 people. Hiring doesn't appear at all. The directory shows her 240 members and two staff, Rachel and Emma, each with their role.
 4. **She posts in Introductions.** A title, a body, a photo of her product. Introductions defines no topics, so the post has none. It publishes immediately, because Introductions doesn't review posts. Six members react to it and three comment; one comment gets its own comments. The post is in the Introductions space feed and in every member's own feed.
@@ -156,7 +155,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
 7. **She requests to join SaaS founders.** She becomes a space member there with the status requested. James sees the request, checks her profile, and approves her: her status becomes active and she's the twelfth person. The space is now full, so the next person to request it is told it's at capacity and waits. Its posts are now in her member feed, and she gets its emails.
 8. **Rachel invites her to Hiring.** Hiring is by invite, so Sarah only learns it exists when the invite arrives. She becomes a space member with the status invited; when she accepts, it's active. She can leave either space on her own; her access to the community is untouched by that.
 9. **Rachel posts an announcement.** She writes it in Announcements, pins it, and it publishes without review because she's staff. Comments are off there, but members react. The announcement automation emails all 240 members. She later unpins it when the next one goes up.
-10. **Someone posts something abusive in SaaS founders.** Two members flag it, one with a reason. Nothing changes on the post. The flags land in SaaS founders' queue, which James and the staff see. James removes the post: it disappears for members and the flags are resolved as removed, with who flagged and who acted kept. Rachel could have done the same; staff moderate every space, James only the two he's assigned to.
+10. **Someone posts something abusive in SaaS founders.** Two members flag it, one with a reason. Nothing changes on the post. The flags land in SaaS founders' queue, which James and the staff see. James removes the post: it disappears for members and the flags are resolved as removed, with who flagged and who acted kept. Rachel could have done the same; staff and moderators moderate every space.
 11. **James locks a heated thread.** A post in SaaS founders turns into an argument. He closes its comments: what's there stays, nothing new can be added. He doesn't remove it, so it stays in the feed.
 12. **General links to the course and the monthly call.** Sarah opens Fundraising 101 from General; her grant came with the bundle. She RSVPs to the next call from the same place and later attends. What the event records of her RSVP and attendance belongs to the event type, which is not designed here. A member who bought the community alone sees both links but can open neither.
 13. **Emma posts an announcement in General.** She has no grant to the community; staff post anywhere, as they comment on any course. She appears in the directory as staff, not as a member.
@@ -172,7 +171,7 @@ Headless LMS follows Domain-Driven Design and a hexagonal architecture, ports an
 
 ### organizations: the org, its people and their roles
 
-Owns the org as a tenant and every person's place in it. It defines the roles and assigns them to people: owner, admin, instructor and student today, and for community, moderator. A role can be scoped: an instructor to a course, a moderator to a space. Member is not a role: anyone with a grant to the community is a member, whatever their role. In Founder Collab, Rachel is the owner, Emma an instructor, Sarah a student, and James a student who is also moderator of SaaS founders and Hiring; Sarah and James are members because they hold a grant to the community. When discussion needs to know whether James may remove a post in SaaS founders, it asks organizations.
+Owns the org as a tenant and every person's place in it. It defines the roles and assigns them to people: owner, admin, instructor and student today, and for community, moderator. A role can be scoped: an instructor to a course. Member is not a role: anyone with a grant to the community is a member, whatever their role. In Founder Collab, Rachel is the owner, Emma an instructor, Sarah a student, and James a moderator; Sarah and James are members because they hold a grant to the community. When discussion needs to know whether James may remove a post in SaaS founders, it asks organizations.
 
 ### identity: who a person is
 
@@ -214,11 +213,11 @@ A space is a place inside the community where members post. The org defines each
 
 A community holds a flat list of spaces in the order the org sets. There are no spaces inside spaces. Every post belongs to exactly one space, and each space has its own feed.
 
-The access rule decides who can open the space. All members: every member opens it. By request: every member sees it and asks to join; staff or the space's moderator approve. By invite: only invited people see it; staff or the space's moderator invite. A space by request or by invite can cap how many space members it has. Entitlements records each person's place in such a space as a space member with a status: requested, invited or active. A space for all members has no space members; the grant to the community is enough.
+The access rule decides who can open the space. All members: every member opens it. By request: every member sees it and asks to join; staff or a moderator approve. By invite: only invited people see it; staff or a moderator invite. A space by request or by invite can cap how many space members it has. Entitlements records each person's place in such a space as a space member with a status: requested, invited or active. A space for all members has no space members; the grant to the community is enough.
 
 A space links to any number of resources: a course, a download, an event. A link shows the resource in the space. Opening it needs a grant to it; a link never grants access.
 
-Organizations assigns a member as the space's moderator. The moderator reviews, pins and removes posts in that space and works its flag queue.
+A moderator is a member who holds the moderator role, an org role organizations defines beside owner, admin, instructor and student. A moderator reviews, pins and removes posts in every space of the community and works its flag queues.
 
 A space sets the defaults for its posts: whether comments and reactions are on, and whether posts are reviewed before they're published. The org sets them on the space, content owns them, and discussion reads them to enforce them. A post can override those defaults. It can also be pinned or have its comments closed, keeping existing comments but allowing no new ones.
 
@@ -232,11 +231,11 @@ They're called topics because courses already have a category, and the automatio
 
 A post is user content (discussion entity) with an author, the space it's in, a title, a body, a topic where the space defines them, and a state. A post is rich content, and can optionally have comments. Comments on a post are the same comments an activity has: a comment's target is an activity or a post.
 
-A post has one status: **draft**, **scheduled**, **awaiting review**, **published** or **removed**. The author saves a draft and submits it, or sets a time, which makes the post scheduled. Submission moves the post to awaiting review if the space reviews posts, otherwise to published. Staff or the space's moderator move a published post to removed. Discussion stores the status and the scheduled time. At the scheduled time, automations fires a time trigger that submits the post through discussion, which handles it like any other submission. Automations also notifies people about a published post.
+A post has one status: **draft**, **scheduled**, **awaiting review**, **published** or **removed**. The author saves a draft and submits it, or sets a time, which makes the post scheduled. Submission moves the post to awaiting review if the space reviews posts, otherwise to published. Staff or a moderator move a published post to removed. Discussion stores the status and the scheduled time. At the scheduled time, automations fires a time trigger that submits the post through discussion, which handles it like any other submission. Automations also notifies people about a published post.
 
 A member can follow a post to hear about new comments, and bookmark it to come back to. Discussion owns both, as it owns reactions: a member's state on a post, dropped when the post is removed.
 
-Authors manage their own drafts and schedules. Staff and the space's moderator pin posts, close comments and turn reactions off, as they remove posts. Discussion owns all of it; automations tells followers about new comments.
+Authors manage their own drafts and schedules. Staff and moderators pin posts, close comments and turn reactions off, as they remove posts. Discussion owns all of it; automations tells followers about new comments.
 
 ## Direct messages
 
@@ -288,9 +287,9 @@ A flag is how a member tells staff something needs looking at. It works the same
 
 **How.** Flag the item, with an optional reason. Nothing visible changes: the item stays published, the flagger is told nothing, and nobody is notified unless an automation does it.
 
-**Who sees it.** Staff, and for a post or comment also that space's moderator. Flags sit in a queue: one per space for posts and comments, one per community for messages. The queue lists each item with its unresolved flags and their reasons; for a message, the moderator sees the DM it's in. Only the people in a DM read it otherwise.
+**Who sees it.** Staff, and for a post or comment also moderators. Flags sit in a queue: one per space for posts and comments, one per community for messages. The queue lists each item with its unresolved flags and their reasons; for a message, the moderator sees the DM it's in. Only the people in a DM read it otherwise.
 
-**Who acts.** Staff or the space's moderator for a post or comment; staff only for a message.
+**Who acts.** Staff or a moderator for a post or comment; staff only for a message.
 
 **What they do.** Dismiss, or remove the post or comment, or delete the message. For a message, also lock the DM. Locking a DM stops everyone in it from sending; what is there stays readable. Acting on the item resolves its flags. A flag never changes the item on its own; only a moderator's action does.
 

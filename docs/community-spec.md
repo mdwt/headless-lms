@@ -38,7 +38,7 @@ Org: Maker's Lounge
 ├─ Community: Maker's Lounge
 │    ├─ Space: Show your work       all members
 │    ├─ Space: Feedback             all members                    topics: Landing page, Pricing, Product
-│    ├─ Space: Jobs                 by invite, moderated by a member
+│    ├─ Space: Jobs                 by invite
 │    └─ Space: Meetups              all members                    links: Monthly meetup
 └─ Automation: grant Maker's Lounge when a person joins the org
 DMs: on, members may message members, no request step, group chats allowed
@@ -57,10 +57,10 @@ Org: Leadership Circle
 DMs: on, members may message staff only, group chats off
 ```
 
-**Founder Collab.** This is the reference use case. The exploration document walks through it in eighteen steps: Rachel is the owner, Emma is an instructor, Sarah and James are members, James moderates two spaces, and Tom holds only the course. The tables, events and emails in this document are checked against those steps.
+**Founder Collab.** This is the reference use case. The exploration document walks through it in eighteen steps: Rachel is the owner, Emma is an instructor, Sarah and James are members, James holds the moderator role, and Tom holds only the course. The tables, events and emails in this document are checked against those steps.
 
 ```
-Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
+Org: Founder Collab                    staff: Rachel (owner), Emma (instructor); moderator: James
 ├─ Course: Fundraising 101
 ├─ Event: Monthly founders call       (future content type)
 ├─ Community: Founder Collab Community
@@ -70,8 +70,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor)
 │    │                                           links: Fundraising 101, Monthly founders call
 │    ├─ Space: Wins             all members      comments on, reactions on
 │    ├─ Space: SaaS founders    by request, at most 12 people     topics: Growth, Pricing, Other
-│    │                                           moderator: James (a member)
-│    └─ Space: Hiring           by invite        moderator: James
+│    └─ Space: Hiring           by invite
 │    DM settings: on; members may message members; first message is a request; group chats on, up to 8
 ├─ Bundle: Founder Collab Membership   (the community, Fundraising 101 and the monthly founders call)
 └─ Automations
@@ -97,7 +96,7 @@ This section lists every term used in this document with the context that owns i
 | Member | entitlements | Not a record and not a role: anyone holding a grant to the community |
 | Space member | entitlements | A grant to one space, held on top of the grant to the community; exists only for a by-request or by-invite space, with a status: requested, invited or active |
 | Staff | organizations | Owner, admin, instructor; open and moderate everything without a grant |
-| Space moderator | organizations | The moderator role, held for one space; organizations stores who holds it |
+| Moderator | organizations | The moderator org role; a member who holds it moderates every space of the communities they hold a grant to |
 | Profile | identity | What others see of a person |
 | Post | discussion | What a member writes in a space: title, body, topic, status, extra fields |
 | Comment | discussion | The existing comment, now targeting an activity or a post |
@@ -118,7 +117,7 @@ This section lists every term used in this document with the context that owns i
 
 ## Data model
 
-This section specifies the database tables. The feature adds eighteen tables, changes three existing tables and renames one. The section has two parts. Part 1 covers the structure of a community and access to it, in the content, organizations, entitlements and identity contexts. Part 2 covers what members write, in the discussion context. Each part starts with a diagram. Each table then has a description of its purpose and the SQL that creates it.
+This section specifies the database tables. The feature adds seventeen tables, changes three existing tables and renames one. The section has two parts. Part 1 covers the structure of a community and access to it, in the content, organizations, entitlements and identity contexts. Part 2 covers what members write, in the discussion context. Each part starts with a diagram. Each table then has a description of its purpose and the SQL that creates it.
 
 All tables follow the conventions of the existing schema in `adapters/db/src/schema`. Every row carries `org_id`, and the primary key is `(org_id, id)`. Ids are text values made of a prefix and a KSUID, for example `spc_2HkY…`. Every table has `created_at` and `updated_at`. Enum columns are `text`; the allowed values are enforced in application code and are listed in a comment in the SQL. Foreign keys between org-owned tables include `org_id` on both sides. A foreign key cascades on delete where the child row is part of the parent. It does not cascade where it references a row owned by another context, such as a file in assets. There is no soft delete: a removed post keeps its row with status `removed`, as a removed comment does today.
 
@@ -250,27 +249,9 @@ create table space_links (
 
 The `bundles` and `bundle_items` tables do not change. A bundle holds a community by its registry id.
 
-#### space\_moderators
+#### org\_users
 
-The `space_moderators` table records that an org user moderates a space. It holds the moderator role. Moderator is a role held for one space, and org\_users holds one org-wide role per person, so the moderator role is stored here with the space it applies to. The person's org-wide role does not change. The route guard reads this table once per request to build the actor, as the security section specifies. A row is deleted when its space or its org user is deleted.
-
-```sql
-create table space_moderators (
-  org_id       text not null references organizations(id),
-  org_user_id  text not null,
-  space_id     text not null,
-  assigned_by  text not null,
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now(),
-  primary key (org_id, org_user_id, space_id),
-  foreign key (org_id, org_user_id) references org_users(org_id, id) on delete cascade,
-  foreign key (org_id, space_id)    references spaces(org_id, id)    on delete cascade,
-  foreign key (org_id, assigned_by) references org_users(org_id, id)
-);
-create index space_moderators_space_idx on space_moderators (org_id, space_id);
-```
-
-The org-wide roles stay `owner`, `admin`, `instructor`, `student`. Moderator is a role held for one space; it is stored in `space_moderators`, not on `org_users`. Member is not a role. The `org_users`, `invites` and `users` tables do not change.
+The `org_users` table does not change. Its `role` column accepts a fifth value, `moderator`, beside `owner`, `admin`, `instructor` and `student`. The allowed values are enforced in application code, as they are for the four roles today, so no migration touches the table. A moderator is an org user like a student: a row in `org_users` with no Better Auth membership, who holds a grant to each community they take part in. The role carries moderation rights across the org, defined in organizations' authorization matrix, and no table records what a moderator moderates. Member is not a role. The `invites` and `users` tables do not change; an invite carries the moderator role as it carries any other.
 
 #### entitlements
 
@@ -343,7 +324,7 @@ alter table comment_flags add constraint comment_flags_resolved_check
 
 #### posts
 
-The `posts` table holds one row per post. A post has an author, a space, a title, a body, an optional topic and a status. The status values are `draft`, `scheduled`, `pending`, `published` and `removed`. `pending` means awaiting review; it is the value `comments.status` uses for the same state. A post moves from `draft` or `scheduled` to `pending` when the space requires review and the author is not staff, and to `published` otherwise. Staff or the space's moderator move a published post to `removed`.
+The `posts` table holds one row per post. A post has an author, a space, a title, a body, an optional topic and a status. The status values are `draft`, `scheduled`, `pending`, `published` and `removed`. `pending` means awaiting review; it is the value `comments.status` uses for the same state. A post moves from `draft` or `scheduled` to `pending` when the space requires review and the author is not staff, and to `published` otherwise. Staff or a moderator move a published post to `removed`.
 
 A post carries three per-post overrides: `pinned`, `comments_closed` and `reactions_enabled`, where null means the space default applies. The `extra` column holds application-defined fields, such as a cover image asset id. A removed post keeps its row and its comments.
 
@@ -601,7 +582,7 @@ The schema changes ship as one Drizzle migration, generated after all schema fil
 
 ### Delete behaviour
 
-Deleting a community deletes its registry row. The cascade removes the community row, its spaces, and from the spaces the topics, links, space grants, moderator assignments and posts; from the posts the comments, reactions, flags, follows and bookmarks; from the community the chats, chat users, messages, message reactions, message flags and attachment links; and every grant to the community. Deleting an org user deletes their grants, including space grants, their moderator assignments, chat user rows and blocks. Their posts, comments and messages are kept under their org user id. Files in assets are not deleted by any cascade; a file must be unlinked before assets can delete it.
+Deleting a community deletes its registry row. The cascade removes the community row, its spaces, and from the spaces the topics, links, space grants and posts; from the posts the comments, reactions, flags, follows and bookmarks; from the community the chats, chat users, messages, message reactions, message flags and attachment links; and every grant to the community. Deleting an org user deletes their grants, including space grants, their chat user rows and blocks. Their posts, comments and messages are kept under their org user id. Files in assets are not deleted by any cascade; a file must be unlinked before assets can delete it.
 
 ## Ports and adapters
 
@@ -613,7 +594,7 @@ The diagram shows the path of a community request. The route guard authenticates
 
 ### Actor
 
-The actor identifies who is performing an operation. Today discussion defines it with two facts: the org user id and the org role. It moves to the shared core so that every context reads the same actor, and it gains a third fact: the spaces the person moderates. The route guard fills that on every request by reading the moderator assignments through organizations. The value is not stored on any row. When a moderator assignment is removed, the person loses the moderator permissions on their next request.
+The actor identifies who is performing an operation. Today discussion defines it with two facts: the org user id and the org role. It moves to the shared core so that every context reads the same actor. It gains no new fact: a moderator is recognised by the role, which may now be `moderator`. When a person's role is changed, their permissions change on their next request.
 
 ### Schedule triggers
 
@@ -639,9 +620,9 @@ Content serves one reader to other contexts. It returns one space (community id,
 
 ### organizations
 
-Organizations owns roles. Community adds one role, moderator, which is held for a specific space rather than across the org. An owner or admin makes an org user the moderator of a space, and the person keeps their org role alongside it.
+Organizations owns roles. Community adds one, moderator, beside owner, admin, instructor and student. It is an org-wide role like the other four: one person holds one role, and a moderator moderates every space of every community they hold a grant to. It is not a staff role; a moderator does not reach the back office.
 
-Owners and admins give and remove this role (`manage_users`), and organizations lists who holds it for each space. Organizations also answers, for one org user, which spaces they hold the moderator role for. The route guard asks this once per request and passes the answer into core together with the caller's org user id and org-wide role. What a moderator may do in a space is decided by the context that owns the operation; organizations only records who holds the role.
+Owners and admins give and remove the role through the existing role reassignment (`manage_users`). Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator. What each moderation operation requires is decided by the context that owns the operation against the actor's role, as it is for every operation today. Organizations stores nothing for the role beyond `org_users.role`.
 
 ### entitlements
 
@@ -649,7 +630,7 @@ Entitlements already answers whether an org user holds an active grant to a regi
 
 Entitlements gains the space grant operations: request to join, invite, accept an invitation, approve, decline, leave, remove, and list a space's grants. They are grant operations on the existing repository and write scope, and they emit the existing entitlement events. Capacity is enforced inside approve and accept under a row lock, as the data model section specifies.
 
-Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The rule for opening a space is defined here and nowhere else: an `all_members` space requires a grant to the community; a `by_request` or `by_invite` space requires, on top of that, a space grant with status `active`; staff and the space's moderators pass without either. To evaluate the rule, entitlements reads the space through content's reader.
+Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The rule for opening a space is defined here and nowhere else: an `all_members` space requires a grant to the community; a `by_request` or `by_invite` space requires, on top of that, a space grant with status `active`; staff pass without either, and a moderator passes the space check but not the community check, so a moderator who holds a grant to the community opens every space in it. To evaluate the rule, entitlements reads the space through content's reader.
 
 ### discussion
 
@@ -667,7 +648,7 @@ Reporting has a learner-facing module, `reporting/learn`, which composes reads a
 
 ### Adapters
 
-The database adapter gains the schema files specified in the data model section and one repository per new aggregate: posts, chats and profiles. The content, organizations and entitlements repositories are extended for communities, spaces, topics, links, moderators and space grants. Each repository has the existing structure: a constructor that takes the database executor and a logger, and the shared error translation. The inline automation engine in the defaults adapter gains a timer for schedule triggers; the Hatchet engine registers them as crons. The email templates adapter gains the templates listed in the emails section. The auth adapter, the workflow adapter and the email transport adapters do not change.
+The database adapter gains the schema files specified in the data model section and one repository per new aggregate: posts, chats and profiles. The content, organizations and entitlements repositories are extended for communities, spaces, topics, links and space grants. Each repository has the existing structure: a constructor that takes the database executor and a logger, and the shared error translation. The inline automation engine in the defaults adapter gains a timer for schedule triggers; the Hatchet engine registers them as crons. The email templates adapter gains the templates listed in the emails section. The auth adapter, the workflow adapter and the email transport adapters do not change.
 
 ### Wiring
 
@@ -675,11 +656,11 @@ The composition root in `packages/server/src/app/container.ts` wires the new ser
 
 ### HTTP routes
 
-The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links, DM settings and moderators; they use `resolveScope`. Member routes under `/api/learn/communities` and `/api/learn/chats` cover feeds, posts, comments, space grants, the directory and chats; they use `requireOrgSession` and pass the org user as the actor. Moderator actions use the member routes; core decides from the actor's moderated spaces whether the caller may perform them. Every handler consists of a schema and one core call.
+The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links and DM settings; they use `resolveScope`. The moderator role is given through the existing org user role route. Member routes under `/api/learn/communities` and `/api/learn/chats` cover feeds, posts, comments, space grants, the directory and chats; they use `requireOrgSession` and pass the org user as the actor. Moderator actions use the member routes; core decides from the actor's role whether the caller may perform them. Every handler consists of a schema and one core call.
 
 ## Domain events
 
-This section specifies the domain events the feature adds. A domain event is a record that something happened in a context, such as a post being published or a grant expiring. The feature adds twenty-one events, extends the data of the four comment events with `postId` and of the four entitlement events with `spaceId`, and renames none. All of them are defined, stored and delivered in the same way as the existing events, and the event pipeline does not change. The section first describes the pipeline, then lists the events by owning context with when each fires, who causes it, what it carries, and whether it may leave the system.
+This section specifies the domain events the feature adds. A domain event is a record that something happened in a context, such as a post being published or a grant expiring. The feature adds twenty events, extends the data of the four comment events with `postId` and of the four entitlement events with `spaceId`, and renames none. All of them are defined, stored and delivered in the same way as the existing events, and the event pipeline does not change. The section first describes the pipeline, then lists the events by owning context with when each fires, who causes it, what it carries, and whether it may leave the system.
 
 ![From a submitted post to an email](diagrams/event-flow-published-post.png)
 
@@ -711,10 +692,11 @@ The community's events follow the per-type pattern of the existing course and do
 
 ### organizations
 
+Organizations adds one event, `organization.user.updated`. No event fires today when an org user's role is changed; `organization.user.linked` carries the role at the time of linking only. Giving someone the moderator role is a role change, so this event is what the You are now a moderator email listens to.
+
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
-| `organization.role.assigned` | an org user is given the moderator role for a space | owner, admin | `{ orgUserId, role, spaceId, assignedBy }` | yes |
-| `organization.role.unassigned` | the moderator role for a space is removed, by hand or by the space's deletion | owner, admin, cascade | `{ orgUserId, role, spaceId }` | yes |
+| `organization.user.updated` | an org user's role is changed | owner, admin | org user | yes |
 
 ### entitlements
 
@@ -777,7 +759,7 @@ This section specifies the changes to the automations context and the automation
 
 **`sendEmail` audience derivation.** Each new template declares which events it derives from and who receives it; the table in the emails section is that registry. A derivation returns zero or more recipients, so "email the space's members" is one action, not one per member. Recipients who muted the thing or blocked the sender are dropped inside the derivation, read from discussion.
 
-**Default automations.** `automations` gains `source text enum system, user` (default `user`). When a community is created, content emits `content.community.created` and a subscriber in automations seeds the system automations for that community (filter on `communityId`), enabled. They appear in the dashboard, can be disabled or have their actions changed, and cannot be deleted. The org-wide ones (`accessGranted`, `accessRevoked`) are seeded on `organization.created`.
+**Default automations.** `automations` gains `source text enum system, user` (default `user`). When a community is created, content emits `content.community.created` and a subscriber in automations seeds the system automations for that community (filter on `communityId`), enabled. They appear in the dashboard, can be disabled or have their actions changed, and cannot be deleted. The org-wide ones (`accessGranted`, `accessRevoked` and You are now a moderator) are seeded on `organization.created`.
 
 **Digest.** A digest email summarises the activity a member has not seen since the previous digest. It runs on a schedule trigger: the Digest system automation calls discussion's send digest operation, which emits `discussion.digest.due { communityId, period }` once per community per period, and a default automation sends the digest template from that event. This event has no actor and is specified here rather than in the events section.
 
@@ -793,17 +775,18 @@ This section specifies the changes to the automations context and the automation
 | Your post was removed | `discussion.post.removed` by someone else | `communityId` | send the Your post was removed email to the author |
 | New comment on a post you follow | `discussion.comment.published` with `postId` | `communityId` | send the New comment on a post you follow email to followers and the author |
 | Reply to your comment | `discussion.comment.published` with `parentId` | `communityId` | send the Reply to your comment email to the parent's author |
-| Post awaiting review | `discussion.post.created` or `discussion.post.updated` with status `pending` | `communityId` | send the Post awaiting review email to staff and the space's moderators |
-| Join request | `entitlement.created` with `spaceId`, status `requested` | none; the derivation resolves the space's community | send the Join request email to staff and the space's moderators |
+| Post awaiting review | `discussion.post.created` or `discussion.post.updated` with status `pending` | `communityId` | send the Post awaiting review email to staff and the community's moderators |
+| Join request | `entitlement.created` with `spaceId`, status `requested` | none; the derivation resolves the space's community | send the Join request email to staff and the community's moderators |
 | Request approved | `entitlement.updated` with `spaceId`, status `active` | none; the derivation resolves the space's community | send the Request approved email to the member |
 | Invited to a space | `entitlement.created` with `spaceId`, status `invited` | none; the derivation resolves the space's community | send the Invited to a space email to the member |
 | New message | `discussion.message.sent` | `communityId` | send the New message email to participants not muted, batched: one email per chat per recipient per 15 minutes |
 | Message request | `discussion.chat.created` with status pending | `communityId` | send the Message request email to the recipient |
 | Added to a group chat | `discussion.chat.participant.added` | `communityId` | send the Added to a group chat email to the person |
-| Something was flagged | `discussion.post.reported`, `discussion.comment.reported` | `communityId` | send the Something was flagged email to staff and that space's moderators |
+| Something was flagged | `discussion.post.reported`, `discussion.comment.reported` | `communityId` | send the Something was flagged email to staff and the community's moderators |
 | A message was flagged | `discussion.message.reported` | `communityId` | send the A message was flagged email to staff |
-| You are now a moderator | `organization.role.assigned` with role `moderator` | `communityId` | send the You are now a moderator email to the person |
 | Digest | `discussion.digest.due` | `communityId` | send the Digest email to members with unread activity |
+
+You are now a moderator is org-wide rather than per community, because the role is. It triggers on `organization.user.updated` with role `moderator`, has no filter, and sends the You are now a moderator email to the person.
 
 "Batched" for new messages is the one place an action needs state: the derivation checks `automation_runs` for a completed New message run to the same recipient for the same chat in the last 15 minutes and skips. No new table.
 
@@ -848,16 +831,16 @@ The set of templates is derived from the emails that Circle, Skool, Mighty Netwo
 | Message request | a DM is started with the person and the settings make it a request | the recipient | senderName, first message excerpt | the request |
 | New message | a message arrives in a chat the person has not muted; one per chat per 15 minutes | participants except the sender | senderName, chatTitle, excerpt | the chat |
 | Added to a group chat | the person is added to a group chat | the person | adderName, participant names | the group chat |
-| You are now a moderator | the person is made a space moderator | the person | spaceName | the space's queue |
+| You are now a moderator | the person is given the moderator role | the person | the communities the person holds a grant to | the community |
 | Digest | the digest period ends and the person has unread activity | each member with activity | new posts per space, new comments on followed posts, unread chats | the community |
 
 ### To staff and moderators
 
 | Email | Sent when | To | Params | Link |
 | --- | --- | --- | --- | --- |
-| Post awaiting review | a post lands in review | staff and the space's moderators | spaceName, postTitle, authorName | the space queue |
-| Join request | a member requests a by-request space | staff and the space's moderators | spaceName, memberName, seats left | the request |
-| Something was flagged | a post or comment is flagged; one per flag | staff and the space's moderators | spaceName, item excerpt, reason | the space queue |
+| Post awaiting review | a post lands in review | staff and the community's moderators | spaceName, postTitle, authorName | the space queue |
+| Join request | a member requests a by-request space | staff and the community's moderators | spaceName, memberName, seats left | the request |
+| Something was flagged | a post or comment is flagged; one per flag | staff and the community's moderators | spaceName, item excerpt, reason | the space queue |
 | A message was flagged | a message is flagged | staff only | reason | the community queue |
 
 ### Existing templates that stay
@@ -879,7 +862,7 @@ A per-member email preference, which emails a member receives and whether they r
 
 ## Security and auth
 
-This section specifies authentication and authorization for the community. Authentication does not change: a member authenticates with a Better Auth session cookie, and the tenant is the session's active organization. The feature adds one role that is held for a single space, the space moderator, and the authorization rules the core applies to community operations.
+This section specifies authentication and authorization for the community. Authentication does not change: a member authenticates with a Better Auth session cookie, and the tenant is the session's active organization. The feature adds one org role, moderator, and the authorization rules the core applies to community operations.
 
 ### What exists today
 
@@ -891,39 +874,39 @@ This section specifies authentication and authorization for the community. Authe
 
 ### What community adds
 
-**A shared actor.** Discussion's actor moves to the shared core and gains the spaces the person moderates, so every context that authorizes a community operation reads the same three facts: the org user id, the org role, and the moderated spaces. The route guard fills the moderated spaces from organizations on every request. They are never stored on a post, comment or message.
+**A shared actor.** Discussion's actor moves to the shared core, so every context that authorizes a community operation reads the same two facts: the org user id and the org role. Nothing is added to it; a moderator is recognised by the role. Core's current rule that anything but `student` is staff is replaced by the staff role list organizations already defines, since `moderator` is not staff.
 
 **One route guard per surface.**
 
 - Member-facing community routes (`/api/learn/communities/*` and `/api/learn/chats/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
-- Staff-facing routes (set up a community, its spaces, DM settings, assign moderators, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
+- Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
 **Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The learn reader that ignores bundles is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
 
 **Who may do what.** Core enforces every row below; the route guards only authenticate.
 
-| Operation | Member (grant to the community) | Space moderator (of that space) | Staff |
+| Operation | Member (grant to the community) | Moderator (grant to the community) | Staff |
 | --- | --- | --- | --- |
 | Open a space, read its feed | if the access rule admits them | yes | yes |
-| Request to join, accept an invite, leave a space | yes | yes | n/a |
+| Request to join, accept an invite, leave a space | yes | n/a | n/a |
 | Approve a request, invite, remove a space member | no | yes | yes |
 | Post in a space | if they can open it | yes | yes, publishes without review |
 | Edit own post or comment | author only | author only | author only |
-| Remove a post or comment | own only | any in that space | any |
-| Pin, close comments, turn reactions off | no | in that space | yes |
-| Review a post awaiting review | no | in that space | yes |
+| Remove a post or comment | own only | any | any |
+| Pin, close comments, turn reactions off | no | yes | yes |
+| Review a post awaiting review | no | yes | yes |
 | Flag a post, comment or message | if they can see it | yes | yes |
-| Work a space's flag queue | no | that space | yes |
+| Work a space's flag queue | no | yes | yes |
 | Work the community's message flag queue | no | no | yes |
 | Start a DM or a group chat, add to a group chat | per the DM settings; everyone involved must be a member or staff | same | per the DM settings |
 | Read a chat | participants only | participants only | only a flagged message, in the queue |
 | Block, mute | own only | own only | own only |
 | Lock a chat | no | no | yes |
 | Set up the community, spaces, topics, links, post defaults, DM settings | no | no | owner, admin |
-| Assign or remove a space moderator | no | no | owner, admin |
+| Give or remove the moderator role | no | no | owner, admin |
 | View analytics | no | no | yes |
 
-Instructors count as staff for moderation and posting, as they do for course comments today. Only owner and admin configure the community and assign moderators, which matches the `manage_org_settings` and `manage_users` permissions in the organizations matrix.
+Instructors count as staff for moderation and posting, as they do for course comments today. Only owner and admin configure the community and give the moderator role, which matches the `manage_org_settings` and `manage_users` permissions in the organizations matrix.
 
 **Privacy rules core enforces.**
 
@@ -933,7 +916,7 @@ Instructors count as staff for moderation and posting, as they do for course com
 - The directory is served only to members and staff of that community.
 - A blocked person is not told they are blocked; sends fail on their side as an ordinary refusal.
 
-**Moderator is organizations' first role held for one resource.** Today no role is held for a single resource; the `instructor` course scope is noted in the matrix as `assigned` but has no store. Community stores the moderator role for a space in the `space_moderators` table in organizations (data model section) and emits `organization.role.assigned` and `organization.role.unassigned` when it is given or removed. A moderator keeps their org role (`student`) and their grant; the moderator role is held alongside it, for one space. Course-scoped instructors can use the same pattern later.
+**Moderator is a fifth org role, not a table.** `org_users.role` gains `moderator`. It is held org-wide like the other four roles, is not a staff role, and uses the member routes. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator; a moderator consumes content through a grant, as a student does. Giving and removing the role is the existing role reassignment under `manage_users` and emits `organization.user.updated`. No table records what a moderator moderates: it is every space of every community they hold a grant to.
 
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 

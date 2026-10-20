@@ -23,12 +23,13 @@ Better Auth's **organization plugin** is the source of truth for organizations a
 
 ## Roles
 
-Four roles: `owner | admin | instructor | student`. A role answers two questions — what an org user can do, and over which resources.
+Five roles: `owner | admin | instructor | student | moderator`. A role answers two questions — what an org user can do, and over which resources.
 
 - **Owner** — full control, including transferring ownership. Org-global. One per org.
 - **Admin** — manage courses, members, and settings. Org-global.
 - **Instructor** — create and manage courses. **Course-scoped** in principle: the role's grants are narrowed to a subset of courses rather than the whole org. Nothing records that subset today, so a narrowed grant resolves to no access.
 - **Student** — consume content. **Entitlement-scoped**: the role grants nothing on its own; what a learner may open is decided by their entitlements.
+- **Moderator** — a student who also moderates what members write in the org's communities: reviews, pins and removes posts and comments, approves requests and invites to spaces, works flag queues. Org-global for moderation, entitlement-scoped for access: they moderate every space of every community they hold a grant to.
 
 The first three are the staff roles, and only they reach the back office.
 
@@ -36,15 +37,16 @@ The first three are the staff roles, and only they reach the back office.
 
 The table-stakes permission map — the starting set, not a fixed contract.
 
-| Action                   | Owner | Admin | Instructor   | Student      |
-| ------------------------ | ----- | ----- | ------------ | ------------ |
-| Manage org / ownership   | ✓     |       |              |              |
-| Manage org settings      | ✓     | ✓     |              |              |
-| Manage members           | ✓     | ✓     |              |              |
-| Create / edit any course | ✓     | ✓     |              |              |
-| Edit assigned course     | ✓     | ✓     | ✓ (assigned) |              |
-| View student progress    | ✓     | ✓     | ✓ (assigned) |              |
-| Consume content          |       |       |              | ✓ (entitled) |
+| Action                   | Owner | Admin | Instructor   | Student      | Moderator    |
+| ------------------------ | ----- | ----- | ------------ | ------------ | ------------ |
+| Manage org / ownership   | ✓     |       |              |              |              |
+| Manage org settings      | ✓     | ✓     |              |              |              |
+| Manage members           | ✓     | ✓     |              |              |              |
+| Create / edit any course | ✓     | ✓     |              |              |              |
+| Edit assigned course     | ✓     | ✓     | ✓ (assigned) |              |              |
+| View student progress    | ✓     | ✓     | ✓ (assigned) |              |              |
+| Moderate communities     | ✓     | ✓     | ✓            |              | ✓            |
+| Consume content          |       |       |              | ✓ (entitled) | ✓ (entitled) |
 
 ## Member management
 
