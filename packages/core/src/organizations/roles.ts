@@ -11,6 +11,8 @@ export const ROLES = ['owner', 'admin', 'instructor', 'moderator', 'student'] as
 export type StaffRole = 'owner' | 'admin' | 'instructor';
 export const STAFF_ROLES = ['owner', 'admin', 'instructor'] as const satisfies readonly StaffRole[];
 
+export type TeamRole = Exclude<Role, 'student'>;
+
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);
 }

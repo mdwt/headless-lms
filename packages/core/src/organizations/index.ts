@@ -27,7 +27,7 @@ export {
   normalizeRole,
   capability,
 } from './roles.js';
-export type { Role, StaffRole, Permission, Capability } from './roles.js';
+export type { Role, StaffRole, TeamRole, Permission, Capability } from './roles.js';
 export type {
   OrganizationId,
   OrgUserId,
