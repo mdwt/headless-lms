@@ -21,6 +21,7 @@ import {
 import type { Connection as DomainConnection } from '@headless-lms/core/integrations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
+import { resolveScope } from '../scope.js';
 
 function toApi(connection: DomainConnection): Connection {
   const { credentialRef: _credentialRef, ...rest } = connection;
@@ -43,11 +44,14 @@ export async function integrationsRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const integrations = container.integrations;
   const tags = ['Integrations'];
+  const staff = async (req: FastifyRequest) => {
+    await resolveScope(container, req);
+  };
 
   r.route({
     method: 'GET',
     url: '/api/integrations/available',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listAvailableIntegrations',
       tags,
@@ -60,7 +64,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/integrations',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listConnections',
       tags,
@@ -79,7 +83,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'connectIntegration',
       tags,
@@ -100,7 +104,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'getConnection',
       tags,
@@ -124,7 +128,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'configureConnection',
       tags,
@@ -149,7 +153,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations/:id/reconnect',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'reconnectIntegration',
       tags,
@@ -174,7 +178,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations/:id/actions/:actionId',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'invokeConnectionAction',
       tags,
@@ -208,7 +212,7 @@ export async function integrationsRoutes(
   r.route({
     method: 'DELETE',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'disconnectIntegration',
       tags,

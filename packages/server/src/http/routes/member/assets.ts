@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { AssetIdParam, DownloadTicket, ErrorBody } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { UnauthorizedError } from '../../plugins/auth.js';
 import type { Container } from '@headless-lms/server';
 
 export async function memberAssetsRoutes(app: FastifyInstance, container: Container): Promise<void> {
@@ -22,9 +23,11 @@ export async function memberAssetsRoutes(app: FastifyInstance, container: Contai
       response: { 200: DownloadTicket, 401: ErrorBody, 404: ErrorBody },
     },
     handler: async (req) => {
-      // No body: the student surface never renames a download, so the asset's
-      // own filename stands.
-      const ticket = await container.assets.requestDownload(req.orgId, req.params.id);
+      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
+      if (!orgUser) {
+        throw new UnauthorizedError();
+      }
+      const ticket = await container.reporting.member.assetUrl(req.orgId, orgUser.id, req.params.id);
       if (!ticket) {
         throw new NotFoundError('Asset', req.params.id);
       }

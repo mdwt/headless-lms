@@ -1,6 +1,6 @@
 // Moderator-facing discussion routes. The learner surface (everything under
 // `/api/member`) lives in routes/member/comments.ts.
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
@@ -15,15 +15,19 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
+import { resolveScope } from '../scope.js';
 
 export async function discussionRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const discussion = container.discussion;
+  const staff = async (req: FastifyRequest) => {
+    await resolveScope(container, req);
+  };
 
   r.route({
     method: 'GET',
     url: '/api/comments',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listComments',
       tags: ['Discussion'],
@@ -39,7 +43,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'DELETE',
     url: '/api/comments/:commentId',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'moderateRemoveComment',
       tags: ['Discussion'],
@@ -56,7 +60,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'PATCH',
     url: '/api/comments/:commentId',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'publishComment',
       tags: ['Discussion'],
@@ -77,7 +81,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'DELETE',
     url: '/api/comments/:commentId/reports',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'dismissCommentReports',
       tags: ['Discussion'],
@@ -98,7 +102,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'POST',
     url: '/api/comments/:commentId/replies',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'replyToComment',
       tags: ['Discussion'],

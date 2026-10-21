@@ -1,0 +1,61 @@
+import { z } from 'zod';
+import {
+  chatSchema,
+  messageFlagResolutionSchema,
+  messageFlagSchema,
+  messageSchema,
+} from '@headless-lms/core/schemas';
+import { paginated } from './shared.js';
+
+export const Chat = chatSchema;
+export const Message = messageSchema;
+export const MessageFlag = messageFlagSchema;
+export const MessagesPage = paginated(Message);
+
+export const ChatListItem = z.object({
+  chat: Chat,
+  participantIds: z.array(z.string()),
+  lastReadMessageId: z.string().nullable(),
+  mutedUntil: z.coerce.date().nullable(),
+  unread: z.number().int(),
+});
+
+export const MessageQueue = z.object({
+  flags: z.array(MessageFlag),
+  messages: z.array(Message),
+});
+
+export const StartDirectChat = z
+  .object({
+    communityId: z.string(),
+    orgUserId: z.string(),
+    body: z.string().nullable(),
+    assetIds: z.array(z.string()).default([]),
+  })
+  .strict();
+
+export const StartGroupChat = z
+  .object({
+    communityId: z.string(),
+    orgUserIds: z.array(z.string()).min(2),
+  })
+  .strict();
+
+export const SendMessage = z
+  .object({
+    body: z.string(),
+    replyToId: z.string().nullable().default(null),
+    assetIds: z.array(z.string()).default([]),
+  })
+  .strict();
+
+export const EditMessage = z.object({ body: z.string().min(1) }).strict();
+export const MarkRead = z.object({ messageId: z.string() }).strict();
+export const MuteChat = z.object({ until: z.coerce.date() }).strict();
+export const OrgUserBody = z.object({ orgUserId: z.string() }).strict();
+export const ResolveMessageFlags = z.object({ resolution: messageFlagResolutionSchema }).strict();
+
+export const ChatIdParam = z.object({ chatId: z.string() });
+export const MessageIdParam = z.object({ messageId: z.string() });
+export const CommunityParam = z.object({ communityId: z.string() });
+export const BlockParam = z.object({ communityId: z.string(), orgUserId: z.string() });

@@ -20,6 +20,7 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
+import { resolveScope } from '../scope.js';
 
 /** Resolve the session's active org to the domain org id, or 400 and return null. */
 async function resolveOrgId(req: FastifyRequest, reply: FastifyReply): Promise<string | null> {
@@ -34,13 +35,16 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   const r = app.withTypeProvider<ZodTypeProvider>();
   const assets = container.assets;
   const tags = ['Assets'];
+  const staff = async (req: FastifyRequest) => {
+    await resolveScope(container, req);
+  };
 
   // Register an asset + get a presigned upload URL. Kept at /api/uploads as the
   // "start an upload" action; the resulting asset lives in the library below.
   r.route({
     method: 'POST',
     url: '/api/uploads',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'requestUpload',
       tags,
@@ -65,7 +69,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'POST',
     url: '/api/assets/:id/confirm',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'confirmAsset',
       tags,
@@ -89,7 +93,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'GET',
     url: '/api/assets',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listAssets',
       tags,
@@ -109,7 +113,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'GET',
     url: '/api/assets/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'getAsset',
       tags,
@@ -133,7 +137,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'POST',
     url: '/api/assets/:id/download-url',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     // Every body field is optional, so a bodyless POST is valid — the
     // generated SDK omits the body entirely when no field is set, which
     // Fastify hands to validation as `null`. Normalize before it gets there.
@@ -165,7 +169,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'DELETE',
     url: '/api/assets/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'deleteAsset',
       tags,

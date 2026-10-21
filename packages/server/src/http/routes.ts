@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Container } from '../app/container.js';
+import { communitiesRoutes } from './routes/communities.js';
 import { coursesRoutes } from './routes/courses.js';
 import { downloadsRoutes } from './routes/downloads.js';
 import { bundlesRoutes } from './routes/bundles.js';
@@ -27,6 +28,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
   app.register(async (instance) => {
     instance.addHook('onRequest', instance.requireOrgSession);
     await coursesRoutes(instance, container);
+    await communitiesRoutes(instance, container);
     await downloadsRoutes(instance, container);
     await bundlesRoutes(instance, container);
     await memberRoutes(instance, container);

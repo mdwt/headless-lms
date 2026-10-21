@@ -105,4 +105,4 @@ A type's structure changes over time — adding, removing, or reordering parts. 
 
 ## Build state
 
-The course and download types are built and **persisted**. The community type is specified with the community feature and is not built yet. Other types follow as they are implemented.
+The course and download types are built and **persisted**. The community type is built and **persisted**. Other types follow as they are implemented.
