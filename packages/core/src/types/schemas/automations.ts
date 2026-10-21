@@ -45,6 +45,7 @@ export const createAutomationInputSchema = z
     description: z.string().optional(),
     triggers: automationTriggersSchema,
     actions: z.array(automationActionSchema),
+    filter: jsonRecordSchema.nullable().optional(),
   })
   .strict();
 export type CreateAutomationInput = z.infer<typeof createAutomationInputSchema>;
@@ -80,6 +81,7 @@ export const automationActionResultSchema = z
     type: z.string().trim().min(1),
     status: z.enum(['completed', 'failed']),
     error: z.string().optional(),
+    recipients: z.array(z.string()).optional(),
   })
   .strict();
 export type AutomationActionResult = z.infer<typeof automationActionResultSchema>;

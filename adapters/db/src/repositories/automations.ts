@@ -4,7 +4,7 @@
 // column of their own in the domain type (mirrors the `Entitlement` shape) —
 // `AutomationRun` is the one exception, since it's the run's own `orgId`
 // field the service reads back off `handle`'s event.
-import { and, arrayContains, asc, desc, eq, ne, sql, type SQL } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, gte, ne, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
   Automation,
@@ -18,6 +18,7 @@ import type {
   Page,
   UpdateAutomationInput,
 } from "@headless-lms/core/automations";
+import type { ScheduledAutomation } from "@headless-lms/core/types";
 import { automations, automationRuns } from "../schema/index.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
@@ -86,6 +87,8 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
         description: input.description,
         triggers: input.triggers,
         actions: input.actions,
+        filter: input.filter ?? null,
+        source: input.source ?? "user",
       })
       .returning({ id: automations.id });
     if (!inserted) {
@@ -118,6 +121,9 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     }
     if (patch.enabled !== undefined) {
       set.enabled = patch.enabled;
+    }
+    if (patch.filter !== undefined) {
+      set.filter = patch.filter;
     }
 
     const [updated] = await this.db
@@ -168,6 +174,31 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
       .where(and(eq(automations.orgId, orgId), arrayContains(automations.triggers, [trigger])))
       .orderBy(desc(automations.createdAt));
     return rows.map(toAutomation);
+  }
+
+  async listSchedules(): Promise<ScheduledAutomation[]> {
+    const rows = await this.db
+      .select({
+        orgId: automations.orgId,
+        id: automations.id,
+        triggers: automations.triggers,
+      })
+      .from(automations)
+      .where(eq(automations.enabled, true));
+    const schedules: ScheduledAutomation[] = [];
+    for (const row of rows) {
+      for (const trigger of row.triggers) {
+        if (!trigger.startsWith("schedule:")) {
+          continue;
+        }
+        schedules.push({
+          orgId: row.orgId,
+          automationId: row.id,
+          cron: trigger.slice("schedule:".length),
+        });
+      }
+    }
+    return schedules;
   }
 }
 
@@ -344,6 +375,45 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  async recentRecipients(
+    orgId: string,
+    automationId: string,
+    chatId: string,
+    since: Date,
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        event: automationRuns.event,
+        actionResults: automationRuns.actionResults,
+      })
+      .from(automationRuns)
+      .where(
+        and(
+          eq(automationRuns.orgId, orgId),
+          eq(automationRuns.automationId, automationId),
+          eq(automationRuns.status, "completed"),
+          gte(automationRuns.finishedAt, since),
+        ),
+      );
+    const ids: string[] = [];
+    for (const row of rows) {
+      const data = row.event.data;
+      const eventChatId =
+        typeof data === "object" && data !== null && "chatId" in data
+          ? (data as { chatId?: unknown }).chatId
+          : undefined;
+      if (eventChatId !== chatId) {
+        continue;
+      }
+      for (const result of row.actionResults) {
+        if (result.recipients) {
+          ids.push(...result.recipients);
+        }
+      }
+    }
+    return [...new Set(ids)];
   }
 }
 translateDbErrors(DrizzleAutomationsRepository);

@@ -9,6 +9,14 @@ import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catal
 import { executeAction } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import {
+  emptyCommunityMail,
+  emptyScheduledWork,
+  type CommunityMailReads,
+  type GrantWriter,
+  type ScheduledWork,
+} from './community-mail.js';
+import { communitySeeds, orgSeeds, seedKey, type SeedAutomation } from './seeds.js';
+import {
   AutomationKindMismatchError,
   InvalidTriggerError,
   ReservedActionError,
@@ -43,7 +51,7 @@ import type {
   WebhookSender,
 } from './ports.js';
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
-import type { JsonValue } from '../types/index.js';
+import type { JsonValue, ScheduledAutomation } from '../types/index.js';
 import { deliverWebhookInputSchema } from '../types/schemas/index.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
@@ -64,6 +72,30 @@ function isEnabledOnlyUpdate<T extends { enabled?: boolean }>(
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function recordString(value: unknown, key: string): string | null {
+  if (typeof value !== 'object' || value === null || !(key in value)) {
+    return null;
+  }
+  const found = (value as Record<string, unknown>)[key];
+  return typeof found === 'string' ? found : null;
+}
+
+function filterMatches(filter: Record<string, JsonValue> | null, data: unknown): boolean {
+  if (filter == null) {
+    return true;
+  }
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return false;
+  }
+  const record = data as Record<string, unknown>;
+  return Object.entries(filter).every(([key, expected]) => {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+      return false;
+    }
+    return JSON.stringify(record[key]) === JSON.stringify(expected);
+  });
 }
 
 function assertAuthorableTriggers(triggers: string[]): void {
@@ -120,6 +152,9 @@ export type AutomationsServiceParams = {
   integrations: Pick<IntegrationsService, 'available'>;
   credentials: CredentialStore;
   webhooks: WebhookSender;
+  mail?: CommunityMailReads;
+  grants?: GrantWriter;
+  scheduledWork?: ScheduledWork;
   logger?: Logger;
 };
 
@@ -133,6 +168,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly integrations: Pick<IntegrationsService, 'available'>;
   private readonly credentials: CredentialStore;
   private readonly webhooks: WebhookSender;
+  private readonly mail: CommunityMailReads;
+  private readonly grants: GrantWriter;
+  private readonly scheduledWork: ScheduledWork;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -145,6 +183,13 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.integrations = params.integrations;
     this.credentials = params.credentials;
     this.webhooks = params.webhooks;
+    this.mail = params.mail ?? emptyCommunityMail;
+    this.grants = params.grants ?? {
+      grant: async () => {
+        throw new Error('grantAccess: no grant writer configured');
+      },
+    };
+    this.scheduledWork = params.scheduledWork ?? emptyScheduledWork;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -153,10 +198,74 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (event.type.startsWith('automation.')) {
       return;
     }
+    await this.seedFor(event);
     const automations = await this.safeListByTrigger(event);
-    for (const automation of automations.filter((a) => a.enabled)) {
+    for (const automation of automations) {
+      if (!automation.enabled || !filterMatches(automation.filter, event.data)) {
+        if (automation.enabled && !filterMatches(automation.filter, event.data)) {
+          this.logger.debug('automation filter skipped', {
+            orgId: event.orgId,
+            automationId: automation.id,
+            trigger: event.type,
+          });
+        }
+        continue;
+      }
       await this.dispatchOne(automation, event);
     }
+  }
+
+  private seedsFor(event: DomainEvent): SeedAutomation[] | null {
+    if (event.type === 'organization.created') {
+      return orgSeeds();
+    }
+    if (event.type !== 'content.community.created') {
+      return null;
+    }
+    const communityId = recordString(event.data, 'id');
+    if (!communityId) {
+      this.logger.error('community seed missing id', { orgId: event.orgId, eventId: event.id });
+      return null;
+    }
+    return communitySeeds(communityId);
+  }
+
+  private async seedFor(event: DomainEvent): Promise<void> {
+    const rows = this.seedsFor(event);
+    if (!rows) {
+      return;
+    }
+    await this.uow.run(async ({ automations, outbox }) => {
+      const existing = await automations.listByOrg(event.orgId);
+      const have = new Set(
+        existing.filter((row) => row.source === 'system').map((row) => seedKey(row)),
+      );
+      const missing = rows.filter((row) => !have.has(seedKey(row)));
+      if (missing.length === 0) {
+        return;
+      }
+      const created = [];
+      for (const row of missing) {
+        const inserted = await automations.insert(event.orgId, {
+          name: row.name,
+          description: row.description,
+          triggers: row.triggers,
+          actions: row.actions,
+          filter: row.filter,
+          kind: 'workflow',
+          source: 'system',
+        });
+        created.push(
+          automationEvents.automationCreated.make({ orgId: event.orgId, data: inserted }),
+        );
+      }
+      await outbox.append(created);
+      this.logger.info('system automations seeded', {
+        orgId: event.orgId,
+        trigger: event.type,
+        count: created.length,
+      });
+    });
   }
 
   private async safeListByTrigger(event: DomainEvent): Promise<Automation[]> {
@@ -272,13 +381,51 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (!action) {
       throw new Error(`automation ${d.automationId} run ${d.runId}: no action at index ${index}`);
     }
-    await executeAction(action, d.event, {
+    const recipients = await executeAction(action, d.event, {
       mailer: this.mailer,
       lookups: this.lookups,
       credentials: this.credentials,
       webhooks: this.webhooks,
+      mail: this.mail,
+      grants: this.grants,
+      scheduledWork: this.scheduledWork,
+      automationId: d.automationId,
+      actionInput: action.input,
     });
-    return { index, type: action.type, status: 'completed' };
+    this.logger.info('automation action completed', {
+      orgId: d.orgId,
+      automationId: d.automationId,
+      runId: d.runId,
+      type: action.type,
+      recipients: recipients.length,
+    });
+    return {
+      index,
+      type: action.type,
+      status: 'completed',
+      ...(recipients.length > 0 ? { recipients } : {}),
+    };
+  }
+
+  async listSchedules(): Promise<ScheduledAutomation[]> {
+    return this.repo.listSchedules();
+  }
+
+  async fireSchedule(orgId: string, automationId: string, firedAt: Date): Promise<void> {
+    const automation = await this.repo.findById(orgId, automationId);
+    if (!automation?.enabled) {
+      this.logger.debug('schedule skipped', { orgId, automationId });
+      return;
+    }
+    const event: DomainEvent = {
+      type: 'automation.schedule.fired',
+      id: `schedule_${automationId}_${firedAt.toISOString()}`,
+      orgId,
+      version: 1,
+      occurredAt: firedAt.toISOString(),
+      data: { automationId, firedAt: firedAt.toISOString() },
+    };
+    await this.dispatchOne(automation, event);
   }
 
   async finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void> {
@@ -368,6 +515,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     if (existing.kind !== 'workflow') {
       throw new AutomationKindMismatchError(id, existing.kind);
+    }
+    if (existing.source === 'system') {
+      throw new ConflictError('A system automation cannot be deleted');
     }
     const deleted = await this.uow.run(async ({ automations, outbox }) => {
       const removed = await automations.delete(orgId, id);

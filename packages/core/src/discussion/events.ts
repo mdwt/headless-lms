@@ -33,10 +33,12 @@ const publicComment = commentSchema
   })
   .strip();
 
-const publicCommentReport = commentReportSchema
+const reportedComment = commentReportSchema.extend({ communityId: idSchema.nullable() });
+const publicCommentReport = reportedComment
   .pick({
     id: true,
     orgId: true,
+    communityId: true,
     commentId: true,
     orgUserId: true,
     reason: true,
@@ -45,6 +47,7 @@ const publicCommentReport = commentReportSchema
     updatedAt: true,
   })
   .strip();
+const reportedPost = postFlagSchema.extend({ communityId: idSchema });
 
 const chatEventSchema = chatSchema.extend({
   participantIds: z.array(idSchema),
@@ -96,7 +99,7 @@ export const discussionEvents = {
   commentReported: defineEvent({
     type: 'discussion.comment.reported',
     version: 1,
-    data: commentReportSchema,
+    data: reportedComment,
     publicData: publicCommentReport,
   }),
   postCreated: defineEvent({
@@ -126,8 +129,8 @@ export const discussionEvents = {
   postReported: defineEvent({
     type: 'discussion.post.reported',
     version: 1,
-    data: postFlagSchema,
-    publicData: postFlagSchema,
+    data: reportedPost,
+    publicData: reportedPost,
   }),
   chatCreated: defineEvent({
     type: 'discussion.chat.created',
@@ -164,6 +167,12 @@ export const discussionEvents = {
     version: 1,
     data: messageFlagSchema,
     publicData: publicMessageFlag,
+  }),
+  digestDue: defineEvent({
+    type: 'discussion.digest.due',
+    version: 1,
+    data: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
+    publicData: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
   }),
 };
 

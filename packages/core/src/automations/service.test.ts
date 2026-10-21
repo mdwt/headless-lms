@@ -16,6 +16,7 @@ import type {
   AutomationRunsRepository,
   AutomationsRepository,
   AutomationsUnitOfWork,
+  NewAutomation,
   WebhookSender,
 } from './ports.js';
 import type {
@@ -133,6 +134,7 @@ function fakeRepo(over?: Partial<AutomationsRepository>): AutomationsRepository 
     findById: vi.fn().mockResolvedValue(AUTOMATION),
     listByOrg: vi.fn().mockResolvedValue([AUTOMATION]),
     listByTrigger: vi.fn().mockResolvedValue([AUTOMATION]),
+    listSchedules: vi.fn().mockResolvedValue([]),
     ...over,
   };
 }
@@ -148,6 +150,7 @@ function fakeRunsRepo(over?: Partial<AutomationRunsRepository>): AutomationRunsR
       finishedAt: new Date('2026-01-02T00:00:05Z'),
     }),
     list: vi.fn().mockResolvedValue({ rows: [RUN], total: 1, page: 1, pageSize: 20 }),
+    recentRecipients: vi.fn().mockResolvedValue([]),
     ...over,
   };
 }
@@ -263,6 +266,62 @@ afterAll(() => {
 });
 
 describe('AutomationsService.handle', () => {
+  it('skips an automation whose filter is not in the event', async () => {
+    const repo = fakeRepo({
+      listByTrigger: vi
+        .fn()
+        .mockResolvedValue([{ ...AUTOMATION, filter: { communityId: 'cmy_1' } }]),
+    });
+    const { svc, engine } = build(repo);
+    await svc.handle(ENTITLEMENT_CREATED_EVENT);
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('dispatches when every filter field equals the event data', async () => {
+    const repo = fakeRepo({
+      listByTrigger: vi.fn().mockResolvedValue([{ ...AUTOMATION, filter: { contentId: 'c1' } }]),
+    });
+    const { svc, engine } = build(repo);
+    await svc.handle(ENTITLEMENT_CREATED_EVENT);
+    expect(engine.dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('seeds the org automations once when the organization is created', async () => {
+    const stored: Automation[] = [];
+    const repo = fakeRepo({
+      listByTrigger: vi.fn().mockResolvedValue([]),
+      listByOrg: vi.fn(async () => [...stored]),
+      insert: vi.fn(async (_orgId: string, input: NewAutomation) => {
+        const row: Automation = {
+          ...AUTOMATION,
+          id: `atm_${stored.length}`,
+          name: input.name,
+          description: input.description ?? null,
+          triggers: [...input.triggers],
+          actions: input.actions,
+          filter: input.filter ?? null,
+          source: input.source ?? 'user',
+        };
+        stored.push(row);
+        return row;
+      }),
+    });
+    const { svc } = build(repo);
+    const created = {
+      type: 'organization.created',
+      version: 1,
+      id: 'evt_org',
+      orgId: 'org-1',
+      occurredAt: '2026-01-01T00:00:00Z',
+      data: { id: 'org-1' },
+    } as DomainEvent;
+    await svc.handle(created);
+    expect(stored).toHaveLength(6);
+    expect(stored.every((row) => row.source === 'system')).toBe(true);
+    await svc.handle(created);
+    expect(stored).toHaveLength(6);
+  });
+
   it("matches an enabled automation's trigger, opens a run, and dispatches it", async () => {
     const { svc, repo, runsRepo, engine, appended } = build();
     await svc.handle(ENTITLEMENT_CREATED_EVENT);
@@ -411,7 +470,12 @@ describe('AutomationsService.runAction', () => {
       ),
       0,
     );
-    expect(result).toEqual({ index: 0, type: 'sendEmail', status: 'completed' });
+    expect(result).toEqual({
+      index: 0,
+      type: 'sendEmail',
+      status: 'completed',
+      recipients: ['s1'],
+    });
     expect(mailer.send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
       contentTitle: 'Intro',
       contentId: 'c1',
@@ -672,6 +736,15 @@ describe('AutomationsService CRUD', () => {
     ]);
   });
 
+  it('refuses to delete a system automation', async () => {
+    const repo = fakeRepo({
+      findById: vi.fn().mockResolvedValue({ ...AUTOMATION, source: 'system' }),
+    });
+    const { svc } = build(repo);
+    await expect(svc.delete('org-1', 'atm_1')).rejects.toBeInstanceOf(ConflictError);
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
   it('returns false and appends nothing when deleting a missing automation', async () => {
     const { svc, append } = build(fakeRepo({ delete: vi.fn().mockResolvedValue(null) }));
     const ok = await svc.delete('org-1', 'missing');
@@ -724,6 +797,10 @@ describe('AutomationsService.availableActions', () => {
         inputSchema: expect.objectContaining({ type: 'object', required: ['template'] }),
         source: 'system',
       },
+      expect.objectContaining({ type: 'grantAccess', source: 'system' }),
+      expect.objectContaining({ type: 'publishDuePosts', source: 'system' }),
+      expect.objectContaining({ type: 'expireDueGrants', source: 'system' }),
+      expect.objectContaining({ type: 'sendDigest', source: 'system' }),
       {
         type: 'slack.send-message',
         description: 'Post a message to a channel.',
@@ -735,7 +812,13 @@ describe('AutomationsService.availableActions', () => {
 
   it('returns only the built-ins when no integrations are loaded', () => {
     const { svc } = build();
-    expect(svc.availableActions().map((a) => a.type)).toEqual(['sendEmail']);
+    expect(svc.availableActions().map((a) => a.type)).toEqual([
+      'sendEmail',
+      'grantAccess',
+      'publishDuePosts',
+      'expireDueGrants',
+      'sendDigest',
+    ]);
   });
 });
 

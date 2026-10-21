@@ -49,6 +49,7 @@ export type DiscussionServiceParams = {
   posts: Pick<PostRepository, 'find'>;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
+  communities?: { listIds(orgId: string): Promise<string[]> };
   logger?: Logger;
 };
 
@@ -59,6 +60,7 @@ export class DiscussionServiceImpl implements DiscussionService {
   private readonly posts: Pick<PostRepository, 'find'>;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
+  private readonly communities: { listIds(orgId: string): Promise<string[]> };
   private readonly logger: Logger;
 
   constructor(params: DiscussionServiceParams) {
@@ -68,6 +70,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.posts = params.posts;
     this.uow = params.uow;
     this.settings = params.settings;
+    this.communities = params.communities ?? { listIds: async () => [] };
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -666,7 +669,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       await scope.outbox.append([
         discussionEvents.commentReported.make({
           orgId,
-          data: saved,
+          data: { ...saved, communityId: comment.communityId },
           metadata: comment.postId ? { actorOrgUserId: actor.id } : undefined,
         }),
       ]);
@@ -732,5 +735,25 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   getComment(orgId: string, commentId: string): Promise<Comment | null> {
     return this.repo.findComment(orgId, commentId);
+  }
+
+  async sendDigest(orgId: string, now: Date): Promise<void> {
+    const communityIds = await this.communities.listIds(orgId);
+    if (communityIds.length === 0) {
+      this.logger.debug('no communities for digest', { orgId });
+      return;
+    }
+    const period = now.toISOString().slice(0, 10);
+    await this.uow.run(async ({ outbox }) => {
+      await outbox.append(
+        communityIds.map((communityId) =>
+          discussionEvents.digestDue.make({
+            orgId,
+            data: { communityId, period },
+          }),
+        ),
+      );
+    });
+    this.logger.info('digest due', { orgId, communities: communityIds.length, period });
   }
 }

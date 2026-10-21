@@ -6,9 +6,11 @@ import type {
   AutomationEngine,
   AutomationExecutor,
 } from "@headless-lms/core/types";
+import { startScheduleLoop } from "@headless-lms/core/automations";
 
 export class InlineAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;
+  private schedule: { stop(): void } | undefined;
 
   register(executor: AutomationExecutor): void {
     this.executor = executor;
@@ -39,7 +41,13 @@ export class InlineAutomationEngine implements AutomationEngine {
     await executor.finalize(d, results);
   }
 
-  async start(): Promise<void> {}
+  async start(): Promise<void> {
+    this.schedule?.stop();
+    this.schedule = startScheduleLoop(() => this.executor);
+  }
 
-  async stop(): Promise<void> {}
+  async stop(): Promise<void> {
+    this.schedule?.stop();
+    this.schedule = undefined;
+  }
 }

@@ -9,6 +9,7 @@ export const subject = (_ctx: TemplateContext, params: Params) =>
 const PORTAL_PATH: Record<Params["contentType"], string> = {
   course: "courses",
   download: "downloads",
+  community: "communities",
 };
 
 export default function AccessGranted({ ctx, params }: { ctx: TemplateContext; params: Params }) {
@@ -17,7 +18,11 @@ export default function AccessGranted({ ctx, params }: { ctx: TemplateContext; p
     <Layout ctx={ctx} heading={`${params.contentTitle} is ready for you`}>
       <Paragraph>You've been granted access. Jump in whenever you're ready.</Paragraph>
       <EmailButton href={href}>
-        {params.contentType === "download" ? "View download" : "Start learning"}
+        {params.contentType === "download"
+          ? "View download"
+          : params.contentType === "community"
+            ? "Open community"
+            : "Start learning"}
       </EmailButton>
     </Layout>
   );

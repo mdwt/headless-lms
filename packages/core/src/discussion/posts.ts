@@ -341,7 +341,7 @@ export class PostServiceImpl implements PostService {
   }
 
   async flag(orgId: string, postId: string, actor: Actor, reason: string): Promise<PostFlag> {
-    await this.loadVisible(orgId, actor, postId);
+    const { post } = await this.loadVisible(orgId, actor, postId);
     const now = new Date();
     const flag: PostFlag = {
       orgId,
@@ -363,7 +363,7 @@ export class PostServiceImpl implements PostService {
       await outbox.append([
         discussionEvents.postReported.make({
           orgId,
-          data: created,
+          data: { ...created, communityId: post.communityId },
           metadata: this.meta(actor),
         }),
       ]);

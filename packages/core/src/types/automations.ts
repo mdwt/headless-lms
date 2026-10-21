@@ -33,9 +33,17 @@ export interface AutomationDispatch {
   event: DomainEvent;
 }
 
+export interface ScheduledAutomation {
+  orgId: string;
+  automationId: string;
+  cron: string;
+}
+
 export interface AutomationExecutor {
   runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult>;
   finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void>;
+  listSchedules?(): Promise<ScheduledAutomation[]>;
+  fireSchedule?(orgId: string, automationId: string, firedAt: Date): Promise<void>;
 }
 
 export interface AutomationEngine {

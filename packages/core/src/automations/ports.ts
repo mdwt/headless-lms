@@ -21,6 +21,7 @@ import type {
   UpdateWebhookInput,
 } from './types.js';
 import type { CredentialStore, DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { ScheduledAutomation } from '../types/index.js';
 
 export type {
   AutomationDispatch,
@@ -31,7 +32,10 @@ export type {
   WebhookSender,
 } from '../types/index.js';
 
-export type NewAutomation = CreateAutomationInput & { kind: AutomationKind };
+export type NewAutomation = CreateAutomationInput & {
+  kind: AutomationKind;
+  source?: 'system' | 'user';
+};
 
 /** A run row before persistence assigns its id and event_id. */
 export type NewAutomationRun = Omit<AutomationRun, 'id' | 'eventId'>;
@@ -74,6 +78,8 @@ export interface AutomationsRepository {
   listByOrg(orgId: string, kind?: AutomationKind): Promise<Automation[]>;
   /** All rows whose triggers include `trigger`, enabled and disabled alike — the service filters to `enabled`. */
   listByTrigger(orgId: string, trigger: string): Promise<Automation[]>;
+  /** Enabled automations whose trigger starts with `schedule:`, one row per cron. */
+  listSchedules(): Promise<ScheduledAutomation[]>;
 }
 
 export interface AutomationRunsRepository {
@@ -96,6 +102,13 @@ export interface AutomationRunsRepository {
     automationId: string,
     query: AutomationRunsQuery,
   ): Promise<Page<AutomationRun>>;
+  /** Org user ids emailed by completed runs of this automation for this chat since `since`. */
+  recentRecipients(
+    orgId: string,
+    automationId: string,
+    chatId: string,
+    since: Date,
+  ): Promise<string[]>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

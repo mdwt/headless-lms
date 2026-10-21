@@ -10,6 +10,7 @@ import type {
   AutomationEngine,
   AutomationActionResult,
 } from "@headless-lms/core/types";
+import { startScheduleLoop } from "@headless-lms/core/automations";
 import { Hatchet } from "@hatchet-dev/typescript-sdk";
 
 const WORKFLOW_NAME = "automation-run";
@@ -59,6 +60,7 @@ export interface HatchetClientLike {
 export class HatchetAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;
   private worker: HatchetWorkerLike | undefined;
+  private schedule: { stop(): void } | undefined;
   private readonly actionTask: unknown;
   private readonly automationRunTask: RunnableTask<AutomationDispatch>;
 
@@ -101,9 +103,13 @@ export class HatchetAutomationEngine implements AutomationEngine {
     void this.worker.start().catch((err: unknown) => {
       this.logger?.error("hatchet worker stopped unexpectedly", { error: String(err) });
     });
+    this.schedule?.stop();
+    this.schedule = startScheduleLoop(() => this.executor);
   }
 
   async stop(): Promise<void> {
+    this.schedule?.stop();
+    this.schedule = undefined;
     await this.worker?.stop();
     this.worker = undefined;
   }

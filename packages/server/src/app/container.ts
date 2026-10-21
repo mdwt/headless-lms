@@ -58,7 +58,7 @@ import { AssetsServiceImpl } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
-import { registerNotificationSubscribers } from './notifications.js';
+import { communityMail, listCommunityIds } from './community-mail.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
@@ -297,8 +297,9 @@ export async function buildContainer(
     spaces: new DrizzleContentRepository(tx, contentLogger),
     outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
+  const entitlementsRepo = new DrizzleEntitlementsRepository(db, entitlementsLogger);
   const entitlements = new EntitlementsServiceImpl({
-    repo: new DrizzleEntitlementsRepository(db, entitlementsLogger),
+    repo: entitlementsRepo,
     content,
     uow: entitlementsUow,
     logger: entitlementsLogger,
@@ -317,11 +318,14 @@ export async function buildContainer(
   });
 
   const postReads = new DrizzlePostRepository(db, discussionLogger);
+  const discussionReads = new DrizzleDiscussionRepository(db, discussionLogger);
+  const chatReads = new DrizzleChatRepository(db, discussionLogger);
   const discussion = new DiscussionServiceImpl({
-    repo: new DrizzleDiscussionRepository(db, discussionLogger),
+    repo: discussionReads,
     access: entitlements,
     content: content,
     posts: postReads,
+    communities: { listIds: (orgId) => listCommunityIds(content, orgId) },
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -347,7 +351,7 @@ export async function buildContainer(
     logger: discussionLogger,
   });
   const chats = new ChatServiceImpl({
-    repo: new DrizzleChatRepository(db, discussionLogger),
+    repo: chatReads,
     access: entitlements,
     content,
     authors,
@@ -419,21 +423,45 @@ export async function buildContainer(
   // Emails triggered by row-shaped events resolve their recipient and content
   // details at send time — the event carries ids only.
   const mailerLookups: MailerLookups = {
-    orgUserEmail: async (orgId, orgUserId) =>
-      (await reporting.admin.getStudent(orgId, orgUserId))?.email ?? null,
+    orgUserEmail: async (orgId, orgUserId) => {
+      const orgUser = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+      if (!orgUser) {
+        return null;
+      }
+      return (await identity.getUserById(orgUser.userId))?.email ?? null;
+    },
     contentInfo: async (orgId, contentId) => {
       const course = await content.getCourse(orgId, contentId);
       if (course) {
         return { id: course.id, title: course.title, type: course.type };
       }
       const download = await content.getDownload(orgId, contentId);
-      return download ? { id: download.id, title: download.title, type: download.type } : null;
+      if (download) {
+        return { id: download.id, title: download.title, type: download.type };
+      }
+      const community = await content.getCommunity(orgId, contentId);
+      return community ? { id: community.id, title: community.title, type: community.type } : null;
     },
   };
 
+  const runsRepo = new DrizzleAutomationRunsRepository(db, automationsLogger);
+  const wired = communityMail({
+    content,
+    entitlements,
+    entitlementsRepo,
+    organizations,
+    organizationsRepo,
+    identity,
+    posts,
+    postReads,
+    discussion,
+    discussionReads,
+    chatReads,
+    runsRepo,
+  });
   const automations = new AutomationsServiceImpl({
     repo: new DrizzleAutomationsRepository(db, automationsLogger),
-    runsRepo: new DrizzleAutomationRunsRepository(db, automationsLogger),
+    runsRepo,
     uow: automationsUow,
     engine: automationEngine,
     mailer,
@@ -441,14 +469,14 @@ export async function buildContainer(
     integrations,
     credentials: credentialStore,
     webhooks: options?.adapters?.webhooks ?? new FetchWebhookSender(),
+    mail: wired.mail,
+    grants: wired.grants,
+    scheduledWork: wired.scheduledWork,
     logger: automationsLogger,
   });
   automationEngine.register(automations);
 
   const eventBus = new InMemoryEventBus();
-  registerNotificationSubscribers(eventBus, mailer, mailerLookups);
-  // handle() never throws — the EventBus fans out to every subscriber
-  // sequentially, and a rejection here would break sibling subscribers.
   eventBus.subscribeAll((event) => automations.handle(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(

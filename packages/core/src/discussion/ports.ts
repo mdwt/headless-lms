@@ -109,6 +109,9 @@ export interface DiscussionService {
 
   /** Plain read of one comment — no rules applied. */
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
+
+  /** The digest schedule. One `discussion.digest.due` per community. */
+  sendDigest(orgId: string, now: Date): Promise<void>;
 }
 
 export interface CourseAccessReader {
@@ -289,6 +292,7 @@ export interface PostRepository {
   ): Promise<void>;
   follow(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unfollow(orgId: string, postId: string, orgUserId: string): Promise<void>;
+  followerIds(orgId: string, postId: string): Promise<string[]>;
   bookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   insertFlag(orgId: string, flag: PostFlag): Promise<PostFlag | null>;

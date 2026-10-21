@@ -31,6 +31,82 @@ export interface EmailTemplateParams {
   accessGranted: { contentTitle: string; contentId: string; contentType: ContentType };
   accessRevoked: { contentTitle: string };
   courseCompleted: { courseTitle: string };
+  welcomeToCommunity: { communityTitle: string; communityId: string; spaceNames: string[] };
+  membershipEndingSoon: { communityTitle: string; communityId: string; expiresAt: string };
+  membershipEnded: { communityTitle: string; communityId: string };
+  newPostInSpace: {
+    spaceName: string;
+    postTitle: string;
+    authorName: string;
+    excerpt: string;
+    postId: string;
+    communityId: string;
+  };
+  yourPostWasPublished: {
+    postTitle: string;
+    spaceName: string;
+    postId: string;
+    communityId: string;
+  };
+  yourPostWasRemoved: { postTitle: string; spaceName: string; spaceId: string; communityId: string };
+  newCommentOnPost: {
+    postTitle: string;
+    commenterName: string;
+    excerpt: string;
+    commentId: string;
+    postId: string;
+    communityId: string;
+  };
+  replyToYourComment: {
+    postTitle: string;
+    commenterName: string;
+    excerpt: string;
+    commentId: string;
+    postId: string;
+    communityId: string;
+  };
+  yourCommentWasRemoved: { postTitle: string; postId: string; communityId: string };
+  requestApproved: { spaceName: string; spaceId: string; communityId: string };
+  requestDeclined: { spaceName: string; communityId: string };
+  invitedToSpace: { spaceName: string; inviterName: string; spaceId: string; communityId: string };
+  messageRequest: { senderName: string; excerpt: string; chatId: string; communityId: string };
+  newMessage: {
+    senderName: string;
+    chatTitle: string;
+    excerpt: string;
+    chatId: string;
+    communityId: string;
+  };
+  addedToGroupChat: {
+    adderName: string;
+    participantNames: string[];
+    chatId: string;
+    communityId: string;
+  };
+  youAreNowAModerator: { communityTitles: string[] };
+  digest: { communityTitle: string; communityId: string };
+  postAwaitingReview: {
+    spaceName: string;
+    postTitle: string;
+    authorName: string;
+    spaceId: string;
+    communityId: string;
+  };
+  joinRequest: {
+    spaceName: string;
+    memberName: string;
+    seatsLeft: string;
+    spaceId: string;
+    communityId: string;
+  };
+  somethingWasFlagged: {
+    spaceName: string;
+    excerpt: string;
+    reason: string;
+    spaceId: string;
+    communityId: string;
+  };
+  messageWasFlagged: { reason: string; communityId: string };
 }
 
 export type EmailTemplateId = keyof EmailTemplateParams;

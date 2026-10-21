@@ -208,6 +208,14 @@ export class DrizzlePostRepository implements PostRepository {
     await this.db.insert(postFollows).values({ orgId, postId, orgUserId }).onConflictDoNothing();
   }
 
+  async followerIds(orgId: string, postId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ orgUserId: postFollows.orgUserId })
+      .from(postFollows)
+      .where(and(eq(postFollows.orgId, orgId), eq(postFollows.postId, postId)));
+    return rows.map((row) => row.orgUserId);
+  }
+
   async unfollow(orgId: string, postId: string, orgUserId: string): Promise<void> {
     await this.db
       .delete(postFollows)

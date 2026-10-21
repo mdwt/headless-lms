@@ -159,6 +159,9 @@ function harness(options?: {
     async follow(_orgId, postId, orgUserId) {
       followed.add(`${postId}:${orgUserId}`);
     },
+    async followerIds() {
+      return [];
+    },
     async unfollow(_orgId, postId, orgUserId) {
       followed.delete(`${postId}:${orgUserId}`);
     },
