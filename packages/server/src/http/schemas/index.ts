@@ -6,7 +6,7 @@ export * from './content.js';
 export * from './downloads.js';
 export * from './bundles.js';
 export * from './activities.js';
-export * from './learn.js';
+export * from './member.js';
 export * from './students.js';
 export * from './entitlements.js';
 export * from './automations.js';

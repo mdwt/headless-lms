@@ -25,7 +25,12 @@ Read [this](docs/architecture.md)
   from `@headless-lms/core/shared/ports` (or a context's ports via its index) and never
   import `@headless-lms/server`.
 - `reporting` lives in `packages/core/src/reporting` (`@headless-lms/core/reporting/*`):
-  composed cross-context reads, no domain authority; contexts may not import it.
+  the read domain. It reads every context, owns nothing, and the other contexts may not import it.
+  Two services, one per product. `reporting/member` is the member product (courses, progress, downloads,
+  and, once the community feature lands, the directory and community home). `reporting/admin` is the admin
+  app (org overview, course analytics, roster, and, once the community feature lands, community staff
+  analytics). Role is a route guard, not a service. The `/api/member` prefix is the member HTTP API
+  and its course, download, and progress routes call `reporting/member`.
 - `@headless-lms/server` is `app/` (composition root) + `http/` only.
 
 These rules are not advisory — run `pnpm lint` after changing imports across layers.

@@ -6,7 +6,7 @@ import "server-only";
  *
  * Media nodes persist a durable `assetId`; the render hands this broker to
  * the plugin's Renderer and each node mints a fresh presigned URL for itself
- * via the Learn download-url broker — access stays time-limited and scoped to
+ * via the member download-url broker — access stays time-limited and scoped to
  * the session's portal org.
  */
 

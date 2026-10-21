@@ -1305,14 +1305,14 @@ export type RemoveBundleItemResponses = {
 
 export type RemoveBundleItemResponse = RemoveBundleItemResponses[keyof RemoveBundleItemResponses];
 
-export type GetLearnOrgData = {
+export type GetMemberOrgData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/learn/org";
+  url: "/api/member/org";
 };
 
-export type GetLearnOrgResponses = {
+export type GetMemberOrgResponses = {
   /**
    * Default Response
    */
@@ -1323,16 +1323,16 @@ export type GetLearnOrgResponses = {
   };
 };
 
-export type GetLearnOrgResponse = GetLearnOrgResponses[keyof GetLearnOrgResponses];
+export type GetMemberOrgResponse = GetMemberOrgResponses[keyof GetMemberOrgResponses];
 
-export type GetLearnViewerData = {
+export type GetMemberViewerData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/learn/viewer";
+  url: "/api/member/viewer";
 };
 
-export type GetLearnViewerResponses = {
+export type GetMemberViewerResponses = {
   /**
    * Default Response
    */
@@ -1342,16 +1342,16 @@ export type GetLearnViewerResponses = {
   };
 };
 
-export type GetLearnViewerResponse = GetLearnViewerResponses[keyof GetLearnViewerResponses];
+export type GetMemberViewerResponse = GetMemberViewerResponses[keyof GetMemberViewerResponses];
 
-export type ListLearnCoursesData = {
+export type ListMemberCoursesData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/learn/courses";
+  url: "/api/member/courses";
 };
 
-export type ListLearnCoursesResponses = {
+export type ListMemberCoursesResponses = {
   /**
    * Default Response
    */
@@ -1379,18 +1379,19 @@ export type ListLearnCoursesResponses = {
   }>;
 };
 
-export type ListLearnCoursesResponse = ListLearnCoursesResponses[keyof ListLearnCoursesResponses];
+export type ListMemberCoursesResponse =
+  ListMemberCoursesResponses[keyof ListMemberCoursesResponses];
 
-export type GetLearnCourseData = {
+export type GetMemberCourseData = {
   body?: never;
   path: {
     courseId: string;
   };
   query?: never;
-  url: "/api/learn/courses/{courseId}";
+  url: "/api/member/courses/{courseId}";
 };
 
-export type GetLearnCourseErrors = {
+export type GetMemberCourseErrors = {
   /**
    * Default Response
    */
@@ -1401,9 +1402,9 @@ export type GetLearnCourseErrors = {
   };
 };
 
-export type GetLearnCourseError = GetLearnCourseErrors[keyof GetLearnCourseErrors];
+export type GetMemberCourseError = GetMemberCourseErrors[keyof GetMemberCourseErrors];
 
-export type GetLearnCourseResponses = {
+export type GetMemberCourseResponses = {
   /**
    * Default Response
    */
@@ -1431,18 +1432,18 @@ export type GetLearnCourseResponses = {
   };
 };
 
-export type GetLearnCourseResponse = GetLearnCourseResponses[keyof GetLearnCourseResponses];
+export type GetMemberCourseResponse = GetMemberCourseResponses[keyof GetMemberCourseResponses];
 
-export type ListLearnModulesData = {
+export type ListMemberModulesData = {
   body?: never;
   path: {
     courseId: string;
   };
   query?: never;
-  url: "/api/learn/courses/{courseId}/modules";
+  url: "/api/member/courses/{courseId}/modules";
 };
 
-export type ListLearnModulesErrors = {
+export type ListMemberModulesErrors = {
   /**
    * Default Response
    */
@@ -1453,9 +1454,9 @@ export type ListLearnModulesErrors = {
   };
 };
 
-export type ListLearnModulesError = ListLearnModulesErrors[keyof ListLearnModulesErrors];
+export type ListMemberModulesError = ListMemberModulesErrors[keyof ListMemberModulesErrors];
 
-export type ListLearnModulesResponses = {
+export type ListMemberModulesResponses = {
   /**
    * Default Response
    */
@@ -1470,18 +1471,19 @@ export type ListLearnModulesResponses = {
   }>;
 };
 
-export type ListLearnModulesResponse = ListLearnModulesResponses[keyof ListLearnModulesResponses];
+export type ListMemberModulesResponse =
+  ListMemberModulesResponses[keyof ListMemberModulesResponses];
 
-export type ListLearnActivitiesData = {
+export type ListMemberActivitiesData = {
   body?: never;
   path: {
     courseId: string;
   };
   query?: never;
-  url: "/api/learn/courses/{courseId}/activities";
+  url: "/api/member/courses/{courseId}/activities";
 };
 
-export type ListLearnActivitiesErrors = {
+export type ListMemberActivitiesErrors = {
   /**
    * Default Response
    */
@@ -1492,9 +1494,10 @@ export type ListLearnActivitiesErrors = {
   };
 };
 
-export type ListLearnActivitiesError = ListLearnActivitiesErrors[keyof ListLearnActivitiesErrors];
+export type ListMemberActivitiesError =
+  ListMemberActivitiesErrors[keyof ListMemberActivitiesErrors];
 
-export type ListLearnActivitiesResponses = {
+export type ListMemberActivitiesResponses = {
   /**
    * Default Response
    */
@@ -1510,8 +1513,8 @@ export type ListLearnActivitiesResponses = {
   }>;
 };
 
-export type ListLearnActivitiesResponse =
-  ListLearnActivitiesResponses[keyof ListLearnActivitiesResponses];
+export type ListMemberActivitiesResponse =
+  ListMemberActivitiesResponses[keyof ListMemberActivitiesResponses];
 
 export type ReportProgressData = {
   body: {
@@ -1524,7 +1527,7 @@ export type ReportProgressData = {
   };
   path?: never;
   query?: never;
-  url: "/api/learn/progress";
+  url: "/api/member/progress";
 };
 
 export type ReportProgressErrors = {
@@ -1551,16 +1554,16 @@ export type ReportProgressResponses = {
 
 export type ReportProgressResponse = ReportProgressResponses[keyof ReportProgressResponses];
 
-export type GetLearnCourseProgressData = {
+export type GetMemberCourseProgressData = {
   body?: never;
   path: {
     courseId: string;
   };
   query?: never;
-  url: "/api/learn/courses/{courseId}/progress";
+  url: "/api/member/courses/{courseId}/progress";
 };
 
-export type GetLearnCourseProgressErrors = {
+export type GetMemberCourseProgressErrors = {
   /**
    * Default Response
    */
@@ -1571,10 +1574,10 @@ export type GetLearnCourseProgressErrors = {
   };
 };
 
-export type GetLearnCourseProgressError =
-  GetLearnCourseProgressErrors[keyof GetLearnCourseProgressErrors];
+export type GetMemberCourseProgressError =
+  GetMemberCourseProgressErrors[keyof GetMemberCourseProgressErrors];
 
-export type GetLearnCourseProgressResponses = {
+export type GetMemberCourseProgressResponses = {
   /**
    * Default Response
    */
@@ -1590,8 +1593,8 @@ export type GetLearnCourseProgressResponses = {
   };
 };
 
-export type GetLearnCourseProgressResponse =
-  GetLearnCourseProgressResponses[keyof GetLearnCourseProgressResponses];
+export type GetMemberCourseProgressResponse =
+  GetMemberCourseProgressResponses[keyof GetMemberCourseProgressResponses];
 
 export type ListActivityCommentsData = {
   body?: never;
@@ -1599,7 +1602,7 @@ export type ListActivityCommentsData = {
     activityId: string;
   };
   query?: never;
-  url: "/api/learn/activities/{activityId}/comments";
+  url: "/api/member/activities/{activityId}/comments";
 };
 
 export type ListActivityCommentsErrors = {
@@ -1669,7 +1672,7 @@ export type PostCommentData = {
     activityId: string;
   };
   query?: never;
-  url: "/api/learn/activities/{activityId}/comments";
+  url: "/api/member/activities/{activityId}/comments";
 };
 
 export type PostCommentErrors = {
@@ -1734,7 +1737,7 @@ export type DeleteCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/learn/comments/{commentId}";
+  url: "/api/member/comments/{commentId}";
 };
 
 export type DeleteCommentErrors = {
@@ -1786,7 +1789,7 @@ export type EditCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/learn/comments/{commentId}";
+  url: "/api/member/comments/{commentId}";
 };
 
 export type EditCommentErrors = {
@@ -1851,7 +1854,7 @@ export type ClearCommentReactionData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/learn/comments/{commentId}/reaction";
+  url: "/api/member/comments/{commentId}/reaction";
 };
 
 export type ClearCommentReactionErrors = {
@@ -1899,7 +1902,7 @@ export type SetCommentReactionData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/learn/comments/{commentId}/reaction";
+  url: "/api/member/comments/{commentId}/reaction";
 };
 
 export type SetCommentReactionErrors = {
@@ -1946,7 +1949,7 @@ export type ReportCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/learn/comments/{commentId}/reports";
+  url: "/api/member/comments/{commentId}/reports";
 };
 
 export type ReportCommentErrors = {
@@ -1992,7 +1995,7 @@ export type GetAssetDownloadUrlData = {
     id: string;
   };
   query?: never;
-  url: "/api/learn/assets/{id}/url";
+  url: "/api/member/assets/{id}/url";
 };
 
 export type GetAssetDownloadUrlErrors = {
@@ -2041,14 +2044,14 @@ export type GetAssetDownloadUrlResponses = {
 export type GetAssetDownloadUrlResponse =
   GetAssetDownloadUrlResponses[keyof GetAssetDownloadUrlResponses];
 
-export type ListLearnDownloadsData = {
+export type ListMemberDownloadsData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/learn/downloads";
+  url: "/api/member/downloads";
 };
 
-export type ListLearnDownloadsResponses = {
+export type ListMemberDownloadsResponses = {
   /**
    * Default Response
    */
@@ -2067,19 +2070,19 @@ export type ListLearnDownloadsResponses = {
   }>;
 };
 
-export type ListLearnDownloadsResponse =
-  ListLearnDownloadsResponses[keyof ListLearnDownloadsResponses];
+export type ListMemberDownloadsResponse =
+  ListMemberDownloadsResponses[keyof ListMemberDownloadsResponses];
 
-export type GetLearnDownloadData = {
+export type GetMemberDownloadData = {
   body?: never;
   path: {
     downloadId: string;
   };
   query?: never;
-  url: "/api/learn/downloads/{downloadId}";
+  url: "/api/member/downloads/{downloadId}";
 };
 
-export type GetLearnDownloadErrors = {
+export type GetMemberDownloadErrors = {
   /**
    * Default Response
    */
@@ -2090,9 +2093,9 @@ export type GetLearnDownloadErrors = {
   };
 };
 
-export type GetLearnDownloadError = GetLearnDownloadErrors[keyof GetLearnDownloadErrors];
+export type GetMemberDownloadError = GetMemberDownloadErrors[keyof GetMemberDownloadErrors];
 
-export type GetLearnDownloadResponses = {
+export type GetMemberDownloadResponses = {
   /**
    * Default Response
    */
@@ -2123,19 +2126,20 @@ export type GetLearnDownloadResponses = {
   };
 };
 
-export type GetLearnDownloadResponse = GetLearnDownloadResponses[keyof GetLearnDownloadResponses];
+export type GetMemberDownloadResponse =
+  GetMemberDownloadResponses[keyof GetMemberDownloadResponses];
 
-export type GetLearnDownloadAssetData = {
+export type GetMemberDownloadAssetData = {
   body?: never;
   path: {
     downloadId: string;
     assetId: string;
   };
   query?: never;
-  url: "/api/learn/downloads/{downloadId}/assets/{assetId}";
+  url: "/api/member/downloads/{downloadId}/assets/{assetId}";
 };
 
-export type GetLearnDownloadAssetErrors = {
+export type GetMemberDownloadAssetErrors = {
   /**
    * Default Response
    */
@@ -2146,8 +2150,8 @@ export type GetLearnDownloadAssetErrors = {
   };
 };
 
-export type GetLearnDownloadAssetError =
-  GetLearnDownloadAssetErrors[keyof GetLearnDownloadAssetErrors];
+export type GetMemberDownloadAssetError =
+  GetMemberDownloadAssetErrors[keyof GetMemberDownloadAssetErrors];
 
 export type ListCommentsData = {
   body?: never;

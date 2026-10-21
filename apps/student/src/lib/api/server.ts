@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * Server-side Learn reads for the student surface. Every call threads the
+ * Server-side member reads for the student surface. Every call threads the
  * incoming request's session cookie via the per-call `headers` option (see
  * `server-call.ts`), never the shared SDK client.
  *
@@ -26,7 +26,7 @@ import type {
   Viewer,
 } from "./types";
 
-/** Run a Learn read, mapping a 404 to `null` and rethrowing anything else. */
+/** Run a member read, mapping a 404 to `null` and rethrowing anything else. */
 async function orNullOn404<T>(read: () => Promise<T>): Promise<T | null> {
   try {
     return await read();
@@ -48,28 +48,28 @@ async function orNull<T>(read: () => Promise<T>): Promise<T | null> {
   }
 }
 
-export const learnApi = {
+export const memberApi = {
   async listCourses(): Promise<CourseSummary[]> {
-    return await Content.listLearnCourses(await authHeaders());
+    return await Content.listMemberCourses(await authHeaders());
   },
   async org(): Promise<Org> {
-    return await Organizations.getLearnOrg(await authHeaders());
+    return await Organizations.getMemberOrg(await authHeaders());
   },
   async viewer(): Promise<Viewer> {
-    return await Organizations.getLearnViewer(await authHeaders());
+    return await Organizations.getMemberViewer(await authHeaders());
   },
   async getCourse(courseId: string): Promise<Course | null> {
     const headers = await authHeaders();
-    return orNullOn404(() => Content.getLearnCourse({ courseId }, headers));
+    return orNullOn404(() => Content.getMemberCourse({ courseId }, headers));
   },
   async listModules(courseId: string): Promise<Module[] | null> {
     const headers = await authHeaders();
-    return orNullOn404(() => Content.listLearnModules({ courseId }, headers));
+    return orNullOn404(() => Content.listMemberModules({ courseId }, headers));
   },
   /** Bare published-activity rows for an enrolled course. */
   async listActivities(courseId: string): Promise<Activity[] | null> {
     const headers = await authHeaders();
-    return orNullOn404(() => Content.listLearnActivities({ courseId }, headers));
+    return orNullOn404(() => Content.listMemberActivities({ courseId }, headers));
   },
   /** Progress is decoration on an otherwise-renderable page, so any failure
    *  (other than the 401 redirect) degrades to "no progress" rather than
@@ -79,14 +79,14 @@ export const learnApi = {
     positions: Record<string, unknown>;
   } | null> {
     const headers = await authHeaders();
-    return orNull(() => Progress.getLearnCourseProgress({ courseId }, headers));
+    return orNull(() => Progress.getMemberCourseProgress({ courseId }, headers));
   },
   async listDownloads(): Promise<Download[]> {
-    return await Content.listLearnDownloads(await authHeaders());
+    return await Content.listMemberDownloads(await authHeaders());
   },
   async getDownload(downloadId: string): Promise<DownloadDetail | null> {
     const headers = await authHeaders();
-    return orNullOn404(() => Content.getLearnDownload({ downloadId }, headers));
+    return orNullOn404(() => Content.getMemberDownload({ downloadId }, headers));
   },
   /** Sign a fresh short-lived URL for an org asset (e.g. a download thumbnail). */
   async assetUrl(assetId: string): Promise<string | null> {

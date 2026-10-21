@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Download as DownloadIcon } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
+import { memberApi } from "@/lib/api/server";
 import { API_URL } from "@/lib/api/server-call";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,14 +14,14 @@ export default async function DownloadDetailPage({
   params: Promise<{ downloadId: string }>;
 }) {
   const { downloadId } = await params;
-  const detailPromise = learnApi.getDownload(downloadId);
+  const detailPromise = memberApi.getDownload(downloadId);
   await requireAuth(detailPromise);
   const detail = await detailPromise;
   if (!detail) notFound();
 
   const { download, assets } = detail;
   const thumbnailUrl = download.thumbnailAssetId
-    ? await learnApi.assetUrl(download.thumbnailAssetId)
+    ? await memberApi.assetUrl(download.thumbnailAssetId)
     : null;
 
   return (
@@ -66,7 +66,7 @@ export default async function DownloadDetailPage({
             </div>
             <Button asChild variant="brand" size="pillSm" className="shrink-0">
               <a
-                href={`${API_URL}/api/learn/downloads/${download.id}/assets/${asset.assetId}`}
+                href={`${API_URL}/api/member/downloads/${download.id}/assets/${asset.assetId}`}
                 download
               >
                 Download

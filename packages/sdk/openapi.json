@@ -3753,9 +3753,9 @@
         }
       }
     },
-    "/api/learn/org": {
+    "/api/member/org": {
       "get": {
-        "operationId": "getLearnOrg",
+        "operationId": "getMemberOrg",
         "summary": "Get the portal org's public identity (branding)",
         "tags": [
           "Organizations"
@@ -3791,9 +3791,9 @@
         }
       }
     },
-    "/api/learn/viewer": {
+    "/api/member/viewer": {
       "get": {
-        "operationId": "getLearnViewer",
+        "operationId": "getMemberViewer",
         "summary": "Get the caller's identity within the session's org",
         "tags": [
           "Organizations"
@@ -3831,9 +3831,9 @@
         }
       }
     },
-    "/api/learn/courses": {
+    "/api/member/courses": {
       "get": {
-        "operationId": "listLearnCourses",
+        "operationId": "listMemberCourses",
         "summary": "List the student's enrolled courses",
         "tags": [
           "Content"
@@ -3954,9 +3954,9 @@
         }
       }
     },
-    "/api/learn/courses/{courseId}": {
+    "/api/member/courses/{courseId}": {
       "get": {
-        "operationId": "getLearnCourse",
+        "operationId": "getMemberCourse",
         "summary": "Get one enrolled course",
         "tags": [
           "Content"
@@ -4109,9 +4109,9 @@
         }
       }
     },
-    "/api/learn/courses/{courseId}/modules": {
+    "/api/member/courses/{courseId}/modules": {
       "get": {
-        "operationId": "listLearnModules",
+        "operationId": "listMemberModules",
         "summary": "List an enrolled course's module/activity tree",
         "tags": [
           "Content"
@@ -4208,9 +4208,9 @@
         }
       }
     },
-    "/api/learn/courses/{courseId}/activities": {
+    "/api/member/courses/{courseId}/activities": {
       "get": {
-        "operationId": "listLearnActivities",
+        "operationId": "listMemberActivities",
         "summary": "List an enrolled course's published activities",
         "tags": [
           "Content"
@@ -4316,7 +4316,7 @@
         }
       }
     },
-    "/api/learn/progress": {
+    "/api/member/progress": {
       "post": {
         "operationId": "reportProgress",
         "summary": "Report usage on a target; the progress service decides completion",
@@ -4411,9 +4411,9 @@
         }
       }
     },
-    "/api/learn/courses/{courseId}/progress": {
+    "/api/member/courses/{courseId}/progress": {
       "get": {
-        "operationId": "getLearnCourseProgress",
+        "operationId": "getMemberCourseProgress",
         "summary": "The student's progress in one course",
         "tags": [
           "Progress"
@@ -4498,7 +4498,7 @@
         }
       }
     },
-    "/api/learn/activities/{activityId}/comments": {
+    "/api/member/activities/{activityId}/comments": {
       "get": {
         "operationId": "listActivityComments",
         "summary": "Read an activity's comments",
@@ -4967,7 +4967,7 @@
         }
       }
     },
-    "/api/learn/comments/{commentId}": {
+    "/api/member/comments/{commentId}": {
       "patch": {
         "operationId": "editComment",
         "summary": "Revise your own comment",
@@ -5343,7 +5343,7 @@
         }
       }
     },
-    "/api/learn/comments/{commentId}/reaction": {
+    "/api/member/comments/{commentId}/reaction": {
       "put": {
         "operationId": "setCommentReaction",
         "summary": "Set your reaction to a comment, replacing any you already had",
@@ -5561,7 +5561,7 @@
         }
       }
     },
-    "/api/learn/comments/{commentId}/reports": {
+    "/api/member/comments/{commentId}/reports": {
       "post": {
         "operationId": "reportComment",
         "summary": "Flag a comment for moderator attention",
@@ -5691,7 +5691,7 @@
         }
       }
     },
-    "/api/learn/assets/{id}/url": {
+    "/api/member/assets/{id}/url": {
       "post": {
         "operationId": "getAssetDownloadUrl",
         "summary": "Get a short-lived presigned URL to serve an asset to the student",
@@ -5854,9 +5854,9 @@
         }
       }
     },
-    "/api/learn/downloads": {
+    "/api/member/downloads": {
       "get": {
-        "operationId": "listLearnDownloads",
+        "operationId": "listMemberDownloads",
         "summary": "Downloads the student is actively entitled to",
         "tags": [
           "Content"
@@ -5940,9 +5940,9 @@
         }
       }
     },
-    "/api/learn/downloads/{downloadId}": {
+    "/api/member/downloads/{downloadId}": {
       "get": {
-        "operationId": "getLearnDownload",
+        "operationId": "getMemberDownload",
         "summary": "One entitled download and its ordered assets",
         "tags": [
           "Content"
@@ -6120,9 +6120,9 @@
         }
       }
     },
-    "/api/learn/downloads/{downloadId}/assets/{assetId}": {
+    "/api/member/downloads/{downloadId}/assets/{assetId}": {
       "get": {
-        "operationId": "getLearnDownloadAsset",
+        "operationId": "getMemberDownloadAsset",
         "summary": "Redirect to a short-lived signed URL for an entitled asset",
         "tags": [
           "Content"

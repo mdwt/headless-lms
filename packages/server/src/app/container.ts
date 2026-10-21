@@ -7,19 +7,17 @@ import {
   DrizzleConnectionsRepository,
   DrizzleContentRepository,
   DrizzleCredentialStore,
-  DrizzleCourseAnalyticsRepository,
-  DrizzleDashboardRepository,
+  DrizzleAdminRepository,
   DrizzleDiscussionRepository,
   DrizzleEntitlementsRepository,
   DrizzleIdentityRepository,
-  DrizzleLearnRepository,
+  DrizzleMemberRepository,
   DrizzleMembersRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
-  DrizzleStudentsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
 import { InMemoryEventBus } from '@headless-lms/adapter-defaults/events';
@@ -55,10 +53,8 @@ import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
 import { registerNotificationSubscribers } from './notifications.js';
-import { StudentsReportServiceImpl } from '@headless-lms/core/reporting/students';
-import { DashboardReportServiceImpl } from '@headless-lms/core/reporting/dashboard';
-import { CoursesReportServiceImpl } from '@headless-lms/core/reporting/courses';
-import { LearnReportServiceImpl } from '@headless-lms/core/reporting/learn';
+import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
+import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 
@@ -174,10 +170,8 @@ export interface Container {
   settings: SettingsService;
   // Reporting read layer (composed cross-context reads; owns no domain rules).
   reporting: {
-    students: StudentsReportServiceImpl;
-    dashboard: DashboardReportServiceImpl;
-    courses: CoursesReportServiceImpl;
-    learn: LearnReportServiceImpl;
+    admin: AdminReportServiceImpl;
+    member: MemberReportServiceImpl;
   };
   storage: ObjectStorage;
   mailer: Mailer;
@@ -333,20 +327,11 @@ export async function buildContainer(
   });
 
   const reporting = {
-    students: new StudentsReportServiceImpl({
-      repo: new DrizzleStudentsRepository(db, reportingLogger),
-      logger: reportingLogger,
+    admin: new AdminReportServiceImpl({
+      repo: new DrizzleAdminRepository(db, reportingLogger),
     }),
-    dashboard: new DashboardReportServiceImpl({
-      repo: new DrizzleDashboardRepository(db, reportingLogger),
-      logger: reportingLogger,
-    }),
-    courses: new CoursesReportServiceImpl({
-      repo: new DrizzleCourseAnalyticsRepository(db, reportingLogger),
-      logger: reportingLogger,
-    }),
-    learn: new LearnReportServiceImpl({
-      reader: new DrizzleLearnRepository(db, reportingLogger),
+    member: new MemberReportServiceImpl({
+      repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
       assets,
@@ -393,7 +378,7 @@ export async function buildContainer(
   // details at send time — the event carries ids only.
   const mailerLookups: MailerLookups = {
     orgUserEmail: async (orgId, orgUserId) =>
-      (await reporting.students.get(orgId, orgUserId))?.email ?? null,
+      (await reporting.admin.getStudent(orgId, orgUserId))?.email ?? null,
     contentInfo: async (orgId, contentId) => {
       const course = await content.getCourse(orgId, contentId);
       if (course) {

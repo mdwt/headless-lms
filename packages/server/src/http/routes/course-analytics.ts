@@ -31,7 +31,7 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const analytics = await container.reporting.courses.analytics(scope.orgId, req.params.id);
+      const analytics = await container.reporting.admin.courseAnalytics(scope.orgId, req.params.id);
       if (!analytics) {
         throw new NotFoundError('Course', req.params.id);
       }
@@ -53,7 +53,7 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const series = await container.reporting.courses.enrollments(
+      const series = await container.reporting.admin.courseEnrollments(
         scope.orgId,
         req.params.id,
         req.query.days,

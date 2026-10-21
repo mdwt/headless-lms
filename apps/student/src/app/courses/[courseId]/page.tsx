@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
+import { memberApi } from "@/lib/api/server";
 import { adaptCourse } from "@/lib/adapt";
 import { renderActivityContent } from "@/components/player/content/render-activity";
 import { CoursePlayer } from "@/components/player/course-player";
@@ -15,12 +15,12 @@ export default async function CoursePlayerPage({
   const { courseId } = await params;
   const session = await requireAuth();
   const [course, modules, activities, org, viewer, progress] = await Promise.all([
-    learnApi.getCourse(courseId),
-    learnApi.listModules(courseId),
-    learnApi.listActivities(courseId),
-    learnApi.org(),
-    learnApi.viewer(),
-    learnApi.courseProgress(courseId),
+    memberApi.getCourse(courseId),
+    memberApi.listModules(courseId),
+    memberApi.listActivities(courseId),
+    memberApi.org(),
+    memberApi.viewer(),
+    memberApi.courseProgress(courseId),
   ]);
   if (!course || !modules || !activities) notFound();
 

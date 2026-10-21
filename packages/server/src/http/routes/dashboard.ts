@@ -20,7 +20,7 @@ export async function dashboardRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return container.reporting.dashboard.overview(scope.orgId);
+      return container.reporting.admin.overview(scope.orgId);
     },
   });
 
@@ -37,7 +37,7 @@ export async function dashboardRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return container.reporting.dashboard.enrollments(scope.orgId, req.query.days);
+      return container.reporting.admin.enrollments(scope.orgId, req.query.days);
     },
   });
 }

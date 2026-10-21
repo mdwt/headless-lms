@@ -1,5 +1,8 @@
 {
   "title": "Progress",
   "description": "Per-student progress and completion through course content",
-  "pages": ["reportProgress", "getLearnCourseProgress"]
+  "pages": [
+    "reportProgress",
+    "getMemberCourseProgress"
+  ]
 }

@@ -1,4 +1,4 @@
-// Maps the Learn wire types → the presentational view-model. The API serves
+// Maps the member wire types → the presentational view-model. The API serves
 // modules and activities as separate bare lists; the tree is composed here.
 import type {
   ActivitySettings,

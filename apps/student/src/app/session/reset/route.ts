@@ -1,7 +1,7 @@
 /**
  * Disposes of a session the API has rejected, then lands on /login.
  *
- * A Learn read answering 401 means the cookie no longer resolves to a portal
+ * A member read answering 401 means the cookie no longer resolves to a portal
  * student, but better-auth still considers it a live session — so it has to be
  * revoked, not merely navigated away from. A Server Component render cannot set
  * cookies; a route handler can, which is why the 401 path redirects here

@@ -35,24 +35,24 @@ The API enforces who can open, see, post, moderate and message. The app decides 
 | **Bundle** | Products sold together. A grant to a bundle is access to every product in it. A membership, in the business sense of paying for access to courses, coaching and a community, is sold as a bundle; the model has no separate membership | content |
 | **Member** | A person with access to the community, through a grant to it or to a bundle that contains it | entitlements. Member is not a role. Anyone with a grant to the community is a member, whatever their org role; an org with only students still has members |
 | **Staff** | The org's owner, admins and instructors. They open every space, post anywhere and moderate everywhere, without a grant | organizations. The org roles owner, admin and instructor |
-| **Space** | A place inside the community. The org defines each space: a name, an access rule (all members, by request or by invite), an optional capacity, the topics its posts may take, and the defaults for its posts. A community holds a flat list of spaces in the order the org sets; there are no spaces inside spaces, and every post belongs to exactly one space. The org splits the community by subject (Growth, Hiring), by who's in (a pod of six), or by what it's attached to (a cohort's course). A space also links to any number of resources of any kind, such as a course, a download or an event. Other products call these channels or circles | content. Part of the community's structure, as a module is part of a course |
+| **Space** | A place inside the community. The org defines each space: a name, an access rule (all members, by request or by invite), an optional capacity, the topics its posts may take, and the defaults for its posts. A community holds a flat list of spaces in the order the org sets; there are no spaces inside spaces, and every post belongs to exactly one space. The org splits the community by subject (Growth, Hiring), by who's in (a pod of six), or by what it's attached to (a cohort's course). A space also links to any number of courses, downloads or communities. Event links in the use cases are examples. Other products call these channels or circles | content. Part of the community's structure, as a module is part of a course |
 | **Access rule** | Each space's rule for who can open it. All members: every member can open it. By request: every member can see it and ask to join. By invite: only its space members can see it. A space by request or invite can limit how many space members it has | content. A setting on the space; entitlements reads it to answer who can open the space |
-| **Space member** | A person's access to one space, with a status: requested, invited or active. Exists only where access to the community isn't enough: in a space by request or invite | entitlements. Access to one space, as a grant is access to one product |
-| **Moderator** | A member who holds the moderator role. Moderates every space of the communities they are a member of | organizations. An org role beside owner, admin, instructor and student |
+| **Space member** | A person's place in one space, with a status: requested, invited, active or revoked. Exists only where access to the community isn't enough: in a space by request or invite | entitlements. Its own record, checked on top of the grant to the community. Not a grant |
+| **Moderator** | A member who holds the moderator role. Moderates every space of the communities they are a member of | organizations. A Better Auth role beside owner, admin, instructor and student. Not staff. Assigned through the same membership path as the other roles |
 | **Topic** | A subject defined on a space, such as SEO or Paid Ads. Where a space defines topics, each post has one of them, and the space's feed filters by topic | content. Defined on the space |
 | **Post** | Something a member writes in a space: a title and a body, plus anything else the app wants on it, such as a cover image | discussion |
 | **Comment** | A response to a post or another comment | discussion |
 | **Reaction** | A person putting an emoji on a post, a comment or a message. It shows on the item and does nothing else | discussion |
 | **Flag** | A person marking a post, a comment or a message for review, with an optional reason. Nothing changes on the item; the flag goes into a queue that staff or a moderator work through, and ends in an action: dismiss, remove, delete, lock the DM. See Flagging | discussion. The queue and its actions; who may act is asked of organizations |
-| **Event** | A content type with a time and a place, such as a monthly call or a meetup. It follows the same rules as a course: opening it needs a grant, and a space can link to it | content. Events are a future content type: a plausible use case, not designed and not part of this spec |
+| **Event** | A content type with a time and a place, such as a monthly call or a meetup. The use cases mention it as an example | content. Not a content type yet. Nothing in this feature stores an event or a link to one |
 | **RSVP** | A person with access to an event saying they'll attend | with the event, not designed here |
-| **Feed** | A list of posts. There are two kinds. A space feed belongs to the space: its posts, filtered by topic where the space defines any; everyone who can open the space sees the same one. A member feed belongs to the person: the posts from every space that member can open, merged into one, so no two members see the same feed | discussion. The member feed asks entitlements which spaces the person can open |
+| **Feed** | A list of posts. There are two kinds. A space feed belongs to the space: its posts, pinned first, then newest, filtered by topic where the space defines any; everyone who can open the space sees the same one. A member feed belongs to the person: the posts from every space that member can open, merged into one, so no two members see the same feed | discussion. The member feed asks entitlements which spaces the person can open |
 | **Profile** | What others see about a person: a sensible default, such as their name, plus anything else the app wants, such as a photo or a bio | identity |
-| **Directory** | The people in the community: its members and the org's staff, each with their role and profile | entitlements, organizations, identity. A read composed of grants, roles and profiles; no context owns it |
-| **DM** | A DM: private messages between members of the community, outside any space: between two people, or a group chat of three or more | discussion |
+| **Directory** | The people in the community: its members and the org's staff, each with their role and profile | A method on `reporting/member`: grants, roles and profiles. No context owns the data |
+| **DM** | Private messages between members of one community, outside any space: between two people, or a group chat of three or more. Two people have at most one DM in a community. The same pair in another community is a different DM | discussion |
 | **Message request** | A DM whose recipient hasn't accepted it yet | discussion |
 | **DM settings** | The community's DM settings: whether DMs are on, who may message whom, whether a first message is a request, and whether groups are allowed | content. Part of the community's definition; discussion reads it to apply it |
-| **Block**, **mute** | A person stopping contact with another person, or only stopping being notified by them | discussion |
+| **Block**, **mute** | A block stops contact between two people inside one community. A mute stops notifications for one person in one chat | discussion |
 
 How they contain each other:
 
@@ -61,7 +61,7 @@ Community
 └─ Space              (an access rule: all members, by request or by invite)
     ├─ Topics
     ├─ Space members  (each with a status: requested, invited or active)
-    ├─ Links          (to any resource: a course, a download, an event, …; opening one needs a grant to it)
+    ├─ Links          (to a course, a download or a community; opening one needs a grant to it. Event links in the use cases are examples)
     └─ Post           (has one of the space's topics, where it defines any)
         ├─ Comment
         └─ Reactions, flags
@@ -146,7 +146,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor);
 
 1. **Rachel sets the community up.** She creates the community as a product, then its spaces. Announcements is for her and Emma to speak to everyone, so posts there are reviewed before they publish and comments are off. General gets three topics so questions can be filtered. SaaS founders is by request and capped at twelve, so it stays small; she gives James, a long-time member, the moderator role. Hiring is by invite: nobody sees it unless they're invited. She turns DMs on, with a first message as a request so nobody can be cold-messaged, and allows group chats. She puts the community, the course and the monthly call in one bundle and sells that as the membership.
 2. **Sarah buys the Founder Collab Membership and is granted it.** The grant is to the bundle, so she now has access to the community, the course and the monthly call. Access to the community makes her a member. The welcome automation fires and emails her. She fills in her profile: name, a photo, one line about her company. That profile is what every other member sees of her.
-3. **She opens the community.** Her member feed shows the posts from every space she can open, newest first. She can open Announcements, Introductions, General and Wins, because every member can. SaaS founders is listed with a Request to join button and a note that it has 11 of 12 people. Hiring doesn't appear at all. The directory shows her 240 members and two staff, Rachel and Emma, each with their role.
+3. **She opens the community.** Her member feed shows the posts from every space she can open, pinned first, then newest. She can open Announcements, Introductions, General and Wins, because every member can. SaaS founders is listed with a Request to join button and a note that it has 11 of 12 people. Hiring doesn't appear at all. The directory shows her 240 members and two staff, Rachel and Emma, each with their role.
 4. **She posts in Introductions.** A title, a body, a photo of her product. Introductions defines no topics, so the post has none. It publishes immediately, because Introductions doesn't review posts. Six members react to it and three comment; one comment gets its own comments. The post is in the Introductions space feed and in every member's own feed.
 5. **She asks a question in General under Fundraising.** General's topics are Growth, Fundraising and Other, so her post has to carry one. Emma answers in a comment. Later, a member filtering General by Fundraising finds the thread; a member filtering by Growth doesn't.
 6. **She saves a draft for Wins and schedules it.** She starts a post about closing her first customer, saves it as a draft, comes back the next day and schedules it for Monday 9am. On Monday it publishes on its own and lands in every member's feed. Nobody saw it before then.
@@ -159,7 +159,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor);
 13. **Emma posts an announcement in General.** She has no grant to the community; staff post anywhere, as they comment on any course. She appears in the directory as staff, not as a member.
 14. **Sarah messages James directly.** Members may message members, and a first message is a request, so James gets a message request with her first message in it. He accepts, and it's a DM between the two of them, outside any space. He replies at night; she has the DM muted until morning, so she isn't notified but the messages are there when she looks.
 15. **Sarah starts a group chat.** Four SaaS founders who met on the call start a group chat. One adds a fifth. Anyone in it can leave. It has nothing to do with the SaaS founders space: it's a group chat that happens to be between its members.
-16. **Another member sends Sarah abusive messages.** She blocks them: neither can message the other, their DM is closed, and the other person isn't told. She also flags the worst message. DM flags go to the community's queue, which only staff see. Rachel reads it and deletes the message. The sender can still post in spaces; that's a separate thing.
+16. **Another member sends Sarah abusive messages.** She blocks them in this community: neither can message the other here, their DM in this community is closed, and the other person isn't told. A chat they share in another community is untouched. She also flags the worst message. DM flags go to the community's queue, which only staff see. Rachel reads it and deletes the message. The sender can still post in spaces; that's a separate thing.
 17. **A member's membership lapses.** Their grant to the bundle expires. They lose the community, the course and the call in one go: no spaces, no feed, no DMs. Their posts and comments stay where they were, under their name. They were a space member of SaaS founders; that seat is free again. When they buy again, they're back in with their history intact.
 18. **Tom bought only Fundraising 101.** He has no access to the community, so none of it exists for him: no spaces, no feed, no directory, and nobody can DM him. If Rachel later adds an automation that grants the community to everyone who completes the course, Tom becomes a member the day he finishes.
 
@@ -169,7 +169,7 @@ Headless LMS follows Domain-Driven Design and a hexagonal architecture, ports an
 
 ### organizations: the org, its people and their roles
 
-Owns the org as a tenant and every person's place in it. It defines the roles and assigns them to people: owner, admin, instructor and student today, and for community, moderator. A role can be scoped: an instructor to a course. Member is not a role: anyone with a grant to the community is a member, whatever their role. In Founder Collab, Rachel is the owner, Emma an instructor, Sarah a student, and James a moderator; Sarah and James are members because they hold a grant to the community. When discussion needs to know whether James may remove a post in SaaS founders, it asks organizations.
+Owns the org as a tenant and every person's place in it. It defines the roles and assigns them to people: owner, admin, instructor and student today, and for community, moderator. Moderator is a Better Auth role, assigned through the same membership path as the others. A student has no Better Auth membership until they are given one. A role can be scoped: an instructor to a course. Member is not a role: anyone with a grant to the community is a member, whatever their role. In Founder Collab, Rachel is the owner, Emma an instructor, Sarah a student, and James a moderator; Sarah and James are members because they hold a grant to the community. When discussion needs to know whether James may remove a post in SaaS founders, it asks organizations.
 
 ### identity: who a person is
 
@@ -177,11 +177,11 @@ Owns the person across orgs: their login, name and email. For community it owns 
 
 ### content: what the org makes and sells
 
-Owns every product and its structure: courses, downloads, bundles, and now the community and the event. The community's spaces, each space's access rule, capacity, topics, links and post defaults, and the community's DM settings are content, as a course's modules and activities are. Discussion reads those settings to apply them. Rachel setting up Announcements, General and SaaS founders is content. The Founder Collab Membership bundle is content. Fundraising 101 and the monthly call are content. The event is a future content type, used in the use cases as a plausible case; it is not designed here.
+Owns every product and its structure: courses, downloads, bundles, and now the community. The community's spaces, each space's access rule, capacity, topics, links and post defaults, and the community's DM settings are content, as a course's modules and activities are. Discussion reads those settings to apply them. Rachel setting up Announcements, General and SaaS founders is content. The Founder Collab Membership bundle is content. Fundraising 101 is content. The monthly call is an event, used in the use cases as an example. Events are not a content type yet, and this feature does not store them.
 
 ### entitlements: who can open what
 
-Owns access. A grant is one person's access to one product or bundle. It is given, expires and is revoked the same way whatever it points at. Sarah's grant to the bundle is entitlements, and holding a grant to the community is what makes her a member. A person's place in a space is entitlements too: Sarah's request to join SaaS founders, James's approval, enforcing the cap of twelve, Rachel's invite to Hiring, Sarah leaving a space. Every "can Sarah open this?" in the community is answered here, reading the space's access rule from content.
+Owns access. A grant is one person's access to one product or bundle. It is given, expires and is revoked the same way whatever it points at. Sarah's grant to the bundle is entitlements, and holding a grant to the community is what makes her a member. A person's place in a space is entitlements too, as its own record and not as a grant: Sarah's request to join SaaS founders, James's approval, enforcing the cap of twelve, Rachel's invite to Hiring, Sarah leaving a space. Every "can Sarah open this?" in the community is answered here, reading the space's access rule from content.
 
 ### discussion: what members write
 
@@ -195,11 +195,11 @@ Owns starts and completions on content. Nothing in the community itself is progr
 
 ### automations: what happens when something happens
 
-Owns triggers and actions. Every context emits events; an automation reacts to one with an action in another. The welcome email when Sarah is granted the community, the email to SaaS founders when a post is published there, the notification to a post's followers when a comment lands, and the grant to Tom when he finishes the course are all automations.
+Owns triggers and actions. Every context emits events; an automation reacts to one with an action in another. The welcome email when Sarah is granted the community, the email when a post is published, the notification to a post's followers when a comment lands, and the grant to Tom when he finishes the course are all automations. The Announcements and SaaS founders emails in the Founder Collab tree are the seeded new-post automation. Announcements reaches every member because every member can open it. SaaS founders reaches its space members. They are not a second send of the same email.
 
-### reporting: what the owner sees about the community
+### reporting: composed reads
 
-Owns business analytics for the org's staff. Nothing in it is member-facing. How many members, how many were active this week, posts per space, comments per post, DMs sent, flags raised and resolved, grants lapsed and renewed. It reads from the other contexts and owns no data of its own. Rachel checking how SaaS founders is doing is reporting.
+Owns composed reads and no data of its own. Two services, one per product. `reporting/member` is the person in the member product. Sarah opening a course and Sarah opening the community call the same service: her courses, her progress, and her downloads, and the directory and the community home. The directory joins grants, roles and profiles. The home lists the spaces she can open, with their counts. `reporting/admin` is the person in the admin app. Rachel checking how SaaS founders is doing is that service: how many members, how many were active this week, posts per space, comments per post, DMs sent, flags raised and resolved, grants lapsed and renewed, beside the org overview, course analytics, and the roster it already answers.
 
 ### assets: files
 
@@ -211,11 +211,11 @@ A space is a place inside the community where members post. The org defines each
 
 A community holds a flat list of spaces in the order the org sets. There are no spaces inside spaces. Every post belongs to exactly one space, and each space has its own feed.
 
-The access rule decides who can open the space. All members: every member opens it. By request: every member sees it and asks to join; staff or a moderator approve. By invite: only invited people see it; staff or a moderator invite. A space by request or by invite can cap how many space members it has. Entitlements records each person's place in such a space as a space member with a status: requested, invited or active. A space for all members has no space members; the grant to the community is enough.
+The access rule decides who can open the space. All members: every member opens it. By request: every member sees it and asks to join; staff or a moderator approve. By invite: only invited people see it; staff or a moderator invite. A space by request or by invite can cap how many space members it has. Entitlements records each person's place in such a space as a space member with a status: requested, invited, active or revoked. That record is not a grant. A space for all members has no space members; the grant to the community is enough.
 
-A space links to any number of resources: a course, a download, an event. A link shows the resource in the space. Opening it needs a grant to it; a link never grants access.
+A space links to a course, a download or a community. A link shows the resource in the space. Opening it needs a grant to it; a link never grants access. Event links in the use cases are examples and are not stored.
 
-A moderator is a member who holds the moderator role, an org role organizations defines beside owner, admin, instructor and student. A moderator reviews, pins and removes posts in every space of the community and works its flag queues.
+A moderator is a member who holds the moderator role, a Better Auth role beside owner, admin, instructor and student. A moderator reviews, pins and removes posts in every space of the community and works its flag queues. The role is not staff.
 
 A space sets the defaults for its posts: whether comments and reactions are on, and whether posts are reviewed before they're published. The org sets them on the space, content owns them, and discussion reads them to enforce them. A post can override those defaults. It can also be pinned or have its comments closed, keeping existing comments but allowing no new ones.
 
@@ -227,7 +227,7 @@ They're called topics because courses already have a category, and the automatio
 
 ## Posts
 
-A post is user content (discussion entity) with an author, the space it's in, a title, a body, a topic where the space defines them, and a state. A post is rich content, and can optionally have comments. Comments on a post are the same comments an activity has: a comment's target is an activity or a post.
+A post is user content (discussion entity) with an author, the space it's in, a title, a body, a topic where the space defines them, and a state. A post is rich content, and can optionally have comments. Comments on a post are the same comments an activity has: a comment's target is an activity or a post. A comment on a post is published immediately. Flags and removal are how it is moderated. Review before publishing applies to the post.
 
 A post has one status: **draft**, **scheduled**, **awaiting review**, **published** or **removed**. The author saves a draft and submits it, or sets a time, which makes the post scheduled. Submission moves the post to awaiting review if the space reviews posts, otherwise to published. Staff or a moderator move a published post to removed. Discussion stores the status and the scheduled time. At the scheduled time, automations fires a time trigger that submits the post through discussion, which handles it like any other submission. Automations also notifies people about a published post.
 
@@ -246,8 +246,8 @@ Everyone in a DM is a member of the community or its staff; discussion asks enti
 ```
 Community
 ├─ DM settings         (one per community)
-├─ Blocks and mutes    (each between two people)
-└─ DM                  (two people, one per pair; group chat: three or more)
+├─ Blocks              (between two people, inside this community)
+└─ DM                  (two people, one per pair in this community; group chat: three or more)
     ├─ Participants    (each with their own read position and mute)
     └─ Message
         └─ Reactions, flags
@@ -255,17 +255,17 @@ Community
 
 ### How DMs work
 
-A DM is between two members. Two people only ever have one DM between them: writing to someone again continues it.
+A DM is between two members of one community. Two people have one DM in that community: writing to someone again continues it. The same two people in another community have a different DM.
 
 A message is text, with links or attachments. It can reply to an earlier message, mention people in the DM, and carry reactions. The author can edit or delete it; a deleted message leaves a marker where it was.
 
-Each person has their own read position in each DM, so unread counts are per person. Each can mute a DM: it stays, but they aren't notified. Notifications go out through automations unless the DM is muted or the sender blocked.
+Each person has their own read position in each DM, so unread counts are per person. Each can mute a chat: it stays, but they aren't notified. A mute is that chat only. Notifications go out through automations unless the chat is muted or the sender is blocked in this community.
 
 When the settings make a first message a request, a DM you start with someone you haven't messaged before arrives as a message request. They accept, ignore or block. Until they accept, you can't send a second message.
 
 ### Group chat
 
-A group chat is a DM between three or more members. The DM settings say whether group chats are allowed and how many people one holds. Where they are allowed, any member starts one, anyone in it adds people up to that size, and anyone leaves when they want. A person cannot be added if they and anyone already in it have blocked each other. A group chat has the same messages, read positions, mutes, reactions and flags as a DM between two people. It is not attached to any space: a group chat between members of one space is still private to the people in it. Discussion owns it.
+A group chat is a chat between three or more members of one community. It is created open. A message request is only for a DM between two people. The DM settings say whether group chats are allowed and how many people one holds. Where they are allowed, any member starts one, anyone in it adds people up to that size, and anyone leaves when they want. A person cannot be added if they and anyone already in it have blocked each other in this community. If two people in the group later block each other, those two cannot send and the others can. A group chat has the same messages, read positions, mutes, reactions and flags as a DM between two people. It is not attached to any space: a group chat between members of one space is still private to the people in it. Discussion owns it.
 
 ### DM settings
 
@@ -273,7 +273,7 @@ Per community, owned by content as part of the community's definition and applie
 
 ### Blocking and muting
 
-Every person can block and mute. A block stops messages both ways; the blocked person is not told, and nothing is deleted. A mute only stops notifications. Discussion owns blocks and mutes, as it owns the DMs they apply to.
+Every person can block and mute. A block is inside one community and stops messages both ways there; the blocked person is not told, and nothing is deleted. Their direct chat in that community closes. Other communities are untouched. A mute is per chat and only stops notifications. Discussion owns blocks and mutes, as it owns the chats they apply to.
 
 ## Flagging
 

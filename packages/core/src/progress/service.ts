@@ -22,7 +22,7 @@ import type { JsonValue } from '../types/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 
-/** Mirrors reporting/learn: `settings.published === false` is the only draft signal. */
+/** Mirrors reporting/member: `settings.published === false` is the only draft signal. */
 function isActivityPublished(settings: unknown): boolean {
   return (settings as { published?: boolean } | null)?.published !== false;
 }

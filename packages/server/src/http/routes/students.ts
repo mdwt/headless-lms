@@ -20,7 +20,7 @@ import { resolveScope } from '../scope.js';
 
 export async function studentsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const students = container.reporting.students;
+  const students = container.reporting.admin;
 
   r.route({
     method: 'GET',
@@ -35,7 +35,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return students.list(scope.orgId, req.query);
+      return students.listStudents(scope.orgId, req.query);
     },
   });
 
@@ -52,7 +52,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const student = await students.get(scope.orgId, req.params.id);
+      const student = await students.getStudent(scope.orgId, req.params.id);
       if (!student) {
         throw new NotFoundError('Student', req.params.id);
       }
@@ -73,7 +73,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const analytics = await students.analytics(scope.orgId, req.params.id);
+      const analytics = await students.studentAnalytics(scope.orgId, req.params.id);
       if (!analytics) {
         throw new NotFoundError('Student', req.params.id);
       }
@@ -105,7 +105,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       });
       // Re-read through the report so the response is the same shape the list
       // and detail GETs return, aggregates included.
-      const student = await students.get(scope.orgId, req.params.id);
+      const student = await students.getStudent(scope.orgId, req.params.id);
       if (!student) {
         throw new NotFoundError('Student', req.params.id);
       }

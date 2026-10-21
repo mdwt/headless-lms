@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
+import { memberApi } from "@/lib/api/server";
 import { adaptCourseSummary } from "@/lib/adapt";
 import {
   countByState,
@@ -18,8 +18,8 @@ import { Toolbar } from "@/components/dashboard/toolbar";
 import { CourseCollection } from "@/components/dashboard/course-collection";
 
 export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const coursesPromise = learnApi.listCourses();
-  const orgPromise = learnApi.org();
+  const coursesPromise = memberApi.listCourses();
+  const orgPromise = memberApi.org();
   const paramsPromise = searchParams;
   const session = await requireAuth(coursesPromise, orgPromise);
   // Promise.all (not sequential awaits) so one read rejecting still marks the
@@ -30,8 +30,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   // page — hero, stat chips, every bar — renders on the server instead of
   // waiting on the client store to be seeded.
   const [progress, activityLists] = await Promise.all([
-    Promise.all(rawCourses.map((c) => learnApi.courseProgress(c.id))),
-    Promise.all(rawCourses.map((c) => learnApi.listActivities(c.id))),
+    Promise.all(rawCourses.map((c) => memberApi.courseProgress(c.id))),
+    Promise.all(rawCourses.map((c) => memberApi.listActivities(c.id))),
   ]);
   const courses = rawCourses.map((c, i) => adaptCourseSummary(c, activityLists[i]?.length ?? 0));
   const views = courses.map((course, i) => toCourseView(course, progress[i]?.activities ?? {}));

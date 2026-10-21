@@ -1,21 +1,21 @@
 import type {
-  GetLearnViewerResponse,
+  GetMemberViewerResponse,
   ListActivityCommentsResponse,
-  GetLearnCourseResponse,
-  GetLearnDownloadResponse,
-  GetLearnOrgResponse,
-  ListLearnCoursesResponse,
-  ListLearnDownloadsResponse,
-  ListLearnActivitiesResponse,
-  ListLearnModulesResponse,
+  GetMemberCourseResponse,
+  GetMemberDownloadResponse,
+  GetMemberOrgResponse,
+  ListMemberCoursesResponse,
+  ListMemberDownloadsResponse,
+  ListMemberActivitiesResponse,
+  ListMemberModulesResponse,
 } from "@headless-lms/sdk";
 
-export type Course = GetLearnCourseResponse;
+export type Course = GetMemberCourseResponse;
 /** The portal org's public identity (branding). */
-export type Org = GetLearnOrgResponse;
-export type CourseSummary = ListLearnCoursesResponse[number];
-export type Module = ListLearnModulesResponse[number];
-export type Activity = ListLearnActivitiesResponse[number];
+export type Org = GetMemberOrgResponse;
+export type CourseSummary = ListMemberCoursesResponse[number];
+export type Module = ListMemberModulesResponse[number];
+export type Activity = ListMemberActivitiesResponse[number];
 
 /** One activity's comments as the learner may see them. */
 export type ActivityComments = ListActivityCommentsResponse;
@@ -25,9 +25,9 @@ export type CommentAuthor = CommentView["author"];
 export type ReactionEmoji = NonNullable<CommentView["viewerReaction"]>;
 export type ReactionCounts = CommentView["reactions"];
 /** Who the caller is inside the session's org. */
-export type Viewer = GetLearnViewerResponse;
-export type Download = ListLearnDownloadsResponse[number];
-export type DownloadDetail = GetLearnDownloadResponse;
+export type Viewer = GetMemberViewerResponse;
+export type Download = ListMemberDownloadsResponse[number];
+export type DownloadDetail = GetMemberDownloadResponse;
 export type DownloadAsset = DownloadDetail["assets"][number];
 
 /** The editor-agnostic content wrapper stored under `settings.content`. */

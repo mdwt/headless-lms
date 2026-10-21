@@ -77,7 +77,7 @@ export type EditComment = z.infer<typeof EditComment>;
 
 /** The staff PATCH writes status and nothing else: publishing covers approving
  *  a pending comment and restoring a removed one. Revising the text is the
- *  author's own edit, under /api/learn. */
+ *  author's own edit, under /api/member. */
 export const PatchComment = z.object({
   status: z.literal('published'),
 });

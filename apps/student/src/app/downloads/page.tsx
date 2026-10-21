@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Download as DownloadIcon, Inbox } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
+import { memberApi } from "@/lib/api/server";
 import type { Download } from "@/lib/api/types";
 
 async function thumbnailsFor(downloads: Download[]): Promise<Map<string, string>> {
@@ -10,7 +10,7 @@ async function thumbnailsFor(downloads: Download[]): Promise<Map<string, string>
   await Promise.all(
     downloads.map(async (d) => {
       if (!d.thumbnailAssetId) return;
-      const url = await learnApi.assetUrl(d.thumbnailAssetId);
+      const url = await memberApi.assetUrl(d.thumbnailAssetId);
       if (url) urls.set(d.id, url);
     }),
   );
@@ -18,14 +18,14 @@ async function thumbnailsFor(downloads: Download[]): Promise<Map<string, string>
 }
 
 export default async function DownloadsPage() {
-  const downloadsPromise = learnApi.listDownloads();
+  const downloadsPromise = memberApi.listDownloads();
   await requireAuth(downloadsPromise);
   const downloads = await downloadsPromise;
-  // File counts come from each download's own assets resource; the learn list
+  // File counts come from each download's own assets resource; the member list
   // row is the bare download record.
   const [thumbnails, details] = await Promise.all([
     thumbnailsFor(downloads),
-    Promise.all(downloads.map((d) => learnApi.getDownload(d.id))),
+    Promise.all(downloads.map((d) => memberApi.getDownload(d.id))),
   ]);
   const fileCounts = new Map(downloads.map((d, i) => [d.id, details[i]?.assets.length ?? 0]));
 

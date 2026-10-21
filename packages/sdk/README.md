@@ -25,25 +25,27 @@ The generated output is committed; a stale diff in review means it wasn't regene
 ## Usage
 
 ```ts
-import { configureSdk, Courses } from "@headless-lms/sdk";
+import { configureSdk, Content } from "@headless-lms/sdk";
 
 // Once at app startup. credentials default to "include" (carries the session cookie).
 configureSdk({ baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000" });
 
 // Path, query and body params are passed flat as the first argument; per-call
 // request options (headers, client, …) are the optional second argument.
-const { data, error } = await Courses.listCourses({
+const courses = await Content.listCourses({
   page: 1,
   pageSize: 20,
   status: "published",
   sort: "-enrolledCount",
 });
 
-const course = await Courses.getCourse({ id: "crs_001" });
+const course = await Content.getCourse({ id: "crs_001" });
 ```
 
-Methods are grouped into a class per OpenAPI resource tag (`Courses`, …). Each
-returns `{ data, error, response }` (it does not throw by default).
+Methods are grouped into a class per OpenAPI tag (`Content`, `Organizations`,
+`Progress`, `Discussion`, `Assets`, `Reporting`, `Entitlements`, `Automations`,
+`Integrations`). After `configureSdk`, a failed request throws and a successful
+one resolves to the response body.
 
 ## Consuming from a Next.js app
 

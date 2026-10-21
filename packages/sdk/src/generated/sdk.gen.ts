@@ -81,15 +81,15 @@ import type {
   GetEnrollmentSeriesResponses,
   GetInviteErrors,
   GetInviteResponses,
-  GetLearnCourseErrors,
-  GetLearnCourseProgressErrors,
-  GetLearnCourseProgressResponses,
-  GetLearnCourseResponses,
-  GetLearnDownloadAssetErrors,
-  GetLearnDownloadErrors,
-  GetLearnDownloadResponses,
-  GetLearnOrgResponses,
-  GetLearnViewerResponses,
+  GetMemberCourseErrors,
+  GetMemberCourseProgressErrors,
+  GetMemberCourseProgressResponses,
+  GetMemberCourseResponses,
+  GetMemberDownloadAssetErrors,
+  GetMemberDownloadErrors,
+  GetMemberDownloadResponses,
+  GetMemberOrgResponses,
+  GetMemberViewerResponses,
   GetOverviewResponses,
   GetStudentAnalyticsErrors,
   GetStudentAnalyticsResponses,
@@ -126,12 +126,12 @@ import type {
   ListDownloadAssetsResponses,
   ListDownloadsResponses,
   ListEntitlementsResponses,
-  ListLearnActivitiesErrors,
-  ListLearnActivitiesResponses,
-  ListLearnCoursesResponses,
-  ListLearnDownloadsResponses,
-  ListLearnModulesErrors,
-  ListLearnModulesResponses,
+  ListMemberActivitiesErrors,
+  ListMemberActivitiesResponses,
+  ListMemberCoursesResponses,
+  ListMemberDownloadsResponses,
+  ListMemberModulesErrors,
+  ListMemberModulesResponses,
   ListMembersResponses,
   ListModulesResponses,
   ListStudentsResponses,
@@ -493,12 +493,12 @@ export class Organizations {
   /**
    * Get the portal org's public identity (branding)
    */
-  public static getLearnOrg<ThrowOnError extends boolean = false>(
+  public static getMemberOrg<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnOrgResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetLearnOrgResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetMemberOrgResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<GetMemberOrgResponses, unknown, ThrowOnError, "data">({
       responseStyle: "data",
-      url: "/api/learn/org",
+      url: "/api/member/org",
       ...options,
     });
   }
@@ -506,14 +506,16 @@ export class Organizations {
   /**
    * Get the caller's identity within the session's org
    */
-  public static getLearnViewer<ThrowOnError extends boolean = false>(
+  public static getMemberViewer<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnViewerResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetLearnViewerResponses, unknown, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/learn/viewer",
-      ...options,
-    });
+  ): RequestResult<GetMemberViewerResponses, unknown, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<GetMemberViewerResponses, unknown, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/member/viewer",
+        ...options,
+      },
+    );
   }
 
   /**
@@ -1487,17 +1489,17 @@ export class Content {
   /**
    * List the student's enrolled courses
    */
-  public static listLearnCourses<ThrowOnError extends boolean = false>(
+  public static listMemberCourses<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnCoursesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberCoursesResponses, unknown, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
-      ListLearnCoursesResponses,
+      ListMemberCoursesResponses,
       unknown,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses",
+      url: "/api/member/courses",
       ...options,
     });
   }
@@ -1505,21 +1507,21 @@ export class Content {
   /**
    * Get one enrolled course
    */
-  public static getLearnCourse<ThrowOnError extends boolean = false>(
+  public static getMemberCourse<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnCourseResponses, GetLearnCourseErrors, ThrowOnError, "data"> {
+  ): RequestResult<GetMemberCourseResponses, GetMemberCourseErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnCourseResponses,
-      GetLearnCourseErrors,
+      GetMemberCourseResponses,
+      GetMemberCourseErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}",
+      url: "/api/member/courses/{courseId}",
       ...options,
       ...params,
     });
@@ -1528,21 +1530,21 @@ export class Content {
   /**
    * List an enrolled course's module/activity tree
    */
-  public static listLearnModules<ThrowOnError extends boolean = false>(
+  public static listMemberModules<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnModulesResponses, ListLearnModulesErrors, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberModulesResponses, ListMemberModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      ListLearnModulesResponses,
-      ListLearnModulesErrors,
+      ListMemberModulesResponses,
+      ListMemberModulesErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/modules",
+      url: "/api/member/courses/{courseId}/modules",
       ...options,
       ...params,
     });
@@ -1551,21 +1553,26 @@ export class Content {
   /**
    * List an enrolled course's published activities
    */
-  public static listLearnActivities<ThrowOnError extends boolean = false>(
+  public static listMemberActivities<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnActivitiesResponses, ListLearnActivitiesErrors, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListMemberActivitiesResponses,
+    ListMemberActivitiesErrors,
+    ThrowOnError,
+    "data"
+  > {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      ListLearnActivitiesResponses,
-      ListLearnActivitiesErrors,
+      ListMemberActivitiesResponses,
+      ListMemberActivitiesErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/activities",
+      url: "/api/member/courses/{courseId}/activities",
       ...options,
       ...params,
     });
@@ -1574,17 +1581,17 @@ export class Content {
   /**
    * Downloads the student is actively entitled to
    */
-  public static listLearnDownloads<ThrowOnError extends boolean = false>(
+  public static listMemberDownloads<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnDownloadsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberDownloadsResponses, unknown, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
-      ListLearnDownloadsResponses,
+      ListMemberDownloadsResponses,
       unknown,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/downloads",
+      url: "/api/member/downloads",
       ...options,
     });
   }
@@ -1592,21 +1599,21 @@ export class Content {
   /**
    * One entitled download and its ordered assets
    */
-  public static getLearnDownload<ThrowOnError extends boolean = false>(
+  public static getMemberDownload<ThrowOnError extends boolean = false>(
     parameters: {
       downloadId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnDownloadResponses, GetLearnDownloadErrors, ThrowOnError, "data"> {
+  ): RequestResult<GetMemberDownloadResponses, GetMemberDownloadErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnDownloadResponses,
-      GetLearnDownloadErrors,
+      GetMemberDownloadResponses,
+      GetMemberDownloadErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/downloads/{downloadId}",
+      url: "/api/member/downloads/{downloadId}",
       ...options,
       ...params,
     });
@@ -1615,13 +1622,13 @@ export class Content {
   /**
    * Redirect to a short-lived signed URL for an entitled asset
    */
-  public static getLearnDownloadAsset<ThrowOnError extends boolean = false>(
+  public static getMemberDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
       downloadId: string;
       assetId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetLearnDownloadAssetErrors, ThrowOnError, "data"> {
+  ): RequestResult<unknown, GetMemberDownloadAssetErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1635,12 +1642,12 @@ export class Content {
     );
     return (options?.client ?? client).get<
       unknown,
-      GetLearnDownloadAssetErrors,
+      GetMemberDownloadAssetErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/downloads/{downloadId}/assets/{assetId}",
+      url: "/api/member/downloads/{downloadId}/assets/{assetId}",
       ...options,
       ...params,
     });
@@ -2038,7 +2045,7 @@ export class Progress {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/progress",
+      url: "/api/member/progress",
       ...options,
       ...params,
       headers: {
@@ -2052,26 +2059,26 @@ export class Progress {
   /**
    * The student's progress in one course
    */
-  public static getLearnCourseProgress<ThrowOnError extends boolean = false>(
+  public static getMemberCourseProgress<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
-    GetLearnCourseProgressResponses,
-    GetLearnCourseProgressErrors,
+    GetMemberCourseProgressResponses,
+    GetMemberCourseProgressErrors,
     ThrowOnError,
     "data"
   > {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnCourseProgressResponses,
-      GetLearnCourseProgressErrors,
+      GetMemberCourseProgressResponses,
+      GetMemberCourseProgressErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/progress",
+      url: "/api/member/courses/{courseId}/progress",
       ...options,
       ...params,
     });
@@ -2101,7 +2108,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/activities/{activityId}/comments",
+      url: "/api/member/activities/{activityId}/comments",
       ...options,
       ...params,
     });
@@ -2137,7 +2144,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/activities/{activityId}/comments",
+      url: "/api/member/activities/{activityId}/comments",
       ...options,
       ...params,
       headers: {
@@ -2165,7 +2172,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}",
+      url: "/api/member/comments/{commentId}",
       ...options,
       ...params,
     });
@@ -2199,7 +2206,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}",
+      url: "/api/member/comments/{commentId}",
       ...options,
       ...params,
       headers: {
@@ -2232,7 +2239,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reaction",
+      url: "/api/member/comments/{commentId}/reaction",
       ...options,
       ...params,
     });
@@ -2266,7 +2273,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reaction",
+      url: "/api/member/comments/{commentId}/reaction",
       ...options,
       ...params,
       headers: {
@@ -2305,7 +2312,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reports",
+      url: "/api/member/comments/{commentId}/reports",
       ...options,
       ...params,
       headers: {
@@ -2512,7 +2519,7 @@ export class Assets {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/assets/{id}/url",
+      url: "/api/member/assets/{id}/url",
       ...options,
       ...params,
     });

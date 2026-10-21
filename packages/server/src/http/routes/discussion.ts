@@ -1,5 +1,5 @@
 // Moderator-facing discussion routes. The learner surface (everything under
-// `/api/learn`) lives in routes/learn/comments.ts.
+// `/api/member`) lives in routes/member/comments.ts.
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';

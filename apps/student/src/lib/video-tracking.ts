@@ -193,7 +193,7 @@ export function flushKeepalive(activityId: string, items: VideoReportItem[]): vo
     activity: activityId,
     reports: items as ReportBody["reports"],
   };
-  void fetch(`${base}/api/learn/progress`, {
+  void fetch(`${base}/api/member/progress`, {
     method: "POST",
     credentials: "include",
     keepalive: true,

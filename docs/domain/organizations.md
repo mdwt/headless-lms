@@ -18,7 +18,7 @@ Better Auth's **organization plugin** is the source of truth for organizations a
 ## Models
 
 - **Organization** — the tenant. The root every org-scoped record belongs to. Mirrors a Better Auth org.
-- **Org user** — links a person to an org and carries their role. Never exists without a person behind it. For staff it also mirrors a Better Auth member; learners have no Better Auth membership, so nothing to mirror. Carries a **status**: `invited` for a learner an admin has added who has not yet accepted, `active` once they have.
+- **Org user** — links a person to an org and carries their role. Never exists without a person behind it. Staff and moderators mirror a Better Auth member. A learner has no Better Auth membership, so nothing to mirror, until they are given another role, which creates the membership and updates the existing org user row. Carries a **status**: `invited` for a learner an admin has added who has not yet accepted, `active` once they have.
 - **Invite** — a pending invite to join an org. Domain-owned, carrying the role the invitee will hold.
 
 ## Roles
@@ -29,7 +29,7 @@ Five roles: `owner | admin | instructor | student | moderator`. A role answers t
 - **Admin** — manage courses, members, and settings. Org-global.
 - **Instructor** — create and manage courses. **Course-scoped** in principle: the role's grants are narrowed to a subset of courses rather than the whole org. Nothing records that subset today, so a narrowed grant resolves to no access.
 - **Student** — consume content. **Entitlement-scoped**: the role grants nothing on its own; what a learner may open is decided by their entitlements.
-- **Moderator** — a student who also moderates what members write in the org's communities: reviews, pins and removes posts and comments, approves requests and invites to spaces, works flag queues. Org-global for moderation, entitlement-scoped for access: they moderate every space of every community they hold a grant to.
+- **Moderator** — a Better Auth role, the same kind of membership as owner, admin and instructor. Reviews, pins and removes posts and comments, approves requests and invites to spaces, works flag queues. Not a staff role, and does not reach the back office. Org-global for moderation, entitlement-scoped for access: they moderate every space of every community they hold a grant to. One role per person per org, so holding moderator replaces student on that org user. Giving it to a student creates the Better Auth membership. Giving it to someone who already has a membership is the ordinary role change.
 
 The first three are the staff roles, and only they reach the back office.
 
@@ -50,7 +50,7 @@ The table-stakes permission map — the starting set, not a fixed contract.
 
 ## Member management
 
-Owners and admins manage who belongs to an org: invite by email and role, reassign a role, and remove an org user. Ownership is held by exactly one org user and moves only through a deliberate ownership transfer, not the ordinary role-reassignment path. Staff writes go through Better Auth and the mirror follows.
+Owners and admins manage who belongs to an org: invite by email and role, reassign a role, and remove an org user. Ownership is held by exactly one org user and moves only through a deliberate ownership transfer, not the ordinary role-reassignment path. Staff and moderator writes go through Better Auth and the mirror follows. The session carries the user and the active organization. The role is read from the org user on each request.
 
 ### Invites
 
@@ -71,7 +71,7 @@ Inviting **staff** creates nothing but the invitation. Their org user mirrors a 
 Emitted by core when the mirror updates in response to a Better Auth change (core owns these domain events; Better Auth owns the underlying auth action).
 
 - `organization.created`
-- `role.assigned`
+- `organization.user.updated` — an org user's role changed. Emitted by the mirror hook on every role change, including giving and removing moderator. No event fires on a role change today.
 - `invite.created`, `invite.accepted`, `invite.canceled`
 - org user added and removed
 - `student.linked` — a learner added by an admin has attached an account. `student.created` says the org has a record of them; this says they can actually sign in.
@@ -82,4 +82,4 @@ The organization is the tenant root. Every org-scoped record across the system b
 
 ## Build state
 
-Built and **persisted**.
+The four roles owner, admin, instructor and student are built and **persisted**. Moderator is specified with the community feature and is not built yet. The role enum and the auth adapter still list the four.

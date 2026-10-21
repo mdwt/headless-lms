@@ -418,7 +418,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   // By identity USER id — `(org_id, user_id)` is unique. Every caller (scope
-  // resolution, the MCP principal, the learn routes) asks "what is this person
+  // resolution, the MCP principal, the member routes) asks "what is this person
   // in this org", never "what is this org_users row".
   async getOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
     return this.repo.findOrgUser(orgId, userId);
