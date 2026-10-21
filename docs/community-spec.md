@@ -588,9 +588,9 @@ Deleting a community deletes its registry row. The cascade removes the community
 
 This section specifies the ports each context adds and the adapters that implement them. A port is an interface defined in the core. Each context defines four kinds in its `ports.ts`: the operations it offers (its service interface), the persistence it requires (its repository), the reads it requires from other contexts (readers), and its write scope (the repository together with the outbox, used inside one transaction). The feature adds no new kind of port and no new adapter package. Each affected context extends its own `ports.ts`.
 
-![Request flow: route guard, context, outbox, relay, automations, email](diagrams/architecture-request-flow.png)
+![Request flow: from a request to its response, and from the outbox to an automation](diagrams/architecture-request-flow.png)
 
-The diagram shows the path of a community request. The route guard authenticates the request and builds the actor. It calls one operation on one context. The context performs its authorization checks, reads what it needs from other contexts through their readers, writes its rows and its events in one transaction, and returns. The relay publishes the events from the outbox to the bus. Automations subscribes to the bus. Schedule triggers on automations are new and are specified below.
+The flowchart shows the path of a community request and what follows it. The route guard authenticates the request and builds the actor. It calls one operation on one context. The context performs its authorization checks, reads what it needs from other contexts through their readers, writes its rows and its events in one transaction, and returns. Outside the request, the relay publishes the events from the outbox to the bus, and automations runs the actions of every automation whose trigger and filter match. Schedule triggers on automations are new and are specified below.
 
 ### Actor
 
