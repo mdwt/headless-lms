@@ -1,10 +1,14 @@
 // reporting/member — ports.
+import type { DownloadTicket } from '../../assets/index.js';
+import type { Actor } from '../../shared/actor.js';
 import type {
   Activity,
+  CommunityHome,
   Course,
   Module,
   ContentRef,
   CourseProgressView,
+  DirectoryEntry,
   Download,
   DownloadAsset,
 } from './model.js';
@@ -38,6 +42,9 @@ export interface MemberReportService {
     downloadId: string,
     assetId: string,
   ): Promise<{ url: string; filename: string } | null>;
+  directory(orgId: string, actor: Actor, communityId: string): Promise<DirectoryEntry[] | null>;
+  communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
+  assetUrl(orgId: string, orgUserId: string, assetId: string): Promise<DownloadTicket | null>;
 }
 
 /**
@@ -58,4 +65,7 @@ export interface MemberReportRepository {
   ): Promise<ContentRef | null>;
   /** Whether this asset is linked to this download. The paywall's second gate. */
   downloadHasAsset(orgId: string, downloadId: string, assetId: string): Promise<boolean>;
+  directory(orgId: string, communityId: string): Promise<DirectoryEntry[]>;
+  spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
+  assetVisible(orgId: string, orgUserId: string, assetId: string): Promise<boolean>;
 }

@@ -374,6 +374,7 @@ export async function buildContainer(
       content,
       progress,
       assets,
+      access: entitlements,
       deliveryExpirySeconds: config.deliveryExpirySeconds,
       logger: reportingLogger,
     }),

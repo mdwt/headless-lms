@@ -1,10 +1,14 @@
 import { type ContentServicePort } from '../../content/index.js';
+import type { CommunityAccessReader } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
-import type { AssetsService } from '../../assets/index.js';
+import type { AssetsService, DownloadTicket } from '../../assets/index.js';
+import type { Actor } from '../../shared/actor.js';
 import type {
   Activity,
+  CommunityHome,
   Course,
   CourseProgressView,
+  DirectoryEntry,
   Download,
   DownloadAsset,
   Module,
@@ -22,6 +26,7 @@ export type MemberReportServiceParams = {
   content: ContentServicePort;
   progress: ProgressService;
   assets: AssetsService;
+  access?: CommunityAccessReader;
   deliveryExpirySeconds: number;
   logger?: Logger;
 };
@@ -31,6 +36,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
   private readonly assets: AssetsService;
+  private readonly access: CommunityAccessReader;
   private readonly deliveryExpirySeconds: number;
   private readonly logger: Logger;
 
@@ -39,6 +45,12 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.content = params.content;
     this.progress = params.progress;
     this.assets = params.assets;
+    this.access = params.access ?? {
+      isCommunityMember: async () => false,
+      canOpenSpace: async () => false,
+      openSpaceIds: async () => [],
+      grantOpensCommunity: async () => false,
+    };
     this.deliveryExpirySeconds = params.deliveryExpirySeconds;
     this.logger = params.logger ?? noopLogger;
   }
@@ -186,5 +198,68 @@ export class MemberReportServiceImpl implements MemberReportService {
     // Never log the signed URL — it is a bearer capability.
     this.logger.info('download asset signed', { orgId, downloadId, assetId });
     return { url: ticket.url, filename };
+  }
+
+  async directory(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+  ): Promise<DirectoryEntry[] | null> {
+    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+      return null;
+    }
+    const community = await this.content.getCommunity(orgId, communityId);
+    if (!community) {
+      return null;
+    }
+    return this.repo.directory(orgId, communityId);
+  }
+
+  async communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null> {
+    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+      return null;
+    }
+    const community = await this.content.getCommunity(orgId, communityId);
+    if (!community) {
+      return null;
+    }
+    const spaces = await this.content.listSpaces(orgId, communityId);
+    const open = new Set(await this.access.openSpaceIds(orgId, actor, communityId));
+    const counts = await this.repo.spaceMemberCounts(orgId, communityId);
+    return {
+      communityId,
+      title: community.title,
+      spaces: spaces
+        .filter((space) => open.has(space.id) || space.accessRule === 'by_request')
+        .map((space) => ({
+          id: space.id,
+          name: space.name,
+          memberCount: counts[space.id] ?? 0,
+          open: open.has(space.id),
+          accessRule: space.accessRule,
+        })),
+    };
+  }
+
+  async assetUrl(orgId: string, orgUserId: string, assetId: string): Promise<DownloadTicket | null> {
+    const visible = await this.repo.assetVisible(orgId, orgUserId, assetId);
+    if (!visible) {
+      return null;
+    }
+    const asset = await this.assets.get(orgId, assetId);
+    if (!asset) {
+      return null;
+    }
+    const ticket = await this.assets.requestDownload(
+      orgId,
+      assetId,
+      asset.filename,
+      this.deliveryExpirySeconds,
+    );
+    if (!ticket) {
+      return null;
+    }
+    this.logger.info('member asset signed', { orgId, assetId });
+    return ticket;
   }
 }

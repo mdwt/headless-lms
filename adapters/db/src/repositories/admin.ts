@@ -1,8 +1,10 @@
 // reporting/admin — Drizzle repository.
-import { and, asc, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   AdminReportRepository,
+  CommunityAnalytics,
   CourseActivityEngagement,
   CourseAnalytics,
   CourseEnrollmentPoint,
@@ -14,7 +16,20 @@ import type {
   StudentCourseProgress,
   StudentsQuery,
 } from "@headless-lms/core/reporting/admin";
-import { courses, entitlements, orgUsers, users } from "../schema/index.js";
+import {
+  commentFlags,
+  comments,
+  communities,
+  courses,
+  entitlements,
+  messageFlags,
+  messages,
+  orgUsers,
+  postFlags,
+  posts,
+  spaces,
+  users,
+} from "../schema/index.js";
 import { STUDENT_ROLE } from "@headless-lms/core/organizations";
 import { user } from "../schema/better-auth.js";
 import type { OrgUserStatus } from "@headless-lms/core/types";
@@ -477,6 +492,196 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       default:
         return [dir(users.firstName), dir(users.lastName)];
     }
+  }
+
+  async communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null> {
+    const [community] = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .where(and(eq(communities.orgId, orgId), eq(communities.id, communityId)))
+      .limit(1);
+    if (!community) {
+      return null;
+    }
+
+    const opens = sql`(
+      (
+        ${entitlements.contentId} = ${communityId}
+        and exists (
+          select 1 from content_items ci
+          where ci.org_id = ${entitlements.orgId}
+            and ci.id = ${entitlements.contentId}
+            and ci.type = 'community'
+        )
+      )
+      or exists (
+        select 1 from bundle_items bi
+        join content_items ci on ci.org_id = bi.org_id and ci.id = bi.content_id
+        where bi.org_id = ${entitlements.orgId}
+          and bi.bundle_id = ${entitlements.bundleId}
+          and bi.content_id = ${communityId}
+          and ci.type = 'community'
+      )
+    )`;
+    const live = and(
+      eq(entitlements.orgId, orgId),
+      eq(entitlements.status, "active"),
+      or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
+      opens,
+    );
+    const lapsed = and(
+      eq(entitlements.orgId, orgId),
+      eq(entitlements.status, "active"),
+      sql`${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now()`,
+      opens,
+    );
+    const recent = sql`now() - interval '30 days'`;
+
+    const [
+      [members],
+      [lapsedGrants],
+      authors,
+      postsPerSpace,
+      commentsPerPost,
+      [sent],
+      [postFlagRow],
+      [commentFlagRow],
+      [messageFlagRow],
+      lapsedHolders,
+    ] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`cast(count(distinct ${entitlements.orgUserId}) as int)` })
+        .from(entitlements)
+        .where(live),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(entitlements)
+        .where(lapsed),
+      union(
+        this.db
+          .select({ id: posts.orgUserId })
+          .from(posts)
+          .where(
+            and(
+              eq(posts.orgId, orgId),
+              eq(posts.communityId, communityId),
+              sql`${posts.createdAt} >= ${recent}`,
+            ),
+          ),
+        this.db
+          .select({ id: comments.orgUserId })
+          .from(comments)
+          .where(
+            and(
+              eq(comments.orgId, orgId),
+              eq(comments.communityId, communityId),
+              sql`${comments.createdAt} >= ${recent}`,
+            ),
+          ),
+        this.db
+          .select({ id: messages.orgUserId })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.orgId, orgId),
+              eq(messages.communityId, communityId),
+              sql`${messages.createdAt} >= ${recent}`,
+            ),
+          ),
+      ),
+      this.db
+        .select({
+          spaceId: spaces.id,
+          count: sql<number>`cast(count(${posts.id}) as int)`,
+        })
+        .from(spaces)
+        .leftJoin(
+          posts,
+          and(eq(posts.orgId, spaces.orgId), eq(posts.spaceId, spaces.id), eq(posts.status, "published")),
+        )
+        .where(and(eq(spaces.orgId, orgId), eq(spaces.communityId, communityId)))
+        .groupBy(spaces.id),
+      this.db
+        .select({
+          postId: posts.id,
+          count: sql<number>`cast(count(${comments.id}) as int)`,
+        })
+        .from(posts)
+        .leftJoin(
+          comments,
+          and(
+            eq(comments.orgId, posts.orgId),
+            eq(comments.postId, posts.id),
+            eq(comments.status, "published"),
+          ),
+        )
+        .where(
+          and(eq(posts.orgId, orgId), eq(posts.communityId, communityId), eq(posts.status, "published")),
+        )
+        .groupBy(posts.id),
+      this.db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(messages)
+        .where(and(eq(messages.orgId, orgId), eq(messages.communityId, communityId))),
+      this.db
+        .select({
+          raised: sql<number>`cast(count(*) as int)`,
+          resolved: sql<number>`cast(count(*) filter (where ${postFlags.resolvedAt} is not null) as int)`,
+        })
+        .from(postFlags)
+        .innerJoin(posts, and(eq(posts.orgId, postFlags.orgId), eq(posts.id, postFlags.postId)))
+        .where(and(eq(postFlags.orgId, orgId), eq(posts.communityId, communityId))),
+      this.db
+        .select({
+          raised: sql<number>`cast(count(*) as int)`,
+          resolved: sql<number>`cast(count(*) filter (where ${commentFlags.resolvedAt} is not null) as int)`,
+        })
+        .from(commentFlags)
+        .innerJoin(comments, and(eq(comments.orgId, commentFlags.orgId), eq(comments.id, commentFlags.commentId)))
+        .where(and(eq(commentFlags.orgId, orgId), eq(comments.communityId, communityId))),
+      this.db
+        .select({
+          raised: sql<number>`cast(count(*) as int)`,
+          resolved: sql<number>`cast(count(*) filter (where ${messageFlags.resolvedAt} is not null) as int)`,
+        })
+        .from(messageFlags)
+        .where(and(eq(messageFlags.orgId, orgId), eq(messageFlags.communityId, communityId))),
+      this.db
+        .select({ orgUserId: entitlements.orgUserId })
+        .from(entitlements)
+        .where(lapsed)
+        .groupBy(entitlements.orgUserId),
+    ]);
+
+    const holderIds = lapsedHolders.map((row) => row.orgUserId);
+    const [renewed] =
+      holderIds.length === 0
+        ? [{ count: 0 }]
+        : await this.db
+            .select({ count: sql<number>`cast(count(*) as int)` })
+            .from(entitlements)
+            .where(and(live, inArray(entitlements.orgUserId, holderIds)));
+
+    const raised =
+      Number(postFlagRow?.raised ?? 0) +
+      Number(commentFlagRow?.raised ?? 0) +
+      Number(messageFlagRow?.raised ?? 0);
+    const resolved =
+      Number(postFlagRow?.resolved ?? 0) +
+      Number(commentFlagRow?.resolved ?? 0) +
+      Number(messageFlagRow?.resolved ?? 0);
+
+    return {
+      memberCount: Number(members?.count ?? 0),
+      activeMembers: authors.length,
+      postsPerSpace: postsPerSpace.map((row) => ({ spaceId: row.spaceId, count: Number(row.count) })),
+      commentsPerPost: commentsPerPost.map((row) => ({ postId: row.postId, count: Number(row.count) })),
+      messagesSent: Number(sent?.count ?? 0),
+      flagsRaised: raised,
+      flagsResolved: resolved,
+      grantsLapsed: Number(lapsedGrants?.count ?? 0),
+      grantsRenewed: Number(renewed?.count ?? 0),
+    };
   }
 
 }

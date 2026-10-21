@@ -72,6 +72,9 @@ function fakeRepo(refs: ContentRef[]): MemberReportRepository {
     activeDownloadRefs: async () => [],
     activeDownloadRef: async () => null,
     downloadHasAsset: async () => false,
+    directory: async () => [],
+    spaceMemberCounts: async () => ({}),
+    assetVisible: async () => false,
   };
 }
 
@@ -186,6 +189,9 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
     activeDownloadRefs: async () => [],
     activeDownloadRef: async () => null,
     downloadHasAsset: async () => false,
+    directory: async () => [],
+    spaceMemberCounts: async () => ({}),
+    assetVisible: async () => false,
     ...over,
   };
 }

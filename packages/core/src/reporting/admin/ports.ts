@@ -1,5 +1,6 @@
 // reporting/admin — ports.
 import type {
+  CommunityAnalytics,
   CourseAnalytics,
   CourseEnrollmentPoint,
   EnrollmentPoint,
@@ -22,6 +23,7 @@ export interface AdminReportService {
   listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>>;
   getStudent(orgId: string, id: string): Promise<Student | null>;
   studentAnalytics(orgId: string, id: string): Promise<StudentAnalytics | null>;
+  communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null>;
 }
 
 export interface AdminReportRepository {
@@ -36,4 +38,5 @@ export interface AdminReportRepository {
   listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>>;
   getStudent(orgId: string, id: string): Promise<Student | null>;
   studentAnalytics(orgId: string, id: string): Promise<StudentAnalytics | null>;
+  communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null>;
 }

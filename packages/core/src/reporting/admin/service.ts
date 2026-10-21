@@ -1,4 +1,5 @@
 import type {
+  CommunityAnalytics,
   CourseAnalytics,
   CourseEnrollmentPoint,
   EnrollmentPoint,
@@ -51,5 +52,9 @@ export class AdminReportServiceImpl implements AdminReportService {
 
   studentAnalytics(orgId: string, id: string): Promise<StudentAnalytics | null> {
     return this.repo.studentAnalytics(orgId, id);
+  }
+
+  communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null> {
+    return this.repo.communityAnalytics(orgId, communityId);
   }
 }

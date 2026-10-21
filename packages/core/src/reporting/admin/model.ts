@@ -1,6 +1,28 @@
 // reporting/admin — read models for the admin app. Framework-free.
 import type { OrgUserProfile, OrgUserStatus } from '../../types/index.js';
 
+export interface SpacePostCount {
+  spaceId: string;
+  count: number;
+}
+
+export interface PostCommentCount {
+  postId: string;
+  count: number;
+}
+
+export interface CommunityAnalytics {
+  memberCount: number;
+  activeMembers: number;
+  postsPerSpace: SpacePostCount[];
+  commentsPerPost: PostCommentCount[];
+  messagesSent: number;
+  flagsRaised: number;
+  flagsResolved: number;
+  grantsLapsed: number;
+  grantsRenewed: number;
+}
+
 export interface OverviewStats {
   publishedCourses: number;
   draftCourses: number;
