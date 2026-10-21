@@ -1,6 +1,24 @@
 export type {
   ActivityCommentsRule,
+  BlockedUser,
+  Chat,
+  ChatKind,
+  ChatStatus,
+  ChatUser,
+  CommentFlagResolution,
   CommentStatus,
+  Message,
+  MessageAttachment,
+  MessageFlag,
+  MessageFlagResolution,
+  MessageReaction,
+  Post,
+  PostBookmark,
+  PostFlag,
+  PostFlagResolution,
+  PostFollow,
+  PostReaction,
+  PostStatus,
   ReactionEmoji,
   ReactionCounts,
   CommentReaction,
@@ -17,7 +35,9 @@ import type { CommentStatus } from './schemas/discussion.js';
 export interface Comment {
   readonly id: string;
   readonly orgId: string;
-  readonly activityId: string;
+  readonly activityId: string | null;
+  readonly postId: string | null;
+  readonly communityId: string | null;
   readonly parentId: string | null;
   readonly orgUserId: string;
   body: string;
@@ -42,6 +62,8 @@ export interface CommentReport {
   readonly orgUserId: string;
   readonly reason: string;
   resolvedAt: Date | null;
+  resolution: 'dismissed' | 'removed' | null;
+  resolvedBy: string | null;
   readonly createdAt: Date;
   updatedAt: Date;
 }

@@ -1768,7 +1768,9 @@ export type DeleteCommentResponses = {
   200: {
     id: string;
     orgId: string;
-    activityId: string;
+    activityId: string | null;
+    postId: string | null;
+    communityId: string | null;
     parentId: string | null;
     orgUserId: string;
     body: string;
@@ -2029,7 +2031,7 @@ export type GetAssetDownloadUrlResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content";
+      kind: "video" | "download" | "content" | "image";
       filename: string;
       contentType: string;
       size: number;
@@ -2252,7 +2254,9 @@ export type ModerateRemoveCommentResponses = {
   200: {
     id: string;
     orgId: string;
-    activityId: string;
+    activityId: string | null;
+    postId: string | null;
+    communityId: string | null;
     parentId: string | null;
     orgUserId: string;
     body: string;
@@ -2305,7 +2309,9 @@ export type PublishCommentResponses = {
   200: {
     id: string;
     orgId: string;
-    activityId: string;
+    activityId: string | null;
+    postId: string | null;
+    communityId: string | null;
     parentId: string | null;
     orgUserId: string;
     body: string;
@@ -3130,6 +3136,10 @@ export type ListAutomationsResponses = {
       };
     }>;
     enabled: boolean;
+    filter: {
+      [key: string]: JsonValue;
+    } | null;
+    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   }>;
@@ -3172,6 +3182,10 @@ export type CreateAutomationResponses = {
       };
     }>;
     enabled: boolean;
+    filter: {
+      [key: string]: JsonValue;
+    } | null;
+    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };
@@ -3304,6 +3318,10 @@ export type GetAutomationResponses = {
       };
     }>;
     enabled: boolean;
+    filter: {
+      [key: string]: JsonValue;
+    } | null;
+    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };
@@ -3370,6 +3388,10 @@ export type UpdateAutomationResponses = {
       };
     }>;
     enabled: boolean;
+    filter: {
+      [key: string]: JsonValue;
+    } | null;
+    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };
@@ -3891,7 +3913,7 @@ export type RequestUploadData = {
   body: {
     filename: string;
     contentType: string;
-    kind: "video" | "download" | "content";
+    kind: "video" | "download" | "content" | "image";
   };
   path?: never;
   query?: never;
@@ -3928,7 +3950,7 @@ export type RequestUploadResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content";
+      kind: "video" | "download" | "content" | "image";
       filename: string;
       contentType: string;
       size: number;
@@ -3994,7 +4016,7 @@ export type ConfirmAssetResponses = {
     orgId: string;
     id: string;
     key: string;
-    kind: "video" | "download" | "content";
+    kind: "video" | "download" | "content" | "image";
     filename: string;
     contentType: string;
     size: number;
@@ -4015,7 +4037,7 @@ export type ListAssetsData = {
     pageSize?: number;
     search?: string;
     sort?: string;
-    kind?: "video" | "download" | "content";
+    kind?: "video" | "download" | "content" | "image";
   };
   url: "/api/assets";
 };
@@ -4050,7 +4072,7 @@ export type ListAssetsResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content";
+      kind: "video" | "download" | "content" | "image";
       filename: string;
       contentType: string;
       size: number;
@@ -4158,7 +4180,7 @@ export type GetAssetResponses = {
     orgId: string;
     id: string;
     key: string;
-    kind: "video" | "download" | "content";
+    kind: "video" | "download" | "content" | "image";
     filename: string;
     contentType: string;
     size: number;
@@ -4222,7 +4244,7 @@ export type RequestAssetDownloadResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content";
+      kind: "video" | "download" | "content" | "image";
       filename: string;
       contentType: string;
       size: number;

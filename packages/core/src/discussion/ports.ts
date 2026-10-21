@@ -1,8 +1,9 @@
 // discussion context — ports.
 // Inbound: the use cases the service implements.
 // Outbound: the persistence contract the repository fulfils.
-import type { Activity, Role } from '../types/index.js';
+import type { Activity } from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
 import type { Comment, CommentAuthor, CommentReport } from './model.js';
 import type {
   CommentsConfig,
@@ -32,17 +33,7 @@ export interface CommentWithContext {
   activityTitle: string;
 }
 
-/**
- * Who is acting, and the role they hold in this org right now.
- *
- * The role is resolved at the HTTP edge from the session's active-org
- * org user and handed in — read fresh on every request, never stored on a
- * comment. Core does not look a role up to authorise.
- */
-export interface Actor {
-  id: string;
-  role: Role;
-}
+export type { Actor } from '../shared/actor.js';
 export type PostCommentInput = {
   actor: Actor;
   activityId: string;
@@ -141,7 +132,15 @@ export interface DiscussionRepository {
   insertReport(orgId: string, report: CommentReport): Promise<CommentReport | null>;
   /** Every unresolved report against the given comments. */
   listOpenReports(orgId: string, commentIds: string[]): Promise<CommentReport[]>;
-  resolveReportsFor(orgId: string, commentId: string, resolvedAt: Date): Promise<void>;
+  resolveReportsFor(
+    orgId: string,
+    commentId: string,
+    resolved: {
+      resolvedAt: Date;
+      resolvedBy: string;
+      resolution: 'dismissed' | 'removed';
+    },
+  ): Promise<void>;
 
   authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>>;
 

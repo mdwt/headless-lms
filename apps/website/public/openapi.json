@@ -5236,6 +5236,17 @@
                       "minLength": 1
                     },
                     "activityId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "postId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "communityId": {
+                      "nullable": true,
                       "type": "string",
                       "minLength": 1
                     },
@@ -5277,6 +5288,8 @@
                     "id",
                     "orgId",
                     "activityId",
+                    "postId",
+                    "communityId",
                     "parentId",
                     "orgUserId",
                     "body",
@@ -5740,7 +5753,8 @@
                           "enum": [
                             "video",
                             "download",
-                            "content"
+                            "content",
+                            "image"
                           ]
                         },
                         "filename": {
@@ -6516,6 +6530,17 @@
                       "minLength": 1
                     },
                     "activityId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "postId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "communityId": {
+                      "nullable": true,
                       "type": "string",
                       "minLength": 1
                     },
@@ -6557,6 +6582,8 @@
                     "id",
                     "orgId",
                     "activityId",
+                    "postId",
+                    "communityId",
                     "parentId",
                     "orgUserId",
                     "body",
@@ -6676,6 +6703,17 @@
                       "minLength": 1
                     },
                     "activityId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "postId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "communityId": {
+                      "nullable": true,
                       "type": "string",
                       "minLength": 1
                     },
@@ -6717,6 +6755,8 @@
                     "id",
                     "orgId",
                     "activityId",
+                    "postId",
+                    "communityId",
                     "parentId",
                     "orgUserId",
                     "body",
@@ -9359,6 +9399,20 @@
                       "enabled": {
                         "type": "boolean"
                       },
+                      "filter": {
+                        "nullable": true,
+                        "type": "object",
+                        "additionalProperties": {
+                          "$ref": "#/components/schemas/JsonValue"
+                        }
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "system",
+                          "user"
+                        ]
+                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -9377,6 +9431,8 @@
                       "triggers",
                       "actions",
                       "enabled",
+                      "filter",
+                      "source",
                       "createdAt",
                       "updatedAt"
                     ],
@@ -9512,6 +9568,20 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "filter": {
+                      "nullable": true,
+                      "type": "object",
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "system",
+                        "user"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -9530,6 +9600,8 @@
                     "triggers",
                     "actions",
                     "enabled",
+                    "filter",
+                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -9727,6 +9799,20 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "filter": {
+                      "nullable": true,
+                      "type": "object",
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "system",
+                        "user"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -9745,6 +9831,8 @@
                     "triggers",
                     "actions",
                     "enabled",
+                    "filter",
+                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -9912,6 +10000,20 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "filter": {
+                      "nullable": true,
+                      "type": "object",
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "system",
+                        "user"
+                      ]
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -9930,6 +10032,8 @@
                     "triggers",
                     "actions",
                     "enabled",
+                    "filter",
+                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -11526,7 +11630,8 @@
                     "enum": [
                       "video",
                       "download",
-                      "content"
+                      "content",
+                      "image"
                     ]
                   }
                 },
@@ -11567,7 +11672,8 @@
                           "enum": [
                             "video",
                             "download",
-                            "content"
+                            "content",
+                            "image"
                           ]
                         },
                         "filename": {
@@ -11748,7 +11854,8 @@
                       "enum": [
                         "video",
                         "download",
-                        "content"
+                        "content",
+                        "image"
                       ]
                     },
                     "filename": {
@@ -11932,7 +12039,8 @@
               "enum": [
                 "video",
                 "download",
-                "content"
+                "content",
+                "image"
               ]
             },
             "in": "query",
@@ -11970,7 +12078,8 @@
                             "enum": [
                               "video",
                               "download",
-                              "content"
+                              "content",
+                              "image"
                             ]
                           },
                           "filename": {
@@ -12144,7 +12253,8 @@
                       "enum": [
                         "video",
                         "download",
-                        "content"
+                        "content",
+                        "image"
                       ]
                     },
                     "filename": {
@@ -12442,7 +12552,8 @@
                           "enum": [
                             "video",
                             "download",
-                            "content"
+                            "content",
+                            "image"
                           ]
                         },
                         "filename": {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { idSchema } from './shared.js';
 
-export const assetKindSchema = z.enum(['video', 'download', 'content']);
+export const assetKindSchema = z.enum(['video', 'download', 'content', 'image']);
 export type AssetKind = z.infer<typeof assetKindSchema>;
 
 export const assetStatusSchema = z.enum(['pending', 'ready']);

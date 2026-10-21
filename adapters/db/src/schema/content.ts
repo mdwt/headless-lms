@@ -7,6 +7,7 @@ import {
   primaryKey,
   foreignKey,
   unique,
+  index,
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -15,11 +16,15 @@ import type {
   ActivityAsset,
   Bundle,
   BundleItem,
+  Community,
   ContentItem,
   Course,
   Download,
   DownloadAsset,
   Module,
+  Space,
+  SpaceLink,
+  SpaceTopic,
 } from "@headless-lms/core/schemas";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations } from "./organizations.js";
@@ -56,7 +61,7 @@ export const contentItems = pgTable(
       .notNull()
       .references(() => organizations.id),
     id: text("id").notNull(),
-    type: text("type", { enum: ["course", "download"] }).notNull(),
+    type: text("type", { enum: ["course", "download", "community"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -68,7 +73,10 @@ export const contentItems = pgTable(
     // FK target for type-pinned references from concrete content tables.
     typeUq: unique().on(t.orgId, t.id, t.type),
     // Widened per new content type.
-    typeCk: check("content_items_type_check", sql`${t.type} in ('course', 'download')`),
+    typeCk: check(
+      "content_items_type_check",
+      sql`${t.type} in ('course', 'download', 'community')`,
+    ),
   }),
 );
 
@@ -338,6 +346,149 @@ export const downloadAssets = pgTable(
   }),
 );
 
+export const communities = pgTable(
+  "communities",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("community")),
+    type: text("type")
+      .$type<Community["type"]>()
+      .notNull()
+      .generatedAlwaysAs(sql`'community'`),
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] })
+      .notNull()
+      .default("draft"),
+    thumbnailAssetId: text("thumbnail_asset_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    slugUq: unique().on(t.orgId, t.slug),
+    contentItemFk: foreignKey({
+      columns: [t.orgId, t.id, t.type],
+      foreignColumns: [contentItems.orgId, contentItems.id, contentItems.type],
+    }).onDelete("cascade"),
+    thumbnailAssetFk: foreignKey({
+      columns: [t.orgId, t.thumbnailAssetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+  }),
+);
+
+export const spaces = pgTable(
+  "spaces",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("space")),
+    communityId: text("community_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    seq: integer("seq").notNull(),
+    accessRule: text("access_rule", { enum: ["all_members", "by_request", "by_invite"] })
+      .notNull()
+      .default("all_members"),
+    capacity: integer("capacity"),
+    settings: jsonb("settings")
+      .$type<Space["settings"]>()
+      .notNull()
+      .default({ comments: true, reactions: true, requireReview: false }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    communityUq: unique().on(t.orgId, t.id, t.communityId),
+    communityFk: foreignKey({
+      columns: [t.orgId, t.communityId],
+      foreignColumns: [communities.orgId, communities.id],
+    }).onDelete("cascade"),
+    capacityCk: check(
+      "spaces_capacity_check",
+      sql`${t.capacity} is null or ${t.accessRule} <> 'all_members'`,
+    ),
+    orderIdx: index("spaces_order_idx").on(t.orgId, t.communityId, t.seq),
+  }),
+);
+
+export const spaceTopics = pgTable(
+  "space_topics",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("topic")),
+    spaceId: text("space_id").notNull(),
+    name: text("name").notNull(),
+    seq: integer("seq").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    nameUq: unique().on(t.orgId, t.spaceId, t.name),
+    spaceUq: unique().on(t.orgId, t.spaceId, t.id),
+    spaceFk: foreignKey({
+      columns: [t.orgId, t.spaceId],
+      foreignColumns: [spaces.orgId, spaces.id],
+    }).onDelete("cascade"),
+  }),
+);
+
+export const spaceLinks = pgTable(
+  "space_links",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("spaceLink")),
+    spaceId: text("space_id").notNull(),
+    contentId: text("content_id").notNull(),
+    seq: integer("seq").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    contentUq: unique().on(t.orgId, t.spaceId, t.contentId),
+    spaceFk: foreignKey({
+      columns: [t.orgId, t.spaceId],
+      foreignColumns: [spaces.orgId, spaces.id],
+    }).onDelete("cascade"),
+    contentFk: foreignKey({
+      columns: [t.orgId, t.contentId],
+      foreignColumns: [contentItems.orgId, contentItems.id],
+    }).onDelete("cascade"),
+  }),
+);
+
 type _BundlesDrift = Expect<NoDrift<typeof bundles.$inferSelect, Bundle>>;
 type _BundleItemsDrift = Expect<NoDrift<typeof bundleItems.$inferSelect, BundleItem>>;
 type _ContentItemsDrift = Expect<NoDrift<typeof contentItems.$inferSelect, ContentItem>>;
@@ -347,3 +498,7 @@ type _ActivitiesDrift = Expect<NoDrift<typeof activities.$inferSelect, Activity>
 type _ActivityAssetsDrift = Expect<NoDrift<typeof activityAssets.$inferSelect, ActivityAsset>>;
 type _DownloadsDrift = Expect<NoDrift<typeof downloads.$inferSelect, Download>>;
 type _DownloadAssetsDrift = Expect<NoDrift<typeof downloadAssets.$inferSelect, DownloadAsset>>;
+type _CommunitiesDrift = Expect<NoDrift<typeof communities.$inferSelect, Omit<Community, "settings">>>;
+type _SpacesDrift = Expect<NoDrift<typeof spaces.$inferSelect, Space>>;
+type _SpaceTopicsDrift = Expect<NoDrift<typeof spaceTopics.$inferSelect, SpaceTopic>>;
+type _SpaceLinksDrift = Expect<NoDrift<typeof spaceLinks.$inferSelect, SpaceLink>>;

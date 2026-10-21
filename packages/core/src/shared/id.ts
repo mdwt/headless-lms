@@ -31,6 +31,16 @@ export const ID_PREFIXES = {
   automationRun: 'run',
   comment: 'cmt',
   commentReport: 'crp',
+  community: 'cmy',
+  space: 'spc',
+  topic: 'top',
+  spaceLink: 'slk',
+  spaceMember: 'spm',
+  post: 'pst',
+  postFlag: 'pfl',
+  chat: 'cht',
+  message: 'msg',
+  messageFlag: 'mfl',
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;

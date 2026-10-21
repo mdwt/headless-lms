@@ -40,6 +40,10 @@ export const automations = pgTable(
     triggers: text("triggers").array().notNull(),
     actions: jsonb("actions").$type<AutomationAction[]>().notNull(),
     enabled: boolean("enabled").notNull().default(true),
+    filter: jsonb("filter").$type<Automation["filter"]>(),
+    source: text("source", { enum: ["system", "user"] })
+      .notNull()
+      .default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

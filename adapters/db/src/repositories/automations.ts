@@ -32,6 +32,8 @@ const automationSelection = {
   triggers: automations.triggers,
   actions: automations.actions,
   enabled: automations.enabled,
+  filter: automations.filter,
+  source: automations.source,
   createdAt: automations.createdAt,
   updatedAt: automations.updatedAt,
 };
@@ -45,6 +47,8 @@ interface AutomationRow {
   triggers: string[];
   actions: Automation["actions"];
   enabled: boolean;
+  filter: Automation["filter"];
+  source: Automation["source"];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +63,8 @@ function toAutomation(row: AutomationRow): Automation {
     triggers: row.triggers,
     actions: row.actions,
     enabled: row.enabled,
+    filter: row.filter,
+    source: row.source,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

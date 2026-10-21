@@ -16,7 +16,7 @@ export const assets = pgTable(
       .notNull()
       .$defaultFn(() => genId("asset")),
     key: text("key").notNull(),
-    kind: text("kind", { enum: ["video", "download", "content"] }).notNull(),
+    kind: text("kind", { enum: ["video", "download", "content", "image"] }).notNull(),
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
     // Bytes; bigint because media files exceed int4. 0 until upload confirmed.

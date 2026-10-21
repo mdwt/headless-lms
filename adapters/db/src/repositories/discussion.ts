@@ -15,7 +15,7 @@ import type {
   ReactionEmoji,
   Role,
 } from "@headless-lms/core/types";
-import { commentReactions, commentReports, comments } from "../schema/index.js";
+import { commentFlags, commentReactions, comments } from "../schema/index.js";
 import { activities } from "../schema/content.js";
 import { orgUsers } from "../schema/organizations.js";
 import { users } from "../schema/identity.js";
@@ -44,6 +44,8 @@ function toComment(row: CommentRow): Comment {
     id: row.id,
     orgId: row.orgId,
     activityId: row.activityId,
+    postId: row.postId,
+    communityId: row.communityId,
     parentId: row.parentId ?? null,
     orgUserId: row.orgUserId,
     body: row.body,
@@ -67,6 +69,8 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
         id: comment.id,
         orgId,
         activityId: comment.activityId,
+        postId: comment.postId,
+        communityId: comment.communityId,
         parentId: comment.parentId,
         orgUserId: comment.orgUserId,
         body: comment.body,
@@ -200,7 +204,7 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
 
   async insertReport(orgId: string, report: CommentReport): Promise<CommentReport | null> {
     const [row] = await this.db
-      .insert(commentReports)
+      .insert(commentFlags)
       .values({
         id: report.id,
         orgId,
@@ -208,6 +212,8 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
         orgUserId: report.orgUserId,
         reason: report.reason,
         resolvedAt: report.resolvedAt ? new Date(report.resolvedAt) : null,
+        resolution: report.resolution,
+        resolvedBy: report.resolvedBy,
         createdAt: new Date(report.createdAt),
       })
       .onConflictDoNothing()
@@ -221,27 +227,39 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     }
     const rows = await this.db
       .select()
-      .from(commentReports)
+      .from(commentFlags)
       .where(
         and(
-          eq(commentReports.orgId, orgId),
-          inArray(commentReports.commentId, commentIds),
-          isNull(commentReports.resolvedAt),
+          eq(commentFlags.orgId, orgId),
+          inArray(commentFlags.commentId, commentIds),
+          isNull(commentFlags.resolvedAt),
         ),
       )
-      .orderBy(commentReports.createdAt);
+      .orderBy(commentFlags.createdAt);
     return rows;
   }
 
-  async resolveReportsFor(orgId: string, commentId: string, resolvedAt: Date): Promise<void> {
+  async resolveReportsFor(
+    orgId: string,
+    commentId: string,
+    resolved: {
+      resolvedAt: Date;
+      resolvedBy: string;
+      resolution: "dismissed" | "removed";
+    },
+  ): Promise<void> {
     await this.db
-      .update(commentReports)
-      .set({ resolvedAt })
+      .update(commentFlags)
+      .set({
+        resolvedAt: resolved.resolvedAt,
+        resolvedBy: resolved.resolvedBy,
+        resolution: resolved.resolution,
+      })
       .where(
         and(
-          eq(commentReports.orgId, orgId),
-          eq(commentReports.commentId, commentId),
-          isNull(commentReports.resolvedAt),
+          eq(commentFlags.orgId, orgId),
+          eq(commentFlags.commentId, commentId),
+          isNull(commentFlags.resolvedAt),
         ),
       );
   }
@@ -293,10 +311,10 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
       conditions.push(eq(comments.orgUserId, query.orgUserId));
     }
     if (query.reported !== undefined) {
-      // Correlated EXISTS rather than a join to comment_reports: a comment with
+      // Correlated EXISTS rather than a join to comment_flags: a comment with
       // three open reports must stay one row.
       const hasOpenReport = sql`exists (
-        select 1 from ${commentReports} r
+        select 1 from ${commentFlags} r
         where r.org_id = ${comments.orgId}
           and r.comment_id = ${comments.id}
           and r.resolved_at is null

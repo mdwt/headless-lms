@@ -5,7 +5,12 @@
 // learner there — is the organizations context's OrgUser, not a second
 // identity. See ./organizations.ts.
 
-export type { CreateUserInput, ProvisionUserInput, UpdateUserInput } from './schemas/identity.js';
+export type {
+  CreateUserInput,
+  ProvisionUserInput,
+  UpdateUserInput,
+  UserProfile,
+} from './schemas/identity.js';
 
 export interface User {
   readonly id: string;

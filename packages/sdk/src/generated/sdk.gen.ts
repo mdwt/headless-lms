@@ -2532,7 +2532,7 @@ export class Assets {
     parameters: {
       filename: string;
       contentType: string;
-      kind: "video" | "download" | "content";
+      kind: "video" | "download" | "content" | "image";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
@@ -2598,7 +2598,7 @@ export class Assets {
       pageSize?: number;
       search?: string;
       sort?: string;
-      kind?: "video" | "download" | "content";
+      kind?: "video" | "download" | "content" | "image";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {

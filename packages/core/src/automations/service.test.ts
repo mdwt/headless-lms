@@ -80,6 +80,8 @@ const AUTOMATION: Automation = {
   triggers: ['entitlement.created'],
   actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
   enabled: true,
+  filter: null,
+  source: 'user',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
@@ -102,6 +104,8 @@ const WEBHOOK_AUTOMATION: Automation = {
     },
   ],
   enabled: true,
+  filter: null,
+  source: 'user',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };

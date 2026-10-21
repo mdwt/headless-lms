@@ -6,12 +6,13 @@ import {
   primaryKey,
   foreignKey,
   unique,
+  index,
   check,
 } from "drizzle-orm/pg-core";
-import type { Entitlement } from "@headless-lms/core/schemas";
+import type { Entitlement, SpaceMember } from "@headless-lms/core/schemas";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations, orgUsers } from "./organizations.js";
-import { bundles, contentItems } from "./content.js";
+import { bundles, communities, contentItems, spaces } from "./content.js";
 import type { Expect, NoDrift } from "./drift.js";
 
 export const entitlements = pgTable(
@@ -70,4 +71,47 @@ export const entitlements = pgTable(
   }),
 );
 
+export const spaceMembers = pgTable(
+  "space_members",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("spaceMember")),
+    communityId: text("community_id").notNull(),
+    spaceId: text("space_id").notNull(),
+    orgUserId: text("org_user_id").notNull(),
+    status: text("status", { enum: ["requested", "invited", "active", "revoked"] }).notNull(),
+    source: text("source", { enum: ["request", "invite", "manual"] })
+      .notNull()
+      .default("request"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    memberUq: unique().on(t.orgId, t.spaceId, t.orgUserId),
+    communityFk: foreignKey({
+      columns: [t.orgId, t.communityId],
+      foreignColumns: [communities.orgId, communities.id],
+    }).onDelete("cascade"),
+    spaceFk: foreignKey({
+      columns: [t.orgId, t.spaceId, t.communityId],
+      foreignColumns: [spaces.orgId, spaces.id, spaces.communityId],
+    }).onDelete("cascade"),
+    orgUserFk: foreignKey({
+      columns: [t.orgId, t.orgUserId],
+      foreignColumns: [orgUsers.orgId, orgUsers.id],
+    }).onDelete("cascade"),
+    spaceIdx: index("space_members_space_idx").on(t.orgId, t.spaceId, t.status),
+    communityIdx: index("space_members_community_idx").on(t.orgId, t.communityId),
+  }),
+);
+
 type _EntitlementsDrift = Expect<NoDrift<typeof entitlements.$inferSelect, Entitlement>>;
+type _SpaceMembersDrift = Expect<NoDrift<typeof spaceMembers.$inferSelect, SpaceMember>>;

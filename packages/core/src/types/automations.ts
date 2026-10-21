@@ -9,6 +9,7 @@ export type {
   AutomationRun,
   AutomationRunsQuery,
   AutomationRunStatus,
+  AutomationSource,
   AutomationsQuery,
   AutomationTrigger,
   AvailableAction,

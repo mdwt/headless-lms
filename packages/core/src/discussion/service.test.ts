@@ -60,8 +60,8 @@ export function fakeRepo() {
   function withContext(comment: Comment): CommentWithContext {
     return {
       comment,
-      courseId: activityCourse.get(comment.activityId) ?? '',
-      activityTitle: activityTitle.get(comment.activityId) ?? '',
+      courseId: (comment.activityId && activityCourse.get(comment.activityId)) || '',
+      activityTitle: (comment.activityId && activityTitle.get(comment.activityId)) || '',
     };
   }
 
@@ -125,10 +125,12 @@ export function fakeRepo() {
         .filter((r) => r.orgId === orgId && !r.resolvedAt && commentIds.includes(r.commentId))
         .map((r) => ({ ...r }));
     },
-    async resolveReportsFor(orgId, commentId, resolvedAt) {
+    async resolveReportsFor(orgId, commentId, resolved) {
       for (const r of reports) {
         if (r.orgId === orgId && r.commentId === commentId && !r.resolvedAt) {
-          r.resolvedAt = resolvedAt;
+          r.resolvedAt = resolved.resolvedAt;
+          r.resolvedBy = resolved.resolvedBy;
+          r.resolution = resolved.resolution;
         }
       }
     },

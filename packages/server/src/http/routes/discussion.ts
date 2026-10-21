@@ -113,7 +113,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
         throw new NotFoundError('OrgUser', req.userId);
       }
       const parent = await discussion.getComment(req.orgId, req.params.commentId);
-      if (!parent) {
+      if (!parent || parent.activityId === null) {
         throw new NotFoundError('Comment', req.params.commentId);
       }
       // Replies nest one level: answering a reply attaches to its root.

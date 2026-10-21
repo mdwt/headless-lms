@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idSchema, emailSchema } from './shared.js';
+import { idSchema, emailSchema, jsonValueSchema } from './shared.js';
 
 export const userSchema = z
   .object({
@@ -44,3 +44,18 @@ export const updateUserInputSchema = z
   })
   .strict();
 export type UpdateUserInput = z.infer<typeof updateUserInputSchema>;
+
+export const userProfileSchema = z
+  .object({
+    userId: idSchema,
+    displayName: z.string().nullable(),
+    headline: z.string().nullable(),
+    bio: z.string().nullable(),
+    imageAssetOrgId: idSchema.nullable(),
+    imageAssetId: idSchema.nullable(),
+    extra: jsonValueSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type UserProfile = z.output<typeof userProfileSchema>;

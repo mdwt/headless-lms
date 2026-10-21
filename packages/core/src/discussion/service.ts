@@ -1,5 +1,6 @@
 import { genId } from '../shared/id.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { isStaffRole } from '../organizations/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Comment, CommentAuthor, CommentReport, CommentSettings } from './model.js';
@@ -89,10 +90,8 @@ export class DiscussionServiceImpl implements DiscussionService {
     };
   }
 
-  /** Any org user that is not a learner moderates. The role arrives from
-   *  the edge already resolved; core never looks one up to authorise. */
   private isStaff(actor: Actor): boolean {
-    return actor.role !== 'student';
+    return isStaffRole(actor.role);
   }
 
   private toAuthor(record: AuthorRecord): CommentAuthor {
@@ -118,9 +117,10 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('OrgUser', comment.removedBy);
     }
     const remover = comment.removedBy ? authors[comment.removedBy] : undefined;
+    const activityId = this.activityIdOf(comment);
     return {
       id: comment.id,
-      activityId: comment.activityId,
+      activityId,
       parentId: comment.parentId,
       author: this.toAuthor(author),
       body: comment.status === 'removed' ? null : comment.body,
@@ -152,6 +152,13 @@ export class DiscussionServiceImpl implements DiscussionService {
         : ((await this.repo.reactionsOf(orgId, [comment.id], actor.id))[comment.id] ??
           EMPTY_REACTIONS);
     return this.toView(comment, authors, stored);
+  }
+
+  private activityIdOf(comment: Comment): string {
+    if (comment.activityId === null) {
+      throw new NotFoundError('Activity', comment.id);
+    }
+    return comment.activityId;
   }
 
   private async hasAccess(orgId: string, activityId: string, actor: Actor): Promise<boolean> {
@@ -199,10 +206,12 @@ export class DiscussionServiceImpl implements DiscussionService {
     const comment: Comment = {
       id: genId('comment'),
       orgId,
-      activityId: activityId,
-      parentId: parentId,
+      activityId,
+      postId: null,
+      communityId: null,
+      parentId,
       orgUserId: actor.id,
-      body: body,
+      body,
       status,
       removedBy: null,
       createdAt: new Date(),
@@ -295,7 +304,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Comment', commentId);
     }
 
-    if (!(await this.hasAccess(orgId, comment.activityId, actor))) {
+    if (!(await this.hasAccess(orgId, this.activityIdOf(comment), actor))) {
       throw new ForbiddenError('no access to this activity');
     }
     if (comment.orgUserId !== actor.id && !this.isStaff(actor)) {
@@ -358,10 +367,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
     }
-    if (!(await this.hasAccess(orgId, comment.activityId, actor))) {
+    const activityId = this.activityIdOf(comment);
+    if (!(await this.hasAccess(orgId, activityId, actor))) {
       throw new ForbiddenError('no access to this activity');
     }
-    const config = await this.resolveConfig(orgId, comment.activityId);
+    const config = await this.resolveConfig(orgId, activityId);
     return { comment, config };
   }
 
@@ -442,7 +452,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
     }
-    await this.repo.resolveReportsFor(orgId, commentId, new Date());
+    await this.repo.resolveReportsFor(orgId, commentId, {
+      resolvedAt: new Date(),
+      resolvedBy: actor.id,
+      resolution: 'dismissed',
+    });
     this.logger.info('comment reports resolved', { orgId, commentId });
   }
 
@@ -467,6 +481,8 @@ export class DiscussionServiceImpl implements DiscussionService {
       orgUserId: actor.id,
       reason,
       resolvedAt: null,
+      resolution: null,
+      resolvedBy: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -518,7 +534,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         return {
           id: comment.id,
           parentId: comment.parentId,
-          activityId: comment.activityId,
+          activityId: this.activityIdOf(comment),
           activityTitle,
           courseId,
           body: comment.body,
