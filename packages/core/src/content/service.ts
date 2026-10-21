@@ -3,15 +3,21 @@ import type {
   ActivityAsset,
   Bundle,
   BundleItem,
+  Community,
   Course,
   CourseSettings,
+  DmSettings,
   Download,
   DownloadAsset,
   Module,
   SaveActivityInput,
+  Space,
+  SpaceDetail,
+  SpaceSettings,
 } from './model.js';
 import type {
   BundlesService,
+  CommunitiesService,
   CourseManagementService,
   ContentRepository,
   ContentUnitOfWork,
@@ -20,20 +26,29 @@ import type {
 import type {
   AddDownloadAssetInput,
   CreateBundleInput,
+  CreateCommunityInput,
   CreateCourseInput,
   CreateDownloadInput,
+  CreateSpaceInput,
   ListBundlesQuery,
+  ListCommunitiesQuery,
   ListCoursesQuery,
   ListDownloadsQuery,
   Page,
+  PatchDmSettingsInput,
+  SetSpaceTopicsInput,
   UpdateBundleInput,
+  UpdateCommunityInput,
   UpdateCourseInput,
   UpdateDownloadInput,
+  UpdateSpaceInput,
 } from './types.js';
 import { contentEvents } from './events.js';
-import type { Logger } from '../shared/ports.js';
-import { NotFoundError, ConflictError } from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
+import type { Logger, NewDomainEvent } from '../shared/ports.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
+import { spaceSettingsDefaults } from '../types/schemas/content.js';
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
 function slugify(title: string): string {
@@ -49,8 +64,26 @@ export type ContentServiceParams = {
   logger?: Logger;
 };
 
+function actorMetadata(actor: Actor): { actorOrgUserId: string } {
+  return { actorOrgUserId: actor.id };
+}
+
+function assertConfigurator(actor: Actor): void {
+  if (actor.role !== 'owner' && actor.role !== 'admin') {
+    throw new ForbiddenError('Only an owner or an admin can configure a community');
+  }
+}
+
+function sameIdSet(current: string[], requested: string[]): boolean {
+  if (current.length !== requested.length) {
+    return false;
+  }
+  const have = new Set(current);
+  return requested.every((id) => have.has(id)) && new Set(requested).size === requested.length;
+}
+
 export class ContentService
-  implements CourseManagementService, DownloadablesService, BundlesService
+  implements CourseManagementService, DownloadablesService, BundlesService, CommunitiesService
 {
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
@@ -123,11 +156,15 @@ export class ContentService
         this.logger.warn('course delete rejected — not found', { orgId, courseId: id });
         throw new NotFoundError('Course', id);
       }
+      const linked = await content.spacesLinkingContent(orgId, id);
       const ok = await content.deleteCourse(orgId, id);
       if (!ok) {
         throw new NotFoundError('Course', id);
       }
-      await outbox.append([contentEvents.courseDeleted.make({ orgId, data: course })]);
+      await outbox.append([
+        contentEvents.courseDeleted.make({ orgId, data: course }),
+        ...(await this.spaceUpdates(content, orgId, linked)),
+      ]);
     });
     this.logger.info('course deleted', { orgId, courseId: id });
   }
@@ -368,11 +405,15 @@ export class ContentService
         this.logger.warn('download delete rejected — not found', { orgId, downloadId: id });
         throw new NotFoundError('Download', id);
       }
+      const linked = await content.spacesLinkingContent(orgId, id);
       const ok = await content.deleteDownload(orgId, id);
       if (!ok) {
         throw new NotFoundError('Download', id);
       }
-      await outbox.append([contentEvents.downloadDeleted.make({ orgId, data: download })]);
+      await outbox.append([
+        contentEvents.downloadDeleted.make({ orgId, data: download }),
+        ...(await this.spaceUpdates(content, orgId, linked)),
+      ]);
     });
     this.logger.info('download deleted', { orgId, downloadId: id });
   }
@@ -567,5 +608,405 @@ export class ContentService
     });
     this.logger.info('bundle item removed', { orgId, bundleId, contentId });
     return items;
+  }
+
+  private async spaceUpdates(
+    content: ContentRepository,
+    orgId: string,
+    spaceIds: string[],
+  ): Promise<NewDomainEvent[]> {
+    const events: NewDomainEvent[] = [];
+    for (const spaceId of spaceIds) {
+      const space = await content.findSpace(orgId, spaceId);
+      if (space) {
+        events.push(contentEvents.spaceUpdated.make({ orgId, data: space }));
+      }
+    }
+    return events;
+  }
+
+  private resolvedSpace(input: CreateSpaceInput | UpdateSpaceInput, current?: Space): {
+    accessRule: Space['accessRule'];
+    capacity: number | null;
+    settings: SpaceSettings;
+  } {
+    const accessRule = input.accessRule ?? current?.accessRule ?? 'all_members';
+    let capacity = input.capacity !== undefined ? input.capacity : (current?.capacity ?? null);
+    if (accessRule === 'all_members') {
+      if (input.capacity != null) {
+        throw new ConflictError('An all-members space has no capacity');
+      }
+      capacity = null;
+    }
+    const settings = {
+      ...(current?.settings ?? spaceSettingsDefaults),
+      ...input.settings,
+    };
+    return { accessRule, capacity, settings };
+  }
+
+  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>> {
+    return this.repo.listCommunities(orgId, query);
+  }
+
+  getCommunity(orgId: string, id: string): Promise<Community | null> {
+    return this.repo.findCommunityById(orgId, id);
+  }
+
+  getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null> {
+    return this.repo.findSpace(orgId, spaceId);
+  }
+
+  listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
+    return this.repo.listSpaces(orgId, communityId);
+  }
+
+  async getDmSettings(orgId: string, communityId: string): Promise<DmSettings | null> {
+    const community = await this.repo.findCommunityById(orgId, communityId);
+    return community?.settings.dm ?? null;
+  }
+
+  async createCommunity(
+    orgId: string,
+    input: CreateCommunityInput,
+    actor: Actor,
+  ): Promise<Community> {
+    assertConfigurator(actor);
+    const community = await this.uow.run(async ({ content, outbox }) => {
+      const created = await content.createCommunity(orgId, input, slugify(input.title));
+      await outbox.append([
+        contentEvents.communityCreated.make({
+          orgId,
+          data: created,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return created;
+    });
+    this.logger.info('community created', { orgId, communityId: community.id });
+    return community;
+  }
+
+  async updateCommunity(
+    orgId: string,
+    id: string,
+    patch: UpdateCommunityInput,
+    actor: Actor,
+  ): Promise<Community> {
+    assertConfigurator(actor);
+    const community = await this.uow.run(async ({ content, outbox }) => {
+      const updated = await content.updateCommunity(orgId, id, patch);
+      if (!updated) {
+        throw new NotFoundError('Community', id);
+      }
+      await outbox.append([
+        contentEvents.communityUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('community updated', { orgId, communityId: id });
+    return community;
+  }
+
+  publishCommunity(orgId: string, id: string, actor: Actor): Promise<Community> {
+    return this.updateCommunity(orgId, id, { status: 'published' }, actor);
+  }
+
+  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<Community> {
+    return this.updateCommunity(orgId, id, { status: 'draft' }, actor);
+  }
+
+  async deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void> {
+    assertConfigurator(actor);
+    await this.uow.run(async ({ content, outbox }) => {
+      const community = await content.findCommunityById(orgId, id);
+      if (!community) {
+        throw new NotFoundError('Community', id);
+      }
+      const linked = await content.spacesLinkingContent(orgId, id);
+      const ok = await content.deleteCommunity(orgId, id);
+      if (!ok) {
+        throw new NotFoundError('Community', id);
+      }
+      await content.deleteCommunitySettings(orgId, id);
+      await outbox.append([
+        contentEvents.communityDeleted.make({
+          orgId,
+          data: community,
+          metadata: actorMetadata(actor),
+        }),
+        ...(await this.spaceUpdates(content, orgId, linked)),
+      ]);
+    });
+    this.logger.info('community deleted', { orgId, communityId: id });
+  }
+
+  async patchDmSettings(
+    orgId: string,
+    id: string,
+    patch: PatchDmSettingsInput,
+    actor: Actor,
+  ): Promise<Community> {
+    assertConfigurator(actor);
+    const community = await this.uow.run(async ({ content, outbox }) => {
+      const updated = await content.patchDmSettings(orgId, id, patch);
+      if (!updated) {
+        throw new NotFoundError('Community', id);
+      }
+      await outbox.append([
+        contentEvents.communityUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('community dm settings patched', { orgId, communityId: id });
+    return community;
+  }
+
+  async createSpace(
+    orgId: string,
+    communityId: string,
+    input: CreateSpaceInput,
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const resolved = this.resolvedSpace(input);
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const community = await content.findCommunityById(orgId, communityId);
+      if (!community) {
+        throw new NotFoundError('Community', communityId);
+      }
+      const created = await content.createSpace(orgId, communityId, {
+        ...input,
+        accessRule: resolved.accessRule,
+        capacity: resolved.capacity,
+        settings: resolved.settings,
+      });
+      await outbox.append([
+        contentEvents.spaceCreated.make({
+          orgId,
+          data: created,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return created;
+    });
+    this.logger.info('space created', { orgId, communityId, spaceId: space.id });
+    return space;
+  }
+
+  async updateSpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    patch: UpdateSpaceInput,
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current || current.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const resolved = this.resolvedSpace(patch, current);
+      const updated = await content.updateSpace(orgId, communityId, spaceId, {
+        ...patch,
+        accessRule: resolved.accessRule,
+        capacity: resolved.capacity,
+        settings: resolved.settings,
+      });
+      if (!updated) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      await outbox.append([
+        contentEvents.spaceUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('space updated', { orgId, communityId, spaceId });
+    return space;
+  }
+
+  async deleteSpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    actor: Actor,
+  ): Promise<void> {
+    assertConfigurator(actor);
+    await this.uow.run(async ({ content, outbox }) => {
+      const space = await content.findSpace(orgId, spaceId);
+      if (!space || space.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const ok = await content.deleteSpace(orgId, communityId, spaceId);
+      if (!ok) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      await outbox.append([
+        contentEvents.spaceDeleted.make({
+          orgId,
+          data: space,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+    });
+    this.logger.info('space deleted', { orgId, communityId, spaceId });
+  }
+
+  async reorderSpaces(
+    orgId: string,
+    communityId: string,
+    orderedIds: string[],
+    actor: Actor,
+  ): Promise<SpaceDetail[]> {
+    assertConfigurator(actor);
+    const spaces = await this.uow.run(async ({ content, outbox }) => {
+      const community = await content.findCommunityById(orgId, communityId);
+      if (!community) {
+        throw new NotFoundError('Community', communityId);
+      }
+      const current = await content.listSpaces(orgId, communityId);
+      if (!sameIdSet(current.map((space) => space.id), orderedIds)) {
+        throw new ConflictError("Ordered space ids do not match the community's spaces");
+      }
+      const reordered = await content.reorderSpaces(orgId, communityId, orderedIds);
+      await outbox.append([
+        contentEvents.spacesReordered.make({
+          orgId,
+          data: reordered,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return reordered;
+    });
+    this.logger.info('spaces reordered', { orgId, communityId });
+    return spaces;
+  }
+
+  async setSpaceTopics(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    input: SetSpaceTopicsInput,
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const names = input.topics.map((topic) => topic.name);
+    if (new Set(names).size !== names.length) {
+      throw new ConflictError('A space topic name is already used');
+    }
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current || current.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const updated = await content.setSpaceTopics(orgId, spaceId, input);
+      await outbox.append([
+        contentEvents.spaceUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('space topics set', { orgId, communityId, spaceId });
+    return space;
+  }
+
+  async addSpaceLink(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    contentId: string,
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current || current.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const updated = await content.addSpaceLink(orgId, spaceId, contentId);
+      await outbox.append([
+        contentEvents.spaceUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('space link added', { orgId, communityId, spaceId, contentId });
+    return space;
+  }
+
+  async removeSpaceLink(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    linkId: string,
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current || current.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const updated = await content.removeSpaceLink(orgId, spaceId, linkId);
+      await outbox.append([
+        contentEvents.spaceUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('space link removed', { orgId, communityId, spaceId, linkId });
+    return space;
+  }
+
+  async reorderSpaceLinks(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    orderedIds: string[],
+    actor: Actor,
+  ): Promise<SpaceDetail> {
+    assertConfigurator(actor);
+    const space = await this.uow.run(async ({ content, outbox }) => {
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current || current.communityId !== communityId) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      if (!sameIdSet(current.links.map((link) => link.id), orderedIds)) {
+        throw new ConflictError("Ordered link ids do not match the space's links");
+      }
+      const updated = await content.reorderSpaceLinks(orgId, spaceId, orderedIds);
+      await outbox.append([
+        contentEvents.spaceUpdated.make({
+          orgId,
+          data: updated,
+          metadata: actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('space links reordered', { orgId, communityId, spaceId });
+    return space;
   }
 }

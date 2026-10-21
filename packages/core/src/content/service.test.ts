@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { NotFoundError } from '../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
+import type { Community } from './model.js';
 import { ContentService } from './service.js';
 import type { ContentRepository, ContentUnitOfWork } from './ports.js';
 import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
@@ -62,6 +64,25 @@ function makeRepo(): ContentRepository {
     listBundleItems: vi.fn(),
     addBundleItem: vi.fn(),
     removeBundleItem: vi.fn(),
+    listCommunities: vi.fn(),
+    findCommunityById: vi.fn(),
+    createCommunity: vi.fn(),
+    updateCommunity: vi.fn(),
+    patchDmSettings: vi.fn(),
+    deleteCommunity: vi.fn(),
+    deleteCommunitySettings: vi.fn(),
+    listSpaces: vi.fn(),
+    findSpace: vi.fn(),
+    lockSpace: vi.fn(),
+    createSpace: vi.fn(),
+    updateSpace: vi.fn(),
+    deleteSpace: vi.fn(),
+    reorderSpaces: vi.fn(),
+    setSpaceTopics: vi.fn(),
+    addSpaceLink: vi.fn(),
+    removeSpaceLink: vi.fn(),
+    reorderSpaceLinks: vi.fn(),
+    spacesLinkingContent: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -827,6 +848,83 @@ describe('download assets', () => {
         data: { downloadId: 'd1', assets: list },
       },
     ]);
+  });
+});
+
+const owner: Actor = { id: 'ou_owner', role: 'owner' };
+
+function makeCommunity(over: Partial<Community> = {}): Community {
+  return {
+    orgId: 'org1',
+    id: 'cmy_1',
+    type: 'community',
+    title: 'Makers',
+    slug: 'makers',
+    description: '',
+    status: 'draft',
+    thumbnailAssetId: null,
+    settings: {
+      dm: {
+        enabled: true,
+        memberToMember: true,
+        memberToStaff: true,
+        staffToAnyone: true,
+        firstMessageIsRequest: true,
+        groupChats: true,
+        groupSize: 8,
+      },
+    },
+    createdAt: AT,
+    updatedAt: AT,
+    ...over,
+  };
+}
+
+describe('communities', () => {
+  it('creates a community and records the actor', async () => {
+    const repo = makeRepo();
+    const community = makeCommunity();
+    vi.mocked(repo.createCommunity).mockResolvedValue(community);
+    const { svc, appended } = build(repo);
+
+    const result = await svc.createCommunity('org1', { title: 'Makers' }, owner);
+
+    expect(repo.createCommunity).toHaveBeenCalledWith('org1', { title: 'Makers' }, 'makers');
+    expect(result).toEqual(community);
+    expect(appended).toEqual([
+      {
+        type: 'content.community.created',
+        version: 1,
+        orgId: 'org1',
+        data: community,
+        metadata: { actorOrgUserId: 'ou_owner' },
+      },
+    ]);
+  });
+
+  it('refuses an instructor', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    await expect(
+      svc.createCommunity('org1', { title: 'Makers' }, { id: 'ou_i', role: 'instructor' }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(repo.createCommunity).not.toHaveBeenCalled();
+  });
+
+  it('deletes the settings row with the community', async () => {
+    const repo = makeRepo();
+    const community = makeCommunity();
+    vi.mocked(repo.findCommunityById).mockResolvedValue(community);
+    vi.mocked(repo.deleteCommunity).mockResolvedValue(true);
+    const { svc, appended } = build(repo);
+
+    await svc.deleteCommunity('org1', community.id, owner);
+
+    expect(repo.deleteCommunitySettings).toHaveBeenCalledWith('org1', community.id);
+    expect(appended[0]).toMatchObject({
+      type: 'content.community.deleted',
+      metadata: { actorOrgUserId: 'ou_owner' },
+    });
   });
 });
 

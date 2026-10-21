@@ -3,29 +3,122 @@ import type {
   ActivityAsset,
   Bundle,
   BundleItem,
+  Community,
   Course,
   CourseSettings,
+  DmSettings,
   Download,
   DownloadAsset,
   Module,
   SaveActivityInput,
+  Space,
+  SpaceDetail,
 } from './model.js';
 import type {
   AddDownloadAssetInput,
   CreateBundleInput,
+  CreateCommunityInput,
   CreateCourseInput,
   CreateDownloadInput,
+  CreateSpaceInput,
   ListBundlesQuery,
+  ListCommunitiesQuery,
   ListCoursesQuery,
   ListDownloadsQuery,
   Page,
+  PatchDmSettingsInput,
+  SetSpaceTopicsInput,
   UpdateBundleInput,
+  UpdateCommunityInput,
   UpdateCourseInput,
   UpdateDownloadInput,
+  UpdateSpaceInput,
 } from './types.js';
+import type { Actor } from '../shared/actor.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
-export interface ContentService extends DownloadablesService, CourseManagementService {}
+export interface ContentService
+  extends DownloadablesService, CourseManagementService, CommunitiesService {}
+
+export interface CommunityReader {
+  getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null>;
+  listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]>;
+  getDmSettings(orgId: string, communityId: string): Promise<DmSettings | null>;
+}
+
+export interface SpaceRowLock {
+  lockSpace(orgId: string, spaceId: string): Promise<Space | null>;
+}
+
+export interface CommunitiesService extends CommunityReader {
+  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>>;
+  getCommunity(orgId: string, id: string): Promise<Community | null>;
+  createCommunity(orgId: string, input: CreateCommunityInput, actor: Actor): Promise<Community>;
+  updateCommunity(
+    orgId: string,
+    id: string,
+    patch: UpdateCommunityInput,
+    actor: Actor,
+  ): Promise<Community>;
+  publishCommunity(orgId: string, id: string, actor: Actor): Promise<Community>;
+  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<Community>;
+  deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void>;
+  patchDmSettings(
+    orgId: string,
+    id: string,
+    patch: PatchDmSettingsInput,
+    actor: Actor,
+  ): Promise<Community>;
+
+  createSpace(
+    orgId: string,
+    communityId: string,
+    input: CreateSpaceInput,
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+  updateSpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    patch: UpdateSpaceInput,
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+  deleteSpace(orgId: string, communityId: string, spaceId: string, actor: Actor): Promise<void>;
+  reorderSpaces(
+    orgId: string,
+    communityId: string,
+    orderedIds: string[],
+    actor: Actor,
+  ): Promise<SpaceDetail[]>;
+  setSpaceTopics(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    input: SetSpaceTopicsInput,
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+  addSpaceLink(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    contentId: string,
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+  removeSpaceLink(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    linkId: string,
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+  reorderSpaceLinks(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    orderedIds: string[],
+    actor: Actor,
+  ): Promise<SpaceDetail>;
+}
 
 export interface CourseManagementService {
   listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
@@ -201,6 +294,36 @@ export interface ContentRepository {
   /** Content already in the bundle is left as it is — adding twice is a no-op. */
   addBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
   removeBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
+
+  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>>;
+  findCommunityById(orgId: string, id: string): Promise<Community | null>;
+  createCommunity(orgId: string, input: CreateCommunityInput, slug: string): Promise<Community>;
+  updateCommunity(orgId: string, id: string, patch: UpdateCommunityInput): Promise<Community | null>;
+  patchDmSettings(
+    orgId: string,
+    id: string,
+    patch: PatchDmSettingsInput,
+  ): Promise<Community | null>;
+  deleteCommunity(orgId: string, id: string): Promise<boolean>;
+  deleteCommunitySettings(orgId: string, id: string): Promise<void>;
+
+  listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]>;
+  findSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null>;
+  lockSpace(orgId: string, spaceId: string): Promise<Space | null>;
+  createSpace(orgId: string, communityId: string, input: CreateSpaceInput): Promise<SpaceDetail>;
+  updateSpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    patch: UpdateSpaceInput,
+  ): Promise<SpaceDetail | null>;
+  deleteSpace(orgId: string, communityId: string, spaceId: string): Promise<boolean>;
+  reorderSpaces(orgId: string, communityId: string, orderedIds: string[]): Promise<SpaceDetail[]>;
+  setSpaceTopics(orgId: string, spaceId: string, input: SetSpaceTopicsInput): Promise<SpaceDetail>;
+  addSpaceLink(orgId: string, spaceId: string, contentId: string): Promise<SpaceDetail>;
+  removeSpaceLink(orgId: string, spaceId: string, linkId: string): Promise<SpaceDetail>;
+  reorderSpaceLinks(orgId: string, spaceId: string, orderedIds: string[]): Promise<SpaceDetail>;
+  spacesLinkingContent(orgId: string, contentId: string): Promise<string[]>;
 }
 
 export interface ContentTxScope {

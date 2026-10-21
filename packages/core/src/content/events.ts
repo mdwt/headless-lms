@@ -3,11 +3,13 @@ import {
   activitySchema,
   bundleItemSchema,
   bundleSchema,
+  communitySchema,
   courseSchema,
   downloadAssetSchema,
   downloadSchema,
   idSchema,
   moduleSchema,
+  spaceDetailSchema,
 } from '../types/schemas/index.js';
 import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.js';
 
@@ -234,6 +236,48 @@ export const contentEvents = {
     version: 1,
     data: bundleItemsEventSchema,
   }),
+  communityCreated: defineEvent({
+    type: 'content.community.created',
+    version: 1,
+    data: communitySchema,
+    publicData: communitySchema,
+  }),
+  communityUpdated: defineEvent({
+    type: 'content.community.updated',
+    version: 1,
+    data: communitySchema,
+    publicData: communitySchema.omit({ settings: true }),
+  }),
+  communityDeleted: defineEvent({
+    type: 'content.community.deleted',
+    version: 1,
+    data: communitySchema,
+    publicData: communitySchema,
+  }),
+  spaceCreated: defineEvent({
+    type: 'content.community.space.created',
+    version: 1,
+    data: spaceDetailSchema,
+    publicData: spaceDetailSchema,
+  }),
+  spaceUpdated: defineEvent({
+    type: 'content.community.space.updated',
+    version: 1,
+    data: spaceDetailSchema,
+    publicData: spaceDetailSchema,
+  }),
+  spaceDeleted: defineEvent({
+    type: 'content.community.space.deleted',
+    version: 1,
+    data: spaceDetailSchema,
+    publicData: spaceDetailSchema,
+  }),
+  spacesReordered: defineEvent({
+    type: 'content.community.spaces.reordered',
+    version: 1,
+    data: z.array(spaceDetailSchema),
+    publicData: z.array(spaceDetailSchema),
+  }),
 };
 
 export type CourseCreated = EventOf<typeof contentEvents.courseCreated>;
@@ -259,4 +303,11 @@ export type BundleUpdated = EventOf<typeof contentEvents.bundleUpdated>;
 export type BundleDeleted = EventOf<typeof contentEvents.bundleDeleted>;
 export type BundleItemAdded = EventOf<typeof contentEvents.bundleItemAdded>;
 export type BundleItemRemoved = EventOf<typeof contentEvents.bundleItemRemoved>;
+export type CommunityCreated = EventOf<typeof contentEvents.communityCreated>;
+export type CommunityUpdated = EventOf<typeof contentEvents.communityUpdated>;
+export type CommunityDeleted = EventOf<typeof contentEvents.communityDeleted>;
+export type CommunitySpaceCreated = EventOf<typeof contentEvents.spaceCreated>;
+export type CommunitySpaceUpdated = EventOf<typeof contentEvents.spaceUpdated>;
+export type CommunitySpaceDeleted = EventOf<typeof contentEvents.spaceDeleted>;
+export type CommunitySpacesReordered = EventOf<typeof contentEvents.spacesReordered>;
 export type ContentEvent = EventOfValues<typeof contentEvents>;
