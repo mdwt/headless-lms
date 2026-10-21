@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev-web": "next dev -p 8003",
+    "postinstall": "fumadocs-mdx",
+    "prebuild": "fumadocs-mdx",
     "build": "next build",
     "start": "next start -p 8003",
     "gen:api-docs": "node scripts/generate-api-docs.mjs",
