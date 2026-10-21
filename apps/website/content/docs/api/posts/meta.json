@@ -1,0 +1,31 @@
+{
+  "title": "Posts",
+  "description": "Posts in a space, reactions, and the moderation queue",
+  "pages": [
+    "getMemberFeed",
+    "getSpaceFeed",
+    "getSpaceQueue",
+    "createPost",
+    "getPost",
+    "updatePost",
+    "submitPost",
+    "schedulePost",
+    "approvePost",
+    "removePost",
+    "restorePost",
+    "pinPost",
+    "unpinPost",
+    "closePostComments",
+    "openPostComments",
+    "setPostReactionPolicy",
+    "setPostReaction",
+    "followPost",
+    "unfollowPost",
+    "bookmarkPost",
+    "unbookmarkPost",
+    "flagPost",
+    "resolvePostFlags",
+    "listPostComments",
+    "createPostComment"
+  ]
+}

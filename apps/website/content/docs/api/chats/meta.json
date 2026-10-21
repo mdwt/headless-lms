@@ -1,0 +1,27 @@
+{
+  "title": "Chats",
+  "description": "Direct and group chats inside one community",
+  "pages": [
+    "listMemberChats",
+    "getMemberMessageQueue",
+    "startDirectChat",
+    "startGroupChat",
+    "addChatParticipant",
+    "leaveChat",
+    "acceptChat",
+    "listChatMessages",
+    "sendChatMessage",
+    "editChatMessage",
+    "deleteChatMessage",
+    "setMessageReaction",
+    "flagMessage",
+    "resolveMessageFlags",
+    "markChatRead",
+    "muteChat",
+    "unmuteChat",
+    "lockChat",
+    "unlockChat",
+    "unblockMember",
+    "blockMember"
+  ]
+}

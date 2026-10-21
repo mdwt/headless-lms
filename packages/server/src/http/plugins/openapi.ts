@@ -37,6 +37,13 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
           description: 'Per-student progress and completion through course content',
         },
         { name: 'Discussion', description: 'Learner comments, replies, reactions and moderation' },
+        {
+          name: 'Communities',
+          description: 'Communities, their spaces, topics, and direct-message settings',
+        },
+        { name: 'Posts', description: 'Posts in a space, reactions, and the moderation queue' },
+        { name: 'Chats', description: 'Direct and group chats inside one community' },
+        { name: 'Profile', description: 'The signed-in member profile' },
         { name: 'Assets', description: 'The org media library: uploads, serving and lifecycle' },
         { name: 'Automations', description: 'Workflows and webhooks that react to system events' },
         { name: 'Integrations', description: 'Connections to external services' },

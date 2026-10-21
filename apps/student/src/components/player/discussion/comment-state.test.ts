@@ -23,6 +23,8 @@ function comment(over: Partial<CommentView> = {}): CommentView {
   return {
     id: "cmt_1",
     activityId: "act_1",
+    postId: null,
+    communityId: null,
     parentId: null,
     author,
     body: "hello",
