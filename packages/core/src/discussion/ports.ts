@@ -1,7 +1,18 @@
 // discussion context — ports.
 // Inbound: the use cases the service implements.
 // Outbound: the persistence contract the repository fulfils.
-import type { Activity, JsonValue, Post, PostFlag, PostFlagResolution } from '../types/index.js';
+import type {
+  Activity,
+  Chat,
+  ChatUser,
+  JsonValue,
+  Message,
+  MessageFlag,
+  MessageFlagResolution,
+  Post,
+  PostFlag,
+  PostFlagResolution,
+} from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { Role } from '../organizations/index.js';
@@ -290,3 +301,153 @@ export interface PostWriteScope {
   outbox: OutboxAppender;
 }
 export type PostUnitOfWork = UnitOfWork<PostWriteScope>;
+
+export interface StartDirectInput {
+  communityId: string;
+  orgUserId: string;
+  body: string | null;
+  assetIds: string[];
+}
+
+export interface StartGroupInput {
+  communityId: string;
+  orgUserIds: string[];
+}
+
+export interface SendMessageInput {
+  body: string;
+  replyToId: string | null;
+  assetIds: string[];
+}
+
+export interface ChatListItem {
+  chat: Chat;
+  participantIds: string[];
+  lastReadMessageId: string | null;
+  mutedUntil: Date | null;
+  unread: number;
+}
+
+export interface MessageQueue {
+  flags: MessageFlag[];
+  messages: Message[];
+}
+
+export interface ChatService {
+  startDirect(orgId: string, actor: Actor, input: StartDirectInput): Promise<Chat>;
+  startGroup(orgId: string, actor: Actor, input: StartGroupInput): Promise<Chat>;
+  addParticipant(orgId: string, actor: Actor, chatId: string, orgUserId: string): Promise<Chat>;
+  leave(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
+  accept(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
+  send(orgId: string, actor: Actor, chatId: string, input: SendMessageInput): Promise<Message>;
+  editMessage(orgId: string, actor: Actor, messageId: string, body: string): Promise<Message>;
+  deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<Message>;
+  setReaction(
+    orgId: string,
+    actor: Actor,
+    messageId: string,
+    emoji: ReactionEmoji | null,
+  ): Promise<void>;
+  markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void>;
+  mute(orgId: string, actor: Actor, chatId: string, until: Date): Promise<void>;
+  unmute(orgId: string, actor: Actor, chatId: string): Promise<void>;
+  block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
+  unblock(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
+  flagMessage(orgId: string, actor: Actor, messageId: string, reason: string): Promise<MessageFlag>;
+  resolveMessageFlags(
+    orgId: string,
+    actor: Actor,
+    messageId: string,
+    resolution: MessageFlagResolution,
+  ): Promise<void>;
+  lock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
+  unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
+  listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]>;
+  messages(
+    orgId: string,
+    actor: Actor,
+    chatId: string,
+    query: Pick<FeedQuery, 'page' | 'pageSize'>,
+  ): Promise<Page<Message>>;
+  messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue>;
+}
+
+export interface ChatRepository {
+  lockDirectPair(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    otherOrgUserId: string,
+  ): Promise<void>;
+  findDirect(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    otherOrgUserId: string,
+  ): Promise<Chat | null>;
+  insertChat(orgId: string, chat: Chat): Promise<Chat>;
+  updateChat(
+    orgId: string,
+    id: string,
+    patch: Partial<Pick<Chat, 'status' | 'lockedAt' | 'lockedBy'>>,
+  ): Promise<Chat | null>;
+  findChat(orgId: string, id: string): Promise<Chat | null>;
+  listForUser(orgId: string, communityId: string, orgUserId: string): Promise<ChatListItem[]>;
+  participants(orgId: string, chatId: string): Promise<ChatUser[]>;
+  join(orgId: string, user: ChatUser): Promise<void>;
+  markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
+  setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
+  setMuted(
+    orgId: string,
+    chatId: string,
+    orgUserId: string,
+    mutedUntil: Date | null,
+  ): Promise<void>;
+  insertMessage(orgId: string, message: Message): Promise<Message>;
+  updateMessage(
+    orgId: string,
+    id: string,
+    patch: Partial<Pick<Message, 'body' | 'editedAt' | 'deletedAt'>>,
+  ): Promise<Message | null>;
+  findMessage(orgId: string, id: string): Promise<Message | null>;
+  listMessages(
+    orgId: string,
+    chatId: string,
+    query: Pick<FeedQuery, 'page' | 'pageSize'>,
+  ): Promise<Page<Message>>;
+  attach(orgId: string, communityId: string, messageId: string, assetIds: string[]): Promise<void>;
+  setReaction(
+    orgId: string,
+    communityId: string,
+    messageId: string,
+    orgUserId: string,
+    emoji: ReactionEmoji | null,
+  ): Promise<void>;
+  block(
+    orgId: string,
+    communityId: string,
+    blockerOrgUserId: string,
+    blockedOrgUserId: string,
+  ): Promise<void>;
+  unblock(
+    orgId: string,
+    communityId: string,
+    blockerOrgUserId: string,
+    blockedOrgUserId: string,
+  ): Promise<void>;
+  isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
+  insertFlag(orgId: string, flag: MessageFlag): Promise<MessageFlag | null>;
+  listOpenFlags(orgId: string, communityId: string): Promise<MessageFlag[]>;
+  messagesByIds(orgId: string, ids: string[]): Promise<Message[]>;
+  resolveFlags(
+    orgId: string,
+    messageId: string,
+    resolved: { resolvedAt: Date; resolvedBy: string; resolution: MessageFlagResolution },
+  ): Promise<void>;
+}
+
+export interface ChatWriteScope {
+  chats: ChatRepository;
+  outbox: OutboxAppender;
+}
+export type ChatUnitOfWork = UnitOfWork<ChatWriteScope>;

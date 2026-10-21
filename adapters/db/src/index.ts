@@ -7,6 +7,7 @@ export * from "./repositories/content.js";
 export * from "./repositories/credentials.js";
 export * from "./repositories/discussion.js";
 export * from "./repositories/posts.js";
+export * from "./repositories/chats.js";
 export * from "./repositories/entitlements.js";
 export * from "./repositories/identity.js";
 export * from "./repositories/integrations.js";

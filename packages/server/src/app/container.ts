@@ -10,6 +10,7 @@ import {
   DrizzleAdminRepository,
   DrizzleDiscussionRepository,
   DrizzlePostRepository,
+  DrizzleChatRepository,
   DrizzleEntitlementsRepository,
   DrizzleIdentityRepository,
   DrizzleMemberRepository,
@@ -42,7 +43,11 @@ import { BetterAuth } from '@headless-lms/adapter-auth';
 import { ContentService } from '@headless-lms/core/content';
 import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
-import { DiscussionServiceImpl, PostServiceImpl } from '@headless-lms/core/discussion';
+import {
+  ChatServiceImpl,
+  DiscussionServiceImpl,
+  PostServiceImpl,
+} from '@headless-lms/core/discussion';
 import { IdentityServiceImpl, type SessionAdmin } from '@headless-lms/core/identity';
 import {
   type OrgAdmin,
@@ -164,6 +169,7 @@ export interface Container {
   progress: ProgressServiceImpl;
   discussion: DiscussionServiceImpl;
   posts: PostServiceImpl;
+  chats: ChatServiceImpl;
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
   automations: AutomationsServiceImpl;
@@ -321,18 +327,30 @@ export async function buildContainer(
     settings,
     logger: discussionLogger,
   });
+  const authors = {
+    roleOf: async (orgId: string, orgUserId: string) => {
+      const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+      return row?.role ?? null;
+    },
+  };
   const posts = new PostServiceImpl({
     repo: new DrizzlePostRepository(db, discussionLogger),
     access: entitlements,
     content,
-    authors: {
-      roleOf: async (orgId, orgUserId) => {
-        const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
-        return row?.role ?? null;
-      },
-    },
+    authors,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    logger: discussionLogger,
+  });
+  const chats = new ChatServiceImpl({
+    repo: new DrizzleChatRepository(db, discussionLogger),
+    access: entitlements,
+    content,
+    authors,
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      chats: new DrizzleChatRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     logger: discussionLogger,
@@ -559,6 +577,7 @@ export async function buildContainer(
     progress,
     discussion,
     posts,
+    chats,
     assets,
     integrations,
     automations,
