@@ -15,6 +15,7 @@ import type {
   CreatePostInput,
   FeedQuery,
   PostPatch,
+  PostCommentFlagReader,
   PostReactions,
   PostRepository,
   PostService,
@@ -29,6 +30,7 @@ export type PostServiceParams = {
   access: CommunityAccessReader;
   content: CommunityReader;
   authors: AuthorRoleReader;
+  commentFlags: PostCommentFlagReader;
   uow: PostUnitOfWork;
   logger?: Logger;
 };
@@ -38,6 +40,7 @@ export class PostServiceImpl implements PostService {
   private readonly access: CommunityAccessReader;
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
+  private readonly commentFlags: PostCommentFlagReader;
   private readonly uow: PostUnitOfWork;
   private readonly logger: Logger;
 
@@ -46,6 +49,7 @@ export class PostServiceImpl implements PostService {
     this.access = params.access;
     this.content = params.content;
     this.authors = params.authors;
+    this.commentFlags = params.commentFlags;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -438,17 +442,19 @@ export class PostServiceImpl implements PostService {
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot work this queue');
     }
-    const [pending, flags] = await Promise.all([
+    const [pending, flags, openCommentFlags] = await Promise.all([
       this.repo.listPending(orgId, spaceId),
       this.repo.listOpenFlags(orgId, spaceId),
+      this.commentFlags.listOpenFlagsForSpace(orgId, spaceId),
     ]);
     this.logger.debug('space queue read', {
       orgId,
       spaceId,
       pending: pending.length,
       flags: flags.length,
+      commentFlags: openCommentFlags.length,
     });
-    return { pending, flags };
+    return { pending, flags, commentFlags: openCommentFlags };
   }
 
   async publishDue(orgId: string, now: Date): Promise<void> {

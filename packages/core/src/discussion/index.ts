@@ -22,6 +22,7 @@ export type {
   FeedQuery,
   PostReactions,
   SpaceModerationQueue,
+  PostCommentFlagReader,
   PostService,
   PostRepository,
   PostWriteScope,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  commentReportSchema,
   jsonValueSchema,
   postFlagResolutionSchema,
   postFlagSchema,
@@ -50,6 +51,7 @@ export const PostReactions = z.object({
 export const SpaceQueue = z.object({
   pending: z.array(Post),
   flags: z.array(PostFlag),
+  commentFlags: z.array(commentReportSchema),
 });
 
 export const PostComments = z.array(CommentView);

@@ -344,6 +344,7 @@ export async function buildContainer(
     access: entitlements,
     content,
     authors,
+    commentFlags: discussionReads,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),

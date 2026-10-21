@@ -85,7 +85,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'getSpaceQueue',
       tags,
-      summary: 'Posts awaiting review and open post flags',
+      summary: 'Posts awaiting review and open flags',
       params: CommunitySpaceParam,
       response: { 200: SpaceQueue, ...errors },
     },

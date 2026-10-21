@@ -15,7 +15,7 @@ import type {
   ReactionEmoji,
   Role,
 } from "@headless-lms/core/types";
-import { commentFlags, commentReactions, comments } from "../schema/index.js";
+import { commentFlags, commentReactions, comments, posts } from "../schema/index.js";
 import { activities } from "../schema/content.js";
 import { orgUsers } from "../schema/organizations.js";
 import { users } from "../schema/identity.js";
@@ -228,6 +228,26 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
       .onConflictDoNothing()
       .returning();
     return row ?? null;
+  }
+
+  async listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<CommentReport[]> {
+    const rows = await this.db
+      .select({ flag: commentFlags })
+      .from(commentFlags)
+      .innerJoin(
+        comments,
+        and(eq(comments.orgId, commentFlags.orgId), eq(comments.id, commentFlags.commentId)),
+      )
+      .innerJoin(posts, and(eq(posts.orgId, comments.orgId), eq(posts.id, comments.postId)))
+      .where(
+        and(
+          eq(commentFlags.orgId, orgId),
+          eq(posts.spaceId, spaceId),
+          isNull(commentFlags.resolvedAt),
+        ),
+      )
+      .orderBy(asc(commentFlags.createdAt), asc(commentFlags.id));
+    return rows.map((row) => row.flag);
   }
 
   async listOpenReports(orgId: string, commentIds: string[]): Promise<CommentReport[]> {

@@ -9,11 +9,12 @@ import type {
   AuthorRoleReader,
   CreatePostInput,
   FeedQuery,
+  PostCommentFlagReader,
   PostReactions,
   PostRepository,
   PostUnitOfWork,
 } from './ports.js';
-import type { Page, Post, PostFlag, Role } from '../types/index.js';
+import type { CommentReport, Page, Post, PostFlag, Role } from '../types/index.js';
 
 const AT = new Date('2026-10-21T12:00:00.000Z');
 const ORG = 'org-1';
@@ -66,6 +67,7 @@ function harness(options?: {
 }) {
   const rows: Post[] = [];
   const flags: PostFlag[] = [];
+  const commentFlagRows: { spaceId: string; flag: CommentReport }[] = [];
   const followed = new Set<string>();
   const reactions: { postId: string; orgUserId: string; emoji: string }[] = [];
   let current = options?.spaces ?? [space()];
@@ -214,6 +216,17 @@ function harness(options?: {
     },
   };
 
+  const commentFlags: PostCommentFlagReader = {
+    async listOpenFlagsForSpace(orgId, spaceId) {
+      return commentFlagRows
+        .filter(
+          (row) =>
+            row.flag.orgId === orgId && row.spaceId === spaceId && row.flag.resolvedAt === null,
+        )
+        .map((row) => ({ ...row.flag }));
+    },
+  };
+
   const authors: AuthorRoleReader = {
     async roleOf(_orgId, orgUserId) {
       return options?.roles?.[orgUserId] ?? null;
@@ -247,6 +260,7 @@ function harness(options?: {
       },
     },
     authors,
+    commentFlags,
     uow,
   });
 
@@ -254,6 +268,7 @@ function harness(options?: {
     svc,
     rows,
     flags,
+    commentFlagRows,
     calls,
     followed,
     setSpaces(next: SpaceDetail[]) {
@@ -504,5 +519,38 @@ describe('posts', () => {
     const queue = await svc.moderationQueue(ORG, moderator, 'spc_1');
     expect(queue.pending.map((post) => post.id)).toEqual([created.id]);
     expect(queue.flags).toHaveLength(1);
+    expect(queue.commentFlags).toEqual([]);
+  });
+
+  it('includes open comment flags on that space and leaves resolved and other spaces out', async () => {
+    const { svc, commentFlagRows } = harness();
+    const open: CommentReport = {
+      id: 'crp_open',
+      orgId: ORG,
+      commentId: 'cmt_1',
+      orgUserId: other.id,
+      reason: 'spam',
+      resolvedAt: null,
+      resolution: null,
+      resolvedBy: null,
+      createdAt: AT,
+      updatedAt: AT,
+    };
+    commentFlagRows.push(
+      { spaceId: 'spc_1', flag: open },
+      {
+        spaceId: 'spc_1',
+        flag: {
+          ...open,
+          id: 'crp_resolved',
+          resolvedAt: AT,
+          resolution: 'dismissed',
+          resolvedBy: moderator.id,
+        },
+      },
+      { spaceId: 'spc_2', flag: { ...open, id: 'crp_other', commentId: 'cmt_2' } },
+    );
+    const queue = await svc.moderationQueue(ORG, moderator, 'spc_1');
+    expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
   });
 });

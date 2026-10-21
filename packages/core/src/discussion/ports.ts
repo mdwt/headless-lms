@@ -122,7 +122,7 @@ export interface ActivityGetter {
   getActivity(orgId: string, activityId: string): Promise<Activity | null>;
 }
 
-export interface DiscussionRepository {
+export interface DiscussionRepository extends PostCommentFlagReader {
   insertComment(orgId: string, comment: Comment): Promise<Comment>;
   findComment(orgId: string, id: string): Promise<Comment | null>;
   updateComment(
@@ -232,6 +232,11 @@ export interface PostReactions {
 export interface SpaceModerationQueue {
   pending: Post[];
   flags: PostFlag[];
+  commentFlags: CommentReport[];
+}
+
+export interface PostCommentFlagReader {
+  listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<CommentReport[]>;
 }
 
 export interface PostService {

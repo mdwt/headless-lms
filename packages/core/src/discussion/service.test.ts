@@ -132,6 +132,9 @@ export function fakeRepo() {
         .filter((r) => r.orgId === orgId && !r.resolvedAt && commentIds.includes(r.commentId))
         .map((r) => ({ ...r }));
     },
+    async listOpenFlagsForSpace() {
+      return [];
+    },
     async resolveReportsFor(orgId, commentId, resolved) {
       for (const r of reports) {
         if (r.orgId === orgId && r.commentId === commentId && !r.resolvedAt) {
