@@ -5,4 +5,7 @@ export type {
   EntitlementsQuery,
   GrantEntitlementInput,
   Page,
+  SpaceMember,
+  SpaceMemberSource,
+  SpaceMemberStatus,
 } from '../types/index.js';

@@ -1,9 +1,39 @@
 // entitlements context — ports.
-import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from './model.js';
+import type {
+  Entitlement,
+  EntitlementsQuery,
+  GrantEntitlementInput,
+  Page,
+  SpaceMember,
+  SpaceMemberSource,
+  SpaceMemberStatus,
+} from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { SpaceRowLock } from '../content/index.js';
+import type { Actor } from '../shared/actor.js';
+
+export interface GrantTarget {
+  contentId: string | null;
+  bundleId: string | null;
+}
+
+export interface CommunityAccessReader {
+  isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
+  canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
+  openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]>;
+  grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean>;
+}
+
+export interface InsertSpaceMemberInput {
+  communityId: string;
+  spaceId: string;
+  orgUserId: string;
+  status: SpaceMemberStatus;
+  source: SpaceMemberSource;
+}
 
 // Inbound port (use cases the service exposes).
-export interface EntitlementsService {
+export interface EntitlementsService extends CommunityAccessReader {
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
   grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
@@ -11,6 +41,22 @@ export interface EntitlementsService {
    *  The authority for course access — a reporting read must never be used to
    *  infer it. */
   hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
+  requestJoin(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
+  invite(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
+  addSpaceMember(
+    orgId: string,
+    actor: Actor,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember>;
+  accept(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
+  approve(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
+  decline(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
+  refuse(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
+  leave(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
+  remove(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
+  listSpaceMembers(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember[]>;
+  expireDue(orgId: string, now: Date): Promise<void>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -22,6 +68,23 @@ export interface EntitlementsRepository {
    *  The authority for course access — a reporting read must never be used to
    *  infer it. */
   hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
+  hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean>;
+  grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean>;
+  communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
+  findSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
+  listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]>;
+  insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember>;
+  updateSpaceMemberStatus(
+    orgId: string,
+    id: string,
+    status: SpaceMemberStatus,
+  ): Promise<SpaceMember | null>;
+  deleteSpaceMember(orgId: string, id: string): Promise<void>;
+  countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
+  activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
+  listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]>;
+  listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<Entitlement[]>;
+  outboxHas(orgId: string, type: string, grantId: string, communityId?: string): Promise<boolean>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member
@@ -29,6 +92,7 @@ export interface EntitlementsRepository {
  *  commit or roll back as one. */
 export interface EntitlementsTxScope {
   entitlements: EntitlementsRepository;
+  spaces: SpaceRowLock;
   outbox: OutboxAppender;
 }
 

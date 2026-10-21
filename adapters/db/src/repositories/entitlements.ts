@@ -1,7 +1,11 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { DbExecutor } from "../client.js";
-import type { EntitlementsRepository } from "@headless-lms/core/entitlements";
+import type {
+  EntitlementsRepository,
+  GrantTarget,
+  InsertSpaceMemberInput,
+} from "@headless-lms/core/entitlements";
 import type {
   Entitlement,
   EntitlementStatus,
@@ -9,9 +13,18 @@ import type {
   GrantEntitlementInput,
   Logger,
   Page,
+  SpaceMember,
+  SpaceMemberStatus,
 } from "@headless-lms/core/types";
-import { entitlements, orgUsers, users } from "../schema/index.js";
-import { bundleItems, bundles, contentItems, courses, downloads } from "../schema/content.js";
+import { entitlements, eventOutbox, orgUsers, spaceMembers, users } from "../schema/index.js";
+import {
+  bundleItems,
+  bundles,
+  communities,
+  contentItems,
+  courses,
+  downloads,
+} from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 
@@ -29,7 +42,7 @@ end`;
 // content table plus one for bundles; exactly one hits per row (a grant targets
 // either a bundle or a single content item), so the COALESCE picks the single
 // non-null title. Extended per new content type.
-const contentTitle = sql<string>`coalesce(${courses.title}, ${downloads.title}, ${bundles.name})`;
+const contentTitle = sql<string>`coalesce(${courses.title}, ${downloads.title}, ${communities.title}, ${bundles.name})`;
 
 // Sortable columns by the client-facing field name. `status` sorts on the derived
 // expression so the ordering matches the displayed value; `contentTitle` on the
@@ -126,6 +139,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
         downloads,
         and(eq(downloads.orgId, entitlements.orgId), eq(downloads.id, entitlements.contentId)),
       )
+      .leftJoin(
+        communities,
+        and(eq(communities.orgId, entitlements.orgId), eq(communities.id, entitlements.contentId)),
+      )
       .where(where);
   }
 
@@ -203,6 +220,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .leftJoin(
         downloads,
         and(eq(downloads.orgId, entitlements.orgId), eq(downloads.id, entitlements.contentId)),
+      )
+      .leftJoin(
+        communities,
+        and(eq(communities.orgId, entitlements.orgId), eq(communities.id, entitlements.contentId)),
       )
       .where(where);
 
@@ -311,5 +332,263 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .limit(1);
     return rows.length > 0;
   }
+
+  async hasCommunityAccess(
+    orgId: string,
+    orgUserId: string,
+    communityId: string,
+  ): Promise<boolean> {
+    const bundledItems = alias(contentItems, "bundled_community_items");
+    const rows = await this.db
+      .select({ id: entitlements.id })
+      .from(entitlements)
+      .leftJoin(
+        contentItems,
+        and(
+          eq(contentItems.orgId, entitlements.orgId),
+          eq(contentItems.id, entitlements.contentId),
+        ),
+      )
+      .leftJoin(
+        bundleItems,
+        and(
+          eq(bundleItems.orgId, entitlements.orgId),
+          eq(bundleItems.bundleId, entitlements.bundleId),
+        ),
+      )
+      .leftJoin(
+        bundledItems,
+        and(eq(bundledItems.orgId, bundleItems.orgId), eq(bundledItems.id, bundleItems.contentId)),
+      )
+      .where(
+        and(
+          eq(entitlements.orgId, orgId),
+          eq(entitlements.orgUserId, orgUserId),
+          or(
+            and(eq(entitlements.contentId, communityId), eq(contentItems.type, "community")),
+            and(eq(bundleItems.contentId, communityId), eq(bundledItems.type, "community")),
+          ),
+          sql`${derivedStatus} = 'active'`,
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async grantOpensCommunity(
+    orgId: string,
+    grant: GrantTarget,
+    communityId: string,
+  ): Promise<boolean> {
+    const opened = await this.communitiesOpenedBy(orgId, grant);
+    return opened.includes(communityId);
+  }
+
+  async communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]> {
+    if (grant.contentId) {
+      const rows = await this.db
+        .select({ id: contentItems.id })
+        .from(contentItems)
+        .where(
+          and(
+            eq(contentItems.orgId, orgId),
+            eq(contentItems.id, grant.contentId),
+            eq(contentItems.type, "community"),
+          ),
+        );
+      return rows.map((row) => row.id);
+    }
+    if (!grant.bundleId) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ id: contentItems.id })
+      .from(bundleItems)
+      .innerJoin(
+        contentItems,
+        and(eq(contentItems.orgId, bundleItems.orgId), eq(contentItems.id, bundleItems.contentId)),
+      )
+      .where(
+        and(
+          eq(bundleItems.orgId, orgId),
+          eq(bundleItems.bundleId, grant.bundleId),
+          eq(contentItems.type, "community"),
+        ),
+      );
+    return rows.map((row) => row.id);
+  }
+
+  async findSpaceMember(
+    orgId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember | null> {
+    const [row] = await this.db
+      .select()
+      .from(spaceMembers)
+      .where(
+        and(
+          eq(spaceMembers.orgId, orgId),
+          eq(spaceMembers.spaceId, spaceId),
+          eq(spaceMembers.orgUserId, orgUserId),
+        ),
+      )
+      .limit(1);
+    return row ? toSpaceMember(row) : null;
+  }
+
+  async listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]> {
+    const rows = await this.db
+      .select()
+      .from(spaceMembers)
+      .where(and(eq(spaceMembers.orgId, orgId), eq(spaceMembers.spaceId, spaceId)))
+      .orderBy(asc(spaceMembers.createdAt), asc(spaceMembers.id));
+    return rows.map(toSpaceMember);
+  }
+
+  async insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember> {
+    const [row] = await this.db
+      .insert(spaceMembers)
+      .values({
+        orgId,
+        communityId: input.communityId,
+        spaceId: input.spaceId,
+        orgUserId: input.orgUserId,
+        status: input.status,
+        source: input.source,
+      })
+      .returning();
+    if (!row) {
+      throw new Error("failed to insert space member");
+    }
+    return toSpaceMember(row);
+  }
+
+  async updateSpaceMemberStatus(
+    orgId: string,
+    id: string,
+    status: SpaceMemberStatus,
+  ): Promise<SpaceMember | null> {
+    const [row] = await this.db
+      .update(spaceMembers)
+      .set({ status })
+      .where(and(eq(spaceMembers.orgId, orgId), eq(spaceMembers.id, id)))
+      .returning();
+    return row ? toSpaceMember(row) : null;
+  }
+
+  async deleteSpaceMember(orgId: string, id: string): Promise<void> {
+    await this.db
+      .delete(spaceMembers)
+      .where(and(eq(spaceMembers.orgId, orgId), eq(spaceMembers.id, id)));
+  }
+
+  async countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(spaceMembers)
+      .where(
+        and(
+          eq(spaceMembers.orgId, orgId),
+          eq(spaceMembers.spaceId, spaceId),
+          eq(spaceMembers.status, "active"),
+        ),
+      );
+    return row?.total ?? 0;
+  }
+
+  async activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ spaceId: spaceMembers.spaceId })
+      .from(spaceMembers)
+      .where(
+        and(
+          eq(spaceMembers.orgId, orgId),
+          eq(spaceMembers.orgUserId, orgUserId),
+          eq(spaceMembers.communityId, communityId),
+          eq(spaceMembers.status, "active"),
+        ),
+      );
+    return rows.map((row) => row.spaceId);
+  }
+
+  async listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]> {
+    const rows = await this.db
+      .select(selection)
+      .from(entitlements)
+      .where(
+        and(
+          eq(entitlements.orgId, orgId),
+          eq(entitlements.status, "active"),
+          sql`${entitlements.expiresAt} is not null`,
+          lte(entitlements.expiresAt, now),
+        ),
+      );
+    return rows.map(toEntitlement);
+  }
+
+  async listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<Entitlement[]> {
+    const rows = await this.db
+      .select(selection)
+      .from(entitlements)
+      .where(
+        and(
+          eq(entitlements.orgId, orgId),
+          eq(entitlements.status, "active"),
+          sql`${entitlements.expiresAt} is not null`,
+          gt(entitlements.expiresAt, after),
+          lte(entitlements.expiresAt, until),
+        ),
+      );
+    return rows.map(toEntitlement);
+  }
+
+  async outboxHas(
+    orgId: string,
+    type: string,
+    grantId: string,
+    communityId?: string,
+  ): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: eventOutbox.id })
+      .from(eventOutbox)
+      .where(
+        and(
+          eq(eventOutbox.orgId, orgId),
+          eq(eventOutbox.type, type),
+          sql`${eventOutbox.payload}->'data'->>'id' = ${grantId}`,
+          communityId
+            ? sql`${eventOutbox.payload}->'data'->>'contentId' = ${communityId}`
+            : undefined,
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
 }
+
+function toSpaceMember(row: {
+  orgId: string;
+  id: string;
+  communityId: string;
+  spaceId: string;
+  orgUserId: string;
+  status: SpaceMemberStatus;
+  source: "request" | "invite" | "manual";
+  createdAt: Date;
+  updatedAt: Date;
+}): SpaceMember {
+  return {
+    orgId: row.orgId,
+    id: row.id,
+    communityId: row.communityId,
+    spaceId: row.spaceId,
+    orgUserId: row.orgUserId,
+    status: row.status,
+    source: row.source,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 translateDbErrors(DrizzleEntitlementsRepository);

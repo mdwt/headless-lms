@@ -285,10 +285,12 @@ export async function buildContainer(
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
     entitlements: new DrizzleEntitlementsRepository(tx, entitlementsLogger),
+    spaces: new DrizzleContentRepository(tx, contentLogger),
     outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
   const entitlements = new EntitlementsServiceImpl({
     repo: new DrizzleEntitlementsRepository(db, entitlementsLogger),
+    content,
     uow: entitlementsUow,
     logger: entitlementsLogger,
   });
