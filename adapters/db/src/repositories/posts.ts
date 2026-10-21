@@ -1,0 +1,289 @@
+import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type {
+  FeedQuery,
+  PostReactions,
+  PostRepository,
+  PostPatch,
+} from "@headless-lms/core/discussion";
+import type {
+  Logger,
+  Page,
+  Post,
+  PostFlag,
+  PostFlagResolution,
+  ReactionEmoji,
+} from "@headless-lms/core/types";
+import { noopLogger } from "@headless-lms/core/shared/logger";
+import { postFlags, postFollows, postBookmarks, postReactions, posts } from "../schema/index.js";
+import { translateDbErrors } from "./pg-errors.js";
+
+type PostRow = typeof posts.$inferSelect;
+type FlagRow = typeof postFlags.$inferSelect;
+
+function toPost(row: PostRow): Post {
+  return {
+    orgId: row.orgId,
+    id: row.id,
+    communityId: row.communityId,
+    spaceId: row.spaceId,
+    orgUserId: row.orgUserId,
+    topicId: row.topicId,
+    title: row.title,
+    body: row.body,
+    extra: row.extra,
+    coverAssetId: row.coverAssetId,
+    status: row.status,
+    scheduledAt: row.scheduledAt,
+    publishedAt: row.publishedAt,
+    removedBy: row.removedBy,
+    pinned: row.pinned,
+    commentsClosed: row.commentsClosed,
+    reactionsEnabled: row.reactionsEnabled,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toFlag(row: FlagRow): PostFlag {
+  return {
+    orgId: row.orgId,
+    id: row.id,
+    postId: row.postId,
+    orgUserId: row.orgUserId,
+    reason: row.reason,
+    resolvedAt: row.resolvedAt,
+    resolution: row.resolution,
+    resolvedBy: row.resolvedBy,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export class DrizzlePostRepository implements PostRepository {
+  constructor(
+    private readonly db: NodePgDatabase,
+    private readonly logger: Logger = noopLogger,
+  ) {}
+
+  async insert(orgId: string, post: Post): Promise<Post> {
+    const [row] = await this.db
+      .insert(posts)
+      .values({
+        orgId,
+        id: post.id,
+        communityId: post.communityId,
+        spaceId: post.spaceId,
+        orgUserId: post.orgUserId,
+        topicId: post.topicId,
+        title: post.title,
+        body: post.body,
+        extra: post.extra,
+        coverAssetId: post.coverAssetId,
+        status: post.status,
+        scheduledAt: post.scheduledAt,
+        publishedAt: post.publishedAt,
+        removedBy: post.removedBy,
+        pinned: post.pinned,
+        commentsClosed: post.commentsClosed,
+        reactionsEnabled: post.reactionsEnabled,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      })
+      .returning();
+    this.logger.debug("post inserted", { orgId, postId: post.id });
+    return toPost(row!);
+  }
+
+  async update(orgId: string, id: string, patch: PostPatch): Promise<Post | null> {
+    const [row] = await this.db
+      .update(posts)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(and(eq(posts.orgId, orgId), eq(posts.id, id)))
+      .returning();
+    return row ? toPost(row) : null;
+  }
+
+  async find(orgId: string, id: string): Promise<Post | null> {
+    const [row] = await this.db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.orgId, orgId), eq(posts.id, id)))
+      .limit(1);
+    return row ? toPost(row) : null;
+  }
+
+  async listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>> {
+    if (spaceIds.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
+    const where = and(
+      eq(posts.orgId, orgId),
+      inArray(posts.spaceId, spaceIds),
+      eq(posts.status, "published"),
+      query.topicId ? eq(posts.topicId, query.topicId) : undefined,
+    );
+    const rows = await this.db
+      .select()
+      .from(posts)
+      .where(where)
+      .orderBy(desc(posts.pinned), desc(posts.publishedAt), desc(posts.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(posts)
+      .where(where);
+    return { rows: rows.map(toPost), total, page: query.page, pageSize: query.pageSize };
+  }
+
+  async listPending(orgId: string, spaceId: string): Promise<Post[]> {
+    const rows = await this.db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.orgId, orgId), eq(posts.spaceId, spaceId), eq(posts.status, "pending")))
+      .orderBy(asc(posts.createdAt), asc(posts.id));
+    return rows.map(toPost);
+  }
+
+  async listDue(orgId: string, now: Date): Promise<Post[]> {
+    const rows = await this.db
+      .select()
+      .from(posts)
+      .where(
+        and(eq(posts.orgId, orgId), eq(posts.status, "scheduled"), lte(posts.scheduledAt, now)),
+      )
+      .orderBy(asc(posts.scheduledAt), asc(posts.id));
+    return rows.map(toPost);
+  }
+
+  async reactionsOf(orgId: string, postId: string, viewerId: string): Promise<PostReactions> {
+    const rows = await this.db
+      .select({
+        emoji: postReactions.emoji,
+        count: sql<number>`cast(count(*) as int)`,
+        mine: sql<boolean>`bool_or(${postReactions.orgUserId} = ${viewerId})`,
+      })
+      .from(postReactions)
+      .where(and(eq(postReactions.orgId, orgId), eq(postReactions.postId, postId)))
+      .groupBy(postReactions.emoji);
+    const reactions: PostReactions = { reactions: {} };
+    for (const row of rows) {
+      reactions.reactions[row.emoji] = row.count;
+      if (row.mine) {
+        reactions.viewerReaction = row.emoji;
+      }
+    }
+    return reactions;
+  }
+
+  async setReaction(
+    orgId: string,
+    postId: string,
+    orgUserId: string,
+    emoji: ReactionEmoji | null,
+  ): Promise<void> {
+    if (emoji === null) {
+      await this.db
+        .delete(postReactions)
+        .where(
+          and(
+            eq(postReactions.orgId, orgId),
+            eq(postReactions.postId, postId),
+            eq(postReactions.orgUserId, orgUserId),
+          ),
+        );
+      return;
+    }
+    await this.db
+      .insert(postReactions)
+      .values({ orgId, postId, orgUserId, emoji })
+      .onConflictDoUpdate({
+        target: [postReactions.orgId, postReactions.postId, postReactions.orgUserId],
+        set: { emoji },
+      });
+  }
+
+  async follow(orgId: string, postId: string, orgUserId: string): Promise<void> {
+    await this.db.insert(postFollows).values({ orgId, postId, orgUserId }).onConflictDoNothing();
+  }
+
+  async unfollow(orgId: string, postId: string, orgUserId: string): Promise<void> {
+    await this.db
+      .delete(postFollows)
+      .where(
+        and(
+          eq(postFollows.orgId, orgId),
+          eq(postFollows.postId, postId),
+          eq(postFollows.orgUserId, orgUserId),
+        ),
+      );
+  }
+
+  async bookmark(orgId: string, postId: string, orgUserId: string): Promise<void> {
+    await this.db.insert(postBookmarks).values({ orgId, postId, orgUserId }).onConflictDoNothing();
+  }
+
+  async unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void> {
+    await this.db
+      .delete(postBookmarks)
+      .where(
+        and(
+          eq(postBookmarks.orgId, orgId),
+          eq(postBookmarks.postId, postId),
+          eq(postBookmarks.orgUserId, orgUserId),
+        ),
+      );
+  }
+
+  async insertFlag(orgId: string, flag: PostFlag): Promise<PostFlag | null> {
+    const [row] = await this.db
+      .insert(postFlags)
+      .values({
+        orgId,
+        id: flag.id,
+        postId: flag.postId,
+        orgUserId: flag.orgUserId,
+        reason: flag.reason,
+        resolvedAt: flag.resolvedAt,
+        resolution: flag.resolution,
+        resolvedBy: flag.resolvedBy,
+        createdAt: flag.createdAt,
+        updatedAt: flag.updatedAt,
+      })
+      .onConflictDoNothing()
+      .returning();
+    return row ? toFlag(row) : null;
+  }
+
+  async listOpenFlags(orgId: string, spaceId: string): Promise<PostFlag[]> {
+    const rows = await this.db
+      .select({ flag: postFlags })
+      .from(postFlags)
+      .innerJoin(posts, and(eq(posts.orgId, postFlags.orgId), eq(posts.id, postFlags.postId)))
+      .where(
+        and(eq(postFlags.orgId, orgId), eq(posts.spaceId, spaceId), isNull(postFlags.resolvedAt)),
+      )
+      .orderBy(asc(postFlags.createdAt), asc(postFlags.id));
+    return rows.map((row) => toFlag(row.flag));
+  }
+
+  async resolveFlags(
+    orgId: string,
+    postId: string,
+    resolved: { resolvedAt: Date; resolvedBy: string; resolution: PostFlagResolution },
+  ): Promise<void> {
+    await this.db
+      .update(postFlags)
+      .set({
+        resolvedAt: resolved.resolvedAt,
+        resolvedBy: resolved.resolvedBy,
+        resolution: resolved.resolution,
+      })
+      .where(
+        and(eq(postFlags.orgId, orgId), eq(postFlags.postId, postId), isNull(postFlags.resolvedAt)),
+      );
+  }
+}
+
+translateDbErrors(DrizzlePostRepository);

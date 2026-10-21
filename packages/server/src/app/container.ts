@@ -9,6 +9,7 @@ import {
   DrizzleCredentialStore,
   DrizzleAdminRepository,
   DrizzleDiscussionRepository,
+  DrizzlePostRepository,
   DrizzleEntitlementsRepository,
   DrizzleIdentityRepository,
   DrizzleMemberRepository,
@@ -41,7 +42,7 @@ import { BetterAuth } from '@headless-lms/adapter-auth';
 import { ContentService } from '@headless-lms/core/content';
 import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
-import { DiscussionServiceImpl } from '@headless-lms/core/discussion';
+import { DiscussionServiceImpl, PostServiceImpl } from '@headless-lms/core/discussion';
 import { IdentityServiceImpl, type SessionAdmin } from '@headless-lms/core/identity';
 import {
   type OrgAdmin,
@@ -162,6 +163,7 @@ export interface Container {
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
   discussion: DiscussionServiceImpl;
+  posts: PostServiceImpl;
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
   automations: AutomationsServiceImpl;
@@ -245,13 +247,14 @@ export async function buildContainer(
   /*
    * Organization
    */
+  const organizationsRepo = new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' }));
   const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const organizations = new OrganizationServiceImpl({
-    repo: new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' })),
+    repo: organizationsRepo,
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
     uow: organizationsUow,
@@ -316,6 +319,22 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     settings,
+    logger: discussionLogger,
+  });
+  const posts = new PostServiceImpl({
+    repo: new DrizzlePostRepository(db, discussionLogger),
+    access: entitlements,
+    content,
+    authors: {
+      roleOf: async (orgId, orgUserId) => {
+        const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+        return row?.role ?? null;
+      },
+    },
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      posts: new DrizzlePostRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
     logger: discussionLogger,
   });
   const assets = new AssetsServiceImpl({
@@ -539,6 +558,7 @@ export async function buildContainer(
     entitlements,
     progress,
     discussion,
+    posts,
     assets,
     integrations,
     automations,
