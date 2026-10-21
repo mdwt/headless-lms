@@ -10,6 +10,7 @@ export type {
   SessionAdmin,
   AuthHeaders,
 } from './ports.js';
-export type { User } from './model.js';
+export type { User, UserProfile } from './model.js';
+export type { UpdateProfileInput } from './ports.js';
 export type { UserId, CreateUserInput, ProvisionUserInput, UpdateUserInput } from './types.js';
 export type { IdentityEvent, UserCreated, UserDeleted, UserUpdated } from './events.js';

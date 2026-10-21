@@ -1,10 +1,11 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
-import type { User } from './model.js';
+import type { User, UserProfile } from './model.js';
+import type { UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
 import { identityEvents } from './events.js';
 
@@ -97,5 +98,29 @@ export class IdentityServiceImpl implements IdentityService {
 
   async sendMagicLink(input: { email: string; url: string }): Promise<void> {
     await this.mailer.send(input.email, 'magicLink', { url: input.url });
+  }
+
+  getProfile(userId: string): Promise<UserProfile | null> {
+    return this.repo.findProfile(userId);
+  }
+
+  async updateProfile(
+    userId: string,
+    actorUserId: string,
+    patch: UpdateProfileInput,
+  ): Promise<UserProfile> {
+    if (actorUserId !== userId) {
+      throw new ForbiddenError('You can only update your own profile');
+    }
+    const orgSet = patch.imageAssetOrgId !== undefined;
+    const idSet = patch.imageAssetId !== undefined;
+    if (orgSet !== idSet || (orgSet && (patch.imageAssetOrgId === null) !== (patch.imageAssetId === null))) {
+      throw new ConflictError('A profile photo needs both the asset and its organization, or neither');
+    }
+    const user = await this.repo.findUserById(userId);
+    if (!user) {
+      throw new NotFoundError('User', userId);
+    }
+    return this.repo.upsertProfile(userId, patch);
   }
 }

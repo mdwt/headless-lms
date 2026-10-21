@@ -3,7 +3,7 @@ import { ROLES, isRole, parseRole, capability, normalizeRole } from './roles.js'
 
 describe('roles', () => {
   it('exposes the staff roles plus student', () => {
-    expect([...ROLES]).toEqual(['owner', 'admin', 'instructor', 'student']);
+    expect([...ROLES]).toEqual(['owner', 'admin', 'instructor', 'moderator', 'student']);
   });
 
   it('treats student as a known role', () => {
@@ -24,6 +24,13 @@ describe('roles', () => {
 
   it('ranks student below every staff role', () => {
     expect(normalizeRole('student,instructor')).toBe('instructor');
+  });
+
+  it('recognises moderator and keeps them out of staff', () => {
+    expect(isRole('moderator')).toBe(true);
+    expect(capability('moderator', 'moderate')).toBe(true);
+    expect(capability('moderator', 'consume_content')).toBe('enrolled');
+    expect(capability('moderator', 'manage_users')).toBe(false);
   });
 
   it('parseRole accepts a known role and rejects an unknown one', () => {

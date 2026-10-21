@@ -1,6 +1,16 @@
-import type { User } from './model.js';
+import type { User, UserProfile } from './model.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
+import type { JsonValue } from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+
+export interface UpdateProfileInput {
+  displayName?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  imageAssetOrgId?: string | null;
+  imageAssetId?: string | null;
+  extra?: JsonValue;
+}
 
 export interface UserProvisioner {
   createUser(input: CreateUserInput): Promise<User>;
@@ -39,7 +49,10 @@ export interface SessionAdmin {
 }
 
 // Inbound port (use cases the service exposes).
-export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {}
+export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
+  getProfile(userId: string): Promise<UserProfile | null>;
+  updateProfile(userId: string, actorUserId: string, patch: UpdateProfileInput): Promise<UserProfile>;
+}
 
 // Outbound port (persistence contract the repository fulfils).
 export interface IdentityRepository {
@@ -48,6 +61,8 @@ export interface IdentityRepository {
   findUserById(id: string): Promise<User | null>;
   findUserByExternalId(externalId: string): Promise<User | null>;
   findUserByEmail(email: string): Promise<User | null>;
+  findProfile(userId: string): Promise<UserProfile | null>;
+  upsertProfile(userId: string, patch: UpdateProfileInput): Promise<UserProfile>;
 }
 
 export interface IdentityTxScope {

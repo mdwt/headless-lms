@@ -184,14 +184,25 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   async updateOrgUser(orgId: string, userId: string, patch: UpdateOrgUserInput): Promise<OrgUser> {
-    const orgUser = await this.repo.findOrgUser(orgId, userId);
-    if (!orgUser) {
-      throw new NotFoundError('OrgUser', userId);
-    }
-    const updated = await this.repo.updateOrgUser(orgId, orgUser.id, patch);
-    if (!updated) {
-      throw new NotFoundError('OrgUser', orgUser.id);
-    }
+    const updated = await this.uow.run(async ({ organizations, outbox }) => {
+      const orgUser = await organizations.findOrgUser(orgId, userId);
+      if (!orgUser) {
+        throw new NotFoundError('OrgUser', userId);
+      }
+      const next = await organizations.updateOrgUser(orgId, orgUser.id, patch);
+      if (!next) {
+        throw new NotFoundError('OrgUser', orgUser.id);
+      }
+      if (patch.role !== undefined && patch.role !== orgUser.role) {
+        await outbox.append([
+          organizationEvents.orgUserUpdated.make({
+            orgId,
+            data: next,
+          }),
+        ]);
+      }
+      return next;
+    });
     this.logger.info('org user updated', { orgId, userId, orgUserId: updated.id, patch });
     return updated;
   }

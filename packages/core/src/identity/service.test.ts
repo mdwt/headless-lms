@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
-import { ConflictError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError } from '../shared/errors.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -29,6 +29,20 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
     findUserById: vi.fn().mockResolvedValue(null),
     findUserByExternalId: vi.fn().mockResolvedValue(null),
     findUserByEmail: vi.fn().mockResolvedValue(null),
+    findProfile: vi.fn().mockResolvedValue(null),
+    upsertProfile: vi.fn().mockImplementation((userId, patch) =>
+      Promise.resolve({
+        userId,
+        displayName: patch.displayName ?? null,
+        headline: patch.headline ?? null,
+        bio: patch.bio ?? null,
+        imageAssetOrgId: patch.imageAssetOrgId ?? null,
+        imageAssetId: patch.imageAssetId ?? null,
+        extra: patch.extra ?? {},
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+      }),
+    ),
     ...over,
   };
 }

@@ -55,6 +55,7 @@ export type {
   OrganizationDeleted,
   OrgUserLinked,
   OrgUserDeleted,
+  OrgUserUpdated,
   InviteCreated,
   InviteAccepted,
   InviteCanceled,
