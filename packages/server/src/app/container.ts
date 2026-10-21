@@ -316,10 +316,12 @@ export async function buildContainer(
     logger: progressLogger,
   });
 
+  const postReads = new DrizzlePostRepository(db, discussionLogger);
   const discussion = new DiscussionServiceImpl({
     repo: new DrizzleDiscussionRepository(db, discussionLogger),
     access: entitlements,
     content: content,
+    posts: postReads,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -334,7 +336,7 @@ export async function buildContainer(
     },
   };
   const posts = new PostServiceImpl({
-    repo: new DrizzlePostRepository(db, discussionLogger),
+    repo: postReads,
     access: entitlements,
     content,
     authors,

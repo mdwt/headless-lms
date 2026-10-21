@@ -118,6 +118,15 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     return rows.map(toComment);
   }
 
+  async listByPost(orgId: string, postId: string): Promise<Comment[]> {
+    const rows = await this.db
+      .select()
+      .from(comments)
+      .where(and(eq(comments.orgId, orgId), eq(comments.postId, postId)))
+      .orderBy(comments.createdAt);
+    return rows.map(toComment);
+  }
+
   async reactionsOf(
     orgId: string,
     commentIds: string[],

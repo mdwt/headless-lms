@@ -91,7 +91,9 @@ export type CommentReportInput = z.input<typeof commentReportSchema>;
 export const commentViewSchema = z
   .object({
     id: idSchema,
-    activityId: idSchema,
+    activityId: idSchema.nullable(),
+    postId: idSchema.nullable(),
+    communityId: idSchema.nullable(),
     parentId: idSchema.nullable(),
     author: commentAuthorSchema,
     body: z.string().nullable(),

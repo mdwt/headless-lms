@@ -13,6 +13,7 @@ import type {
 import type { ActivityCommentsRule, Comment, CommentReport, CommentSettings } from './model.js';
 import type { NewDiscussionEvent } from './events.js';
 import type { ListCommentsQuery, ReactionEmoji } from './types.js';
+import type { CommunityReader } from '../content/index.js';
 import { NotFoundError, ForbiddenError } from '../shared/errors.js';
 import {
   SettingsNamespace,
@@ -84,6 +85,12 @@ export function fakeRepo() {
     async listByActivity(orgId, activityId) {
       return comments
         .filter((c) => c.orgId === orgId && c.activityId === activityId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((c) => ({ ...c }));
+    },
+    async listByPost(orgId, postId) {
+      return comments
+        .filter((c) => c.orgId === orgId && c.postId === postId)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((c) => ({ ...c }));
     },
@@ -222,9 +229,12 @@ export function fakeUow(repo: DiscussionRepository) {
 
 export function fakeAccess() {
   const barred = new Set<string>();
-  const access: CourseAccessReader = {
+  const access: CourseAccessReader & { canOpenSpace: () => Promise<boolean> } = {
     async hasCourseAccess(_orgId, orgUserId, courseId) {
       return !barred.has(`${orgUserId}:${courseId}`);
+    },
+    async canOpenSpace() {
+      return false;
     },
   };
   return {
@@ -236,13 +246,16 @@ export function fakeAccess() {
 function fakeContent(
   activityCourse: Map<string, string>,
   activitySettings: Map<string, unknown>,
-): ActivityGetter {
+): ActivityGetter & Pick<CommunityReader, 'getSpace'> {
   return {
     async getActivity(_orgId, activityId) {
       const courseId = activityCourse.get(activityId);
       return courseId
         ? ({ id: activityId, courseId, settings: activitySettings.get(activityId) ?? {} } as never)
         : null;
+    },
+    async getSpace() {
+      return null;
     },
   };
 }
@@ -255,6 +268,7 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
     repo: fake.repo,
     access: gate.access,
     content: fakeContent(fake.activityCourse, activitySettings),
+    posts: { find: async () => null },
     uow,
     settings,
   });
@@ -1030,6 +1044,86 @@ describe('listComments', () => {
     });
     fake.repo.authorsOf = async () => ({});
     await expect(s.service.listComments('o1', q())).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('comments on a post', () => {
+  const post = {
+    orgId: 'o1',
+    id: 'pst_1',
+    communityId: 'cmy_1',
+    spaceId: 'spc_1',
+    orgUserId: learner.id,
+    topicId: null,
+    title: 'Hello',
+    body: 'Body',
+    extra: {},
+    coverAssetId: null,
+    status: 'published' as const,
+    scheduledAt: null,
+    publishedAt: new Date('2026-10-21T12:00:00.000Z'),
+    removedBy: null,
+    pinned: false,
+    commentsClosed: null as boolean | null,
+    reactionsEnabled: null,
+    createdAt: new Date('2026-10-21T12:00:00.000Z'),
+    updatedAt: new Date('2026-10-21T12:00:00.000Z'),
+  };
+  const space = {
+    orgId: 'o1',
+    id: 'spc_1',
+    communityId: 'cmy_1',
+    name: 'Announcements',
+    description: '',
+    seq: 0,
+    accessRule: 'all_members' as const,
+    capacity: null,
+    settings: { comments: true, reactions: true, requireReview: false },
+    topics: [],
+    links: [],
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+  };
+
+  function postService(commentsClosed: boolean | null = null) {
+    const fake = fakeRepo();
+    const { uow, appended } = fakeUow(fake.repo);
+    const { settings } = fakeSettings();
+    const gate = fakeAccess();
+    const service = new DiscussionServiceImpl({
+      repo: fake.repo,
+      access: { ...gate.access, canOpenSpace: async () => true },
+      content: {
+        ...fakeContent(fake.activityCourse, new Map()),
+        getSpace: async () => space,
+      },
+      posts: { find: async () => ({ ...post, commentsClosed }) },
+      uow,
+      settings,
+    });
+    return { service, appended };
+  }
+
+  it('is created published and does not emit comment.published', async () => {
+    const { service, appended } = postService();
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'hi',
+    });
+    expect(view.status).toBe('published');
+    expect(view.activityId).toBeNull();
+    expect(view.postId).toBe('pst_1');
+    expect(view.communityId).toBe('cmy_1');
+    expect(appended.map((event) => event.type)).toEqual(['discussion.comment.created']);
+  });
+
+  it('refuses a comment when the post has comments closed', async () => {
+    const { service } = postService(true);
+    await expect(
+      service.postComment('o1', { actor: learner, postId: 'pst_1', parentId: null, body: 'hi' }),
+    ).rejects.toThrow('Comments are closed on this post');
   });
 });
 

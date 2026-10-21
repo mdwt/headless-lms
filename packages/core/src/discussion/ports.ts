@@ -48,10 +48,9 @@ export interface CommentWithContext {
 export type { Actor } from '../shared/actor.js';
 export type PostCommentInput = {
   actor: Actor;
-  activityId: string;
   parentId: string | null;
   body: string;
-};
+} & ({ activityId: string; postId?: undefined } | { postId: string; activityId?: undefined });
 
 /** A profile row as the repository loads it, keyed by `org_users.id`. `email`
  *  is stripped before comments are served and kept only for the staff list. */
@@ -76,6 +75,9 @@ export interface DiscussionService {
 
   /** The activity's comments as this reader may see them. */
   activityComments(orgId: string, activityId: string, actor: Actor): Promise<ActivityComments>;
+
+  /** A post's comments as this reader may see them. */
+  postComments(orgId: string, postId: string, actor: Actor): Promise<CommentView[]>;
 
   /**
    * The org's comments, filtered. Staff-scoped: rows carry the author's email
@@ -127,6 +129,8 @@ export interface DiscussionRepository {
   ): Promise<Comment | null>;
   /** Every comment on the activity, oldest first, including removed ones. */
   listByActivity(orgId: string, activityId: string): Promise<Comment[]>;
+  /** Every comment on the post, oldest first, including removed ones. */
+  listByPost(orgId: string, postId: string): Promise<Comment[]>;
 
   reactionsOf(
     orgId: string,

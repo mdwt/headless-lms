@@ -1,10 +1,12 @@
 import { genId } from '../shared/id.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { isStaffRole } from '../organizations/index.js';
+import type { CommunityReader } from '../content/index.js';
+import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Comment, CommentAuthor, CommentReport, CommentSettings } from './model.js';
-import type { ActivitySettings, CourseSettings } from '../types/index.js';
+import type { ActivitySettings, CourseSettings, Post, SpaceDetail } from '../types/index.js';
 import type {
   CommentListItem,
   CommentsConfig,
@@ -25,6 +27,7 @@ import type {
   DiscussionService,
   DiscussionUnitOfWork,
   PostCommentInput,
+  PostRepository,
 } from './ports.js';
 import { discussionEvents } from './events.js';
 
@@ -41,8 +44,9 @@ const EMPTY_REACTIONS: CommentReactions = { reactions: {} };
 
 export type DiscussionServiceParams = {
   repo: DiscussionRepository;
-  access: CourseAccessReader;
-  content: ActivityGetter;
+  access: CourseAccessReader & Pick<CommunityAccessReader, 'canOpenSpace'>;
+  content: ActivityGetter & Pick<CommunityReader, 'getSpace'>;
+  posts: Pick<PostRepository, 'find'>;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
   logger?: Logger;
@@ -50,8 +54,9 @@ export type DiscussionServiceParams = {
 
 export class DiscussionServiceImpl implements DiscussionService {
   private readonly repo: DiscussionRepository;
-  private readonly access: CourseAccessReader;
-  private readonly content: ActivityGetter;
+  private readonly access: CourseAccessReader & Pick<CommunityAccessReader, 'canOpenSpace'>;
+  private readonly content: ActivityGetter & Pick<CommunityReader, 'getSpace'>;
+  private readonly posts: Pick<PostRepository, 'find'>;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
   private readonly logger: Logger;
@@ -60,6 +65,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.repo = params.repo;
     this.access = params.access;
     this.content = params.content;
+    this.posts = params.posts;
     this.uow = params.uow;
     this.settings = params.settings;
     this.logger = params.logger ?? noopLogger;
@@ -117,10 +123,11 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('OrgUser', comment.removedBy);
     }
     const remover = comment.removedBy ? authors[comment.removedBy] : undefined;
-    const activityId = this.activityIdOf(comment);
     return {
       id: comment.id,
-      activityId,
+      activityId: comment.activityId,
+      postId: comment.postId,
+      communityId: comment.communityId,
       parentId: comment.parentId,
       author: this.toAuthor(author),
       body: comment.status === 'removed' ? null : comment.body,
@@ -169,9 +176,21 @@ export class DiscussionServiceImpl implements DiscussionService {
     return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
   }
 
-  async postComment(
+  async postComment(orgId: string, input: PostCommentInput): Promise<CommentView> {
+    if (input.postId) {
+      return this.postOnPost(orgId, input.postId, input);
+    }
+    const activityId = input.activityId;
+    if (!activityId) {
+      throw new NotFoundError('Activity', activityId ?? '');
+    }
+    return this.postOnActivity(orgId, activityId, input);
+  }
+
+  private async postOnActivity(
     orgId: string,
-    { activityId, actor, parentId, body }: PostCommentInput,
+    activityId: string,
+    { actor, parentId, body }: PostCommentInput,
   ): Promise<CommentView> {
     if (!(await this.hasAccess(orgId, activityId, actor))) {
       throw new ForbiddenError('no access to this activity');
@@ -226,6 +245,120 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.renderOne(orgId, saved, actor);
   }
 
+  private async postOnPost(
+    orgId: string,
+    postId: string,
+    { actor, parentId, body }: PostCommentInput,
+  ): Promise<CommentView> {
+    const { post, space } = await this.visiblePost(orgId, actor, postId);
+    if (!this.commentsOpen(post, space)) {
+      throw new ForbiddenError('Comments are closed on this post');
+    }
+    if (parentId !== null) {
+      const parent = await this.repo.findComment(orgId, parentId);
+      if (!parent || parent.postId !== postId) {
+        throw new NotFoundError('Comment', parentId);
+      }
+      if (parent.parentId !== null) {
+        throw new ForbiddenError('replies nest one level');
+      }
+      if (parent.status !== 'published') {
+        throw new ForbiddenError('cannot reply to a comment that is not published');
+      }
+    }
+    const now = new Date();
+    const comment: Comment = {
+      id: genId('comment'),
+      orgId,
+      activityId: null,
+      postId,
+      communityId: post.communityId,
+      parentId,
+      orgUserId: actor.id,
+      body,
+      status: 'published',
+      removedBy: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const saved = await this.uow.run(async (scope) => {
+      const row = await scope.discussion.insertComment(orgId, comment);
+      await scope.outbox.append([
+        discussionEvents.commentCreated.make({
+          orgId,
+          data: row,
+          metadata: { actorOrgUserId: actor.id },
+        }),
+      ]);
+      this.logger.info('comment created', { orgId, commentId: row.id, postId, status: 'published' });
+      return row;
+    });
+    return this.renderOne(orgId, saved, actor);
+  }
+
+  async postComments(orgId: string, postId: string, actor: Actor): Promise<CommentView[]> {
+    const { post, space } = await this.visiblePost(orgId, actor, postId);
+    const rows = await this.repo.listByPost(orgId, postId);
+    const readable = rows.filter((comment) => {
+      if (comment.status === 'published' || comment.status === 'removed') {
+        return true;
+      }
+      return this.canModerate(actor) || comment.orgUserId === actor.id;
+    });
+    const replies = readable.filter((comment) => comment.parentId !== null && comment.status !== 'removed');
+    const heldOpen = new Set(replies.map((reply) => reply.parentId));
+    const roots = readable.filter(
+      (comment) => comment.parentId === null && (comment.status !== 'removed' || heldOpen.has(comment.id)),
+    );
+    const rootIds = new Set(roots.map((root) => root.id));
+    const served = [...roots, ...replies.filter((reply) => rootIds.has(reply.parentId!))].sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
+    const reactionsOn = post.reactionsEnabled ?? space.settings.reactions;
+    const [authors, reactions] = await Promise.all([
+      this.repo.authorsOf(orgId, this.peopleIn(served)),
+      reactionsOn
+        ? this.repo.reactionsOf(
+            orgId,
+            served.map((comment) => comment.id),
+            actor.id,
+          )
+        : Promise.resolve<Record<string, CommentReactions>>({}),
+    ]);
+    this.logger.debug('post comments read', { orgId, postId, count: served.length });
+    return served.map((comment) => this.toView(comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS));
+  }
+
+  private async visiblePost(
+    orgId: string,
+    actor: Actor,
+    postId: string,
+  ): Promise<{ post: Post; space: SpaceDetail }> {
+    const post = await this.posts.find(orgId, postId);
+    if (!post) {
+      throw new NotFoundError('Post', postId);
+    }
+    const space = await this.content.getSpace(orgId, post.spaceId);
+    if (!space) {
+      throw new NotFoundError('Space', post.spaceId);
+    }
+    if (!(await this.access.canOpenSpace(orgId, actor, post.spaceId))) {
+      throw new ForbiddenError('You cannot open this space');
+    }
+    if (post.status !== 'published' && post.orgUserId !== actor.id && !this.canModerate(actor)) {
+      throw new NotFoundError('Post', postId);
+    }
+    return { post, space };
+  }
+
+  private canModerate(actor: Actor): boolean {
+    return isStaffRole(actor.role) || actor.role === 'moderator';
+  }
+
+  private commentsOpen(post: Post, space: SpaceDetail): boolean {
+    return post.commentsClosed === null ? space.settings.comments : !post.commentsClosed;
+  }
+
   async activityComments(
     orgId: string,
     activityId: string,
@@ -277,7 +410,9 @@ export class DiscussionServiceImpl implements DiscussionService {
   async edit(orgId: string, commentId: string, actor: Actor, body: string): Promise<CommentView> {
     const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
     if (!config.enabled) {
-      throw new ForbiddenError('discussion is not open on this activity');
+      throw new ForbiddenError(
+        comment.postId ? 'Comments are closed on this post' : 'discussion is not open on this activity',
+      );
     }
     // Editing is the author's alone — moderators remove, they do not rewrite.
     if (comment.orgUserId !== actor.id) {
@@ -304,11 +439,18 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Comment', commentId);
     }
 
-    if (!(await this.hasAccess(orgId, this.activityIdOf(comment), actor))) {
-      throw new ForbiddenError('no access to this activity');
-    }
-    if (comment.orgUserId !== actor.id && !this.isStaff(actor)) {
-      throw new ForbiddenError('only the author or a moderator may remove a comment');
+    if (comment.postId) {
+      await this.visiblePost(orgId, actor, comment.postId);
+      if (comment.orgUserId !== actor.id && !this.canModerate(actor)) {
+        throw new ForbiddenError('You cannot remove this comment');
+      }
+    } else {
+      if (!(await this.hasAccess(orgId, this.activityIdOf(comment), actor))) {
+        throw new ForbiddenError('no access to this activity');
+      }
+      if (comment.orgUserId !== actor.id && !this.isStaff(actor)) {
+        throw new ForbiddenError('only the author or a moderator may remove a comment');
+      }
     }
 
     if (comment.status === 'removed') {
@@ -325,7 +467,13 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.outbox.append([discussionEvents.commentRemoved.make({ orgId, data: updated })]);
+      await scope.outbox.append([
+        discussionEvents.commentRemoved.make({
+          orgId,
+          data: updated,
+          metadata: updated.postId ? { actorOrgUserId: actor.id } : undefined,
+        }),
+      ]);
       this.logger.info('comment removed', { orgId, commentId, by: actor.id });
       return updated;
     });
@@ -367,6 +515,16 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
     }
+    if (comment.postId) {
+      const { post, space } = await this.visiblePost(orgId, actor, comment.postId);
+      const config: CommentsConfig = {
+        enabled: this.commentsOpen(post, space),
+        threaded: true,
+        requireReview: false,
+        reactions: post.reactionsEnabled ?? space.settings.reactions,
+      };
+      return { comment, config };
+    }
     const activityId = this.activityIdOf(comment);
     if (!(await this.hasAccess(orgId, activityId, actor))) {
       throw new ForbiddenError('no access to this activity');
@@ -382,12 +540,13 @@ export class DiscussionServiceImpl implements DiscussionService {
     emoji: ReactionEmoji | null,
   ): Promise<CommentReactions> {
     const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
-    // Writing to comments — locked and hidden both refuse.
-    if (!config.enabled) {
+    if (!config.enabled && !comment.postId) {
       throw new ForbiddenError('discussion is not open on this activity');
     }
     if (!config.reactions && emoji !== null) {
-      throw new ForbiddenError('reactions are disabled on this course');
+      throw new ForbiddenError(
+        comment.postId ? 'Reactions are off on this post' : 'reactions are disabled on this course',
+      );
     }
     if (comment.status === 'removed') {
       throw new ForbiddenError('a removed comment cannot be reacted to');
@@ -445,12 +604,17 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   async resolveReports(orgId: string, commentId: string, actor: Actor): Promise<void> {
-    if (!this.isStaff(actor)) {
-      throw new ForbiddenError('only a moderator may resolve a report');
-    }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
+    }
+    if (comment.postId) {
+      await this.visiblePost(orgId, actor, comment.postId);
+      if (!this.canModerate(actor)) {
+        throw new ForbiddenError('You cannot work this queue');
+      }
+    } else if (!this.isStaff(actor)) {
+      throw new ForbiddenError('only a moderator may resolve a report');
     }
     await this.repo.resolveReportsFor(orgId, commentId, {
       resolvedAt: new Date(),
@@ -466,11 +630,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     actor: Actor,
     reason: string,
   ): Promise<CommentReport> {
-    const { config } = await this.loadWithConfig(orgId, commentId, actor);
+    const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
     // Locked accepts reports — a locked activity can still hold something a
     // moderator needs to see. Hidden does not: nothing in it is being served,
-    // so nobody is looking at a comment to flag.
-    if (!config.enabled) {
+    // so nobody is looking at a comment to flag. A closed post still accepts a flag.
+    if (!config.enabled && !comment.postId) {
       throw new ForbiddenError('discussion is not open on this activity');
     }
     const now = new Date();
@@ -499,7 +663,13 @@ export class DiscussionServiceImpl implements DiscussionService {
         }
         return report;
       }
-      await scope.outbox.append([discussionEvents.commentReported.make({ orgId, data: saved })]);
+      await scope.outbox.append([
+        discussionEvents.commentReported.make({
+          orgId,
+          data: saved,
+          metadata: comment.postId ? { actorOrgUserId: actor.id } : undefined,
+        }),
+      ]);
       this.logger.info('comment reported', { orgId, commentId });
       return saved;
     });
