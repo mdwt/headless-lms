@@ -415,7 +415,7 @@ The `chats` table holds one row per chat. A chat belongs to a community and is d
 
 ![Chat model](diagrams/chat-model.png)
 
-Two people have at most one DM between them. The rule is enforced in the service, not by a constraint: starting a DM looks for an existing chat of kind `direct` whose `chat_users` rows are exactly these two people, inside the transaction that would create the new one, under an advisory lock on the two org user ids in sorted order. If one exists it is returned; otherwise the chat and its two `chat_users` rows are created.
+Two people have at most one DM between them. The service enforces the rule; no constraint does. Starting a DM takes an advisory lock on the two org user ids in sorted order, then looks for an existing chat of kind `direct` whose `chat_users` rows are exactly these two people, inside the transaction that would create the new one. If one exists it is returned; otherwise the chat and its two `chat_users` rows are created.
 
 The `status` column holds the message request state. When the community's DM settings make a first message a request, a new DM has status `pending` until the recipient accepts it, after which it is `open`. A block sets the status to `closed`. Staff can lock a chat; a locked chat is readable, and no participant can send to it.
 
@@ -588,9 +588,9 @@ Deleting a community deletes its registry row. The cascade removes the community
 
 This section specifies the ports each context adds and the adapters that implement them. A port is an interface defined in the core. Each context defines four kinds in its `ports.ts`: the operations it offers (its service interface), the persistence it requires (its repository), the reads it requires from other contexts (readers), and its write scope (the repository together with the outbox, used inside one transaction). The feature adds no new kind of port and no new adapter package. Each affected context extends its own `ports.ts`.
 
-![Request flow: from a request to its response, and from the outbox to an automation](diagrams/architecture-request-flow.png)
+![A submitted post: access, topic and review checks, then one transaction](diagrams/architecture-request-flow.png)
 
-The flowchart shows the path of a community request and what follows it. The route guard authenticates the request and builds the actor. It calls one operation on one context. The context performs its authorization checks, reads what it needs from other contexts through their readers, writes its rows and its events in one transaction, and returns. Outside the request, the relay publishes the events from the outbox to the bus, and automations runs the actions of every automation whose trigger and filter match. Schedule triggers on automations are new and are specified below.
+The flowchart follows one write, a member submitting a post, through the ports this section defines. Discussion asks entitlements' reader whether the member can open the space, under the rule entitlements defines below. It reads the space through content's reader for its post defaults and topics, and rejects a post whose topic is not one of the space's. It saves the post as pending where the space requires review and the author is not staff, and as published otherwise. The row and its events commit in one transaction. The emails that follow are automations on those events. Schedule triggers on automations are new and are specified below.
 
 ### Actor
 
@@ -598,7 +598,7 @@ The actor identifies who is performing an operation. Today discussion defines it
 
 ### Schedule triggers
 
-Two things in the feature happen on a timer rather than in response to a user action: a scheduled post publishes at its time, and a grant expires at its expiry. The system has no timer today: the `entitlement.expired` event is defined but never emitted, and automations has only event triggers. This design adds a second trigger kind to automations, the schedule trigger, so that timed work is an automation like any other: visible in the dashboard, enabled and disabled there, and audited in the run history. This is what the exploration document calls automations firing a time trigger. No new port is added for it.
+Two things in the feature happen on a timer rather than in response to a user action: a scheduled post publishes at its time, and a grant expires at its expiry. The system has no timer today: the `entitlement.expired` event is defined but never emitted, and automations has only event triggers. This design adds a second trigger kind to automations, the schedule trigger. Timed work then runs as an automation, with a dashboard entry and a run history like any other. This is what the exploration document calls automations firing a time trigger. No new port is added for it.
 
 A schedule trigger is a trigger string of the form `schedule:<cron expression>`, stored in the existing `triggers` column of `automations`. The automation engine fires it: the Hatchet engine registers a cron for every enabled automation that has a schedule trigger, and the inline engine uses a timer. When a schedule fires, the engine opens a run with a synthetic event of type `automation.schedule.fired`, whose data holds the automation id and the firing time, and executes the automation's actions. Runs are deduplicated per automation and firing time, as event runs are deduplicated per automation and event id.
 
@@ -630,7 +630,7 @@ Entitlements already answers whether an org user holds an active grant to a regi
 
 Entitlements gains the space grant operations: request to join, invite, accept an invitation, approve, decline, leave, remove, and list a space's grants. They are grant operations on the existing repository and write scope, and they emit the existing entitlement events. Capacity is enforced inside approve and accept under a row lock, as the data model section specifies.
 
-Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The rule for opening a space is defined here and nowhere else: an `all_members` space requires a grant to the community; a `by_request` or `by_invite` space requires, on top of that, a space grant with status `active`; staff pass without either, and a moderator passes the space check but not the community check, so a moderator who holds a grant to the community opens every space in it. To evaluate the rule, entitlements reads the space through content's reader.
+Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The rule for opening a space is defined here and nowhere else. An `all_members` space requires a grant to the community. A `by_request` or `by_invite` space requires, on top of that, a space grant with status `active`. Staff pass without either. A moderator passes the space check but not the community check, so a moderator who holds a grant to the community opens every space in it. To evaluate the rule, entitlements reads the space through content's reader.
 
 ### discussion
 
@@ -866,7 +866,7 @@ This section specifies authentication and authorization for the community. Authe
 
 ### What exists today
 
-- **One credential for everyone.** Staff and learners sign in with email and password (magic link is wired, unused). The only token on main is the Better Auth session cookie; no bearer, API key or JWT. The `mcp-server` branch adds API keys and OAuth access tokens; community routes gain them for free when it merges, since they pass through the same route guards.
+- **One credential for everyone.** Staff and learners sign in with email and password (magic link is wired, unused). The only token on main is the Better Auth session cookie; no bearer, API key or JWT. The `mcp-server` branch adds API keys and OAuth access tokens. Community routes accept them when it merges, since they pass through the same route guards.
 - **The tenant is the session.** `activeOrganizationId` on the session names the org; no header, no subdomain. A learner in exactly one org gets it stamped at login or on invite accept. A learner in two orgs gets none, which is an existing limit, not a community one.
 - **Two route guards.** `requireOrgSession` admits any org user of the active org. `resolveScope` additionally requires a staff role and is the staff gate for admin routes.
 - **Core authorizes on the actor.** The route guard loads the caller's org user row and hands it to core as the actor: `{ id: orgUserId, role }`. Core decides on `role` (anything but `student` is staff) and on entitlements. Core never looks a role up itself.

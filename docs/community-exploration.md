@@ -2,31 +2,29 @@
 
 A high-level exploration of how a community product as a content type fits the existing contexts: spaces, posts and comments, events, public and private access, a member directory, and direct messages.
 
-With this, users can build community apps and platforms using headless-lms.
-
-The purpose of this document is to refine the community use case, explore the different use cases that it enables, and ensure that the use cases fits the DDD contexts - it's also to ensure that all aspects are owned by a context, and to define that ownership clearly.
+This document defines the community use cases, maps each concept to a bounded context, and states which context owns it.
 
 ## What is a community
 
-A community is an online place where a group of people with something in common talk to each other: they ask questions, share what they're working on, help each other and arrange to meet.
+A community is an online place where a group of people with a shared interest talk to each other.
 
 It is organized into spaces, each for a subject or a group of people. Members post in a space, comment on each other's posts, react to them, and message each other privately.
 
-Someone runs it: they set up the spaces, decide who gets into each one, and moderate what's posted. On this platform, someone is the org, and the community is a product it sells or gives away. The people in it are its members.
+The org runs it: it sets up the spaces, decides who gets into each one, and moderates what is posted. The community is a product the org sells or gives away. The people in it are its members.
 
 It is sold like any other product. A grant to the community, direct or through a bundle, makes someone a member, and that grant gates everything inside.
 
 ## Summary: how it fits Headless LMS
 
-Headless LMS is a headless API for building LMS and community apps on. It holds the orgs, their products such as courses and downloads, who has access to what, and progress through it. There is no front end: the app built on the API decides what members see. Headless LMS is built on Ports and Adapters design using hexagonal architecture and DDD principles. The domains/contexts are already defined, and the community feature fits into the defined contexts, there is no need for new contexts anywhere in this design.
+Headless LMS is a headless API for LMS and community apps. It holds the orgs, their products such as courses and downloads, who has access to what, and progress through it. There is no front end; the app built on the API decides what members see. The core follows hexagonal architecture and Domain-Driven Design. The bounded contexts are already defined. The community feature fits into them; this design adds no context.
 
-A community is one more **content type**, a product the org sells like a course. The org creates it, sells it alone or in a bundle, and a grant makes someone a member. Inside it are **spaces**, each a collection of posts and comments on one subject, and inside a space are **posts** and their **comments**. A space is basically a feed, a list of posts. For example, a fitness membership could have a space for each workout type, so members can find and organise posts easily.
+A community is one more **content type**, a product the org sells like a course. The org creates it, sells it alone or in a bundle, and a grant makes someone a member. Inside it are **spaces**, each a list of posts on one subject, and inside a space are **posts** and their **comments**. For example, a fitness membership has a space per workout type.
 
 Members message each other directly, too: DMs are part of the community.
 
-All of it fits the existing contexts. Content gains the community and event types. Entitlements, discussion, progress, identity, automations, organizations, reporting and assets each extend. It is part of the product, not a plugin.
+All of it fits the existing contexts. Content gains the community type. The other contexts extend. It is part of the core, not a plugin.
 
-The API enforces the rules: who can open, see, post, moderate and message. What a profile or a post carries beyond a sensible default is up to the app built on it.
+The API enforces who can open, see, post, moderate and message. The app decides what a profile or a post carries beyond the default fields.
 
 ## The model
 
@@ -71,7 +69,7 @@ Community
 
 A course has the same shape: course, then module, then activity, with comments on the activity. In a community, the space is what a member opens, and posts are the discussion in it.
 
-A link from a space is a way in, not a way around access: opening the course checks for a grant, as it does everywhere. To give every member a course or an event, sell it with the community in a bundle, or add an automation that grants it when someone gets the community.
+A link from a space does not grant access: opening the course checks for a grant, as it does everywhere. To give every member a course or an event, sell it with the community in a bundle, or add an automation that grants it when someone gets the community.
 
 ## Use cases
 
@@ -148,7 +146,7 @@ Org: Founder Collab                    staff: Rachel (owner), Emma (instructor);
 
 1. **Rachel sets the community up.** She creates the community as a product, then its spaces. Announcements is for her and Emma to speak to everyone, so posts there are reviewed before they publish and comments are off. General gets three topics so questions can be filtered. SaaS founders is by request and capped at twelve, so it stays small; she gives James, a long-time member, the moderator role. Hiring is by invite: nobody sees it unless they're invited. She turns DMs on, with a first message as a request so nobody can be cold-messaged, and allows group chats. She puts the community, the course and the monthly call in one bundle and sells that as the membership.
 2. **Sarah buys the Founder Collab Membership and is granted it.** The grant is to the bundle, so she now has access to the community, the course and the monthly call. Access to the community makes her a member. The welcome automation fires and emails her. She fills in her profile: name, a photo, one line about her company. That profile is what every other member sees of her.
-3. **She opens the community.** Her member feed is empty of her own posts but already full: the posts from every space she can open, newest first. She can open Announcements, Introductions, General and Wins, because every member can. SaaS founders is listed with a Request to join button and a note that it has 11 of 12 people. Hiring doesn't appear at all. The directory shows her 240 members and two staff, Rachel and Emma, each with their role.
+3. **She opens the community.** Her member feed shows the posts from every space she can open, newest first. She can open Announcements, Introductions, General and Wins, because every member can. SaaS founders is listed with a Request to join button and a note that it has 11 of 12 people. Hiring doesn't appear at all. The directory shows her 240 members and two staff, Rachel and Emma, each with their role.
 4. **She posts in Introductions.** A title, a body, a photo of her product. Introductions defines no topics, so the post has none. It publishes immediately, because Introductions doesn't review posts. Six members react to it and three comment; one comment gets its own comments. The post is in the Introductions space feed and in every member's own feed.
 5. **She asks a question in General under Fundraising.** General's topics are Growth, Fundraising and Other, so her post has to carry one. Emma answers in a comment. Later, a member filtering General by Fundraising finds the thread; a member filtering by Growth doesn't.
 6. **She saves a draft for Wins and schedules it.** She starts a post about closing her first customer, saves it as a draft, comes back the next day and schedules it for Monday 9am. On Monday it publishes on its own and lands in every member's feed. Nobody saw it before then.
@@ -239,7 +237,7 @@ Authors manage their own drafts and schedules. Staff and moderators pin posts, c
 
 ## Direct messages
 
-DMs are part of the community and discussion owns them: private messages between its members, like Sarah writing to James in step 14, are what members write, as posts are. They aren't attached to a space, they're private to the people in them, and they bring their own concepts: requests, read and unread state, muting and blocking.
+Discussion owns DMs: private messages between members, like Sarah writing to James in step 14, are what members write, as posts are. A DM is not attached to a space and is private to the people in it. DMs add requests, read state, muting and blocking.
 
 Everyone in a DM is a member of the community or its staff; discussion asks entitlements for the grant and organizations for the role. Within that, the DM settings decide who may open a DM with whom.
 
@@ -279,7 +277,7 @@ Every person can block and mute. A block stops messages both ways; the blocked p
 
 ## Flagging
 
-A flag is how a member tells staff something needs looking at. It works the same for a post, a comment and a message.
+A flag marks an item for review. It works the same for a post, a comment and a message.
 
 **Who flags.** Anyone who can see the item: a post or comment in a space they can open, a message in a DM they're in. Staff included.
 
