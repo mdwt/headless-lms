@@ -304,7 +304,7 @@ export class Organizations {
       pageSize?: number;
       search?: string;
       sort?: string;
-      role?: "owner" | "admin" | "instructor";
+      role?: "owner" | "admin" | "instructor" | "moderator";
       status?: "active" | "invited";
     },
     options?: Options<never, ThrowOnError>,
@@ -338,7 +338,7 @@ export class Organizations {
   public static updateMemberRole<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
-      role: "owner" | "admin" | "instructor";
+      role: "owner" | "admin" | "instructor" | "moderator";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError, "data"> {
@@ -400,7 +400,7 @@ export class Organizations {
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
       email: string;
-      role: "admin" | "instructor" | "student";
+      role: "admin" | "instructor" | "moderator" | "student";
       firstName?: string;
       lastName?: string;
       sendEmail?: boolean;

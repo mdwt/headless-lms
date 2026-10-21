@@ -95,7 +95,7 @@ export type ListMembersData = {
     pageSize?: number;
     search?: string;
     sort?: string;
-    role?: "owner" | "admin" | "instructor";
+    role?: "owner" | "admin" | "instructor" | "moderator";
     status?: "active" | "invited";
   };
   url: "/api/organizations/members";
@@ -112,7 +112,7 @@ export type ListMembersResponses = {
       lastName: string | null;
       email: string;
       image: string | null;
-      role: "owner" | "admin" | "instructor";
+      role: "owner" | "admin" | "instructor" | "moderator";
       status: "active" | "invited";
       joinedAt: string | null;
       invitedAt: string | null;
@@ -127,7 +127,7 @@ export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponse
 
 export type UpdateMemberRoleData = {
   body: {
-    role: "owner" | "admin" | "instructor";
+    role: "owner" | "admin" | "instructor" | "moderator";
   };
   path: {
     id: string;
@@ -167,7 +167,7 @@ export type UpdateMemberRoleResponses = {
     lastName: string | null;
     email: string;
     image: string | null;
-    role: "owner" | "admin" | "instructor";
+    role: "owner" | "admin" | "instructor" | "moderator";
     status: "active" | "invited";
     joinedAt: string | null;
     invitedAt: string | null;
@@ -216,7 +216,7 @@ export type RemoveMemberResponses = {
 export type CreateInviteData = {
   body: {
     email: string;
-    role: "admin" | "instructor" | "student";
+    role: "admin" | "instructor" | "moderator" | "student";
     firstName?: string;
     lastName?: string;
     sendEmail?: boolean;
@@ -246,7 +246,7 @@ export type CreateInviteResponses = {
   201: {
     id: string;
     email: string;
-    role: "admin" | "instructor" | "student";
+    role: "admin" | "instructor" | "moderator" | "student";
     status: string;
     expiresAt: string | null;
     createdAt: string;
@@ -1338,7 +1338,7 @@ export type GetMemberViewerResponses = {
    */
   200: {
     orgUserId: string;
-    role: "owner" | "admin" | "instructor" | "student";
+    role: "owner" | "admin" | "instructor" | "moderator" | "student";
   };
 };
 
@@ -1639,7 +1639,7 @@ export type ListActivityCommentsResponses = {
         firstName: string | null;
         lastName: string | null;
         image: string | null;
-        role: "owner" | "admin" | "instructor" | "student";
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       body: string | null;
       status: "pending" | "published" | "removed";
@@ -1648,7 +1648,7 @@ export type ListActivityCommentsResponses = {
         firstName: string | null;
         lastName: string | null;
         image: string | null;
-        role: "owner" | "admin" | "instructor" | "student";
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
       } | null;
       reactions: {
         [key: string]: number;
@@ -1709,7 +1709,7 @@ export type PostCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
     status: "pending" | "published" | "removed";
@@ -1718,7 +1718,7 @@ export type PostCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
       [key: string]: number;
@@ -1828,7 +1828,7 @@ export type EditCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
     status: "pending" | "published" | "removed";
@@ -1837,7 +1837,7 @@ export type EditCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
       [key: string]: number;
@@ -2190,7 +2190,7 @@ export type ListCommentsResponses = {
         firstName: string | null;
         lastName: string | null;
         image: string | null;
-        role: "owner" | "admin" | "instructor" | "student";
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       authorEmail: string;
       removedBy: string | null;
@@ -2200,7 +2200,7 @@ export type ListCommentsResponses = {
           firstName: string | null;
           lastName: string | null;
           image: string | null;
-          role: "owner" | "admin" | "instructor" | "student";
+          role: "owner" | "admin" | "instructor" | "moderator" | "student";
         };
         reason: string;
         createdAt: string;
@@ -2407,7 +2407,7 @@ export type ReplyToCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
     status: "pending" | "published" | "removed";
@@ -2416,7 +2416,7 @@ export type ReplyToCommentResponses = {
       firstName: string | null;
       lastName: string | null;
       image: string | null;
-      role: "owner" | "admin" | "instructor" | "student";
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
       [key: string]: number;

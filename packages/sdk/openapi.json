@@ -276,7 +276,8 @@
               "enum": [
                 "owner",
                 "admin",
-                "instructor"
+                "instructor",
+                "moderator"
               ]
             },
             "in": "query",
@@ -332,7 +333,8 @@
                             "enum": [
                               "owner",
                               "admin",
-                              "instructor"
+                              "instructor",
+                              "moderator"
                             ]
                           },
                           "status": {
@@ -414,7 +416,8 @@
                     "enum": [
                       "owner",
                       "admin",
-                      "instructor"
+                      "instructor",
+                      "moderator"
                     ]
                   }
                 },
@@ -466,7 +469,8 @@
                       "enum": [
                         "owner",
                         "admin",
-                        "instructor"
+                        "instructor",
+                        "moderator"
                       ]
                     },
                     "status": {
@@ -657,6 +661,7 @@
                     "enum": [
                       "admin",
                       "instructor",
+                      "moderator",
                       "student"
                     ]
                   },
@@ -700,6 +705,7 @@
                       "enum": [
                         "admin",
                         "instructor",
+                        "moderator",
                         "student"
                       ]
                     },
@@ -3815,6 +3821,7 @@
                         "owner",
                         "admin",
                         "instructor",
+                        "moderator",
                         "student"
                       ]
                     }
@@ -4590,6 +4597,7 @@
                                   "owner",
                                   "admin",
                                   "instructor",
+                                  "moderator",
                                   "student"
                                 ]
                               }
@@ -4641,6 +4649,7 @@
                                   "owner",
                                   "admin",
                                   "instructor",
+                                  "moderator",
                                   "student"
                                 ]
                               }
@@ -4813,6 +4822,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
@@ -4864,6 +4874,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
@@ -5050,6 +5061,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
@@ -5101,6 +5113,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
@@ -6357,6 +6370,7 @@
                                   "owner",
                                   "admin",
                                   "instructor",
+                                  "moderator",
                                   "student"
                                 ]
                               }
@@ -6410,6 +6424,7 @@
                                         "owner",
                                         "admin",
                                         "instructor",
+                                        "moderator",
                                         "student"
                                       ]
                                     }
@@ -6985,6 +7000,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
@@ -7036,6 +7052,7 @@
                             "owner",
                             "admin",
                             "instructor",
+                            "moderator",
                             "student"
                           ]
                         }
