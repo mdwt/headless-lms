@@ -7,6 +7,7 @@ ALTER TABLE "comment_flags" RENAME CONSTRAINT "comment_reports_org_id_org_user_i
 ALTER INDEX "comment_reports_open_idx" RENAME TO "comment_flags_open_idx";--> statement-breakpoint
 ALTER TABLE "comment_flags" ADD COLUMN "resolution" text;--> statement-breakpoint
 ALTER TABLE "comment_flags" ADD COLUMN "resolved_by" text;--> statement-breakpoint
+UPDATE "comment_flags" SET "resolution" = 'dismissed', "resolved_by" = 'unknown' WHERE "resolved_at" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "comment_flags" ADD CONSTRAINT "comment_flags_resolved_check" CHECK (("comment_flags"."resolved_at" is null) = ("comment_flags"."resolution" is null) and ("comment_flags"."resolved_at" is null) = ("comment_flags"."resolved_by" is null));--> statement-breakpoint
 ALTER TABLE "comments" ALTER COLUMN "activity_id" DROP NOT NULL;--> statement-breakpoint
 CREATE TABLE "communities" (
