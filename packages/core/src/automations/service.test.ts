@@ -30,6 +30,7 @@ import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
+import { emptyScheduledWork, type ScheduledWork } from './community-mail.js';
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -230,6 +231,7 @@ function build(
   lookups = fakeLookups(),
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
+  scheduledWork?: ScheduledWork,
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
   const svc = new AutomationsServiceImpl({
@@ -242,6 +244,7 @@ function build(
     integrations,
     credentials,
     webhooks,
+    ...(scheduledWork ? { scheduledWork } : {}),
   });
   return {
     svc,
@@ -1346,5 +1349,54 @@ describe('AutomationsService.runAction deliverWebhook', () => {
       fakeCredentials({ reveal: vi.fn().mockResolvedValue(null) }),
     );
     await expect(svc.runAction(dispatch, 0)).rejects.toThrow(/signing secret not found/);
+  });
+});
+
+describe('fireSchedule', () => {
+  const due = {
+    ...AUTOMATION,
+    triggers: ['schedule:* * * * *'],
+    actions: [{ type: 'publishDuePosts', input: {} }],
+  };
+
+  it('does not open a run when no post is due', async () => {
+    const hasDuePosts = vi.fn().mockResolvedValue(false);
+    const repo = fakeRepo({ findById: vi.fn().mockResolvedValue(due) });
+    const { svc, engine } = build(
+      repo,
+      fakeRunsRepo(),
+      fakeEngine(),
+      fakeMailer(),
+      fakeIntegrations(),
+      fakeLookups(),
+      fakeCredentials(),
+      fakeWebhooks(),
+      { ...emptyScheduledWork, hasDuePosts },
+    );
+
+    await svc.fireSchedule('org-1', due.id, new Date('2026-01-02T00:05:00Z'));
+
+    expect(hasDuePosts).toHaveBeenCalledWith('org-1', new Date('2026-01-02T00:05:00Z'));
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('opens a run when a post is due', async () => {
+    const hasDuePosts = vi.fn().mockResolvedValue(true);
+    const repo = fakeRepo({ findById: vi.fn().mockResolvedValue(due) });
+    const { svc, engine } = build(
+      repo,
+      fakeRunsRepo(),
+      fakeEngine(),
+      fakeMailer(),
+      fakeIntegrations(),
+      fakeLookups(),
+      fakeCredentials(),
+      fakeWebhooks(),
+      { ...emptyScheduledWork, hasDuePosts },
+    );
+
+    await svc.fireSchedule('org-1', due.id, new Date('2026-01-02T00:05:00Z'));
+
+    expect(engine.dispatch).toHaveBeenCalledOnce();
   });
 });

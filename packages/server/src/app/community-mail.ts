@@ -227,6 +227,7 @@ export function communityMail(deps: Deps): {
     },
     scheduledWork: {
       publishDuePosts: (orgId, now) => deps.posts.publishDue(orgId, now),
+      hasDuePosts: (orgId, now) => deps.posts.hasDue(orgId, now),
       expireDueGrants: (orgId, now) => deps.entitlements.expireDue(orgId, now),
       sendDigest: (orgId, now) => deps.discussion.sendDigest(orgId, now),
     },

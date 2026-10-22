@@ -201,8 +201,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     await this.seedFor(event);
     const automations = await this.safeListByTrigger(event);
     for (const automation of automations) {
-      if (!automation.enabled || !filterMatches(automation.filter, event.data)) {
-        if (automation.enabled && !filterMatches(automation.filter, event.data)) {
+      const matches = filterMatches(automation.filter, event.data);
+      if (!automation.enabled || !matches) {
+        if (automation.enabled && !matches) {
           this.logger.debug('automation filter skipped', {
             orgId: event.orgId,
             automationId: automation.id,
@@ -391,6 +392,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       scheduledWork: this.scheduledWork,
       automationId: d.automationId,
       actionInput: action.input,
+      logger: this.logger,
     });
     this.logger.info('automation action completed', {
       orgId: d.orgId,
@@ -417,6 +419,10 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       this.logger.debug('schedule skipped', { orgId, automationId });
       return;
     }
+    if (!(await this.scheduleHasWork(orgId, automation, firedAt))) {
+      this.logger.debug('schedule idle', { orgId, automationId });
+      return;
+    }
     const event: DomainEvent = {
       type: 'automation.schedule.fired',
       id: `schedule_${automationId}_${firedAt.toISOString()}`,
@@ -426,6 +432,20 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       data: { automationId, firedAt: firedAt.toISOString() },
     };
     await this.dispatchOne(automation, event);
+  }
+
+  private async scheduleHasWork(
+    orgId: string,
+    automation: Automation,
+    firedAt: Date,
+  ): Promise<boolean> {
+    if (
+      automation.actions.length > 0 &&
+      automation.actions.every((action) => action.type === 'publishDuePosts')
+    ) {
+      return this.scheduledWork.hasDuePosts(orgId, firedAt);
+    }
+    return true;
   }
 
   async finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void> {

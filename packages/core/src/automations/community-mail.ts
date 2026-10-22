@@ -1,7 +1,8 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
 import type { EmailTemplateId, EmailTemplateParams, JsonValue } from '../types/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
-import type { CredentialStore, DomainEvent } from '../shared/ports.js';
+import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
+import { noopLogger } from '../shared/logger.js';
 import type { WebhookSender } from './ports.js';
 
 export const MESSAGE_EXCERPT = 140;
@@ -69,6 +70,7 @@ export interface ScheduledWork {
   publishDuePosts(orgId: string, now: Date): Promise<void>;
   expireDueGrants(orgId: string, now: Date): Promise<void>;
   sendDigest(orgId: string, now: Date): Promise<void>;
+  hasDuePosts(orgId: string, now: Date): Promise<boolean>;
 }
 
 export interface GrantWriter {
@@ -85,6 +87,7 @@ export interface ActionDeps {
   scheduledWork: ScheduledWork;
   automationId: string;
   actionInput: Record<string, JsonValue>;
+  logger?: Logger;
 }
 
 export const emptyCommunityMail: CommunityMailReads = {
@@ -110,6 +113,7 @@ export const emptyScheduledWork: ScheduledWork = {
   publishDuePosts: async () => {},
   expireDueGrants: async () => {},
   sendDigest: async () => {},
+  hasDuePosts: async () => false,
 };
 
 export function actorOf(event: DomainEvent): string | undefined {
@@ -155,10 +159,12 @@ export async function address<K extends EmailTemplateId>(
     return [];
   }
   const recipients: EmailRecipient<K>[] = [];
+  const logger = deps.logger ?? noopLogger;
   for (const orgUserId of wanted) {
     const to = await deps.lookups.orgUserEmail(orgId, orgUserId);
     if (!to) {
-      return undefined;
+      logger.warn('email skipped: recipient has no address', { orgId, orgUserId });
+      continue;
     }
     recipients.push({ to, orgUserId, params });
   }

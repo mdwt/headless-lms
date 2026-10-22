@@ -470,6 +470,11 @@ export class PostServiceImpl implements PostService {
     return { pending, flags, commentFlags: openCommentFlags };
   }
 
+  async hasDue(orgId: string, now: Date): Promise<boolean> {
+    const due = await this.repo.listDue(orgId, now);
+    return due.length > 0;
+  }
+
   async publishDue(orgId: string, now: Date): Promise<void> {
     const due = await this.repo.listDue(orgId, now);
     if (due.length === 0) {
