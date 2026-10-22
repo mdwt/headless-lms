@@ -41,21 +41,56 @@ export interface EntitlementsService extends CommunityAccessReader {
    *  The authority for course access — a reporting read must never be used to
    *  infer it. */
   hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
-  requestJoin(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
-  invite(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
-  addSpaceMember(
+  requestJoin(
     orgId: string,
     actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember>;
+  invite(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember>;
-  accept(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
-  approve(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
-  decline(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
-  refuse(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
-  leave(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember>;
-  remove(orgId: string, actor: Actor, spaceId: string, orgUserId: string): Promise<SpaceMember>;
-  listSpaceMembers(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember[]>;
+  addSpaceMember(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember>;
+  accept(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
+  approve(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember>;
+  decline(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember>;
+  refuse(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
+  leave(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
+  remove(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember>;
+  listSpaceMembers(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember[]>;
   expireDue(orgId: string, now: Date): Promise<void>;
 }
 

@@ -160,8 +160,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.grantOpensCommunity(orgId, grant, communityId);
   }
 
-  async requestJoin(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+  async requestJoin(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember> {
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     if (space.accessRule !== 'by_request') {
       throw new ConflictError('This space is by invitation');
@@ -183,10 +188,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async invite(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertGrant(orgId, orgUserId, space.communityId);
@@ -198,10 +204,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async addSpaceMember(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertGrant(orgId, orgUserId, space.communityId);
@@ -219,9 +226,14 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return created;
   }
 
-  async accept(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember> {
+  async accept(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember> {
     this.assertHolder(actor);
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertGrant(orgId, actor.id, space.communityId);
     const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'invited');
@@ -231,10 +243,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async approve(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
     const row = await this.requireRow(orgId, spaceId, orgUserId, 'requested');
@@ -244,22 +257,35 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async decline(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     await this.assertCanManage(orgId, actor, space.communityId);
     const row = await this.requireRow(orgId, spaceId, orgUserId, 'requested');
     return this.deleteMember(orgId, actor, row, 'requested');
   }
 
-  async refuse(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember> {
+  async refuse(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember> {
+    await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
     const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'invited');
     return this.deleteMember(orgId, actor, row, 'invited');
   }
 
-  async leave(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember> {
+  async leave(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember> {
+    await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
     const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'active');
     return this.deleteMember(orgId, actor, row, 'active');
@@ -268,10 +294,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async remove(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpace(orgId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     await this.assertCanManage(orgId, actor, space.communityId);
     const row = await this.repo.findSpaceMember(orgId, spaceId, orgUserId);
     if (!row) {
@@ -299,13 +326,15 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return updated;
   }
 
-  async listSpaceMembers(orgId: string, actor: Actor, spaceId: string): Promise<SpaceMember[]> {
+  async listSpaceMembers(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceMember[]> {
+    await this.requireSpaceIn(orgId, communityId, spaceId);
     const open = await this.canOpenSpace(orgId, actor, spaceId);
     if (!open) {
-      const space = await this.content.getSpace(orgId, spaceId);
-      if (!space) {
-        throw new NotFoundError('Space', spaceId);
-      }
       throw new ForbiddenError('You cannot open this space');
     }
     const rows = await this.repo.listSpaceMembers(orgId, spaceId);
@@ -361,6 +390,14 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private async requireSpace(orgId: string, spaceId: string) {
     const space = await this.content.getSpace(orgId, spaceId);
     if (!space) {
+      throw new NotFoundError('Space', spaceId);
+    }
+    return space;
+  }
+
+  private async requireSpaceIn(orgId: string, communityId: string, spaceId: string) {
+    const space = await this.requireSpace(orgId, spaceId);
+    if (space.communityId !== communityId) {
       throw new NotFoundError('Space', spaceId);
     }
     return space;

@@ -86,7 +86,12 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.listSpaceMembers(req.orgId, actor, req.params.spaceId);
+      return container.entitlements.listSpaceMembers(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
     },
   });
 
@@ -103,7 +108,12 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.requestJoin(req.orgId, actor, req.params.spaceId);
+      return container.entitlements.requestJoin(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
     },
   });
 
@@ -121,7 +131,13 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.invite(req.orgId, actor, req.params.spaceId, req.body.orgUserId);
+      return container.entitlements.invite(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+        req.body.orgUserId,
+      );
     },
   });
 
@@ -142,6 +158,7 @@ export async function memberCommunityRoutes(
       return container.entitlements.addSpaceMember(
         req.orgId,
         actor,
+        req.params.communityId,
         req.params.spaceId,
         req.body.orgUserId,
       );
@@ -161,7 +178,12 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.accept(req.orgId, actor, req.params.spaceId);
+      return container.entitlements.accept(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
     },
   });
 
@@ -179,7 +201,13 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.approve(req.orgId, actor, req.params.spaceId, req.body.orgUserId);
+      return container.entitlements.approve(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+        req.body.orgUserId,
+      );
     },
   });
 
@@ -197,7 +225,13 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.decline(req.orgId, actor, req.params.spaceId, req.body.orgUserId);
+      return container.entitlements.decline(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+        req.body.orgUserId,
+      );
     },
   });
 
@@ -214,7 +248,12 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.refuse(req.orgId, actor, req.params.spaceId);
+      return container.entitlements.refuse(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
     },
   });
 
@@ -231,7 +270,12 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.leave(req.orgId, actor, req.params.spaceId);
+      return container.entitlements.leave(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
     },
   });
 
@@ -249,7 +293,13 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.remove(req.orgId, actor, req.params.spaceId, req.body.orgUserId);
+      return container.entitlements.remove(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+        req.body.orgUserId,
+      );
     },
   });
 }
