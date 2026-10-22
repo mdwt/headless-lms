@@ -415,6 +415,24 @@ describe('posts', () => {
     expect(restored.publishedAt).toBeInstanceOf(Date);
   });
 
+  it('restores a member post to review when the space requires it', async () => {
+    const { svc, calls, setSpaces } = harness({ roles: { ou_staff: 'owner' } });
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const created = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const removed = await svc.remove(ORG, created.id, member);
+    const restored = await svc.restore(ORG, removed.id, moderator);
+    expect(restored.status).toBe('pending');
+    expect(restored.publishedAt).toBeNull();
+    expect(calls.at(-1)?.[0]).toMatchObject({
+      type: 'discussion.post.updated',
+      metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
+    });
+    const staffPost = await svc.create(ORG, staff, draftInput({ mode: 'draft', title: 'Staff' }));
+    const staffRemoved = await svc.remove(ORG, staffPost.id, staff);
+    const staffRestored = await svc.restore(ORG, staffRemoved.id, moderator);
+    expect(staffRestored.status).toBe('published');
+  });
+
   it('lets a moderator pin and close comments, and refuses a member', async () => {
     const { svc, calls } = harness();
     const created = await svc.create(ORG, member, draftInput());

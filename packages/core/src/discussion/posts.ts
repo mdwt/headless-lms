@@ -235,7 +235,7 @@ export class PostServiceImpl implements PostService {
   }
 
   async restore(orgId: string, postId: string, actor: Actor): Promise<Post> {
-    const { post } = await this.loadVisible(orgId, actor, postId);
+    const { post, space } = await this.loadVisible(orgId, actor, postId);
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot moderate this post');
     }
@@ -243,23 +243,23 @@ export class PostServiceImpl implements PostService {
       throw new ConflictError('This post was not removed');
     }
     const now = new Date();
+    const role = await this.authors.roleOf(orgId, post.orgUserId);
     const updated = await this.uow.run(async ({ posts, outbox }) => {
-      const next = await this.mustUpdate(posts, orgId, postId, {
-        status: 'published',
-        removedBy: null,
-        publishedAt: post.publishedAt ?? now,
-        scheduledAt: null,
-      });
-      await outbox.append([
-        discussionEvents.postPublished.make({
-          orgId,
-          data: next,
-          metadata: this.meta(actor, post.status),
-        }),
-      ]);
+      const next = await this.mustUpdate(
+        posts,
+        orgId,
+        postId,
+        this.submissionOf(space.settings.requireReview, role, now),
+      );
+      const metadata = this.meta(actor, post.status);
+      const event =
+        next.status === 'published'
+          ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
+          : discussionEvents.postUpdated.make({ orgId, data: next, metadata });
+      await outbox.append([event]);
       return next;
     });
-    this.logger.info('post restored', { orgId, postId });
+    this.logger.info('post restored', { orgId, postId, status: updated.status });
     return updated;
   }
 
