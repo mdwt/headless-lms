@@ -327,7 +327,17 @@ function harness(options?: {
     uow,
   });
 
-  return { svc, chats, messages, attachments, flags, calls };
+  return {
+    svc,
+    chats,
+    messages,
+    attachments,
+    flags,
+    calls,
+    dropMember(id: string) {
+      members.delete(id);
+    },
+  };
 }
 
 describe('chats', () => {
@@ -365,7 +375,10 @@ describe('chats', () => {
   });
 
   it('refuses an attachment the sender did not upload', async () => {
-    const { svc, attachments } = harness({ images: { ownsImage: async () => false } });
+    const { svc, attachments } = harness({
+      settings: { firstMessageIsRequest: false },
+      images: { ownsImage: async () => false },
+    });
     await expect(
       svc.startDirect(ORG, member, {
         communityId: COMMUNITY,
@@ -386,13 +399,22 @@ describe('chats', () => {
     expect(attachments).toEqual([]);
   });
 
-  it('returns the existing direct chat in that community without a second event', async () => {
-    const { svc, calls } = harness();
+  it('returns the existing direct chat and writes a new body into it', async () => {
+    const { svc, calls, messages } = harness();
     const input = { communityId: COMMUNITY, orgUserId: other.id, body: 'Again', assetIds: [] };
     const first = await svc.startDirect(ORG, member, input);
+    const quiet = await svc.startDirect(ORG, member, { ...input, body: null });
+    expect(quiet.id).toBe(first.id);
+    expect(calls).toHaveLength(1);
     const second = await svc.startDirect(ORG, other, { ...input, orgUserId: member.id });
     expect(second.id).toBe(first.id);
-    expect(calls).toHaveLength(1);
+    expect(calls[1]?.map((event) => event.type)).toEqual([
+      'discussion.chat.updated',
+      'discussion.message.sent',
+    ]);
+    expect(
+      messages.some((message) => message.orgUserId === other.id && message.body === 'Again'),
+    ).toBe(true);
     const elsewhere = await svc.startDirect(ORG, member, { ...input, communityId: 'cmy_2' });
     expect(elsewhere.id).not.toBe(first.id);
   });
@@ -498,8 +520,8 @@ describe('chats', () => {
     ).rejects.toThrow('Group chats are off');
   });
 
-  it('lets the recipient accept a request and keeps the creator from sending ahead of that', async () => {
-    const { svc, calls } = harness();
+  it('keeps the creator from sending and lets the recipient accept by replying', async () => {
+    const { svc, calls, chats } = harness();
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
@@ -509,18 +531,19 @@ describe('chats', () => {
     await expect(svc.accept(ORG, member, chat.id)).rejects.toThrow(
       'You cannot accept this request',
     );
-    await expect(svc.send(ORG, other, chat.id, messageInput('No'))).rejects.toThrow(
+    await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
       'You cannot send in this chat',
     );
-    const sent = await svc.send(ORG, member, chat.id, messageInput('Hello'));
+    const sent = await svc.send(ORG, other, chat.id, messageInput('Hello'));
     expect(sent.communityId).toBe(COMMUNITY);
-    const accepted = await svc.accept(ORG, other, chat.id);
-    expect(accepted.status).toBe('open');
-    expect(calls.at(-2)?.map((event) => event.type)).toEqual(['discussion.message.sent']);
-    expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.chat.updated']);
+    expect(chats.find((row) => row.id === chat.id)?.status).toBe('open');
+    expect(calls.at(-1)?.map((event) => event.type)).toEqual([
+      'discussion.chat.updated',
+      'discussion.message.sent',
+    ]);
     expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorOrgUserId: other.id });
     await expect(svc.accept(ORG, other, chat.id)).rejects.toThrow('This chat is not a request');
-    await svc.send(ORG, other, chat.id, messageInput('Hi'));
+    await svc.send(ORG, member, chat.id, messageInput('Hi'));
   });
 
   it('closes only this community direct chat when one person blocks the other', async () => {
@@ -666,6 +689,73 @@ describe('chats', () => {
     const staffSeen = await svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 });
     expect(staffSeen.rows[0]?.body).toBe('Edited');
     await expect(svc.messages(ORG, moderator, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
+      'You are not in this chat',
+    );
+  });
+
+  it('rejoins a direct chat the member left and delivers the new body', async () => {
+    const { svc, messages } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    await svc.leave(ORG, member, chat.id);
+    await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
+      'You are not in this chat',
+    );
+    const again = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Back',
+      assetIds: [],
+    });
+    expect(again.id).toBe(chat.id);
+    expect(messages.some((message) => message.body === 'Back')).toBe(true);
+  });
+
+  it('refuses a chat once the member no longer has the community', async () => {
+    const { svc, dropMember } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    const page = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
+    dropMember(member.id);
+    await expect(svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
+      'You are not a member of this community',
+    );
+    await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
+      'You are not a member of this community',
+    );
+    await expect(svc.editMessage(ORG, member, page.rows[0]!.id, 'Changed')).rejects.toThrow(
+      'You are not a member of this community',
+    );
+  });
+
+  it('refuses an edit when the chat is locked or the author has left', async () => {
+    const { svc } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    const page = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
+    const messageId = page.rows[0]!.id;
+    await svc.lock(ORG, staff, chat.id);
+    await expect(svc.editMessage(ORG, member, messageId, 'Changed')).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+    await expect(svc.deleteMessage(ORG, member, messageId)).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+    await svc.unlock(ORG, staff, chat.id);
+    await svc.leave(ORG, member, chat.id);
+    await expect(svc.editMessage(ORG, member, messageId, 'Changed')).rejects.toThrow(
       'You are not in this chat',
     );
   });

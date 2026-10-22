@@ -68,13 +68,23 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(orgId, actor, input.communityId);
     const role = await this.requirePerson(orgId, input.communityId, input.orgUserId);
     this.assertMayMessage(settings, actor, role);
-    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       await chats.lockDirectPair(orgId, input.communityId, actor.id, input.orgUserId);
       const existing = await chats.findDirect(orgId, input.communityId, actor.id, input.orgUserId);
       if (existing) {
+        const users = await chats.participants(orgId, existing.id);
+        const self = users.find((user) => user.orgUserId === actor.id);
+        if (self?.leftAt) {
+          const now = new Date();
+          await chats.join(
+            orgId,
+            this.memberRow(orgId, existing.communityId, existing.id, actor.id, now),
+          );
+          await outbox.append([this.addedEvent(orgId, actor, existing, actor.id)]);
+        }
         return { chat: existing, created: false };
       }
+      await this.requireOwnedImages(orgId, actor.id, input.assetIds);
       if (await chats.isBlocked(orgId, input.communityId, actor.id, input.orgUserId)) {
         throw new ForbiddenError('You cannot message this person');
       }
@@ -130,6 +140,13 @@ export class ChatServiceImpl implements ChatService {
         communityId: input.communityId,
         chatId: saved.chat.id,
       });
+      if (input.body !== null) {
+        await this.send(orgId, actor, saved.chat.id, {
+          body: input.body,
+          replyToId: null,
+          assetIds: input.assetIds,
+        });
+      }
     }
     return saved.chat;
   }
@@ -193,6 +210,7 @@ export class ChatServiceImpl implements ChatService {
     orgUserId: string,
   ): Promise<Chat> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     if (chat.kind !== 'group') {
       throw new ConflictError('This chat is not a group');
@@ -231,6 +249,7 @@ export class ChatServiceImpl implements ChatService {
 
   async leave(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       const current = await this.mustChat(chats, orgId, chatId);
@@ -250,6 +269,7 @@ export class ChatServiceImpl implements ChatService {
 
   async accept(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     if (chat.createdBy === actor.id) {
       throw new ForbiddenError('You cannot accept this request');
@@ -278,6 +298,7 @@ export class ChatServiceImpl implements ChatService {
     input: SendMessageInput,
   ): Promise<Message> {
     const preview = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, preview.communityId);
     const settings = await this.requireSettings(orgId, preview.communityId);
     if (!settings.enabled) {
       throw new ForbiddenError('Direct messages are off');
@@ -289,8 +310,14 @@ export class ChatServiceImpl implements ChatService {
       if (chat.lockedAt) {
         throw new ForbiddenError('This chat is locked');
       }
-      if (chat.status === 'closed' || this.pendingOther(chat, actor)) {
+      if (chat.status === 'closed' || this.pendingCreator(chat, actor)) {
         throw new ForbiddenError('You cannot send in this chat');
+      }
+      const events: NewDiscussionEvent[] = [];
+      let openChat = chat;
+      if (chat.kind === 'direct' && chat.status === 'pending') {
+        openChat = await this.mustUpdate(chats, orgId, chatId, { status: 'open' });
+        events.push(this.updatedEvent(orgId, actor, openChat, users));
       }
       for (const other of users) {
         if (other.leftAt !== null || other.orgUserId === actor.id) {
@@ -314,12 +341,13 @@ export class ChatServiceImpl implements ChatService {
       const now = new Date();
       const message = await chats.insertMessage(
         orgId,
-        this.newMessage(orgId, chat, actor, input, now),
+        this.newMessage(orgId, openChat, actor, input, now),
       );
       if (input.assetIds.length > 0) {
-        await chats.attach(orgId, chat.communityId, message.id, input.assetIds);
+        await chats.attach(orgId, openChat.communityId, message.id, input.assetIds);
       }
-      await outbox.append([this.sentEvent(orgId, actor, message)]);
+      events.push(this.sentEvent(orgId, actor, message));
+      await outbox.append(events);
       return message;
     });
     this.logger.info('message sent', { orgId, chatId, messageId: saved.id });
@@ -333,6 +361,7 @@ export class ChatServiceImpl implements ChatService {
     body: string,
   ): Promise<Message> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    await this.requireWritableChat(orgId, actor, message.chatId);
     if (message.orgUserId !== actor.id) {
       throw new ForbiddenError('You can change only your own message');
     }
@@ -352,9 +381,11 @@ export class ChatServiceImpl implements ChatService {
 
   async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<Message> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    await this.requireActor(orgId, actor, message.communityId);
     if (message.orgUserId !== actor.id && !isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot delete this message');
     }
+    await this.requireWritableChat(orgId, actor, message.chatId);
     if (message.deletedAt) {
       throw new ConflictError('This message was deleted');
     }
@@ -384,6 +415,7 @@ export class ChatServiceImpl implements ChatService {
     emoji: ReactionEmoji | null,
   ): Promise<void> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    await this.requireActor(orgId, actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     await this.repo.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
     this.logger.debug('message reaction set', { orgId, messageId });
@@ -391,6 +423,7 @@ export class ChatServiceImpl implements ChatService {
 
   async markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const message = await this.mustMessage(this.repo, orgId, messageId);
     if (message.chatId !== chatId) {
@@ -402,6 +435,7 @@ export class ChatServiceImpl implements ChatService {
 
   async mute(orgId: string, actor: Actor, chatId: string, until: Date): Promise<void> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     await this.repo.setMuted(orgId, chatId, actor.id, until);
     this.logger.debug('chat muted', { orgId, chatId });
@@ -409,6 +443,7 @@ export class ChatServiceImpl implements ChatService {
 
   async unmute(orgId: string, actor: Actor, chatId: string): Promise<void> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     await this.repo.setMuted(orgId, chatId, actor.id, null);
     this.logger.debug('chat unmuted', { orgId, chatId });
@@ -471,6 +506,7 @@ export class ChatServiceImpl implements ChatService {
     reason: string,
   ): Promise<MessageFlag> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    await this.requireActor(orgId, actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     const now = new Date();
     const saved = await this.uow.run(async ({ chats, outbox }) => {
@@ -513,6 +549,7 @@ export class ChatServiceImpl implements ChatService {
       throw new ForbiddenError('You cannot work this queue');
     }
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    await this.requireActor(orgId, actor, message.communityId);
     await this.repo.resolveFlags(orgId, messageId, {
       resolvedAt: new Date(),
       resolvedBy: actor.id,
@@ -549,6 +586,7 @@ export class ChatServiceImpl implements ChatService {
     query: { page: number; pageSize: number },
   ): Promise<Page<Message>> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const page = await this.repo.listMessages(orgId, chatId, query);
     this.logger.debug('chat messages read', { orgId, chatId });
@@ -559,6 +597,7 @@ export class ChatServiceImpl implements ChatService {
     if (!isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
+    await this.requireActor(orgId, actor, communityId);
     await this.requireSettings(orgId, communityId);
     const flags = await this.repo.listOpenFlags(orgId, communityId);
     const messages = await this.repo.messagesByIds(
@@ -579,6 +618,7 @@ export class ChatServiceImpl implements ChatService {
       throw new ForbiddenError('You cannot lock this chat');
     }
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
     if (Boolean(chat.lockedAt) === locked) {
       return chat;
     }
@@ -709,8 +749,17 @@ export class ChatServiceImpl implements ChatService {
     }
   }
 
-  private pendingOther(chat: Chat, actor: Actor): boolean {
-    return chat.kind === 'direct' && chat.status === 'pending' && chat.createdBy !== actor.id;
+  private async requireWritableChat(orgId: string, actor: Actor, chatId: string): Promise<void> {
+    const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActive(this.repo, orgId, chat.id, actor.id);
+    if (chat.lockedAt || chat.status === 'closed') {
+      throw new ForbiddenError('You cannot send in this chat');
+    }
+  }
+
+  private pendingCreator(chat: Chat, actor: Actor): boolean {
+    return chat.kind === 'direct' && chat.status === 'pending' && chat.createdBy === actor.id;
   }
 
   private async mustChat(repo: ChatRepository, orgId: string, chatId: string): Promise<Chat> {
