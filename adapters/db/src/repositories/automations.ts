@@ -184,7 +184,12 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
         triggers: automations.triggers,
       })
       .from(automations)
-      .where(eq(automations.enabled, true));
+      .where(
+        and(
+          eq(automations.enabled, true),
+          sql`exists (select 1 from unnest(${automations.triggers}) as t(trigger) where t.trigger like 'schedule:%')`,
+        ),
+      );
     const schedules: ScheduledAutomation[] = [];
     for (const row of rows) {
       for (const trigger of row.triggers) {
@@ -385,7 +390,6 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
   ): Promise<string[]> {
     const rows = await this.db
       .select({
-        event: automationRuns.event,
         actionResults: automationRuns.actionResults,
       })
       .from(automationRuns)
@@ -395,18 +399,11 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
           eq(automationRuns.automationId, automationId),
           eq(automationRuns.status, "completed"),
           gte(automationRuns.finishedAt, since),
+          sql`${automationRuns.event}->'data'->>'chatId' = ${chatId}`,
         ),
       );
     const ids: string[] = [];
     for (const row of rows) {
-      const data = row.event.data;
-      const eventChatId =
-        typeof data === "object" && data !== null && "chatId" in data
-          ? (data as { chatId?: unknown }).chatId
-          : undefined;
-      if (eventChatId !== chatId) {
-        continue;
-      }
       for (const result of row.actionResults) {
         if (result.recipients) {
           ids.push(...result.recipients);
