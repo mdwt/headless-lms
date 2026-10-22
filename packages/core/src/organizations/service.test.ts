@@ -389,6 +389,48 @@ describe('member writes', () => {
     await service.updateMemberRole(CTX, 'orm_staff', 'instructor');
 
     expect(orgAdmin.updateRole).toHaveBeenCalledWith(CTX, 'usr_staff', 'instructor');
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('creates a membership when a student is given a role', async () => {
+    const { service, orgAdmin, repo } = build();
+
+    const promoted = await service.updateMemberRole(CTX, 'orm_1', 'moderator');
+
+    expect(orgAdmin.grantMembership).toHaveBeenCalledWith('org_1', 'usr_1', 'moderator');
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+    expect(repo.findOrgUserById).toHaveBeenCalledWith('org_1', 'orm_1');
+    expect(promoted).toMatchObject({
+      id: 'orm_1',
+      role: 'moderator',
+      status: 'active',
+      email: 'ada@example.com',
+    });
+  });
+
+  it('refuses to promote a student who has not joined', async () => {
+    const people = fakePeople({
+      getUserById: vi.fn().mockResolvedValue({ ...PERSON, externalId: null }),
+    });
+    const { service, orgAdmin } = build({ people });
+
+    await expect(service.updateMemberRole(CTX, 'orm_1', 'moderator')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('updates the existing org user when a membership is created for them', async () => {
+    const { service, repo, appended } = build();
+
+    await service.addOrgUser({ orgId: 'org_1', userId: 'usr_1', role: 'moderator' });
+
+    expect(repo.createOrgUser).not.toHaveBeenCalled();
+    expect(repo.updateOrgUser).toHaveBeenCalledWith('org_1', 'orm_1', {
+      role: 'moderator',
+      status: 'active',
+    });
+    expect(appended.map((event) => event.type)).toEqual(['organization.user.updated']);
   });
 
   it('removes a member through Better Auth', async () => {

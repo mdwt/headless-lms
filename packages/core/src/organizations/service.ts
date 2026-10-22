@@ -152,6 +152,10 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   async addOrgUser({ orgId, userId, role }: AddOrgUserInput): Promise<OrgUser> {
+    const existing = await this.repo.findOrgUser(orgId, userId);
+    if (existing) {
+      return this.updateOrgUser(orgId, userId, { role, status: 'active' });
+    }
     const orgUser = await this.uow.run(async ({ organizations, outbox }) => {
       const created = await organizations.createOrgUser({ orgId, role, userId, status: 'active' });
       await outbox.append([organizationEvents.orgUserLinked.make({ orgId, data: created })]);
@@ -506,7 +510,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
     const member = await this.membersRepo.findById(ctx.orgId, id);
     if (!member) {
-      return null;
+      return this.promoteStudent(ctx, id, role);
     }
     if (member.role === 'owner') {
       this.logger.warn('role change rejected: owner role immutable', {
@@ -526,6 +530,53 @@ export class OrganizationServiceImpl implements OrganizationService {
     const updated = await this.membersRepo.findById(ctx.orgId, id);
     this.logger.info('member role updated', { orgId: ctx.orgId, memberId: id, role });
     return updated ? toMember(updated) : null;
+  }
+
+  private async promoteStudent(
+    ctx: MemberWriteContext,
+    id: string,
+    role: Role,
+  ): Promise<Member | null> {
+    const orgUser = await this.repo.findOrgUserById(ctx.orgId, id);
+    if (!orgUser) {
+      return null;
+    }
+    if (orgUser.role !== STUDENT_ROLE || role === STUDENT_ROLE) {
+      this.logger.warn('role change rejected: not an active member', {
+        orgId: ctx.orgId,
+        memberId: id,
+      });
+      throw new OrganizationRuleError('Only active members can have their role changed');
+    }
+    const person = await this.people.getUserById(orgUser.userId);
+    if (!person?.externalId) {
+      this.logger.warn('role change rejected: student has no account', {
+        orgId: ctx.orgId,
+        memberId: id,
+      });
+      throw new OrganizationRuleError('That student has not joined yet');
+    }
+    const org = await this.repo.findById(ctx.orgId);
+    if (!org) {
+      return null;
+    }
+    await this.orgAdmin().grantMembership(org.externalId ?? org.id, person.externalId, role);
+    const updated = await this.membersRepo.findById(ctx.orgId, id);
+    this.logger.info('student promoted', { orgId: ctx.orgId, memberId: id, role });
+    if (updated) {
+      return toMember(updated);
+    }
+    return {
+      id: orgUser.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: person.email,
+      image: null,
+      role,
+      status: 'active',
+      joinedAt: orgUser.createdAt.toISOString(),
+      invitedAt: null,
+    };
   }
 
   async removeMember(ctx: MemberWriteContext, id: string): Promise<boolean> {
