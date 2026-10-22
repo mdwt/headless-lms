@@ -6,7 +6,9 @@ import type {
   AutomationEngine,
   AutomationExecutor,
 } from "@headless-lms/core/types";
-import { startScheduleLoop } from "@headless-lms/core/automations";
+import { startScheduleLoop } from "./schedule.js";
+
+export { startScheduleLoop };
 
 export class InlineAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;

@@ -10,7 +10,7 @@ import type {
   AutomationEngine,
   AutomationActionResult,
 } from "@headless-lms/core/types";
-import { startScheduleLoop } from "@headless-lms/core/automations";
+import { startScheduleLoop } from "@headless-lms/adapter-defaults/workflows";
 import { Hatchet } from "@hatchet-dev/typescript-sdk";
 
 const WORKFLOW_NAME = "automation-run";
