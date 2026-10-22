@@ -44,6 +44,19 @@ const comment = (ctx: TemplateContext, communityId: string, postId: string, comm
 const chat = (ctx: TemplateContext, communityId: string, chatId: string) =>
   portal(ctx, `/communities/${communityId}/chats/${chatId}`);
 
+function accessEnds(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export const welcomeToCommunity = defineEmail<"welcomeToCommunity">({
   subject: (_ctx, params) => `Welcome to ${params.communityTitle}`,
   heading: (params) => params.communityTitle,
@@ -59,7 +72,7 @@ export const welcomeToCommunity = defineEmail<"welcomeToCommunity">({
 export const membershipEndingSoon = defineEmail<"membershipEndingSoon">({
   subject: (_ctx, params) => `${params.communityTitle} ends soon`,
   heading: (params) => `${params.communityTitle} ends soon`,
-  lines: (params) => [`Your access ends ${params.expiresAt}.`],
+  lines: (params) => [`Your access ends ${accessEnds(params.expiresAt)}.`],
   button: (ctx, params) => ({ href: community(ctx, params.communityId), label: "Renew" }),
   preview: {
     communityTitle: "Founders",

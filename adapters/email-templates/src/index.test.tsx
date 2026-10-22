@@ -129,6 +129,16 @@ describe("ReactEmailTemplateRenderer", () => {
     expect(content.text.length).toBeGreaterThan(0);
   });
 
+  it("writes an ending-soon date as a calendar day", async () => {
+    const content = await renderer.render(
+      "membershipEndingSoon",
+      CTX,
+      SAMPLE_PARAMS.membershipEndingSoon,
+    );
+    expect(content.text).toContain("October 28, 2026");
+    expect(content.text).not.toContain("2026-10-28T00:00:00.000Z");
+  });
+
   it("interpolates the params into html and text", async () => {
     const content = await renderer.render("studentInvite", CTX, SAMPLE_PARAMS.studentInvite);
     expect(content.html).toContain("http://localhost:8002/welcome?token=t");
