@@ -52,7 +52,7 @@ export interface SessionAdmin {
 export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
   getProfile(userId: string): Promise<UserProfile | null>;
   profileOf(userId: string): Promise<UserProfile>;
-  displayName(userId: string): Promise<string>;
+  displayName(userId: string | null): Promise<string>;
   updateProfile(
     userId: string,
     actorUserId: string,

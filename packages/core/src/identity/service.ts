@@ -10,6 +10,8 @@ import type { Mailer } from '../shared/mailer.js';
 import type { MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
+const UNNAMED = 'A member';
+
 export class IdentityServiceImpl implements IdentityService {
   private readonly repo: IdentityRepository;
   private readonly logger: Logger;
@@ -127,7 +129,10 @@ export class IdentityServiceImpl implements IdentityService {
     };
   }
 
-  async displayName(userId: string): Promise<string> {
+  async displayName(userId: string | null): Promise<string> {
+    if (userId === null) {
+      return UNNAMED;
+    }
     const [profile, user] = await Promise.all([
       this.repo.findProfile(userId),
       this.repo.findUserById(userId),
@@ -137,7 +142,7 @@ export class IdentityServiceImpl implements IdentityService {
       return named;
     }
     const composed = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
-    return composed || 'A member';
+    return composed || UNNAMED;
   }
 
   async updateProfile(

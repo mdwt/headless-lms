@@ -3,6 +3,7 @@ export type {
   BlockedUser,
   Chat,
   ChatKind,
+  ChatMute,
   ChatStatus,
   ChatUser,
   CommentFlagResolution,
@@ -12,7 +13,10 @@ export type {
   MessageFlag,
   MessageFlagResolution,
   MessageReaction,
+  MessageView,
   Post,
+  PostFeedPage,
+  PostView,
   PostBookmark,
   PostFlag,
   PostFlagResolution,
@@ -51,7 +55,10 @@ export interface CommentAuthor {
   id: string;
   firstName: string | null;
   lastName: string | null;
+  displayName: string | null;
+  headline: string | null;
   image: string | null;
+  imageAssetId: string | null;
   role: Role;
 }
 

@@ -203,6 +203,7 @@ export const postBookmarks = pgTable(
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
     }).onDelete("cascade"),
+    userIdx: index("post_bookmarks_user_idx").on(t.orgId, t.orgUserId, t.createdAt),
   }),
 );
 
@@ -374,7 +375,7 @@ export const commentFlags = pgTable(
     }),
     resolvedCk: check(
       "comment_flags_resolved_check",
-      sql`(${t.resolvedAt} is null) = (${t.resolution} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null)`,
+      sql`(${t.resolvedAt} is null) = (${t.resolution} is null) and (${t.resolvedBy} is null or ${t.resolvedAt} is not null)`,
     ),
     openIdx: index("comment_flags_open_idx").on(t.orgId, t.commentId, t.resolvedAt),
   }),
@@ -641,7 +642,9 @@ type _CommentReactionsDrift = Expect<
 >;
 type _CommentFlagsDrift = Expect<NoDrift<typeof commentFlags.$inferSelect, CommentReport>>;
 type _ChatsDrift = Expect<NoDrift<typeof chats.$inferSelect, Chat>>;
-type _ChatUsersDrift = Expect<NoDrift<typeof chatUsers.$inferSelect, ChatUser>>;
+type _ChatUsersDrift = Expect<
+  NoDrift<Omit<typeof chatUsers.$inferSelect, "mutedUntil">, Omit<ChatUser, "mute">>
+>;
 type _MessagesDrift = Expect<NoDrift<typeof messages.$inferSelect, Message>>;
 type _MessageAttachmentsDrift = Expect<
   NoDrift<typeof messageAttachments.$inferSelect, MessageAttachment>

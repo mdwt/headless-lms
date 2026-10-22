@@ -1,21 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
+import { InvalidCursorError } from './model.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { MemberImageReader } from '../assets/index.js';
 import type {
+  AuthorProfileReader,
+  AuthorRecord,
   AuthorRoleReader,
   CreatePostInput,
-  FeedQuery,
   PostCommentFlagReader,
+  PostFeedQuery,
   PostReactions,
   PostRepository,
   PostUnitOfWork,
 } from './ports.js';
-import type { CommentReport, Page, Post, PostFlag, Role } from '../types/index.js';
+import type { CommentReport, Post, PostFlag, Role } from '../types/index.js';
 
 const AT = new Date('2026-10-21T12:00:00.000Z');
 const ORG = 'org-1';
@@ -47,6 +50,7 @@ function space(over: Partial<SpaceDetail> = {}): SpaceDetail {
 
 function draftInput(over: Partial<CreatePostInput> = {}): CreatePostInput {
   return {
+    communityId: 'cmy_1',
     spaceId: 'spc_1',
     title: 'Hello',
     body: 'Body',
@@ -59,15 +63,32 @@ function draftInput(over: Partial<CreatePostInput> = {}): CreatePostInput {
   };
 }
 
-const feed: FeedQuery = { page: 1, pageSize: 20 };
+const feed: PostFeedQuery = { limit: 20 };
+
+function topic(id: string) {
+  return { orgId: ORG, id, spaceId: 'spc_1', name: id, seq: 0, createdAt: AT, updatedAt: AT };
+}
+
+function feedOrder(a: Post, b: Post): number {
+  if (a.pinned !== b.pinned) {
+    return a.pinned ? -1 : 1;
+  }
+  const at = (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
+  if (at !== 0) {
+    return at;
+  }
+  return a.id < b.id ? 1 : -1;
+}
 
 function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
   roles?: Record<string, Role>;
   images?: MemberImageReader;
+  profiles?: Record<string, Partial<AuthorRecord>>;
 }) {
   const rows: Post[] = [];
+  const bookmarks: { postId: string; orgUserId: string }[] = [];
   const flags: PostFlag[] = [];
   const commentFlagRows: { spaceId: string; flag: CommentReport }[] = [];
   const followed = new Set<string>();
@@ -93,32 +114,38 @@ function harness(options?: {
       return post ? { ...post } : null;
     },
     async listPublished(orgId, spaceIds, query) {
-      const matched = rows
+      const after = query.after;
+      return rows
         .filter(
           (row) =>
             row.orgId === orgId &&
             row.status === 'published' &&
             spaceIds.includes(row.spaceId) &&
-            (query.topicId === undefined || row.topicId === query.topicId),
+            (query.topicId === undefined || row.topicId === query.topicId) &&
+            (after === null ||
+              feedOrder(
+                { ...row },
+                { ...row, pinned: after.pinned, publishedAt: after.publishedAt, id: after.id },
+              ) > 0),
         )
-        .sort((a, b) => {
-          if (a.pinned !== b.pinned) {
-            return a.pinned ? -1 : 1;
-          }
-          const at = (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0);
-          if (at !== 0) {
-            return at;
-          }
-          return a.id < b.id ? 1 : -1;
-        });
-      const start = (query.page - 1) * query.pageSize;
-      const page: Page<Post> = {
-        rows: matched.slice(start, start + query.pageSize).map((row) => ({ ...row })),
-        total: matched.length,
-        page: query.page,
-        pageSize: query.pageSize,
-      };
-      return page;
+        .sort(feedOrder)
+        .slice(0, query.limit)
+        .map((row) => ({ ...row }));
+    },
+    async listByAuthor(orgId, orgUserId, spaceIds) {
+      return rows
+        .filter(
+          (row) =>
+            row.orgId === orgId && row.orgUserId === orgUserId && spaceIds.includes(row.spaceId),
+        )
+        .map((row) => ({ ...row }));
+    },
+    async listBookmarked(orgId, orgUserId, spaceIds) {
+      return bookmarks
+        .filter((mark) => mark.orgUserId === orgUserId)
+        .flatMap((mark) => rows.filter((row) => row.id === mark.postId))
+        .filter((row) => row.orgId === orgId && spaceIds.includes(row.spaceId))
+        .map((row) => ({ ...row }));
     },
     async listPending(orgId, spaceId) {
       return rows
@@ -135,6 +162,15 @@ function harness(options?: {
             row.scheduledAt <= now,
         )
         .map((row) => ({ ...row }));
+    },
+    async hasDue(orgId, now) {
+      return rows.some(
+        (row) =>
+          row.orgId === orgId &&
+          row.status === 'scheduled' &&
+          row.scheduledAt !== null &&
+          row.scheduledAt <= now,
+      );
     },
     async reactionsOf(_orgId, postId, viewerId) {
       const counts: PostReactions = { reactions: {} };
@@ -169,7 +205,11 @@ function harness(options?: {
     async unfollow(_orgId, postId, orgUserId) {
       followed.delete(`${postId}:${orgUserId}`);
     },
-    async bookmark() {},
+    async bookmark(_orgId, postId, orgUserId) {
+      if (!bookmarks.some((mark) => mark.postId === postId && mark.orgUserId === orgUserId)) {
+        bookmarks.push({ postId, orgUserId });
+      }
+    },
     async unbookmark() {},
     async insertFlag(_orgId, flag) {
       if (flags.some((row) => row.postId === flag.postId && row.orgUserId === flag.orgUserId)) {
@@ -177,6 +217,10 @@ function harness(options?: {
       }
       flags.push({ ...flag });
       return { ...flag };
+    },
+    async findFlag(_orgId, postId, orgUserId) {
+      const flag = flags.find((row) => row.postId === postId && row.orgUserId === orgUserId);
+      return flag ? { ...flag } : null;
     },
     async listOpenFlags(orgId, spaceId) {
       const postIds = new Set(
@@ -213,7 +257,10 @@ function harness(options?: {
       }
       return actor.id !== outsider.id;
     },
-    async membersAmong(_orgId, _communityId, orgUserIds) {
+    async communityMembersAmong(_orgId, _communityId, orgUserIds) {
+      return orgUserIds.filter((id) => id !== outsider.id);
+    },
+    async spaceOpenersAmong(_orgId, _spaceId, orgUserIds) {
       return orgUserIds.filter((id) => id !== outsider.id);
     },
     async openSpaceIds(_orgId, actor) {
@@ -222,8 +269,11 @@ function harness(options?: {
       }
       return current.map((item) => item.id);
     },
-    async grantOpensCommunity() {
-      return false;
+    async openSpacesFor(_orgId, actor) {
+      if (actor.id === outsider.id) {
+        return [];
+      }
+      return current;
     },
   };
 
@@ -246,6 +296,29 @@ function harness(options?: {
       const roles = options?.roles ?? {};
       return Object.fromEntries(
         orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])),
+      );
+    },
+  };
+
+  const profiles: AuthorProfileReader = {
+    async authorsOf(_orgId, orgUserIds) {
+      return Object.fromEntries(
+        orgUserIds.map((id) => [
+          id,
+          {
+            id,
+            firstName: 'First',
+            lastName: 'Last',
+            email: `${id}@example.test`,
+            image: null,
+            role: options?.roles?.[id] ?? 'student',
+            displayName: null,
+            headline: null,
+            imageAssetOrgId: null,
+            imageAssetId: null,
+            ...options?.profiles?.[id],
+          },
+        ]),
       );
     },
   };
@@ -277,6 +350,7 @@ function harness(options?: {
       },
     },
     authors,
+    profiles,
     commentFlags,
     images: options?.images ?? { ownsImage: async () => true },
     uow,
@@ -284,6 +358,7 @@ function harness(options?: {
 
   return {
     svc,
+    repo,
     rows,
     flags,
     commentFlagRows,
@@ -395,7 +470,7 @@ describe('posts', () => {
     });
   });
 
-  it('lets the author remove their post and a moderator remove anyone', async () => {
+  it('lets the author remove their post and leaves its flags open', async () => {
     const { svc, calls, flags } = harness();
     const created = await svc.create(ORG, member, draftInput());
     await svc.flag(ORG, created.id, other, 'spam');
@@ -403,11 +478,33 @@ describe('posts', () => {
     const removed = await svc.remove(ORG, created.id, member);
     expect(removed.status).toBe('removed');
     expect(removed.removedBy).toBe(member.id);
-    expect(flags[0]).toMatchObject({ resolution: 'removed', resolvedBy: member.id });
+    expect(flags[0]).toMatchObject({ resolvedAt: null, resolution: null, resolvedBy: null });
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.removed',
       metadata: { actorOrgUserId: member.id, previousStatus: 'published' },
     });
+  });
+
+  it('resolves the flags as removed when a moderator removes the post', async () => {
+    const { svc, flags } = harness();
+    const created = await svc.create(ORG, member, draftInput());
+    await svc.flag(ORG, created.id, other, 'spam');
+    await svc.remove(ORG, created.id, moderator);
+    expect(flags[0]).toMatchObject({ resolution: 'removed', resolvedBy: moderator.id });
+  });
+
+  it('refuses to remove a draft or a scheduled post', async () => {
+    const { svc, calls } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: new Date('2026-10-30T09:00:00.000Z') }),
+    );
+    calls.length = 0;
+    await expect(svc.remove(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
+    await expect(svc.remove(ORG, scheduled.id, member)).rejects.toBeInstanceOf(ConflictError);
+    expect(calls).toHaveLength(0);
   });
 
   it('refuses to schedule a post that is awaiting review', async () => {
@@ -422,7 +519,7 @@ describe('posts', () => {
 
   it('restores a removed post to published', async () => {
     const { svc } = harness();
-    const created = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const created = await svc.create(ORG, member, draftInput());
     const removed = await svc.remove(ORG, created.id, member);
     const restored = await svc.restore(ORG, removed.id, staff);
     expect(restored.status).toBe('published');
@@ -433,7 +530,7 @@ describe('posts', () => {
   it('restores a member post to review when the space requires it', async () => {
     const { svc, calls, setSpaces } = harness({ roles: { ou_staff: 'owner' } });
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const created = await svc.create(ORG, member, draftInput());
     const removed = await svc.remove(ORG, created.id, member);
     const restored = await svc.restore(ORG, removed.id, moderator);
     expect(restored.status).toBe('pending');
@@ -442,7 +539,7 @@ describe('posts', () => {
       type: 'discussion.post.updated',
       metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
     });
-    const staffPost = await svc.create(ORG, staff, draftInput({ mode: 'draft', title: 'Staff' }));
+    const staffPost = await svc.create(ORG, staff, draftInput({ title: 'Staff' }));
     const staffRemoved = await svc.remove(ORG, staffPost.id, staff);
     const staffRestored = await svc.restore(ORG, staffRemoved.id, moderator);
     expect(staffRestored.status).toBe('published');
@@ -473,7 +570,7 @@ describe('posts', () => {
       newerRow.publishedAt = new Date('2026-10-20T00:00:00.000Z');
       newerRow.pinned = true;
     }
-    const page = await svc.spaceFeed(ORG, other, 'spc_1', feed);
+    const page = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed);
     expect(page.rows.map((row) => row.title)).toEqual(['Newer', 'Older']);
     expect(page.rows.some((row) => row.id === draft.id)).toBe(false);
   });
@@ -484,13 +581,26 @@ describe('posts', () => {
     await svc.create(ORG, member, draftInput());
     await svc.create(ORG, member, draftInput({ spaceId: 'spc_2', title: 'Second' }));
     const page = await svc.memberFeed(ORG, member, 'cmy_1', feed);
-    expect(page.total).toBe(2);
+    expect(page.rows).toHaveLength(2);
+    expect(page.nextCursor).toBeNull();
     const hidden = await svc.memberFeed(ORG, outsider, 'cmy_1', feed);
-    expect(hidden.total).toBe(0);
+    expect(hidden.rows).toHaveLength(0);
   });
 
-  it('submits a due post as its author, with no actor, and applies review when the role is missing', async () => {
-    const { svc, calls, setSpaces } = harness({ roles: { ou_staff: 'owner' } });
+  it('answers whether a post is due without loading the due posts', async () => {
+    const { svc, repo } = harness({ roles: { ou_member: 'student' } });
+    const listDue = vi.spyOn(repo, 'listDue');
+    const when = new Date('2026-10-21T08:00:00.000Z');
+    await svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: when }));
+    await expect(svc.hasDue(ORG, new Date('2026-10-21T07:00:00.000Z'))).resolves.toBe(false);
+    await expect(svc.hasDue(ORG, new Date('2026-10-21T09:00:00.000Z'))).resolves.toBe(true);
+    expect(listDue).not.toHaveBeenCalled();
+  });
+
+  it('submits a due post as its author, with no actor, and applies review to a member', async () => {
+    const { svc, calls, setSpaces } = harness({
+      roles: { ou_staff: 'owner', ou_member: 'student' },
+    });
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
     const when = new Date('2026-10-21T08:00:00.000Z');
     const scheduled = await svc.create(
@@ -532,7 +642,11 @@ describe('posts', () => {
     const created = await svc.create(ORG, member, draftInput());
     const flagged = await svc.flag(ORG, created.id, other, 'spam');
     expect(calls.at(-1)?.[0]?.type).toBe('discussion.post.reported');
-    await expect(svc.flag(ORG, created.id, other, 'again')).rejects.toBeInstanceOf(ConflictError);
+    const reported = calls.length;
+    const again = await svc.flag(ORG, created.id, other, 'again');
+    expect(again).toMatchObject({ id: flagged.id, reason: 'spam' });
+    expect(calls).toHaveLength(reported);
+    expect(flags).toHaveLength(1);
     const before = calls.length;
     await expect(svc.resolveFlags(ORG, created.id, other, 'dismissed')).rejects.toBeInstanceOf(
       ForbiddenError,
@@ -563,8 +677,10 @@ describe('posts', () => {
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
     const created = await svc.create(ORG, member, draftInput());
     await svc.flag(ORG, created.id, moderator, 'check');
-    await expect(svc.moderationQueue(ORG, member, 'spc_1')).rejects.toBeInstanceOf(ForbiddenError);
-    const queue = await svc.moderationQueue(ORG, moderator, 'spc_1');
+    await expect(svc.moderationQueue(ORG, member, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
     expect(queue.pending.map((post) => post.id)).toEqual([created.id]);
     expect(queue.flags).toHaveLength(1);
     expect(queue.commentFlags).toEqual([]);
@@ -598,7 +714,7 @@ describe('posts', () => {
       },
       { spaceId: 'spc_2', flag: { ...open, id: 'crp_other', commentId: 'cmt_2' } },
     );
-    const queue = await svc.moderationQueue(ORG, moderator, 'spc_1');
+    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
   });
 
@@ -611,5 +727,178 @@ describe('posts', () => {
     await expect(
       svc.update(ORG, created.id, member, { coverAssetId: 'ast_paid' }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('moves a due post back to draft when its author can no longer open the space', async () => {
+    const { svc, calls, rows } = harness({ roles: { ou_member: 'student', ou_out: 'student' } });
+    const when = new Date('2026-10-21T08:00:00.000Z');
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    const row = rows.find((item) => item.id === scheduled.id);
+    if (row) {
+      row.orgUserId = outsider.id;
+    }
+    calls.length = 0;
+    await svc.publishDue(ORG, new Date('2026-10-21T09:00:00.000Z'));
+    expect(rows.find((item) => item.id === scheduled.id)).toMatchObject({
+      status: 'draft',
+      scheduledAt: null,
+      publishedAt: null,
+    });
+    expect(calls[0]).toEqual([
+      expect.objectContaining({
+        type: 'discussion.post.updated',
+        metadata: { previousStatus: 'scheduled' },
+      }),
+    ]);
+  });
+
+  it('moves a due post back to draft when its topic no longer fits the space', async () => {
+    const { svc, calls, rows, setSpaces } = harness({ roles: { ou_member: 'student' } });
+    const when = new Date('2026-10-21T08:00:00.000Z');
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    setSpaces([space({ topics: [topic('top_1')] })]);
+    calls.length = 0;
+    await svc.publishDue(ORG, new Date('2026-10-21T09:00:00.000Z'));
+    expect(rows.find((item) => item.id === scheduled.id)?.status).toBe('draft');
+    expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.updated']);
+  });
+
+  it('refuses to submit a draft whose topic the space no longer allows', async () => {
+    const { svc, calls, setSpaces } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    setSpaces([space({ topics: [topic('top_1')] })]);
+    calls.length = 0;
+    await expect(svc.submit(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('keeps drafts and scheduled posts from moderators and staff, and shows them pending and removed', async () => {
+    const { svc, setSpaces } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: new Date('2026-10-30T09:00:00.000Z') }),
+    );
+    for (const reader of [moderator, staff]) {
+      await expect(svc.getPost(ORG, reader, draft.id)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(svc.getPost(ORG, reader, scheduled.id)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(svc.pin(ORG, draft.id, reader)).rejects.toBeInstanceOf(NotFoundError);
+    }
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const pending = await svc.create(ORG, member, draftInput());
+    await expect(svc.getPost(ORG, moderator, pending.id)).resolves.toMatchObject({
+      status: 'pending',
+    });
+    await svc.remove(ORG, pending.id, moderator);
+    await expect(svc.getPost(ORG, staff, pending.id)).resolves.toMatchObject({
+      status: 'removed',
+    });
+  });
+
+  it('refuses a space of another community on create, feed and queue', async () => {
+    const { svc, calls } = harness();
+    await expect(
+      svc.create(ORG, member, draftInput({ communityId: 'cmy_other' })),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(calls).toHaveLength(0);
+    await expect(svc.spaceFeed(ORG, member, 'cmy_other', 'spc_1', feed)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(svc.moderationQueue(ORG, moderator, 'cmy_other', 'spc_1')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it('lists your own posts in every status and the posts you bookmarked that you can still see', async () => {
+    const { svc } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft', title: 'Draft' }));
+    const published = await svc.create(ORG, member, draftInput({ title: 'Published' }));
+    await svc.create(ORG, other, draftInput({ title: 'Theirs' }));
+    const own = await svc.listOwn(ORG, member, 'cmy_1');
+    expect(own.map((post) => post.id).sort()).toEqual([draft.id, published.id].sort());
+    expect(own[0]?.author.id).toBe(member.id);
+
+    const theirs = await svc.create(ORG, other, draftInput({ title: 'Saved' }));
+    await svc.bookmark(ORG, theirs.id, member);
+    await svc.bookmark(ORG, published.id, other);
+    expect((await svc.listBookmarked(ORG, member, 'cmy_1')).map((post) => post.id)).toEqual([
+      theirs.id,
+    ]);
+    await svc.remove(ORG, theirs.id, moderator);
+    expect(await svc.listBookmarked(ORG, member, 'cmy_1')).toEqual([]);
+    expect(await svc.listOwn(ORG, outsider, 'cmy_1')).toEqual([]);
+  });
+
+  it('pages a feed with a cursor on pinned, publish time and id', async () => {
+    const { svc, rows } = harness();
+    const titles = ['One', 'Two', 'Three', 'Four', 'Five'];
+    for (const [index, title] of titles.entries()) {
+      const post = await svc.create(ORG, member, draftInput({ title }));
+      const row = rows.find((item) => item.id === post.id);
+      if (row) {
+        row.publishedAt = new Date(Date.UTC(2026, 9, 1 + index));
+        row.pinned = title === 'Two';
+      }
+    }
+    const first = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { limit: 2 });
+    expect(first.rows.map((row) => row.title)).toEqual(['Two', 'Five']);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await svc.memberFeed(ORG, other, 'cmy_1', {
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(second.rows.map((row) => row.title)).toEqual(['Four', 'Three']);
+    const last = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', {
+      limit: 2,
+      cursor: second.nextCursor ?? undefined,
+    });
+    expect(last.rows.map((row) => row.title)).toEqual(['One']);
+    expect(last.nextCursor).toBeNull();
+    await expect(
+      svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { limit: 2, cursor: 'not-a-cursor' }),
+    ).rejects.toBeInstanceOf(InvalidCursorError);
+  });
+
+  it('serves each post with its author profile, and the photo only when it is in this org', async () => {
+    const { svc } = harness({
+      profiles: {
+        ou_member: {
+          displayName: 'Sarah Lee',
+          headline: 'Founder at Acme',
+          imageAssetOrgId: ORG,
+          imageAssetId: 'ast_photo',
+        },
+        ou_other: { imageAssetOrgId: 'org-2', imageAssetId: 'ast_elsewhere', image: 'https://img' },
+      },
+    });
+    const mine = await svc.create(ORG, member, draftInput({ title: 'Mine' }));
+    await svc.create(ORG, other, draftInput({ title: 'Theirs' }));
+    const read = await svc.getPost(ORG, other, mine.id);
+    expect(read.author).toEqual({
+      id: member.id,
+      firstName: 'First',
+      lastName: 'Last',
+      displayName: 'Sarah Lee',
+      headline: 'Founder at Acme',
+      image: null,
+      imageAssetId: 'ast_photo',
+      role: 'student',
+    });
+    const feedPage = await svc.spaceFeed(ORG, member, 'cmy_1', 'spc_1', feed);
+    const theirs = feedPage.rows.find((row) => row.title === 'Theirs');
+    expect(theirs?.author).toMatchObject({
+      displayName: 'First Last',
+      image: 'https://img',
+      imageAssetId: null,
+    });
   });
 });

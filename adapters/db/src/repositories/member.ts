@@ -1,7 +1,7 @@
 // member — Drizzle read repo (implements the reporting/member outbound port).
 // Active means stored status active and expires_at still ahead. A course or
 // download is reachable directly or through a bundle, and only when published.
-import { and, asc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
@@ -17,13 +17,13 @@ import {
   entitlements,
   orgUsers,
   spaceMembers,
+  spaces,
   userProfiles,
 } from "../schema/index.js";
-import { STAFF_ROLES } from "@headless-lms/core/organizations";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
-import { activeGrantCovers } from "./grant-covers.js";
+import { communityMember, grantUnexpired, holdsCommunity } from "./grant-covers.js";
 
 export class DrizzleMemberRepository implements MemberReportRepository {
   constructor(
@@ -36,7 +36,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
       eq(entitlements.orgId, orgId),
       eq(entitlements.orgUserId, orgUserId),
       eq(entitlements.status, "active"),
-      or(isNull(entitlements.expiresAt), gt(entitlements.expiresAt, sql`now()`))!,
+      grantUnexpired(entitlements.expiresAt),
     )!;
   }
 
@@ -162,21 +162,20 @@ export class DrizzleMemberRepository implements MemberReportRepository {
         displayName: userProfiles.displayName,
         headline: userProfiles.headline,
         bio: userProfiles.bio,
-        imageAssetId: userProfiles.imageAssetId,
+        imageAssetId: sql<
+          string | null
+        >`case when ${userProfiles.imageAssetOrgId} = ${orgId} then ${userProfiles.imageAssetId} end`,
       })
       .from(orgUsers)
       .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
       .where(
         and(
           eq(orgUsers.orgId, orgId),
-          or(
-            inArray(orgUsers.role, [...STAFF_ROLES]),
-            activeGrantCovers(
-              sql`${orgUsers.orgId}`,
-              sql`${orgUsers.id}`,
-              sql`${communityId}`,
-              "community",
-            ),
+          communityMember(
+            sql`${orgUsers.orgId}`,
+            sql`${orgUsers.id}`,
+            sql`${orgUsers.role}`,
+            sql`${communityId}`,
           ),
         ),
       )
@@ -185,20 +184,25 @@ export class DrizzleMemberRepository implements MemberReportRepository {
   }
 
   async spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>> {
+    const holders = sql<number>`(
+      select cast(count(*) as int) from ${orgUsers}
+      where ${orgUsers.orgId} = ${spaces.orgId}
+        and ${holdsCommunity(sql`${orgUsers.orgId}`, sql`${orgUsers.id}`, sql`${spaces.communityId}`)}
+    )`;
+    const seated = sql<number>`(
+      select cast(count(*) as int) from ${spaceMembers}
+      where ${spaceMembers.orgId} = ${spaces.orgId}
+        and ${spaceMembers.spaceId} = ${spaces.id}
+        and ${spaceMembers.status} = 'active'
+        and ${holdsCommunity(sql`${spaceMembers.orgId}`, sql`${spaceMembers.orgUserId}`, sql`${spaceMembers.communityId}`)}
+    )`;
     const rows = await this.db
       .select({
-        spaceId: spaceMembers.spaceId,
-        count: sql<number>`cast(count(*) as int)`,
+        spaceId: spaces.id,
+        count: sql<number>`case when ${spaces.accessRule} = 'all_members' then ${holders} else ${seated} end`,
       })
-      .from(spaceMembers)
-      .where(
-        and(
-          eq(spaceMembers.orgId, orgId),
-          eq(spaceMembers.communityId, communityId),
-          eq(spaceMembers.status, "active"),
-        ),
-      )
-      .groupBy(spaceMembers.spaceId);
+      .from(spaces)
+      .where(and(eq(spaces.orgId, orgId), eq(spaces.communityId, communityId)));
     return Object.fromEntries(rows.map((row) => [row.spaceId, Number(row.count)]));
   }
 }

@@ -1,20 +1,31 @@
+import { z } from 'zod';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import { isStaffRole } from '../organizations/index.js';
+import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, SpaceDetail } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { MemberImageReader } from '../assets/index.js';
-import type { Page, Post, PostFlag, PostFlagResolution, PostStatus } from '../types/index.js';
+import type {
+  Post,
+  PostFeedPage,
+  PostFlag,
+  PostFlagResolution,
+  PostStatus,
+  PostView,
+} from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
+import { authorView } from './authors.js';
 import type {
+  AuthorProfileReader,
   AuthorRoleReader,
   CreatePostInput,
-  FeedQuery,
+  FeedPosition,
+  PostFeedQuery,
   PostPatch,
   PostCommentFlagReader,
   PostReactions,
@@ -25,12 +36,42 @@ import type {
   UpdatePostInput,
 } from './ports.js';
 import type { ReactionEmoji } from './types.js';
+import { InvalidCursorError } from './model.js';
+
+const cursorSchema = z.tuple([z.boolean(), z.iso.datetime(), z.string().min(1)]);
+
+function encodeCursor(post: Post): string {
+  const at = post.publishedAt ?? post.createdAt;
+  return Buffer.from(JSON.stringify([post.pinned, at.toISOString(), post.id])).toString(
+    'base64url',
+  );
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function decodeCursor(cursor: string): FeedPosition {
+  const parsed = cursorSchema.safeParse(
+    parseJson(Buffer.from(cursor, 'base64url').toString('utf8')),
+  );
+  if (!parsed.success) {
+    throw new InvalidCursorError(cursor);
+  }
+  const [pinned, publishedAt, id] = parsed.data;
+  return { pinned, publishedAt: new Date(publishedAt), id };
+}
 
 export type PostServiceParams = {
   repo: PostRepository;
   access: CommunityAccessReader;
   content: CommunityReader;
   authors: AuthorRoleReader;
+  profiles: AuthorProfileReader;
   commentFlags: PostCommentFlagReader;
   images: MemberImageReader;
   uow: PostUnitOfWork;
@@ -42,6 +83,7 @@ export class PostServiceImpl implements PostService {
   private readonly access: CommunityAccessReader;
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
+  private readonly profiles: AuthorProfileReader;
   private readonly commentFlags: PostCommentFlagReader;
   private readonly images: MemberImageReader;
   private readonly uow: PostUnitOfWork;
@@ -52,6 +94,7 @@ export class PostServiceImpl implements PostService {
     this.access = params.access;
     this.content = params.content;
     this.authors = params.authors;
+    this.profiles = params.profiles;
     this.commentFlags = params.commentFlags;
     this.images = params.images;
     this.uow = params.uow;
@@ -59,7 +102,7 @@ export class PostServiceImpl implements PostService {
   }
 
   async create(orgId: string, actor: Actor, input: CreatePostInput): Promise<Post> {
-    const space = await this.requireOpen(orgId, actor, input.spaceId);
+    const space = await this.requireOpen(orgId, actor, input.spaceId, input.communityId);
     await this.requireOwnedImage(orgId, actor.id, input.coverAssetId);
     this.assertTopic(space, input.topicId);
     const now = new Date();
@@ -143,6 +186,7 @@ export class PostServiceImpl implements PostService {
     if (post.status !== 'draft' && post.status !== 'scheduled') {
       throw new ConflictError('This post cannot be submitted');
     }
+    this.assertTopic(space, post.topicId);
     const saved = await this.commitSubmission(orgId, post, space, actor.role, actor, new Date());
     this.logger.info('post submitted', { orgId, postId, status: saved.status });
     return saved;
@@ -211,16 +255,21 @@ export class PostServiceImpl implements PostService {
     if (post.status === 'removed') {
       throw new ConflictError('This post was removed');
     }
+    if (post.status !== 'published' && post.status !== 'pending') {
+      throw new ConflictError('This post cannot be removed');
+    }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, {
         status: 'removed',
         removedBy: actor.id,
       });
-      await posts.resolveFlags(orgId, postId, {
-        resolvedAt: new Date(),
-        resolvedBy: actor.id,
-        resolution: 'removed',
-      });
+      if (post.orgUserId !== actor.id) {
+        await posts.resolveFlags(orgId, postId, {
+          resolvedAt: new Date(),
+          resolvedBy: actor.id,
+          resolution: 'removed',
+        });
+      }
       await outbox.append([
         discussionEvents.postRemoved.make({
           orgId,
@@ -375,7 +424,11 @@ export class PostServiceImpl implements PostService {
     const saved = await this.uow.run(async ({ posts, outbox }) => {
       const created = await posts.insertFlag(orgId, flag);
       if (!created) {
-        throw new ConflictError('You have already flagged this post');
+        const existing = await posts.findFlag(orgId, postId, actor.id);
+        if (!existing) {
+          throw new NotFoundError('PostFlag', postId);
+        }
+        return existing;
       }
       await outbox.append([
         discussionEvents.postReported.make({
@@ -394,7 +447,7 @@ export class PostServiceImpl implements PostService {
     orgId: string,
     postId: string,
     actor: Actor,
-    resolution: PostFlagResolution,
+    resolution: Extract<PostFlagResolution, 'dismissed'>,
   ): Promise<void> {
     await this.loadVisible(orgId, actor, postId);
     if (!this.canModerate(actor)) {
@@ -411,15 +464,16 @@ export class PostServiceImpl implements PostService {
   async spaceFeed(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
-    query: FeedQuery,
-  ): Promise<Page<Post>> {
-    const space = await this.requireOpen(orgId, actor, spaceId);
+    query: PostFeedQuery,
+  ): Promise<PostFeedPage> {
+    const space = await this.requireOpen(orgId, actor, spaceId, communityId);
     if (query.topicId && !space.topics.some((topic) => topic.id === query.topicId)) {
       throw new NotFoundError('Topic', query.topicId);
     }
-    const page = await this.repo.listPublished(orgId, [spaceId], query);
-    this.logger.debug('space feed read', { orgId, spaceId, total: page.total });
+    const page = await this.feedPage(orgId, [spaceId], query);
+    this.logger.debug('space feed read', { orgId, spaceId, rows: page.rows.length });
     return page;
   }
 
@@ -427,31 +481,48 @@ export class PostServiceImpl implements PostService {
     orgId: string,
     actor: Actor,
     communityId: string,
-    query: Pick<FeedQuery, 'page' | 'pageSize'>,
-  ): Promise<Page<Post>> {
+    query: Pick<PostFeedQuery, 'cursor' | 'limit'>,
+  ): Promise<PostFeedPage> {
     const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
-    const page = await this.repo.listPublished(orgId, spaceIds, query);
+    const page = await this.feedPage(orgId, spaceIds, query);
     this.logger.debug('member feed read', {
       orgId,
       communityId,
       spaces: spaceIds.length,
-      total: page.total,
+      rows: page.rows.length,
     });
     return page;
   }
 
-  async getPost(orgId: string, actor: Actor, postId: string): Promise<Post> {
+  async listOwn(orgId: string, actor: Actor, communityId: string): Promise<PostView[]> {
+    const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
+    const rows = await this.repo.listByAuthor(orgId, actor.id, spaceIds);
+    this.logger.debug('own posts read', { orgId, communityId, rows: rows.length });
+    return this.withAuthors(orgId, rows);
+  }
+
+  async listBookmarked(orgId: string, actor: Actor, communityId: string): Promise<PostView[]> {
+    const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
+    const rows = await this.repo.listBookmarked(orgId, actor.id, spaceIds);
+    const visible = rows.filter((post) => this.canSee(actor, post));
+    this.logger.debug('bookmarked posts read', { orgId, communityId, rows: visible.length });
+    return this.withAuthors(orgId, visible);
+  }
+
+  async getPost(orgId: string, actor: Actor, postId: string): Promise<PostView> {
     const { post } = await this.loadVisible(orgId, actor, postId);
     this.logger.debug('post read', { orgId, postId });
-    return post;
+    const [view] = await this.withAuthors(orgId, [post]);
+    return view!;
   }
 
   async moderationQueue(
     orgId: string,
     actor: Actor,
+    communityId: string,
     spaceId: string,
   ): Promise<SpaceModerationQueue> {
-    await this.requireOpen(orgId, actor, spaceId);
+    await this.requireOpen(orgId, actor, spaceId, communityId);
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot work this queue');
     }
@@ -467,7 +538,11 @@ export class PostServiceImpl implements PostService {
       flags: flags.length,
       commentFlags: openCommentFlags.length,
     });
-    return { pending, flags, commentFlags: openCommentFlags };
+    return {
+      pending: await this.withAuthors(orgId, pending),
+      flags,
+      commentFlags: openCommentFlags,
+    };
   }
 
   visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }> {
@@ -482,9 +557,8 @@ export class PostServiceImpl implements PostService {
     return this.repo.followerIds(orgId, postId);
   }
 
-  async hasDue(orgId: string, now: Date): Promise<boolean> {
-    const due = await this.repo.listDue(orgId, now);
-    return due.length > 0;
+  hasDue(orgId: string, now: Date): Promise<boolean> {
+    return this.repo.hasDue(orgId, now);
   }
 
   async publishDue(orgId: string, now: Date): Promise<void> {
@@ -495,12 +569,18 @@ export class PostServiceImpl implements PostService {
     }
     const spaces = new Map<string, SpaceDetail | null>();
     const roles = new Map<string, Role | null>();
+    const refused = new Set<string>();
     for (const post of due) {
       if (!spaces.has(post.spaceId)) {
         spaces.set(post.spaceId, await this.content.getSpace(orgId, post.spaceId));
       }
       if (!roles.has(post.orgUserId)) {
         roles.set(post.orgUserId, await this.authors.roleOf(orgId, post.orgUserId));
+      }
+      const space = spaces.get(post.spaceId);
+      const role = roles.get(post.orgUserId) ?? null;
+      if (space && !(await this.submittable(orgId, post, space, role))) {
+        refused.add(post.id);
       }
     }
     const count = await this.uow.run(async ({ posts, outbox }) => {
@@ -527,11 +607,13 @@ export class PostServiceImpl implements PostService {
         const next = await posts.update(
           orgId,
           current.id,
-          this.submissionOf(
-            space.settings.requireReview,
-            roles.get(current.orgUserId) ?? null,
-            now,
-          ),
+          refused.has(current.id)
+            ? { status: 'draft', scheduledAt: null, publishedAt: null, removedBy: null }
+            : this.submissionOf(
+                space.settings.requireReview,
+                roles.get(current.orgUserId) ?? null,
+                now,
+              ),
         );
         if (!next) {
           continue;
@@ -549,8 +631,55 @@ export class PostServiceImpl implements PostService {
       return events.length;
     });
     if (count > 0) {
-      this.logger.info('due posts submitted', { orgId, count });
+      this.logger.info('due posts submitted', { orgId, count, refused: refused.size });
     }
+  }
+
+  private async submittable(
+    orgId: string,
+    post: Post,
+    space: SpaceDetail,
+    role: Role | null,
+  ): Promise<boolean> {
+    if (role === null || !this.topicFits(space, post.topicId)) {
+      return false;
+    }
+    return this.access.canOpen(orgId, { id: post.orgUserId, role }, space);
+  }
+
+  private async feedPage(
+    orgId: string,
+    spaceIds: string[],
+    query: PostFeedQuery,
+  ): Promise<PostFeedPage> {
+    const after = query.cursor ? decodeCursor(query.cursor) : null;
+    const rows = await this.repo.listPublished(orgId, spaceIds, {
+      after,
+      limit: query.limit + 1,
+      topicId: query.topicId,
+    });
+    const page = rows.slice(0, query.limit);
+    const last = page.at(-1);
+    return {
+      rows: await this.withAuthors(orgId, page),
+      nextCursor: rows.length > query.limit && last ? encodeCursor(last) : null,
+    };
+  }
+
+  private async withAuthors(orgId: string, posts: Post[]): Promise<PostView[]> {
+    if (posts.length === 0) {
+      return [];
+    }
+    const records = await this.profiles.authorsOf(orgId, [
+      ...new Set(posts.map((post) => post.orgUserId)),
+    ]);
+    return posts.map((post) => {
+      const record = records[post.orgUserId];
+      if (!record) {
+        throw new NotFoundError('OrgUser', post.orgUserId);
+      }
+      return { ...post, author: authorView(orgId, record) };
+    });
   }
 
   private async commitSubmission(
@@ -663,9 +792,14 @@ export class PostServiceImpl implements PostService {
     }
   }
 
-  private async requireOpen(orgId: string, actor: Actor, spaceId: string): Promise<SpaceDetail> {
+  private async requireOpen(
+    orgId: string,
+    actor: Actor,
+    spaceId: string,
+    communityId?: string,
+  ): Promise<SpaceDetail> {
     const space = await this.content.getSpace(orgId, spaceId);
-    if (!space) {
+    if (!space || (communityId !== undefined && space.communityId !== communityId)) {
       throw new NotFoundError('Space', spaceId);
     }
     if (!(await this.access.canOpen(orgId, actor, space))) {
@@ -687,11 +821,14 @@ export class PostServiceImpl implements PostService {
   }
 
   private canSee(actor: Actor, post: Post): boolean {
-    return post.status === 'published' || post.orgUserId === actor.id || this.canModerate(actor);
+    if (post.status === 'published' || post.orgUserId === actor.id) {
+      return true;
+    }
+    return this.canModerate(actor) && (post.status === 'pending' || post.status === 'removed');
   }
 
   private canModerate(actor: Actor): boolean {
-    return isStaffRole(actor.role) || actor.role === 'moderator';
+    return canModerate(actor.role);
   }
 
   private assertAuthor(actor: Actor, post: Post): void {
@@ -700,16 +837,21 @@ export class PostServiceImpl implements PostService {
     }
   }
 
-  private assertTopic(space: SpaceDetail, topicId: string | null): void {
+  private topicFits(space: SpaceDetail, topicId: string | null): boolean {
     if (topicId === null) {
-      if (space.topics.length > 0) {
-        throw new ConflictError('This space requires a topic');
-      }
+      return space.topics.length === 0;
+    }
+    return space.topics.some((topic) => topic.id === topicId);
+  }
+
+  private assertTopic(space: SpaceDetail, topicId: string | null): void {
+    if (this.topicFits(space, topicId)) {
       return;
     }
-    if (!space.topics.some((topic) => topic.id === topicId)) {
-      throw new NotFoundError('Topic', topicId);
+    if (topicId === null) {
+      throw new ConflictError('This space requires a topic');
     }
+    throw new NotFoundError('Topic', topicId);
   }
 
   private patchChanges(post: Post, patch: UpdatePostInput): boolean {

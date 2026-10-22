@@ -79,6 +79,7 @@ function harness(options?: {
   const settings = options?.settings === null ? null : { ...dmSettings, ...options?.settings };
 
   const pair = (a: string, b: string) => [a, b].sort().join(':');
+  const queries = { isBlocked: 0, blockedWith: 0, anyBlockedAmong: 0 };
 
   const repo: ChatRepository = {
     async lockDirectPair() {},
@@ -131,7 +132,7 @@ function harness(options?: {
               .map((user) => user.orgUserId)
               .sort(),
             lastReadMessageId: mine?.lastReadMessageId ?? null,
-            mutedUntil: mine?.mutedUntil ?? null,
+            mute: mine?.mute ?? null,
             unread: 0,
           };
         });
@@ -167,12 +168,12 @@ function harness(options?: {
         user.lastReadMessageId = messageId;
       }
     },
-    async setMuted(orgId, chatId, orgUserId, mutedUntil) {
+    async setMuted(orgId, chatId, orgUserId, mute) {
       const user = users.find(
         (row) => row.orgId === orgId && row.chatId === chatId && row.orgUserId === orgUserId,
       );
       if (user) {
-        user.mutedUntil = mutedUntil;
+        user.mute = mute;
       }
     },
     async insertMessage(_orgId, message) {
@@ -208,9 +209,12 @@ function harness(options?: {
       attachments.push({ messageId, assetIds: [...assetIds] });
     },
     async attachmentIds(_orgId, messageId) {
-      return attachments.filter((row) => row.messageId === messageId).flatMap((row) => row.assetIds);
+      return attachments
+        .filter((row) => row.messageId === messageId)
+        .flatMap((row) => row.assetIds);
     },
     async blockedWith(_orgId, communityId, orgUserId, otherIds) {
+      queries.blockedWith += 1;
       return otherIds.filter((other) =>
         blocks.some(
           (row) =>
@@ -241,11 +245,38 @@ function harness(options?: {
       }
     },
     async isBlocked(_orgId, communityId, a, b) {
+      queries.isBlocked += 1;
       return blocks.some(
         (row) =>
           row.communityId === communityId &&
           ((row.blocker === a && row.blocked === b) || (row.blocker === b && row.blocked === a)),
       );
+    },
+    async anyBlockedAmong(_orgId, communityId, orgUserIds) {
+      queries.anyBlockedAmong += 1;
+      return blocks.some(
+        (row) =>
+          row.communityId === communityId &&
+          orgUserIds.includes(row.blocker) &&
+          orgUserIds.includes(row.blocked),
+      );
+    },
+    async findFlag(orgId, messageId, orgUserId) {
+      const flag = flags.find(
+        (row) => row.orgId === orgId && row.messageId === messageId && row.orgUserId === orgUserId,
+      );
+      return flag ? { ...flag } : null;
+    },
+    async chatSummaries(orgId, chatIds) {
+      return chats
+        .filter((chat) => chat.orgId === orgId && chatIds.includes(chat.id))
+        .map((chat) => ({
+          chat: { ...chat },
+          participantIds: users
+            .filter((user) => user.chatId === chat.id && user.leftAt === null)
+            .map((user) => user.orgUserId)
+            .sort(),
+        }));
     },
     async insertFlag(_orgId, flag) {
       if (
@@ -291,38 +322,24 @@ function harness(options?: {
     },
   };
 
-  const access: CommunityAccessReader = {
-    async isCommunityMember(_orgId, actor) {
+  const access = {
+    async isCommunityMember(_orgId: string, actor: Actor, _communityId: string) {
       if (isStaffRole(actor.role)) {
         return true;
       }
       return members.has(actor.id);
     },
-    async canOpenSpace() {
-      return false;
+    async communityMembersAmong(_orgId: string, _communityId: string, orgUserIds: string[]) {
+      return orgUserIds.filter((id) => isStaffRole(roles[id] ?? 'student') || members.has(id));
     },
-    async canOpen() {
-      return false;
-    },
-    async openSpaceIds() {
-      return [];
-    },
-    async grantOpensCommunity() {
-      return false;
-    },
-    async membersAmong(_orgId, _communityId, orgUserIds) {
-      return orgUserIds.filter((id) => members.has(id));
-    },
-  };
+  } as CommunityAccessReader;
 
   const authors: AuthorRoleReader = {
     async roleOf(_orgId, orgUserId) {
       return roles[orgUserId] ?? null;
     },
     async rolesOf(_orgId, orgUserIds) {
-      return Object.fromEntries(
-        orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])),
-      );
+      return Object.fromEntries(orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])));
     },
   };
 
@@ -359,6 +376,27 @@ function harness(options?: {
       },
     },
     authors,
+    profiles: {
+      async authorsOf(orgId, orgUserIds) {
+        return Object.fromEntries(
+          orgUserIds.map((id) => [
+            id,
+            {
+              id,
+              firstName: id,
+              lastName: null,
+              email: `${id}@example.com`,
+              image: null,
+              role: roles[id] ?? 'student',
+              displayName: id === member.id ? 'Sarah' : null,
+              headline: null,
+              imageAssetOrgId: id === member.id ? 'org_elsewhere' : null,
+              imageAssetId: id === member.id ? 'ast_photo' : null,
+            },
+          ]),
+        );
+      },
+    },
     images: options?.images ?? { ownsImage: async () => true },
     uow,
   });
@@ -369,7 +407,12 @@ function harness(options?: {
     messages,
     attachments,
     flags,
+    users,
     calls,
+    queries,
+    block(communityId: string, blocker: string, blocked: string) {
+      blocks.push({ communityId, blocker, blocked });
+    },
     dropMember(id: string) {
       members.delete(id);
     },
@@ -377,20 +420,38 @@ function harness(options?: {
 }
 
 describe('chats', () => {
-  it('starts a direct chat as a request and records the chat once', async () => {
+  it('starts a direct chat as a request with its message and records the chat once', async () => {
     const { svc, calls } = harness();
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
-      body: null,
+      body: 'Hello',
       assetIds: [],
     });
     expect(chat.status).toBe('pending');
     expect(chat.kind).toBe('direct');
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.chat.created']);
+    expect(calls[0]?.map((event) => event.type)).toEqual([
+      'discussion.chat.created',
+      'discussion.message.sent',
+    ]);
     expect(calls[0]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
+    expect(calls[0]?.[1]?.metadata).toEqual({ actorOrgUserId: member.id, chatStatus: 'pending' });
     expect(dataOf(calls[0]![0]!).participantIds).toEqual([member.id, other.id].sort());
+  });
+
+  it('refuses a message request started without a message', async () => {
+    const { svc, calls, chats } = harness();
+    await expect(
+      svc.startDirect(ORG, member, {
+        communityId: COMMUNITY,
+        orgUserId: other.id,
+        body: null,
+        assetIds: [],
+      }),
+    ).rejects.toThrow('A message request needs a message');
+    expect(chats).toHaveLength(0);
+    expect(calls).toHaveLength(0);
   });
 
   it('sends the first message in the same transaction as the new chat', async () => {
@@ -556,20 +617,31 @@ describe('chats', () => {
     ).rejects.toThrow('Group chats are off');
   });
 
-  it('keeps the creator from sending and lets the recipient accept by replying', async () => {
+  it('refuses every creator send while a request is pending and opens it on a reply', async () => {
     const { svc, calls, chats } = harness();
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
-      body: null,
+      body: 'First',
       assetIds: [],
     });
     await expect(svc.accept(ORG, member, chat.id)).rejects.toThrow(
       'You cannot accept this request',
     );
+    const before = calls.length;
     await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
       'You cannot send in this chat',
     );
+    await expect(
+      svc.startDirect(ORG, member, {
+        communityId: COMMUNITY,
+        orgUserId: other.id,
+        body: 'Again',
+        assetIds: [],
+      }),
+    ).rejects.toThrow('You cannot send in this chat');
+    expect(calls).toHaveLength(before);
+    expect(chats.find((row) => row.id === chat.id)?.status).toBe('pending');
     const sent = await svc.send(ORG, other, chat.id, messageInput('Hello'));
     expect(sent.communityId).toBe(COMMUNITY);
     expect(chats.find((row) => row.id === chat.id)?.status).toBe('open');
@@ -578,6 +650,7 @@ describe('chats', () => {
       'discussion.message.sent',
     ]);
     expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorOrgUserId: other.id });
+    expect(calls.at(-1)?.[1]?.metadata).toEqual({ actorOrgUserId: other.id, chatStatus: 'open' });
     await expect(svc.accept(ORG, other, chat.id)).rejects.toThrow('This chat is not a request');
     await svc.send(ORG, member, chat.id, messageInput('Hi'));
   });
@@ -688,17 +761,11 @@ describe('chats', () => {
     );
     const messageId = String(dataOf(calls[0]![1]!).id);
     await svc.flagMessage(ORG, other, messageId, 'spam');
-    await expect(svc.flagMessage(ORG, other, messageId, 'again')).rejects.toBeInstanceOf(
-      ConflictError,
-    );
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
-    const queue = await svc.messageQueue(ORG, staff, COMMUNITY);
-    expect(queue.flags).toHaveLength(1);
-    expect(queue.messages[0]?.body).toBe('Hello');
     await svc.resolveMessageFlags(ORG, staff, messageId, 'dismissed');
     expect(flags[0]?.resolution).toBe('dismissed');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
-    await expect(svc.resolveMessageFlags(ORG, moderator, messageId, 'deleted')).rejects.toThrow(
+    await expect(svc.resolveMessageFlags(ORG, moderator, messageId, 'dismissed')).rejects.toThrow(
       'You cannot work this queue',
     );
   });
@@ -751,6 +818,11 @@ describe('chats', () => {
     expect(flags[0]).toMatchObject({ resolution: 'deleted', resolvedBy: staff.id });
     const seen = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
     expect(seen.rows[0]?.body).toBe('');
+    expect(seen.rows[0]?.sender).toMatchObject({
+      id: member.id,
+      displayName: 'Sarah',
+      imageAssetId: null,
+    });
     const staffSeen = await svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 });
     expect(staffSeen.rows[0]?.body).toBe('Edited');
     await expect(svc.messages(ORG, moderator, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
@@ -759,7 +831,7 @@ describe('chats', () => {
   });
 
   it('rejoins a direct chat the member left and delivers the new body', async () => {
-    const { svc, messages } = harness({ settings: { firstMessageIsRequest: false } });
+    const { svc, messages, calls } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
@@ -778,6 +850,11 @@ describe('chats', () => {
     });
     expect(again.id).toBe(chat.id);
     expect(messages.some((message) => message.body === 'Back')).toBe(true);
+    expect(calls.at(-1)?.map((event) => event.type)).toEqual([
+      'discussion.chat.updated',
+      'discussion.message.sent',
+    ]);
+    expect(dataOf(calls.at(-1)![0]!).participantIds).toEqual([member.id, other.id].sort());
   });
 
   it('refuses a chat once the member no longer has the community', async () => {
@@ -825,5 +902,243 @@ describe('chats', () => {
     await expect(svc.editMessage(ORG, member, messageId, 'Changed')).rejects.toThrow(
       'You are not in this chat',
     );
+  });
+
+  it('lets staff delete a message in a locked chat they are not in', async () => {
+    const { svc, flags } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    const page = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
+    const messageId = page.rows[0]!.id;
+    await svc.flagMessage(ORG, other, messageId, 'spam');
+    await svc.lock(ORG, staff, chat.id);
+    const removed = await svc.deleteMessage(ORG, staff, messageId);
+    expect(removed.deletedAt).toBeInstanceOf(Date);
+    await expect(svc.deleteMessage(ORG, other, messageId)).rejects.toThrow(
+      'You cannot delete this message',
+    );
+    expect(flags[0]).toMatchObject({ resolution: 'locked' });
+  });
+
+  it('refuses attachments on a direct chat started without a message', async () => {
+    const { svc, chats } = harness();
+    await expect(
+      svc.startDirect(ORG, member, {
+        communityId: COMMUNITY,
+        orgUserId: other.id,
+        body: null,
+        assetIds: ['ast_1'],
+      }),
+    ).rejects.toThrow('An attachment needs a message');
+    expect(chats).toHaveLength(0);
+  });
+
+  it('checks the other person in a direct chat they left', async () => {
+    const left = harness({ settings: { firstMessageIsRequest: false } });
+    const input = { communityId: COMMUNITY, orgUserId: other.id, body: 'Hello', assetIds: [] };
+    const chat = await left.svc.startDirect(ORG, member, input);
+    await left.svc.leave(ORG, other, chat.id);
+    await left.svc.send(ORG, member, chat.id, messageInput('Still there?'));
+    left.block(COMMUNITY, other.id, member.id);
+    await expect(left.svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+    const lapsed = harness({ settings: { firstMessageIsRequest: false } });
+    const direct = await lapsed.svc.startDirect(ORG, member, input);
+    await lapsed.svc.leave(ORG, other, direct.id);
+    lapsed.dropMember(other.id);
+    await expect(lapsed.svc.send(ORG, member, direct.id, messageInput('No'))).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+  });
+
+  it('serves no attachments of a deleted message and nothing to a lapsed participant', async () => {
+    const { svc, dropMember } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, staff.id],
+    });
+    const sent = await svc.send(ORG, member, chat.id, {
+      body: 'Look',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
+    const kept = await svc.send(ORG, member, chat.id, {
+      body: 'Keep',
+      replyToId: null,
+      assetIds: ['asset_2'],
+    });
+    await svc.deleteMessage(ORG, member, sent.id);
+    await expect(svc.getMessage(ORG, other, sent.id)).resolves.toEqual({
+      message: expect.objectContaining({ id: sent.id, body: '' }),
+      assetIds: [],
+    });
+    await expect(svc.getMessage(ORG, staff, sent.id)).resolves.toMatchObject({
+      assetIds: ['asset_1'],
+    });
+    dropMember(other.id);
+    await expect(svc.getMessage(ORG, other, kept.id)).rejects.toThrow(
+      'You are not a member of this community',
+    );
+  });
+
+  it('skips lapsed members in a group and refuses a direct chat with one', async () => {
+    const { svc, dropMember } = harness({ settings: { firstMessageIsRequest: false } });
+    const group = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    const direct = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: third.id,
+      body: null,
+      assetIds: [],
+    });
+    dropMember(third.id);
+    await svc.send(ORG, member, group.id, messageInput('Still here'));
+    await expect(svc.send(ORG, member, direct.id, messageInput('No'))).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+  });
+
+  it('checks only the added person against the people in the group, in one query', async () => {
+    const { svc, block, queries } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    expect(queries.anyBlockedAmong).toBe(1);
+    expect(queries.isBlocked).toBe(0);
+    block(COMMUNITY, member.id, other.id);
+    await svc.addParticipant(ORG, third, chat.id, fourth.id);
+    expect(queries.blockedWith).toBe(1);
+    expect(queries.isBlocked).toBe(0);
+    await svc.leave(ORG, fourth, chat.id);
+    block(COMMUNITY, fourth.id, third.id);
+    await expect(svc.addParticipant(ORG, member, chat.id, fourth.id)).rejects.toThrow(
+      'You cannot add that person',
+    );
+    await expect(
+      svc.startGroup(ORG, member, { communityId: COMMUNITY, orgUserIds: [other.id, fourth.id] }),
+    ).rejects.toThrow('You cannot add that person');
+  });
+
+  it('leaves a direct chat untouched when the send that would rejoin it is refused', async () => {
+    const { svc, calls, users } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    await svc.leave(ORG, member, chat.id);
+    await svc.block(ORG, other, COMMUNITY, member.id);
+    const before = calls.length;
+    await expect(
+      svc.startDirect(ORG, member, {
+        communityId: COMMUNITY,
+        orgUserId: other.id,
+        body: 'Back',
+        assetIds: [],
+      }),
+    ).rejects.toThrow('You cannot send in this chat');
+    expect(calls).toHaveLength(before);
+    expect(users.find((user) => user.orgUserId === member.id)?.leftAt).toBeInstanceOf(Date);
+    await svc.unblock(ORG, other, COMMUNITY, member.id);
+    await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.chat.updated']);
+    expect(users.find((user) => user.orgUserId === member.id)?.leftAt).toBeNull();
+  });
+
+  it('opens a direct chat at once when either person is staff', async () => {
+    const { svc } = harness();
+    const fromStaff = await svc.startDirect(ORG, staff, {
+      communityId: COMMUNITY,
+      orgUserId: member.id,
+      body: null,
+      assetIds: [],
+    });
+    expect(fromStaff.status).toBe('open');
+    const toStaff = await svc.startDirect(ORG, other, {
+      communityId: COMMUNITY,
+      orgUserId: staff.id,
+      body: null,
+      assetIds: [],
+    });
+    expect(toStaff.status).toBe('open');
+    const between = await svc.startDirect(ORG, moderator, {
+      communityId: COMMUNITY,
+      orgUserId: member.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    expect(between.status).toBe('pending');
+  });
+
+  it('returns the existing flag when a message is flagged again', async () => {
+    const { svc, calls, flags } = harness({ settings: { firstMessageIsRequest: false } });
+    await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    const messageId = String(dataOf(calls[0]![1]!).id);
+    const first = await svc.flagMessage(ORG, other, messageId, 'spam');
+    const before = calls.length;
+    const again = await svc.flagMessage(ORG, other, messageId, 'again');
+    expect(again.id).toBe(first.id);
+    expect(again.reason).toBe('spam');
+    expect(calls).toHaveLength(before);
+    expect(flags).toHaveLength(1);
+  });
+
+  it('mutes until a time or until unmuted, with no sentinel time', async () => {
+    const { svc, users } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    const mine = () => users.find((user) => user.orgUserId === member.id);
+    expect(mine()?.mute).toBeNull();
+    await svc.mute(ORG, member, chat.id);
+    expect(mine()?.mute).toEqual({ until: null });
+    expect((await svc.listChats(ORG, member, COMMUNITY))[0]?.mute).toEqual({ until: null });
+    const until = new Date('2030-01-01T00:00:00Z');
+    await svc.mute(ORG, member, chat.id, until);
+    expect(mine()?.mute).toEqual({ until });
+    await svc.unmute(ORG, member, chat.id);
+    expect(mine()?.mute).toBeNull();
+  });
+
+  it('serves each queued message with its flags, its chat and the people in it', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    await svc.send(ORG, member, chat.id, messageInput('Before'));
+    const sent = await svc.send(ORG, member, chat.id, messageInput('Rude'));
+    await svc.flagMessage(ORG, other, sent.id, 'spam');
+    await svc.flagMessage(ORG, third, sent.id, 'rude');
+    const queue = await svc.messageQueue(ORG, staff, COMMUNITY);
+    expect(queue.entries).toHaveLength(1);
+    expect(queue.entries[0]).toMatchObject({
+      message: { id: sent.id, body: 'Rude' },
+      chat: { id: chat.id, kind: 'group' },
+      participantIds: [member.id, other.id, third.id].sort(),
+    });
+    expect(queue.entries[0]?.flags.map((flag) => flag.reason)).toEqual(['spam', 'rude']);
   });
 });

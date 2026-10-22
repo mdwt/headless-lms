@@ -3,6 +3,7 @@ export { assetEvents } from './events.js';
 export type {
   AssetsService,
   AssetsRepository,
+  LibraryAssetReader,
   MemberImageReader,
   MemberUploadInput,
 } from './ports.js';

@@ -18,13 +18,14 @@ export function cronMatches(expression: string, at: Date): boolean {
     at.getUTCMonth() + 1,
     at.getUTCDay(),
   ];
-  return fields.every((field, index) => {
-    if (field === '*') {
-      return true;
-    }
-    const value = parts[index];
-    return field.split(',').some((piece) => Number(piece) === value);
-  });
+  const matches = fields.map(
+    (field, index) =>
+      field === '*' || field.split(',').some((piece) => Number(piece) === parts[index]),
+  );
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = matches;
+  const day =
+    fields[2] !== '*' && fields[4] !== '*' ? dayOfMonth || dayOfWeek : dayOfMonth && dayOfWeek;
+  return Boolean(minute && hour && month && day);
 }
 
 export function cronSupported(expression: string): boolean {

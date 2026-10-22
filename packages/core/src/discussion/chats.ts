@@ -13,19 +13,23 @@ import type {
   Message,
   MessageFlag,
   MessageFlagResolution,
+  MessageView,
   Page,
   ReactionEmoji,
 } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
+import { authorView } from './authors.js';
 import type {
+  AuthorProfileReader,
   AuthorRoleReader,
   ChatListItem,
   ChatRepository,
   ChatService,
   ChatUnitOfWork,
   MessageQueue,
+  MessageQueueEntry,
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
@@ -36,6 +40,7 @@ export type ChatServiceParams = {
   access: CommunityAccessReader;
   content: CommunityReader;
   authors: AuthorRoleReader;
+  profiles: AuthorProfileReader;
   images: MemberImageReader;
   uow: ChatUnitOfWork;
   logger?: Logger;
@@ -46,6 +51,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly access: CommunityAccessReader;
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
+  private readonly profiles: AuthorProfileReader;
   private readonly images: MemberImageReader;
   private readonly uow: ChatUnitOfWork;
   private readonly logger: Logger;
@@ -55,6 +61,7 @@ export class ChatServiceImpl implements ChatService {
     this.access = params.access;
     this.content = params.content;
     this.authors = params.authors;
+    this.profiles = params.profiles;
     this.images = params.images;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
@@ -64,29 +71,57 @@ export class ChatServiceImpl implements ChatService {
     if (actor.id === input.orgUserId) {
       throw new ConflictError('You cannot message yourself');
     }
+    if (input.body === null && input.assetIds.length > 0) {
+      throw new ConflictError('An attachment needs a message');
+    }
     const settings = await this.requireSettings(orgId, input.communityId);
     await this.requireActor(orgId, actor, input.communityId);
     const role = await this.requirePerson(orgId, input.communityId, input.orgUserId);
     this.assertMayMessage(settings, actor, role);
+    const first: SendMessageInput | null =
+      input.body === null ? null : { body: input.body, replyToId: null, assetIds: input.assetIds };
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       await chats.lockDirectPair(orgId, input.communityId, actor.id, input.orgUserId);
       const existing = await chats.findDirect(orgId, input.communityId, actor.id, input.orgUserId);
       if (existing) {
         const users = await chats.participants(orgId, existing.id);
-        const self = users.find((user) => user.orgUserId === actor.id);
-        if (self?.leftAt) {
-          const now = new Date();
+        const rejoin = users.some((user) => user.orgUserId === actor.id && user.leftAt !== null);
+        const present = users.map((user) =>
+          user.orgUserId === actor.id ? { ...user, leftAt: null } : user,
+        );
+        if (first) {
+          await this.assertMaySend(chats, orgId, actor, existing, present, settings, first);
+        }
+        if (rejoin) {
           await chats.join(
             orgId,
-            this.memberRow(orgId, existing.communityId, existing.id, actor.id, now),
+            this.memberRow(orgId, existing.communityId, existing.id, actor.id, new Date()),
           );
-          await outbox.append([this.addedEvent(orgId, actor, existing, actor.id)]);
         }
-        return { chat: existing, created: false };
+        const written = first
+          ? await this.writeMessage(chats, orgId, actor, existing, first)
+          : null;
+        const chat = written?.chat ?? existing;
+        const events: NewDiscussionEvent[] = [];
+        if (rejoin || written?.opened) {
+          events.push(this.updatedEvent(orgId, actor, chat, present));
+        }
+        if (written) {
+          events.push(this.sentEvent(orgId, actor, written.chat, written.message));
+        }
+        if (events.length > 0) {
+          await outbox.append(events);
+        }
+        return { chat, created: false };
       }
       await this.requireOwnedImages(orgId, actor.id, input.assetIds);
       if (await chats.isBlocked(orgId, input.communityId, actor.id, input.orgUserId)) {
         throw new ForbiddenError('You cannot message this person');
+      }
+      const request =
+        settings.firstMessageIsRequest && !isStaffRole(actor.role) && !isStaffRole(role);
+      if (request && !first) {
+        throw new ConflictError('A message request needs a message');
       }
       const now = new Date();
       const chat = await chats.insertChat(orgId, {
@@ -94,7 +129,7 @@ export class ChatServiceImpl implements ChatService {
         id: genId('chat'),
         communityId: input.communityId,
         kind: 'direct',
-        status: settings.firstMessageIsRequest ? 'pending' : 'open',
+        status: request ? 'pending' : 'open',
         createdBy: actor.id,
         lockedAt: null,
         lockedBy: null,
@@ -108,21 +143,9 @@ export class ChatServiceImpl implements ChatService {
         await chats.join(orgId, user);
       }
       const events: NewDiscussionEvent[] = [this.createdEvent(orgId, actor, chat, users)];
-      if (input.body !== null) {
-        const message = await chats.insertMessage(
-          orgId,
-          this.newMessage(
-            orgId,
-            chat,
-            actor,
-            { body: input.body, replyToId: null, assetIds: [] },
-            now,
-          ),
-        );
-        if (input.assetIds.length > 0) {
-          await chats.attach(orgId, chat.communityId, message.id, input.assetIds);
-        }
-        events.push(this.sentEvent(orgId, actor, message));
+      if (first) {
+        const written = await this.writeMessage(chats, orgId, actor, chat, first);
+        events.push(this.sentEvent(orgId, actor, written.chat, written.message));
       }
       await outbox.append(events);
       return { chat, created: true };
@@ -140,13 +163,6 @@ export class ChatServiceImpl implements ChatService {
         communityId: input.communityId,
         chatId: saved.chat.id,
       });
-      if (input.body !== null) {
-        await this.send(orgId, actor, saved.chat.id, {
-          body: input.body,
-          replyToId: null,
-          assetIds: input.assetIds,
-        });
-      }
     }
     return saved.chat;
   }
@@ -167,7 +183,9 @@ export class ChatServiceImpl implements ChatService {
       this.assertMayMessage(settings, actor, role);
     }
     const saved = await this.uow.run(async ({ chats, outbox }) => {
-      await this.assertUnblocked(chats, orgId, input.communityId, [actor.id, ...others]);
+      if (await chats.anyBlockedAmong(orgId, input.communityId, [actor.id, ...others])) {
+        throw new ForbiddenError('You cannot add that person');
+      }
       const now = new Date();
       const chat = await chats.insertChat(orgId, {
         orgId,
@@ -231,10 +249,15 @@ export class ChatServiceImpl implements ChatService {
       if (active.length + 1 > settings.groupSize) {
         throw new ConflictError('This group is full');
       }
-      await this.assertUnblocked(chats, orgId, current.communityId, [
-        ...active.map((user) => user.orgUserId),
+      const blocked = await chats.blockedWith(
+        orgId,
+        current.communityId,
         orgUserId,
-      ]);
+        active.map((user) => user.orgUserId),
+      );
+      if (blocked.length > 0) {
+        throw new ForbiddenError('You cannot add that person');
+      }
       const now = new Date();
       await chats.join(
         orgId,
@@ -306,53 +329,15 @@ export class ChatServiceImpl implements ChatService {
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       const chat = await this.mustChat(chats, orgId, chatId);
       const users = await chats.participants(orgId, chatId);
-      this.assertActive(users, actor.id);
-      if (chat.lockedAt) {
-        throw new ForbiddenError('This chat is locked');
-      }
-      if (chat.status === 'closed' || this.pendingCreator(chat, actor)) {
-        throw new ForbiddenError('You cannot send in this chat');
-      }
+      await this.assertMaySend(chats, orgId, actor, chat, users, settings, input);
+      const written = await this.writeMessage(chats, orgId, actor, chat, input);
       const events: NewDiscussionEvent[] = [];
-      let openChat = chat;
-      if (chat.kind === 'direct' && chat.status === 'pending') {
-        openChat = await this.mustUpdate(chats, orgId, chatId, { status: 'open' });
-        events.push(this.updatedEvent(orgId, actor, openChat, users));
+      if (written.opened) {
+        events.push(this.updatedEvent(orgId, actor, written.chat, users));
       }
-      const others = users
-        .filter((other) => other.leftAt === null && other.orgUserId !== actor.id)
-        .map((other) => other.orgUserId);
-      if (others.length > 0) {
-        const blocked = await chats.blockedWith(orgId, chat.communityId, actor.id, others);
-        if (blocked.length > 0) {
-          throw new ForbiddenError('You cannot send in this chat');
-        }
-        const roles = await this.personRoles(orgId, chat.communityId, others);
-        for (const other of others) {
-          const role = roles[other];
-          if (!role || !this.mayMessage(settings, actor, role)) {
-            throw new ForbiddenError('You cannot send in this chat');
-          }
-        }
-      }
-      if (input.replyToId) {
-        const reply = await chats.findMessage(orgId, input.replyToId);
-        if (!reply || reply.chatId !== chatId) {
-          throw new NotFoundError('Message', input.replyToId);
-        }
-      }
-      await this.requireOwnedImages(orgId, actor.id, input.assetIds);
-      const now = new Date();
-      const message = await chats.insertMessage(
-        orgId,
-        this.newMessage(orgId, openChat, actor, input, now),
-      );
-      if (input.assetIds.length > 0) {
-        await chats.attach(orgId, openChat.communityId, message.id, input.assetIds);
-      }
-      events.push(this.sentEvent(orgId, actor, message));
+      events.push(this.sentEvent(orgId, actor, written.chat, written.message));
       await outbox.append(events);
-      return message;
+      return written.message;
     });
     this.logger.info('message sent', { orgId, chatId, messageId: saved.id });
     return saved;
@@ -386,10 +371,12 @@ export class ChatServiceImpl implements ChatService {
   async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<Message> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
-    if (message.orgUserId !== actor.id && !isStaffRole(actor.role)) {
-      throw new ForbiddenError('You cannot delete this message');
+    if (!isStaffRole(actor.role)) {
+      if (message.orgUserId !== actor.id) {
+        throw new ForbiddenError('You cannot delete this message');
+      }
+      await this.requireWritableChat(orgId, actor, message.chatId);
     }
-    await this.requireWritableChat(orgId, actor, message.chatId);
     if (message.deletedAt) {
       throw new ConflictError('This message was deleted');
     }
@@ -442,11 +429,11 @@ export class ChatServiceImpl implements ChatService {
     this.logger.debug('chat marked read', { orgId, chatId, messageId });
   }
 
-  async mute(orgId: string, actor: Actor, chatId: string, until: Date): Promise<void> {
+  async mute(orgId: string, actor: Actor, chatId: string, until?: Date): Promise<void> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
     await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
-    await this.repo.setMuted(orgId, chatId, actor.id, until);
+    await this.repo.setMuted(orgId, chatId, actor.id, { until: until ?? null });
     this.logger.debug('chat muted', { orgId, chatId });
   }
 
@@ -533,7 +520,11 @@ export class ChatServiceImpl implements ChatService {
         updatedAt: now,
       });
       if (!flag) {
-        throw new ConflictError('You have already flagged this message');
+        const existing = await chats.findFlag(orgId, messageId, actor.id);
+        if (!existing) {
+          throw new NotFoundError('Message', messageId);
+        }
+        return existing;
       }
       await outbox.append([
         discussionEvents.messageReported.make({
@@ -552,7 +543,7 @@ export class ChatServiceImpl implements ChatService {
     orgId: string,
     actor: Actor,
     messageId: string,
-    resolution: MessageFlagResolution,
+    resolution: Extract<MessageFlagResolution, 'dismissed'>,
   ): Promise<void> {
     if (!isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
@@ -593,13 +584,19 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     chatId: string,
     query: { page: number; pageSize: number },
-  ): Promise<Page<Message>> {
+  ): Promise<Page<MessageView>> {
     const chat = await this.mustChat(this.repo, orgId, chatId);
     await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const page = await this.repo.listMessages(orgId, chatId, query);
     this.logger.debug('chat messages read', { orgId, chatId });
-    return { ...page, rows: page.rows.map((message) => this.present(message, actor)) };
+    return {
+      ...page,
+      rows: await this.withSenders(
+        orgId,
+        page.rows.map((message) => this.present(message, actor)),
+      ),
+    };
   }
 
   async messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue> {
@@ -609,12 +606,30 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(orgId, actor, communityId);
     await this.requireSettings(orgId, communityId);
     const flags = await this.repo.listOpenFlags(orgId, communityId);
-    const messages = await this.repo.messagesByIds(
-      orgId,
-      flags.map((flag) => flag.messageId),
-    );
-    this.logger.debug('message queue read', { orgId, communityId, count: flags.length });
-    return { flags, messages };
+    const messages = await this.repo.messagesByIds(orgId, [
+      ...new Set(flags.map((flag) => flag.messageId)),
+    ]);
+    const summaries = await this.repo.chatSummaries(orgId, [
+      ...new Set(messages.map((message) => message.chatId)),
+    ]);
+    const byChat = new Map(summaries.map((summary) => [summary.chat.id, summary]));
+    const views = await this.withSenders(orgId, messages);
+    const entries: MessageQueueEntry[] = views.flatMap((message) => {
+      const summary = byChat.get(message.chatId);
+      if (!summary) {
+        return [];
+      }
+      return [
+        {
+          message,
+          flags: flags.filter((flag) => flag.messageId === message.id),
+          chat: summary.chat,
+          participantIds: summary.participantIds,
+        },
+      ];
+    });
+    this.logger.debug('message queue read', { orgId, communityId, count: entries.length });
+    return { entries };
   }
 
   async getMessage(
@@ -623,11 +638,15 @@ export class ChatServiceImpl implements ChatService {
     messageId: string,
   ): Promise<{ message: Message; assetIds: string[] }> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    const staff = isStaffRole(actor.role);
+    if (!staff) {
+      await this.requireActor(orgId, actor, message.communityId);
+    }
     const users = await this.repo.participants(orgId, message.chatId);
     const participant = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
     if (!participant) {
       const flagged =
-        isStaffRole(actor.role) &&
+        staff &&
         (await this.repo.listOpenFlags(orgId, message.communityId)).some(
           (flag) => flag.messageId === messageId,
         );
@@ -635,7 +654,8 @@ export class ChatServiceImpl implements ChatService {
         throw new NotFoundError('Message', messageId);
       }
     }
-    const assetIds = await this.repo.attachmentIds(orgId, messageId);
+    const assetIds =
+      message.deletedAt !== null && !staff ? [] : await this.repo.attachmentIds(orgId, messageId);
     return { message: this.present(message, actor), assetIds };
   }
 
@@ -741,15 +761,83 @@ export class ChatServiceImpl implements ChatService {
   ): Promise<Record<string, Role>> {
     const roles = await this.authors.rolesOf(orgId, orgUserIds);
     const members = new Set(
-      await this.access.membersAmong(orgId, communityId, Object.keys(roles)),
+      await this.access.communityMembersAmong(orgId, communityId, Object.keys(roles)),
     );
-    const result: Record<string, Role> = {};
-    for (const [orgUserId, role] of Object.entries(roles)) {
-      if (isStaffRole(role) || members.has(orgUserId)) {
-        result[orgUserId] = role;
+    return Object.fromEntries(
+      Object.entries(roles).filter(([orgUserId]) => members.has(orgUserId)),
+    );
+  }
+
+  private async assertMaySend(
+    chats: ChatRepository,
+    orgId: string,
+    actor: Actor,
+    chat: Chat,
+    users: ChatUser[],
+    settings: DmSettings,
+    input: SendMessageInput,
+  ): Promise<void> {
+    this.assertActive(users, actor.id);
+    if (chat.lockedAt) {
+      throw new ForbiddenError('This chat is locked');
+    }
+    if (chat.status === 'closed') {
+      throw new ForbiddenError('You cannot send in this chat');
+    }
+    if (this.pendingCreator(chat, actor)) {
+      throw new ForbiddenError('You cannot send in this chat');
+    }
+    const others = users
+      .filter(
+        (other) =>
+          other.orgUserId !== actor.id && (chat.kind === 'direct' || other.leftAt === null),
+      )
+      .map((other) => other.orgUserId);
+    if (others.length > 0) {
+      const roles = await this.personRoles(orgId, chat.communityId, others);
+      const recipients = chat.kind === 'group' ? others.filter((other) => roles[other]) : others;
+      for (const other of recipients) {
+        const role = roles[other];
+        if (!role || !this.mayMessage(settings, actor, role)) {
+          throw new ForbiddenError('You cannot send in this chat');
+        }
+      }
+      if (recipients.length > 0) {
+        const blocked = await chats.blockedWith(orgId, chat.communityId, actor.id, recipients);
+        if (blocked.length > 0) {
+          throw new ForbiddenError('You cannot send in this chat');
+        }
       }
     }
-    return result;
+    if (input.replyToId) {
+      const reply = await chats.findMessage(orgId, input.replyToId);
+      if (!reply || reply.chatId !== chat.id) {
+        throw new NotFoundError('Message', input.replyToId);
+      }
+    }
+    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
+  }
+
+  private async writeMessage(
+    chats: ChatRepository,
+    orgId: string,
+    actor: Actor,
+    chat: Chat,
+    input: SendMessageInput,
+  ): Promise<{ chat: Chat; message: Message; opened: boolean }> {
+    const opened =
+      chat.kind === 'direct' && chat.status === 'pending' && chat.createdBy !== actor.id;
+    const current = opened
+      ? await this.mustUpdate(chats, orgId, chat.id, { status: 'open' })
+      : chat;
+    const message = await chats.insertMessage(
+      orgId,
+      this.newMessage(orgId, current, actor, input, new Date()),
+    );
+    if (input.assetIds.length > 0) {
+      await chats.attach(orgId, current.communityId, message.id, input.assetIds);
+    }
+    return { chat: current, message, opened };
   }
 
   private assertMayMessage(settings: DmSettings, actor: Actor, role: Role): void {
@@ -778,23 +866,6 @@ export class ChatServiceImpl implements ChatService {
       return settings.memberToStaff;
     }
     return settings.memberToMember;
-  }
-
-  private async assertUnblocked(
-    chats: ChatRepository,
-    orgId: string,
-    communityId: string,
-    ids: string[],
-  ): Promise<void> {
-    for (let i = 0; i < ids.length; i += 1) {
-      for (let j = i + 1; j < ids.length; j += 1) {
-        const a = ids[i];
-        const b = ids[j];
-        if (a && b && (await chats.isBlocked(orgId, communityId, a, b))) {
-          throw new ForbiddenError('You cannot add that person');
-        }
-      }
-    }
   }
 
   private async requireActive(
@@ -887,7 +958,7 @@ export class ChatServiceImpl implements ChatService {
       joinedAt: now,
       leftAt: null,
       lastReadMessageId: null,
-      mutedUntil: null,
+      mute: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -959,11 +1030,27 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  private sentEvent(orgId: string, actor: Actor, message: Message) {
+  private sentEvent(orgId: string, actor: Actor, chat: Chat, message: Message) {
     return discussionEvents.messageSent.make({
       orgId,
       data: message,
-      metadata: this.meta(actor),
+      metadata: { ...this.meta(actor), chatStatus: chat.status },
+    });
+  }
+
+  private async withSenders(orgId: string, messages: Message[]): Promise<MessageView[]> {
+    if (messages.length === 0) {
+      return [];
+    }
+    const records = await this.profiles.authorsOf(orgId, [
+      ...new Set(messages.map((message) => message.orgUserId)),
+    ]);
+    return messages.map((message) => {
+      const record = records[message.orgUserId];
+      if (!record) {
+        throw new NotFoundError('OrgUser', message.orgUserId);
+      }
+      return { ...message, sender: authorView(orgId, record) };
     });
   }
 

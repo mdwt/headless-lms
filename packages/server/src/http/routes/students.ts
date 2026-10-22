@@ -125,15 +125,18 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       tags: ['Organizations'],
       summary: "Re-send a pending student's invite email",
       params: StudentIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
+      response: { 204: z.void(), 403: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await container.organizations.resendStudentInvite({
-        orgId: scope.orgId,
-        orgUserId: req.params.id,
-        inviterUserId: scope.userId,
-      });
+      await container.organizations.resendStudentInvite(
+        { id: scope.orgUserId, role: scope.role },
+        {
+          orgId: scope.orgId,
+          orgUserId: req.params.id,
+          inviterUserId: scope.userId,
+        },
+      );
       return reply.code(204).send();
     },
   });
@@ -147,11 +150,15 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       tags: ['Organizations'],
       summary: 'Delete a student',
       params: StudentIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), 403: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await container.organizations.deleteOrgUser(scope.orgId, req.params.id);
+      await container.organizations.deleteOrgUser(
+        scope.orgId,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+      );
       return reply.code(204).send();
     },
   });

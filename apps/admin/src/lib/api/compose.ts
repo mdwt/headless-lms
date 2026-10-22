@@ -46,6 +46,6 @@ export function courseSettingsOf(course: Course): CourseSettings {
 /** active|expired|revoked — revoked wins; an elapsed expiry reads as expired. */
 export function entitlementStatusOf(grant: EntitlementGrant): EntitlementStatus {
   if (grant.status === "revoked") return "revoked";
-  if (grant.expiresAt && new Date(grant.expiresAt).getTime() < Date.now()) return "expired";
+  if (grant.expiresAt && new Date(grant.expiresAt).getTime() <= Date.now()) return "expired";
   return "active";
 }

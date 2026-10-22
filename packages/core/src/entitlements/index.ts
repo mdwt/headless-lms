@@ -2,14 +2,17 @@
 export { EntitlementsServiceImpl } from './service.js';
 export { entitlementEvents } from './events.js';
 export type {
+  AccessFacts,
   CommunityAccessReader,
+  EndingGrant,
   EntitlementNotice,
   EntitlementsService,
   EntitlementsRepository,
+  GrantKey,
   GrantTarget,
   InsertSpaceMemberInput,
   OpenableSpace,
-  RoleReader,
+  SpaceAccessRule,
 } from './ports.js';
 export type {
   Entitlement,

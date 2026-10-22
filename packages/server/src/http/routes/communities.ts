@@ -292,8 +292,12 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const space = await content.getSpace(scope.orgId, req.params.spaceId);
-      if (!space || space.communityId !== req.params.communityId) {
+      const space = await content.getCommunitySpace(
+        scope.orgId,
+        req.params.communityId,
+        req.params.spaceId,
+      );
+      if (!space) {
         throw new NotFoundError('Space', req.params.spaceId);
       }
       return space;

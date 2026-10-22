@@ -6,14 +6,20 @@ const author = {
   id: "orm_a",
   firstName: "Ana",
   lastName: "Diaz",
+  displayName: null,
+  headline: null,
   image: null,
+  imageAssetId: null,
   role: "student" as const,
 };
 const instructor = {
   id: "orm_s",
   firstName: "Sarah",
   lastName: "Chen",
+  displayName: null,
+  headline: null,
   image: null,
+  imageAssetId: null,
   role: "instructor" as const,
 };
 

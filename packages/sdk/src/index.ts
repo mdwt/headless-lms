@@ -11,11 +11,15 @@ import { client } from "./generated/client.gen";
 import {
   Assets as AssetsGen,
   Automations as AutomationsGen,
+  Chats as ChatsGen,
+  Communities as CommunitiesGen,
   Content as ContentGen,
   Discussion as DiscussionGen,
   Entitlements as EntitlementsGen,
   Integrations as IntegrationsGen,
   Organizations as OrganizationsGen,
+  Posts as PostsGen,
+  Profile as ProfileGen,
   Progress as ProgressGen,
   Reporting as ReportingGen,
 } from "./generated/sdk.gen";
@@ -35,11 +39,15 @@ type Throwing<S> = {
 
 export const Assets = AssetsGen as Throwing<typeof AssetsGen>;
 export const Automations = AutomationsGen as Throwing<typeof AutomationsGen>;
+export const Chats = ChatsGen as Throwing<typeof ChatsGen>;
+export const Communities = CommunitiesGen as Throwing<typeof CommunitiesGen>;
 export const Content = ContentGen as Throwing<typeof ContentGen>;
 export const Discussion = DiscussionGen as Throwing<typeof DiscussionGen>;
 export const Entitlements = EntitlementsGen as Throwing<typeof EntitlementsGen>;
 export const Integrations = IntegrationsGen as Throwing<typeof IntegrationsGen>;
 export const Organizations = OrganizationsGen as Throwing<typeof OrganizationsGen>;
+export const Posts = PostsGen as Throwing<typeof PostsGen>;
+export const Profile = ProfileGen as Throwing<typeof ProfileGen>;
 export const Progress = ProgressGen as Throwing<typeof ProgressGen>;
 export const Reporting = ReportingGen as Throwing<typeof ReportingGen>;
 

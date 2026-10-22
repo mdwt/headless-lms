@@ -23,7 +23,10 @@ export type AssetSource = z.infer<typeof AssetSource>;
 export const AssetStatus = assetStatusSchema;
 export type AssetStatus = z.infer<typeof AssetStatus>;
 
-export const Asset = assetSchema.extend({ kind: AssetKind, source: AssetSource });
+export const Asset = assetSchema
+  .omit({ key: true })
+  .extend({ kind: AssetKind, source: AssetSource })
+  .strip();
 export type Asset = z.infer<typeof Asset>;
 
 export const AssetsQuery = ListQuery.extend({

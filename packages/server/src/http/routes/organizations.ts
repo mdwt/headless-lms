@@ -8,8 +8,8 @@ import {
   CreateOrganization,
   ErrorBody,
   Invite,
-  Member,
   MemberIdParam,
+  MemberRoleChange,
   MembersPage,
   MembersQuery,
   GetInviteResult,
@@ -115,7 +115,7 @@ export async function organizationsRoutes(
       summary: "Change a member's role",
       params: MemberIdParam,
       body: UpdateMemberRole,
-      response: { 200: Member, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: MemberRoleChange, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -124,7 +124,12 @@ export async function organizationsRoutes(
         authOrgId: scope.authOrgId,
         headers: req.headers,
       };
-      const member = await organizations.updateMemberRole(ctx, req.params.id, req.body.role);
+      const member = await organizations.updateMemberRole(
+        ctx,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+        req.body.role,
+      );
       if (!member) {
         throw new NotFoundError('Member', req.params.id);
       }
@@ -141,7 +146,7 @@ export async function organizationsRoutes(
       tags,
       summary: 'Remove an organization member',
       params: MemberIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
+      response: { 204: z.void(), 403: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -150,7 +155,11 @@ export async function organizationsRoutes(
         authOrgId: scope.authOrgId,
         headers: req.headers,
       };
-      const removed = await organizations.removeMember(ctx, req.params.id);
+      const removed = await organizations.removeMember(
+        ctx,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+      );
       if (!removed) {
         throw new NotFoundError('Member', req.params.id);
       }
@@ -167,21 +176,24 @@ export async function organizationsRoutes(
       tags,
       summary: 'Invite a member or student into the active organization',
       body: CreateInvite,
-      response: { 201: Invite, 409: ErrorBody },
+      response: { 201: Invite, 403: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       // Domain ids, not the session's auth ids: invites FK to organizations.id
       // and users.id.
       const scope = await resolveScope(container, req);
-      const invite = await organizations.createInvite({
-        orgId: scope.orgId,
-        inviterUserId: scope.userId,
-        email: req.body.email,
-        role: req.body.role,
-        ...(req.body.firstName !== undefined && { firstName: req.body.firstName }),
-        ...(req.body.lastName !== undefined && { lastName: req.body.lastName }),
-        sendEmail: req.body.sendEmail,
-      });
+      const invite = await organizations.createInvite(
+        { id: scope.orgUserId, role: scope.role },
+        {
+          orgId: scope.orgId,
+          inviterUserId: scope.userId,
+          email: req.body.email,
+          role: req.body.role,
+          ...(req.body.firstName !== undefined && { firstName: req.body.firstName }),
+          ...(req.body.lastName !== undefined && { lastName: req.body.lastName }),
+          sendEmail: req.body.sendEmail,
+        },
+      );
 
       req.log.debug({ invite }, 'created invite');
       return invite;

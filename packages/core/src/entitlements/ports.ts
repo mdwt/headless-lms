@@ -9,7 +9,7 @@ import type {
   SpaceMemberStatus,
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
-import type { SpaceRowLock } from '../content/index.js';
+import type { Space, SpaceRowLock } from '../content/index.js';
 import type { Role } from '../organizations/index.js';
 import type { Actor } from '../shared/actor.js';
 
@@ -18,10 +18,12 @@ export interface GrantTarget {
   bundleId: string | null;
 }
 
+export type SpaceAccessRule = 'all_members' | 'by_request' | 'by_invite';
+
 export interface OpenableSpace {
   id: string;
   communityId: string;
-  accessRule: 'all_members' | 'by_request' | 'by_invite';
+  accessRule: SpaceAccessRule;
 }
 
 export interface CommunityAccessReader {
@@ -29,17 +31,35 @@ export interface CommunityAccessReader {
   canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
   canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean>;
   openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]>;
-  grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean>;
-  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]>;
+  openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]>;
+  communityMembersAmong(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<string[]>;
+  spaceOpenersAmong(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]>;
 }
 
-export interface RoleReader {
-  roleOf(orgId: string, orgUserId: string): Promise<Role | null>;
+export type EntitlementNotice =
+  | { kind: 'expired'; entitlementId: string }
+  | { kind: 'ending_soon'; entitlementId: string; communityId: string };
+
+export interface EndingGrant {
+  grant: Entitlement;
+  communityId: string;
 }
 
-export interface EntitlementNotice {
-  kind: 'expired' | 'ending_soon';
-  communityId?: string;
+export interface AccessFacts {
+  orgUserId: string;
+  role: Role;
+  member: boolean;
+  activeInSpace: boolean;
+}
+
+export interface GrantKey {
+  orgUserId: string;
+  contentId?: string | null;
+  bundleId?: string | null;
 }
 
 export interface InsertSpaceMemberInput {
@@ -54,6 +74,7 @@ export interface InsertSpaceMemberInput {
 export interface EntitlementsService extends CommunityAccessReader {
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
   grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
+  ensureGrant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
   /** Whether this org user currently holds active access to the course.
    *  The authority for course access — a reporting read must never be used to
@@ -110,9 +131,9 @@ export interface EntitlementsService extends CommunityAccessReader {
     spaceId: string,
   ): Promise<SpaceMember[]>;
   expireDue(orgId: string, now: Date): Promise<void>;
+  hasDueNotices(orgId: string, now: Date): Promise<boolean>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
-  openSpaceIdsFor(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
-  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]>;
+  communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
 }
@@ -121,15 +142,24 @@ export interface EntitlementsService extends CommunityAccessReader {
 export interface EntitlementsRepository {
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
   insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
+  insertIfAbsent(orgId: string, input: GrantEntitlementInput): Promise<Entitlement | null>;
+  lockGrant(orgId: string, key: GrantKey): Promise<Entitlement | null>;
+  setExpiresAt(orgId: string, id: string, expiresAt: Date | null): Promise<Entitlement | null>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
   /** Whether this org user currently holds active access to the course.
    *  The authority for course access — a reporting read must never be used to
    *  infer it. */
   hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
   hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean>;
-  grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
+  accessAmong(
+    orgId: string,
+    communityId: string,
+    spaceId: string | null,
+    orgUserIds: string[],
+  ): Promise<AccessFacts[]>;
   findSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
+  lockSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
   listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]>;
   insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember>;
   updateSpaceMemberStatus(
@@ -141,12 +171,11 @@ export interface EntitlementsRepository {
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
   activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
   listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]>;
-  listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<Entitlement[]>;
-  hasNotice(orgId: string, grantId: string, notice: EntitlementNotice): Promise<boolean>;
-  recordNotice(orgId: string, grantId: string, notice: EntitlementNotice, at: Date): Promise<void>;
-  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]>;
+  listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<EndingGrant[]>;
+  hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean>;
+  claimNotice(orgId: string, notice: EntitlementNotice, now: Date, until: Date): Promise<boolean>;
+  communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
-  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

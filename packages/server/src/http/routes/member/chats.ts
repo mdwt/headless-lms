@@ -301,7 +301,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'muteChat',
       tags,
-      summary: 'Mute a chat until a time',
+      summary: 'Mute a chat until a time, or until unmuted',
       params: ChatIdParam,
       body: MuteChat,
       response: { 204: z.void(), ...errors },

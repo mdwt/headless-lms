@@ -101,6 +101,24 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     return created;
   }
 
+  async insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null> {
+    const [inserted] = await this.db
+      .insert(automations)
+      .values({
+        orgId,
+        name: input.name,
+        kind: input.kind,
+        description: input.description,
+        triggers: input.triggers,
+        actions: input.actions,
+        filter: input.filter ?? null,
+        source: "system",
+      })
+      .onConflictDoNothing()
+      .returning({ id: automations.id });
+    return inserted ? this.findById(orgId, inserted.id) : null;
+  }
+
   async update(
     orgId: string,
     id: string,

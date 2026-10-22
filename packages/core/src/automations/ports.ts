@@ -71,6 +71,7 @@ export interface AutomationsService {
 // Outbound ports (persistence contracts the repositories fulfil).
 export interface AutomationsRepository {
   insert(orgId: string, input: NewAutomation): Promise<Automation>;
+  insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null>;
   update(orgId: string, id: string, patch: UpdateAutomationInput): Promise<Automation | null>;
   /** Returns the deleted row (the event snapshot), or null if it didn't exist. */
   delete(orgId: string, id: string): Promise<Automation | null>;
@@ -78,7 +79,6 @@ export interface AutomationsRepository {
   listByOrg(orgId: string, kind?: AutomationKind): Promise<Automation[]>;
   /** All rows whose triggers include `trigger`, enabled and disabled alike — the service filters to `enabled`. */
   listByTrigger(orgId: string, trigger: string): Promise<Automation[]>;
-  /** Enabled automations whose trigger starts with `schedule:`, one row per cron. */
   listSchedules(): Promise<ScheduledAutomation[]>;
 }
 
@@ -102,7 +102,6 @@ export interface AutomationRunsRepository {
     automationId: string,
     query: AutomationRunsQuery,
   ): Promise<Page<AutomationRun>>;
-  /** Org user ids emailed by completed runs of this automation for this chat since `since`. */
   recentRecipients(
     orgId: string,
     automationId: string,

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import {
   ActivityComments,
   Comment,
@@ -177,6 +178,27 @@ export async function memberCommentsRoutes(
         throw new UnauthorizedError();
       }
       return discussion.reportComment(orgId, req.params.commentId, orgUser, req.body.reason);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/member/comments/:commentId/reports',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'dismissMemberCommentReports',
+      tags: ['Discussion'],
+      summary: 'Dismiss every open flag on a comment in a space you moderate',
+      params: CommentIdParam,
+      response: { 204: z.void(), 401: ErrorBody, 403: ErrorBody, 404: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
+      if (!orgUser) {
+        throw new UnauthorizedError();
+      }
+      await discussion.resolveReports(req.orgId, req.params.commentId, orgUser);
+      return reply.code(204).send();
     },
   });
 }

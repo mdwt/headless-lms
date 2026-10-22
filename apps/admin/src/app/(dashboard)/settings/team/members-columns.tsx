@@ -10,18 +10,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { MemberStatusBadge, RoleBadge } from "@/components/status-badge";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { fullName, relativeTime } from "@/lib/format";
-import type { Member, Role } from "@/lib/api/types";
+import type { Member } from "@/lib/api/types";
 
 /** Roles a manager may assign to an existing member — never owner (that's fixed). */
 const ASSIGNABLE_ROLES = [
   { label: "Admin", value: "admin" },
   { label: "Instructor", value: "instructor" },
+  { label: "Moderator", value: "moderator" },
 ] as const;
+
+export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]["value"];
 
 /**
  * Inline role control. Owners are fixed (badge only, never editable); when the
@@ -35,14 +38,17 @@ function RoleCell({
 }: {
   member: Member;
   editable: boolean;
-  onChange: (id: string, role: Role) => void;
+  onChange: (id: string, role: AssignableRole) => void;
 }) {
   if (!editable || member.role === "owner") {
     return <RoleBadge role={member.role} />;
   }
 
   return (
-    <Select value={member.role} onValueChange={(role) => onChange(member.id, role as Role)}>
+    <Select
+      value={member.role}
+      onValueChange={(role) => onChange(member.id, role as AssignableRole)}
+    >
       <SelectTrigger
         size="sm"
         className="w-[9.5rem]"
@@ -66,13 +72,15 @@ export function memberColumns({
   currentUserEmail,
   onRemove,
   onChangeRole,
+  onRemoveModerator,
 }: {
   canManageRoles: boolean;
   /** Matched on rather than an id: `Member.id` is the org_users row, while the
    *  session carries the auth account id — the two never compare equal. */
   currentUserEmail: string;
   onRemove: (member: Member) => void;
-  onChangeRole: (id: string, role: Role) => void;
+  onChangeRole: (id: string, role: AssignableRole) => void;
+  onRemoveModerator: (member: Member) => void;
 }): ColumnDef<Member, unknown>[] {
   return [
     {
@@ -139,6 +147,19 @@ export function memberColumns({
         const disabledRemove = isOwner || isSelf;
         return (
           <RowActions label={`Actions for ${fullName(m)}`}>
+            {canManageRoles && m.role === "moderator" && m.status === "active" ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    onRemoveModerator(m);
+                  }}
+                >
+                  Remove moderator role
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuItem
               variant="danger"
               disabled={disabledRemove}

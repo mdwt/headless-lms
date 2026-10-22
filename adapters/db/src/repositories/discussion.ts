@@ -18,9 +18,9 @@ import type {
 import { commentFlags, commentReactions, comments, posts } from "../schema/index.js";
 import { activities } from "../schema/content.js";
 import { orgUsers } from "../schema/organizations.js";
-import { users } from "../schema/identity.js";
+import { userProfiles, users } from "../schema/identity.js";
 import { user } from "../schema/better-auth.js";
-import { orgUserProfileColumns } from "./org-user-profile.js";
+import { authorProfileColumns } from "./org-user-profile.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 
@@ -191,10 +191,11 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
       return {};
     }
     const rows = await this.db
-      .select({ ...orgUserProfileColumns, role: orgUsers.role })
+      .select(authorProfileColumns)
       .from(orgUsers)
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .leftJoin(user, eq(user.id, users.externalId))
+      .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
       .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
 
     const byId: Record<string, AuthorRecord> = {};
@@ -206,6 +207,10 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
         email: row.email,
         image: row.image ?? null,
         role: row.role as Role,
+        displayName: row.displayName ?? null,
+        headline: row.headline ?? null,
+        imageAssetOrgId: row.imageAssetOrgId ?? null,
+        imageAssetId: row.imageAssetId ?? null,
       };
     }
     return byId;

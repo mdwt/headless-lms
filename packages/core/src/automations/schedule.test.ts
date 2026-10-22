@@ -12,6 +12,14 @@ describe('cronMatches', () => {
     expect(cronMatches('0,30 7 * * *', at)).toBe(true);
     expect(cronMatches('not a cron', at)).toBe(false);
   });
+
+  it('matches either day field when both day of month and day of week are restricted', () => {
+    expect(cronMatches('0 7 1 * 3', at)).toBe(true);
+    expect(cronMatches('0 7 21 * 1', at)).toBe(true);
+    expect(cronMatches('0 7 1 * 1', at)).toBe(false);
+    expect(cronMatches('0 7 * * 1', at)).toBe(false);
+    expect(cronMatches('0 7 21 * *', at)).toBe(true);
+  });
 });
 
 describe('cronSupported', () => {

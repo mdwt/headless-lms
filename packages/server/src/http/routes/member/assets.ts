@@ -12,7 +12,7 @@ import {
 } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { UnauthorizedError } from '../../plugins/auth.js';
-import type { Container } from '@headless-lms/server';
+import type { Container } from '../../../app/container.js';
 
 const tags = ['Assets'];
 
@@ -68,7 +68,7 @@ export async function memberAssetsRoutes(
       tags,
       summary: 'Register an image you are about to upload and get a presigned upload URL',
       description:
-        'Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.',
+        'Member uploads are images only. The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.',
       body: RequestMemberUpload,
       response: { 201: UploadTicket, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
     },
@@ -88,7 +88,7 @@ export async function memberAssetsRoutes(
       tags,
       summary: 'Confirm an upload you started',
       description:
-        'Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.',
+        'Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.',
       params: AssetIdParam,
       response: { 200: Asset, 401: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },

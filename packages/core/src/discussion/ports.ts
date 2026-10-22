@@ -4,20 +4,24 @@
 import type {
   Activity,
   Chat,
+  ChatMute,
   ChatUser,
   JsonValue,
   Message,
   MessageFlag,
   MessageFlagResolution,
+  MessageView,
   Post,
+  PostFeedPage,
   PostFlag,
   PostFlagResolution,
+  PostView,
 } from '../types/index.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { Role } from '../organizations/index.js';
-import type { Comment, CommentAuthor, CommentReport } from './model.js';
+import type { Comment, CommentReport } from './model.js';
 import type {
   CommentsConfig,
   CommentListItem,
@@ -55,8 +59,21 @@ export type PostCommentInput = {
 
 /** A profile row as the repository loads it, keyed by `org_users.id`. `email`
  *  is stripped before comments are served and kept only for the staff list. */
-export interface AuthorRecord extends CommentAuthor {
+export interface AuthorRecord {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
+  image: string | null;
+  role: Role;
+  displayName: string | null;
+  headline: string | null;
+  imageAssetOrgId: string | null;
+  imageAssetId: string | null;
+}
+
+export interface AuthorProfileReader {
+  authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>>;
 }
 
 export interface DiscussionService {
@@ -77,7 +94,6 @@ export interface DiscussionService {
   /** The activity's comments as this reader may see them. */
   activityComments(orgId: string, activityId: string, actor: Actor): Promise<ActivityComments>;
 
-  /** A post's comments as this reader may see them. */
   postComments(orgId: string, postId: string, actor: Actor): Promise<CommentView[]>;
 
   /**
@@ -111,7 +127,6 @@ export interface DiscussionService {
   /** Plain read of one comment — no rules applied. */
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
 
-  /** The digest schedule. One `discussion.digest.due` per community. */
   sendDigest(orgId: string, now: Date): Promise<void>;
 }
 
@@ -123,7 +138,7 @@ export interface ActivityGetter {
   getActivity(orgId: string, activityId: string): Promise<Activity | null>;
 }
 
-export interface DiscussionRepository extends PostCommentFlagReader {
+export interface DiscussionRepository extends PostCommentFlagReader, AuthorProfileReader {
   insertComment(orgId: string, comment: Comment): Promise<Comment>;
   findComment(orgId: string, id: string): Promise<Comment | null>;
   updateComment(
@@ -133,7 +148,6 @@ export interface DiscussionRepository extends PostCommentFlagReader {
   ): Promise<Comment | null>;
   /** Every comment on the activity, oldest first, including removed ones. */
   listByActivity(orgId: string, activityId: string): Promise<Comment[]>;
-  /** Every comment on the post, oldest first, including removed ones. */
   listByPost(orgId: string, postId: string): Promise<Comment[]>;
 
   reactionsOf(
@@ -162,8 +176,6 @@ export interface DiscussionRepository extends PostCommentFlagReader {
     },
   ): Promise<void>;
 
-  authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>>;
-
   listComments(orgId: string, query: ListCommentsQuery): Promise<Page<CommentWithContext>>;
 }
 
@@ -175,7 +187,6 @@ export interface DiscussionWriteScope {
 }
 export type DiscussionUnitOfWork = UnitOfWork<DiscussionWriteScope>;
 
-/** The role of a post's author, read when a schedule publishes the post. */
 export interface AuthorRoleReader {
   roleOf(orgId: string, orgUserId: string): Promise<Role | null>;
   rolesOf(orgId: string, orgUserIds: string[]): Promise<Record<string, Role>>;
@@ -184,6 +195,7 @@ export interface AuthorRoleReader {
 export type PostMode = 'draft' | 'submit' | 'schedule';
 
 export interface CreatePostInput {
+  communityId: string;
   spaceId: string;
   title: string;
   body: string;
@@ -226,13 +238,31 @@ export interface FeedQuery {
   topicId?: string;
 }
 
+export interface PostFeedQuery {
+  cursor?: string;
+  limit: number;
+  topicId?: string;
+}
+
+export interface FeedPosition {
+  pinned: boolean;
+  publishedAt: Date;
+  id: string;
+}
+
+export interface PublishedPostsQuery {
+  after: FeedPosition | null;
+  limit: number;
+  topicId?: string;
+}
+
 export interface PostReactions {
   reactions: ReactionCounts;
   viewerReaction?: ReactionEmoji;
 }
 
 export interface SpaceModerationQueue {
-  pending: Post[];
+  pending: PostView[];
   flags: PostFlag[];
   commentFlags: CommentReport[];
 }
@@ -269,20 +299,33 @@ export interface PostService {
     orgId: string,
     postId: string,
     actor: Actor,
-    resolution: PostFlagResolution,
+    resolution: Extract<PostFlagResolution, 'dismissed'>,
   ): Promise<void>;
-  spaceFeed(orgId: string, actor: Actor, spaceId: string, query: FeedQuery): Promise<Page<Post>>;
+  spaceFeed(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+    query: PostFeedQuery,
+  ): Promise<PostFeedPage>;
   memberFeed(
     orgId: string,
     actor: Actor,
     communityId: string,
-    query: Pick<FeedQuery, 'page' | 'pageSize'>,
-  ): Promise<Page<Post>>;
-  getPost(orgId: string, actor: Actor, postId: string): Promise<Post>;
+    query: Pick<PostFeedQuery, 'cursor' | 'limit'>,
+  ): Promise<PostFeedPage>;
+  listOwn(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
+  listBookmarked(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
+  getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
   visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
   followerIds(orgId: string, postId: string): Promise<string[]>;
-  moderationQueue(orgId: string, actor: Actor, spaceId: string): Promise<SpaceModerationQueue>;
+  moderationQueue(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceModerationQueue>;
   publishDue(orgId: string, now: Date): Promise<void>;
   hasDue(orgId: string, now: Date): Promise<boolean>;
 }
@@ -291,9 +334,12 @@ export interface PostRepository {
   insert(orgId: string, post: Post): Promise<Post>;
   update(orgId: string, id: string, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
-  listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;
+  listPublished(orgId: string, spaceIds: string[], query: PublishedPostsQuery): Promise<Post[]>;
+  listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
+  listBookmarked(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
   listPending(orgId: string, spaceId: string): Promise<Post[]>;
   listDue(orgId: string, now: Date): Promise<Post[]>;
+  hasDue(orgId: string, now: Date): Promise<boolean>;
   reactionsOf(orgId: string, postId: string, viewerId: string): Promise<PostReactions>;
   setReaction(
     orgId: string,
@@ -307,6 +353,7 @@ export interface PostRepository {
   bookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   insertFlag(orgId: string, flag: PostFlag): Promise<PostFlag | null>;
+  findFlag(orgId: string, postId: string, orgUserId: string): Promise<PostFlag | null>;
   listOpenFlags(orgId: string, spaceId: string): Promise<PostFlag[]>;
   resolveFlags(
     orgId: string,
@@ -343,13 +390,24 @@ export interface ChatListItem {
   chat: Chat;
   participantIds: string[];
   lastReadMessageId: string | null;
-  mutedUntil: Date | null;
+  mute: ChatMute | null;
   unread: number;
 }
 
-export interface MessageQueue {
+export interface ChatSummary {
+  chat: Chat;
+  participantIds: string[];
+}
+
+export interface MessageQueueEntry {
+  message: MessageView;
   flags: MessageFlag[];
-  messages: Message[];
+  chat: Chat;
+  participantIds: string[];
+}
+
+export interface MessageQueue {
+  entries: MessageQueueEntry[];
 }
 
 export interface ChatService {
@@ -368,7 +426,7 @@ export interface ChatService {
     emoji: ReactionEmoji | null,
   ): Promise<void>;
   markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void>;
-  mute(orgId: string, actor: Actor, chatId: string, until: Date): Promise<void>;
+  mute(orgId: string, actor: Actor, chatId: string, until?: Date): Promise<void>;
   unmute(orgId: string, actor: Actor, chatId: string): Promise<void>;
   block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
   unblock(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
@@ -377,7 +435,7 @@ export interface ChatService {
     orgId: string,
     actor: Actor,
     messageId: string,
-    resolution: MessageFlagResolution,
+    resolution: Extract<MessageFlagResolution, 'dismissed'>,
   ): Promise<void>;
   lock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
@@ -398,7 +456,7 @@ export interface ChatService {
     actor: Actor,
     chatId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
-  ): Promise<Page<Message>>;
+  ): Promise<Page<MessageView>>;
   messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue>;
 }
 
@@ -427,12 +485,7 @@ export interface ChatRepository {
   join(orgId: string, user: ChatUser): Promise<void>;
   markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
   setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
-  setMuted(
-    orgId: string,
-    chatId: string,
-    orgUserId: string,
-    mutedUntil: Date | null,
-  ): Promise<void>;
+  setMuted(orgId: string, chatId: string, orgUserId: string, mute: ChatMute | null): Promise<void>;
   insertMessage(orgId: string, message: Message): Promise<Message>;
   updateMessage(
     orgId: string,
@@ -473,9 +526,12 @@ export interface ChatRepository {
     blockedOrgUserId: string,
   ): Promise<void>;
   isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
+  anyBlockedAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<boolean>;
   insertFlag(orgId: string, flag: MessageFlag): Promise<MessageFlag | null>;
+  findFlag(orgId: string, messageId: string, orgUserId: string): Promise<MessageFlag | null>;
   listOpenFlags(orgId: string, communityId: string): Promise<MessageFlag[]>;
   messagesByIds(orgId: string, ids: string[]): Promise<Message[]>;
+  chatSummaries(orgId: string, chatIds: string[]): Promise<ChatSummary[]>;
   resolveFlags(
     orgId: string,
     messageId: string,

@@ -18,7 +18,7 @@ import { invites, organizations, orgUsers } from "../schema/organizations.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { ConflictError } from "@headless-lms/core/shared/errors";
-import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
+import { isUniqueViolation, pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
 const INVITE_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InviteStatus = (typeof INVITE_STATUSES)[number];
@@ -300,12 +300,23 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   }
 
   async deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null> {
-    const [row] = await this.db
-      .delete(orgUsers)
-      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
-      .returning();
-
-    return row ?? null;
+    try {
+      const [row] = await this.db
+        .delete(orgUsers)
+        .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
+        .returning();
+      return row ?? null;
+    } catch (err) {
+      if (pgErrorFields(err)?.code === "23503") {
+        throw Object.assign(
+          new ConflictError(
+            "This person has written posts, comments or messages and cannot be deleted",
+          ),
+          { cause: err },
+        );
+      }
+      throw err;
+    }
   }
 }
 translateDbErrors(DrizzleOrganizationsRepository);

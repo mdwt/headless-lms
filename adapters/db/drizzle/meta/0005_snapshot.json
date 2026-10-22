@@ -4064,7 +4064,7 @@
       "checkConstraints": {
         "comment_flags_resolved_check": {
           "name": "comment_flags_resolved_check",
-          "value": "(\"comment_flags\".\"resolved_at\" is null) = (\"comment_flags\".\"resolution\" is null) and (\"comment_flags\".\"resolved_at\" is null) = (\"comment_flags\".\"resolved_by\" is null)"
+          "value": "(\"comment_flags\".\"resolved_at\" is null) = (\"comment_flags\".\"resolution\" is null) and (\"comment_flags\".\"resolved_by\" is null or \"comment_flags\".\"resolved_at\" is not null)"
         }
       },
       "isRLSEnabled": false

@@ -8,3 +8,10 @@ export type {
   CommentReport,
   CommentSettings,
 } from '../types/index.js';
+
+export class InvalidCursorError extends Error {
+  constructor(readonly cursor: string) {
+    super('The feed cursor is not one this feed returned');
+    this.name = 'InvalidCursorError';
+  }
+}

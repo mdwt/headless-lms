@@ -127,7 +127,7 @@ export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponse
 
 export type UpdateMemberRoleData = {
   body: {
-    role: "owner" | "admin" | "instructor" | "moderator";
+    role: "admin" | "instructor" | "moderator" | "student";
   };
   path: {
     id: string;
@@ -137,6 +137,14 @@ export type UpdateMemberRoleData = {
 };
 
 export type UpdateMemberRoleErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -167,7 +175,7 @@ export type UpdateMemberRoleResponses = {
     lastName: string | null;
     email: string;
     image: string | null;
-    role: "owner" | "admin" | "instructor" | "moderator";
+    role: "owner" | "admin" | "instructor" | "moderator" | "student";
     status: "active" | "invited";
     joinedAt: string | null;
     invitedAt: string | null;
@@ -186,6 +194,14 @@ export type RemoveMemberData = {
 };
 
 export type RemoveMemberErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -227,6 +243,14 @@ export type CreateInviteData = {
 };
 
 export type CreateInviteErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -1344,31 +1368,56 @@ export type GetCommunityMessageQueueResponses = {
    * Default Response
    */
   200: {
-    flags: Array<{
-      orgId: string;
-      id: string;
-      communityId: string;
-      messageId: string;
-      orgUserId: string;
-      reason: string;
-      resolvedAt: string | null;
-      resolution: "dismissed" | "deleted" | "locked";
-      resolvedBy: string | null;
-      createdAt: string;
-      updatedAt: string;
-    }>;
-    messages: Array<{
-      orgId: string;
-      id: string;
-      communityId: string;
-      chatId: string;
-      orgUserId: string;
-      body: string;
-      replyToId: string | null;
-      editedAt: string | null;
-      deletedAt: string | null;
-      createdAt: string;
-      updatedAt: string;
+    entries: Array<{
+      message: {
+        orgId: string;
+        id: string;
+        communityId: string;
+        chatId: string;
+        orgUserId: string;
+        body: string;
+        replyToId: string | null;
+        editedAt: string | null;
+        deletedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+        sender: {
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          displayName: string | null;
+          headline: string | null;
+          image: string | null;
+          imageAssetId: string | null;
+          role: "owner" | "admin" | "instructor" | "moderator" | "student";
+        };
+      };
+      flags: Array<{
+        orgId: string;
+        id: string;
+        communityId: string;
+        messageId: string;
+        orgUserId: string;
+        reason: string;
+        resolvedAt: string | null;
+        resolution: "dismissed" | "deleted" | "locked";
+        resolvedBy: string | null;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+      chat: {
+        orgId: string;
+        id: string;
+        communityId: string;
+        kind: "direct" | "group";
+        status: "pending" | "open" | "closed";
+        createdBy: string;
+        lockedAt: string | null;
+        lockedBy: string | null;
+        createdAt: string;
+        updatedAt: string;
+      };
+      participantIds: Array<string>;
     }>;
   };
 };
@@ -3964,15 +4013,21 @@ export type GetMemberFeedData = {
     communityId: string;
   };
   query?: {
-    page?: number;
-    pageSize?: number;
-    search?: string;
-    sort?: string;
+    cursor?: string;
+    limit?: number;
   };
   url: "/api/member/communities/{communityId}/feed";
 };
 
 export type GetMemberFeedErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -4034,14 +4089,193 @@ export type GetMemberFeedResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
     }>;
-    total: number;
-    page: number;
-    pageSize: number;
+    nextCursor: string | null;
   };
 };
 
 export type GetMemberFeedResponse = GetMemberFeedResponses[keyof GetMemberFeedResponses];
+
+export type ListOwnPostsData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/own-posts";
+};
+
+export type ListOwnPostsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListOwnPostsError = ListOwnPostsErrors[keyof ListOwnPostsErrors];
+
+export type ListOwnPostsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    topicId: string | null;
+    title: string;
+    body: string;
+    extra: JsonValue;
+    coverAssetId: string | null;
+    status: "draft" | "scheduled" | "pending" | "published" | "removed";
+    scheduledAt: string | null;
+    publishedAt: string | null;
+    removedBy: string | null;
+    pinned: boolean;
+    commentsClosed: boolean | null;
+    reactionsEnabled: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+  }>;
+};
+
+export type ListOwnPostsResponse = ListOwnPostsResponses[keyof ListOwnPostsResponses];
+
+export type ListBookmarkedPostsData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/bookmarks";
+};
+
+export type ListBookmarkedPostsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListBookmarkedPostsError = ListBookmarkedPostsErrors[keyof ListBookmarkedPostsErrors];
+
+export type ListBookmarkedPostsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    topicId: string | null;
+    title: string;
+    body: string;
+    extra: JsonValue;
+    coverAssetId: string | null;
+    status: "draft" | "scheduled" | "pending" | "published" | "removed";
+    scheduledAt: string | null;
+    publishedAt: string | null;
+    removedBy: string | null;
+    pinned: boolean;
+    commentsClosed: boolean | null;
+    reactionsEnabled: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+  }>;
+};
+
+export type ListBookmarkedPostsResponse =
+  ListBookmarkedPostsResponses[keyof ListBookmarkedPostsResponses];
 
 export type GetSpaceFeedData = {
   body?: never;
@@ -4050,16 +4284,22 @@ export type GetSpaceFeedData = {
     spaceId: string;
   };
   query?: {
-    page?: number;
-    pageSize?: number;
-    search?: string;
-    sort?: string;
+    cursor?: string;
+    limit?: number;
     topicId?: string;
   };
   url: "/api/member/communities/{communityId}/spaces/{spaceId}/feed";
 };
 
 export type GetSpaceFeedErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -4121,10 +4361,18 @@ export type GetSpaceFeedResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
     }>;
-    total: number;
-    page: number;
-    pageSize: number;
+    nextCursor: string | null;
   };
 };
 
@@ -4202,6 +4450,16 @@ export type GetSpaceQueueResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
     }>;
     flags: Array<{
       orgId: string;
@@ -4386,6 +4644,16 @@ export type GetPostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5573,7 +5841,7 @@ export type FlagPostResponse = FlagPostResponses[keyof FlagPostResponses];
 
 export type ResolvePostFlagsData = {
   body: {
-    resolution: "dismissed" | "removed";
+    resolution: "dismissed";
   };
   path: {
     postId: string;
@@ -5686,7 +5954,10 @@ export type ListPostCommentsResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -5695,7 +5966,10 @@ export type ListPostCommentsResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -5772,7 +6046,10 @@ export type CreatePostCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -5781,7 +6058,10 @@ export type CreatePostCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -5861,7 +6141,9 @@ export type ListMemberChatsResponses = {
     };
     participantIds: Array<string>;
     lastReadMessageId: string | null;
-    mutedUntil: string | null;
+    mute: {
+      until: string | null;
+    } | null;
     unread: number;
   }>;
 };
@@ -6273,6 +6555,16 @@ export type ListChatMessagesResponses = {
       deletedAt: string | null;
       createdAt: string;
       updatedAt: string;
+      sender: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
     }>;
     total: number;
     page: number;
@@ -6616,7 +6908,7 @@ export type FlagMessageResponse = FlagMessageResponses[keyof FlagMessageResponse
 
 export type ResolveMessageFlagsData = {
   body: {
-    resolution: "dismissed" | "deleted" | "locked";
+    resolution: "dismissed";
   };
   path: {
     messageId: string;
@@ -6726,7 +7018,7 @@ export type MarkChatReadResponses = {
 
 export type MuteChatData = {
   body: {
-    until: unknown;
+    until?: string;
   };
   path: {
     chatId: string;
@@ -7368,7 +7660,10 @@ export type ListActivityCommentsResponses = {
         id: string;
         firstName: string | null;
         lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
         image: string | null;
+        imageAssetId: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       body: string | null;
@@ -7377,7 +7672,10 @@ export type ListActivityCommentsResponses = {
         id: string;
         firstName: string | null;
         lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
         image: string | null;
+        imageAssetId: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       } | null;
       reactions: {
@@ -7440,7 +7738,10 @@ export type PostCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -7449,7 +7750,10 @@ export type PostCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -7561,7 +7865,10 @@ export type EditCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -7570,7 +7877,10 @@ export type EditCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -7676,6 +7986,52 @@ export type SetCommentReactionResponses = {
 
 export type SetCommentReactionResponse =
   SetCommentReactionResponses[keyof SetCommentReactionResponses];
+
+export type DismissMemberCommentReportsData = {
+  body?: never;
+  path: {
+    commentId: string;
+  };
+  query?: never;
+  url: "/api/member/comments/{commentId}/reports";
+};
+
+export type DismissMemberCommentReportsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DismissMemberCommentReportsError =
+  DismissMemberCommentReportsErrors[keyof DismissMemberCommentReportsErrors];
+
+export type DismissMemberCommentReportsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
 
 export type ReportCommentData = {
   body: {
@@ -7798,7 +8154,6 @@ export type GetAssetDownloadUrlResponses = {
     asset: {
       orgId: string;
       id: string;
-      key: string;
       /**
        * The media class, derived by the server from the content type.
        */
@@ -7871,7 +8226,6 @@ export type RequestMemberUploadResponses = {
     asset: {
       orgId: string;
       id: string;
-      key: string;
       /**
        * The media class, derived by the server from the content type.
        */
@@ -7946,7 +8300,6 @@ export type FinalizeMemberUploadResponses = {
   200: {
     orgId: string;
     id: string;
-    key: string;
     /**
      * The media class, derived by the server from the content type.
      */
@@ -8156,7 +8509,10 @@ export type ListCommentsResponses = {
         id: string;
         firstName: string | null;
         lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
         image: string | null;
+        imageAssetId: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       authorEmail: string;
@@ -8166,7 +8522,10 @@ export type ListCommentsResponses = {
           id: string;
           firstName: string | null;
           lastName: string | null;
+          displayName: string | null;
+          headline: string | null;
           image: string | null;
+          imageAssetId: string | null;
           role: "owner" | "admin" | "instructor" | "moderator" | "student";
         };
         reason: string;
@@ -8375,7 +8734,10 @@ export type ReplyToCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -8384,7 +8746,10 @@ export type ReplyToCommentResponses = {
       id: string;
       firstName: string | null;
       lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
       image: string | null;
+      imageAssetId: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -8633,6 +8998,19 @@ export type CreateActivityData = {
   url: "/api/courses/{courseId}/modules/{moduleId}/activities";
 };
 
+export type CreateActivityErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateActivityError = CreateActivityErrors[keyof CreateActivityErrors];
+
 export type CreateActivityResponses = {
   /**
    * Default Response
@@ -8691,6 +9069,19 @@ export type UpdateActivityData = {
   query?: never;
   url: "/api/courses/{courseId}/modules/{moduleId}/activities/{activityId}";
 };
+
+export type UpdateActivityErrors = {
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UpdateActivityError = UpdateActivityErrors[keyof UpdateActivityErrors];
 
 export type UpdateActivityResponses = {
   /**
@@ -8759,7 +9150,23 @@ export type DeleteStudentErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -8928,6 +9335,14 @@ export type ResendStudentInviteData = {
 };
 
 export type ResendStudentInviteErrors = {
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -9928,7 +10343,6 @@ export type RequestUploadResponses = {
     asset: {
       orgId: string;
       id: string;
-      key: string;
       /**
        * The media class, derived by the server from the content type.
        */
@@ -9985,6 +10399,14 @@ export type ConfirmAssetErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -10001,7 +10423,6 @@ export type ConfirmAssetResponses = {
   200: {
     orgId: string;
     id: string;
-    key: string;
     /**
      * The media class, derived by the server from the content type.
      */
@@ -10071,7 +10492,6 @@ export type ListAssetsResponses = {
     rows: Array<{
       orgId: string;
       id: string;
-      key: string;
       /**
        * The media class, derived by the server from the content type.
        */
@@ -10194,7 +10614,6 @@ export type GetAssetResponses = {
   200: {
     orgId: string;
     id: string;
-    key: string;
     /**
      * The media class, derived by the server from the content type.
      */
@@ -10246,6 +10665,14 @@ export type RequestAssetDownloadErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -10265,7 +10692,6 @@ export type RequestAssetDownloadResponses = {
     asset: {
       orgId: string;
       id: string;
-      key: string;
       /**
        * The media class, derived by the server from the content type.
        */

@@ -1,6 +1,6 @@
 ---
-description: "GET /api/member/communities/{communityId}/message-queue. Open message flags in a community. Headless LMS Chats API reference."
-title: Open message flags in a community
+description: "GET /api/member/communities/{communityId}/own-posts. Your own posts in a community, newest first. Headless LMS Posts API reference."
+title: Your own posts in a community, newest first
 full: true
 _openapi:
   preload:
@@ -20,7 +20,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/communities/{communityId}/message-queue","method":"get"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/communities/{communityId}/own-posts","method":"get"}]} showDescription />
     </>
   );
 }

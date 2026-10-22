@@ -414,10 +414,10 @@
                   "role": {
                     "type": "string",
                     "enum": [
-                      "owner",
                       "admin",
                       "instructor",
-                      "moderator"
+                      "moderator",
+                      "student"
                     ]
                   }
                 },
@@ -470,7 +470,8 @@
                         "owner",
                         "admin",
                         "instructor",
-                        "moderator"
+                        "moderator",
+                        "student"
                       ]
                     },
                     "status": {
@@ -499,6 +500,31 @@
                     "status",
                     "joinedAt",
                     "invitedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -581,6 +607,31 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
               }
             }
           },
@@ -729,6 +780,31 @@
                     "status",
                     "expiresAt",
                     "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -3965,150 +4041,290 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "flags": {
+                    "entries": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "orgId": {
-                            "type": "string",
-                            "minLength": 1
+                          "message": {
+                            "type": "object",
+                            "properties": {
+                              "orgId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "communityId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "chatId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "orgUserId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "body": {
+                                "type": "string"
+                              },
+                              "replyToId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "editedAt": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "deletedAt": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "sender": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "firstName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "lastName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "displayName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "headline": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "imageAssetId": {
+                                    "nullable": true,
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "role": {
+                                    "type": "string",
+                                    "enum": [
+                                      "owner",
+                                      "admin",
+                                      "instructor",
+                                      "moderator",
+                                      "student"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "firstName",
+                                  "lastName",
+                                  "displayName",
+                                  "headline",
+                                  "image",
+                                  "imageAssetId",
+                                  "role"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "orgId",
+                              "id",
+                              "communityId",
+                              "chatId",
+                              "orgUserId",
+                              "body",
+                              "replyToId",
+                              "editedAt",
+                              "deletedAt",
+                              "createdAt",
+                              "updatedAt",
+                              "sender"
+                            ],
+                            "additionalProperties": false
                           },
-                          "id": {
-                            "type": "string",
-                            "minLength": 1
+                          "flags": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "communityId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "messageId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "resolvedAt": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "resolution": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "enum": [
+                                    "dismissed",
+                                    "deleted",
+                                    "locked"
+                                  ]
+                                },
+                                "resolvedBy": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "orgId",
+                                "id",
+                                "communityId",
+                                "messageId",
+                                "orgUserId",
+                                "reason",
+                                "resolvedAt",
+                                "resolution",
+                                "resolvedBy",
+                                "createdAt",
+                                "updatedAt"
+                              ],
+                              "additionalProperties": false
+                            }
                           },
-                          "communityId": {
-                            "type": "string",
-                            "minLength": 1
+                          "chat": {
+                            "type": "object",
+                            "properties": {
+                              "orgId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "communityId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "direct",
+                                  "group"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "open",
+                                  "closed"
+                                ]
+                              },
+                              "createdBy": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "lockedAt": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "lockedBy": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "orgId",
+                              "id",
+                              "communityId",
+                              "kind",
+                              "status",
+                              "createdBy",
+                              "lockedAt",
+                              "lockedBy",
+                              "createdAt",
+                              "updatedAt"
+                            ],
+                            "additionalProperties": false
                           },
-                          "messageId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "orgUserId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "reason": {
-                            "type": "string"
-                          },
-                          "resolvedAt": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "resolution": {
-                            "nullable": true,
-                            "type": "string",
-                            "enum": [
-                              "dismissed",
-                              "deleted",
-                              "locked"
-                            ]
-                          },
-                          "resolvedBy": {
-                            "nullable": true,
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
+                          "participantIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
                           }
                         },
                         "required": [
-                          "orgId",
-                          "id",
-                          "communityId",
-                          "messageId",
-                          "orgUserId",
-                          "reason",
-                          "resolvedAt",
-                          "resolution",
-                          "resolvedBy",
-                          "createdAt",
-                          "updatedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "messages": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "orgId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "id": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "communityId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "chatId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "orgUserId": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "body": {
-                            "type": "string"
-                          },
-                          "replyToId": {
-                            "nullable": true,
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "editedAt": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "deletedAt": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "updatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "required": [
-                          "orgId",
-                          "id",
-                          "communityId",
-                          "chatId",
-                          "orgUserId",
-                          "body",
-                          "replyToId",
-                          "editedAt",
-                          "deletedAt",
-                          "createdAt",
-                          "updatedAt"
+                          "message",
+                          "flags",
+                          "chat",
+                          "participantIds"
                         ],
                         "additionalProperties": false
                       }
                     }
                   },
                   "required": [
-                    "flags",
-                    "messages"
+                    "entries"
                   ],
                   "additionalProperties": false
                 }
@@ -12249,13 +12465,10 @@
         "parameters": [
           {
             "schema": {
-              "default": 1,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
+              "type": "string"
             },
             "in": "query",
-            "name": "page",
+            "name": "cursor",
             "required": false
           },
           {
@@ -12266,23 +12479,7 @@
               "maximum": 100
             },
             "in": "query",
-            "name": "pageSize",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "sort",
+            "name": "limit",
             "required": false
           },
           {
@@ -12389,6 +12586,61 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "role"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -12410,34 +12662,641 @@
                           "commentsClosed",
                           "reactionsEnabled",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "author"
                         ],
                         "additionalProperties": false
                       }
                     },
-                    "total": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "page": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "pageSize": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                    "nextCursor": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
                     "rows",
-                    "total",
-                    "page",
-                    "pageSize"
+                    "nextCursor"
                   ],
                   "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/communities/{communityId}/own-posts": {
+      "get": {
+        "operationId": "listOwnPosts",
+        "summary": "Your own posts in a community, newest first",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "orgId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "communityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "spaceId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "orgUserId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "topicId": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "body": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      },
+                      "coverAssetId": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "draft",
+                          "scheduled",
+                          "pending",
+                          "published",
+                          "removed"
+                        ]
+                      },
+                      "scheduledAt": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "publishedAt": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "removedBy": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "pinned": {
+                        "type": "boolean"
+                      },
+                      "commentsClosed": {
+                        "nullable": true,
+                        "type": "boolean"
+                      },
+                      "reactionsEnabled": {
+                        "nullable": true,
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "author": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "firstName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "image": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "instructor",
+                              "moderator",
+                              "student"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "displayName",
+                          "headline",
+                          "image",
+                          "imageAssetId",
+                          "role"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "orgId",
+                      "id",
+                      "communityId",
+                      "spaceId",
+                      "orgUserId",
+                      "topicId",
+                      "title",
+                      "body",
+                      "extra",
+                      "coverAssetId",
+                      "status",
+                      "scheduledAt",
+                      "publishedAt",
+                      "removedBy",
+                      "pinned",
+                      "commentsClosed",
+                      "reactionsEnabled",
+                      "createdAt",
+                      "updatedAt",
+                      "author"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/communities/{communityId}/bookmarks": {
+      "get": {
+        "operationId": "listBookmarkedPosts",
+        "summary": "The posts you bookmarked in a community",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "orgId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "communityId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "spaceId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "orgUserId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "topicId": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "body": {
+                        "type": "string"
+                      },
+                      "extra": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      },
+                      "coverAssetId": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "draft",
+                          "scheduled",
+                          "pending",
+                          "published",
+                          "removed"
+                        ]
+                      },
+                      "scheduledAt": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "publishedAt": {
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "removedBy": {
+                        "nullable": true,
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "pinned": {
+                        "type": "boolean"
+                      },
+                      "commentsClosed": {
+                        "nullable": true,
+                        "type": "boolean"
+                      },
+                      "reactionsEnabled": {
+                        "nullable": true,
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "author": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "firstName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "image": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "instructor",
+                              "moderator",
+                              "student"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "displayName",
+                          "headline",
+                          "image",
+                          "imageAssetId",
+                          "role"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "orgId",
+                      "id",
+                      "communityId",
+                      "spaceId",
+                      "orgUserId",
+                      "topicId",
+                      "title",
+                      "body",
+                      "extra",
+                      "coverAssetId",
+                      "status",
+                      "scheduledAt",
+                      "publishedAt",
+                      "removedBy",
+                      "pinned",
+                      "commentsClosed",
+                      "reactionsEnabled",
+                      "createdAt",
+                      "updatedAt",
+                      "author"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               }
             }
@@ -12555,13 +13414,10 @@
         "parameters": [
           {
             "schema": {
-              "default": 1,
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
+              "type": "string"
             },
             "in": "query",
-            "name": "page",
+            "name": "cursor",
             "required": false
           },
           {
@@ -12572,23 +13428,7 @@
               "maximum": 100
             },
             "in": "query",
-            "name": "pageSize",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "sort",
+            "name": "limit",
             "required": false
           },
           {
@@ -12711,6 +13551,61 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "role"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -12732,32 +13627,45 @@
                           "commentsClosed",
                           "reactionsEnabled",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "author"
                         ],
                         "additionalProperties": false
                       }
                     },
-                    "total": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "page": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    },
-                    "pageSize": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                    "nextCursor": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
                     "rows",
-                    "total",
-                    "page",
-                    "pageSize"
+                    "nextCursor"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -12987,6 +13895,61 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "role"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -13008,7 +13971,8 @@
                           "commentsClosed",
                           "reactionsEnabled",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "author"
                         ],
                         "additionalProperties": false
                       }
@@ -13667,6 +14631,61 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -13688,7 +14707,8 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -17394,8 +18414,7 @@
                   "resolution": {
                     "type": "string",
                     "enum": [
-                      "dismissed",
-                      "removed"
+                      "dismissed"
                     ]
                   }
                 },
@@ -17595,9 +18614,22 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "image": {
                             "nullable": true,
                             "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
                           },
                           "role": {
                             "type": "string",
@@ -17614,7 +18646,10 @@
                           "id",
                           "firstName",
                           "lastName",
+                          "displayName",
+                          "headline",
                           "image",
+                          "imageAssetId",
                           "role"
                         ],
                         "additionalProperties": false
@@ -17647,9 +18682,22 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "image": {
                             "nullable": true,
                             "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
                           },
                           "role": {
                             "type": "string",
@@ -17666,7 +18714,10 @@
                           "id",
                           "firstName",
                           "lastName",
+                          "displayName",
+                          "headline",
                           "image",
+                          "imageAssetId",
                           "role"
                         ],
                         "additionalProperties": false
@@ -17901,9 +18952,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -17920,7 +18984,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -17953,9 +19020,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -17972,7 +19052,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -18223,10 +19306,20 @@
                         "nullable": true,
                         "type": "string"
                       },
-                      "mutedUntil": {
+                      "mute": {
                         "nullable": true,
-                        "type": "string",
-                        "format": "date-time"
+                        "type": "object",
+                        "properties": {
+                          "until": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "until"
+                        ],
+                        "additionalProperties": false
                       },
                       "unread": {
                         "type": "integer",
@@ -18238,7 +19331,7 @@
                       "chat",
                       "participantIds",
                       "lastReadMessageId",
-                      "mutedUntil",
+                      "mute",
                       "unread"
                     ],
                     "additionalProperties": false
@@ -19499,6 +20592,61 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "sender": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "role"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -19512,7 +20660,8 @@
                           "editedAt",
                           "deletedAt",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "sender"
                         ],
                         "additionalProperties": false
                       }
@@ -20657,9 +21806,7 @@
                   "resolution": {
                     "type": "string",
                     "enum": [
-                      "dismissed",
-                      "deleted",
-                      "locked"
+                      "dismissed"
                     ]
                   }
                 },
@@ -20944,7 +22091,7 @@
     "/api/member/chats/{chatId}/mute": {
       "post": {
         "operationId": "muteChat",
-        "summary": "Mute a chat until a time",
+        "summary": "Mute a chat until a time, or until unmuted",
         "tags": [
           "Chats"
         ],
@@ -20955,11 +22102,12 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "until": {}
+                  "until": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
                 },
-                "required": [
-                  "until"
-                ],
                 "additionalProperties": false
               }
             }
@@ -22638,9 +23786,22 @@
                                 "nullable": true,
                                 "type": "string"
                               },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "image": {
                                 "nullable": true,
                                 "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
                               },
                               "role": {
                                 "type": "string",
@@ -22657,7 +23818,10 @@
                               "id",
                               "firstName",
                               "lastName",
+                              "displayName",
+                              "headline",
                               "image",
+                              "imageAssetId",
                               "role"
                             ],
                             "additionalProperties": false
@@ -22690,9 +23854,22 @@
                                 "nullable": true,
                                 "type": "string"
                               },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "image": {
                                 "nullable": true,
                                 "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
                               },
                               "role": {
                                 "type": "string",
@@ -22709,7 +23886,10 @@
                               "id",
                               "firstName",
                               "lastName",
+                              "displayName",
+                              "headline",
                               "image",
+                              "imageAssetId",
                               "role"
                             ],
                             "additionalProperties": false
@@ -22876,9 +24056,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -22895,7 +24088,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -22928,9 +24124,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -22947,7 +24156,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -23128,9 +24340,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -23147,7 +24372,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -23180,9 +24408,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -23199,7 +24440,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -23794,6 +25038,108 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "dismissMemberCommentReports",
+        "summary": "Dismiss every open flag on a comment in a space you moderate",
+        "tags": [
+          "Discussion"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "commentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/member/assets/{id}/url": {
@@ -23949,10 +25295,6 @@
                           "type": "string",
                           "minLength": 1
                         },
-                        "key": {
-                          "type": "string",
-                          "minLength": 1
-                        },
                         "kind": {
                           "type": "string",
                           "enum": [
@@ -24007,7 +25349,6 @@
                       "required": [
                         "orgId",
                         "id",
-                        "key",
                         "kind",
                         "source",
                         "filename",
@@ -24115,7 +25456,7 @@
         "tags": [
           "Assets"
         ],
-        "description": "Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.",
+        "description": "Member uploads are images only. The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.",
         "requestBody": {
           "required": true,
           "content": {
@@ -24157,10 +25498,6 @@
                           "minLength": 1
                         },
                         "id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "key": {
                           "type": "string",
                           "minLength": 1
                         },
@@ -24218,7 +25555,6 @@
                       "required": [
                         "orgId",
                         "id",
-                        "key",
                         "kind",
                         "source",
                         "filename",
@@ -24351,7 +25687,7 @@
         "tags": [
           "Assets"
         ],
-        "description": "Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.",
+        "description": "Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.",
         "parameters": [
           {
             "schema": {
@@ -24375,10 +25711,6 @@
                       "minLength": 1
                     },
                     "id": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "key": {
                       "type": "string",
                       "minLength": 1
                     },
@@ -24436,7 +25768,6 @@
                   "required": [
                     "orgId",
                     "id",
-                    "key",
                     "kind",
                     "source",
                     "filename",
@@ -25113,9 +26444,22 @@
                                 "nullable": true,
                                 "type": "string"
                               },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "image": {
                                 "nullable": true,
                                 "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
                               },
                               "role": {
                                 "type": "string",
@@ -25132,7 +26476,10 @@
                               "id",
                               "firstName",
                               "lastName",
+                              "displayName",
+                              "headline",
                               "image",
+                              "imageAssetId",
                               "role"
                             ],
                             "additionalProperties": false
@@ -25167,9 +26514,22 @@
                                       "nullable": true,
                                       "type": "string"
                                     },
+                                    "displayName": {
+                                      "nullable": true,
+                                      "type": "string"
+                                    },
+                                    "headline": {
+                                      "nullable": true,
+                                      "type": "string"
+                                    },
                                     "image": {
                                       "nullable": true,
                                       "type": "string"
+                                    },
+                                    "imageAssetId": {
+                                      "nullable": true,
+                                      "type": "string",
+                                      "minLength": 1
                                     },
                                     "role": {
                                       "type": "string",
@@ -25186,7 +26546,10 @@
                                     "id",
                                     "firstName",
                                     "lastName",
+                                    "displayName",
+                                    "headline",
                                     "image",
+                                    "imageAssetId",
                                     "role"
                                   ],
                                   "additionalProperties": false
@@ -25754,9 +27117,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -25773,7 +27149,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -25806,9 +27185,22 @@
                           "nullable": true,
                           "type": "string"
                         },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "image": {
                           "nullable": true,
                           "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
                         },
                         "role": {
                           "type": "string",
@@ -25825,7 +27217,10 @@
                         "id",
                         "firstName",
                         "lastName",
+                        "displayName",
+                        "headline",
                         "image",
+                        "imageAssetId",
                         "role"
                       ],
                       "additionalProperties": false
@@ -26729,6 +28124,31 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -26843,6 +28263,31 @@
                     ],
                     "additionalProperties": false
                   }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -27389,7 +28834,57 @@
               }
             }
           },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -27578,6 +29073,31 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
               }
             }
           },
@@ -30463,10 +31983,6 @@
                           "type": "string",
                           "minLength": 1
                         },
-                        "key": {
-                          "type": "string",
-                          "minLength": 1
-                        },
                         "kind": {
                           "type": "string",
                           "enum": [
@@ -30521,7 +32037,6 @@
                       "required": [
                         "orgId",
                         "id",
-                        "key",
                         "kind",
                         "source",
                         "filename",
@@ -30629,6 +32144,7 @@
         "tags": [
           "Assets"
         ],
+        "description": "A pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.",
         "parameters": [
           {
             "schema": {
@@ -30652,10 +32168,6 @@
                       "minLength": 1
                     },
                     "id": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "key": {
                       "type": "string",
                       "minLength": 1
                     },
@@ -30713,7 +32225,6 @@
                   "required": [
                     "orgId",
                     "id",
-                    "key",
                     "kind",
                     "source",
                     "filename",
@@ -30755,6 +32266,31 @@
             }
           },
           "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -30903,10 +32439,6 @@
                             "type": "string",
                             "minLength": 1
                           },
-                          "key": {
-                            "type": "string",
-                            "minLength": 1
-                          },
                           "kind": {
                             "type": "string",
                             "enum": [
@@ -30961,7 +32493,6 @@
                         "required": [
                           "orgId",
                           "id",
-                          "key",
                           "kind",
                           "source",
                           "filename",
@@ -31088,10 +32619,6 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "key": {
-                      "type": "string",
-                      "minLength": 1
-                    },
                     "kind": {
                       "type": "string",
                       "enum": [
@@ -31146,7 +32673,6 @@
                   "required": [
                     "orgId",
                     "id",
-                    "key",
                     "kind",
                     "source",
                     "filename",
@@ -31374,6 +32900,7 @@
         "tags": [
           "Assets"
         ],
+        "description": "Library files only. A member upload is served through what it is attached to and is answered with 403.",
         "requestBody": {
           "required": true,
           "content": {
@@ -31419,10 +32946,6 @@
                           "minLength": 1
                         },
                         "id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "key": {
                           "type": "string",
                           "minLength": 1
                         },
@@ -31480,7 +33003,6 @@
                       "required": [
                         "orgId",
                         "id",
-                        "key",
                         "kind",
                         "source",
                         "filename",
@@ -31529,6 +33051,31 @@
             }
           },
           "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
             "description": "Default Response",
             "content": {
               "application/json": {

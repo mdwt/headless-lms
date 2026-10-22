@@ -113,7 +113,10 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await content.removeDownload(scope.orgId, req.params.downloadId);
+      await content.removeDownload(scope.orgId, req.params.downloadId, {
+        id: scope.orgUserId,
+        role: scope.role,
+      });
       return reply.code(204).send();
     },
   });

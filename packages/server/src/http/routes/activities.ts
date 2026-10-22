@@ -9,6 +9,7 @@ import {
   ActivityList,
   ActivityPathParam,
   CourseIdPathParam,
+  ErrorBody,
   CreateModule,
   ModuleList,
   ModulePathParam,
@@ -185,7 +186,7 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
       summary: 'Add an activity',
       params: ModulePathParam,
       body: SaveActivity,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -203,7 +204,7 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
       summary: 'Update an activity',
       params: ActivityPathParam,
       body: SaveActivity,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

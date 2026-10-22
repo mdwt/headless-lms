@@ -1,9 +1,11 @@
 // AWS S3 implementation of the ObjectStorage port. Private bucket; access via
 // short-lived presigned URLs only. The bucket must already exist.
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -33,7 +35,7 @@ export interface S3StorageConfig {
 export class S3StorageAdapter implements ObjectStorage {
   private readonly client: S3Client;
   private readonly bucket: string;
-  private readonly uploadExpiry: number;
+  readonly uploadExpirySeconds: number;
   private readonly downloadExpiry: number;
 
   constructor(
@@ -54,7 +56,7 @@ export class S3StorageAdapter implements ObjectStorage {
         : {}),
     });
     this.bucket = config.bucket;
-    this.uploadExpiry = config.uploadExpirySeconds;
+    this.uploadExpirySeconds = config.uploadExpirySeconds;
     this.downloadExpiry = config.downloadExpirySeconds;
   }
 
@@ -63,7 +65,7 @@ export class S3StorageAdapter implements ObjectStorage {
     contentType?: string;
     expiresInSeconds?: number;
   }): Promise<PresignedUpload> {
-    const expiresInSeconds = input.expiresInSeconds ?? this.uploadExpiry;
+    const expiresInSeconds = input.expiresInSeconds ?? this.uploadExpirySeconds;
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: input.key,
@@ -110,6 +112,42 @@ export class S3StorageAdapter implements ObjectStorage {
       }
       throw err;
     }
+  }
+
+  async list(prefix: string): Promise<StoredObjectInfo[]> {
+    const objects: StoredObjectInfo[] = [];
+    let token: string | undefined;
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ...(token ? { ContinuationToken: token } : {}),
+        }),
+      );
+      for (const item of page.Contents ?? []) {
+        if (!item.Key) {
+          continue;
+        }
+        objects.push({
+          key: item.Key,
+          size: item.Size ?? 0,
+          ...(item.LastModified ? { lastModified: item.LastModified.toISOString() } : {}),
+        });
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+    return objects;
+  }
+
+  async copy(input: { from: string; to: string }): Promise<void> {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: input.to,
+        CopySource: encodeURI(`${this.bucket}/${input.from}`),
+      }),
+    );
   }
 
   async remove(key: string): Promise<void> {

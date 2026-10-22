@@ -4,9 +4,13 @@ import type { AssetsRepository, AssetsUnitOfWork } from './ports.js';
 import type { Asset } from './model.js';
 import type { NewDomainEvent, ObjectStorage, OutboxAppender } from '../shared/ports.js';
 import { createCapturingLogger } from '../shared/logger.js';
+import { ConflictError } from '../shared/errors.js';
 
-function fakeStorage(stat: { size: number; contentType: string } = { size: 42, contentType: 'video/mp4' }) {
+function fakeStorage(
+  stat: { size: number; contentType: string } = { size: 42, contentType: 'video/mp4' },
+) {
   const storage: ObjectStorage = {
+    uploadExpirySeconds: 300,
     presignUpload: vi.fn(async ({ key }) => ({
       url: `https://storage/${key}`,
       method: 'PUT' as const,
@@ -16,6 +20,8 @@ function fakeStorage(stat: { size: number; contentType: string } = { size: 42, c
     })),
     presignDownload: vi.fn(async () => 'https://storage/download'),
     stat: vi.fn(async (key: string) => ({ key, ...stat })),
+    list: vi.fn(async () => []),
+    copy: vi.fn(async () => {}),
     remove: vi.fn(async () => {}),
   };
   return storage;
@@ -25,7 +31,7 @@ function fakeRepo(referenced: Set<string> = new Set()) {
   const assets: Asset[] = [];
   const repo: AssetsRepository = {
     async insert(_orgId, asset) {
-      assets.push(asset);
+      assets.push({ ...asset });
       return asset;
     },
     async list(_orgId, query) {
@@ -33,17 +39,24 @@ function fakeRepo(referenced: Set<string> = new Set()) {
       return { rows, total: rows.length, page: 1, pageSize: 20 };
     },
     async findById(_orgId, id) {
-      return assets.find((a) => a.id === id) ?? null;
-    },
-    async update(id, patch) {
       const asset = assets.find((a) => a.id === id);
+      return asset ? { ...asset } : null;
+    },
+    async findByIds(_orgId, ids) {
+      return assets.filter((a) => ids.includes(a.id)).map((a) => ({ ...a }));
+    },
+    async markReady(_orgId, id, patch) {
+      const asset = assets.find((a) => a.id === id && a.status === 'pending');
       if (!asset) {
         return null;
       }
-      Object.assign(asset, patch);
-      return asset;
+      Object.assign(asset, patch, { status: 'ready' });
+      return { ...asset };
     },
-    async delete(id) {
+    async delete(_orgId, id) {
+      if (referenced.has(id)) {
+        throw new ConflictError('This file is still in use');
+      }
       const i = assets.findIndex((a) => a.id === id);
       if (i < 0) {
         return false;
@@ -51,13 +64,18 @@ function fakeRepo(referenced: Set<string> = new Set()) {
       assets.splice(i, 1);
       return true;
     },
-    async isReferenced(_orgId, id) {
-      return referenced.has(id);
+    async hasUnreferencedMemberUploads(_orgId, before) {
+      return assets.some(
+        (a) => a.source === 'member' && !referenced.has(a.id) && a.createdAt < before,
+      );
     },
     async listUnreferencedMemberUploads(_orgId, before) {
       return assets.filter(
         (a) => a.source === 'member' && !referenced.has(a.id) && a.createdAt < before,
       );
+    },
+    async heldKeys(_orgId, keys) {
+      return keys.filter((key) => assets.some((a) => a.key === key));
     },
   };
   return { repo, assets };
@@ -133,7 +151,10 @@ describe('AssetsService', () => {
       source: 'library',
       uploadedBy: 'ou_1',
     });
-    await svc.requestMemberUpload('org-1', 'ou_2', { filename: 'me.png', contentType: 'image/png' });
+    await svc.requestMemberUpload('org-1', 'ou_2', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
 
     const library = await svc.list('org-1', { page: 1, pageSize: 20 });
     expect(library.rows.map((a) => a.source)).toEqual(['library']);
@@ -144,7 +165,10 @@ describe('AssetsService', () => {
   it('refuses a member upload that is not an image', async () => {
     const { svc } = service();
     await expect(
-      svc.requestMemberUpload('org-1', 'ou_1', { filename: 'a.pdf', contentType: 'application/pdf' }),
+      svc.requestMemberUpload('org-1', 'ou_1', {
+        filename: 'a.pdf',
+        contentType: 'application/pdf',
+      }),
     ).rejects.toThrow('A member upload must be an image');
   });
 
@@ -180,7 +204,9 @@ describe('AssetsService', () => {
       filename: 'me.png',
       contentType: 'image/png',
     });
-    await expect(big.svc.confirm('org-1', ticket.asset.id)).rejects.toThrow('This image is too large');
+    await expect(big.svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+      'This image is too large',
+    );
     expect(big.storage.remove).toHaveBeenCalledWith(ticket.asset.key);
     expect(await big.svc.get('org-1', ticket.asset.id)).toBeNull();
     expect(big.appended.map((e) => e.type)).toEqual(['asset.created', 'asset.deleted']);
@@ -190,13 +216,13 @@ describe('AssetsService', () => {
       filename: 'me.png',
       contentType: 'image/png',
     });
-    await expect(fake.svc.confirm('org-1', spoofed.asset.id)).rejects.toThrow(
+    await expect(fake.svc.confirmOwn('org-1', spoofed.asset.id, 'ou_1')).rejects.toThrow(
       'A member upload must be an image',
     );
     expect(await fake.svc.get('org-1', spoofed.asset.id)).toBeNull();
   });
 
-  it('refuses to remove a referenced asset before touching storage', async () => {
+  it('leaves storage untouched when the references refuse the delete', async () => {
     const { repo, assets } = fakeRepo(new Set(['asset_used']));
     const { uow } = fakeUow(repo);
     const storage = fakeStorage();
@@ -237,12 +263,13 @@ describe('AssetsService', () => {
     expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
   });
 
-  it('sweeps member uploads older than the cutoff that nothing references', async () => {
+  it('sweeps member uploads older than the one-hour grace that nothing references', async () => {
     const { repo, assets } = fakeRepo(new Set(['asset_kept']));
     const { uow, appended } = fakeUow(repo);
     const storage = fakeStorage();
     const svc = new AssetsServiceImpl({ storage, repo, uow, memberImageMaxBytes: 1000 });
-    const old = new Date('2026-10-01T00:00:00Z');
+    const now = new Date('2026-10-22T12:00:00Z');
+    const old = new Date('2026-10-22T10:00:00Z');
     const base = {
       orgId: 'org-1',
       kind: 'image' as const,
@@ -258,12 +285,338 @@ describe('AssetsService', () => {
       { ...base, id: 'asset_stale', key: 'k1', source: 'member' },
       { ...base, id: 'asset_kept', key: 'k2', source: 'member' },
       { ...base, id: 'asset_lib', key: 'k3', source: 'library' },
-      { ...base, id: 'asset_new', key: 'k4', source: 'member', createdAt: new Date() },
+      {
+        ...base,
+        id: 'asset_recent',
+        key: 'k4',
+        source: 'member',
+        createdAt: new Date('2026-10-22T11:30:00Z'),
+      },
     );
 
-    expect(await svc.removeUnattached('org-1', new Date('2026-10-22T00:00:00Z'))).toBe(1);
-    expect(assets.map((a) => a.id)).toEqual(['asset_kept', 'asset_lib', 'asset_new']);
+    expect(await svc.hasUnattached('org-1', now)).toBe(true);
+    expect(await svc.removeUnattached('org-1', now)).toBe(1);
+    expect(assets.map((a) => a.id)).toEqual(['asset_kept', 'asset_lib', 'asset_recent']);
     expect(storage.remove).toHaveBeenCalledTimes(1);
     expect(appended.map((e) => e.type)).toEqual(['asset.deleted']);
+    expect(await svc.hasUnattached('org-1', now)).toBe(false);
+  });
+
+  it('skips an upload that was attached after the sweep listed it', async () => {
+    const { repo, assets } = fakeRepo();
+    const { uow } = fakeUow(repo);
+    const storage = fakeStorage();
+    const svc = new AssetsServiceImpl({ storage, repo, uow, memberImageMaxBytes: 1000 });
+    const old = new Date('2026-10-01T00:00:00Z');
+    assets.push({
+      orgId: 'org-1',
+      id: 'asset_raced',
+      key: 'k1',
+      kind: 'image',
+      source: 'member',
+      filename: 'me.png',
+      contentType: 'image/png',
+      size: 10,
+      status: 'ready',
+      uploadedBy: 'ou_1',
+      createdAt: old,
+      updatedAt: old,
+    });
+    repo.delete = async () => {
+      throw new ConflictError('This file is still in use');
+    };
+
+    expect(await svc.removeUnattached('org-1', new Date('2026-10-22T00:00:00Z'))).toBe(0);
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('deletes the registry row before the stored object', async () => {
+    const { svc, repo, storage } = service();
+    const order: string[] = [];
+    const del = repo.delete.bind(repo);
+    repo.delete = async (orgId, id) => {
+      order.push('row');
+      return del(orgId, id);
+    };
+    vi.mocked(storage.remove).mockImplementation(async () => {
+      order.push('object');
+    });
+    const ticket = await svc.requestUpload('org-1', {
+      filename: 'a.mp4',
+      contentType: 'video/mp4',
+      source: 'library',
+      uploadedBy: 'ou_1',
+    });
+
+    expect(await svc.remove('org-1', ticket.asset.id)).toBe(true);
+    expect(order).toEqual(['row', 'object']);
+  });
+
+  it('finalizes a member upload under a key the upload ticket does not cover', async () => {
+    const { svc, storage } = service({
+      storage: fakeStorage({ size: 10, contentType: 'image/png' }),
+    });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+
+    const confirmed = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+
+    expect(confirmed?.status).toBe('ready');
+    expect(confirmed?.key).not.toBe(ticket.asset.key);
+    expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: confirmed?.key });
+    expect(storage.stat).toHaveBeenCalledWith(confirmed?.key);
+    expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
+    const signed = await svc.requestDownload('org-1', ticket.asset.id);
+    expect(storage.presignDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ key: confirmed?.key }),
+    );
+    expect(signed?.asset.key).toBe(confirmed?.key);
+  });
+
+  it('leaves a ready asset and its bytes alone when it is confirmed again', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
+    const { svc, appended } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    const confirmed = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    vi.mocked(storage.stat).mockResolvedValue({ key: 'k', size: 5000, contentType: 'image/png' });
+    vi.mocked(storage.remove).mockClear();
+
+    const again = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+
+    expect(again).toEqual(confirmed);
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(await svc.get('org-1', ticket.asset.id)).not.toBeNull();
+    expect(appended.map((e) => e.type)).toEqual(['asset.created', 'asset.ready']);
+  });
+
+  it('re-derives the kind from the stored content type when an upload is confirmed', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 42, contentType: 'video/mp4' }) });
+    const ticket = await svc.requestUpload('org-1', {
+      filename: 'clip',
+      contentType: 'application/octet-stream',
+      source: 'library',
+      uploadedBy: 'ou_1',
+    });
+    expect(ticket.asset.kind).toBe('document');
+
+    const confirmed = await svc.confirm('org-1', ticket.asset.id);
+
+    expect(confirmed).toMatchObject({ kind: 'video', contentType: 'video/mp4', size: 42 });
+  });
+
+  it('refuses staff the finalize and sign of a member upload but lets them delete it', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
+    const library = await svc.requestUpload('org-1', {
+      filename: 'a.png',
+      contentType: 'image/png',
+      source: 'library',
+      uploadedBy: 'ou_staff',
+    });
+    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+
+    await expect(svc.confirm('org-1', member.asset.id)).rejects.toThrow(
+      'Only the uploader can finalize a member upload',
+    );
+    await expect(svc.requestLibraryDownload('org-1', member.asset.id)).rejects.toThrow(
+      'A member upload is served through what it is attached to',
+    );
+    expect(await svc.requestLibraryDownload('org-1', library.asset.id)).not.toBeNull();
+    expect(await svc.remove('org-1', member.asset.id)).toBe(true);
+  });
+
+  it('answers which ids are ready library assets of the org, in the order asked', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
+    const upload = (filename: string) =>
+      svc.requestUpload('org-1', {
+        filename,
+        contentType: 'image/png',
+        source: 'library',
+        uploadedBy: 'ou_staff',
+      });
+    const first = await upload('a.png');
+    const second = await upload('b.png');
+    const pending = await upload('c.png');
+    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    await svc.confirm('org-1', first.asset.id);
+    await svc.confirm('org-1', second.asset.id);
+    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+
+    expect(
+      await svc.libraryAssetsAmong('org-1', [
+        second.asset.id,
+        pending.asset.id,
+        member.asset.id,
+        'ast_missing',
+        first.asset.id,
+      ]),
+    ).toEqual([second.asset.id, first.asset.id]);
+  });
+
+  it('checks the copied object, which the upload ticket cannot replace', async () => {
+    const storage = fakeStorage();
+    vi.mocked(storage.stat).mockImplementation(async (key: string) =>
+      key.includes('/uploads/')
+        ? { key, size: 10, contentType: 'image/png' }
+        : { key, size: 5000, contentType: 'image/png' },
+    );
+    const { svc } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+
+    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+      'This image is too large',
+    );
+    const copied = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
+    expect(vi.mocked(storage.stat).mock.calls.map(([key]) => key)).toEqual([copied]);
+    expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
+    expect(storage.remove).toHaveBeenCalledWith(copied);
+    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+  });
+
+  it('removes the finalized object when marking the upload ready fails or finds nothing', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
+    const { svc, repo } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    const markReady = repo.markReady.bind(repo);
+
+    repo.markReady = async () => {
+      throw new Error('database unavailable');
+    };
+    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+      'database unavailable',
+    );
+    const first = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
+    expect(storage.remove).toHaveBeenCalledWith(first);
+    expect(storage.remove).not.toHaveBeenCalledWith(ticket.asset.key);
+
+    repo.markReady = async () => null;
+    expect(await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).toMatchObject({
+      status: 'pending',
+    });
+    const second = vi.mocked(storage.copy).mock.calls[1]?.[0].to;
+    expect(second).not.toBe(first);
+    expect(storage.remove).toHaveBeenCalledWith(second);
+
+    repo.markReady = markReady;
+    const ready = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    expect(ready?.status).toBe('ready');
+    expect(storage.remove).not.toHaveBeenCalledWith(ready?.key);
+  });
+
+  it('returns the asset a concurrent finalize made ready when the copy fails', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
+    const { svc, assets } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    const winnerKey = 'org/org-1/image/winner/me.png';
+    vi.mocked(storage.copy).mockImplementationOnce(async () => {
+      Object.assign(assets[0]!, { status: 'ready', key: winnerKey });
+      throw new Error('NoSuchKey');
+    });
+
+    const result = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+
+    expect(result).toMatchObject({ status: 'ready', key: winnerKey });
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('keeps a pending upload pending when nothing was uploaded and rethrows other copy failures', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
+    const { svc } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    vi.mocked(storage.copy).mockRejectedValue(new Error('copy failed'));
+
+    vi.mocked(storage.stat).mockResolvedValueOnce(null);
+    expect(await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).toMatchObject({
+      status: 'pending',
+    });
+
+    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow('copy failed');
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('sweeps stray objects under the uploads prefix that no asset holds once the ticket has expired', async () => {
+    const storage = fakeStorage();
+    const { svc, assets, appended } = service({ storage });
+    const now = new Date('2026-10-22T12:00:00Z');
+    const expired = '2026-10-22T11:54:00Z';
+    const live = '2026-10-22T11:58:00Z';
+    const base = {
+      orgId: 'org-1',
+      kind: 'image' as const,
+      source: 'member' as const,
+      filename: 'me.png',
+      contentType: 'image/png',
+      size: 10,
+      uploadedBy: 'ou_1',
+      createdAt: now,
+      updatedAt: now,
+    };
+    assets.push(
+      {
+        ...base,
+        id: 'ast_pending',
+        key: 'org/org-1/uploads/ast_pending/me.png',
+        status: 'pending',
+      },
+      { ...base, id: 'ast_ready', key: 'org/org-1/uploads/ast_ready/me.png', status: 'ready' },
+    );
+    vi.mocked(storage.list).mockResolvedValue([
+      { key: 'org/org-1/uploads/ast_pending/me.png', size: 10, lastModified: expired },
+      { key: 'org/org-1/uploads/ast_ready/me.png', size: 10, lastModified: expired },
+      { key: 'org/org-1/uploads/ast_refused/me.png', size: 10, lastModified: expired },
+      { key: 'org/org-1/uploads/ast_recent/me.png', size: 10, lastModified: live },
+      { key: 'org/org-1/uploads/ast_undated/me.png', size: 10 },
+    ]);
+
+    expect(await svc.hasUnattached('org-1', now)).toBe(true);
+    expect(await svc.removeUnattached('org-1', now)).toBe(1);
+
+    expect(storage.list).toHaveBeenCalledWith('org/org-1/uploads/');
+    expect(vi.mocked(storage.remove).mock.calls).toEqual([
+      ['org/org-1/uploads/ast_refused/me.png'],
+    ]);
+    expect(assets.map((a) => a.id)).toEqual(['ast_pending', 'ast_ready']);
+    expect(appended).toEqual([]);
+  });
+
+  it('is idle when no row and no stray upload is due', async () => {
+    const storage = fakeStorage();
+    const { svc } = service({ storage });
+    vi.mocked(storage.list).mockResolvedValue([
+      {
+        key: 'org/org-1/uploads/ast_recent/me.png',
+        size: 10,
+        lastModified: '2026-10-22T11:58:00Z',
+      },
+    ]);
+    expect(await svc.hasUnattached('org-1', new Date('2026-10-22T12:00:00Z'))).toBe(false);
+  });
+
+  it('refuses a member image cap that is not a positive integer', () => {
+    for (const memberImageMaxBytes of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => service({ memberImageMaxBytes })).toThrow('invalid memberImageMaxBytes');
+    }
   });
 });

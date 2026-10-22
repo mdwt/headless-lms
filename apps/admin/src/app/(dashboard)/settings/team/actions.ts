@@ -3,7 +3,7 @@
 // Server actions for member mutations.
 
 import { revalidatePath } from "next/cache";
-import { Organizations } from "@headless-lms/sdk";
+import { Organizations, type UpdateMemberRoleData } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
 import type { Role } from "@/lib/api/types";
@@ -17,9 +17,18 @@ export async function inviteMemberAction(input: {
 }
 
 /** Change a member's role — targeted write for the inline role control + optimism. */
-export async function updateMemberRoleAction(id: string, role: Role): Promise<void> {
+export async function updateMemberRoleAction(
+  id: string,
+  role: UpdateMemberRoleData["body"]["role"],
+): Promise<void> {
   await Organizations.updateMemberRole({ id, role }, await authHeaders());
   revalidatePath("/settings/team");
+}
+
+export async function removeModeratorRoleAction(id: string): Promise<void> {
+  await Organizations.updateMemberRole({ id, role: "student" }, await authHeaders());
+  revalidatePath("/settings/team");
+  revalidatePath("/students");
 }
 
 export async function removeMemberAction(id: string): Promise<void> {

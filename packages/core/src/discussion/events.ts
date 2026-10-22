@@ -74,8 +74,8 @@ const participantAddedSchema = z
   })
   .strict();
 
-const publicMessage = messageSchema.omit({ body: true });
-const publicMessageFlag = messageFlagSchema.omit({ reason: true });
+const publicMessage = messageSchema.omit({ body: true }).strip();
+const publicMessageFlag = messageFlagSchema.omit({ reason: true }).strip();
 
 export const discussionEvents = {
   commentCreated: defineEvent({

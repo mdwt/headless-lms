@@ -2,6 +2,7 @@
 export { DiscussionServiceImpl, DEFAULT_SETTINGS } from './service.js';
 export { PostServiceImpl } from './posts.js';
 export { ChatServiceImpl } from './chats.js';
+export { authorView } from './authors.js';
 export { discussionEvents } from './events.js';
 export type {
   DiscussionService,
@@ -11,6 +12,7 @@ export type {
   ActivityComments,
   Actor,
   AuthorRecord,
+  AuthorProfileReader,
   CommentReactions,
   CommentWithContext,
   CourseAccessReader,
@@ -20,6 +22,9 @@ export type {
   UpdatePostInput,
   PostPatch,
   FeedQuery,
+  PostFeedQuery,
+  FeedPosition,
+  PublishedPostsQuery,
   PostReactions,
   SpaceModerationQueue,
   PostCommentFlagReader,
@@ -45,6 +50,7 @@ export type {
   CommentReport,
   CommentSettings,
 } from './model.js';
+export { InvalidCursorError } from './model.js';
 export type {
   CommentsConfig,
   CommentView,

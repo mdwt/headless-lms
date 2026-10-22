@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
-import type { Community } from './model.js';
+import type { Community, SpaceDetail } from './model.js';
 import { ContentService } from './service.js';
+import { contentEvents } from './events.js';
 import type { ContentRepository, ContentUnitOfWork } from './ports.js';
 import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
+import type { LibraryAssetReader } from '../assets/index.js';
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
 function makeCourse(over: Partial<Course> = {}): Course {
@@ -66,6 +68,8 @@ function makeRepo(): ContentRepository {
     removeBundleItem: vi.fn(),
     listCommunities: vi.fn(),
     findCommunityById: vi.fn(),
+    listPublishedCommunityIds: vi.fn(),
+    findCommunitiesByIds: vi.fn(),
     createCommunity: vi.fn(),
     updateCommunity: vi.fn(),
     patchDmSettings: vi.fn(),
@@ -79,6 +83,7 @@ function makeRepo(): ContentRepository {
     deleteSpace: vi.fn(),
     reorderSpaces: vi.fn(),
     setSpaceTopics: vi.fn(),
+    topicsInUse: vi.fn().mockResolvedValue([]),
     addSpaceLink: vi.fn(),
     removeSpaceLink: vi.fn(),
     reorderSpaceLinks: vi.fn(),
@@ -100,9 +105,13 @@ function fakeUow(repo: ContentRepository) {
   return { uow, append, appended };
 }
 
-function build(repo = makeRepo()) {
+const libraryAssets: LibraryAssetReader = {
+  libraryAssetsAmong: async (_orgId, assetIds) => assetIds,
+};
+
+function build(repo = makeRepo(), assets: LibraryAssetReader = libraryAssets) {
   const { uow, append, appended } = fakeUow(repo);
-  const svc = new ContentService({ repo, uow });
+  const svc = new ContentService({ repo, uow, libraryAssets: assets });
   return { svc, repo, append, appended };
 }
 
@@ -265,7 +274,7 @@ describe('ContentServiceImpl', () => {
     (repo.deleteCourse as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const { svc, appended } = build(repo);
-    await svc.deleteCourse('org1', 'c1');
+    await svc.deleteCourse('org1', 'c1', owner);
 
     expect(appended).toEqual([
       { type: 'content.course.deleted', version: 1, orgId: 'org1', data: course },
@@ -277,7 +286,7 @@ describe('ContentServiceImpl', () => {
     (repo.findCourseById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     const { svc, repo: r, append } = build(repo);
-    await expect(svc.deleteCourse('org1', 'missing')).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteCourse('org1', 'missing', owner)).rejects.toThrow(NotFoundError);
     expect(r.deleteCourse).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -288,7 +297,7 @@ describe('ContentServiceImpl', () => {
     (repo.deleteCourse as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
     const { svc, append } = build(repo);
-    await expect(svc.deleteCourse('org1', 'c1')).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteCourse('org1', 'c1', owner)).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -470,6 +479,28 @@ describe('activities', () => {
     ]);
   });
 
+  it('refuses activity assets that are not ready library files of the org', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findActivity).mockResolvedValue(makeActivity());
+    const { svc, append } = build(repo, {
+      libraryAssetsAmong: async (_orgId, assetIds) => assetIds.filter((id) => id === 'ast_lib'),
+    });
+
+    await expect(
+      svc.saveActivity(
+        'org1',
+        'c1',
+        'm1',
+        { assetIds: ['ast_lib', 'ast_member', 'ast_gone'] },
+        'act1',
+      ),
+    ).rejects.toThrow(
+      'An activity can only use ready files from the media library. Not available: ast_member, ast_gone',
+    );
+    expect(repo.saveActivity).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it('throws NotFoundError when updating an activity that lives in another module', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ moduleId: 'other' }));
@@ -568,12 +599,13 @@ describe('logging', () => {
     const svc = new ContentService({
       repo,
       uow,
+      libraryAssets,
       logger,
     });
 
     await svc.createCourse('org-1', { title: 'Intro' });
     await svc.updateCourse('org-1', course.id, { title: 'Intro 2' });
-    await svc.deleteCourse('org-1', course.id);
+    await svc.deleteCourse('org-1', course.id, owner);
 
     expect(entries.filter((e) => e.level === 'info').map((e) => e.msg)).toEqual([
       'course created',
@@ -596,6 +628,7 @@ describe('logging', () => {
     const svc = new ContentService({
       repo,
       uow,
+      libraryAssets,
       logger,
     });
 
@@ -624,6 +657,7 @@ describe('logging', () => {
     const svc = new ContentService({
       repo,
       uow,
+      libraryAssets,
       logger,
     });
 
@@ -690,7 +724,7 @@ describe('downloads', () => {
     vi.mocked(repo.deleteDownload).mockResolvedValue(true);
 
     const { svc, appended } = build(repo);
-    await svc.removeDownload('o1', 'd1');
+    await svc.removeDownload('o1', 'd1', owner);
 
     expect(appended).toEqual([
       { type: 'content.download.deleted', version: 1, orgId: 'o1', data: download },
@@ -703,7 +737,7 @@ describe('downloads', () => {
 
     const { svc } = build(repo);
 
-    await expect(svc.removeDownload('o1', 'missing')).rejects.toThrow(NotFoundError);
+    await expect(svc.removeDownload('o1', 'missing', owner)).rejects.toThrow(NotFoundError);
     expect(repo.deleteDownload).not.toHaveBeenCalled();
   });
 });
@@ -923,6 +957,231 @@ describe('communities', () => {
     expect(repo.deleteCommunitySettings).toHaveBeenCalledWith('org1', community.id);
     expect(appended[0]).toMatchObject({
       type: 'content.community.deleted',
+      metadata: { actorOrgUserId: 'ou_owner' },
+    });
+  });
+
+  it('lists the ids of published communities only through the repository', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listPublishedCommunityIds).mockResolvedValue(['cmy_1', 'cmy_2']);
+    const { svc } = build(repo);
+
+    await expect(svc.listPublishedCommunityIds('org1')).resolves.toEqual(['cmy_1', 'cmy_2']);
+    expect(repo.listPublishedCommunityIds).toHaveBeenCalledWith('org1');
+  });
+
+  it('reads many communities in one repository call and asks nothing for none', async () => {
+    const repo = makeRepo();
+    const community = makeCommunity();
+    vi.mocked(repo.findCommunitiesByIds).mockResolvedValue([community]);
+    const { svc } = build(repo);
+
+    await expect(svc.listCommunitiesById('org1', [community.id])).resolves.toEqual([community]);
+    expect(repo.findCommunitiesByIds).toHaveBeenCalledWith('org1', [community.id]);
+    await expect(svc.listCommunitiesById('org1', [])).resolves.toEqual([]);
+    expect(repo.findCommunitiesByIds).toHaveBeenCalledTimes(1);
+  });
+
+  it('strips settings from the public data of community created, updated and deleted', () => {
+    const community = makeCommunity();
+    const { settings: _settings, ...expected } = community;
+    for (const event of [
+      contentEvents.communityCreated,
+      contentEvents.communityUpdated,
+      contentEvents.communityDeleted,
+    ]) {
+      const parsed = event.publicData.safeParse(community);
+      expect(parsed.success).toBe(true);
+      expect(parsed.data).toEqual(expected);
+    }
+  });
+});
+
+const SPACE_AT = new Date('2026-01-01T00:00:00.000Z');
+
+function makeSpace(over: Partial<SpaceDetail> = {}): SpaceDetail {
+  return {
+    orgId: 'org1',
+    id: 'spc_1',
+    communityId: 'cmy_1',
+    name: 'General',
+    description: '',
+    seq: 0,
+    accessRule: 'all_members',
+    capacity: null,
+    settings: { comments: true, reactions: true, requireReview: false },
+    createdAt: SPACE_AT,
+    updatedAt: SPACE_AT,
+    topics: [
+      {
+        orgId: 'org1',
+        id: 'top_a',
+        spaceId: 'spc_1',
+        name: 'Wins',
+        seq: 0,
+        createdAt: SPACE_AT,
+        updatedAt: SPACE_AT,
+      },
+      {
+        orgId: 'org1',
+        id: 'top_b',
+        spaceId: 'spc_1',
+        name: 'Help',
+        seq: 1,
+        createdAt: SPACE_AT,
+        updatedAt: SPACE_AT,
+      },
+    ],
+    links: [],
+    ...over,
+  };
+}
+
+describe('spaces', () => {
+  it('reads a space of the community and hides a space of another community', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
+    const { svc } = build(repo);
+
+    await expect(svc.getCommunitySpace('org1', 'cmy_1', 'spc_1')).resolves.toEqual(makeSpace());
+    await expect(svc.getCommunitySpace('org1', 'cmy_other', 'spc_1')).resolves.toBeNull();
+  });
+
+  it('writes the topics inside the unit of work under the space lock', async () => {
+    const repo = makeRepo();
+    const space = makeSpace();
+    vi.mocked(repo.findSpace).mockResolvedValue(space);
+    const calls: string[] = [];
+    const uow: ContentUnitOfWork = {
+      run: async (fn) => {
+        calls.push('begin');
+        const result = await fn({
+          content: repo,
+          outbox: { append: vi.fn(async () => undefined) },
+        });
+        calls.push('commit');
+        return result;
+      },
+    };
+    vi.mocked(repo.lockSpace).mockImplementation(async () => {
+      calls.push('lock');
+      return space;
+    });
+    vi.mocked(repo.setSpaceTopics).mockImplementation(async () => {
+      calls.push('write');
+      return space;
+    });
+    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets });
+    const input = {
+      topics: [
+        { id: 'top_b', name: 'Wins' },
+        { id: 'top_a', name: 'Help' },
+      ],
+    };
+
+    await svc.setSpaceTopics('org1', 'cmy_1', 'spc_1', input, owner);
+
+    expect(calls).toEqual(['begin', 'lock', 'write', 'commit']);
+    expect(repo.setSpaceTopics).toHaveBeenCalledWith('org1', 'spc_1', input);
+  });
+
+  it('refuses to remove a topic a post uses and writes nothing', async () => {
+    const repo = makeRepo();
+    const space = makeSpace();
+    vi.mocked(repo.lockSpace).mockResolvedValue(space);
+    vi.mocked(repo.findSpace).mockResolvedValue(space);
+    vi.mocked(repo.topicsInUse).mockResolvedValue(['top_b']);
+    const { svc, append } = build(repo);
+
+    await expect(
+      svc.setSpaceTopics(
+        'org1',
+        'cmy_1',
+        'spc_1',
+        { topics: [{ id: 'top_a', name: 'Wins' }] },
+        owner,
+      ),
+    ).rejects.toThrow(ConflictError);
+    expect(repo.topicsInUse).toHaveBeenCalledWith('org1', 'spc_1', ['top_b']);
+    expect(repo.setSpaceTopics).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('removes a topic no post uses', async () => {
+    const repo = makeRepo();
+    const space = makeSpace();
+    vi.mocked(repo.lockSpace).mockResolvedValue(space);
+    vi.mocked(repo.findSpace).mockResolvedValue(space);
+    vi.mocked(repo.setSpaceTopics).mockResolvedValue(makeSpace({ topics: [space.topics[0]!] }));
+    const { svc, appended } = build(repo);
+
+    await svc.setSpaceTopics(
+      'org1',
+      'cmy_1',
+      'spc_1',
+      { topics: [{ id: 'top_a', name: 'Wins' }] },
+      owner,
+    );
+
+    expect(repo.topicsInUse).toHaveBeenCalledWith('org1', 'spc_1', ['top_b']);
+    expect(appended[0]).toMatchObject({ type: 'content.community.space.updated' });
+  });
+
+  it('refuses topics for a space of another community', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.lockSpace).mockResolvedValue(makeSpace());
+    const { svc } = build(repo);
+
+    await expect(
+      svc.setSpaceTopics('org1', 'cmy_other', 'spc_1', { topics: [] }, owner),
+    ).rejects.toThrow(NotFoundError);
+    expect(repo.setSpaceTopics).not.toHaveBeenCalled();
+  });
+
+  it('records the actor on the space update a deleted course causes', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse());
+    vi.mocked(repo.deleteCourse).mockResolvedValue(true);
+    vi.mocked(repo.spacesLinkingContent).mockResolvedValue(['spc_1']);
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
+    const { svc, appended } = build(repo);
+
+    await svc.deleteCourse('org1', 'c1', owner);
+
+    expect(appended[1]).toMatchObject({
+      type: 'content.community.space.updated',
+      metadata: { actorOrgUserId: 'ou_owner' },
+    });
+  });
+
+  it('records the actor on the space update a deleted download causes', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.getDownload).mockResolvedValue(makeDownload());
+    vi.mocked(repo.deleteDownload).mockResolvedValue(true);
+    vi.mocked(repo.spacesLinkingContent).mockResolvedValue(['spc_1']);
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
+    const { svc, appended } = build(repo);
+
+    await svc.removeDownload('o1', 'd1', owner);
+
+    expect(appended[1]).toMatchObject({
+      type: 'content.community.space.updated',
+      metadata: { actorOrgUserId: 'ou_owner' },
+    });
+  });
+
+  it('records the actor on the space update a deleted community causes', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity());
+    vi.mocked(repo.deleteCommunity).mockResolvedValue(true);
+    vi.mocked(repo.spacesLinkingContent).mockResolvedValue(['spc_1']);
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
+    const { svc, appended } = build(repo);
+
+    await svc.deleteCommunity('org1', 'cmy_1', owner);
+
+    expect(appended[1]).toMatchObject({
+      type: 'content.community.space.updated',
       metadata: { actorOrgUserId: 'ou_owner' },
     });
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MemberReportServiceImpl } from './service.js';
+import { MemberReportServiceImpl, type MemberReportServiceParams } from './service.js';
 import type { MemberReportRepository, ContentRef } from './index.js';
 import type { Activity, ContentServicePort, Course, Module } from '../../content/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
@@ -117,7 +117,10 @@ function fakeAssets(captured: { expiry?: number; filename?: string } = {}): Asse
     confirm: async () => null,
     confirmOwn: async () => null,
     ownsImage: async () => false,
+    libraryAssetsAmong: async () => [],
+    requestLibraryDownload: async () => null,
     removeOwn: async () => false,
+    hasUnattached: async () => false,
     removeUnattached: async () => 0,
     list: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     get: async () => SIGNED_ASSET,
@@ -129,6 +132,25 @@ function fakeAssets(captured: { expiry?: number; filename?: string } = {}): Asse
     remove: async () => false,
   };
 }
+
+const noCommunityReads: Pick<
+  MemberReportServiceParams,
+  'access' | 'posts' | 'chats' | 'profiles' | 'organizations'
+> = {
+  access: { isCommunityMember: async () => false, openSpaceIds: async () => [] },
+  posts: {
+    getPost: async () => {
+      throw new Error('not used');
+    },
+  },
+  chats: {
+    getMessage: async () => {
+      throw new Error('not used');
+    },
+  },
+  profiles: { getProfile: async () => null },
+  organizations: { getOrgUserById: async () => null },
+};
 
 // Full-surface ContentService fake for the download-delivery suite: every
 // member rejects or returns empty by default, overridable per test.
@@ -167,6 +189,8 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     reorderDownloadAssets: rejectMutation,
     listCommunities: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     getCommunity: async () => null,
+    listPublishedCommunityIds: async () => [],
+    listCommunitiesById: async () => [],
     createCommunity: rejectMutation,
     updateCommunity: rejectMutation,
     publishCommunity: rejectMutation,
@@ -174,6 +198,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     deleteCommunity: rejectMutation,
     patchDmSettings: rejectMutation,
     getSpace: async () => null,
+    getCommunitySpace: async () => null,
     listSpaces: async () => [],
     getDmSettings: async () => null,
     createSpace: rejectMutation,
@@ -212,6 +237,7 @@ describe('MemberReportServiceImpl', () => {
       content: fakeContent({ c1: course('c1', 'published'), c2: course('c2', 'draft') }, {}),
       progress: fakeProgress([]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     const rows = await svc.listCourses('o1', 'stu_1');
@@ -224,6 +250,7 @@ describe('MemberReportServiceImpl', () => {
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     expect(await svc.getCourse('o1', 'stu_1', 'cX')).toBeNull();
@@ -236,6 +263,7 @@ describe('MemberReportServiceImpl', () => {
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     expect(await svc.listCourses('o1', 'stu_1')).toEqual([]);
@@ -264,6 +292,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ),
       progress: fakeProgress([]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     expect(await svc.courseProgress('o1', 'stu_1', 'c1')).toBeNull();
@@ -291,6 +320,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         }),
       ]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
@@ -329,6 +359,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         }),
       ]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
@@ -352,6 +383,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         progressRecord({ targetType: 'activity', targetId: 'a2' }),
       ]),
       assets: fakeAssets(),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
@@ -390,6 +422,7 @@ describe('download delivery', () => {
       }),
       progress: fakeProgress([]),
       assets: fakeAssets(captured),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
 
@@ -412,6 +445,7 @@ describe('download delivery', () => {
       }),
       progress: fakeProgress([]),
       assets: fakeAssets(captured),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
 
@@ -432,6 +466,7 @@ describe('download delivery', () => {
       }),
       progress: fakeProgress([]),
       assets: fakeAssets(captured),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
 
@@ -455,6 +490,7 @@ describe('download delivery', () => {
       }),
       progress: fakeProgress([]),
       assets: fakeAssets(captured),
+      ...noCommunityReads,
       deliveryExpirySeconds: 300,
     });
 

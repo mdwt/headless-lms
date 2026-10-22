@@ -1,6 +1,6 @@
 // MinIO (S3-compatible) implementation of the ObjectStorage port. Private
 // buckets; access via short-lived presigned URLs only.
-import { Client } from "minio";
+import { Client, CopyDestinationOptions, CopySourceOptions } from "minio";
 import type {
   Logger,
   ObjectStorage,
@@ -25,7 +25,7 @@ export class MinioStorageAdapter implements ObjectStorage {
   private readonly client: Client;
   private readonly bucket: string;
   private readonly region: string;
-  private readonly uploadExpiry: number;
+  readonly uploadExpirySeconds: number;
   private readonly downloadExpiry: number;
   private ensured = false;
 
@@ -43,7 +43,7 @@ export class MinioStorageAdapter implements ObjectStorage {
     });
     this.bucket = config.bucket;
     this.region = config.region;
-    this.uploadExpiry = config.uploadExpirySeconds;
+    this.uploadExpirySeconds = config.uploadExpirySeconds;
     this.downloadExpiry = config.downloadExpirySeconds;
   }
 
@@ -65,7 +65,7 @@ export class MinioStorageAdapter implements ObjectStorage {
     expiresInSeconds?: number;
   }): Promise<PresignedUpload> {
     await this.ensureBucket();
-    const expiresInSeconds = input.expiresInSeconds ?? this.uploadExpiry;
+    const expiresInSeconds = input.expiresInSeconds ?? this.uploadExpirySeconds;
     const url = await this.client.presignedPutObject(this.bucket, input.key, expiresInSeconds);
     return {
       url,
@@ -100,6 +100,30 @@ export class MinioStorageAdapter implements ObjectStorage {
     } catch {
       return null;
     }
+  }
+
+  async list(prefix: string): Promise<StoredObjectInfo[]> {
+    await this.ensureBucket();
+    const objects: StoredObjectInfo[] = [];
+    for await (const item of this.client.listObjectsV2(this.bucket, prefix, true)) {
+      if (!item.name) {
+        continue;
+      }
+      objects.push({
+        key: item.name,
+        size: item.size,
+        ...(item.lastModified ? { lastModified: item.lastModified.toISOString() } : {}),
+      });
+    }
+    return objects;
+  }
+
+  async copy(input: { from: string; to: string }): Promise<void> {
+    await this.ensureBucket();
+    await this.client.copyObject(
+      new CopySourceOptions({ Bucket: this.bucket, Object: input.from }),
+      new CopyDestinationOptions({ Bucket: this.bucket, Object: input.to }),
+    );
   }
 
   async remove(key: string): Promise<void> {

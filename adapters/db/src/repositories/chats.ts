@@ -3,6 +3,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ChatListItem, ChatRepository, FeedQuery } from "@headless-lms/core/discussion";
 import type {
   Chat,
+  ChatMute,
   ChatUser,
   Logger,
   Message,
@@ -43,6 +44,20 @@ function toChat(row: ChatRow): Chat {
   };
 }
 
+function toMute(mutedUntil: Date | null): ChatMute | null {
+  if (mutedUntil === null) {
+    return null;
+  }
+  return { until: Number.isNaN(mutedUntil.getTime()) ? null : mutedUntil };
+}
+
+function toMutedUntil(mute: ChatMute | null) {
+  if (mute === null) {
+    return null;
+  }
+  return mute.until ?? sql`'infinity'::timestamptz`;
+}
+
 function toChatUser(row: ChatUserRow): ChatUser {
   return {
     orgId: row.orgId,
@@ -52,7 +67,7 @@ function toChatUser(row: ChatUserRow): ChatUser {
     joinedAt: row.joinedAt,
     leftAt: row.leftAt,
     lastReadMessageId: row.lastReadMessageId,
-    mutedUntil: row.mutedUntil,
+    mute: toMute(row.mutedUntil),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -248,7 +263,7 @@ export class DrizzleChatRepository implements ChatRepository {
       chat: toChat(row.chat),
       participantIds: (byChat.get(row.chat.id) ?? []).sort(),
       lastReadMessageId: row.lastReadMessageId,
-      mutedUntil: row.mutedUntil,
+      mute: toMute(row.mutedUntil),
       unread: row.unread,
     }));
   }
@@ -273,7 +288,7 @@ export class DrizzleChatRepository implements ChatRepository {
         joinedAt: user.joinedAt,
         leftAt: user.leftAt,
         lastReadMessageId: user.lastReadMessageId,
-        mutedUntil: user.mutedUntil,
+        mutedUntil: toMutedUntil(user.mute),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -320,11 +335,11 @@ export class DrizzleChatRepository implements ChatRepository {
     orgId: string,
     chatId: string,
     orgUserId: string,
-    mutedUntil: Date | null,
+    mute: ChatMute | null,
   ): Promise<void> {
     await this.db
       .update(chatUsers)
-      .set({ mutedUntil, updatedAt: new Date() })
+      .set({ mutedUntil: toMutedUntil(mute), updatedAt: new Date() })
       .where(
         and(
           eq(chatUsers.orgId, orgId),
@@ -509,6 +524,29 @@ export class DrizzleChatRepository implements ChatRepository {
     return Boolean(row);
   }
 
+  async anyBlockedAmong(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<boolean> {
+    if (orgUserIds.length < 2) {
+      return false;
+    }
+    const [row] = await this.db
+      .select({ blockerOrgUserId: blockedUsers.blockerOrgUserId })
+      .from(blockedUsers)
+      .where(
+        and(
+          eq(blockedUsers.orgId, orgId),
+          eq(blockedUsers.communityId, communityId),
+          inArray(blockedUsers.blockerOrgUserId, orgUserIds),
+          inArray(blockedUsers.blockedOrgUserId, orgUserIds),
+        ),
+      )
+      .limit(1);
+    return Boolean(row);
+  }
+
   async blockedWith(
     orgId: string,
     communityId: string,
@@ -566,6 +604,21 @@ export class DrizzleChatRepository implements ChatRepository {
     return row ? toFlag(row) : null;
   }
 
+  async findFlag(orgId: string, messageId: string, orgUserId: string): Promise<MessageFlag | null> {
+    const [row] = await this.db
+      .select()
+      .from(messageFlags)
+      .where(
+        and(
+          eq(messageFlags.orgId, orgId),
+          eq(messageFlags.messageId, messageId),
+          eq(messageFlags.orgUserId, orgUserId),
+        ),
+      )
+      .limit(1);
+    return row ? toFlag(row) : null;
+  }
+
   async listOpenFlags(orgId: string, communityId: string): Promise<MessageFlag[]> {
     const rows = await this.db
       .select()
@@ -591,6 +644,39 @@ export class DrizzleChatRepository implements ChatRepository {
       .where(and(eq(messages.orgId, orgId), inArray(messages.id, ids)))
       .orderBy(asc(messages.createdAt), asc(messages.id));
     return rows.map(toMessage);
+  }
+
+  async chatSummaries(
+    orgId: string,
+    chatIds: string[],
+  ): Promise<{ chat: Chat; participantIds: string[] }[]> {
+    if (chatIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(chats)
+      .where(and(eq(chats.orgId, orgId), inArray(chats.id, chatIds)));
+    const people = await this.db
+      .select({ chatId: chatUsers.chatId, orgUserId: chatUsers.orgUserId })
+      .from(chatUsers)
+      .where(
+        and(
+          eq(chatUsers.orgId, orgId),
+          inArray(chatUsers.chatId, chatIds),
+          isNull(chatUsers.leftAt),
+        ),
+      );
+    const byChat = new Map<string, string[]>();
+    for (const person of people) {
+      const list = byChat.get(person.chatId) ?? [];
+      list.push(person.orgUserId);
+      byChat.set(person.chatId, list);
+    }
+    return rows.map((row) => ({
+      chat: toChat(row),
+      participantIds: (byChat.get(row.id) ?? []).sort(),
+    }));
   }
 
   async resolveOpenFlagsForChat(

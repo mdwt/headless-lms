@@ -1,7 +1,7 @@
 // organizations context — member-management types (invite / change-role / remove).
 // The operational surface over the org's members and pending invites. Roles
 // come from ./roles.ts (the single role model); writes go through Better Auth.
-import type { TeamRole } from './roles.js';
+import type { Role, TeamRole } from './roles.js';
 import type { OrgUserProfile } from '../types/index.js';
 
 export type MemberStatus = 'active' | 'invited';
@@ -11,6 +11,10 @@ export interface Member extends OrgUserProfile {
   status: MemberStatus;
   joinedAt: string | null;
   invitedAt: string | null;
+}
+
+export interface MemberRoleChange extends Omit<Member, 'role'> {
+  role: Role;
 }
 
 export interface MembersQuery {

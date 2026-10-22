@@ -8,6 +8,7 @@ import {
   UnknownIntegrationError,
 } from '@headless-lms/core/integrations';
 import { AutomationKindMismatchError, ReservedActionError } from '@headless-lms/core/automations';
+import { InvalidCursorError } from '@headless-lms/core/discussion';
 import { errorHandler } from './error-handler.js';
 
 let app: FastifyInstance;
@@ -40,6 +41,9 @@ beforeAll(async () => {
     'kind-mismatch': () => {
       throw new AutomationKindMismatchError('atm_1', 'webhook');
     },
+    'invalid-cursor': () => {
+      throw new InvalidCursorError('nope');
+    },
     unhandled: () => {
       throw new Error('boom');
     },
@@ -70,6 +74,15 @@ describe('central error handler', () => {
     expect(res.json()).toEqual({
       error: 'kind_mismatch',
       message: 'automation "atm_1" is a webhook and can\'t be changed through this operation',
+    });
+  });
+
+  it('maps InvalidCursorError to 400 invalid_cursor', async () => {
+    const res = await app.inject({ method: 'GET', url: '/invalid-cursor' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      error: 'invalid_cursor',
+      message: 'The feed cursor is not one this feed returned',
     });
   });
 

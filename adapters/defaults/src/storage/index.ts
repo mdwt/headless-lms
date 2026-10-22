@@ -9,6 +9,8 @@ import type {
 import { noopLogger } from "@headless-lms/core/shared/logger";
 
 export class StorageAdapter implements ObjectStorage {
+  readonly uploadExpirySeconds = 0;
+
   constructor(private readonly logger: Logger = noopLogger) {}
 
   async presignUpload(_input: {
@@ -25,6 +27,14 @@ export class StorageAdapter implements ObjectStorage {
 
   async stat(_key: string): Promise<StoredObjectInfo | null> {
     return this.fail("stat");
+  }
+
+  async list(_prefix: string): Promise<StoredObjectInfo[]> {
+    return [];
+  }
+
+  async copy(_input: { from: string; to: string }): Promise<void> {
+    return this.fail("copy");
   }
 
   async remove(_key: string): Promise<void> {

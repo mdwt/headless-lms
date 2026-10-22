@@ -3,6 +3,8 @@
   "description": "Posts in a space, reactions, and the moderation queue",
   "pages": [
     "getMemberFeed",
+    "listOwnPosts",
+    "listBookmarkedPosts",
     "getSpaceFeed",
     "getSpaceQueue",
     "createPost",

@@ -221,7 +221,11 @@ export function ActivityBuilder({
 
     setSaving(true);
     try {
-      await updateActivitySettingsAction(course.id, moduleId, activity.id, patch);
+      const refusal = await updateActivitySettingsAction(course.id, moduleId, activity.id, patch);
+      if (refusal) {
+        toast.error("Couldn't save activity", { description: refusal.refused });
+        return false;
+      }
       reset(values);
       setContentDirty(false);
       toast.success("Saved");

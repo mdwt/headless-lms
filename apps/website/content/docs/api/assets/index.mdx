@@ -7,13 +7,13 @@ description: 'The org media library: uploads, serving and lifecycle'
 
 <Cards>
 <Card href="/docs/api/assets/getAssetDownloadUrl" title="Get a short-lived URL for an asset, served as what the reference names" description="The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing." />
-<Card href="/docs/api/assets/requestMemberUpload" title="Register an image you are about to upload and get a presigned upload URL" description="Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it." />
-<Card href="/docs/api/assets/finalizeMemberUpload" title="Confirm an upload you started" description="Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409." />
+<Card href="/docs/api/assets/requestMemberUpload" title="Register an image you are about to upload and get a presigned upload URL" description="Member uploads are images only. The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it." />
+<Card href="/docs/api/assets/finalizeMemberUpload" title="Confirm an upload you started" description="Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged." />
 <Card href="/docs/api/assets/deleteMemberUpload" title="Delete an upload of yours that nothing references" />
 <Card href="/docs/api/assets/requestUpload" title="Register an asset and get a presigned upload URL" />
-<Card href="/docs/api/assets/confirmAsset" title="Confirm an upload completed (captures size + content type)" />
+<Card href="/docs/api/assets/confirmAsset" title="Confirm an upload completed (captures size + content type)" description="A pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403." />
 <Card href="/docs/api/assets/listAssets" title="Browse the organization's media library" />
 <Card href="/docs/api/assets/getAsset" title="Get an asset's metadata" />
 <Card href="/docs/api/assets/deleteAsset" title="Delete an asset nothing references (removes the object from storage)" />
-<Card href="/docs/api/assets/requestAssetDownload" title="Get a short-lived presigned URL to download/serve an asset" />
+<Card href="/docs/api/assets/requestAssetDownload" title="Get a short-lived presigned URL to download/serve an asset" description="Library files only. A member upload is served through what it is attached to and is answered with 403." />
 </Cards>

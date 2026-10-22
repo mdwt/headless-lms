@@ -48,6 +48,7 @@ export interface PresignDownloadInput {
 }
 
 export interface ObjectStorage {
+  readonly uploadExpirySeconds: number;
   /** Presigned URL for a direct browser upload (temporary, expiring). */
   presignUpload(input: {
     key: string;
@@ -58,6 +59,8 @@ export interface ObjectStorage {
   presignDownload(input: PresignDownloadInput): Promise<string>;
   /** Object metadata, or null if it does not exist. */
   stat(key: string): Promise<StoredObjectInfo | null>;
+  list(prefix: string): Promise<StoredObjectInfo[]>;
+  copy(input: { from: string; to: string }): Promise<void>;
   /** Permanently remove an object. */
   remove(key: string): Promise<void>;
 }

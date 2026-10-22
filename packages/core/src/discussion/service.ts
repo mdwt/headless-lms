@@ -1,9 +1,9 @@
 import { genId } from '../shared/id.js';
-import { ForbiddenError, NotFoundError } from '../shared/errors.js';
-import { isStaffRole } from '../organizations/index.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import type { Comment, CommentAuthor, CommentReport, CommentSettings } from './model.js';
+import type { Comment, CommentReport, CommentSettings } from './model.js';
 import type { ActivitySettings, CourseSettings, Post, SpaceDetail } from '../types/index.js';
 import type {
   CommentListItem,
@@ -28,6 +28,7 @@ import type {
   PostService,
 } from './ports.js';
 import { discussionEvents } from './events.js';
+import { authorView } from './authors.js';
 
 /** A course with no stored settings. Discussion is opt-in, so the common case
  *  persists no row at all and every existing course stays silent. */
@@ -101,17 +102,8 @@ export class DiscussionServiceImpl implements DiscussionService {
     return isStaffRole(actor.role);
   }
 
-  private toAuthor(record: AuthorRecord): CommentAuthor {
-    return {
-      id: record.id,
-      firstName: record.firstName,
-      lastName: record.lastName,
-      image: record.image,
-      role: record.role,
-    };
-  }
-
   private toView(
+    orgId: string,
     comment: Comment,
     authors: Record<string, AuthorRecord>,
     reactions: CommentReactions,
@@ -130,10 +122,10 @@ export class DiscussionServiceImpl implements DiscussionService {
       postId: comment.postId,
       communityId: comment.communityId,
       parentId: comment.parentId,
-      author: this.toAuthor(author),
+      author: authorView(orgId, author),
       body: comment.status === 'removed' ? null : comment.body,
       status: comment.status,
-      removedBy: remover ? this.toAuthor(remover) : null,
+      removedBy: remover ? authorView(orgId, remover) : null,
       reactions: reactions.reactions,
       viewerReaction: reactions.viewerReaction,
       createdAt: comment.createdAt,
@@ -159,7 +151,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         ? EMPTY_REACTIONS
         : ((await this.repo.reactionsOf(orgId, [comment.id], actor.id))[comment.id] ??
           EMPTY_REACTIONS);
-    return this.toView(comment, authors, stored);
+    return this.toView(orgId, comment, authors, stored);
   }
 
   private activityIdOf(comment: Comment): string {
@@ -252,6 +244,9 @@ export class DiscussionServiceImpl implements DiscussionService {
     { actor, parentId, body }: PostCommentInput,
   ): Promise<CommentView> {
     const { post, space } = await this.visiblePost(orgId, actor, postId);
+    if (post.status !== 'published') {
+      throw new ConflictError('This post is not published');
+    }
     if (!this.commentsOpen(post, space)) {
       throw new ForbiddenError('Comments are closed on this post');
     }
@@ -352,7 +347,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         : Promise.resolve<Record<string, CommentReactions>>({}),
     ]);
     return served.map((comment) =>
-      this.toView(comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS),
+      this.toView(orgId, comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS),
     );
   }
 
@@ -365,7 +360,7 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   private canModerate(actor: Actor): boolean {
-    return isStaffRole(actor.role) || actor.role === 'moderator';
+    return canModerate(actor.role);
   }
 
   private commentsOpen(post: Post, space: SpaceDetail): boolean {
@@ -452,11 +447,13 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.discussion.resolveReportsFor(orgId, commentId, {
-        resolvedAt: new Date(),
-        resolvedBy: actor.id,
-        resolution: 'removed',
-      });
+      if (comment.orgUserId !== actor.id) {
+        await scope.discussion.resolveReportsFor(orgId, commentId, {
+          resolvedAt: new Date(),
+          resolvedBy: actor.id,
+          resolution: 'removed',
+        });
+      }
       await scope.outbox.append([
         discussionEvents.commentRemoved.make({
           orgId,
@@ -623,7 +620,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
     // Locked accepts reports — a locked activity can still hold something a
     // moderator needs to see. Hidden does not: nothing in it is being served,
-    // so nobody is looking at a comment to flag. A closed post still accepts a flag.
+    // so nobody is looking at a comment to flag.
     if (!config.enabled && !comment.postId) {
       throw new ForbiddenError('discussion is not open on this activity');
     }
@@ -699,7 +696,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           courseId,
           body: comment.body,
           status: comment.status,
-          author: this.toAuthor(author),
+          author: authorView(orgId, author),
           authorEmail: author.email,
           removedBy: comment.removedBy,
           reports: (byComment.get(comment.id) ?? []).map((r) => {
@@ -708,7 +705,7 @@ export class DiscussionServiceImpl implements DiscussionService {
               throw new NotFoundError('OrgUser', r.orgUserId);
             }
             return {
-              reporter: this.toAuthor(reporter),
+              reporter: authorView(orgId, reporter),
               reason: r.reason,
               createdAt: r.createdAt,
             };

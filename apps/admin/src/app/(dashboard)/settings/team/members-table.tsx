@@ -15,14 +15,15 @@ import { isManager, can } from "@/lib/roles";
 import type { Member, Role, ListParams } from "@/lib/api/types";
 import { fullName } from "@/lib/format";
 
-import { memberColumns } from "./members-columns";
+import { memberColumns, type AssignableRole } from "./members-columns";
 import { InviteDialog } from "./_components/invite-dialog";
-import { updateMemberRoleAction, removeMemberAction } from "./actions";
+import { updateMemberRoleAction, removeMemberAction, removeModeratorRoleAction } from "./actions";
 
 const ROLE_FACETS = [
   { label: "Owner", value: "owner" },
   { label: "Admin", value: "admin" },
   { label: "Instructor", value: "instructor" },
+  { label: "Moderator", value: "moderator" },
 ];
 
 const STATUS_FACETS = [
@@ -71,7 +72,7 @@ function MembersTableInner({
   const canInvite = can.inviteMembers(user);
 
   const onChangeRole = useCallback(
-    (id: string, role: Role) => {
+    (id: string, role: AssignableRole) => {
       startTransition(async () => {
         applyOptimistic({ id, role });
         try {
@@ -84,6 +85,17 @@ function MembersTableInner({
     },
     [applyOptimistic],
   );
+
+  const onRemoveModerator = useCallback((member: Member) => {
+    startTransition(async () => {
+      try {
+        await removeModeratorRoleAction(member.id);
+        toast.success(`${fullName(member)} is no longer a moderator`);
+      } catch (e) {
+        toast.error("Couldn't remove the moderator role", { description: (e as Error).message });
+      }
+    });
+  }, []);
 
   const confirmRemove = useCallback(() => {
     if (!removeTarget) return;
@@ -106,8 +118,9 @@ function MembersTableInner({
         currentUserEmail: user.email,
         onRemove: setRemoveTarget,
         onChangeRole,
+        onRemoveModerator,
       }),
-    [canManageRoles, user.email, onChangeRole],
+    [canManageRoles, user.email, onChangeRole, onRemoveModerator],
   );
 
   // Guard deep-links even though nav hides this for non-managers (defense in

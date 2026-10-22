@@ -71,8 +71,10 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       operationId: 'confirmAsset',
       tags,
       summary: 'Confirm an upload completed (captures size + content type)',
+      description:
+        'A pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.',
       params: AssetIdParam,
-      response: { 200: Asset, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Asset, 400: ErrorBody, 401: ErrorBody, 403: ErrorBody, 404: ErrorBody },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -146,16 +148,24 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       operationId: 'requestAssetDownload',
       tags,
       summary: 'Get a short-lived presigned URL to download/serve an asset',
+      description:
+        'Library files only. A member upload is served through what it is attached to and is answered with 403.',
       params: AssetIdParam,
       body: RequestDownload,
-      response: { 200: DownloadTicket, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: {
+        200: DownloadTicket,
+        400: ErrorBody,
+        401: ErrorBody,
+        403: ErrorBody,
+        404: ErrorBody,
+      },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
       if (!orgId) {
         return;
       }
-      const ticket = await assets.requestDownload(orgId, req.params.id, req.body.filename);
+      const ticket = await assets.requestLibraryDownload(orgId, req.params.id, req.body.filename);
       if (!ticket) {
         throw new NotFoundError('Asset', req.params.id);
       }

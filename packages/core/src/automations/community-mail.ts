@@ -1,5 +1,11 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
-import type { EmailTemplateId, EmailTemplateParams, JsonValue } from '../types/index.js';
+import type {
+  ChatMute,
+  ChatStatus,
+  EmailTemplateId,
+  EmailTemplateParams,
+  JsonValue,
+} from '../types/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -22,15 +28,12 @@ export interface CommunityMailReads {
     spaceId: string,
   ): Promise<{ name: string; communityId: string; capacity: number | null } | null>;
   openSpaceNames(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
-  grantOpensCommunity(
-    orgId: string,
-    grant: { contentId: string | null; bundleId: string | null },
-    communityId: string,
-  ): Promise<boolean>;
   communitiesOpenedBy(
     orgId: string,
     grant: { contentId: string | null; bundleId: string | null },
   ): Promise<string[]>;
+  communityMembersAmong(orgId: string, communityId: string, ids: string[]): Promise<string[]>;
+  spaceOpenersAmong(orgId: string, spaceId: string, ids: string[]): Promise<string[]>;
   moderationAudience(orgId: string, communityId: string): Promise<string[]>;
   staffIds(orgId: string): Promise<string[]>;
   displayName(orgId: string, orgUserId: string): Promise<string>;
@@ -55,8 +58,9 @@ export interface CommunityMailReads {
   ): Promise<{
     communityId: string;
     kind: 'direct' | 'group';
+    status: ChatStatus;
     createdBy: string;
-    participants: { orgUserId: string; mutedUntil: Date | null; leftAt: Date | null }[];
+    participants: { orgUserId: string; mute: ChatMute | null; leftAt: Date | null }[];
   } | null>;
   latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
   pairBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
@@ -75,7 +79,9 @@ export interface ScheduledWork {
   expireDueGrants(orgId: string, now: Date): Promise<void>;
   sendDigest(orgId: string, now: Date): Promise<void>;
   hasDuePosts(orgId: string, now: Date): Promise<boolean>;
+  hasDueGrants(orgId: string, now: Date): Promise<boolean>;
   removeUnattachedUploads(orgId: string, now: Date): Promise<void>;
+  hasUnattachedUploads(orgId: string, now: Date): Promise<boolean>;
 }
 
 export interface GrantWriter {
@@ -99,8 +105,9 @@ export const emptyCommunityMail: CommunityMailReads = {
   communityTitle: async () => null,
   space: async () => null,
   openSpaceNames: async () => [],
-  grantOpensCommunity: async () => false,
   communitiesOpenedBy: async () => [],
+  communityMembersAmong: async () => [],
+  spaceOpenersAmong: async () => [],
   moderationAudience: async () => [],
   staffIds: async () => [],
   displayName: async () => 'A member',
@@ -120,7 +127,9 @@ export const emptyScheduledWork: ScheduledWork = {
   expireDueGrants: async () => {},
   sendDigest: async () => {},
   hasDuePosts: async () => false,
+  hasDueGrants: async () => false,
   removeUnattachedUploads: async () => {},
+  hasUnattachedUploads: async () => false,
 };
 
 export function actorOf(event: DomainEvent): string | undefined {

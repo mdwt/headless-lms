@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { Content, type JsonValueInput } from "@headless-lms/sdk";
 
+import editorModule from "@/editor.config";
 import { authHeaders } from "@/lib/api/server-call";
 import type {
   ActivitySettings,
@@ -13,6 +14,9 @@ import type {
   Module,
   SaveActivityInput,
 } from "@/lib/api/types";
+
+import { activityAssetIds } from "./_lib/activity-asset-ids";
+import { saveRefusal, type SaveRefusal } from "./_lib/save-refusal";
 
 /**
  * Revalidate the builder route AND the courses list. The `[courseId]` + "page"
@@ -96,7 +100,7 @@ export async function updateActivitySettingsAction(
   moduleId: string,
   activityId: string,
   patch: Partial<ActivitySettings>,
-): Promise<void> {
+): Promise<SaveRefusal | null> {
   const headers = await authHeaders();
   const [activities, links] = await Promise.all([
     Content.listActivities({ courseId }, headers),
@@ -105,16 +109,26 @@ export async function updateActivitySettingsAction(
   const activity = activities.find((a) => a.id === activityId && a.moduleId === moduleId);
   if (!activity) throw new Error("Activity not found");
 
-  const settings: ActivitySettings = {
-    ...((activity.settings ?? {}) as ActivitySettings),
-    ...patch,
-  };
-  const assetIds = links.filter((l) => l.activityId === activityId).map((l) => l.assetId);
-  await Content.updateActivity(
-    { courseId, moduleId, activityId, settings: settings as JsonValueInput, assetIds },
-    headers,
+  const stored = (activity.settings ?? {}) as ActivitySettings;
+  const settings: ActivitySettings = { ...stored, ...patch };
+  const assetIds = activityAssetIds(
+    editorModule,
+    stored.content,
+    settings.content,
+    links.filter((l) => l.activityId === activityId).map((l) => l.assetId),
   );
+  try {
+    await Content.updateActivity(
+      { courseId, moduleId, activityId, settings: settings as JsonValueInput, assetIds },
+      headers,
+    );
+  } catch (err) {
+    const refusal = saveRefusal(err);
+    if (refusal) return refusal;
+    throw err;
+  }
   revalidateBuilder();
+  return null;
 }
 
 /** Publish/unpublish one activity. `published` lives in the settings blob. */

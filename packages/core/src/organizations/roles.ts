@@ -6,7 +6,13 @@
 import type { Role } from '../types/index.js';
 
 export type { Role };
-export const ROLES = ['owner', 'admin', 'instructor', 'moderator', 'student'] as const satisfies readonly Role[];
+export const ROLES = [
+  'owner',
+  'admin',
+  'instructor',
+  'moderator',
+  'student',
+] as const satisfies readonly Role[];
 
 export type StaffRole = 'owner' | 'admin' | 'instructor';
 export const STAFF_ROLES = ['owner', 'admin', 'instructor'] as const satisfies readonly StaffRole[];
@@ -81,6 +87,10 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
 
 export function capability(role: Role, permission: Permission): Capability | false {
   return MATRIX[role][permission] ?? false;
+}
+
+export function canModerate(role: Role): boolean {
+  return capability(role, 'moderate') === true;
 }
 
 // Better Auth's role model is broader than ours: it keeps a built-in `member`

@@ -13,6 +13,7 @@ const ACTION_TASK_NAME = "automation-run-action";
 const SCHEDULE_TASK_NAME = "automation-schedule";
 const WORKER_NAME = "automation-run-worker";
 const CRON_PREFIX = "hlms-schedule:";
+const RECONCILE_EVERY_MS = 5 * 60_000;
 
 interface ActionTaskInput {
   dispatch: AutomationDispatch;
@@ -86,6 +87,7 @@ export class HatchetAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;
   private worker: HatchetWorkerLike | undefined;
   private syncing: Promise<void> | undefined;
+  private reconcileTimer: ReturnType<typeof setInterval> | undefined;
   private readonly actionTask: unknown;
   private readonly scheduleTask: unknown;
   private readonly automationRunTask: RunnableTask<AutomationDispatch>;
@@ -93,6 +95,7 @@ export class HatchetAutomationEngine implements AutomationEngine {
   constructor(
     private readonly client: HatchetClientLike = new Hatchet() as unknown as HatchetClientLike,
     private readonly logger?: Logger,
+    private readonly reconcileEveryMs: number = RECONCILE_EVERY_MS,
   ) {
     this.actionTask = this.client.task<ActionTaskInput>({
       name: ACTION_TASK_NAME,
@@ -132,12 +135,29 @@ export class HatchetAutomationEngine implements AutomationEngine {
     void this.worker.start().catch((err: unknown) => {
       this.logger?.error("hatchet worker stopped unexpectedly", { error: String(err) });
     });
-    await this.syncSchedules();
+    if (this.reconcileTimer) {
+      clearInterval(this.reconcileTimer);
+    }
+    this.reconcileTimer = setInterval(() => void this.syncLogged(), this.reconcileEveryMs);
+    this.reconcileTimer.unref?.();
+    await this.syncLogged();
   }
 
   async stop(): Promise<void> {
+    if (this.reconcileTimer) {
+      clearInterval(this.reconcileTimer);
+    }
+    this.reconcileTimer = undefined;
     await this.worker?.stop();
     this.worker = undefined;
+  }
+
+  private async syncLogged(): Promise<void> {
+    try {
+      await this.syncSchedules();
+    } catch (err) {
+      this.logger?.error("hatchet schedules not reconciled", { error: String(err) });
+    }
   }
 
   async syncSchedules(): Promise<void> {

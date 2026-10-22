@@ -129,7 +129,10 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await courses.deleteCourse(scope.orgId, req.params.id);
+      await courses.deleteCourse(scope.orgId, req.params.id, {
+        id: scope.orgUserId,
+        role: scope.role,
+      });
       return reply.code(204).send();
     },
   });

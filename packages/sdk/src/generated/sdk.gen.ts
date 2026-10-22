@@ -44,6 +44,7 @@ import type {
   ConfirmAssetResponses,
   ConnectIntegrationErrors,
   ConnectIntegrationResponses,
+  CreateActivityErrors,
   CreateActivityResponses,
   CreateAutomationResponses,
   CreateBundleErrors,
@@ -96,6 +97,8 @@ import type {
   DisconnectIntegrationResponses,
   DismissCommentReportsErrors,
   DismissCommentReportsResponses,
+  DismissMemberCommentReportsErrors,
+  DismissMemberCommentReportsResponses,
   EditChatMessageErrors,
   EditChatMessageResponses,
   EditCommentErrors,
@@ -191,6 +194,8 @@ import type {
   ListAutomationTriggersResponses,
   ListAvailableIntegrationsErrors,
   ListAvailableIntegrationsResponses,
+  ListBookmarkedPostsErrors,
+  ListBookmarkedPostsResponses,
   ListBundleItemsErrors,
   ListBundleItemsResponses,
   ListBundlesResponses,
@@ -218,6 +223,8 @@ import type {
   ListMemberModulesResponses,
   ListMembersResponses,
   ListModulesResponses,
+  ListOwnPostsErrors,
+  ListOwnPostsResponses,
   ListPostCommentsErrors,
   ListPostCommentsResponses,
   ListSpaceMembersErrors,
@@ -332,6 +339,7 @@ import type {
   UnpinPostResponses,
   UnpublishCommunityErrors,
   UnpublishCommunityResponses,
+  UpdateActivityErrors,
   UpdateActivityResponses,
   UpdateAutomationErrors,
   UpdateAutomationResponses,
@@ -502,7 +510,7 @@ export class Organizations {
   public static updateMemberRole<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
-      role: "owner" | "admin" | "instructor" | "moderator";
+      role: "admin" | "instructor" | "moderator" | "student";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError, "data"> {
@@ -2065,7 +2073,7 @@ export class Content {
       assetIds?: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateActivityResponses, CreateActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2079,19 +2087,22 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateActivityResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/{moduleId}/activities",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      CreateActivityResponses,
+      CreateActivityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
@@ -2142,7 +2153,7 @@ export class Content {
       assetIds?: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<UpdateActivityResponses, UpdateActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2159,7 +2170,7 @@ export class Content {
     );
     return (options?.client ?? client).patch<
       UpdateActivityResponses,
-      unknown,
+      UpdateActivityErrors,
       ThrowOnError,
       "data"
     >({
@@ -3415,10 +3426,8 @@ export class Posts {
   public static getMemberFeed<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
-      page?: number;
-      pageSize?: number;
-      search?: string;
-      sort?: string;
+      cursor?: string;
+      limit?: number;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<GetMemberFeedResponses, GetMemberFeedErrors, ThrowOnError, "data"> {
@@ -3428,10 +3437,8 @@ export class Posts {
         {
           args: [
             { in: "path", key: "communityId" },
-            { in: "query", key: "page" },
-            { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
+            { in: "query", key: "cursor" },
+            { in: "query", key: "limit" },
           ],
         },
       ],
@@ -3450,16 +3457,66 @@ export class Posts {
   }
 
   /**
+   * Your own posts in a community, newest first
+   */
+  public static listOwnPosts<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListOwnPostsResponses, ListOwnPostsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      ListOwnPostsResponses,
+      ListOwnPostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/own-posts",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * The posts you bookmarked in a community
+   */
+  public static listBookmarkedPosts<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListBookmarkedPostsResponses, ListBookmarkedPostsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      ListBookmarkedPostsResponses,
+      ListBookmarkedPostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/bookmarks",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Published posts in a space
    */
   public static getSpaceFeed<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
       spaceId: string;
-      page?: number;
-      pageSize?: number;
-      search?: string;
-      sort?: string;
+      cursor?: string;
+      limit?: number;
       topicId?: string;
     },
     options?: Options<never, ThrowOnError>,
@@ -3471,10 +3528,8 @@ export class Posts {
           args: [
             { in: "path", key: "communityId" },
             { in: "path", key: "spaceId" },
-            { in: "query", key: "page" },
-            { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
+            { in: "query", key: "cursor" },
+            { in: "query", key: "limit" },
             { in: "query", key: "topicId" },
           ],
         },
@@ -4083,7 +4138,7 @@ export class Posts {
   public static resolvePostFlags<ThrowOnError extends boolean = false>(
     parameters: {
       postId: string;
-      resolution: "dismissed" | "removed";
+      resolution: "dismissed";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ResolvePostFlagsResponses, ResolvePostFlagsErrors, ThrowOnError, "data"> {
@@ -4604,7 +4659,7 @@ export class Chats {
   public static resolveMessageFlags<ThrowOnError extends boolean = false>(
     parameters: {
       messageId: string;
-      resolution: "dismissed" | "deleted" | "locked";
+      resolution: "dismissed";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ResolveMessageFlagsResponses, ResolveMessageFlagsErrors, ThrowOnError, "data"> {
@@ -4677,12 +4732,12 @@ export class Chats {
   }
 
   /**
-   * Mute a chat until a time
+   * Mute a chat until a time, or until unmuted
    */
   public static muteChat<ThrowOnError extends boolean = false>(
     parameters: {
       chatId: string;
-      until: unknown;
+      until?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<MuteChatResponses, MuteChatErrors, ThrowOnError, "data"> {
@@ -5126,6 +5181,34 @@ export class Discussion {
   }
 
   /**
+   * Dismiss every open flag on a comment in a space you moderate
+   */
+  public static dismissMemberCommentReports<ThrowOnError extends boolean = false>(
+    parameters: {
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    DismissMemberCommentReportsResponses,
+    DismissMemberCommentReportsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "commentId" }] }]);
+    return (options?.client ?? client).delete<
+      DismissMemberCommentReportsResponses,
+      DismissMemberCommentReportsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/comments/{commentId}/reports",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Flag a comment for moderator attention
    */
   public static reportComment<ThrowOnError extends boolean = false>(
@@ -5408,7 +5491,7 @@ export class Assets {
   /**
    * Register an image you are about to upload and get a presigned upload URL
    *
-   * Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.
+   * Member uploads are images only. The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.
    */
   public static requestMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5449,7 +5532,7 @@ export class Assets {
   /**
    * Confirm an upload you started
    *
-   * Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.
+   * Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.
    */
   public static finalizeMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5540,6 +5623,8 @@ export class Assets {
 
   /**
    * Confirm an upload completed (captures size + content type)
+   *
+   * A pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.
    */
   public static confirmAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5648,6 +5733,8 @@ export class Assets {
 
   /**
    * Get a short-lived presigned URL to download/serve an asset
+   *
+   * Library files only. A member upload is served through what it is attached to and is answered with 403.
    */
   public static requestAssetDownload<ThrowOnError extends boolean = false>(
     parameters: {

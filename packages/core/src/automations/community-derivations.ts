@@ -1,7 +1,7 @@
 import { discussionEvents } from '../discussion/index.js';
 import { entitlementEvents } from '../entitlements/index.js';
 import { organizationEvents } from '../organizations/index.js';
-import type { EmailTemplateId } from '../types/index.js';
+import type { ChatMute, EmailTemplateId } from '../types/index.js';
 import type { DomainEvent } from '../shared/ports.js';
 import {
   actorOf,
@@ -31,8 +31,16 @@ function seatsLeft(capacity: number | null, active: number): string {
   return String(Math.max(capacity - active, 0));
 }
 
-function muted(until: Date | null, at: Date): boolean {
-  return until != null && until.getTime() > at.getTime();
+function muted(mute: ChatMute | null, at: Date): boolean {
+  if (mute === null) {
+    return false;
+  }
+  return mute.until === null || mute.until.getTime() > at.getTime();
+}
+
+function chatStatusOf(event: DomainEvent): string | undefined {
+  const value = event.metadata?.chatStatus;
+  return typeof value === 'string' ? value : undefined;
 }
 
 async function communityTitle(deps: ActionDeps, orgId: string, communityId: string) {
@@ -202,7 +210,8 @@ export const COMMUNITY_DERIVATIONS: {
       const ids = [...new Set([...followers, post.orgUserId])].filter(
         (id) => id !== comment.orgUserId,
       );
-      return address(deps, event, event.orgId, ids, {
+      const openers = await deps.mail.spaceOpenersAmong(event.orgId, post.spaceId, ids);
+      return address(deps, event, event.orgId, openers, {
         postTitle: post.title,
         commenterName: await deps.mail.displayName(event.orgId, comment.orgUserId),
         excerpt: excerpt(comment.body, POST_EXCERPT),
@@ -231,7 +240,10 @@ export const COMMUNITY_DERIVATIONS: {
       if (parent.orgUserId === comment.orgUserId) {
         return [];
       }
-      return address(deps, event, event.orgId, [parent.orgUserId], {
+      const openers = await deps.mail.spaceOpenersAmong(event.orgId, post.spaceId, [
+        parent.orgUserId,
+      ]);
+      return address(deps, event, event.orgId, openers, {
         postTitle: post.title,
         commenterName: await deps.mail.displayName(event.orgId, comment.orgUserId),
         excerpt: excerpt(comment.body, POST_EXCERPT),
@@ -402,8 +414,11 @@ export const COMMUNITY_DERIVATIONS: {
       if (!recipient) {
         return [];
       }
+      const members = await deps.mail.communityMembersAmong(event.orgId, chat.communityId, [
+        recipient,
+      ]);
       const body = await deps.mail.latestMessageBody(event.orgId, chat.id);
-      return address(deps, event, event.orgId, [recipient], {
+      return address(deps, event, event.orgId, members, {
         senderName: await deps.mail.displayName(event.orgId, chat.createdBy),
         excerpt: excerpt(body ?? '', MESSAGE_EXCERPT),
         chatId: chat.id,
@@ -423,6 +438,9 @@ export const COMMUNITY_DERIVATIONS: {
       if (!chat) {
         return undefined;
       }
+      if (chatStatusOf(event) === 'pending') {
+        return [];
+      }
       const at = new Date(event.occurredAt);
       const since = new Date(at.getTime() - MESSAGE_BATCH_MS);
       const recent = new Set(
@@ -438,7 +456,7 @@ export const COMMUNITY_DERIVATIONS: {
         if (participant.leftAt || participant.orgUserId === message.orgUserId) {
           continue;
         }
-        if (muted(participant.mutedUntil, at) || recent.has(participant.orgUserId)) {
+        if (muted(participant.mute, at) || recent.has(participant.orgUserId)) {
           continue;
         }
         if (
@@ -453,11 +471,12 @@ export const COMMUNITY_DERIVATIONS: {
         }
         ids.push(participant.orgUserId);
       }
+      const members = await deps.mail.communityMembersAmong(event.orgId, chat.communityId, ids);
       const title =
         chat.kind === 'direct'
           ? await deps.mail.displayName(event.orgId, message.orgUserId)
           : await groupTitle(deps, event.orgId, chat.participants);
-      return address(deps, event, event.orgId, ids, {
+      return address(deps, event, event.orgId, members, {
         senderName: await deps.mail.displayName(event.orgId, message.orgUserId),
         chatTitle: title,
         excerpt: excerpt(message.body, MESSAGE_EXCERPT),

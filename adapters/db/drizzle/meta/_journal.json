@@ -43,6 +43,13 @@
       "when": 1792654657973,
       "tag": "0005_notices_and_seed_index",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792664309207,
+      "tag": "0006_community_review_fixes",
+      "breakpoints": true
     }
   ]
 }

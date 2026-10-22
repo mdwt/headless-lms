@@ -1,5 +1,5 @@
 // reporting/admin — Drizzle repository.
-import { and, asc, desc, eq, gte, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
@@ -37,7 +37,7 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { orgUserProfileColumns } from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
-import { grantOpens } from "./grant-covers.js";
+import { grantExpired, grantIsActive, grantOpens, grantUnexpired } from "./grant-covers.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
@@ -95,16 +95,12 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       .from(courses)
       .where(eq(courses.orgId, orgId));
 
-    const effectiveActive = and(
-      eq(entitlements.orgId, orgId),
-      eq(entitlements.status, "active"),
-      or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
-    );
+    const effectiveActive = and(eq(entitlements.orgId, orgId), grantIsActive(entitlements));
 
     const [entitlementCounts] = await this.db
       .select({
         activeStudents: sql<number>`count(distinct ${entitlements.orgUserId})`,
-        expiringSoon: sql<number>`count(*) filter (where ${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now() + interval '14 days')`,
+        expiringSoon: sql<number>`count(*) filter (where ${grantExpired(entitlements.expiresAt, sql`now() + interval '14 days'`)})`,
       })
       .from(entitlements)
       .where(effectiveActive);
@@ -158,7 +154,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       where org_id = ${orgId}
         and content_id = ${courseId}
         and status = 'active'
-        and (expires_at is null or expires_at >= now())
+        and ${grantUnexpired(sql`expires_at`)}
     `;
     const publishedActivities = sql`
       select a.id, a.settings, a.seq, a.module_id
@@ -403,7 +399,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
         where e.org_id = ${orgId}
           and e.org_user_id = ${id}
           and e.status = 'active'
-          and (e.expires_at is null or e.expires_at >= now())
+          and ${grantUnexpired(sql`e.expires_at`)}
       ),
       acts as (
         select a.course_id, a.id
@@ -506,16 +502,11 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     }
 
     const opens = grantOpens(entitlements, sql`${communityId}`, "community");
-    const live = and(
-      eq(entitlements.orgId, orgId),
-      eq(entitlements.status, "active"),
-      or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
-      opens,
-    );
+    const live = and(eq(entitlements.orgId, orgId), grantIsActive(entitlements), opens);
     const lapsed = and(
       eq(entitlements.orgId, orgId),
       eq(entitlements.status, "active"),
-      sql`${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now()`,
+      grantExpired(entitlements.expiresAt),
       opens,
     );
     const recent = sql`now() - interval '30 days'`;

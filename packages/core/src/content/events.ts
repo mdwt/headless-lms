@@ -97,6 +97,8 @@ const publicDownloadAsset = downloadAssetSchema
   })
   .strip();
 
+const publicCommunity = communitySchema.omit({ settings: true }).strip();
+
 const publicDownloadAssets = z.object({
   downloadId: idSchema,
   assets: z.array(publicDownloadAsset),
@@ -240,19 +242,19 @@ export const contentEvents = {
     type: 'content.community.created',
     version: 1,
     data: communitySchema,
-    publicData: communitySchema,
+    publicData: publicCommunity,
   }),
   communityUpdated: defineEvent({
     type: 'content.community.updated',
     version: 1,
     data: communitySchema,
-    publicData: communitySchema.omit({ settings: true }),
+    publicData: publicCommunity,
   }),
   communityDeleted: defineEvent({
     type: 'content.community.deleted',
     version: 1,
     data: communitySchema,
-    publicData: communitySchema,
+    publicData: publicCommunity,
   }),
   spaceCreated: defineEvent({
     type: 'content.community.space.created',

@@ -4,7 +4,7 @@ import type { ProgressService } from '../../progress/index.js';
 import type { AssetReference, AssetsService, DownloadTicket } from '../../assets/index.js';
 import type { ChatService, PostService } from '../../discussion/index.js';
 import type { IdentityService } from '../../identity/index.js';
-import type { OrganizationsRepository } from '../../organizations/index.js';
+import type { OrganizationService } from '../../organizations/index.js';
 import type { Actor } from '../../shared/actor.js';
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import type {
@@ -30,11 +30,11 @@ export type MemberReportServiceParams = {
   content: ContentServicePort;
   progress: ProgressService;
   assets: AssetsService;
-  access?: CommunityAccessReader;
-  posts?: Pick<PostService, 'getPost'>;
-  chats?: Pick<ChatService, 'getMessage'>;
-  profiles?: Pick<IdentityService, 'getProfile'>;
-  orgUsers?: Pick<OrganizationsRepository, 'findOrgUserById'>;
+  access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds'>;
+  posts: Pick<PostService, 'getPost'>;
+  chats: Pick<ChatService, 'getMessage'>;
+  profiles: Pick<IdentityService, 'getProfile'>;
+  organizations: Pick<OrganizationService, 'getOrgUserById'>;
   deliveryExpirySeconds: number;
   logger?: Logger;
 };
@@ -44,11 +44,11 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
   private readonly assets: AssetsService;
-  private readonly access: CommunityAccessReader;
+  private readonly access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds'>;
   private readonly posts: Pick<PostService, 'getPost'>;
   private readonly chats: Pick<ChatService, 'getMessage'>;
   private readonly profiles: Pick<IdentityService, 'getProfile'>;
-  private readonly orgUsers: Pick<OrganizationsRepository, 'findOrgUserById'>;
+  private readonly organizations: Pick<OrganizationService, 'getOrgUserById'>;
   private readonly deliveryExpirySeconds: number;
   private readonly logger: Logger;
 
@@ -57,26 +57,11 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.content = params.content;
     this.progress = params.progress;
     this.assets = params.assets;
-    this.access = params.access ?? {
-      isCommunityMember: async () => false,
-      canOpenSpace: async () => false,
-      canOpen: async () => false,
-      openSpaceIds: async () => [],
-      grantOpensCommunity: async () => false,
-      membersAmong: async () => [],
-    };
-    this.posts = params.posts ?? {
-      getPost: async (_orgId, _actor, postId) => {
-        throw new NotFoundError('Post', postId);
-      },
-    };
-    this.chats = params.chats ?? {
-      getMessage: async (_orgId, _actor, messageId) => {
-        throw new NotFoundError('Message', messageId);
-      },
-    };
-    this.profiles = params.profiles ?? { getProfile: async () => null };
-    this.orgUsers = params.orgUsers ?? { findOrgUserById: async () => null };
+    this.access = params.access;
+    this.posts = params.posts;
+    this.chats = params.chats;
+    this.profiles = params.profiles;
+    this.organizations = params.organizations;
     this.deliveryExpirySeconds = params.deliveryExpirySeconds;
     this.logger = params.logger ?? noopLogger;
   }
@@ -334,7 +319,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       const read = await this.readable(() => this.chats.getMessage(orgId, actor, via.message));
       return read !== null && read.assetIds.includes(assetId);
     }
-    const orgUser = await this.orgUsers.findOrgUserById(orgId, via.profile);
+    const orgUser = await this.organizations.getOrgUserById(orgId, via.profile);
     if (!orgUser) {
       return false;
     }

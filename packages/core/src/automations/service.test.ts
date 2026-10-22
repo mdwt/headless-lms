@@ -130,6 +130,7 @@ const RUN: AutomationRun = {
 function fakeRepo(over?: Partial<AutomationsRepository>): AutomationsRepository {
   return {
     insert: vi.fn().mockResolvedValue(AUTOMATION),
+    insertSeed: vi.fn().mockResolvedValue(AUTOMATION),
     update: vi.fn().mockResolvedValue(AUTOMATION),
     delete: vi.fn().mockResolvedValue(AUTOMATION),
     findById: vi.fn().mockResolvedValue(AUTOMATION),
@@ -299,8 +300,13 @@ describe('AutomationsService.handle', () => {
     const stored: Automation[] = [];
     const repo = fakeRepo({
       listByTrigger: vi.fn().mockResolvedValue([]),
-      listByOrg: vi.fn(async () => [...stored]),
-      insert: vi.fn(async (_orgId: string, input: NewAutomation) => {
+      insertSeed: vi.fn(async (_orgId: string, input: NewAutomation) => {
+        const key = `${input.name}:${String(input.filter?.['communityId'] ?? '')}`;
+        if (
+          stored.some((row) => `${row.name}:${String(row.filter?.['communityId'] ?? '')}` === key)
+        ) {
+          return null;
+        }
         const row: Automation = {
           ...AUTOMATION,
           id: `atm_${stored.length}`,
@@ -315,7 +321,7 @@ describe('AutomationsService.handle', () => {
         return row;
       }),
     });
-    const { svc } = build(repo);
+    const { svc, appended } = build(repo);
     const created = {
       type: 'organization.created',
       version: 1,
@@ -327,8 +333,11 @@ describe('AutomationsService.handle', () => {
     await svc.handle(created);
     expect(stored).toHaveLength(9);
     expect(stored.every((row) => row.source === 'system')).toBe(true);
+    expect(appended).toHaveLength(9);
     await svc.handle(created);
     expect(stored).toHaveLength(9);
+    expect(appended).toHaveLength(9);
+    expect(repo.insert).not.toHaveBeenCalled();
   });
 
   it("matches an enabled automation's trigger, opens a run, and dispatches it", async () => {
@@ -1419,5 +1428,134 @@ describe('fireSchedule', () => {
     await svc.fireSchedule('org-1', due.id, new Date('2026-01-02T00:05:00Z'));
 
     expect(engine.dispatch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('schedule reconcile after commit', () => {
+  it('keeps a committed create when the engine cannot reconcile its schedules', async () => {
+    const engine = fakeEngine({
+      syncSchedules: vi.fn().mockRejectedValue(new Error('hatchet down')),
+    });
+    const { svc, appended } = build(fakeRepo(), fakeRunsRepo(), engine);
+    await expect(
+      svc.create('org-1', {
+        name: 'Daily',
+        triggers: ['schedule:0 7 * * *'],
+        actions: [{ type: 'sendDigest', input: {} }],
+      }),
+    ).resolves.toEqual(AUTOMATION);
+    expect(engine.syncSchedules).toHaveBeenCalledOnce();
+    expect(appended).toEqual([expect.objectContaining({ type: 'automation.created' })]);
+  });
+
+  it('keeps a committed update and delete when the engine cannot reconcile', async () => {
+    const engine = fakeEngine({
+      syncSchedules: vi.fn().mockRejectedValue(new Error('hatchet down')),
+    });
+    const { svc } = build(fakeRepo(), fakeRunsRepo(), engine);
+    await expect(svc.update('org-1', 'atm_1', { name: 'Renamed' })).resolves.toEqual(AUTOMATION);
+    await expect(svc.delete('org-1', 'atm_1')).resolves.toBe(true);
+  });
+});
+
+describe('fireSchedule work and slots', () => {
+  function scheduled(type: string, createdAt = new Date('2026-01-01T00:00:00Z')): Automation {
+    return {
+      ...AUTOMATION,
+      triggers: ['schedule:0 * * * *'],
+      actions: [{ type, input: {} }],
+      createdAt,
+    };
+  }
+
+  function withWork(automation: Automation, work: Partial<ScheduledWork>) {
+    return build(
+      fakeRepo({ findById: vi.fn().mockResolvedValue(automation) }),
+      fakeRunsRepo(),
+      fakeEngine(),
+      fakeMailer(),
+      fakeIntegrations(),
+      fakeLookups(),
+      fakeCredentials(),
+      fakeWebhooks(),
+      { ...emptyScheduledWork, ...work },
+    );
+  }
+
+  it('opens no run when no grant is due', async () => {
+    const hasDueGrants = vi.fn().mockResolvedValue(false);
+    const { svc, engine, runsRepo } = withWork(scheduled('expireDueGrants'), { hasDueGrants });
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
+    expect(hasDueGrants).toHaveBeenCalledWith('org-1', new Date('2026-01-02T01:00:00Z'));
+    expect(runsRepo.insert).not.toHaveBeenCalled();
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('opens a run when a grant is due', async () => {
+    const hasDueGrants = vi.fn().mockResolvedValue(true);
+    const { svc, engine } = withWork(scheduled('expireDueGrants'), { hasDueGrants });
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
+    expect(engine.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('opens no run when no upload is unattached', async () => {
+    const hasUnattachedUploads = vi.fn().mockResolvedValue(false);
+    const { svc, engine } = withWork(scheduled('removeUnattachedUploads'), {
+      hasUnattachedUploads,
+    });
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
+    expect(hasUnattachedUploads).toHaveBeenCalledWith('org-1', new Date('2026-01-02T01:00:00Z'));
+    expect(engine.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('always runs an automation with an action it cannot ask about', async () => {
+    const automation = {
+      ...scheduled('expireDueGrants'),
+      actions: [
+        { type: 'expireDueGrants', input: {} },
+        { type: 'sendDigest', input: {} },
+      ],
+    };
+    const { svc, engine } = withWork(automation, {
+      hasDueGrants: vi.fn().mockResolvedValue(false),
+    });
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
+    expect(engine.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('keys the run on the slot minute so a late fire of a slot dedupes', async () => {
+    const { svc, runsRepo } = withWork(scheduled('sendDigest'), {});
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:42.123Z'));
+    expect(runsRepo.insert).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        event: expect.objectContaining({
+          id: 'schedule_atm_1_2026-01-02T07:00:00.000Z',
+          data: { automationId: 'atm_1', firedAt: '2026-01-02T07:00:00.000Z' },
+        }),
+      }),
+    );
+  });
+
+  it('opens no second run for a slot that already ran', async () => {
+    const insert = vi.fn().mockResolvedValueOnce(RUN).mockResolvedValue(null);
+    const automation = scheduled('sendDigest');
+    const { svc, engine } = build(
+      fakeRepo({ findById: vi.fn().mockResolvedValue(automation) }),
+      fakeRunsRepo({ insert }),
+    );
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:00Z'));
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:30Z'));
+    expect(insert.mock.calls[0]![1].event.id).toBe(insert.mock.calls[1]![1].event.id);
+    expect(engine.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('never fires a slot from before the automation existed', async () => {
+    const { svc, runsRepo } = withWork(
+      scheduled('sendDigest', new Date('2026-01-02T08:15:00Z')),
+      {},
+    );
+    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:00Z'));
+    expect(runsRepo.insert).not.toHaveBeenCalled();
   });
 });

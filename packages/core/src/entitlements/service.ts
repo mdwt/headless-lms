@@ -4,7 +4,7 @@
 // outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay republishes committed events to
 // the EventBus at-least-once.
-import type { CommunityReader, SpaceRowLock } from '../content/index.js';
+import type { CommunityReader, Space, SpaceRowLock } from '../content/index.js';
 import type {
   Entitlement,
   EntitlementsQuery,
@@ -13,31 +13,31 @@ import type {
   SpaceMember,
 } from './model.js';
 import type {
+  AccessFacts,
   EntitlementsRepository,
   EntitlementsService,
   EntitlementsUnitOfWork,
   GrantTarget,
   InsertSpaceMemberInput,
   OpenableSpace,
-  RoleReader,
+  SpaceAccessRule,
 } from './ports.js';
 import type { Actor } from '../shared/actor.js';
-import type { Logger, OutboxAppender } from '../shared/ports.js';
+import type { Logger, NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
-import { isStaffRole } from '../organizations/index.js';
+import { canModerate, isStaffRole } from '../organizations/index.js';
 import { entitlementEvents } from './events.js';
+import { laterExpiry, opensSpace } from './rules.js';
 
 const ENDING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type EntitlementsServiceParams = {
   /** Read-only access (list) — runs outside any transaction. */
   repo: EntitlementsRepository;
-  /** Spaces, their access rules, and the row lock taken inside a write. */
   content: CommunityReader;
   /** Atomic write scope: tx-bound repo + outbox appender. */
   uow: EntitlementsUnitOfWork;
-  roles: RoleReader;
   logger?: Logger;
 };
 
@@ -45,14 +45,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private readonly repo: EntitlementsRepository;
   private readonly content: CommunityReader;
   private readonly uow: EntitlementsUnitOfWork;
-  private readonly roles: RoleReader;
   private readonly logger: Logger;
 
   constructor(params: EntitlementsServiceParams) {
     this.repo = params.repo;
     this.content = params.content;
     this.uow = params.uow;
-    this.roles = params.roles;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -78,6 +76,43 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       bundleId: entitlement.bundleId,
       contentId: entitlement.contentId,
     });
+    return entitlement;
+  }
+
+  async ensureGrant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+    const { entitlement, change } = await this.uow.run(async ({ entitlements, outbox }) => {
+      const created = await entitlements.insertIfAbsent(orgId, input);
+      if (created) {
+        await outbox.append([entitlementEvents.entitlementCreated.make({ orgId, data: created })]);
+        return { entitlement: created, change: 'created' as const };
+      }
+      const existing = await entitlements.lockGrant(orgId, input);
+      if (!existing) {
+        throw new ConflictError('The grant changed while it was being given');
+      }
+      if (existing.status === 'revoked') {
+        return { entitlement: existing, change: null };
+      }
+      const expiresAt = laterExpiry(existing.expiresAt, input.expiresAt ?? null);
+      if (expiresAt?.getTime() === existing.expiresAt?.getTime()) {
+        return { entitlement: existing, change: null };
+      }
+      const updated = await entitlements.setExpiresAt(orgId, existing.id, expiresAt);
+      if (!updated) {
+        throw new NotFoundError('Entitlement', existing.id);
+      }
+      await outbox.append([entitlementEvents.entitlementUpdated.make({ orgId, data: updated })]);
+      return { entitlement: updated, change: 'updated' as const };
+    });
+    if (change) {
+      this.logger.info(change === 'created' ? 'entitlement granted' : 'entitlement extended', {
+        orgId,
+        entitlementId: entitlement.id,
+        orgUserId: entitlement.orgUserId,
+        bundleId: entitlement.bundleId,
+        contentId: entitlement.contentId,
+      });
+    }
     return entitlement;
   }
 
@@ -115,10 +150,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   async isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean> {
-    if (isStaffRole(actor.role)) {
-      return true;
-    }
-    return this.repo.hasCommunityAccess(orgId, actor.id, communityId);
+    const facts = await this.accessOf(orgId, actor.id, communityId, null);
+    return facts?.member === true;
   }
 
   async canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean> {
@@ -130,66 +163,65 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   async canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean> {
-    if (isStaffRole(actor.role)) {
-      return true;
-    }
-    const member = await this.repo.hasCommunityAccess(orgId, actor.id, space.communityId);
-    if (!member) {
+    const facts = await this.accessOf(orgId, actor.id, space.communityId, space.id);
+    if (!facts) {
       return false;
     }
-    if (actor.role === 'moderator') {
-      return true;
-    }
-    if (space.accessRule === 'all_members') {
-      return true;
-    }
-    const row = await this.repo.findSpaceMember(orgId, space.id, actor.id);
-    return row?.status === 'active';
+    return opensSpace(facts.role, facts.member, space.accessRule, facts.activeInSpace);
   }
 
-  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]> {
-    if (orgUserIds.length === 0) {
-      return Promise.resolve([]);
+  async openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]> {
+    const facts = await this.accessOf(orgId, actor.id, communityId, null);
+    if (!facts?.member) {
+      return [];
     }
-    return this.repo.membersAmong(orgId, communityId, orgUserIds);
+    const [spaces, activeIds] = await Promise.all([
+      this.content.listSpaces(orgId, communityId),
+      this.repo.activeSpaceIds(orgId, actor.id, communityId),
+    ]);
+    const active = new Set(activeIds);
+    return spaces.filter((space) =>
+      opensSpace(facts.role, facts.member, space.accessRule, active.has(space.id)),
+    );
   }
 
   async openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]> {
-    const spaces = await this.content.listSpaces(orgId, communityId);
-    if (isStaffRole(actor.role)) {
-      return spaces.map((space) => space.id);
-    }
-    const member = await this.repo.hasCommunityAccess(orgId, actor.id, communityId);
-    if (!member) {
-      return [];
-    }
-    if (actor.role === 'moderator') {
-      return spaces.map((space) => space.id);
-    }
-    const active = new Set(await this.repo.activeSpaceIds(orgId, actor.id, communityId));
-    return spaces
-      .filter((space) => space.accessRule === 'all_members' || active.has(space.id))
-      .map((space) => space.id);
+    const spaces = await this.openSpacesFor(orgId, actor, communityId);
+    return spaces.map((space) => space.id);
   }
 
-  grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean> {
-    return this.repo.grantOpensCommunity(orgId, grant, communityId);
+  async communityMembersAmong(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    const facts = await this.repo.accessAmong(orgId, communityId, null, orgUserIds);
+    return facts.filter((fact) => fact.member).map((fact) => fact.orgUserId);
+  }
+
+  async spaceOpenersAmong(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    const space = await this.content.getSpace(orgId, spaceId);
+    if (!space) {
+      return [];
+    }
+    const facts = await this.repo.accessAmong(orgId, space.communityId, space.id, orgUserIds);
+    return facts
+      .filter((fact) => opensSpace(fact.role, fact.member, space.accessRule, fact.activeInSpace))
+      .map((fact) => fact.orgUserId);
   }
 
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]> {
     return this.repo.communitiesOpenedBy(orgId, grant);
   }
 
-  async openSpaceIdsFor(orgId: string, orgUserId: string, communityId: string): Promise<string[]> {
-    const role = await this.roles.roleOf(orgId, orgUserId);
-    if (!role) {
-      return [];
-    }
-    return this.openSpaceIds(orgId, { id: orgUserId, role }, communityId);
-  }
-
-  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]> {
-    return this.repo.moderatorsWithAccess(orgId, communityId);
+  communityModeratorIds(orgId: string, communityId: string): Promise<string[]> {
+    return this.repo.communityModeratorIds(orgId, communityId);
   }
 
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]> {
@@ -207,14 +239,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
   ): Promise<SpaceMember> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
-    if (space.accessRule !== 'by_request') {
-      throw new ConflictError('This space is by invitation');
-    }
-    if (isStaffRole(actor.role) || actor.role === 'moderator') {
+    this.assertRule(space.accessRule, 'by_request');
+    if (canModerate(actor.role)) {
       throw new ForbiddenError('You do not request a place in a space');
     }
-    await this.assertGrant(orgId, actor.id, space.communityId);
+    await this.assertGrant(orgId, actor, actor.id, space.communityId);
     const created = await this.createMember(orgId, actor, space, actor.id, 'requested', 'request');
     this.logger.info('space member created', {
       orgId,
@@ -233,9 +262,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     orgUserId: string,
   ): Promise<SpaceMember> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
+    this.assertRule(space.accessRule, 'by_invite');
     await this.assertCanManage(orgId, actor, space.communityId);
-    await this.assertGrant(orgId, orgUserId, space.communityId);
+    await this.assertGrant(orgId, actor, orgUserId, space.communityId);
     const created = await this.createMember(orgId, actor, space, orgUserId, 'invited', 'invite');
     this.logger.info('space member created', { orgId, spaceId, orgUserId, status: created.status });
     return created;
@@ -251,9 +280,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
-    await this.assertGrant(orgId, orgUserId, space.communityId);
+    await this.assertGrant(orgId, actor, orgUserId, space.communityId);
     const created = await this.uow.run(async (scope) => {
-      await this.assertCapacity(scope.spaces, scope.entitlements, orgId, spaceId);
+      const locked = await this.lockSpace(scope.spaces, orgId, spaceId);
+      this.assertHasMembers(locked.accessRule);
+      await this.assertRoom(scope.entitlements, orgId, locked);
       return this.insertMember(scope.entitlements, scope.outbox, orgId, actor, {
         communityId: space.communityId,
         spaceId,
@@ -274,10 +305,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     this.assertHolder(actor);
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
-    await this.assertGrant(orgId, actor.id, space.communityId);
-    const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'invited');
-    return this.activate(orgId, actor, spaceId, row, 'invited');
+    this.assertRule(space.accessRule, 'by_invite');
+    await this.assertGrant(orgId, actor, actor.id, space.communityId);
+    return this.activate(orgId, actor, spaceId, actor.id, 'by_invite', 'invited', () =>
+      ownRowMissing('invited'),
+    );
   }
 
   async approve(
@@ -288,10 +320,18 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     orgUserId: string,
   ): Promise<SpaceMember> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
+    this.assertRule(space.accessRule, 'by_request');
     await this.assertCanManage(orgId, actor, space.communityId);
-    const row = await this.requireRow(orgId, spaceId, orgUserId, 'requested');
-    return this.activate(orgId, actor, spaceId, row, 'requested');
+    await this.assertGrant(orgId, actor, orgUserId, space.communityId);
+    return this.activate(
+      orgId,
+      actor,
+      spaceId,
+      orgUserId,
+      'by_request',
+      'requested',
+      () => new NotFoundError('Space member', orgUserId),
+    );
   }
 
   async decline(
@@ -303,8 +343,14 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     await this.assertCanManage(orgId, actor, space.communityId);
-    const row = await this.requireRow(orgId, spaceId, orgUserId, 'requested');
-    return this.deleteMember(orgId, actor, row, 'requested');
+    return this.deleteMember(
+      orgId,
+      actor,
+      spaceId,
+      orgUserId,
+      'requested',
+      () => new NotFoundError('Space member', orgUserId),
+    );
   }
 
   async refuse(
@@ -315,8 +361,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
-    const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'invited');
-    return this.deleteMember(orgId, actor, row, 'invited');
+    return this.deleteMember(orgId, actor, spaceId, actor.id, 'invited', () =>
+      ownRowMissing('invited'),
+    );
   }
 
   async leave(
@@ -327,8 +374,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
-    const row = await this.requireOwnRow(orgId, spaceId, actor.id, 'active');
-    return this.deleteMember(orgId, actor, row, 'active');
+    return this.deleteMember(orgId, actor, spaceId, actor.id, 'active', () =>
+      ownRowMissing('active'),
+    );
   }
 
   async remove(
@@ -339,29 +387,33 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     orgUserId: string,
   ): Promise<SpaceMember> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
-    const row = await this.repo.findSpaceMember(orgId, spaceId, orgUserId);
-    if (!row) {
-      throw new NotFoundError('Space member', orgUserId);
-    }
-    if (row.status === 'revoked') {
-      throw new ConflictError('This person is already removed from the space');
-    }
-    const previousStatus = row.status;
-    const updated = await this.uow.run(async ({ entitlements, outbox }) => {
-      const next = await entitlements.updateSpaceMemberStatus(orgId, row.id, 'revoked');
-      if (!next) {
-        throw new NotFoundError('Space member', row.id);
-      }
-      await outbox.append([
-        entitlementEvents.spaceMemberUpdated.make({
-          orgId,
-          data: next,
-          metadata: { actorOrgUserId: actor.id, previousStatus },
-        }),
-      ]);
-      return next;
-    });
+    const { updated, previousStatus } = await this.uow.run(
+      async ({ entitlements, spaces, outbox }) => {
+        const locked = await this.lockSpace(spaces, orgId, spaceId);
+        this.assertHasMembers(locked.accessRule);
+        const row = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
+        if (!row) {
+          throw new NotFoundError('Space member', orgUserId);
+        }
+        if (row.status === 'revoked') {
+          throw new ConflictError('This person is already removed from the space');
+        }
+        const next = await entitlements.updateSpaceMemberStatus(orgId, row.id, 'revoked');
+        if (!next) {
+          throw new NotFoundError('Space member', row.id);
+        }
+        await outbox.append([
+          entitlementEvents.spaceMemberUpdated.make({
+            orgId,
+            data: next,
+            metadata: { actorOrgUserId: actor.id, previousStatus: row.status },
+          }),
+        ]);
+        return { updated: next, previousStatus: row.status };
+      },
+    );
     this.logger.info('space member removed', { orgId, spaceId, orgUserId, previousStatus });
     return updated;
   }
@@ -372,39 +424,48 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember[]> {
-    await this.requireSpaceIn(orgId, communityId, spaceId);
-    const open = await this.canOpenSpace(orgId, actor, spaceId);
-    if (!open) {
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    if (!(await this.canOpen(orgId, actor, space))) {
       throw new ForbiddenError('You cannot open this space');
     }
     const rows = await this.repo.listSpaceMembers(orgId, spaceId);
-    if (isStaffRole(actor.role) || actor.role === 'moderator') {
+    if (canModerate(actor.role)) {
       return rows;
     }
     return rows.filter((row) => row.status === 'active');
   }
 
+  hasDueNotices(orgId: string, now: Date): Promise<boolean> {
+    return this.repo.hasDueNotices(orgId, now, new Date(now.getTime() + ENDING_SOON_MS));
+  }
+
   async expireDue(orgId: string, now: Date): Promise<void> {
     const until = new Date(now.getTime() + ENDING_SOON_MS);
     const appended = await this.uow.run(async ({ entitlements, outbox }) => {
-      const events = [];
-      const expired = await entitlements.listGrantsExpiredBy(orgId, now);
-      for (const grant of expired) {
-        if (await entitlements.hasNotice(orgId, grant.id, { kind: 'expired' })) {
-          continue;
+      const events: NewDomainEvent[] = [];
+      for (const grant of await entitlements.listGrantsExpiredBy(orgId, now)) {
+        const claimed = await entitlements.claimNotice(
+          orgId,
+          { kind: 'expired', entitlementId: grant.id },
+          now,
+          until,
+        );
+        if (claimed) {
+          events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
         }
-        await entitlements.recordNotice(orgId, grant.id, { kind: 'expired' }, now);
-        events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
       }
-      const ending = await entitlements.listGrantsEndingBetween(orgId, now, until);
-      for (const grant of ending) {
-        const communities = await entitlements.communitiesOpenedBy(orgId, grant);
-        for (const communityId of communities) {
-          const notice = { kind: 'ending_soon' as const, communityId };
-          if (await entitlements.hasNotice(orgId, grant.id, notice)) {
-            continue;
-          }
-          await entitlements.recordNotice(orgId, grant.id, notice, now);
+      for (const { grant, communityId } of await entitlements.listGrantsEndingBetween(
+        orgId,
+        now,
+        until,
+      )) {
+        const claimed = await entitlements.claimNotice(
+          orgId,
+          { kind: 'ending_soon', entitlementId: grant.id, communityId },
+          now,
+          until,
+        );
+        if (claimed) {
           events.push(
             entitlementEvents.entitlementEndingSoon.make({
               orgId,
@@ -423,25 +484,26 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     }
   }
 
-  private async requireSpace(orgId: string, spaceId: string) {
-    const space = await this.content.getSpace(orgId, spaceId);
-    if (!space) {
-      throw new NotFoundError('Space', spaceId);
-    }
-    return space;
-  }
-
   private async requireSpaceIn(orgId: string, communityId: string, spaceId: string) {
-    const space = await this.requireSpace(orgId, spaceId);
-    if (space.communityId !== communityId) {
+    const space = await this.content.getSpace(orgId, spaceId);
+    if (!space || space.communityId !== communityId) {
       throw new NotFoundError('Space', spaceId);
     }
     return space;
   }
 
-  private assertHasMembers(accessRule: 'all_members' | 'by_request' | 'by_invite'): void {
+  private assertHasMembers(accessRule: SpaceAccessRule): void {
     if (accessRule === 'all_members') {
       throw new ConflictError('An all-members space has no space members');
+    }
+  }
+
+  private assertRule(accessRule: SpaceAccessRule, expected: 'by_request' | 'by_invite'): void {
+    this.assertHasMembers(accessRule);
+    if (accessRule !== expected) {
+      throw new ConflictError(
+        accessRule === 'by_invite' ? 'This space is by invitation' : 'This space is by request',
+      );
     }
   }
 
@@ -451,54 +513,38 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     }
   }
 
-  private async assertGrant(orgId: string, orgUserId: string, communityId: string): Promise<void> {
+  private async assertGrant(
+    orgId: string,
+    actor: Actor,
+    orgUserId: string,
+    communityId: string,
+  ): Promise<void> {
     const member = await this.repo.hasCommunityAccess(orgId, orgUserId, communityId);
     if (!member) {
-      throw new ForbiddenError('You are not a member of this community');
+      throw new ForbiddenError(
+        orgUserId === actor.id
+          ? 'You are not a member of this community'
+          : 'That person is not a member of this community',
+      );
     }
   }
 
   private async assertCanManage(orgId: string, actor: Actor, communityId: string): Promise<void> {
-    if (isStaffRole(actor.role)) {
-      return;
-    }
-    if (
-      actor.role === 'moderator' &&
-      (await this.repo.hasCommunityAccess(orgId, actor.id, communityId))
-    ) {
+    const facts = await this.accessOf(orgId, actor.id, communityId, null);
+    if (facts?.member && canModerate(facts.role)) {
       return;
     }
     throw new ForbiddenError('You cannot manage members of this space');
   }
 
-  private async requireRow(
+  private async accessOf(
     orgId: string,
-    spaceId: string,
     orgUserId: string,
-    status: SpaceMember['status'],
-  ): Promise<SpaceMember> {
-    const row = await this.repo.findSpaceMember(orgId, spaceId, orgUserId);
-    if (!row || row.status !== status) {
-      throw new NotFoundError('Space member', orgUserId);
-    }
-    return row;
-  }
-
-  private async requireOwnRow(
-    orgId: string,
-    spaceId: string,
-    orgUserId: string,
-    status: SpaceMember['status'],
-  ): Promise<SpaceMember> {
-    const row = await this.repo.findSpaceMember(orgId, spaceId, orgUserId);
-    if (!row || row.status !== status) {
-      throw new ConflictError(
-        status === 'invited'
-          ? 'You do not have an invitation to this space'
-          : 'You are not a member of this space',
-      );
-    }
-    return row;
+    communityId: string,
+    spaceId: string | null,
+  ): Promise<AccessFacts | null> {
+    const [facts] = await this.repo.accessAmong(orgId, communityId, spaceId, [orgUserId]);
+    return facts ?? null;
   }
 
   private async createMember(
@@ -527,7 +573,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     actor: Actor,
     input: InsertSpaceMemberInput,
   ): Promise<SpaceMember> {
-    const existing = await entitlements.findSpaceMember(orgId, input.spaceId, input.orgUserId);
+    const existing = await entitlements.lockSpaceMember(orgId, input.spaceId, input.orgUserId);
     if (existing && existing.status !== 'revoked') {
       throw new ConflictError(
         input.orgUserId === actor.id
@@ -553,71 +599,95 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     orgId: string,
     actor: Actor,
     spaceId: string,
-    row: SpaceMember,
-    previousStatus: SpaceMember['status'],
+    orgUserId: string,
+    rule: 'by_request' | 'by_invite',
+    from: SpaceMember['status'],
+    missing: () => Error,
   ): Promise<SpaceMember> {
     const updated = await this.uow.run(async ({ entitlements, spaces, outbox }) => {
-      await this.assertCapacity(spaces, entitlements, orgId, spaceId);
+      const locked = await this.lockSpace(spaces, orgId, spaceId);
+      this.assertRule(locked.accessRule, rule);
+      const row = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
+      if (!row || row.status !== from) {
+        throw missing();
+      }
+      await this.assertRoom(entitlements, orgId, locked);
       const next = await entitlements.updateSpaceMemberStatus(orgId, row.id, 'active');
       if (!next) {
-        throw new NotFoundError('Space member', row.id);
+        throw missing();
       }
       await outbox.append([
         entitlementEvents.spaceMemberUpdated.make({
           orgId,
           data: next,
-          metadata: { actorOrgUserId: actor.id, previousStatus },
+          metadata: { actorOrgUserId: actor.id, previousStatus: from },
         }),
       ]);
       return next;
     });
-    this.logger.info('space member activated', { orgId, spaceId, orgUserId: row.orgUserId });
+    this.logger.info('space member activated', { orgId, spaceId, orgUserId });
     return updated;
   }
 
   private async deleteMember(
     orgId: string,
     actor: Actor,
-    row: SpaceMember,
-    previousStatus: SpaceMember['status'],
+    spaceId: string,
+    orgUserId: string,
+    from: SpaceMember['status'],
+    missing: () => Error,
   ): Promise<SpaceMember> {
-    await this.uow.run(async ({ entitlements, outbox }) => {
-      await entitlements.deleteSpaceMember(orgId, row.id);
+    const row = await this.uow.run(async ({ entitlements, outbox }) => {
+      const current = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
+      if (!current || current.status !== from) {
+        throw missing();
+      }
+      await entitlements.deleteSpaceMember(orgId, current.id);
       await outbox.append([
         entitlementEvents.spaceMemberDeleted.make({
           orgId,
-          data: row,
-          metadata: { actorOrgUserId: actor.id, previousStatus },
+          data: current,
+          metadata: { actorOrgUserId: actor.id, previousStatus: from },
         }),
       ]);
+      return current;
     });
     this.logger.info('space member deleted', {
       orgId,
-      spaceId: row.spaceId,
-      orgUserId: row.orgUserId,
-      previousStatus,
+      spaceId,
+      orgUserId,
+      previousStatus: from,
     });
     return row;
   }
 
-  private async assertCapacity(
-    spaces: SpaceRowLock,
-    entitlements: EntitlementsRepository,
-    orgId: string,
-    spaceId: string,
-  ): Promise<void> {
+  private async lockSpace(spaces: SpaceRowLock, orgId: string, spaceId: string) {
     const locked = await spaces.lockSpace(orgId, spaceId);
     if (!locked) {
       throw new NotFoundError('Space', spaceId);
     }
-    if (locked.accessRule === 'all_members') {
-      throw new ConflictError('An all-members space has no space members');
+    return locked;
+  }
+
+  private async assertRoom(
+    entitlements: EntitlementsRepository,
+    orgId: string,
+    space: Space,
+  ): Promise<void> {
+    if (space.capacity === null) {
+      return;
     }
-    if (locked.capacity !== null) {
-      const count = await entitlements.countActiveSpaceMembers(orgId, spaceId);
-      if (count >= locked.capacity) {
-        throw new ConflictError('This space is full');
-      }
+    const count = await entitlements.countActiveSpaceMembers(orgId, space.id);
+    if (count >= space.capacity) {
+      throw new ConflictError('This space is full');
     }
   }
+}
+
+function ownRowMissing(status: 'invited' | 'active'): ConflictError {
+  return new ConflictError(
+    status === 'invited'
+      ? 'You do not have an invitation to this space'
+      : 'You are not a member of this space',
+  );
 }

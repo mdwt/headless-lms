@@ -37,7 +37,6 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
     mail: {
       ...emptyCommunityMail,
       communityTitle: vi.fn(async () => 'Founders'),
-      grantOpensCommunity: vi.fn(async () => true),
       communitiesOpenedBy: vi.fn(async () => ['cmy_1']),
       openSpaceNames: vi.fn(async () => ['Announcements']),
       displayName: vi.fn(async () => 'Ann'),
@@ -112,30 +111,34 @@ describe('community email derivations', () => {
   });
 
   it('emails a new moderator and ignores every other role change', async () => {
-    const moderator = ready(organizationEvents.orgUserUpdated.make({
-      orgId: 'org-1',
-      data: {
-        id: 'ou_1',
+    const moderator = ready(
+      organizationEvents.orgUserUpdated.make({
         orgId: 'org-1',
-        userId: 'usr_1',
-        role: 'moderator',
-        status: 'active',
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        updatedAt: new Date('2026-01-01T00:00:00Z'),
-      },
-    }));
-    const student = ready(organizationEvents.orgUserUpdated.make({
-      orgId: 'org-1',
-      data: {
-        id: 'ou_1',
+        data: {
+          id: 'ou_1',
+          orgId: 'org-1',
+          userId: 'usr_1',
+          role: 'moderator',
+          status: 'active',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      }),
+    );
+    const student = ready(
+      organizationEvents.orgUserUpdated.make({
         orgId: 'org-1',
-        userId: 'usr_1',
-        role: 'student',
-        status: 'active',
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        updatedAt: new Date('2026-01-01T00:00:00Z'),
-      },
-    }));
+        data: {
+          id: 'ou_1',
+          orgId: 'org-1',
+          userId: 'usr_1',
+          role: 'student',
+          status: 'active',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      }),
+    );
     expect(await COMMUNITY_DERIVATIONS.youAreNowAModerator!.derive(moderator, deps())).toEqual([
       expect.objectContaining({ orgUserId: 'ou_1' }),
     ]);
@@ -143,20 +146,22 @@ describe('community email derivations', () => {
   });
 
   it('emails staff only for a requested space member', async () => {
-    const requested = ready(entitlementEvents.spaceMemberCreated.make({
-      orgId: 'org-1',
-      data: {
+    const requested = ready(
+      entitlementEvents.spaceMemberCreated.make({
         orgId: 'org-1',
-        id: 'spm_1',
-        communityId: 'cmy_1',
-        spaceId: 'spc_1',
-        orgUserId: 'ou_1',
-        status: 'requested',
-        source: 'request',
-        createdAt: new Date('2026-01-01T00:00:00Z'),
-        updatedAt: new Date('2026-01-01T00:00:00Z'),
-      },
-    }));
+        data: {
+          orgId: 'org-1',
+          id: 'spm_1',
+          communityId: 'cmy_1',
+          spaceId: 'spc_1',
+          orgUserId: 'ou_1',
+          status: 'requested',
+          source: 'request',
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      }),
+    );
     const active = ready(
       entitlementEvents.spaceMemberCreated.make({
         orgId: 'org-1',
@@ -212,20 +217,205 @@ describe('community email derivations', () => {
       createdAt: new Date('2026-01-01T00:00:00Z'),
       updatedAt: new Date('2026-01-02T00:00:00Z'),
     };
-    const published = ready(discussionEvents.postPublished.make({
-      orgId: 'org-1',
-      data: post,
-      metadata: { previousStatus: 'pending', actorOrgUserId: 'staff_1' },
-    }));
-    const drafted = ready(discussionEvents.postPublished.make({
-      orgId: 'org-1',
-      data: post,
-      metadata: { previousStatus: 'draft' },
-    }));
+    const published = ready(
+      discussionEvents.postPublished.make({
+        orgId: 'org-1',
+        data: post,
+        metadata: { previousStatus: 'pending', actorOrgUserId: 'staff_1' },
+      }),
+    );
+    const drafted = ready(
+      discussionEvents.postPublished.make({
+        orgId: 'org-1',
+        data: post,
+        metadata: { previousStatus: 'draft' },
+      }),
+    );
     expect(await COMMUNITY_DERIVATIONS.yourPostWasPublished!.derive(published, deps())).toEqual([
       expect.objectContaining({ orgUserId: 'ou_1' }),
     ]);
     expect(await COMMUNITY_DERIVATIONS.yourPostWasPublished!.derive(drafted, deps())).toEqual([]);
+  });
+});
+
+describe('community email audiences', () => {
+  const at = new Date('2026-01-01T00:00:00Z');
+  const message = {
+    orgId: 'org-1',
+    id: 'msg_1',
+    communityId: 'cmy_1',
+    chatId: 'cht_1',
+    orgUserId: 'ou_1',
+    body: 'Hello there',
+    replyToId: null,
+    editedAt: null,
+    deletedAt: null,
+    createdAt: at,
+    updatedAt: at,
+  };
+  const participants = ['ou_1', 'ou_2', 'ou_3'].map((orgUserId) => ({
+    orgUserId,
+    mute: null as { until: Date | null } | null,
+    leftAt: null,
+  }));
+  const post = {
+    title: 'Hello',
+    body: 'Body',
+    spaceId: 'spc_1',
+    orgUserId: 'ou_2',
+    communityId: 'cmy_1',
+  };
+  const comment = {
+    id: 'cmt_2',
+    orgId: 'org-1',
+    activityId: null,
+    postId: 'pst_1',
+    communityId: 'cmy_1',
+    parentId: 'cmt_1',
+    orgUserId: 'ou_1',
+    body: 'A reply',
+    status: 'published' as const,
+    removedBy: null,
+    createdAt: at,
+    updatedAt: at,
+  };
+
+  function chatDeps(
+    status: 'pending' | 'open',
+    members: string[],
+    people: typeof participants = participants,
+  ) {
+    const base = deps();
+    return deps({
+      mail: {
+        ...base.mail,
+        chat: vi.fn(async () => ({
+          communityId: 'cmy_1',
+          kind: 'direct' as const,
+          status,
+          createdBy: 'ou_1',
+          participants: people,
+        })),
+        communityMembersAmong: vi.fn(async (_orgId: string, _communityId: string, ids: string[]) =>
+          ids.filter((id) => members.includes(id)),
+        ),
+      },
+    });
+  }
+
+  it('sends no new-message email for a message stored while its chat was pending', async () => {
+    const sent = (chatStatus: string) =>
+      ready(
+        discussionEvents.messageSent.make({
+          orgId: 'org-1',
+          data: message,
+          metadata: { actorOrgUserId: 'ou_1', chatStatus },
+        }),
+      );
+    const members = ['ou_2', 'ou_3'];
+    expect(
+      await COMMUNITY_DERIVATIONS.newMessage!.derive(sent('pending'), chatDeps('open', members)),
+    ).toEqual([]);
+    expect(
+      await COMMUNITY_DERIVATIONS.newMessage!.derive(sent('open'), chatDeps('pending', members)),
+    ).toEqual([
+      expect.objectContaining({ orgUserId: 'ou_2' }),
+      expect.objectContaining({ orgUserId: 'ou_3' }),
+    ]);
+  });
+
+  it('skips a participant muted until a later time or until unmuted', async () => {
+    const event = ready(discussionEvents.messageSent.make({ orgId: 'org-1', data: message }));
+    const people = [
+      { orgUserId: 'ou_1', mute: null, leftAt: null },
+      { orgUserId: 'ou_2', mute: { until: null }, leftAt: null },
+      { orgUserId: 'ou_3', mute: { until: new Date('2026-01-03T00:00:00Z') }, leftAt: null },
+      { orgUserId: 'ou_4', mute: { until: new Date('2026-01-01T00:00:00Z') }, leftAt: null },
+      { orgUserId: 'ou_5', mute: null, leftAt: null },
+    ];
+    const members = ['ou_2', 'ou_3', 'ou_4', 'ou_5'];
+    expect(
+      await COMMUNITY_DERIVATIONS.newMessage!.derive(event, chatDeps('open', members, people)),
+    ).toEqual([
+      expect.objectContaining({ orgUserId: 'ou_4' }),
+      expect.objectContaining({ orgUserId: 'ou_5' }),
+    ]);
+  });
+
+  it('sends message excerpts only to participants still in the community', async () => {
+    const event = ready(discussionEvents.messageSent.make({ orgId: 'org-1', data: message }));
+    const actionDeps = chatDeps('open', ['ou_3']);
+    expect(await COMMUNITY_DERIVATIONS.newMessage!.derive(event, actionDeps)).toEqual([
+      expect.objectContaining({ orgUserId: 'ou_3' }),
+    ]);
+    expect(actionDeps.mail.communityMembersAmong).toHaveBeenCalledWith('org-1', 'cmy_1', [
+      'ou_2',
+      'ou_3',
+    ]);
+  });
+
+  it('sends no message request to a recipient no longer in the community', async () => {
+    const event = ready(
+      discussionEvents.chatCreated.make({
+        orgId: 'org-1',
+        data: {
+          orgId: 'org-1',
+          id: 'cht_1',
+          communityId: 'cmy_1',
+          kind: 'direct',
+          status: 'pending',
+          createdBy: 'ou_1',
+          lockedAt: null,
+          lockedBy: null,
+          createdAt: at,
+          updatedAt: at,
+          participantIds: ['ou_1', 'ou_2'],
+        },
+      }),
+    );
+    expect(
+      await COMMUNITY_DERIVATIONS.messageRequest!.derive(event, chatDeps('pending', [])),
+    ).toEqual([]);
+    expect(
+      await COMMUNITY_DERIVATIONS.messageRequest!.derive(event, chatDeps('pending', ['ou_2'])),
+    ).toEqual([expect.objectContaining({ orgUserId: 'ou_2' })]);
+  });
+
+  function postDeps(openers: string[]) {
+    const base = deps();
+    return deps({
+      mail: {
+        ...base.mail,
+        post: vi.fn(async () => post),
+        comment: vi.fn(async () => ({ orgUserId: 'ou_3', postId: 'pst_1', body: 'Parent' })),
+        followerIds: vi.fn(async () => ['ou_3', 'ou_4']),
+        spaceOpenersAmong: vi.fn(async (_orgId: string, _spaceId: string, ids: string[]) =>
+          ids.filter((id) => openers.includes(id)),
+        ),
+      },
+    });
+  }
+
+  it('sends comment excerpts only to followers who can still open the space', async () => {
+    const event = ready(discussionEvents.commentCreated.make({ orgId: 'org-1', data: comment }));
+    const actionDeps = postDeps(['ou_2', 'ou_4']);
+    expect(await COMMUNITY_DERIVATIONS.newCommentOnPost!.derive(event, actionDeps)).toEqual([
+      expect.objectContaining({ orgUserId: 'ou_4' }),
+      expect.objectContaining({ orgUserId: 'ou_2' }),
+    ]);
+    expect(actionDeps.mail.spaceOpenersAmong).toHaveBeenCalledWith('org-1', 'spc_1', [
+      'ou_3',
+      'ou_4',
+      'ou_2',
+    ]);
+  });
+
+  it('sends no reply email to a parent author who can no longer open the space', async () => {
+    const event = ready(discussionEvents.commentCreated.make({ orgId: 'org-1', data: comment }));
+    expect(await COMMUNITY_DERIVATIONS.replyToYourComment!.derive(event, postDeps([]))).toEqual([]);
+    expect(
+      await COMMUNITY_DERIVATIONS.replyToYourComment!.derive(event, postDeps(['ou_3'])),
+    ).toEqual([expect.objectContaining({ orgUserId: 'ou_3' })]);
   });
 });
 

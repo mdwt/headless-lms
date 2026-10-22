@@ -113,22 +113,45 @@ export const spaceMembers = pgTable(
   }),
 );
 
-export const entitlementNotices = pgTable(
-  "entitlement_notices",
+export const entitlementExpiryNotices = pgTable(
+  "entitlement_expiry_notices",
   {
     orgId: text("org_id")
       .notNull()
       .references(() => organizations.id),
     entitlementId: text("entitlement_id").notNull(),
-    kind: text("kind", { enum: ["expired", "ending_soon"] }).notNull(),
-    communityId: text("community_id").notNull().default(""),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     notifiedAt: timestamp("notified_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.entitlementId, t.kind, t.communityId] }),
+    pk: primaryKey({ columns: [t.orgId, t.entitlementId, t.expiresAt] }),
     entitlementFk: foreignKey({
       columns: [t.orgId, t.entitlementId],
       foreignColumns: [entitlements.orgId, entitlements.id],
+    }).onDelete("cascade"),
+  }),
+);
+
+export const entitlementEndingSoonNotices = pgTable(
+  "entitlement_ending_soon_notices",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    entitlementId: text("entitlement_id").notNull(),
+    communityId: text("community_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.entitlementId, t.communityId, t.expiresAt] }),
+    entitlementFk: foreignKey({
+      columns: [t.orgId, t.entitlementId],
+      foreignColumns: [entitlements.orgId, entitlements.id],
+    }).onDelete("cascade"),
+    communityFk: foreignKey({
+      columns: [t.orgId, t.communityId],
+      foreignColumns: [communities.orgId, communities.id],
     }).onDelete("cascade"),
   }),
 );

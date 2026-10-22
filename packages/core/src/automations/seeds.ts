@@ -216,7 +216,3 @@ export function communitySeeds(communityId: string): SeedAutomation[] {
     },
   ];
 }
-
-export function seedKey(row: { name: string; filter: Record<string, JsonValue> | null }): string {
-  return `${row.name}\0${JSON.stringify(row.filter)}`;
-}

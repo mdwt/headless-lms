@@ -1,4 +1,5 @@
 // organizations context — service implementation (inbound port).
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type {
   MemberRecord,
   MembersRepository,
@@ -9,10 +10,11 @@ import type {
   OrganizationsUnitOfWork,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
-import { type Role, STUDENT_ROLE } from './roles.js';
+import { capability, type Role, STAFF_ROLES, STUDENT_ROLE } from './roles.js';
 import {
   InviteError,
   type Member,
+  type MemberRoleChange,
   type MembersQuery,
   OrganizationRuleError,
   type Page,
@@ -32,13 +34,20 @@ import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
-import { NotFoundError } from '../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
 import type { IdentityService } from '../identity/index.js';
 import { genId } from '../shared/id.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type NewOrganizationEvent = NewDomainEvent<OrganizationEvent>;
+
+interface MemberWrite {
+  orgUserId: string;
+  actorOrgUserId: string;
+  demote: boolean;
+}
 
 export interface InviteUrls {
   studentPortalUrl: string;
@@ -79,6 +88,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
+  private readonly memberWrites = new AsyncLocalStorage<MemberWrite>();
 
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
@@ -171,6 +181,28 @@ export class OrganizationServiceImpl implements OrganizationService {
       if (!orgUser) {
         throw new NotFoundError('OrgUser', userId);
       }
+      const write = this.memberWrite(orgUser.id);
+      if (write?.demote) {
+        const demoted = await organizations.updateOrgUser(orgId, orgUser.id, {
+          role: STUDENT_ROLE,
+        });
+        if (!demoted) {
+          throw new NotFoundError('OrgUser', orgUser.id);
+        }
+        if (orgUser.role !== STUDENT_ROLE) {
+          await outbox.append([
+            organizationEvents.orgUserUpdated.make({
+              orgId,
+              data: demoted,
+              metadata: { actorOrgUserId: write.actorOrgUserId },
+            }),
+          ]);
+        }
+        return demoted;
+      }
+      if (orgUser.role === STUDENT_ROLE) {
+        return orgUser;
+      }
       const deletedUser = await organizations.deleteOrgUser(orgId, orgUser.id);
       if (!deletedUser) {
         throw new NotFoundError('OrgUser', orgUser.id);
@@ -198,10 +230,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         throw new NotFoundError('OrgUser', orgUser.id);
       }
       if (patch.role !== undefined && patch.role !== orgUser.role) {
+        const actorOrgUserId = this.memberWrite(orgUser.id)?.actorOrgUserId;
         await outbox.append([
           organizationEvents.orgUserUpdated.make({
             orgId,
             data: next,
+            ...(actorOrgUserId !== undefined && { metadata: { actorOrgUserId } }),
           }),
         ]);
       }
@@ -211,8 +245,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     return updated;
   }
 
-  async createInvite(input: CreateInviteInput): Promise<Invite> {
+  async createInvite(actor: Actor, input: CreateInviteInput): Promise<Invite> {
     const { orgId, email, role, inviterUserId, firstName, lastName } = input;
+    this.assertManagesUsers(actor, orgId);
+    this.assertNotOwner(role, orgId);
     const sendEmail = input.sendEmail ?? true;
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
@@ -305,8 +341,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     return orgUser;
   }
 
-  async resendStudentInvite(input: ResendStudentInviteInput): Promise<void> {
+  async resendStudentInvite(actor: Actor, input: ResendStudentInviteInput): Promise<void> {
     const { orgId, orgUserId, inviterUserId } = input;
+    this.assertManagesUsers(actor, orgId);
     const orgUser = await this.repo.findOrgUserById(orgId, orgUserId);
     if (!orgUser || orgUser.role !== STUDENT_ROLE) {
       throw new NotFoundError('Student', orgUserId);
@@ -443,22 +480,18 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findOrgUser(orgId, userId);
   }
 
-  async deleteOrgUser(orgId: string, id: string): Promise<OrgUser> {
+  async deleteOrgUser(orgId: string, actor: Actor, id: string): Promise<OrgUser> {
+    this.assertManagesUsers(actor, orgId);
     const deleted = await this.uow.run(async ({ organizations, outbox }) => {
       const orgUser = await organizations.findOrgUserById(orgId, id);
-      if (!orgUser) {
-        throw new NotFoundError('OrgUser', id);
+      if (!orgUser || orgUser.role !== STUDENT_ROLE) {
+        throw new NotFoundError('Student', id);
       }
       const deletedUser = await organizations.deleteOrgUser(orgId, id);
       if (!deletedUser) {
-        throw new NotFoundError('OrgUser', id);
+        throw new NotFoundError('Student', id);
       }
-      const events: NewOrganizationEvent[] = [];
-      if (deletedUser.role === STUDENT_ROLE) {
-        events.push(organizationEvents.studentDeleted.make({ orgId, data: orgUser }));
-      }
-
-      await outbox.append(events);
+      await outbox.append([organizationEvents.studentDeleted.make({ orgId, data: orgUser })]);
       return deletedUser;
     });
     this.logger.info('org user deleted', { orgId, orgUserId: id });
@@ -507,18 +540,25 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findBySlug(slug);
   }
 
-  orgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]> {
-    return this.repo.findOrgUserIdsByRole(orgId, roles);
+  staffOrgUserIds(orgId: string): Promise<string[]> {
+    return this.repo.findOrgUserIdsByRole(orgId, [...STAFF_ROLES]);
   }
 
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>> {
     return this.membersRepo.list(orgId, query);
   }
 
-  async updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null> {
+  async updateMemberRole(
+    ctx: MemberWriteContext,
+    actor: Actor,
+    id: string,
+    role: Role,
+  ): Promise<MemberRoleChange | null> {
+    this.assertManagesUsers(actor, ctx.orgId);
+    this.assertNotOwner(role, ctx.orgId);
     const member = await this.membersRepo.findById(ctx.orgId, id);
     if (!member) {
-      return this.promoteStudent(ctx, id, role);
+      return this.promoteStudent(ctx, actor, id, role);
     }
     if (member.role === 'owner') {
       this.logger.warn('role change rejected: owner role immutable', {
@@ -534,17 +574,48 @@ export class OrganizationServiceImpl implements OrganizationService {
       });
       throw new OrganizationRuleError('Only active members can have their role changed');
     }
-    await this.orgAdmin().updateRole(ctx, member.userExternalId, role);
+    if (role === STUDENT_ROLE) {
+      return this.demoteModerator(ctx, actor, member, member.userExternalId);
+    }
+    const userExternalId = member.userExternalId;
+    await this.asActor(actor, id, false, () =>
+      this.orgAdmin().updateRole(ctx, userExternalId, role),
+    );
     const updated = await this.membersRepo.findById(ctx.orgId, id);
     this.logger.info('member role updated', { orgId: ctx.orgId, memberId: id, role });
     return updated ? toMember(updated) : null;
   }
 
+  private async demoteModerator(
+    ctx: MemberWriteContext,
+    actor: Actor,
+    member: MemberRecord,
+    userExternalId: string,
+  ): Promise<MemberRoleChange | null> {
+    if (member.role !== 'moderator') {
+      this.logger.warn('role change rejected: only a moderator becomes a student', {
+        orgId: ctx.orgId,
+        memberId: member.id,
+      });
+      throw new OrganizationRuleError('Only a moderator can be made a student');
+    }
+    await this.asActor(actor, member.id, true, () =>
+      this.orgAdmin().removeMember(ctx, userExternalId),
+    );
+    const orgUser = await this.repo.findOrgUserById(ctx.orgId, member.id);
+    if (!orgUser) {
+      return null;
+    }
+    this.logger.info('moderator made a student', { orgId: ctx.orgId, memberId: member.id });
+    return { ...toMember(member), role: orgUser.role, status: orgUser.status };
+  }
+
   private async promoteStudent(
     ctx: MemberWriteContext,
+    actor: Actor,
     id: string,
     role: Role,
-  ): Promise<Member | null> {
+  ): Promise<MemberRoleChange | null> {
     const orgUser = await this.repo.findOrgUserById(ctx.orgId, id);
     if (!orgUser) {
       return null;
@@ -568,26 +639,59 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!org) {
       return null;
     }
-    await this.orgAdmin().grantMembership(org.externalId ?? org.id, person.externalId, role);
+    const orgExternalId = org.externalId ?? org.id;
+    const userExternalId = person.externalId;
+    await this.asActor(actor, orgUser.id, false, async () => {
+      await this.orgAdmin().grantMembership(orgExternalId, userExternalId, role);
+      if (!(await this.membersRepo.findById(ctx.orgId, id))) {
+        await this.orgAdmin().updateRole(ctx, userExternalId, role);
+      }
+    });
     const updated = await this.membersRepo.findById(ctx.orgId, id);
-    this.logger.info('student promoted', { orgId: ctx.orgId, memberId: id, role });
-    if (updated) {
-      return toMember(updated);
+    if (!updated) {
+      this.logger.warn('role change rejected: membership not mirrored', {
+        orgId: ctx.orgId,
+        memberId: id,
+      });
+      throw new OrganizationRuleError('The role change did not take effect');
     }
-    return {
-      id: orgUser.id,
-      firstName: person.firstName,
-      lastName: person.lastName,
-      email: person.email,
-      image: null,
-      role,
-      status: 'active',
-      joinedAt: orgUser.createdAt.toISOString(),
-      invitedAt: null,
-    };
+    this.logger.info('student promoted', { orgId: ctx.orgId, memberId: id, role });
+    return toMember(updated);
   }
 
-  async removeMember(ctx: MemberWriteContext, id: string): Promise<boolean> {
+  private asActor<T>(
+    actor: Actor,
+    orgUserId: string,
+    demote: boolean,
+    write: () => Promise<T>,
+  ): Promise<T> {
+    return this.memberWrites.run({ orgUserId, actorOrgUserId: actor.id, demote }, write);
+  }
+
+  private memberWrite(orgUserId: string): MemberWrite | undefined {
+    const write = this.memberWrites.getStore();
+    return write?.orgUserId === orgUserId ? write : undefined;
+  }
+
+  private assertManagesUsers(actor: Actor, orgId: string): void {
+    if (capability(actor.role, 'manage_users') !== true) {
+      this.logger.warn('member write rejected: actor cannot manage users', {
+        orgId,
+        actorOrgUserId: actor.id,
+      });
+      throw new ForbiddenError('Only an owner or admin can manage members');
+    }
+  }
+
+  private assertNotOwner(role: Role, orgId: string): void {
+    if (role === 'owner') {
+      this.logger.warn('member write rejected: owner cannot be granted', { orgId });
+      throw new OrganizationRuleError('Ownership cannot be granted');
+    }
+  }
+
+  async removeMember(ctx: MemberWriteContext, actor: Actor, id: string): Promise<boolean> {
+    this.assertManagesUsers(actor, ctx.orgId);
     const member = await this.membersRepo.findById(ctx.orgId, id);
     if (!member) {
       return false;

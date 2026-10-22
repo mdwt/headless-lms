@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AutomationActionResult, AutomationDispatch } from "@headless-lms/core/types";
+import type { AutomationActionResult, AutomationDispatch, Logger } from "@headless-lms/core/types";
 import { HatchetAutomationEngine, type HatchetClientLike } from "./index.js";
 
 /** Records every `task`/`durableTask`/`worker` call the adapter makes and lets a
@@ -254,8 +254,16 @@ describe("HatchetAutomationEngine", () => {
     const fake = fakeHatchetClient();
     (fake.client.crons.list as ReturnType<typeof vi.fn>).mockResolvedValue({
       rows: [
-        { metadata: { id: "keep" }, name: "hlms-schedule:org-1:atm_1:0 * * * *", cron: "0 * * * *" },
-        { metadata: { id: "stale" }, name: "hlms-schedule:org-1:atm_9:0 7 * * *", cron: "0 7 * * *" },
+        {
+          metadata: { id: "keep" },
+          name: "hlms-schedule:org-1:atm_1:0 * * * *",
+          cron: "0 * * * *",
+        },
+        {
+          metadata: { id: "stale" },
+          name: "hlms-schedule:org-1:atm_9:0 7 * * *",
+          cron: "0 7 * * *",
+        },
         { metadata: { id: "foreign" }, name: "someone-else", cron: "* * * * *" },
       ],
     });
@@ -301,6 +309,42 @@ describe("HatchetAutomationEngine", () => {
     expect(orgId).toBe("org-1");
     expect(automationId).toBe("atm_2");
     expect((firedAt as Date).getUTCSeconds()).toBe(0);
+  });
+
+  it("starts when Hatchet refuses the reconcile, logs it, and reconciles again on the interval", async () => {
+    vi.useFakeTimers();
+    const fake = fakeHatchetClient();
+    const list = fake.client.crons.list as ReturnType<typeof vi.fn>;
+    list.mockRejectedValueOnce(new Error("hatchet down"));
+    const error = vi.fn();
+    const logger: Logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error,
+      child: () => logger,
+    };
+    const engine = new HatchetAutomationEngine(fake.client, logger, 1000);
+    engine.register({
+      runAction: vi.fn(),
+      finalize: vi.fn(),
+      listSchedules: async () => [{ orgId: "org-1", automationId: "atm_2", cron: "* * * * *" }],
+      fireSchedule: vi.fn(),
+    });
+
+    await expect(engine.start()).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalledWith("hatchet schedules not reconciled", {
+      error: "Error: hatchet down",
+    });
+    expect(fake.client.crons.create).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fake.client.crons.create).toHaveBeenCalledTimes(1);
+
+    await engine.stop();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(list).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it("stop before start is a safe no-op", async () => {

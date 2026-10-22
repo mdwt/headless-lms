@@ -14,7 +14,8 @@ import type { ActivityCommentsRule, Comment, CommentReport, CommentSettings } fr
 import type { NewDiscussionEvent } from './events.js';
 import type { ListCommentsQuery, ReactionEmoji } from './types.js';
 import type { CommunityReader } from '../content/index.js';
-import { NotFoundError, ForbiddenError } from '../shared/errors.js';
+import type { PostStatus } from '../types/index.js';
+import { ConflictError, NotFoundError, ForbiddenError } from '../shared/errors.js';
 import {
   SettingsNamespace,
   SettingsService,
@@ -54,6 +55,10 @@ export function fakeRepo() {
         image: null,
         role: id === staff.id ? 'instructor' : 'student',
         email: `${id}@example.test`,
+        displayName: null,
+        headline: null,
+        imageAssetOrgId: null,
+        imageAssetId: null,
       }
     );
   }
@@ -546,6 +551,57 @@ describe('activityComments', () => {
     expect(comments[0]?.author.role).toBe('instructor');
   });
 
+  it('names the author by their profile and serves the photo only when it is in this org', async () => {
+    const { service, authors } = await openCourse();
+    authors.set(learner.id, {
+      id: learner.id,
+      firstName: 'Sarah',
+      lastName: 'Lee',
+      image: 'https://avatar',
+      role: 'student',
+      email: 'sarah@example.test',
+      displayName: 'Sarah from Acme',
+      headline: 'Founder',
+      imageAssetOrgId: 'o1',
+      imageAssetId: 'ast_photo',
+    });
+    authors.set(other.id, {
+      id: other.id,
+      firstName: 'James',
+      lastName: 'Hunt',
+      image: 'https://avatar-2',
+      role: 'student',
+      email: 'james@example.test',
+      displayName: null,
+      headline: null,
+      imageAssetOrgId: 'o2',
+      imageAssetId: 'ast_elsewhere',
+    });
+    await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'a',
+    });
+    await service.postComment('o1', { actor: other, activityId: 'a1', parentId: null, body: 'b' });
+    const { comments } = await service.activityComments('o1', 'a1', staff);
+    expect(comments[0]?.author).toEqual({
+      id: learner.id,
+      firstName: 'Sarah',
+      lastName: 'Lee',
+      displayName: 'Sarah from Acme',
+      headline: 'Founder',
+      image: 'https://avatar',
+      imageAssetId: 'ast_photo',
+      role: 'student',
+    });
+    expect(comments[1]?.author).toMatchObject({
+      displayName: 'James Hunt',
+      image: 'https://avatar-2',
+      imageAssetId: null,
+    });
+  });
+
   it('never serves an author email', async () => {
     const { service } = await openCourse();
     await service.postComment('o1', {
@@ -960,6 +1016,13 @@ describe('reports', () => {
     expect(reports[0]).toMatchObject({ resolution: 'removed', resolvedBy: staff.id });
   });
 
+  it('leaves open reports open when the author removes their own comment', async () => {
+    const { service, reports, commentId } = await seeded();
+    await service.reportComment('o1', commentId, other, 'spam');
+    await service.remove('o1', commentId, learner);
+    expect(reports[0]).toMatchObject({ resolvedAt: null, resolution: null, resolvedBy: null });
+  });
+
   it('refuses to close reports for a learner', async () => {
     const { service, commentId } = await seeded();
     await service.reportComment('o1', commentId, other, 'spam');
@@ -1101,7 +1164,7 @@ describe('comments on a post', () => {
     updatedAt: post.updatedAt,
   };
 
-  function postService(commentsClosed: boolean | null = null) {
+  function postService(commentsClosed: boolean | null = null, status: PostStatus = 'published') {
     const fake = fakeRepo();
     const { uow, appended } = fakeUow(fake.repo);
     const { settings } = fakeSettings();
@@ -1110,12 +1173,12 @@ describe('comments on a post', () => {
       repo: fake.repo,
       access: gate.access,
       content: fakeContent(fake.activityCourse, new Map()),
-      posts: { visible: async () => ({ post: { ...post, commentsClosed }, space }) },
+      posts: { visible: async () => ({ post: { ...post, commentsClosed, status }, space }) },
       uow,
       settings,
       communities: { listIds: async () => [] },
     });
-    return { service, appended };
+    return { service, appended, ...fake };
   }
 
   it('is created published and does not emit comment.published', async () => {
@@ -1131,6 +1194,42 @@ describe('comments on a post', () => {
     expect(view.postId).toBe('pst_1');
     expect(view.communityId).toBe('cmy_1');
     expect(appended.map((event) => event.type)).toEqual(['discussion.comment.created']);
+  });
+
+  it('refuses a comment on a post that is not published', async () => {
+    for (const status of ['draft', 'scheduled', 'pending', 'removed'] as const) {
+      const { service, appended, comments } = postService(null, status);
+      await expect(
+        service.postComment('o1', { actor: learner, postId: 'pst_1', parentId: null, body: 'hi' }),
+      ).rejects.toBeInstanceOf(ConflictError);
+      expect(appended).toHaveLength(0);
+      expect(comments).toHaveLength(0);
+    }
+  });
+
+  it('leaves flags open when the author removes a post comment and resolves them for a moderator', async () => {
+    const { service, reports } = postService();
+    const mine = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'mine',
+    });
+    const theirs = await service.postComment('o1', {
+      actor: other,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'theirs',
+    });
+    await service.reportComment('o1', mine.id, other, 'spam');
+    await service.reportComment('o1', theirs.id, learner, 'spam');
+    await service.remove('o1', mine.id, learner);
+    await service.remove('o1', theirs.id, { id: 'ou_mod', role: 'moderator' });
+    expect(reports.find((r) => r.commentId === mine.id)?.resolvedAt).toBeNull();
+    expect(reports.find((r) => r.commentId === theirs.id)).toMatchObject({
+      resolution: 'removed',
+      resolvedBy: 'ou_mod',
+    });
   });
 
   it('refuses a comment when the post has comments closed', async () => {

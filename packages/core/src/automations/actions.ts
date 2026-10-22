@@ -69,8 +69,7 @@ function isEmailTemplateId(value: unknown): value is EmailTemplateId {
   return typeof value === 'string' && value in ALL_EMAIL_TEMPLATE_IDS;
 }
 
-/** Throws on any failure — the engine owns retry policy and failure bookkeeping.
- *  Returns the org user ids that were emailed. */
+/** Throws on any failure — the engine owns retry policy and failure bookkeeping. */
 export async function executeAction(
   action: AutomationAction,
   event: DomainEvent,

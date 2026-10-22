@@ -38,6 +38,19 @@ function build(over: Partial<MemberReportServiceParams> = {}) {
     content: {} as ContentServicePort,
     progress: {} as ProgressService,
     assets: assets(),
+    access: { isCommunityMember: async () => false, openSpaceIds: async () => [] },
+    posts: {
+      getPost: async (_orgId, _actor, postId) => {
+        throw new NotFoundError('Post', postId);
+      },
+    },
+    chats: {
+      getMessage: async (_orgId, _actor, messageId) => {
+        throw new NotFoundError('Message', messageId);
+      },
+    },
+    profiles: { getProfile: async () => null },
+    organizations: { getOrgUserById: async () => null },
     deliveryExpirySeconds: 300,
     ...over,
   });
@@ -78,11 +91,7 @@ describe('MemberReportService.assetUrl', () => {
       }),
       access: {
         isCommunityMember: async (_o, actor) => actor.id === member.id,
-        canOpenSpace: async () => false,
-        canOpen: async () => false,
         openSpaceIds: async () => [],
-        grantOpensCommunity: async () => false,
-        membersAmong: async () => [],
       },
     });
     expect(await svc.assetUrl(ORG, member, ASSET, { course: 'course_1' })).not.toBeNull();
@@ -131,8 +140,8 @@ describe('MemberReportService.assetUrl', () => {
 
   it('serves a profile photo only inside the org it was uploaded in', async () => {
     const svc = build({
-      orgUsers: {
-        findOrgUserById: async (_o, id) =>
+      organizations: {
+        getOrgUserById: async (_o, id) =>
           id === 'ou_sarah' ? ({ id, userId: 'user_sarah' } as never) : null,
       },
       profiles: {

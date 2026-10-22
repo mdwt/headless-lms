@@ -28,7 +28,7 @@ WHERE a."source" = 'system'
   AND a."org_id" = b."org_id"
   AND a."name" = b."name"
   AND coalesce(a."filter"->>'communityId', '') = coalesce(b."filter"->>'communityId', '')
-  AND a."created_at" > b."created_at";--> statement-breakpoint
+  AND (a."created_at", a."id") > (b."created_at", b."id");--> statement-breakpoint
 DELETE FROM "automations"
 WHERE "source" = 'system'
   AND "name" IN ('Welcome to the community', 'Membership ended')

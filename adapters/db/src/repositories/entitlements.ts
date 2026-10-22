@@ -1,8 +1,11 @@
-import { and, asc, desc, eq, gt, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
+  AccessFacts,
+  EndingGrant,
   EntitlementNotice,
   EntitlementsRepository,
+  GrantKey,
   GrantTarget,
   InsertSpaceMemberInput,
 } from "@headless-lms/core/entitlements";
@@ -13,37 +16,67 @@ import type {
   GrantEntitlementInput,
   Logger,
   Page,
+  Role,
   SpaceMember,
   SpaceMemberStatus,
 } from "@headless-lms/core/types";
 import {
-  entitlementNotices,
+  entitlementEndingSoonNotices,
+  entitlementExpiryNotices,
   entitlements,
   orgUsers,
   spaceMembers,
   users,
 } from "../schema/index.js";
-import { activeGrantCovers } from "./grant-covers.js";
 import {
-  bundleItems,
-  bundles,
-  communities,
-  contentItems,
-  courses,
-  downloads,
-} from "../schema/content.js";
+  activeGrantCovers,
+  grantExpired,
+  grantIsActive,
+  communityMember,
+  grantOpens,
+  holdsCommunity,
+} from "./grant-covers.js";
+import { bundles, communities, contentItems, courses, downloads } from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
+import { ROLES, canModerate } from "@headless-lms/core/organizations";
 import { translateDbErrors } from "./pg-errors.js";
 
 type ResolvedStatus = "active" | "expired" | "revoked";
+
+const MODERATING_ROLES: Role[] = ROLES.filter((role) => canModerate(role));
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.
 const derivedStatus = sql<ResolvedStatus>`case
   when ${entitlements.status} = 'revoked' then 'revoked'
-  when ${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now() then 'expired'
+  when ${grantExpired(entitlements.expiresAt)} then 'expired'
   else 'active'
 end`;
+
+function at(date: Date): SQL {
+  return sql`${date.toISOString()}::timestamptz`;
+}
+
+const expiryNoticed = sql`exists (
+  select 1 from ${entitlementExpiryNotices}
+  where ${entitlementExpiryNotices.orgId} = ${entitlements.orgId}
+    and ${entitlementExpiryNotices.entitlementId} = ${entitlements.id}
+    and ${entitlementExpiryNotices.expiresAt} = ${entitlements.expiresAt}
+)`;
+
+const endingSoonNoticed = sql`exists (
+  select 1 from ${entitlementEndingSoonNotices}
+  where ${entitlementEndingSoonNotices.orgId} = ${entitlements.orgId}
+    and ${entitlementEndingSoonNotices.entitlementId} = ${entitlements.id}
+    and ${entitlementEndingSoonNotices.communityId} = ${communities.id}
+    and ${entitlementEndingSoonNotices.expiresAt} = ${entitlements.expiresAt}
+)`;
+
+const opensPublishedCommunity = and(
+  eq(communities.orgId, entitlements.orgId),
+  eq(communities.status, "published"),
+  grantOpens(entitlements, sql`${communities.id}`, "community"),
+);
 
 // Display name of the grant's target, whatever it is. One LEFT JOIN per concrete
 // content table plus one for bundles; exactly one hits per row (a grant targets
@@ -280,6 +313,60 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return toEntitlement(row);
   }
 
+  async insertIfAbsent(orgId: string, input: GrantEntitlementInput): Promise<Entitlement | null> {
+    const bundleId = input.bundleId ?? null;
+    const contentId = input.contentId ?? null;
+    const target = bundleId
+      ? [entitlements.orgId, entitlements.orgUserId, entitlements.bundleId]
+      : [entitlements.orgId, entitlements.orgUserId, entitlements.contentId];
+    const [row] = await this.db
+      .insert(entitlements)
+      .values({
+        orgId,
+        orgUserId: input.orgUserId,
+        bundleId,
+        contentId,
+        status: "active",
+        source: "manual",
+        grantedAt: new Date(),
+        expiresAt: input.expiresAt,
+      })
+      .onConflictDoNothing({ target })
+      .returning(selection);
+    return row ? toEntitlement(row) : null;
+  }
+
+  async lockGrant(orgId: string, key: GrantKey): Promise<Entitlement | null> {
+    const target = key.bundleId
+      ? eq(entitlements.bundleId, key.bundleId)
+      : key.contentId
+        ? eq(entitlements.contentId, key.contentId)
+        : undefined;
+    if (!target) {
+      return null;
+    }
+    const [row] = await this.db
+      .select(selection)
+      .from(entitlements)
+      .where(and(eq(entitlements.orgId, orgId), eq(entitlements.orgUserId, key.orgUserId), target))
+      .for("update")
+      .limit(1);
+    return row ? toEntitlement(row) : null;
+  }
+
+  async setExpiresAt(
+    orgId: string,
+    id: string,
+    expiresAt: Date | null,
+  ): Promise<Entitlement | null> {
+    const [row] = await this.db
+      .update(entitlements)
+      .set({ expiresAt })
+      .where(and(eq(entitlements.orgId, orgId), eq(entitlements.id, id)))
+      .returning(selection);
+    return row ? toEntitlement(row) : null;
+  }
+
   async setStatus(
     orgId: string,
     id: string,
@@ -303,71 +390,77 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
    *  content_items and constrained to type = 'course', so a grant on some other
    *  content type can never be mistaken for course access. */
   hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    return this.covers(orgId, orgUserId, courseId, "course");
-  }
-
-  async hasCommunityAccess(
-    orgId: string,
-    orgUserId: string,
-    communityId: string,
-  ): Promise<boolean> {
-    return this.covers(orgId, orgUserId, communityId, "community");
-  }
-
-  private async covers(
-    orgId: string,
-    orgUserId: string,
-    contentId: string,
-    type: "course" | "community",
-  ): Promise<boolean> {
-    const result = await this.db.execute<{ covered: boolean }>(
-      sql`select ${activeGrantCovers(sql`${orgId}`, sql`${orgUserId}`, sql`${contentId}`, type)} as covered`,
+    return this.holds(
+      activeGrantCovers(sql`${orgId}`, sql`${orgUserId}`, sql`${courseId}`, "course"),
     );
+  }
+
+  hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean> {
+    return this.holds(holdsCommunity(sql`${orgId}`, sql`${orgUserId}`, sql`${communityId}`));
+  }
+
+  private async holds(predicate: SQL): Promise<boolean> {
+    const result = await this.db.execute<{ covered: boolean }>(sql`select ${predicate} as covered`);
     const rows = Array.isArray(result) ? result : result.rows;
     return rows[0]?.covered === true;
   }
 
-  async grantOpensCommunity(
-    orgId: string,
-    grant: GrantTarget,
-    communityId: string,
-  ): Promise<boolean> {
-    const opened = await this.communitiesOpenedBy(orgId, grant);
-    return opened.includes(communityId);
-  }
-
   async communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]> {
-    if (grant.contentId) {
-      const rows = await this.db
-        .select({ id: contentItems.id })
-        .from(contentItems)
-        .where(
-          and(
-            eq(contentItems.orgId, orgId),
-            eq(contentItems.id, grant.contentId),
-            eq(contentItems.type, "community"),
-          ),
-        );
-      return rows.map((row) => row.id);
-    }
-    if (!grant.bundleId) {
+    if (!grant.contentId && !grant.bundleId) {
       return [];
     }
+    const target = {
+      orgId: sql`${orgId}`,
+      contentId: sql`${grant.contentId ?? null}::text`,
+      bundleId: sql`${grant.bundleId ?? null}::text`,
+    };
     const rows = await this.db
-      .select({ id: contentItems.id })
-      .from(bundleItems)
-      .innerJoin(
-        contentItems,
-        and(eq(contentItems.orgId, bundleItems.orgId), eq(contentItems.id, bundleItems.contentId)),
-      )
+      .select({ id: communities.id })
+      .from(communities)
       .where(
         and(
-          eq(bundleItems.orgId, orgId),
-          eq(bundleItems.bundleId, grant.bundleId),
-          eq(contentItems.type, "community"),
+          eq(communities.orgId, orgId),
+          eq(communities.status, "published"),
+          grantOpens(target, sql`${communities.id}`, "community"),
         ),
-      );
+      )
+      .orderBy(asc(communities.id));
     return rows.map((row) => row.id);
+  }
+
+  async accessAmong(
+    orgId: string,
+    communityId: string,
+    spaceId: string | null,
+    orgUserIds: string[],
+  ): Promise<AccessFacts[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    const activeInSpace = spaceId
+      ? sql<boolean>`exists (
+          select 1 from space_members sm
+          where sm.org_id = ${sql`${orgUsers.orgId}`}
+            and sm.space_id = ${spaceId}
+            and sm.org_user_id = ${sql`${orgUsers.id}`}
+            and sm.status = 'active'
+        )`
+      : sql<boolean>`false`;
+    const rows = await this.db
+      .select({
+        orgUserId: orgUsers.id,
+        role: orgUsers.role,
+        member: sql<boolean>`${communityMember(sql`${orgUsers.orgId}`, sql`${orgUsers.id}`, sql`${orgUsers.role}`, sql`${communityId}`)}`,
+        activeInSpace,
+      })
+      .from(orgUsers)
+      .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
+    return rows.map((row) => ({
+      orgUserId: row.orgUserId,
+      role: row.role as Role,
+      member: row.member === true,
+      activeInSpace: row.activeInSpace === true,
+    }));
   }
 
   async findSpaceMember(
@@ -385,6 +478,26 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           eq(spaceMembers.orgUserId, orgUserId),
         ),
       )
+      .limit(1);
+    return row ? toSpaceMember(row) : null;
+  }
+
+  async lockSpaceMember(
+    orgId: string,
+    spaceId: string,
+    orgUserId: string,
+  ): Promise<SpaceMember | null> {
+    const [row] = await this.db
+      .select()
+      .from(spaceMembers)
+      .where(
+        and(
+          eq(spaceMembers.orgId, orgId),
+          eq(spaceMembers.spaceId, spaceId),
+          eq(spaceMembers.orgUserId, orgUserId),
+        ),
+      )
+      .for("update")
       .limit(1);
     return row ? toSpaceMember(row) : null;
   }
@@ -444,6 +557,11 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           eq(spaceMembers.orgId, orgId),
           eq(spaceMembers.spaceId, spaceId),
           eq(spaceMembers.status, "active"),
+          holdsCommunity(
+            sql`${spaceMembers.orgId}`,
+            sql`${spaceMembers.orgUserId}`,
+            sql`${spaceMembers.communityId}`,
+          ),
         ),
       );
     return row?.total ?? 0;
@@ -468,80 +586,97 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     const rows = await this.db
       .select(selection)
       .from(entitlements)
-      .where(
-        and(
-          eq(entitlements.orgId, orgId),
-          eq(entitlements.status, "active"),
-          sql`${entitlements.expiresAt} is not null`,
-          lte(entitlements.expiresAt, now),
-        ),
-      );
+      .where(this.expiredUnnoticed(orgId, now));
     return rows.map(toEntitlement);
   }
 
-  async listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<Entitlement[]> {
+  async listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<EndingGrant[]> {
     const rows = await this.db
-      .select(selection)
+      .select({ ...selection, communityId: communities.id })
       .from(entitlements)
-      .where(
-        and(
-          eq(entitlements.orgId, orgId),
-          eq(entitlements.status, "active"),
-          sql`${entitlements.expiresAt} is not null`,
-          gt(entitlements.expiresAt, after),
-          lte(entitlements.expiresAt, until),
-        ),
-      );
-    return rows.map(toEntitlement);
+      .innerJoin(communities, opensPublishedCommunity)
+      .where(this.endingUnnoticed(orgId, after, until));
+    return rows.map(({ communityId, ...grant }) => ({
+      grant: toEntitlement(grant),
+      communityId,
+    }));
   }
 
-  async hasNotice(orgId: string, grantId: string, notice: EntitlementNotice): Promise<boolean> {
-    const [row] = await this.db
-      .select({ entitlementId: entitlementNotices.entitlementId })
-      .from(entitlementNotices)
-      .where(
-        and(
-          eq(entitlementNotices.orgId, orgId),
-          eq(entitlementNotices.entitlementId, grantId),
-          eq(entitlementNotices.kind, notice.kind),
-          eq(entitlementNotices.communityId, notice.communityId ?? ""),
-        ),
-      )
-      .limit(1);
-    return row !== undefined;
+  async hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean> {
+    const expired = this.db
+      .select({ id: entitlements.id })
+      .from(entitlements)
+      .where(this.expiredUnnoticed(orgId, now));
+    const ending = this.db
+      .select({ id: entitlements.id })
+      .from(entitlements)
+      .innerJoin(communities, opensPublishedCommunity)
+      .where(this.endingUnnoticed(orgId, now, until));
+    return this.holds(sql`(exists (${expired}) or exists (${ending}))`);
   }
 
-  async recordNotice(
+  async claimNotice(
     orgId: string,
-    grantId: string,
     notice: EntitlementNotice,
-    at: Date,
-  ): Promise<void> {
-    await this.db
-      .insert(entitlementNotices)
-      .values({
-        orgId,
-        entitlementId: grantId,
-        kind: notice.kind,
-        communityId: notice.communityId ?? "",
-        notifiedAt: at,
-      })
-      .onConflictDoNothing();
+    now: Date,
+    until: Date,
+  ): Promise<boolean> {
+    const statement =
+      notice.kind === "expired"
+        ? sql`insert into ${entitlementExpiryNotices} ("org_id", "entitlement_id", "expires_at", "notified_at")
+            select ${entitlements.orgId}, ${entitlements.id}, ${entitlements.expiresAt}, ${at(now)}
+            from ${entitlements}
+            where ${entitlements.id} = ${notice.entitlementId}
+              and ${this.expiredUnnoticed(orgId, now)}
+            for share of ${entitlements}
+            on conflict do nothing
+            returning "entitlement_id"`
+        : sql`insert into ${entitlementEndingSoonNotices} ("org_id", "entitlement_id", "community_id", "expires_at", "notified_at")
+            select ${entitlements.orgId}, ${entitlements.id}, ${communities.id}, ${entitlements.expiresAt}, ${at(now)}
+            from ${entitlements}
+            inner join ${communities} on ${opensPublishedCommunity}
+            where ${entitlements.id} = ${notice.entitlementId}
+              and ${communities.id} = ${notice.communityId}
+              and ${this.endingUnnoticed(orgId, now, until)}
+            for share of ${entitlements}
+            on conflict do nothing
+            returning "entitlement_id"`;
+    const result = await this.db.execute<{ entitlement_id: string }>(statement);
+    const rows = Array.isArray(result) ? result : result.rows;
+    return rows.length > 0;
   }
 
-  async moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]> {
+  private expiredUnnoticed(orgId: string, now: Date): SQL {
+    return and(
+      eq(entitlements.orgId, orgId),
+      eq(entitlements.status, "active"),
+      grantExpired(entitlements.expiresAt, at(now)),
+      sql`not ${expiryNoticed}`,
+    )!;
+  }
+
+  private endingUnnoticed(orgId: string, after: Date, until: Date): SQL {
+    return and(
+      eq(entitlements.orgId, orgId),
+      grantIsActive(entitlements, at(after)),
+      grantExpired(entitlements.expiresAt, at(until)),
+      sql`not ${endingSoonNoticed}`,
+    )!;
+  }
+
+  async communityModeratorIds(orgId: string, communityId: string): Promise<string[]> {
     const rows = await this.db
       .select({ id: orgUsers.id })
       .from(orgUsers)
       .where(
         and(
           eq(orgUsers.orgId, orgId),
-          eq(orgUsers.role, "moderator"),
-          activeGrantCovers(
+          inArray(orgUsers.role, MODERATING_ROLES),
+          communityMember(
             sql`${orgUsers.orgId}`,
             sql`${orgUsers.id}`,
+            sql`${orgUsers.role}`,
             sql`${communityId}`,
-            "community",
           ),
         ),
       )
@@ -556,37 +691,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .where(
         and(
           eq(communities.orgId, orgId),
-          activeGrantCovers(
-            sql`${communities.orgId}`,
-            sql`${orgUserId}`,
-            sql`${communities.id}`,
-            "community",
-          ),
+          holdsCommunity(sql`${communities.orgId}`, sql`${orgUserId}`, sql`${communities.id}`),
         ),
       )
       .orderBy(asc(communities.id));
-    return rows.map((row) => row.id);
-  }
-
-  async membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]> {
-    if (orgUserIds.length === 0) {
-      return [];
-    }
-    const rows = await this.db
-      .select({ id: orgUsers.id })
-      .from(orgUsers)
-      .where(
-        and(
-          eq(orgUsers.orgId, orgId),
-          inArray(orgUsers.id, orgUserIds),
-          activeGrantCovers(
-            sql`${orgUsers.orgId}`,
-            sql`${orgUsers.id}`,
-            sql`${communityId}`,
-            "community",
-          ),
-        ),
-      );
     return rows.map((row) => row.id);
   }
 }

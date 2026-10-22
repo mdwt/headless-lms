@@ -77,12 +77,26 @@ import {
   spaces,
 } from "../schema/content.js";
 import { settings } from "../schema/settings.js";
+import { posts } from "../schema/discussion.js";
 import { deepMerge } from "./settings.js";
 import { genId } from "@headless-lms/core/shared/id";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { NotFoundError, ConflictError } from "@headless-lms/core/shared/errors";
-import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
+import { isUniqueViolation, pgErrorFields, translateDbErrors } from "./pg-errors.js";
+
+const LIBRARY_ONLY = "An activity can only use ready files from the media library";
+const MISSING_ASSET_DETAIL = /^Key \(org_id, asset_id\)=\((?:[^,]+), (.+?)\) is not present/;
+
+function refusedLink(err: unknown): ConflictError | undefined {
+  const pg = pgErrorFields(err);
+  if (pg?.code !== "23503") {
+    return undefined;
+  }
+  const missing = pg.detail?.match(MISSING_ASSET_DETAIL)?.[1];
+  const message = missing ? `${LIBRARY_ONLY}. Not available: ${missing}` : LIBRARY_ONLY;
+  return Object.assign(new ConflictError(message), { cause: err });
+}
 
 // A course's settings live in the shared `settings` table (namespace
 // 'content', scoped by course id) — joined here so the repository answers in
@@ -471,9 +485,13 @@ export class DrizzleContentRepository implements ContentRepository {
       .delete(activityAssets)
       .where(and(eq(activityAssets.orgId, orgId), eq(activityAssets.activityId, activityId)));
     if (assetIds.length) {
-      await tx
-        .insert(activityAssets)
-        .values(assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })));
+      try {
+        await tx
+          .insert(activityAssets)
+          .values(assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })));
+      } catch (err) {
+        throw refusedLink(err) ?? err;
+      }
     }
   }
 
@@ -1153,6 +1171,25 @@ export class DrizzleContentRepository implements ContentRepository {
     return row ? toCommunity(row.community, row.settingsValue) : null;
   }
 
+  async findCommunitiesByIds(orgId: string, ids: string[]): Promise<Community[]> {
+    const rows = await this.db
+      .select({ community: communities, settingsValue: settings.value })
+      .from(communities)
+      .leftJoin(settings, communitySettingsJoin)
+      .where(and(eq(communities.orgId, orgId), inArray(communities.id, ids)))
+      .orderBy(asc(communities.title), asc(communities.id));
+    return rows.map((row) => toCommunity(row.community, row.settingsValue));
+  }
+
+  async listPublishedCommunityIds(orgId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .where(and(eq(communities.orgId, orgId), eq(communities.status, "published")))
+      .orderBy(asc(communities.createdAt), asc(communities.id));
+    return rows.map((row) => row.id);
+  }
+
   async createCommunity(
     orgId: string,
     input: CreateCommunityInput,
@@ -1368,11 +1405,7 @@ export class DrizzleContentRepository implements ContentRepository {
       .update(spaces)
       .set(set)
       .where(
-        and(
-          eq(spaces.orgId, orgId),
-          eq(spaces.id, spaceId),
-          eq(spaces.communityId, communityId),
-        ),
+        and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId), eq(spaces.communityId, communityId)),
       )
       .returning({ id: spaces.id });
     if (!updated) {
@@ -1385,11 +1418,7 @@ export class DrizzleContentRepository implements ContentRepository {
     const deleted = await this.db
       .delete(spaces)
       .where(
-        and(
-          eq(spaces.orgId, orgId),
-          eq(spaces.id, spaceId),
-          eq(spaces.communityId, communityId),
-        ),
+        and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId), eq(spaces.communityId, communityId)),
       )
       .returning({ id: spaces.id });
     return deleted.length > 0;
@@ -1420,48 +1449,66 @@ export class DrizzleContentRepository implements ContentRepository {
     spaceId: string,
     input: SetSpaceTopicsInput,
   ): Promise<SpaceDetail> {
-    const existing = await this.db
-      .select()
-      .from(spaceTopics)
-      .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.spaceId, spaceId)));
-    const kept = new Set(input.topics.flatMap((topic) => (topic.id ? [topic.id] : [])));
-    const known = new Set(existing.map((topic) => topic.id));
-    for (const id of kept) {
-      if (!known.has(id)) {
-        throw new NotFoundError("Topic", id);
+    await this.tx(async (tx) => {
+      const existing = await tx
+        .select({ id: spaceTopics.id })
+        .from(spaceTopics)
+        .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.spaceId, spaceId)))
+        .for("update");
+      const kept = new Set(input.topics.flatMap((topic) => (topic.id ? [topic.id] : [])));
+      const known = new Set(existing.map((topic) => topic.id));
+      for (const id of kept) {
+        if (!known.has(id)) {
+          throw new NotFoundError("Topic", id);
+        }
       }
-    }
-    const removed = existing.filter((topic) => !kept.has(topic.id)).map((topic) => topic.id);
-    for (const topic of existing) {
-      if (!kept.has(topic.id)) {
-        continue;
+      const removed = existing.filter((topic) => !kept.has(topic.id)).map((topic) => topic.id);
+      if (removed.length) {
+        await tx
+          .delete(spaceTopics)
+          .where(and(eq(spaceTopics.orgId, orgId), inArray(spaceTopics.id, removed)));
       }
-      await this.db
-        .update(spaceTopics)
-        .set({ name: `\u0000${topic.id}` })
-        .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.id, topic.id)));
-    }
-    if (removed.length) {
-      await this.db
-        .delete(spaceTopics)
-        .where(and(eq(spaceTopics.orgId, orgId), inArray(spaceTopics.id, removed)));
-    }
-    for (let seq = 0; seq < input.topics.length; seq++) {
-      const topic = input.topics[seq]!;
-      if (topic.id) {
-        await this.db
-          .update(spaceTopics)
-          .set({ name: topic.name, seq, updatedAt: new Date() })
-          .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.id, topic.id)));
-      } else {
-        await this.db.insert(spaceTopics).values({ orgId, spaceId, name: topic.name, seq });
+      for (let seq = 0; seq < input.topics.length; seq++) {
+        const topic = input.topics[seq]!;
+        if (topic.id) {
+          await tx
+            .update(spaceTopics)
+            .set({ name: topic.name, seq, updatedAt: new Date() })
+            .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.id, topic.id)));
+        } else {
+          await tx.insert(spaceTopics).values({ orgId, spaceId, name: topic.name, seq });
+        }
       }
-    }
+    });
     const space = await this.findSpace(orgId, spaceId);
     if (!space) {
       throw new NotFoundError("Space", spaceId);
     }
     return space;
+  }
+
+  async topicsInUse(orgId: string, spaceId: string, topicIds: string[]): Promise<string[]> {
+    if (topicIds.length === 0) {
+      return [];
+    }
+    await this.db
+      .select({ id: spaceTopics.id })
+      .from(spaceTopics)
+      .where(
+        and(
+          eq(spaceTopics.orgId, orgId),
+          eq(spaceTopics.spaceId, spaceId),
+          inArray(spaceTopics.id, topicIds),
+        ),
+      )
+      .for("update");
+    const rows = await this.db
+      .selectDistinct({ topicId: posts.topicId })
+      .from(posts)
+      .where(
+        and(eq(posts.orgId, orgId), eq(posts.spaceId, spaceId), inArray(posts.topicId, topicIds)),
+      );
+    return rows.flatMap((row) => (row.topicId ? [row.topicId] : []));
   }
 
   async addSpaceLink(orgId: string, spaceId: string, contentId: string): Promise<SpaceDetail> {
@@ -1470,7 +1517,10 @@ export class DrizzleContentRepository implements ContentRepository {
       .from(contentItems)
       .where(and(eq(contentItems.orgId, orgId), eq(contentItems.id, contentId)))
       .limit(1);
-    if (!item || (item.type !== "course" && item.type !== "download" && item.type !== "community")) {
+    if (
+      !item ||
+      (item.type !== "course" && item.type !== "download" && item.type !== "community")
+    ) {
       throw new NotFoundError("Content", contentId);
     }
     const existing = await this.db
@@ -1490,7 +1540,11 @@ export class DrizzleContentRepository implements ContentRepository {
     const deleted = await this.db
       .delete(spaceLinks)
       .where(
-        and(eq(spaceLinks.orgId, orgId), eq(spaceLinks.spaceId, spaceId), eq(spaceLinks.id, linkId)),
+        and(
+          eq(spaceLinks.orgId, orgId),
+          eq(spaceLinks.spaceId, spaceId),
+          eq(spaceLinks.id, linkId),
+        ),
       )
       .returning({ id: spaceLinks.id });
     if (deleted.length === 0) {

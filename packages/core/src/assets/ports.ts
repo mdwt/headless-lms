@@ -12,12 +12,16 @@ export interface MemberImageReader {
   ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
 }
 
+export interface LibraryAssetReader {
+  libraryAssetsAmong(orgId: string, assetIds: string[]): Promise<string[]>;
+}
+
 export interface MemberUploadInput {
   filename: string;
   contentType: string;
 }
 
-export interface AssetsService extends MemberImageReader {
+export interface AssetsService extends MemberImageReader, LibraryAssetReader {
   requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
   requestMemberUpload(
     orgId: string,
@@ -34,22 +38,31 @@ export interface AssetsService extends MemberImageReader {
     filename?: string,
     expiresInSeconds?: number,
   ): Promise<DownloadTicket | null>;
+  requestLibraryDownload(
+    orgId: string,
+    id: string,
+    filename?: string,
+  ): Promise<DownloadTicket | null>;
   remove(orgId: string, id: string): Promise<boolean>;
   removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean>;
-  removeUnattached(orgId: string, before: Date): Promise<number>;
+  hasUnattached(orgId: string, now: Date): Promise<boolean>;
+  removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 
 export interface AssetsRepository {
   insert(orgId: string, asset: Asset): Promise<Asset>;
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
   findById(orgId: string, id: string): Promise<Asset | null>;
-  update(
+  findByIds(orgId: string, ids: string[]): Promise<Asset[]>;
+  markReady(
+    orgId: string,
     id: string,
-    patch: Partial<Pick<Asset, 'size' | 'contentType' | 'status'>>,
+    patch: Pick<Asset, 'key' | 'kind' | 'size' | 'contentType'>,
   ): Promise<Asset | null>;
-  delete(id: string): Promise<boolean>;
-  isReferenced(orgId: string, id: string): Promise<boolean>;
+  delete(orgId: string, id: string): Promise<boolean>;
+  hasUnreferencedMemberUploads(orgId: string, before: Date): Promise<boolean>;
   listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]>;
+  heldKeys(orgId: string, keys: string[]): Promise<string[]>;
 }
 
 export interface AssetsWriteScope {

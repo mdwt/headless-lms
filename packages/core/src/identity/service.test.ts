@@ -168,6 +168,25 @@ describe('linkOrCreateUser', () => {
   });
 });
 
+describe('displayName', () => {
+  it('names a person by their profile, then their account name', async () => {
+    const named = fakeRepo({
+      findUserById: vi.fn().mockResolvedValue(PROVISIONED),
+      findProfile: vi.fn().mockResolvedValue({ displayName: ' Sarah ' }),
+    });
+    expect(await build(named).service.displayName('usr_invited')).toBe('Sarah');
+
+    const unnamed = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+    expect(await build(unnamed).service.displayName('usr_invited')).toBe('Ada Lovelace');
+  });
+
+  it('names an unknown person a member without reading anything', async () => {
+    const repo = fakeRepo();
+    expect(await build(repo).service.displayName(null)).toBe('A member');
+    expect(repo.findUserById).not.toHaveBeenCalled();
+  });
+});
+
 describe('updateProfile', () => {
   const photo = { imageAssetOrgId: 'org-1', imageAssetId: 'ast_1' };
 

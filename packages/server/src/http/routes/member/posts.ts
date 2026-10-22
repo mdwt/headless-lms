@@ -11,14 +11,16 @@ import {
   ErrorBody,
   FeedQuery,
   FlagReason,
-  ListQuery,
+  MemberFeedQuery,
   Post,
   PostComments,
   PostComment,
+  PostFeedPage,
   PostFlag,
   PostIdParam,
   PostReactions,
-  PostsPage,
+  PostView,
+  PostViews,
   ResolvePostFlags,
   SchedulePost,
   SetPostReactions,
@@ -51,12 +53,46 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Published posts across the spaces a member can open',
       params: CommunityParam,
-      querystring: ListQuery,
-      response: { 200: PostsPage, ...errors },
+      querystring: MemberFeedQuery,
+      response: { 200: PostFeedPage, 400: ErrorBody, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
       return posts.memberFeed(req.orgId, actor, req.params.communityId, req.query);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/own-posts',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listOwnPosts',
+      tags,
+      summary: 'Your own posts in a community, newest first',
+      params: CommunityParam,
+      response: { 200: PostViews, ...errors },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      return posts.listOwn(req.orgId, actor, req.params.communityId);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/bookmarks',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listBookmarkedPosts',
+      tags,
+      summary: 'The posts you bookmarked in a community',
+      params: CommunityParam,
+      response: { 200: PostViews, ...errors },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      return posts.listBookmarked(req.orgId, actor, req.params.communityId);
     },
   });
 
@@ -70,11 +106,17 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Published posts in a space',
       params: CommunitySpaceParam,
       querystring: FeedQuery,
-      response: { 200: PostsPage, ...errors },
+      response: { 200: PostFeedPage, 400: ErrorBody, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.spaceFeed(req.orgId, actor, req.params.spaceId, req.query);
+      return posts.spaceFeed(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+        req.query,
+      );
     },
   });
 
@@ -91,7 +133,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.moderationQueue(req.orgId, actor, req.params.spaceId);
+      return posts.moderationQueue(req.orgId, actor, req.params.communityId, req.params.spaceId);
     },
   });
 
@@ -111,6 +153,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       const actor = await actorOf(container, req.orgId, req.userId);
       const post = await posts.create(req.orgId, actor, {
         ...req.body,
+        communityId: req.params.communityId,
         spaceId: req.params.spaceId,
       });
       req.log.info({ postId: post.id, status: post.status }, 'post created');
@@ -127,7 +170,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Read a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);

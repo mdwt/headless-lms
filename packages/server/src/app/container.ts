@@ -58,7 +58,7 @@ import { AssetsServiceImpl } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
-import { communityMail, listCommunityIds } from './community-mail.js';
+import { communityMail } from './community-mail.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
@@ -118,7 +118,6 @@ export interface Config {
   /** Presigned URL lifetime for entitled download delivery, seconds. Mirrors
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
-  /** Largest member image upload accepted at confirm, in bytes. */
   memberImageMaxBytes: number;
 }
 
@@ -303,6 +302,7 @@ export async function buildContainer(
   const content = new ContentService({
     repo: new DrizzleContentRepository(db, contentLogger),
     uow: contentUow,
+    libraryAssets: assets,
     logger: contentLogger,
   });
   // Entitlements: reads on the root db; writes + outbox append in one tx.
@@ -326,7 +326,6 @@ export async function buildContainer(
     repo: entitlementsRepo,
     content,
     uow: entitlementsUow,
-    roles: authors,
     logger: entitlementsLogger,
   });
   // Progress: report writes + outbox append in one tx; content supplies the
@@ -350,6 +349,7 @@ export async function buildContainer(
     access: entitlements,
     content,
     authors,
+    profiles: discussionReads,
     commentFlags: discussionReads,
     images: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
@@ -363,6 +363,7 @@ export async function buildContainer(
     access: entitlements,
     content,
     authors,
+    profiles: discussionReads,
     images: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       chats: new DrizzleChatRepository(tx, discussionLogger),
@@ -375,7 +376,7 @@ export async function buildContainer(
     access: entitlements,
     content: content,
     posts,
-    communities: { listIds: (orgId) => listCommunityIds(content, orgId) },
+    communities: { listIds: (orgId) => content.listPublishedCommunityIds(orgId) },
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -397,7 +398,7 @@ export async function buildContainer(
       posts,
       chats,
       profiles: identity,
-      orgUsers: organizationsRepo,
+      organizations,
       deliveryExpirySeconds: config.deliveryExpirySeconds,
       logger: reportingLogger,
     }),

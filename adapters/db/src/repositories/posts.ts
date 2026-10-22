@@ -1,14 +1,13 @@
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
-  FeedQuery,
   PostReactions,
   PostRepository,
   PostPatch,
+  PublishedPostsQuery,
 } from "@headless-lms/core/discussion";
 import type {
   Logger,
-  Page,
   Post,
   PostFlag,
   PostFlagResolution,
@@ -113,28 +112,72 @@ export class DrizzlePostRepository implements PostRepository {
     return row ? toPost(row) : null;
   }
 
-  async listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>> {
+  async listPublished(
+    orgId: string,
+    spaceIds: string[],
+    query: PublishedPostsQuery,
+  ): Promise<Post[]> {
     if (spaceIds.length === 0) {
-      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+      return [];
     }
-    const where = and(
-      eq(posts.orgId, orgId),
-      inArray(posts.spaceId, spaceIds),
-      eq(posts.status, "published"),
-      query.topicId ? eq(posts.topicId, query.topicId) : undefined,
-    );
+    const after = query.after;
     const rows = await this.db
       .select()
       .from(posts)
-      .where(where)
+      .where(
+        and(
+          eq(posts.orgId, orgId),
+          inArray(posts.spaceId, spaceIds),
+          eq(posts.status, "published"),
+          query.topicId ? eq(posts.topicId, query.topicId) : undefined,
+          after
+            ? sql`(${posts.pinned}, ${posts.publishedAt}, ${posts.id}) < (${after.pinned}::boolean, ${after.publishedAt.toISOString()}::timestamptz, ${after.id})`
+            : undefined,
+        ),
+      )
       .orderBy(desc(posts.pinned), desc(posts.publishedAt), desc(posts.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
-    const [{ total } = { total: 0 }] = await this.db
-      .select({ total: sql<number>`cast(count(*) as int)` })
+      .limit(query.limit);
+    return rows.map(toPost);
+  }
+
+  async listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]> {
+    if (spaceIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
       .from(posts)
-      .where(where);
-    return { rows: rows.map(toPost), total, page: query.page, pageSize: query.pageSize };
+      .where(
+        and(
+          eq(posts.orgId, orgId),
+          eq(posts.orgUserId, orgUserId),
+          inArray(posts.spaceId, spaceIds),
+        ),
+      )
+      .orderBy(desc(posts.createdAt), desc(posts.id));
+    return rows.map(toPost);
+  }
+
+  async listBookmarked(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]> {
+    if (spaceIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ post: posts })
+      .from(postBookmarks)
+      .innerJoin(
+        posts,
+        and(eq(posts.orgId, postBookmarks.orgId), eq(posts.id, postBookmarks.postId)),
+      )
+      .where(
+        and(
+          eq(postBookmarks.orgId, orgId),
+          eq(postBookmarks.orgUserId, orgUserId),
+          inArray(posts.spaceId, spaceIds),
+        ),
+      )
+      .orderBy(desc(postBookmarks.createdAt), desc(posts.id));
+    return rows.map((row) => toPost(row.post));
   }
 
   async listPending(orgId: string, spaceId: string): Promise<Post[]> {
@@ -155,6 +198,18 @@ export class DrizzlePostRepository implements PostRepository {
       )
       .orderBy(asc(posts.scheduledAt), asc(posts.id));
     return rows.map(toPost);
+  }
+
+  async hasDue(orgId: string, now: Date): Promise<boolean> {
+    const due = this.db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(
+        and(eq(posts.orgId, orgId), eq(posts.status, "scheduled"), lte(posts.scheduledAt, now)),
+      )
+      .limit(1);
+    const result = await this.db.execute<{ due: boolean }>(sql`select exists (${due}) as due`);
+    return result.rows[0]?.due === true;
   }
 
   async reactionsOf(orgId: string, postId: string, viewerId: string): Promise<PostReactions> {
@@ -261,6 +316,21 @@ export class DrizzlePostRepository implements PostRepository {
       })
       .onConflictDoNothing()
       .returning();
+    return row ? toFlag(row) : null;
+  }
+
+  async findFlag(orgId: string, postId: string, orgUserId: string): Promise<PostFlag | null> {
+    const [row] = await this.db
+      .select()
+      .from(postFlags)
+      .where(
+        and(
+          eq(postFlags.orgId, orgId),
+          eq(postFlags.postId, postId),
+          eq(postFlags.orgUserId, orgUserId),
+        ),
+      )
+      .limit(1);
     return row ? toFlag(row) : null;
   }
 

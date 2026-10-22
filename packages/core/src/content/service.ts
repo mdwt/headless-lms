@@ -45,6 +45,7 @@ import type {
 } from './types.js';
 import { contentEvents } from './events.js';
 import type { Actor } from '../shared/actor.js';
+import type { LibraryAssetReader } from '../assets/index.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
@@ -61,6 +62,7 @@ function slugify(title: string): string {
 export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
+  libraryAssets: LibraryAssetReader;
   logger?: Logger;
 };
 
@@ -87,11 +89,13 @@ export class ContentService
 {
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
+  private readonly libraryAssets: LibraryAssetReader;
   private readonly logger: Logger;
 
   constructor(params: ContentServiceParams) {
     this.repo = params.repo;
     this.uow = params.uow;
+    this.libraryAssets = params.libraryAssets;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -148,7 +152,7 @@ export class ContentService
     return merged;
   }
 
-  async deleteCourse(orgId: string, id: string): Promise<void> {
+  async deleteCourse(orgId: string, id: string, actor: Actor): Promise<void> {
     await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const course = await content.findCourseById(orgId, id);
@@ -163,7 +167,7 @@ export class ContentService
       }
       await outbox.append([
         contentEvents.courseDeleted.make({ orgId, data: course }),
-        ...(await this.spaceUpdates(content, orgId, linked)),
+        ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
     this.logger.info('course deleted', { orgId, courseId: id });
@@ -283,6 +287,20 @@ export class ContentService
     return modules;
   }
 
+  private async assertLibraryAssets(orgId: string, assetIds: string[]): Promise<void> {
+    if (assetIds.length === 0) {
+      return;
+    }
+    const library = new Set(await this.libraryAssets.libraryAssetsAmong(orgId, assetIds));
+    const refused = assetIds.filter((id) => !library.has(id));
+    if (refused.length > 0) {
+      this.logger.warn('activity assets refused', { orgId, assetIds: refused });
+      throw new ConflictError(
+        `An activity can only use ready files from the media library. Not available: ${refused.join(', ')}`,
+      );
+    }
+  }
+
   async saveActivity(
     orgId: string,
     courseId: string,
@@ -290,6 +308,7 @@ export class ContentService
     input: SaveActivityInput,
     activityId?: string,
   ): Promise<Module[]> {
+    await this.assertLibraryAssets(orgId, input.assetIds ?? []);
     const { modules, activity } = await this.uow.run(async ({ content, outbox }) => {
       if (activityId) {
         const existing = await content.findActivity(orgId, activityId);
@@ -397,7 +416,7 @@ export class ContentService
     return download;
   }
 
-  async removeDownload(orgId: string, id: string): Promise<void> {
+  async removeDownload(orgId: string, id: string, actor: Actor): Promise<void> {
     await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const download = await content.getDownload(orgId, id);
@@ -412,7 +431,7 @@ export class ContentService
       }
       await outbox.append([
         contentEvents.downloadDeleted.make({ orgId, data: download }),
-        ...(await this.spaceUpdates(content, orgId, linked)),
+        ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
     this.logger.info('download deleted', { orgId, downloadId: id });
@@ -614,18 +633,24 @@ export class ContentService
     content: ContentRepository,
     orgId: string,
     spaceIds: string[],
+    actor: Actor,
   ): Promise<NewDomainEvent[]> {
     const events: NewDomainEvent[] = [];
     for (const spaceId of spaceIds) {
       const space = await content.findSpace(orgId, spaceId);
       if (space) {
-        events.push(contentEvents.spaceUpdated.make({ orgId, data: space }));
+        events.push(
+          contentEvents.spaceUpdated.make({ orgId, data: space, metadata: actorMetadata(actor) }),
+        );
       }
     }
     return events;
   }
 
-  private resolvedSpace(input: CreateSpaceInput | UpdateSpaceInput, current?: Space): {
+  private resolvedSpace(
+    input: CreateSpaceInput | UpdateSpaceInput,
+    current?: Space,
+  ): {
     accessRule: Space['accessRule'];
     capacity: number | null;
     settings: SpaceSettings;
@@ -653,8 +678,25 @@ export class ContentService
     return this.repo.findCommunityById(orgId, id);
   }
 
+  listPublishedCommunityIds(orgId: string): Promise<string[]> {
+    return this.repo.listPublishedCommunityIds(orgId);
+  }
+
+  listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]> {
+    return ids.length ? this.repo.findCommunitiesByIds(orgId, ids) : Promise.resolve([]);
+  }
+
   getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null> {
     return this.repo.findSpace(orgId, spaceId);
+  }
+
+  async getCommunitySpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+  ): Promise<SpaceDetail | null> {
+    const space = await this.repo.findSpace(orgId, spaceId);
+    return space?.communityId === communityId ? space : null;
   }
 
   listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
@@ -739,7 +781,7 @@ export class ContentService
           data: community,
           metadata: actorMetadata(actor),
         }),
-        ...(await this.spaceUpdates(content, orgId, linked)),
+        ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
     this.logger.info('community deleted', { orgId, communityId: id });
@@ -878,7 +920,12 @@ export class ContentService
         throw new NotFoundError('Community', communityId);
       }
       const current = await content.listSpaces(orgId, communityId);
-      if (!sameIdSet(current.map((space) => space.id), orderedIds)) {
+      if (
+        !sameIdSet(
+          current.map((space) => space.id),
+          orderedIds,
+        )
+      ) {
         throw new ConflictError("Ordered space ids do not match the community's spaces");
       }
       const reordered = await content.reorderSpaces(orgId, communityId, orderedIds);
@@ -908,9 +955,20 @@ export class ContentService
       throw new ConflictError('A space topic name is already used');
     }
     const space = await this.uow.run(async ({ content, outbox }) => {
-      const current = await content.findSpace(orgId, spaceId);
-      if (!current || current.communityId !== communityId) {
+      const locked = await content.lockSpace(orgId, spaceId);
+      if (!locked || locked.communityId !== communityId) {
         throw new NotFoundError('Space', spaceId);
+      }
+      const current = await content.findSpace(orgId, spaceId);
+      if (!current) {
+        throw new NotFoundError('Space', spaceId);
+      }
+      const kept = new Set(input.topics.flatMap((topic) => (topic.id ? [topic.id] : [])));
+      const removed = current.topics
+        .filter((topic) => !kept.has(topic.id))
+        .map((topic) => topic.id);
+      if (removed.length > 0 && (await content.topicsInUse(orgId, spaceId, removed)).length > 0) {
+        throw new ConflictError('A topic used by a post cannot be removed');
       }
       const updated = await content.setSpaceTopics(orgId, spaceId, input);
       await outbox.append([
@@ -993,7 +1051,12 @@ export class ContentService
       if (!current || current.communityId !== communityId) {
         throw new NotFoundError('Space', spaceId);
       }
-      if (!sameIdSet(current.links.map((link) => link.id), orderedIds)) {
+      if (
+        !sameIdSet(
+          current.links.map((link) => link.id),
+          orderedIds,
+        )
+      ) {
         throw new ConflictError("Ordered link ids do not match the space's links");
       }
       const updated = await content.reorderSpaceLinks(orgId, spaceId, orderedIds);
