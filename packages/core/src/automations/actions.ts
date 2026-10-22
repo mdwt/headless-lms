@@ -4,8 +4,7 @@
 // SEND_EMAIL_DERIVATIONS is the sendEmail runner's internal derivation table:
 // which (trigger, template) pairings are derivable. A template with no entry
 // (e.g. courseCompleted) makes `executeAction` throw a named error, recorded
-// by the engine as a failed action. An empty recipient list is a successful
-// send of nothing. Undefined means a required lookup failed and the run retries.
+// by the engine as a failed action.
 import type { EmailTemplateId } from '../types/index.js';
 import { deliverWebhookInputSchema } from '../types/schemas/index.js';
 import { entitlementEvents } from '../entitlements/index.js';

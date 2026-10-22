@@ -1,8 +1,7 @@
-// discussion tables — comments on an activity or a post, their reactions and
-// flags, plus posts and chats.
+// discussion tables — comments on an activity, their reactions and reports.
 // Configuration is not here: the course's comment settings ride on the course's
 // `content` settings row, and an activity's override rides on the activity's
-// own settings blob. A space's post defaults ride on the space row.
+// own settings blob.
 //
 // The author is always an org user, so one column covers both
 // learners and staff. Staff-ness is NOT stored — it is read from the author's
@@ -11,8 +10,7 @@
 //
 // No course_id: which course an activity sits in is content's fact and changes
 // when a course is restructured. The staff comment list joins to modules to
-// scope by course. A comment on a post stores community_id so the row can be
-// filtered on the community.
+// scope by course.
 import { desc, sql } from "drizzle-orm";
 import {
   pgTable,
