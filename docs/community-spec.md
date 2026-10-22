@@ -147,7 +147,7 @@ alter table content_items add constraint content_items_type_check
 
 The `communities` table holds one row per community. It is built the same way as `courses`: the row has the same id as its registry row, a generated `type` column fixed to `community`, and a foreign key over `(org_id, id, type)` to the registry. Deleting the registry row deletes the community row.
 
-The community's DM settings are stored in the shared `settings` table, in a row with namespace `content` and the community id as scope, in the same way as a course's settings. The row holds whether DMs are enabled, who may message whom, whether a first message is a request, whether group chats are allowed, and the maximum group size. Content is the only writer of this row, through its community settings update, the counterpart of the course settings update. Discussion reads it through content's reader before each chat operation. The settings row has no foreign key. Handling `content.community.deleted` deletes it.
+The community's DM settings are stored in the shared `settings` table, in a row with namespace `content` and the community id as scope, in the same way as a course's settings. The row holds whether DMs are enabled, who may message whom, whether a first message is a request, whether group chats are allowed, and the maximum group size. Content is the only writer of this row, through its community settings update, the counterpart of the course settings update. Discussion reads it through content's reader before each chat operation. The settings row has no foreign key. Deleting the community deletes that settings row in the same transaction.
 
 ```sql
 create table communities (
@@ -641,7 +641,7 @@ The schema changes ship as one Drizzle migration, generated after all schema fil
 
 ### Delete behaviour
 
-Deleting a community deletes its registry row. The cascade removes the community row, its spaces, and from the spaces the topics, links, space members and posts; from the posts the comments, reactions, flags, follows and bookmarks; from the community the chats, chat users, messages, message reactions, message flags, attachment links and blocks; and every grant to the community. Handling `content.community.deleted` deletes the DM settings row for that community. An org user who has authored a post, a comment, or a message cannot be deleted; those rows stay under their org user id. An org user who has not can be deleted, and that delete removes their grants, space members, chat user rows and blocks. Files in assets are not deleted by any cascade; a file must be unlinked before assets can delete it.
+Deleting a community deletes its registry row. The cascade removes the community row, its spaces, and from the spaces the topics, links, space members and posts; from the posts the comments, reactions, flags, follows and bookmarks; from the community the chats, chat users, messages, message reactions, message flags, attachment links and blocks; and every grant to the community. Deleting the community deletes the DM settings row for that community in the same transaction. An org user who has authored a post, a comment, or a message cannot be deleted; those rows stay under their org user id. An org user who has not can be deleted, and that delete removes their grants, space members, chat user rows and blocks. Files in assets are not deleted by any cascade; a file must be unlinked before assets can delete it.
 
 ## Ports and adapters
 
