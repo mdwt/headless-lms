@@ -98,6 +98,8 @@ import type {
   EditChatMessageResponses,
   EditCommentErrors,
   EditCommentResponses,
+  FinalizeMemberUploadErrors,
+  FinalizeMemberUploadResponses,
   FlagMessageErrors,
   FlagMessageResponses,
   FlagPostErrors,
@@ -276,6 +278,8 @@ import type {
   ReportProgressResponses,
   RequestAssetDownloadErrors,
   RequestAssetDownloadResponses,
+  RequestMemberUploadErrors,
+  RequestMemberUploadResponses,
   RequestSpaceMembershipErrors,
   RequestSpaceMembershipResponses,
   RequestUploadErrors,
@@ -5388,6 +5392,73 @@ export class Assets {
     >({
       responseStyle: "data",
       url: "/api/member/assets/{id}/url",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Register an image and get a presigned upload URL
+   */
+  public static requestMemberUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      filename: string;
+      contentType: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RequestMemberUploadResponses, RequestMemberUploadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "filename" },
+            { in: "body", key: "contentType" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RequestMemberUploadResponses,
+      RequestMemberUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Confirm an image upload you started
+   */
+  public static finalizeMemberUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    FinalizeMemberUploadResponses,
+    FinalizeMemberUploadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).post<
+      FinalizeMemberUploadResponses,
+      FinalizeMemberUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}/finalize",
       ...options,
       ...params,
     });

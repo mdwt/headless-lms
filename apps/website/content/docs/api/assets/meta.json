@@ -3,6 +3,8 @@
   "description": "The org media library: uploads, serving and lifecycle",
   "pages": [
     "getAssetDownloadUrl",
+    "requestMemberUpload",
+    "finalizeMemberUpload",
     "requestUpload",
     "confirmAsset",
     "listAssets",

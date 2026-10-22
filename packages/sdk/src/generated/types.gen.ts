@@ -7864,6 +7864,120 @@ export type GetAssetDownloadUrlResponses = {
 export type GetAssetDownloadUrlResponse =
   GetAssetDownloadUrlResponses[keyof GetAssetDownloadUrlResponses];
 
+export type RequestMemberUploadData = {
+  body: {
+    filename: string;
+    contentType: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/member/uploads";
+};
+
+export type RequestMemberUploadErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RequestMemberUploadError = RequestMemberUploadErrors[keyof RequestMemberUploadErrors];
+
+export type RequestMemberUploadResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    asset: {
+      orgId: string;
+      id: string;
+      key: string;
+      kind: "video" | "download" | "content" | "image";
+      filename: string;
+      contentType: string;
+      size: number;
+      status: "pending" | "ready";
+      uploadedBy: string;
+      createdAt: string;
+      updatedAt: string;
+    };
+    uploadUrl: string;
+    method: "PUT";
+    expiresInSeconds: number;
+    headers: {
+      [key: string]: string;
+    };
+  };
+};
+
+export type RequestMemberUploadResponse =
+  RequestMemberUploadResponses[keyof RequestMemberUploadResponses];
+
+export type FinalizeMemberUploadData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/member/uploads/{id}/finalize";
+};
+
+export type FinalizeMemberUploadErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type FinalizeMemberUploadError =
+  FinalizeMemberUploadErrors[keyof FinalizeMemberUploadErrors];
+
+export type FinalizeMemberUploadResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    key: string;
+    kind: "video" | "download" | "content" | "image";
+    filename: string;
+    contentType: string;
+    size: number;
+    status: "pending" | "ready";
+    uploadedBy: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type FinalizeMemberUploadResponse =
+  FinalizeMemberUploadResponses[keyof FinalizeMemberUploadResponses];
+
 export type ListMemberDownloadsData = {
   body?: never;
   path?: never;
