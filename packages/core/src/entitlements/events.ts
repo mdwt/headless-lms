@@ -1,4 +1,4 @@
-import { entitlementSchema, spaceMemberSchema } from '../types/schemas/index.js';
+import { entitlementSchema, idSchema, spaceMemberSchema } from '../types/schemas/index.js';
 import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.js';
 
 const publicEntitlement = entitlementSchema
@@ -16,6 +16,9 @@ const publicEntitlement = entitlementSchema
     updatedAt: true,
   })
   .strip();
+
+const endingSoonSchema = entitlementSchema.extend({ communityId: idSchema }).strict();
+const publicEndingSoon = publicEntitlement.extend({ communityId: idSchema }).strip();
 
 export const entitlementEvents = {
   entitlementCreated: defineEvent({
@@ -45,8 +48,8 @@ export const entitlementEvents = {
   entitlementEndingSoon: defineEvent({
     type: 'entitlement.ending_soon',
     version: 1,
-    data: entitlementSchema,
-    publicData: publicEntitlement,
+    data: endingSoonSchema,
+    publicData: publicEndingSoon,
   }),
   spaceMemberCreated: defineEvent({
     type: 'entitlement.space_member.created',

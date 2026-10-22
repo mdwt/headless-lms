@@ -761,7 +761,7 @@ Organizations adds one event, `organization.user.updated`. No event fires today 
 
 The four grant events stay as they are. A grant row does not gain `spaceId`. Space membership is its own aggregate and has its own events. Their data is the space member row, which includes `communityId`. A delete and an update set `metadata.previousStatus`. `metadata.actorOrgUserId` compared with `data.orgUserId` says whether the holder acted on their own row.
 
-`entitlement.expired` is defined today and emitted for the first time by this feature. `entitlement.ending_soon` is new. The expiry run emits it once per grant per community that grant opens, when the grant enters the seven-day window, with `contentId` set to that community. A direct grant emits one. A bundle grant emits one per community in the bundle.
+`entitlement.expired` is defined today and emitted for the first time by this feature. `entitlement.ending_soon` is new. The expiry run emits it once per grant per community that grant opens, when the grant enters the seven-day window. The data is the grant unchanged, plus `communityId` for the community that grant opens. A direct grant emits one. A bundle grant emits one per community in the bundle.
 
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
@@ -769,7 +769,7 @@ The four grant events stay as they are. A grant row does not gain `spaceId`. Spa
 | `entitlement.updated` | a grant's status or expiry changes. Becoming `revoked` is a removal | staff | entitlement | yes |
 | `entitlement.deleted` | a grant is deleted | staff | entitlement | yes |
 | `entitlement.expired` | the expiry run finds `expires_at` passed; one event per grant, once | scheduler | entitlement | yes |
-| `entitlement.ending_soon` | the expiry run finds a grant entering the seven days before `expires_at`; once per grant per community it opens | scheduler | entitlement, with `contentId` set to the community | yes |
+| `entitlement.ending_soon` | the expiry run finds a grant entering the seven days before `expires_at`; once per grant per community it opens | scheduler | the grant, plus `communityId` | yes |
 | `entitlement.space_member.created` | a request (`requested`), an invitation (`invited`), or a direct addition (`active`) | member, staff, moderator | space member | yes |
 | `entitlement.space_member.updated` | approval or acceptance sets status to `active`; removal sets it to `revoked`. `metadata.previousStatus` is the status before the change | staff, moderator, member | space member | yes |
 | `entitlement.space_member.deleted` | a request is declined (`previousStatus` `requested`), an invitation is refused (`invited`), or the member leaves (`active`) | staff, moderator, member | space member | yes |
@@ -837,7 +837,7 @@ New post in a space and the digest are listed here and are not sent until the de
 | Name | Trigger | Filter | Action |
 | --- | --- | --- | --- |
 | Welcome to the community | `entitlement.created` | none; the derivation asks whether the grant opens this community | send the Welcome to the community email |
-| Membership ending soon | `entitlement.ending_soon` | `contentId` of this community | send the Membership ending soon email |
+| Membership ending soon | `entitlement.ending_soon` | `communityId` of this community | send the Membership ending soon email |
 | Membership ended | `entitlement.expired`, `entitlement.deleted` | none; the derivation asks whether the grant opens this community | send the Membership ended email |
 | New post in a space | `discussion.post.published` | `communityId` | send the New post in a space email to the space's members who can open it. Waits on the email-preference opt-out |
 | Your post was published | `discussion.post.published` | `communityId`; the derivation sends only when `metadata.previousStatus` is `pending` | send the Your post was published email to the author |

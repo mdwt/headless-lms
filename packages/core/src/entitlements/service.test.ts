@@ -502,7 +502,7 @@ describe('expireDue', () => {
     expect(appended[0]).not.toHaveProperty('metadata');
   });
 
-  it('emits ending_soon once per community a grant opens, with that community as contentId', async () => {
+  it('emits ending_soon once per community a grant opens, beside the grant', async () => {
     const bundle = {
       ...SAMPLE,
       id: 'ent_b',
@@ -522,7 +522,12 @@ describe('expireDue', () => {
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.ending_soon',
-        data: expect.objectContaining({ id: 'ent_b', contentId: 'cmy_1' }),
+        data: expect.objectContaining({
+          id: 'ent_b',
+          contentId: null,
+          bundleId: 'bnd_1',
+          communityId: 'cmy_1',
+        }),
       }),
     ]);
   });

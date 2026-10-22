@@ -343,7 +343,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
           events.push(
             entitlementEvents.entitlementEndingSoon.make({
               orgId,
-              data: { ...grant, contentId: communityId },
+              data: { ...grant, communityId },
             }),
           );
         }

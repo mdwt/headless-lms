@@ -558,7 +558,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           eq(eventOutbox.type, type),
           sql`${eventOutbox.payload}->'data'->>'id' = ${grantId}`,
           communityId
-            ? sql`${eventOutbox.payload}->'data'->>'contentId' = ${communityId}`
+            ? sql`${eventOutbox.payload}->'data'->>'communityId' = ${communityId}`
             : undefined,
         ),
       )

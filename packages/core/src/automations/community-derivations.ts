@@ -80,10 +80,7 @@ export const COMMUNITY_DERIVATIONS: {
         return undefined;
       }
       const grant = parsed.data.data;
-      const communityId = grant.contentId;
-      if (!communityId) {
-        return [];
-      }
+      const communityId = grant.communityId;
       const title = await communityTitle(deps, event.orgId, communityId);
       if (!title) {
         return undefined;

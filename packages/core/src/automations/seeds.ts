@@ -79,7 +79,7 @@ export function communitySeeds(communityId: string): SeedAutomation[] {
       description: 'Email a member a week before this community grant ends.',
       triggers: ['entitlement.ending_soon'],
       actions: [scoped('membershipEndingSoon')],
-      filter: { contentId: communityId },
+      filter: { communityId },
     },
     {
       name: 'Membership ended',
