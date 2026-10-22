@@ -1432,6 +1432,15 @@ export class DrizzleContentRepository implements ContentRepository {
       }
     }
     const removed = existing.filter((topic) => !kept.has(topic.id)).map((topic) => topic.id);
+    for (const topic of existing) {
+      if (!kept.has(topic.id)) {
+        continue;
+      }
+      await this.db
+        .update(spaceTopics)
+        .set({ name: `\u0000${topic.id}` })
+        .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.id, topic.id)));
+    }
     if (removed.length) {
       await this.db
         .delete(spaceTopics)
