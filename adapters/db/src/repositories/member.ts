@@ -1,7 +1,7 @@
 // member — Drizzle read repo (implements the reporting/member outbound port).
 // Active means stored status active and expires_at still ahead. A course or
 // download is reachable directly or through a bundle, and only when published.
-import { and, asc, eq, gt, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
@@ -19,6 +19,7 @@ import {
   spaceMembers,
   userProfiles,
 } from "../schema/index.js";
+import { STAFF_ROLES } from "@headless-lms/core/organizations";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
@@ -199,7 +200,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
         and(
           eq(orgUsers.orgId, orgId),
           or(
-            sql`${orgUsers.role} in ('owner', 'admin', 'instructor')`,
+            inArray(orgUsers.role, [...STAFF_ROLES]),
             sql`exists (
               select 1 from entitlements
               where entitlements.org_id = ${orgUsers.orgId}
@@ -243,7 +244,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
           eq(orgUsers.orgId, orgId),
           eq(orgUsers.id, orgUserId),
           or(
-            sql`${orgUsers.role} in ('owner', 'admin', 'instructor')`,
+            inArray(orgUsers.role, [...STAFF_ROLES]),
             sql`exists (
               select 1 from user_profiles p
               where p.user_id = ${orgUsers.userId}
