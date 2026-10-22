@@ -12,6 +12,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations } from "./organizations.js";
 import type {
@@ -53,6 +54,9 @@ export const automations = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     triggersIdx: index("automations_triggers_idx").using("gin", t.triggers),
+    systemSeedIdx: uniqueIndex("automations_system_seed_idx")
+      .on(t.orgId, t.name, sql`coalesce(${t.filter}->>'communityId', '')`)
+      .where(sql`${t.source} = 'system'`),
   }),
 );
 

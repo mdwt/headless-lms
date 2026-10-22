@@ -1,45 +1,28 @@
-import type {
-  DrizzleAutomationRunsRepository,
-  DrizzleChatRepository,
-  DrizzleDiscussionRepository,
-  DrizzleEntitlementsRepository,
-  DrizzlePostRepository,
-} from '@headless-lms/adapter-db';
+import type { AssetsService } from '@headless-lms/core/assets';
 import type {
   CommunityMailReads,
   GrantWriter,
   ScheduledWork,
 } from '@headless-lms/core/automations';
-import type { AssetsService } from '@headless-lms/core/assets';
 import type { ContentService } from '@headless-lms/core/content';
-import type { DiscussionServiceImpl, PostServiceImpl } from '@headless-lms/core/discussion';
-import type { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
-import type { IdentityServiceImpl } from '@headless-lms/core/identity';
-import type {
-  OrganizationServiceImpl,
-  OrganizationsRepository,
-  TeamRole,
-} from '@headless-lms/core/organizations';
+import type { ChatService, DiscussionService, PostService } from '@headless-lms/core/discussion';
+import type { EntitlementsService } from '@headless-lms/core/entitlements';
+import type { IdentityService } from '@headless-lms/core/identity';
+import { STAFF_ROLES, type OrganizationService } from '@headless-lms/core/organizations';
 
 const PAGE = 100;
+const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
 type Deps = {
   content: ContentService;
-  entitlements: EntitlementsServiceImpl;
-  entitlementsRepo: DrizzleEntitlementsRepository;
-  organizations: OrganizationServiceImpl;
-  organizationsRepo: OrganizationsRepository;
-  identity: IdentityServiceImpl;
-  posts: PostServiceImpl;
-  postReads: DrizzlePostRepository;
-  discussion: DiscussionServiceImpl;
-  discussionReads: DrizzleDiscussionRepository;
-  chatReads: DrizzleChatRepository;
-  runsRepo: DrizzleAutomationRunsRepository;
+  entitlements: EntitlementsService;
+  organizations: OrganizationService;
+  identity: IdentityService;
+  posts: PostService;
+  discussion: DiscussionService;
+  chats: ChatService;
   assets: AssetsService;
 };
-
-const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
 export async function listCommunityIds(
   content: Pick<ContentService, 'listCommunities'>,
@@ -61,34 +44,13 @@ export async function listCommunityIds(
   }
 }
 
-async function idsForRole(
-  organizations: OrganizationServiceImpl,
-  orgId: string,
-  role: TeamRole,
-): Promise<string[]> {
-  const ids: string[] = [];
-  let page = 1;
-  for (;;) {
-    const result = await organizations.listMembers(orgId, {
-      page,
-      pageSize: PAGE,
-      role,
-      status: 'active',
-    });
-    ids.push(...result.rows.map((row) => row.id));
-    if (result.rows.length < PAGE) {
-      return ids;
-    }
-    page += 1;
-  }
-}
-
 export function communityMail(deps: Deps): {
-  mail: CommunityMailReads;
+  mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
   scheduledWork: ScheduledWork;
 } {
-  const mail: CommunityMailReads = {
+  const staff = [...STAFF_ROLES];
+  const mail: Omit<CommunityMailReads, 'recentMessageRecipients'> = {
     async communityTitle(orgId, communityId) {
       return (await deps.content.getCommunity(orgId, communityId))?.title ?? null;
     },
@@ -100,71 +62,45 @@ export function communityMail(deps: Deps): {
       return { name: space.name, communityId: space.communityId, capacity: space.capacity };
     },
     async openSpaceNames(orgId, orgUserId, communityId) {
-      const orgUser = await deps.organizationsRepo.findOrgUserById(orgId, orgUserId);
-      if (!orgUser) {
-        return [];
-      }
-      const ids = await deps.entitlements.openSpaceIds(
-        orgId,
-        { id: orgUserId, role: orgUser.role },
-        communityId,
-      );
-      const spaces = await Promise.all(ids.map((id) => deps.content.getSpace(orgId, id)));
-      return spaces.flatMap((space) => (space ? [space.name] : []));
+      const open = new Set(await deps.entitlements.openSpaceIdsFor(orgId, orgUserId, communityId));
+      const spaces = await deps.content.listSpaces(orgId, communityId);
+      return spaces.filter((space) => open.has(space.id)).map((space) => space.name);
     },
     grantOpensCommunity(orgId, grant, communityId) {
       return deps.entitlements.grantOpensCommunity(orgId, grant, communityId);
     },
-    async moderationAudience(orgId, communityId) {
-      const staff = [
-        ...(await idsForRole(deps.organizations, orgId, 'owner')),
-        ...(await idsForRole(deps.organizations, orgId, 'admin')),
-        ...(await idsForRole(deps.organizations, orgId, 'instructor')),
-      ];
-      const moderators = await idsForRole(deps.organizations, orgId, 'moderator');
-      const granted: string[] = [];
-      for (const id of moderators) {
-        if (await deps.entitlementsRepo.hasCommunityAccess(orgId, id, communityId)) {
-          granted.push(id);
-        }
-      }
-      return [...new Set([...staff, ...granted])];
+    communitiesOpenedBy(orgId, grant) {
+      return deps.entitlements.communitiesOpenedBy(orgId, grant);
     },
-    async staffIds(orgId) {
-      return [
-        ...(await idsForRole(deps.organizations, orgId, 'owner')),
-        ...(await idsForRole(deps.organizations, orgId, 'admin')),
-        ...(await idsForRole(deps.organizations, orgId, 'instructor')),
-      ];
+    async moderationAudience(orgId, communityId) {
+      const [staffIds, moderators] = await Promise.all([
+        deps.organizations.orgUserIdsByRole(orgId, staff),
+        deps.entitlements.moderatorsWithAccess(orgId, communityId),
+      ]);
+      return [...new Set([...staffIds, ...moderators])];
+    },
+    staffIds(orgId) {
+      return deps.organizations.orgUserIdsByRole(orgId, staff);
     },
     async displayName(orgId, orgUserId) {
-      const orgUser = await deps.organizationsRepo.findOrgUserById(orgId, orgUserId);
+      const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);
       if (!orgUser) {
         return 'A member';
       }
-      const [profile, user] = await Promise.all([
-        deps.identity.getProfile(orgUser.userId),
-        deps.identity.getUserById(orgUser.userId),
-      ]);
-      const named = profile?.displayName?.trim();
-      if (named) {
-        return named;
-      }
-      const composed = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
-      return composed || 'A member';
+      return deps.identity.displayName(orgUser.userId);
     },
     followerIds(orgId, postId) {
-      return deps.postReads.followerIds(orgId, postId);
+      return deps.posts.followerIds(orgId, postId);
     },
     async comment(orgId, commentId) {
-      const comment = await deps.discussionReads.findComment(orgId, commentId);
+      const comment = await deps.discussion.getComment(orgId, commentId);
       if (!comment) {
         return null;
       }
       return { orgUserId: comment.orgUserId, postId: comment.postId, body: comment.body };
     },
     async post(orgId, postId) {
-      const post = await deps.postReads.find(orgId, postId);
+      const post = await deps.posts.find(orgId, postId);
       if (!post) {
         return null;
       }
@@ -177,51 +113,40 @@ export function communityMail(deps: Deps): {
       };
     },
     async chat(orgId, chatId) {
-      const chat = await deps.chatReads.findChat(orgId, chatId);
-      if (!chat) {
+      const summary = await deps.chats.chatSummary(orgId, chatId);
+      if (!summary) {
         return null;
       }
-      const participants = await deps.chatReads.participants(orgId, chatId);
       return {
-        communityId: chat.communityId,
-        kind: chat.kind,
-        createdBy: chat.createdBy,
-        participants: participants.map((participant) => ({
+        communityId: summary.chat.communityId,
+        kind: summary.chat.kind,
+        createdBy: summary.chat.createdBy,
+        participants: summary.participants.map((participant) => ({
           orgUserId: participant.orgUserId,
           mutedUntil: participant.mutedUntil,
           leftAt: participant.leftAt,
         })),
       };
     },
-    async latestMessageBody(orgId, chatId) {
-      const page = await deps.chatReads.listMessages(orgId, chatId, { page: 1, pageSize: 1 });
-      return page.rows[0]?.body ?? null;
+    latestMessageBody(orgId, chatId) {
+      return deps.chats.latestMessageBody(orgId, chatId);
     },
     pairBlocked(orgId, communityId, a, b) {
-      return deps.chatReads.isBlocked(orgId, communityId, a, b);
+      return deps.chats.isBlocked(orgId, communityId, a, b);
     },
-    async activeMemberCount(orgId, spaceId) {
-      const rows = await deps.entitlementsRepo.listSpaceMembers(orgId, spaceId);
-      return rows.filter((row) => row.status === 'active').length;
+    activeMemberCount(orgId, spaceId) {
+      return deps.entitlements.countActiveSpaceMembers(orgId, spaceId);
     },
     async memberCommunityTitles(orgId, orgUserId) {
-      const titles: { id: string; title: string }[] = [];
-      let page = 1;
-      for (;;) {
-        const result = await deps.content.listCommunities(orgId, { page, pageSize: PAGE });
-        for (const community of result.rows) {
-          if (await deps.entitlementsRepo.hasCommunityAccess(orgId, orgUserId, community.id)) {
-            titles.push({ id: community.id, title: community.title });
-          }
-        }
-        if (result.rows.length < PAGE) {
-          return titles;
-        }
-        page += 1;
-      }
-    },
-    recentMessageRecipients(orgId, automationId, chatId, since) {
-      return deps.runsRepo.recentRecipients(orgId, automationId, chatId, since);
+      const ids = await deps.entitlements.communityIdsOpenedFor(orgId, orgUserId);
+      const communities = await Promise.all(
+        ids.map((id) => deps.content.getCommunity(orgId, id)),
+      );
+      return communities.flatMap((community) =>
+        community && community.status === 'published'
+          ? [{ id: community.id, title: community.title }]
+          : [],
+      );
     },
   };
   return {

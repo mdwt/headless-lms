@@ -271,7 +271,11 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
     repo: fake.repo,
     access: gate.access,
     content: fakeContent(fake.activityCourse, activitySettings),
-    posts: { find: async () => null },
+    posts: {
+      visible: async () => {
+        throw new Error('no post');
+      },
+    },
     uow,
     settings,
     communities: { listIds: async () => [] },
@@ -1104,12 +1108,9 @@ describe('comments on a post', () => {
     const gate = fakeAccess();
     const service = new DiscussionServiceImpl({
       repo: fake.repo,
-      access: { ...gate.access, canOpenSpace: async () => true },
-      content: {
-        ...fakeContent(fake.activityCourse, new Map()),
-        getSpace: async () => space,
-      },
-      posts: { find: async () => ({ ...post, commentsClosed }) },
+      access: gate.access,
+      content: fakeContent(fake.activityCourse, new Map()),
+      posts: { visible: async () => ({ post: { ...post, commentsClosed }, space }) },
       uow,
       settings,
       communities: { listIds: async () => [] },

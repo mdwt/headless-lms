@@ -435,6 +435,10 @@ export class OrganizationServiceImpl implements OrganizationService {
   // By identity USER id — `(org_id, user_id)` is unique. Every caller (scope
   // resolution, the MCP principal, the member routes) asks "what is this person
   // in this org", never "what is this org_users row".
+  getOrgUserById(orgId: string, id: string): Promise<OrgUser | null> {
+    return this.repo.findOrgUserById(orgId, id);
+  }
+
   async getOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
     return this.repo.findOrgUser(orgId, userId);
   }
@@ -501,6 +505,10 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async getBySlug(slug: string): Promise<Organization | null> {
     return this.repo.findBySlug(slug);
+  }
+
+  orgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]> {
+    return this.repo.findOrgUserIdsByRole(orgId, roles);
   }
 
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>> {

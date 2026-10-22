@@ -150,7 +150,7 @@ export type AutomationsServiceParams = {
   integrations: Pick<IntegrationsService, 'available'>;
   credentials: CredentialStore;
   webhooks: WebhookSender;
-  mail: CommunityMailReads;
+  mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
   scheduledWork: ScheduledWork;
   logger?: Logger;
@@ -181,7 +181,11 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.integrations = params.integrations;
     this.credentials = params.credentials;
     this.webhooks = params.webhooks;
-    this.mail = params.mail;
+    this.mail = {
+      ...params.mail,
+      recentMessageRecipients: (orgId, automationId, chatId, since) =>
+        this.runsRepo.recentRecipients(orgId, automationId, chatId, since),
+    };
     this.grants = params.grants;
     this.scheduledWork = params.scheduledWork;
     this.logger = params.logger ?? noopLogger;
@@ -261,6 +265,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         count: created.length,
       });
     });
+    await this.engine.syncSchedules?.();
   }
 
   private async safeListByTrigger(event: DomainEvent): Promise<Automation[]> {
@@ -485,6 +490,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       return created;
     });
     this.logger.info('automation created', { orgId, automationId: automation.id });
+    await this.engine.syncSchedules?.();
     return automation;
   }
 
@@ -518,6 +524,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     });
     if (automation) {
       this.logger.info('automation updated', { orgId, automationId: id });
+      await this.engine.syncSchedules?.();
     }
     return automation;
   }
@@ -543,6 +550,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     });
     if (deleted) {
       this.logger.info('automation deleted', { orgId, automationId: id });
+      await this.engine.syncSchedules?.();
     }
     return deleted !== null;
   }

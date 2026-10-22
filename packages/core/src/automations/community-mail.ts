@@ -27,6 +27,10 @@ export interface CommunityMailReads {
     grant: { contentId: string | null; bundleId: string | null },
     communityId: string,
   ): Promise<boolean>;
+  communitiesOpenedBy(
+    orgId: string,
+    grant: { contentId: string | null; bundleId: string | null },
+  ): Promise<string[]>;
   moderationAudience(orgId: string, communityId: string): Promise<string[]>;
   staffIds(orgId: string): Promise<string[]>;
   displayName(orgId: string, orgUserId: string): Promise<string>;
@@ -96,6 +100,7 @@ export const emptyCommunityMail: CommunityMailReads = {
   space: async () => null,
   openSpaceNames: async () => [],
   grantOpensCommunity: async () => false,
+  communitiesOpenedBy: async () => [],
   moderationAudience: async () => [],
   staffIds: async () => [],
   displayName: async () => 'A member',

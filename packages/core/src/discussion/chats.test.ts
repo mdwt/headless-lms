@@ -210,6 +210,16 @@ function harness(options?: {
     async attachmentIds(_orgId, messageId) {
       return attachments.filter((row) => row.messageId === messageId).flatMap((row) => row.assetIds);
     },
+    async blockedWith(_orgId, communityId, orgUserId, otherIds) {
+      return otherIds.filter((other) =>
+        blocks.some(
+          (row) =>
+            row.communityId === communityId &&
+            ((row.blocker === orgUserId && row.blocked === other) ||
+              (row.blocker === other && row.blocked === orgUserId)),
+        ),
+      );
+    },
     async setReaction() {},
     async block(_orgId, communityId, blocker, blocked) {
       if (
@@ -291,17 +301,28 @@ function harness(options?: {
     async canOpenSpace() {
       return false;
     },
+    async canOpen() {
+      return false;
+    },
     async openSpaceIds() {
       return [];
     },
     async grantOpensCommunity() {
       return false;
     },
+    async membersAmong(_orgId, _communityId, orgUserIds) {
+      return orgUserIds.filter((id) => members.has(id));
+    },
   };
 
   const authors: AuthorRoleReader = {
     async roleOf(_orgId, orgUserId) {
       return roles[orgUserId] ?? null;
+    },
+    async rolesOf(_orgId, orgUserIds) {
+      return Object.fromEntries(
+        orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])),
+      );
     },
   };
 

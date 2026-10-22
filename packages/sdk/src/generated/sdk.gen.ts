@@ -148,8 +148,6 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
-  GetMemberMessageQueueErrors,
-  GetMemberMessageQueueResponses,
   GetMemberOrgResponses,
   GetMemberProfileErrors,
   GetMemberProfileResponses,
@@ -4205,37 +4203,6 @@ export class Chats {
     >({
       responseStyle: "data",
       url: "/api/member/communities/{communityId}/chats",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Open message flags in a community
-   */
-  public static getMemberMessageQueue<ThrowOnError extends boolean = false>(
-    parameters: {
-      communityId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    GetMemberMessageQueueResponses,
-    GetMemberMessageQueueErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [{ args: [{ in: "path", key: "communityId" }] }],
-    );
-    return (options?.client ?? client).get<
-      GetMemberMessageQueueResponses,
-      GetMemberMessageQueueErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/communities/{communityId}/message-queue",
       ...options,
       ...params,
     });

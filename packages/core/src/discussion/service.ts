@@ -1,8 +1,6 @@
 import { genId } from '../shared/id.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { isStaffRole } from '../organizations/index.js';
-import type { CommunityReader } from '../content/index.js';
-import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Comment, CommentAuthor, CommentReport, CommentSettings } from './model.js';
@@ -27,7 +25,7 @@ import type {
   DiscussionService,
   DiscussionUnitOfWork,
   PostCommentInput,
-  PostRepository,
+  PostService,
 } from './ports.js';
 import { discussionEvents } from './events.js';
 
@@ -44,9 +42,9 @@ const EMPTY_REACTIONS: CommentReactions = { reactions: {} };
 
 export type DiscussionServiceParams = {
   repo: DiscussionRepository;
-  access: CourseAccessReader & Pick<CommunityAccessReader, 'canOpenSpace'>;
-  content: ActivityGetter & Pick<CommunityReader, 'getSpace'>;
-  posts: Pick<PostRepository, 'find'>;
+  access: CourseAccessReader;
+  content: ActivityGetter;
+  posts: Pick<PostService, 'visible'>;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
   communities: { listIds(orgId: string): Promise<string[]> };
@@ -55,9 +53,9 @@ export type DiscussionServiceParams = {
 
 export class DiscussionServiceImpl implements DiscussionService {
   private readonly repo: DiscussionRepository;
-  private readonly access: CourseAccessReader & Pick<CommunityAccessReader, 'canOpenSpace'>;
-  private readonly content: ActivityGetter & Pick<CommunityReader, 'getSpace'>;
-  private readonly posts: Pick<PostRepository, 'find'>;
+  private readonly access: CourseAccessReader;
+  private readonly content: ActivityGetter;
+  private readonly posts: Pick<PostService, 'visible'>;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
   private readonly communities: { listIds(orgId: string): Promise<string[]> };
@@ -363,21 +361,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     actor: Actor,
     postId: string,
   ): Promise<{ post: Post; space: SpaceDetail }> {
-    const post = await this.posts.find(orgId, postId);
-    if (!post) {
-      throw new NotFoundError('Post', postId);
-    }
-    const space = await this.content.getSpace(orgId, post.spaceId);
-    if (!space) {
-      throw new NotFoundError('Space', post.spaceId);
-    }
-    if (!(await this.access.canOpenSpace(orgId, actor, post.spaceId))) {
-      throw new ForbiddenError('You cannot open this space');
-    }
-    if (post.status !== 'published' && post.orgUserId !== actor.id && !this.canModerate(actor)) {
-      throw new NotFoundError('Post', postId);
-    }
-    return { post, space };
+    return this.posts.visible(orgId, actor, postId);
   }
 
   private canModerate(actor: Actor): boolean {

@@ -67,6 +67,20 @@ export function orgSeeds(): SeedAutomation[] {
       actions: [{ type: 'removeUnattachedUploads', input: {} }],
       filter: null,
     },
+    {
+      name: 'Welcome to the community',
+      description: 'Email a person when a grant opens a community.',
+      triggers: ['entitlement.created'],
+      actions: [email('welcomeToCommunity')],
+      filter: null,
+    },
+    {
+      name: 'Membership ended',
+      description: 'Email a person when a grant that opened a community ends.',
+      triggers: ['entitlement.expired', 'entitlement.deleted'],
+      actions: [email('membershipEnded')],
+      filter: null,
+    },
   ];
 }
 
@@ -75,25 +89,11 @@ export function communitySeeds(communityId: string): SeedAutomation[] {
   const scoped = (template: string): AutomationAction => email(template, communityId);
   return [
     {
-      name: 'Welcome to the community',
-      description: 'Email a person when a grant opens this community.',
-      triggers: ['entitlement.created'],
-      actions: [scoped('welcomeToCommunity')],
-      filter: null,
-    },
-    {
       name: 'Membership ending soon',
       description: 'Email a member a week before this community grant ends.',
       triggers: ['entitlement.ending_soon'],
       actions: [scoped('membershipEndingSoon')],
       filter: { communityId },
-    },
-    {
-      name: 'Membership ended',
-      description: 'Email a person when a grant that opened this community ends.',
-      triggers: ['entitlement.expired', 'entitlement.deleted'],
-      actions: [scoped('membershipEnded')],
-      filter: null,
     },
     {
       name: 'New post in a space',

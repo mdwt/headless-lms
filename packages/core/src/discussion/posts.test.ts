@@ -207,6 +207,15 @@ function harness(options?: {
       }
       return actor.id !== outsider.id;
     },
+    async canOpen(_orgId, actor) {
+      if (options?.open === false) {
+        return false;
+      }
+      return actor.id !== outsider.id;
+    },
+    async membersAmong(_orgId, _communityId, orgUserIds) {
+      return orgUserIds.filter((id) => id !== outsider.id);
+    },
     async openSpaceIds(_orgId, actor) {
       if (actor.id === outsider.id) {
         return [];
@@ -232,6 +241,12 @@ function harness(options?: {
   const authors: AuthorRoleReader = {
     async roleOf(_orgId, orgUserId) {
       return options?.roles?.[orgUserId] ?? null;
+    },
+    async rolesOf(_orgId, orgUserIds) {
+      const roles = options?.roles ?? {};
+      return Object.fromEntries(
+        orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])),
+      );
     },
   };
 

@@ -24,20 +24,7 @@ export async function memberProfileRoutes(
       response: { 200: UserProfile, ...errors },
     },
     handler: async (req) => {
-      const profile = await container.identity.getProfile(req.userId);
-      return (
-        profile ?? {
-          userId: req.userId,
-          displayName: null,
-          headline: null,
-          bio: null,
-          imageAssetOrgId: null,
-          imageAssetId: null,
-          extra: {},
-          createdAt: new Date(0),
-          updatedAt: new Date(0),
-        }
-      );
+      return container.identity.profileOf(req.userId);
     },
   });
 

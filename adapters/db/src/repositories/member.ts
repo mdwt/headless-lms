@@ -23,6 +23,7 @@ import { STAFF_ROLES } from "@headless-lms/core/organizations";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
+import { activeGrantCovers } from "./grant-covers.js";
 
 export class DrizzleMemberRepository implements MemberReportRepository {
   constructor(
@@ -153,25 +154,6 @@ export class DrizzleMemberRepository implements MemberReportRepository {
   }
 
   async directory(orgId: string, communityId: string): Promise<DirectoryEntry[]> {
-    const opens = sql`(
-      (
-        ${entitlements.contentId} = ${communityId}
-        and exists (
-          select 1 from content_items ci
-          where ci.org_id = ${entitlements.orgId}
-            and ci.id = ${entitlements.contentId}
-            and ci.type = 'community'
-        )
-      )
-      or exists (
-        select 1 from bundle_items bi
-        join content_items ci on ci.org_id = bi.org_id and ci.id = bi.content_id
-        where bi.org_id = ${entitlements.orgId}
-          and bi.bundle_id = ${entitlements.bundleId}
-          and bi.content_id = ${communityId}
-          and ci.type = 'community'
-      )
-    )`;
     const rows = await this.db
       .select({
         orgUserId: orgUsers.id,
@@ -189,14 +171,12 @@ export class DrizzleMemberRepository implements MemberReportRepository {
           eq(orgUsers.orgId, orgId),
           or(
             inArray(orgUsers.role, [...STAFF_ROLES]),
-            sql`exists (
-              select 1 from entitlements
-              where entitlements.org_id = ${orgUsers.orgId}
-                and entitlements.org_user_id = ${orgUsers.id}
-                and entitlements.status = 'active'
-                and (entitlements.expires_at is null or entitlements.expires_at > now())
-                and ${opens}
-            )`,
+            activeGrantCovers(
+              sql`${orgUsers.orgId}`,
+              sql`${orgUsers.id}`,
+              sql`${communityId}`,
+              "community",
+            ),
           ),
         ),
       )

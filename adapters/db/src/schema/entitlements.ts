@@ -113,5 +113,25 @@ export const spaceMembers = pgTable(
   }),
 );
 
+export const entitlementNotices = pgTable(
+  "entitlement_notices",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    entitlementId: text("entitlement_id").notNull(),
+    kind: text("kind", { enum: ["expired", "ending_soon"] }).notNull(),
+    communityId: text("community_id").notNull().default(""),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.entitlementId, t.kind, t.communityId] }),
+    entitlementFk: foreignKey({
+      columns: [t.orgId, t.entitlementId],
+      foreignColumns: [entitlements.orgId, entitlements.id],
+    }).onDelete("cascade"),
+  }),
+);
+
 type _EntitlementsDrift = Expect<NoDrift<typeof entitlements.$inferSelect, Entitlement>>;
 type _SpaceMembersDrift = Expect<NoDrift<typeof spaceMembers.$inferSelect, SpaceMember>>;

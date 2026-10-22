@@ -470,6 +470,18 @@ export class PostServiceImpl implements PostService {
     return { pending, flags, commentFlags: openCommentFlags };
   }
 
+  visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }> {
+    return this.loadVisible(orgId, actor, postId);
+  }
+
+  find(orgId: string, postId: string): Promise<Post | null> {
+    return this.repo.find(orgId, postId);
+  }
+
+  followerIds(orgId: string, postId: string): Promise<string[]> {
+    return this.repo.followerIds(orgId, postId);
+  }
+
   async hasDue(orgId: string, now: Date): Promise<boolean> {
     const due = await this.repo.listDue(orgId, now);
     return due.length > 0;
@@ -656,7 +668,7 @@ export class PostServiceImpl implements PostService {
     if (!space) {
       throw new NotFoundError('Space', spaceId);
     }
-    if (!(await this.access.canOpenSpace(orgId, actor, spaceId))) {
+    if (!(await this.access.canOpen(orgId, actor, space))) {
       throw new ForbiddenError('You cannot open this space');
     }
     return space;

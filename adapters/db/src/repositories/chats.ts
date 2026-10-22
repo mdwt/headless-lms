@@ -509,6 +509,42 @@ export class DrizzleChatRepository implements ChatRepository {
     return Boolean(row);
   }
 
+  async blockedWith(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    otherIds: string[],
+  ): Promise<string[]> {
+    if (otherIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({
+        blocker: blockedUsers.blockerOrgUserId,
+        blocked: blockedUsers.blockedOrgUserId,
+      })
+      .from(blockedUsers)
+      .where(
+        and(
+          eq(blockedUsers.orgId, orgId),
+          eq(blockedUsers.communityId, communityId),
+          or(
+            and(
+              eq(blockedUsers.blockerOrgUserId, orgUserId),
+              inArray(blockedUsers.blockedOrgUserId, otherIds),
+            ),
+            and(
+              eq(blockedUsers.blockedOrgUserId, orgUserId),
+              inArray(blockedUsers.blockerOrgUserId, otherIds),
+            ),
+          ),
+        ),
+      );
+    return [
+      ...new Set(rows.map((row) => (row.blocker === orgUserId ? row.blocked : row.blocker))),
+    ];
+  }
+
   async insertFlag(orgId: string, flag: MessageFlag): Promise<MessageFlag | null> {
     const [row] = await this.db
       .insert(messageFlags)

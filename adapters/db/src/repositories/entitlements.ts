@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, gt, ilike, lte, or, sql, type SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, asc, desc, eq, gt, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
+  EntitlementNotice,
   EntitlementsRepository,
   GrantTarget,
   InsertSpaceMemberInput,
@@ -16,7 +16,14 @@ import type {
   SpaceMember,
   SpaceMemberStatus,
 } from "@headless-lms/core/types";
-import { entitlements, eventOutbox, orgUsers, spaceMembers, users } from "../schema/index.js";
+import {
+  entitlementNotices,
+  entitlements,
+  orgUsers,
+  spaceMembers,
+  users,
+} from "../schema/index.js";
+import { activeGrantCovers } from "./grant-covers.js";
 import {
   bundleItems,
   bundles,
@@ -295,42 +302,8 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
    *  through a bundle that holds it — and either way the row is joined to
    *  content_items and constrained to type = 'course', so a grant on some other
    *  content type can never be mistaken for course access. */
-  async hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    const bundledItems = alias(contentItems, "bundled_content_items");
-    const rows = await this.db
-      .select({ id: entitlements.id })
-      .from(entitlements)
-      .leftJoin(
-        contentItems,
-        and(
-          eq(contentItems.orgId, entitlements.orgId),
-          eq(contentItems.id, entitlements.contentId),
-        ),
-      )
-      .leftJoin(
-        bundleItems,
-        and(
-          eq(bundleItems.orgId, entitlements.orgId),
-          eq(bundleItems.bundleId, entitlements.bundleId),
-        ),
-      )
-      .leftJoin(
-        bundledItems,
-        and(eq(bundledItems.orgId, bundleItems.orgId), eq(bundledItems.id, bundleItems.contentId)),
-      )
-      .where(
-        and(
-          eq(entitlements.orgId, orgId),
-          eq(entitlements.orgUserId, orgUserId),
-          or(
-            and(eq(entitlements.contentId, courseId), eq(contentItems.type, "course")),
-            and(eq(bundleItems.contentId, courseId), eq(bundledItems.type, "course")),
-          ),
-          sql`${derivedStatus} = 'active'`,
-        ),
-      )
-      .limit(1);
-    return rows.length > 0;
+  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
+    return this.covers(orgId, orgUserId, courseId, "course");
   }
 
   async hasCommunityAccess(
@@ -338,41 +311,20 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     orgUserId: string,
     communityId: string,
   ): Promise<boolean> {
-    const bundledItems = alias(contentItems, "bundled_community_items");
-    const rows = await this.db
-      .select({ id: entitlements.id })
-      .from(entitlements)
-      .leftJoin(
-        contentItems,
-        and(
-          eq(contentItems.orgId, entitlements.orgId),
-          eq(contentItems.id, entitlements.contentId),
-        ),
-      )
-      .leftJoin(
-        bundleItems,
-        and(
-          eq(bundleItems.orgId, entitlements.orgId),
-          eq(bundleItems.bundleId, entitlements.bundleId),
-        ),
-      )
-      .leftJoin(
-        bundledItems,
-        and(eq(bundledItems.orgId, bundleItems.orgId), eq(bundledItems.id, bundleItems.contentId)),
-      )
-      .where(
-        and(
-          eq(entitlements.orgId, orgId),
-          eq(entitlements.orgUserId, orgUserId),
-          or(
-            and(eq(entitlements.contentId, communityId), eq(contentItems.type, "community")),
-            and(eq(bundleItems.contentId, communityId), eq(bundledItems.type, "community")),
-          ),
-          sql`${derivedStatus} = 'active'`,
-        ),
-      )
-      .limit(1);
-    return rows.length > 0;
+    return this.covers(orgId, orgUserId, communityId, "community");
+  }
+
+  private async covers(
+    orgId: string,
+    orgUserId: string,
+    contentId: string,
+    type: "course" | "community",
+  ): Promise<boolean> {
+    const result = await this.db.execute<{ covered: boolean }>(
+      sql`select ${activeGrantCovers(sql`${orgId}`, sql`${orgUserId}`, sql`${contentId}`, type)} as covered`,
+    );
+    const rows = Array.isArray(result) ? result : result.rows;
+    return rows[0]?.covered === true;
   }
 
   async grantOpensCommunity(
@@ -543,27 +495,99 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.map(toEntitlement);
   }
 
-  async outboxHas(
-    orgId: string,
-    type: string,
-    grantId: string,
-    communityId?: string,
-  ): Promise<boolean> {
-    const rows = await this.db
-      .select({ id: eventOutbox.id })
-      .from(eventOutbox)
+  async hasNotice(orgId: string, grantId: string, notice: EntitlementNotice): Promise<boolean> {
+    const [row] = await this.db
+      .select({ entitlementId: entitlementNotices.entitlementId })
+      .from(entitlementNotices)
       .where(
         and(
-          eq(eventOutbox.orgId, orgId),
-          eq(eventOutbox.type, type),
-          sql`${eventOutbox.payload}->'data'->>'id' = ${grantId}`,
-          communityId
-            ? sql`${eventOutbox.payload}->'data'->>'communityId' = ${communityId}`
-            : undefined,
+          eq(entitlementNotices.orgId, orgId),
+          eq(entitlementNotices.entitlementId, grantId),
+          eq(entitlementNotices.kind, notice.kind),
+          eq(entitlementNotices.communityId, notice.communityId ?? ""),
         ),
       )
       .limit(1);
-    return rows.length > 0;
+    return row !== undefined;
+  }
+
+  async recordNotice(
+    orgId: string,
+    grantId: string,
+    notice: EntitlementNotice,
+    at: Date,
+  ): Promise<void> {
+    await this.db
+      .insert(entitlementNotices)
+      .values({
+        orgId,
+        entitlementId: grantId,
+        kind: notice.kind,
+        communityId: notice.communityId ?? "",
+        notifiedAt: at,
+      })
+      .onConflictDoNothing();
+  }
+
+  async moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: orgUsers.id })
+      .from(orgUsers)
+      .where(
+        and(
+          eq(orgUsers.orgId, orgId),
+          eq(orgUsers.role, "moderator"),
+          activeGrantCovers(
+            sql`${orgUsers.orgId}`,
+            sql`${orgUsers.id}`,
+            sql`${communityId}`,
+            "community",
+          ),
+        ),
+      )
+      .orderBy(asc(orgUsers.id));
+    return rows.map((row) => row.id);
+  }
+
+  async communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ id: communities.id })
+      .from(communities)
+      .where(
+        and(
+          eq(communities.orgId, orgId),
+          activeGrantCovers(
+            sql`${communities.orgId}`,
+            sql`${orgUserId}`,
+            sql`${communities.id}`,
+            "community",
+          ),
+        ),
+      )
+      .orderBy(asc(communities.id));
+    return rows.map((row) => row.id);
+  }
+
+  async membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ id: orgUsers.id })
+      .from(orgUsers)
+      .where(
+        and(
+          eq(orgUsers.orgId, orgId),
+          inArray(orgUsers.id, orgUserIds),
+          activeGrantCovers(
+            sql`${orgUsers.orgId}`,
+            sql`${orgUsers.id}`,
+            sql`${communityId}`,
+            "community",
+          ),
+        ),
+      );
+    return rows.map((row) => row.id);
   }
 }
 

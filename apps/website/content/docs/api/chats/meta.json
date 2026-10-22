@@ -3,7 +3,6 @@
   "description": "Direct and group chats inside one community",
   "pages": [
     "listMemberChats",
-    "getMemberMessageQueue",
     "startDirectChat",
     "startGroupChat",
     "addChatParticipant",

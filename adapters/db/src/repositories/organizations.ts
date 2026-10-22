@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   parseRole,
@@ -10,6 +10,7 @@ import {
   type Organization,
   type OrganizationsRepository,
   type OrgUser,
+  type Role,
   type UpdateOrganizationInput,
   type UpdateOrgUserInput,
 } from "@headless-lms/core/organizations";
@@ -204,6 +205,35 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
       .limit(1);
     return row ? { ...row, role: parseRole(row.role) } : null;
+  }
+
+  async findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(orgUsers)
+      .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, ids)));
+    return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
+  }
+
+  async findOrgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]> {
+    if (roles.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ id: orgUsers.id })
+      .from(orgUsers)
+      .where(
+        and(
+          eq(orgUsers.orgId, orgId),
+          eq(orgUsers.status, "active"),
+          inArray(orgUsers.role, roles),
+        ),
+      )
+      .orderBy(orgUsers.id);
+    return rows.map((row) => row.id);
   }
 
   async createOrgUser(input: CreateOrgUserInput): Promise<OrgUser> {

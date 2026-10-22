@@ -10,6 +10,7 @@ import type {
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { SpaceRowLock } from '../content/index.js';
+import type { Role } from '../organizations/index.js';
 import type { Actor } from '../shared/actor.js';
 
 export interface GrantTarget {
@@ -17,11 +18,28 @@ export interface GrantTarget {
   bundleId: string | null;
 }
 
+export interface OpenableSpace {
+  id: string;
+  communityId: string;
+  accessRule: 'all_members' | 'by_request' | 'by_invite';
+}
+
 export interface CommunityAccessReader {
   isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
   canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
+  canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean>;
   openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]>;
   grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean>;
+  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]>;
+}
+
+export interface RoleReader {
+  roleOf(orgId: string, orgUserId: string): Promise<Role | null>;
+}
+
+export interface EntitlementNotice {
+  kind: 'expired' | 'ending_soon';
+  communityId?: string;
 }
 
 export interface InsertSpaceMemberInput {
@@ -92,6 +110,11 @@ export interface EntitlementsService extends CommunityAccessReader {
     spaceId: string,
   ): Promise<SpaceMember[]>;
   expireDue(orgId: string, now: Date): Promise<void>;
+  communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
+  openSpaceIdsFor(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
+  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]>;
+  communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
+  countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -119,7 +142,11 @@ export interface EntitlementsRepository {
   activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
   listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]>;
   listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<Entitlement[]>;
-  outboxHas(orgId: string, type: string, grantId: string, communityId?: string): Promise<boolean>;
+  hasNotice(orgId: string, grantId: string, notice: EntitlementNotice): Promise<boolean>;
+  recordNotice(orgId: string, grantId: string, notice: EntitlementNotice, at: Date): Promise<void>;
+  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]>;
+  communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
+  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

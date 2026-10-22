@@ -105,6 +105,8 @@ function fakeRepo(over?: Partial<OrganizationsRepository>): OrganizationsReposit
     findOrgUser: vi.fn().mockResolvedValue(STUDENT),
     findOrgUsersByUser: vi.fn().mockResolvedValue([]),
     findOrgUserById: vi.fn().mockResolvedValue(STUDENT),
+    findOrgUsersByIds: vi.fn().mockResolvedValue([]),
+    findOrgUserIdsByRole: vi.fn().mockResolvedValue([]),
     createOrgUser: vi.fn().mockImplementation((input) => Promise.resolve({ ...STUDENT, ...input })),
     updateOrgUser: vi
       .fn()

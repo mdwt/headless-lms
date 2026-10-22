@@ -71,7 +71,11 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     activeSpaceIds: vi.fn().mockResolvedValue([]),
     listGrantsExpiredBy: vi.fn().mockResolvedValue([]),
     listGrantsEndingBetween: vi.fn().mockResolvedValue([]),
-    outboxHas: vi.fn().mockResolvedValue(false),
+    hasNotice: vi.fn().mockResolvedValue(false),
+    recordNotice: vi.fn().mockResolvedValue(undefined),
+    moderatorsWithAccess: vi.fn().mockResolvedValue([]),
+    communityIdsOpenedFor: vi.fn().mockResolvedValue([]),
+    membersAmong: vi.fn().mockResolvedValue([]),
     ...over,
   };
 }
@@ -104,7 +108,12 @@ function fakeUow(repo: EntitlementsRepository, spaces?: SpaceRowLock) {
 
 function build(repo = fakeRepo(), content = fakeContent(), spaces?: SpaceRowLock) {
   const { uow, append, appended, lock } = fakeUow(repo, spaces);
-  const svc = new EntitlementsServiceImpl({ repo, content, uow });
+  const svc = new EntitlementsServiceImpl({
+    repo,
+    content,
+    uow,
+    roles: { roleOf: async () => 'student' },
+  });
   return { svc, repo, content, append, appended, lock };
 }
 
@@ -213,7 +222,13 @@ describe('logging', () => {
     const { logger, entries } = createCapturingLogger();
     const repo = fakeRepo();
     const { uow } = fakeUow(repo);
-    const svc = new EntitlementsServiceImpl({ repo, content: fakeContent(), uow, logger });
+    const svc = new EntitlementsServiceImpl({
+      repo,
+      content: fakeContent(),
+      uow,
+      roles: { roleOf: async () => 'student' },
+      logger,
+    });
 
     const entitlement = await svc.grant('org-1', {
       orgUserId: 's1',
@@ -507,7 +522,7 @@ describe('expireDue', () => {
   it('emits entitlement.expired once per due grant and skips a grant already emitted', async () => {
     const repo = fakeRepo({
       listGrantsExpiredBy: vi.fn().mockResolvedValue([grant, { ...grant, id: 'ent_2' }]),
-      outboxHas: vi.fn(async (_orgId, _type, grantId: string) => grantId === 'ent_2'),
+      hasNotice: vi.fn(async (_orgId, grantId: string) => grantId === 'ent_2'),
     });
     const { svc, appended } = build(repo);
     await svc.expireDue('org-1', now);
@@ -518,6 +533,8 @@ describe('expireDue', () => {
       }),
     ]);
     expect(appended[0]).not.toHaveProperty('metadata');
+    expect(repo.recordNotice).toHaveBeenCalledTimes(1);
+    expect(repo.recordNotice).toHaveBeenCalledWith('org-1', 'ent_1', { kind: 'expired' }, now);
   });
 
   it('emits ending_soon once per community a grant opens, beside the grant', async () => {
@@ -531,12 +548,19 @@ describe('expireDue', () => {
     const repo = fakeRepo({
       listGrantsEndingBetween: vi.fn().mockResolvedValue([bundle]),
       communitiesOpenedBy: vi.fn().mockResolvedValue(['cmy_1', 'cmy_2']),
-      outboxHas: vi.fn(
-        async (_orgId, _type, _grantId, communityId?: string) => communityId === 'cmy_2',
+      hasNotice: vi.fn(
+        async (_orgId, _grantId, notice: { communityId?: string }) =>
+          notice.communityId === 'cmy_2',
       ),
     });
     const { svc, appended } = build(repo);
     await svc.expireDue('org-1', now);
+    expect(repo.recordNotice).toHaveBeenCalledWith(
+      'org-1',
+      'ent_b',
+      { kind: 'ending_soon', communityId: 'cmy_1' },
+      now,
+    );
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.ending_soon',

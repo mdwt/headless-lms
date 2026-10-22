@@ -37,6 +37,7 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { orgUserProfileColumns } from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
+import { grantOpens } from "./grant-covers.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
@@ -504,25 +505,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       return null;
     }
 
-    const opens = sql`(
-      (
-        ${entitlements.contentId} = ${communityId}
-        and exists (
-          select 1 from content_items ci
-          where ci.org_id = ${entitlements.orgId}
-            and ci.id = ${entitlements.contentId}
-            and ci.type = 'community'
-        )
-      )
-      or exists (
-        select 1 from bundle_items bi
-        join content_items ci on ci.org_id = bi.org_id and ci.id = bi.content_id
-        where bi.org_id = ${entitlements.orgId}
-          and bi.bundle_id = ${entitlements.bundleId}
-          and bi.content_id = ${communityId}
-          and ci.type = 'community'
-      )
-    )`;
+    const opens = grantOpens(entitlements, sql`${communityId}`, "community");
     const live = and(
       eq(entitlements.orgId, orgId),
       eq(entitlements.status, "active"),

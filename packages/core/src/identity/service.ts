@@ -108,6 +108,38 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findProfile(userId);
   }
 
+  async profileOf(userId: string): Promise<UserProfile> {
+    const stored = await this.repo.findProfile(userId);
+    if (stored) {
+      return stored;
+    }
+    const never = new Date(0);
+    return {
+      userId,
+      displayName: null,
+      headline: null,
+      bio: null,
+      imageAssetOrgId: null,
+      imageAssetId: null,
+      extra: {},
+      createdAt: never,
+      updatedAt: never,
+    };
+  }
+
+  async displayName(userId: string): Promise<string> {
+    const [profile, user] = await Promise.all([
+      this.repo.findProfile(userId),
+      this.repo.findUserById(userId),
+    ]);
+    const named = profile?.displayName?.trim();
+    if (named) {
+      return named;
+    }
+    const composed = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+    return composed || 'A member';
+  }
+
   async updateProfile(
     userId: string,
     actorUserId: string,

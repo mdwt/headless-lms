@@ -3,10 +3,13 @@ export { EntitlementsServiceImpl } from './service.js';
 export { entitlementEvents } from './events.js';
 export type {
   CommunityAccessReader,
+  EntitlementNotice,
   EntitlementsService,
   EntitlementsRepository,
   GrantTarget,
   InsertSpaceMemberInput,
+  OpenableSpace,
+  RoleReader,
 } from './ports.js';
 export type {
   Entitlement,

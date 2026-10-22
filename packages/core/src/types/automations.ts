@@ -51,6 +51,7 @@ export interface AutomationEngine {
   dispatch(d: AutomationDispatch): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
+  syncSchedules?(): Promise<void>;
 }
 
 export interface WebhookRequest {

@@ -60,8 +60,10 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.access = params.access ?? {
       isCommunityMember: async () => false,
       canOpenSpace: async () => false,
+      canOpen: async () => false,
       openSpaceIds: async () => [],
       grantOpensCommunity: async () => false,
+      membersAmong: async () => [],
     };
     this.posts = params.posts ?? {
       getPost: async (_orgId, _actor, postId) => {

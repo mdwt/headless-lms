@@ -319,16 +319,20 @@ export class ChatServiceImpl implements ChatService {
         openChat = await this.mustUpdate(chats, orgId, chatId, { status: 'open' });
         events.push(this.updatedEvent(orgId, actor, openChat, users));
       }
-      for (const other of users) {
-        if (other.leftAt !== null || other.orgUserId === actor.id) {
-          continue;
-        }
-        if (await chats.isBlocked(orgId, chat.communityId, actor.id, other.orgUserId)) {
+      const others = users
+        .filter((other) => other.leftAt === null && other.orgUserId !== actor.id)
+        .map((other) => other.orgUserId);
+      if (others.length > 0) {
+        const blocked = await chats.blockedWith(orgId, chat.communityId, actor.id, others);
+        if (blocked.length > 0) {
           throw new ForbiddenError('You cannot send in this chat');
         }
-        const role = await this.personRole(orgId, chat.communityId, other.orgUserId);
-        if (!role || !this.mayMessage(settings, actor, role)) {
-          throw new ForbiddenError('You cannot send in this chat');
+        const roles = await this.personRoles(orgId, chat.communityId, others);
+        for (const other of others) {
+          const role = roles[other];
+          if (!role || !this.mayMessage(settings, actor, role)) {
+            throw new ForbiddenError('You cannot send in this chat');
+          }
         }
       }
       if (input.replyToId) {
@@ -635,6 +639,27 @@ export class ChatServiceImpl implements ChatService {
     return { message: this.present(message, actor), assetIds };
   }
 
+  async chatSummary(
+    orgId: string,
+    chatId: string,
+  ): Promise<{ chat: Chat; participants: ChatUser[] } | null> {
+    const chat = await this.repo.findChat(orgId, chatId);
+    if (!chat) {
+      return null;
+    }
+    const participants = await this.repo.participants(orgId, chatId);
+    return { chat, participants };
+  }
+
+  async latestMessageBody(orgId: string, chatId: string): Promise<string | null> {
+    const page = await this.repo.listMessages(orgId, chatId, { page: 1, pageSize: 1 });
+    return page.rows[0]?.body ?? null;
+  }
+
+  isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean> {
+    return this.repo.isBlocked(orgId, communityId, a, b);
+  }
+
   private async setLock(
     orgId: string,
     actor: Actor,
@@ -707,6 +732,24 @@ export class ChatServiceImpl implements ChatService {
     }
     const member = await this.access.isCommunityMember(orgId, { id: orgUserId, role }, communityId);
     return member ? role : null;
+  }
+
+  private async personRoles(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<Record<string, Role>> {
+    const roles = await this.authors.rolesOf(orgId, orgUserIds);
+    const members = new Set(
+      await this.access.membersAmong(orgId, communityId, Object.keys(roles)),
+    );
+    const result: Record<string, Role> = {};
+    for (const [orgUserId, role] of Object.entries(roles)) {
+      if (isStaffRole(role) || members.has(orgUserId)) {
+        result[orgUserId] = role;
+      }
+    }
+    return result;
   }
 
   private assertMayMessage(settings: DmSettings, actor: Actor, role: Role): void {

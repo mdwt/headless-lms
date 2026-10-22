@@ -19,10 +19,17 @@ function fakeHatchetClient() {
       ) => Promise<AutomationActionResult>)
     | undefined;
   let runDispatchFn: ((dispatch: AutomationDispatch, ctx: unknown) => Promise<void>) | undefined;
+  let scheduleFn:
+    | ((input: { orgId: string; automationId: string }, ctx: unknown) => Promise<unknown>)
+    | undefined;
   let actionTaskHandle: unknown;
 
   const client: HatchetClientLike = {
     task: vi.fn((opts) => {
+      if (opts.name === "automation-schedule") {
+        scheduleFn = opts.fn as typeof scheduleFn;
+        return { __task: opts.name };
+      }
       actionFn = opts.fn as typeof actionFn;
       actionTaskHandle = { __task: opts.name };
       return actionTaskHandle;
@@ -32,6 +39,15 @@ function fakeHatchetClient() {
       return { runNoWait };
     }),
     worker: vi.fn(async (_name, _opts) => ({ start: workerStart, stop: workerStop })),
+    crons: {
+      create: vi.fn(async (_workflow, cron) => ({
+        metadata: { id: `cron-${cron.name}` },
+        name: cron.name,
+        cron: cron.expression,
+      })),
+      delete: vi.fn(async () => {}),
+      list: vi.fn(async () => ({ rows: [] })),
+    },
   };
 
   return {
@@ -40,6 +56,12 @@ function fakeHatchetClient() {
     workerStart,
     workerStop,
     getActionTaskHandle: () => actionTaskHandle,
+    callSchedule: (input: { orgId: string; automationId: string }) => {
+      if (!scheduleFn) {
+        throw new Error("schedule task not declared yet");
+      }
+      return scheduleFn(input, {});
+    },
     callAction: (input: { dispatch: AutomationDispatch; index: number }) => {
       if (!actionFn) {
         throw new Error("action task not declared yet");
@@ -74,9 +96,12 @@ describe("HatchetAutomationEngine", () => {
     // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
     new HatchetAutomationEngine(fake.client);
 
-    expect(fake.client.task).toHaveBeenCalledTimes(1);
+    expect(fake.client.task).toHaveBeenCalledTimes(2);
     expect(fake.client.task).toHaveBeenCalledWith(
       expect.objectContaining({ name: "automation-run-action", retries: 3 }),
+    );
+    expect(fake.client.task).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "automation-schedule" }),
     );
     expect(fake.client.durableTask).toHaveBeenCalledTimes(1);
     expect(fake.client.durableTask).toHaveBeenCalledWith(
@@ -203,7 +228,7 @@ describe("HatchetAutomationEngine", () => {
     expect(fake.client.worker).toHaveBeenCalledTimes(1);
     const [name, opts] = (fake.client.worker as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(name).toBe("automation-run-worker");
-    expect(opts.workflows).toHaveLength(2);
+    expect(opts.workflows).toHaveLength(3);
     expect(fake.workerStart).toHaveBeenCalledTimes(1);
   });
 
@@ -223,6 +248,59 @@ describe("HatchetAutomationEngine", () => {
     await engine.stop();
 
     expect(fake.workerStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers one cron per schedule on start and removes crons that no longer match", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.crons.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      rows: [
+        { metadata: { id: "keep" }, name: "hlms-schedule:org-1:atm_1:0 * * * *", cron: "0 * * * *" },
+        { metadata: { id: "stale" }, name: "hlms-schedule:org-1:atm_9:0 7 * * *", cron: "0 7 * * *" },
+        { metadata: { id: "foreign" }, name: "someone-else", cron: "* * * * *" },
+      ],
+    });
+    const engine = new HatchetAutomationEngine(fake.client);
+    const fireSchedule = vi.fn();
+    engine.register({
+      runAction: vi.fn(),
+      finalize: vi.fn(),
+      listSchedules: async () => [
+        { orgId: "org-1", automationId: "atm_1", cron: "0 * * * *" },
+        { orgId: "org-1", automationId: "atm_2", cron: "* * * * *" },
+      ],
+      fireSchedule,
+    });
+
+    await engine.start();
+
+    expect(fake.client.crons.delete).toHaveBeenCalledTimes(1);
+    expect(fake.client.crons.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { id: "stale" } }),
+    );
+    expect(fake.client.crons.create).toHaveBeenCalledTimes(1);
+    expect(fake.client.crons.create).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        name: "hlms-schedule:org-1:atm_2:* * * * *",
+        expression: "* * * * *",
+        input: { orgId: "org-1", automationId: "atm_2" },
+      }),
+    );
+  });
+
+  it("the automation-schedule task fires the schedule at the current minute", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const fireSchedule = vi.fn();
+    engine.register({ runAction: vi.fn(), finalize: vi.fn(), fireSchedule });
+
+    await fake.callSchedule({ orgId: "org-1", automationId: "atm_2" });
+
+    expect(fireSchedule).toHaveBeenCalledTimes(1);
+    const [orgId, automationId, firedAt] = fireSchedule.mock.calls[0]!;
+    expect(orgId).toBe("org-1");
+    expect(automationId).toBe("atm_2");
+    expect((firedAt as Date).getUTCSeconds()).toBe(0);
   });
 
   it("stop before start is a safe no-op", async () => {

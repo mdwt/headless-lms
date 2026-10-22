@@ -5,6 +5,7 @@
     "getAssetDownloadUrl",
     "requestMemberUpload",
     "finalizeMemberUpload",
+    "deleteMemberUpload",
     "requestUpload",
     "confirmAsset",
     "listAssets",

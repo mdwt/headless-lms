@@ -79,8 +79,10 @@ describe('MemberReportService.assetUrl', () => {
       access: {
         isCommunityMember: async (_o, actor) => actor.id === member.id,
         canOpenSpace: async () => false,
+        canOpen: async () => false,
         openSpaceIds: async () => [],
         grantOpensCommunity: async () => false,
+        membersAmong: async () => [],
       },
     });
     expect(await svc.assetUrl(ORG, member, ASSET, { course: 'course_1' })).not.toBeNull();

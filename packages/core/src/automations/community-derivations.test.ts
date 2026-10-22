@@ -38,6 +38,7 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
       ...emptyCommunityMail,
       communityTitle: vi.fn(async () => 'Founders'),
       grantOpensCommunity: vi.fn(async () => true),
+      communitiesOpenedBy: vi.fn(async () => ['cmy_1']),
       openSpaceNames: vi.fn(async () => ['Announcements']),
       displayName: vi.fn(async () => 'Ann'),
       memberCommunityTitles: vi.fn(async () => [{ id: 'cmy_1', title: 'Founders' }]),
@@ -90,7 +91,7 @@ describe('community email derivations', () => {
     const mail = deps().mail;
     const recipients = await COMMUNITY_DERIVATIONS.welcomeToCommunity!.derive(
       event,
-      deps({ mail: { ...mail, grantOpensCommunity: vi.fn(async () => false) } }),
+      deps({ mail: { ...mail, communitiesOpenedBy: vi.fn(async () => []) } }),
     );
     expect(recipients).toEqual([]);
   });

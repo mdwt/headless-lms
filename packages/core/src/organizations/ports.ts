@@ -31,6 +31,7 @@ export interface OrganizationService {
   updateOrgUser(orgId: string, userId: string, patch: UpdateOrgUserInput): Promise<OrgUser>;
   getByExternalId(externalId: string): Promise<Organization | null>;
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
+  getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   getById(id: string): Promise<Organization | null>;
   // Mints a domain-owned invite (token + row + event, one transaction) and
@@ -62,6 +63,7 @@ export interface OrganizationService {
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
   updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null>;
   removeMember(ctx: MemberWriteContext, id: string): Promise<boolean>;
+  orgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]>;
 }
 
 /** Atomic write scope: tx-bound repo + outbox appender, one transaction. */
@@ -116,6 +118,8 @@ export interface OrganizationsRepository {
   /** Every org this person belongs to, oldest first. */
   findOrgUsersByUser(userId: string): Promise<OrgUser[]>;
   findOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
+  findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
+  findOrgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]>;
   /** Links a user to the org under a role. Throws ConflictError when they
    *  already hold a row there. */
   createOrgUser(input: CreateOrgUserInput): Promise<OrgUser>;

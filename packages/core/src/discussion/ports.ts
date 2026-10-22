@@ -13,6 +13,7 @@ import type {
   PostFlag,
   PostFlagResolution,
 } from '../types/index.js';
+import type { SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { Role } from '../organizations/index.js';
@@ -177,6 +178,7 @@ export type DiscussionUnitOfWork = UnitOfWork<DiscussionWriteScope>;
 /** The role of a post's author, read when a schedule publishes the post. */
 export interface AuthorRoleReader {
   roleOf(orgId: string, orgUserId: string): Promise<Role | null>;
+  rolesOf(orgId: string, orgUserIds: string[]): Promise<Record<string, Role>>;
 }
 
 export type PostMode = 'draft' | 'submit' | 'schedule';
@@ -277,8 +279,12 @@ export interface PostService {
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<Post>>;
   getPost(orgId: string, actor: Actor, postId: string): Promise<Post>;
+  visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
+  find(orgId: string, postId: string): Promise<Post | null>;
+  followerIds(orgId: string, postId: string): Promise<string[]>;
   moderationQueue(orgId: string, actor: Actor, spaceId: string): Promise<SpaceModerationQueue>;
   publishDue(orgId: string, now: Date): Promise<void>;
+  hasDue(orgId: string, now: Date): Promise<boolean>;
 }
 
 export interface PostRepository {
@@ -381,6 +387,12 @@ export interface ChatService {
     actor: Actor,
     messageId: string,
   ): Promise<{ message: Message; assetIds: string[] }>;
+  chatSummary(
+    orgId: string,
+    chatId: string,
+  ): Promise<{ chat: Chat; participants: ChatUser[] } | null>;
+  latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
+  isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
   messages(
     orgId: string,
     actor: Actor,
@@ -435,6 +447,12 @@ export interface ChatRepository {
   ): Promise<Page<Message>>;
   attach(orgId: string, communityId: string, messageId: string, assetIds: string[]): Promise<void>;
   attachmentIds(orgId: string, messageId: string): Promise<string[]>;
+  blockedWith(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    otherIds: string[],
+  ): Promise<string[]>;
   setReaction(
     orgId: string,
     communityId: string,

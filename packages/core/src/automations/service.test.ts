@@ -325,10 +325,10 @@ describe('AutomationsService.handle', () => {
       data: { id: 'org-1' },
     } as DomainEvent;
     await svc.handle(created);
-    expect(stored).toHaveLength(7);
+    expect(stored).toHaveLength(9);
     expect(stored.every((row) => row.source === 'system')).toBe(true);
     await svc.handle(created);
-    expect(stored).toHaveLength(7);
+    expect(stored).toHaveLength(9);
   });
 
   it("matches an enabled automation's trigger, opens a run, and dispatches it", async () => {

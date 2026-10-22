@@ -311,11 +311,22 @@ export async function buildContainer(
     spaces: new DrizzleContentRepository(tx, contentLogger),
     outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
+  const authors = {
+    roleOf: async (orgId: string, orgUserId: string) => {
+      const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+      return row?.role ?? null;
+    },
+    rolesOf: async (orgId: string, orgUserIds: string[]) => {
+      const rows = await organizationsRepo.findOrgUsersByIds(orgId, orgUserIds);
+      return Object.fromEntries(rows.map((row) => [row.id, row.role]));
+    },
+  };
   const entitlementsRepo = new DrizzleEntitlementsRepository(db, entitlementsLogger);
   const entitlements = new EntitlementsServiceImpl({
     repo: entitlementsRepo,
     content,
     uow: entitlementsUow,
+    roles: authors,
     logger: entitlementsLogger,
   });
   // Progress: report writes + outbox append in one tx; content supplies the
@@ -334,25 +345,6 @@ export async function buildContainer(
   const postReads = new DrizzlePostRepository(db, discussionLogger);
   const discussionReads = new DrizzleDiscussionRepository(db, discussionLogger);
   const chatReads = new DrizzleChatRepository(db, discussionLogger);
-  const discussion = new DiscussionServiceImpl({
-    repo: discussionReads,
-    access: entitlements,
-    content: content,
-    posts: postReads,
-    communities: { listIds: (orgId) => listCommunityIds(content, orgId) },
-    uow: new DrizzleUnitOfWork(db, (tx) => ({
-      discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
-      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
-    })),
-    settings,
-    logger: discussionLogger,
-  });
-  const authors = {
-    roleOf: async (orgId: string, orgUserId: string) => {
-      const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
-      return row?.role ?? null;
-    },
-  };
   const posts = new PostServiceImpl({
     repo: postReads,
     access: entitlements,
@@ -376,6 +368,19 @@ export async function buildContainer(
       chats: new DrizzleChatRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
+    logger: discussionLogger,
+  });
+  const discussion = new DiscussionServiceImpl({
+    repo: discussionReads,
+    access: entitlements,
+    content: content,
+    posts,
+    communities: { listIds: (orgId) => listCommunityIds(content, orgId) },
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    settings,
     logger: discussionLogger,
   });
 
@@ -460,16 +465,11 @@ export async function buildContainer(
   const wired = communityMail({
     content,
     entitlements,
-    entitlementsRepo,
     organizations,
-    organizationsRepo,
     identity,
     posts,
-    postReads,
     discussion,
-    discussionReads,
-    chatReads,
-    runsRepo,
+    chats,
     assets,
   });
   const automations = new AutomationsServiceImpl({

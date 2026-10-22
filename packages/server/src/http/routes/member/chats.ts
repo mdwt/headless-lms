@@ -17,7 +17,6 @@ import {
   Message,
   MessageFlag,
   MessageIdParam,
-  MessageQueue,
   MessagesPage,
   MuteChat,
   OrgUserBody,
@@ -57,23 +56,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
       return chats.listChats(req.orgId, actor, req.params.communityId);
-    },
-  });
-
-  r.route({
-    method: 'GET',
-    url: '/api/member/communities/:communityId/message-queue',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'getMemberMessageQueue',
-      tags,
-      summary: 'Open message flags in a community',
-      params: CommunityParam,
-      response: { 200: MessageQueue, ...errors },
-    },
-    handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.messageQueue(req.orgId, actor, req.params.communityId);
     },
   });
 

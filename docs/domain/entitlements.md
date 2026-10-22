@@ -46,8 +46,10 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 - `entitlement.created`
 - `entitlement.updated`
 - `entitlement.deleted`
-- `entitlement.expired` — defined, and emitted by the expiry run once the community feature lands. One event per grant whose `expires_at` has passed.
-- `entitlement.ending_soon` — the same run, once per grant per community that grant opens, when the grant enters the seven days before `expires_at`. `contentId` is that community.
+- `entitlement.expired` — emitted by the expiry run. One event per grant whose `expires_at` has passed.
+- `entitlement.ending_soon` — the same run, once per grant per community that grant opens, when the grant enters the seven days before `expires_at`. The data is the grant unchanged plus `communityId`.
+
+The expiry run records every emission in its own ledger, `entitlement_notices`, keyed by grant, kind and community. That is what makes "once" true: a grant is expired once and reminded once per community, however often the run fires and whatever happens to the outbox afterwards. The grant row itself does not change.
 - `entitlement.space_member.created`
 - `entitlement.space_member.updated`
 - `entitlement.space_member.deleted` — `metadata.previousStatus` is the status the row had. `requested` is a declined request, `invited` a refused invitation, `active` the member leaving.
@@ -60,4 +62,4 @@ Access (entitlements) and completion (progress) move independently — a student
 
 ## Build state
 
-Grants are built and **persisted**. Space members, `entitlement.ending_soon`, and the emission of `entitlement.expired` are specified with the community feature and are not built yet.
+Grants, space members, the expiry run with its notice ledger, `entitlement.ending_soon`, and the emission of `entitlement.expired` are built and **persisted**.

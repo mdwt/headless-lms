@@ -11,7 +11,6 @@ import {
   MESSAGE_EXCERPT,
   POST_EXCERPT,
   previousStatusOf,
-  seededCommunityId,
   type ActionDeps,
   type EmailRecipient,
 } from './community-mail.js';
@@ -47,29 +46,38 @@ export const COMMUNITY_DERIVATIONS: {
     triggers: ['entitlement.created'],
     derive: async (event, deps) => {
       const parsed = entitlementEvents.entitlementCreated.safeParse(event);
-      const communityId = seededCommunityId(deps);
-      if (!parsed.success || !communityId) {
-        return parsed.success ? [] : undefined;
-      }
-      const grant = parsed.data.data;
-      const opens = await deps.mail.grantOpensCommunity(
-        event.orgId,
-        { contentId: grant.contentId, bundleId: grant.bundleId },
-        communityId,
-      );
-      if (!opens) {
-        return [];
-      }
-      const title = await communityTitle(deps, event.orgId, communityId);
-      if (!title) {
+      if (!parsed.success) {
         return undefined;
       }
-      const spaceNames = await deps.mail.openSpaceNames(event.orgId, grant.orgUserId, communityId);
-      return address(deps, event, event.orgId, [grant.orgUserId], {
-        communityTitle: title,
-        communityId,
-        spaceNames,
+      const grant = parsed.data.data;
+      const communityIds = await deps.mail.communitiesOpenedBy(event.orgId, {
+        contentId: grant.contentId,
+        bundleId: grant.bundleId,
       });
+      const recipients: EmailRecipient<'welcomeToCommunity'>[] = [];
+      for (const communityId of communityIds) {
+        const title = await communityTitle(deps, event.orgId, communityId);
+        if (!title) {
+          return undefined;
+        }
+        const spaceNames = await deps.mail.openSpaceNames(
+          event.orgId,
+          grant.orgUserId,
+          communityId,
+        );
+        const addressed = await address<'welcomeToCommunity'>(
+          deps,
+          event,
+          event.orgId,
+          [grant.orgUserId],
+          { communityTitle: title, communityId, spaceNames },
+        );
+        if (!addressed) {
+          return undefined;
+        }
+        recipients.push(...addressed);
+      }
+      return recipients;
     },
   },
   membershipEndingSoon: {
@@ -99,27 +107,33 @@ export const COMMUNITY_DERIVATIONS: {
         event.type === 'entitlement.expired'
           ? entitlementEvents.entitlementExpired.safeParse(event)
           : entitlementEvents.entitlementDeleted.safeParse(event);
-      const communityId = seededCommunityId(deps);
-      if (!parsed.success || !communityId) {
-        return parsed.success ? [] : undefined;
-      }
-      const grant = parsed.data.data;
-      const opens = await deps.mail.grantOpensCommunity(
-        event.orgId,
-        { contentId: grant.contentId, bundleId: grant.bundleId },
-        communityId,
-      );
-      if (!opens) {
-        return [];
-      }
-      const title = await communityTitle(deps, event.orgId, communityId);
-      if (!title) {
+      if (!parsed.success) {
         return undefined;
       }
-      return address(deps, event, event.orgId, [grant.orgUserId], {
-        communityTitle: title,
-        communityId,
+      const grant = parsed.data.data;
+      const communityIds = await deps.mail.communitiesOpenedBy(event.orgId, {
+        contentId: grant.contentId,
+        bundleId: grant.bundleId,
       });
+      const recipients: EmailRecipient<'membershipEnded'>[] = [];
+      for (const communityId of communityIds) {
+        const title = await communityTitle(deps, event.orgId, communityId);
+        if (!title) {
+          return undefined;
+        }
+        const addressed = await address<'membershipEnded'>(
+          deps,
+          event,
+          event.orgId,
+          [grant.orgUserId],
+          { communityTitle: title, communityId },
+        );
+        if (!addressed) {
+          return undefined;
+        }
+        recipients.push(...addressed);
+      }
+      return recipients;
     },
   },
   newPostInSpace: silence(['discussion.post.published']),

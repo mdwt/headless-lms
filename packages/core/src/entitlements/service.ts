@@ -18,6 +18,8 @@ import type {
   EntitlementsUnitOfWork,
   GrantTarget,
   InsertSpaceMemberInput,
+  OpenableSpace,
+  RoleReader,
 } from './ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { Logger, OutboxAppender } from '../shared/ports.js';
@@ -35,6 +37,7 @@ export type EntitlementsServiceParams = {
   content: CommunityReader;
   /** Atomic write scope: tx-bound repo + outbox appender. */
   uow: EntitlementsUnitOfWork;
+  roles: RoleReader;
   logger?: Logger;
 };
 
@@ -42,12 +45,14 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private readonly repo: EntitlementsRepository;
   private readonly content: CommunityReader;
   private readonly uow: EntitlementsUnitOfWork;
+  private readonly roles: RoleReader;
   private readonly logger: Logger;
 
   constructor(params: EntitlementsServiceParams) {
     this.repo = params.repo;
     this.content = params.content;
     this.uow = params.uow;
+    this.roles = params.roles;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -121,6 +126,10 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     if (!space) {
       return false;
     }
+    return this.canOpen(orgId, actor, space);
+  }
+
+  async canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean> {
     if (isStaffRole(actor.role)) {
       return true;
     }
@@ -134,8 +143,15 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     if (space.accessRule === 'all_members') {
       return true;
     }
-    const row = await this.repo.findSpaceMember(orgId, spaceId, actor.id);
+    const row = await this.repo.findSpaceMember(orgId, space.id, actor.id);
     return row?.status === 'active';
+  }
+
+  membersAmong(orgId: string, communityId: string, orgUserIds: string[]): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return Promise.resolve([]);
+    }
+    return this.repo.membersAmong(orgId, communityId, orgUserIds);
   }
 
   async openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]> {
@@ -158,6 +174,30 @@ export class EntitlementsServiceImpl implements EntitlementsService {
 
   grantOpensCommunity(orgId: string, grant: GrantTarget, communityId: string): Promise<boolean> {
     return this.repo.grantOpensCommunity(orgId, grant, communityId);
+  }
+
+  communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]> {
+    return this.repo.communitiesOpenedBy(orgId, grant);
+  }
+
+  async openSpaceIdsFor(orgId: string, orgUserId: string, communityId: string): Promise<string[]> {
+    const role = await this.roles.roleOf(orgId, orgUserId);
+    if (!role) {
+      return [];
+    }
+    return this.openSpaceIds(orgId, { id: orgUserId, role }, communityId);
+  }
+
+  moderatorsWithAccess(orgId: string, communityId: string): Promise<string[]> {
+    return this.repo.moderatorsWithAccess(orgId, communityId);
+  }
+
+  communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]> {
+    return this.repo.communityIdsOpenedFor(orgId, orgUserId);
+  }
+
+  countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number> {
+    return this.repo.countActiveSpaceMembers(orgId, spaceId);
   }
 
   async requestJoin(
@@ -350,25 +390,21 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       const events = [];
       const expired = await entitlements.listGrantsExpiredBy(orgId, now);
       for (const grant of expired) {
-        const seen = await entitlements.outboxHas(orgId, 'entitlement.expired', grant.id);
-        if (seen) {
+        if (await entitlements.hasNotice(orgId, grant.id, { kind: 'expired' })) {
           continue;
         }
+        await entitlements.recordNotice(orgId, grant.id, { kind: 'expired' }, now);
         events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
       }
       const ending = await entitlements.listGrantsEndingBetween(orgId, now, until);
       for (const grant of ending) {
         const communities = await entitlements.communitiesOpenedBy(orgId, grant);
         for (const communityId of communities) {
-          const seen = await entitlements.outboxHas(
-            orgId,
-            'entitlement.ending_soon',
-            grant.id,
-            communityId,
-          );
-          if (seen) {
+          const notice = { kind: 'ending_soon' as const, communityId };
+          if (await entitlements.hasNotice(orgId, grant.id, notice)) {
             continue;
           }
+          await entitlements.recordNotice(orgId, grant.id, notice, now);
           events.push(
             entitlementEvents.entitlementEndingSoon.make({
               orgId,
