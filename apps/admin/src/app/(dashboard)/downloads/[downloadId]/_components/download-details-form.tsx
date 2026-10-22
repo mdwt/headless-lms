@@ -17,7 +17,7 @@ import { ApiError } from "@/lib/api/http";
 import type { Download } from "@/lib/api/types";
 
 import { confirmAssetAction, getAssetUrlAction, requestUploadAction } from "../../../media/actions";
-import { kindForFile, putToStorage } from "../../../media/upload-to-storage";
+import { putToStorage } from "../../../media/upload-to-storage";
 import { updateDownloadAction } from "../../actions";
 
 const schema = z.object({
@@ -137,7 +137,6 @@ function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
-        kind: kindForFile(file),
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
       await confirmAssetAction(ticket.asset.id);

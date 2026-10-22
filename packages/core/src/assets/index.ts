@@ -1,16 +1,17 @@
-// assets context — public surface.
-export { AssetsServiceImpl } from './service.js';
+export { AssetsServiceImpl, kindOf } from './service.js';
 export { assetEvents } from './events.js';
 export type {
   AssetsService,
   AssetsRepository,
-  ImageOwnerReader,
-  ImageUploadInput,
+  MemberImageReader,
+  MemberUploadInput,
 } from './ports.js';
 export type { AssetCreated, AssetDeleted, AssetEvent, AssetReady } from './events.js';
 export type {
   Asset,
   AssetKind,
+  AssetReference,
+  AssetSource,
   AssetStatus,
   AssetsQuery,
   RequestUploadInput,

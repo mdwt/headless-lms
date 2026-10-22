@@ -53,14 +53,11 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       response: { 201: UploadTicket, 400: ErrorBody, 401: ErrorBody },
     },
     handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      const ticket = await assets.requestUpload(orgId, {
-        // Domain `users.id`, like every other org-scoped row — not the auth id.
-        uploadedBy: req.userId,
+      const scope = await resolveScope(container, req);
+      const ticket = await assets.requestUpload(scope.orgId, {
         ...req.body,
+        source: 'library',
+        uploadedBy: scope.orgUserId,
       });
       return reply.code(201).send(ticket);
     },
@@ -173,9 +170,15 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'deleteAsset',
       tags,
-      summary: 'Delete an asset (removes the object from storage)',
+      summary: 'Delete an asset nothing references (removes the object from storage)',
       params: AssetIdParam,
-      response: { 204: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: {
+        204: z.void(),
+        400: ErrorBody,
+        401: ErrorBody,
+        404: ErrorBody,
+        409: ErrorBody,
+      },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);

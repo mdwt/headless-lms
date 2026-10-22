@@ -10,6 +10,7 @@ import type {
   GrantWriter,
   ScheduledWork,
 } from '@headless-lms/core/automations';
+import type { AssetsService } from '@headless-lms/core/assets';
 import type { ContentService } from '@headless-lms/core/content';
 import type { DiscussionServiceImpl, PostServiceImpl } from '@headless-lms/core/discussion';
 import type { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
@@ -35,7 +36,10 @@ type Deps = {
   discussionReads: DrizzleDiscussionRepository;
   chatReads: DrizzleChatRepository;
   runsRepo: DrizzleAutomationRunsRepository;
+  assets: AssetsService;
 };
+
+const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
 export async function listCommunityIds(
   content: Pick<ContentService, 'listCommunities'>,
@@ -230,6 +234,12 @@ export function communityMail(deps: Deps): {
       hasDuePosts: (orgId, now) => deps.posts.hasDue(orgId, now),
       expireDueGrants: (orgId, now) => deps.entitlements.expireDue(orgId, now),
       sendDigest: (orgId, now) => deps.discussion.sendDigest(orgId, now),
+      removeUnattachedUploads: async (orgId, now) => {
+        await deps.assets.removeUnattached(
+          orgId,
+          new Date(now.getTime() - UNATTACHED_UPLOAD_GRACE_MS),
+        );
+      },
     },
   };
 }

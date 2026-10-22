@@ -7,7 +7,7 @@ import { Assets } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
 import { toQuery } from "@/lib/api/shared";
-import type { Asset, AssetKind, ListParams, Paginated, UploadTicket } from "@/lib/api/types";
+import type { Asset, ListParams, Paginated, UploadTicket } from "@/lib/api/types";
 
 /**
  * Client-callable asset list. The media *page* reads through `serverApi` during
@@ -36,7 +36,6 @@ export async function getAssetUrlAction(id: string, filename?: string): Promise<
 export interface UploadMeta {
   filename: string;
   contentType: string;
-  kind: AssetKind;
 }
 
 /**

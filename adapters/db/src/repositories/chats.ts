@@ -422,6 +422,17 @@ export class DrizzleChatRepository implements ChatRepository {
     );
   }
 
+  async attachmentIds(orgId: string, messageId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ assetId: messageAttachments.assetId })
+      .from(messageAttachments)
+      .where(
+        and(eq(messageAttachments.orgId, orgId), eq(messageAttachments.messageId, messageId)),
+      )
+      .orderBy(asc(messageAttachments.seq));
+    return rows.map((row) => row.assetId);
+  }
+
   async setReaction(
     orgId: string,
     communityId: string,

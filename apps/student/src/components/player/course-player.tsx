@@ -167,15 +167,21 @@ export function CoursePlayer({
     [assetSeed, curLessonId],
   );
 
-  const refreshUrl = useCallback(async (assetId: string): Promise<string | null> => {
-    ensureClientSdk();
-    try {
-      const ticket = await Assets.getAssetDownloadUrl({ id: assetId });
-      return ticket.url;
-    } catch {
-      return null;
-    }
-  }, []);
+  const refreshUrl = useCallback(
+    async (assetId: string): Promise<string | null> => {
+      ensureClientSdk();
+      try {
+        const ticket = await Assets.getAssetDownloadUrl({
+          id: assetId,
+          via: { activity: curLessonId },
+        });
+        return ticket.url;
+      } catch {
+        return null;
+      }
+    },
+    [curLessonId],
+  );
 
   // Flush unsent watch state when the tab hides or the lesson unmounts.
   useEffect(() => {

@@ -26,7 +26,7 @@ The person in the member product. A student in a course, a member in a community
 - **Directory** — the people in one community: members from their grants, each person's role, and their profile. No write-context owns this join.
 - **Community home** — the spaces a person can open, with their counts.
 
-The `/api/member` prefix is the member HTTP API. Its course, download, progress, directory, and community-home routes call `reporting/member`. Comments, the org, and asset URLs under that prefix call the context that owns the operation.
+The `/api/member` prefix is the member HTTP API. Its course, download, progress, directory, community-home, and asset URL routes call `reporting/member`. The asset URL is a composed read: the request names what the asset is being served as, the owning context says whether the member may see that thing, and assets signs. Comments and the org under that prefix call the context that owns the operation.
 
 ### `reporting/admin`
 

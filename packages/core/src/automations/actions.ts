@@ -115,6 +115,10 @@ export async function executeAction(
       await deps.scheduledWork.sendDigest(event.orgId, firedAtOf(event));
       return [];
     }
+    case 'removeUnattachedUploads': {
+      await deps.scheduledWork.removeUnattachedUploads(event.orgId, firedAtOf(event));
+      return [];
+    }
     case DELIVER_WEBHOOK_ACTION: {
       await deliverWebhook(action, event, deps);
       return [];

@@ -61,6 +61,7 @@ function loadContainerConfig(): ContainerConfig {
     // overrides this with the same value; kept here only so this object
     // satisfies Config on its own.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    memberImageMaxBytes: Number(process.env.MEMBER_IMAGE_MAX_BYTES ?? 10 * 1024 * 1024),
     databaseUrl: process.env.DATABASE_URL ?? "",
     authBaseURL: apiOrigin,
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
@@ -100,6 +101,7 @@ export function loadServerConfig(): ServerConfig {
     // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
     // default must never silently extend entitled/paywalled link lifetimes.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    memberImageMaxBytes: Number(process.env.MEMBER_IMAGE_MAX_BYTES ?? 10 * 1024 * 1024),
     container,
   };
 }

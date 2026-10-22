@@ -1,16 +1,28 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import {
   Asset,
   AssetIdParam,
+  AssetReference,
   DownloadTicket,
   ErrorBody,
-  RequestImageUpload,
+  RequestMemberUpload,
   UploadTicket,
 } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { UnauthorizedError } from '../../plugins/auth.js';
 import type { Container } from '@headless-lms/server';
+
+const tags = ['Assets'];
+
+async function actorOf(container: Container, orgId: string, userId: string) {
+  const orgUser = await container.organizations.getOrgUser(orgId, userId);
+  if (!orgUser) {
+    throw new UnauthorizedError();
+  }
+  return orgUser;
+}
 
 export async function memberAssetsRoutes(
   app: FastifyInstance,
@@ -18,29 +30,27 @@ export async function memberAssetsRoutes(
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
-  // Content embeds assets by stable `assetId`; the URL persisted at authoring
-  // time is a long-expired presign. The student surface mints a fresh
-  // short-lived ticket here, scoped to the session's portal org.
   r.route({
     method: 'POST',
     url: '/api/member/assets/:id/url',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getAssetDownloadUrl',
-      tags: ['Assets'],
-      summary: 'Get a short-lived presigned URL to serve an asset to the student',
+      tags,
+      summary: 'Get a short-lived URL for an asset, served as what the reference names',
+      description:
+        'The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.',
       params: AssetIdParam,
-      response: { 200: DownloadTicket, 401: ErrorBody, 404: ErrorBody },
+      body: AssetReference,
+      response: { 200: DownloadTicket, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
     },
     handler: async (req) => {
-      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      if (!orgUser) {
-        throw new UnauthorizedError();
-      }
+      const actor = await actorOf(container, req.orgId, req.userId);
       const ticket = await container.reporting.member.assetUrl(
         req.orgId,
-        orgUser.id,
+        actor,
         req.params.id,
+        req.body.via,
       );
       if (!ticket) {
         throw new NotFoundError('Asset', req.params.id);
@@ -55,17 +65,16 @@ export async function memberAssetsRoutes(
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'requestMemberUpload',
-      tags: ['Assets'],
-      summary: 'Register an image and get a presigned upload URL',
-      body: RequestImageUpload,
-      response: { 201: UploadTicket, 400: ErrorBody, 401: ErrorBody },
+      tags,
+      summary: 'Register an image you are about to upload and get a presigned upload URL',
+      description:
+        'Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.',
+      body: RequestMemberUpload,
+      response: { 201: UploadTicket, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
     },
     handler: async (req, reply) => {
-      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      if (!orgUser) {
-        throw new UnauthorizedError();
-      }
-      const ticket = await container.assets.requestImageUpload(req.orgId, orgUser.id, req.body);
+      const actor = await actorOf(container, req.orgId, req.userId);
+      const ticket = await container.assets.requestMemberUpload(req.orgId, actor.id, req.body);
       return reply.code(201).send(ticket);
     },
   });
@@ -76,21 +85,41 @@ export async function memberAssetsRoutes(
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'finalizeMemberUpload',
-      tags: ['Assets'],
-      summary: 'Confirm an image upload you started',
+      tags,
+      summary: 'Confirm an upload you started',
+      description:
+        'Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.',
       params: AssetIdParam,
-      response: { 200: Asset, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Asset, 401: ErrorBody, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
-      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      if (!orgUser) {
-        throw new UnauthorizedError();
-      }
-      const asset = await container.assets.confirmOwnImage(req.orgId, req.params.id, orgUser.id);
+      const actor = await actorOf(container, req.orgId, req.userId);
+      const asset = await container.assets.confirmOwn(req.orgId, req.params.id, actor.id);
       if (!asset) {
         throw new NotFoundError('Asset', req.params.id);
       }
       return asset;
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/member/uploads/:id',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'deleteMemberUpload',
+      tags,
+      summary: 'Delete an upload of yours that nothing references',
+      params: AssetIdParam,
+      response: { 204: z.void(), 401: ErrorBody, 404: ErrorBody, 409: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      const removed = await container.assets.removeOwn(req.orgId, req.params.id, actor.id);
+      if (!removed) {
+        throw new NotFoundError('Asset', req.params.id);
+      }
+      return reply.code(204).send();
     },
   });
 }

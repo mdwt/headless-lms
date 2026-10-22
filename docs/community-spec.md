@@ -115,7 +115,7 @@ This section lists every term used in this document with the context that owns i
 | Block | discussion | One person stopping another from messaging them inside one community; checked on every send in that community |
 | Directory | reporting/member | Grants (entitlements) plus roles (organizations) plus profiles (identity). A method on the member service. Reporting owns no data |
 | Analytics | reporting/admin | Staff reads across the contexts, a method on the admin service. Reporting owns no data |
-| Files | assets | Post covers, message attachments, profile photos. A cover and a profile photo are asset ids |
+| Files | assets | Post covers, message attachments, profile photos. Each is a member upload: an image the person uploaded themselves, with `source = member`. A cover and a profile photo are asset ids. Served through the post, message or profile that references it, never by id alone |
 
 ## Data model
 
@@ -633,7 +633,7 @@ select * from posts
 
 ### Other contexts
 
-The progress, automations, reporting and assets contexts get no new tables. The `kind` column of `assets` gains the value `image`, used for post covers, message attachments and profile photos. The `automations` table gains two columns, specified in the automations section. Reporting stores no data. Email preferences are not in this feature.
+The progress, automations, reporting and assets contexts get no new tables. The `assets` table gains a `source` column, `library` or `member`, and its `kind` column becomes the media class alone: `image`, `video`, `audio` or `document`, derived by the server from the content type. Post covers, message attachments and profile photos are `member` images. `uploaded_by` holds the org user for every row. The `automations` table gains two columns, specified in the automations section. Reporting stores no data. Email preferences are not in this feature.
 
 ### Migration
 
@@ -952,7 +952,9 @@ This section specifies authentication and authorization for the community. Authe
 - Member-facing community routes (`/api/member/communities/*` and `/api/member/chats/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
-**Member images.** `POST /api/member/uploads` and `POST /api/member/uploads/:id/finalize` use `requireOrgSession`. The kind is `image` and `uploadedBy` is the caller's org user. A profile photo, a post cover, and a message attachment must be an image that org user uploaded.
+**Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file that is not an image or is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
+
+**Serving a file to a member.** `POST /api/member/assets/:id/url` takes a body naming what the asset is being served as: `{ via: { activity } }`, `{ course }`, `{ download }`, `{ community }`, `{ post }`, `{ message }` or `{ profile: orgUserId }`. `reporting/member` asks the owning context whether the caller may see the referenced thing, checks that the thing references this asset, and asks assets to sign. There is no way for a member to be served an asset by id alone.
 
 **Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
 
@@ -994,5 +996,5 @@ Instructors count as staff for moderation and posting, as they do for course com
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 
 - `GET /api/comments` and the other staff comment routes run under `requireOrgSession` only; any org user reaches them. They get `resolveScope`.
-- `POST /api/member/assets/:id/url` mints a presigned URL for any asset in the org without an access check. Community attachments need the check, so the route gains one.
+- `POST /api/member/assets/:id/url` mints a presigned URL for any asset in the org without an access check. Community attachments need the check, so the route gains a required reference in its body and `reporting/member` applies the owning context's rule, as the member images section specifies.
 - The two access readers disagree: entitlements honours bundles and ignores publish state, the course entitlement reader on `reporting/member` honours publish state and ignores bundles. Community uses entitlements for the grant and content for publish state, and that course reader is corrected to honour bundles.

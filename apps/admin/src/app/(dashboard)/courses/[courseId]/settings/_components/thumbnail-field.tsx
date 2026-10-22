@@ -78,7 +78,6 @@ export function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type,
-        kind: "content",
       });
       await putToStorage(ticket.uploadUrl, ticket.headers, file, setProgress);
       await confirmAssetAction(ticket.asset.id);
@@ -166,7 +165,7 @@ export function ThumbnailField({
 
         <AssetPickerDialog
           open={pickerOpen}
-          kind="content"
+          kind="image"
           onOpenChange={setPickerOpen}
           onSelect={onSelect}
         />

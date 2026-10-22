@@ -325,10 +325,10 @@ describe('AutomationsService.handle', () => {
       data: { id: 'org-1' },
     } as DomainEvent;
     await svc.handle(created);
-    expect(stored).toHaveLength(6);
+    expect(stored).toHaveLength(7);
     expect(stored.every((row) => row.source === 'system')).toBe(true);
     await svc.handle(created);
-    expect(stored).toHaveLength(6);
+    expect(stored).toHaveLength(7);
   });
 
   it("matches an enabled automation's trigger, opens a run, and dispatches it", async () => {
@@ -823,6 +823,7 @@ describe('AutomationsService.availableActions', () => {
       expect.objectContaining({ type: 'publishDuePosts', source: 'system' }),
       expect.objectContaining({ type: 'expireDueGrants', source: 'system' }),
       expect.objectContaining({ type: 'sendDigest', source: 'system' }),
+      expect.objectContaining({ type: 'removeUnattachedUploads', source: 'system' }),
       {
         type: 'slack.send-message',
         description: 'Post a message to a channel.',
@@ -840,6 +841,7 @@ describe('AutomationsService.availableActions', () => {
       'publishDuePosts',
       'expireDueGrants',
       'sendDigest',
+      'removeUnattachedUploads',
     ]);
   });
 });

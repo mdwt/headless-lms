@@ -20,6 +20,8 @@ export interface ServerConfig {
    *  from the storage adapter's general download expiry so raising that one
    *  can't silently extend paywalled link lifetimes. */
   deliveryExpirySeconds: number;
+  /** Largest member image upload accepted at confirm, in bytes. */
+  memberImageMaxBytes: number;
   /** Everything the composition container needs to wire adapters + services. */
   container: Config;
 }

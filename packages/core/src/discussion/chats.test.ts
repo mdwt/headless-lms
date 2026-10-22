@@ -5,7 +5,7 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
 import { isStaffRole } from '../organizations/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
 import type {
   AuthorRoleReader,
@@ -64,7 +64,7 @@ function dataOf(event: NewDomainEvent): Record<string, unknown> {
 function harness(options?: {
   settings?: Partial<DmSettings> | null;
   members?: string[];
-  images?: ImageOwnerReader;
+  images?: MemberImageReader;
 }) {
   const chats: Chat[] = [];
   const users: ChatUser[] = [];
@@ -206,6 +206,9 @@ function harness(options?: {
     },
     async attach(_orgId, _communityId, messageId, assetIds) {
       attachments.push({ messageId, assetIds: [...assetIds] });
+    },
+    async attachmentIds(_orgId, messageId) {
+      return attachments.filter((row) => row.messageId === messageId).flatMap((row) => row.assetIds);
     },
     async setReaction() {},
     async block(_orgId, communityId, blocker, blocked) {
@@ -676,6 +679,33 @@ describe('chats', () => {
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
     await expect(svc.resolveMessageFlags(ORG, moderator, messageId, 'deleted')).rejects.toThrow(
       'You cannot work this queue',
+    );
+  });
+
+  it('reads one message with its attachments for participants and for staff on a flag', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, moderator.id],
+    });
+    const sent = await svc.send(ORG, member, chat.id, {
+      body: 'Look',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
+    await expect(svc.getMessage(ORG, other, sent.id)).resolves.toMatchObject({
+      message: { id: sent.id, body: 'Look' },
+      assetIds: ['asset_1'],
+    });
+    await expect(svc.getMessage(ORG, staff, sent.id)).rejects.toBeInstanceOf(NotFoundError);
+    await svc.leave(ORG, other, chat.id);
+    await expect(svc.getMessage(ORG, other, sent.id)).rejects.toBeInstanceOf(NotFoundError);
+    await svc.flagMessage(ORG, moderator, sent.id, 'spam');
+    await expect(svc.getMessage(ORG, staff, sent.id)).resolves.toMatchObject({
+      assetIds: ['asset_1'],
+    });
+    await expect(svc.getMessage(ORG, moderator, 'msg_missing')).rejects.toBeInstanceOf(
+      NotFoundError,
     );
   });
 

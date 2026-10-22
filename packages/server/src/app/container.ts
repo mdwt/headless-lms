@@ -118,6 +118,8 @@ export interface Config {
   /** Presigned URL lifetime for entitled download delivery, seconds. Mirrors
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
+  /** Largest member image upload accepted at confirm, in bytes. */
+  memberImageMaxBytes: number;
 }
 
 /** Tuning for the transactional-outbox relay. Every field is optional; the
@@ -243,6 +245,7 @@ export async function buildContainer(
       assets: new DrizzleAssetsRepository(tx, assetsLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
+    memberImageMaxBytes: config.memberImageMaxBytes,
     logger: assetsLogger,
   });
 
@@ -386,6 +389,10 @@ export async function buildContainer(
       progress,
       assets,
       access: entitlements,
+      posts,
+      chats,
+      profiles: identity,
+      orgUsers: organizationsRepo,
       deliveryExpirySeconds: config.deliveryExpirySeconds,
       logger: reportingLogger,
     }),
@@ -463,6 +470,7 @@ export async function buildContainer(
     discussionReads,
     chatReads,
     runsRepo,
+    assets,
   });
   const automations = new AutomationsServiceImpl({
     repo: new DrizzleAutomationsRepository(db, automationsLogger),

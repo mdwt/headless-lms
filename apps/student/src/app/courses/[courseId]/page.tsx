@@ -37,7 +37,7 @@ export default async function CoursePlayerPage({
   const renderedContent: Record<string, ReactNode> = {};
   for (const mod of adapted.modules) {
     for (const lesson of mod.lessons) {
-      renderedContent[lesson.id] = renderActivityContent(lesson.content ?? null);
+      renderedContent[lesson.id] = renderActivityContent(lesson.id, lesson.content ?? null);
     }
   }
 

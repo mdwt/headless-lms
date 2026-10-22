@@ -5,8 +5,8 @@ const publicAsset = assetSchema
   .pick({
     orgId: true,
     id: true,
-    key: true,
     kind: true,
+    source: true,
     filename: true,
     contentType: true,
     size: true,

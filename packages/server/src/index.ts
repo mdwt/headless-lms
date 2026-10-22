@@ -32,7 +32,11 @@ export async function createContainer(
   options?: BuildContainerOptions,
 ): Promise<Container> {
   return buildContainer(
-    { ...config.container, deliveryExpirySeconds: config.deliveryExpirySeconds },
+    {
+      ...config.container,
+      deliveryExpirySeconds: config.deliveryExpirySeconds,
+      memberImageMaxBytes: config.memberImageMaxBytes,
+    },
     options,
   );
 }

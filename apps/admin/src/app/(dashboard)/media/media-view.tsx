@@ -30,13 +30,14 @@ import {
   getAssetUrlAction,
   requestUploadAction,
 } from "./actions";
-import { kindForFile, putToStorage } from "./upload-to-storage";
+import { putToStorage } from "./upload-to-storage";
 
 const KIND_TABS: { label: string; value: "all" | AssetKind }[] = [
   { label: "All", value: "all" },
-  { label: "Images", value: "content" },
+  { label: "Images", value: "image" },
   { label: "Video", value: "video" },
-  { label: "Files", value: "download" },
+  { label: "Audio", value: "audio" },
+  { label: "Files", value: "document" },
 ];
 
 interface UploadItem {
@@ -105,7 +106,6 @@ function MediaViewInner({
           const ticket = await requestUploadAction({
             filename: file.name,
             contentType: file.type || "application/octet-stream",
-            kind: kindForFile(file),
           });
           await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file, (f) =>
             patchUpload(id, { progress: f }),

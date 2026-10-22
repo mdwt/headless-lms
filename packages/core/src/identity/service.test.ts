@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -48,7 +48,7 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
-function build(repo = fakeRepo(), images: ImageOwnerReader = { ownsImage: async () => true }) {
+function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async () => true }) {
   const appended: NewDomainEvent[] = [];
   const uow: IdentityUnitOfWork = {
     run: (fn) =>

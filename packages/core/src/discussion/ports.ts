@@ -376,6 +376,11 @@ export interface ChatService {
   lock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]>;
+  getMessage(
+    orgId: string,
+    actor: Actor,
+    messageId: string,
+  ): Promise<{ message: Message; assetIds: string[] }>;
   messages(
     orgId: string,
     actor: Actor,
@@ -429,6 +434,7 @@ export interface ChatRepository {
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<Message>>;
   attach(orgId: string, communityId: string, messageId: string, assetIds: string[]): Promise<void>;
+  attachmentIds(orgId: string, messageId: string): Promise<string[]>;
   setReaction(
     orgId: string,
     communityId: string,

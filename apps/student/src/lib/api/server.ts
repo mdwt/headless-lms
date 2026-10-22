@@ -88,10 +88,12 @@ export const memberApi = {
     const headers = await authHeaders();
     return orNullOn404(() => Content.getMemberDownload({ downloadId }, headers));
   },
-  /** Sign a fresh short-lived URL for an org asset (e.g. a download thumbnail). */
-  async assetUrl(assetId: string): Promise<string | null> {
+  async assetUrl(
+    assetId: string,
+    via: Parameters<typeof Assets.getAssetDownloadUrl>[0]["via"],
+  ): Promise<string | null> {
     const headers = await authHeaders();
-    const ticket = await orNull(() => Assets.getAssetDownloadUrl({ id: assetId }, headers));
+    const ticket = await orNull(() => Assets.getAssetDownloadUrl({ id: assetId, via }, headers));
     return ticket?.url ?? null;
   },
 };

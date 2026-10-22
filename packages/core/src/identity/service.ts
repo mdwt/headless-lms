@@ -7,7 +7,7 @@ import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
 export class IdentityServiceImpl implements IdentityService {
@@ -15,14 +15,14 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly logger: Logger;
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
-  private readonly images: ImageOwnerReader;
+  private readonly images: MemberImageReader;
 
   constructor(input: {
     repo: IdentityRepository;
     logger?: Logger;
     mailer: Mailer;
     uow: IdentityUnitOfWork;
-    images: ImageOwnerReader;
+    images: MemberImageReader;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;

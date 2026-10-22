@@ -11,7 +11,10 @@ import type { ActivityContent } from "@/lib/api/types";
 // assigns non-deterministic node ids per `createSlateEditor`, so re-running it on
 // the client would produce a hydration mismatch. No editor JS ships either; a
 // config in a foreign format renders a notice, never the content.
-export function renderActivityContent(content: ActivityContent | null): ReactNode {
+export function renderActivityContent(
+  activityId: string,
+  content: ActivityContent | null,
+): ReactNode {
   const { Renderer, meta } = editorModule;
 
   if (content == null) {
@@ -26,7 +29,10 @@ export function renderActivityContent(content: ActivityContent | null): ReactNod
   }
   return (
     <div className="mx-auto max-w-[760px] px-6 py-10">
-      <Renderer config={content.config} resolveAssetUrl={resolveAssetUrl} />
+      <Renderer
+        config={content.config}
+        resolveAssetUrl={(assetId) => resolveAssetUrl(assetId, { activity: activityId })}
+      />
     </div>
   );
 }

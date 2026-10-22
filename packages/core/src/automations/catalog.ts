@@ -94,6 +94,12 @@ export function catalogActions(): AvailableActions {
       inputSchema: { type: 'object' },
       source: 'system',
     },
+    {
+      type: 'removeUnattachedUploads',
+      description: 'Remove member uploads older than an hour that nothing references.',
+      inputSchema: { type: 'object' },
+      source: 'system',
+    },
   ];
 }
 

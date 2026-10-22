@@ -1,6 +1,7 @@
-// assets context — domain entities & DTOs, owned by @headless-lms/core/types.
 export type {
   AssetKind,
+  AssetReference,
+  AssetSource,
   AssetStatus,
   Asset,
   RequestUploadInput,

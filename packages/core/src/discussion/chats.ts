@@ -6,7 +6,7 @@ import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import type {
   Chat,
   ChatUser,
@@ -36,7 +36,7 @@ export type ChatServiceParams = {
   access: CommunityAccessReader;
   content: CommunityReader;
   authors: AuthorRoleReader;
-  images: ImageOwnerReader;
+  images: MemberImageReader;
   uow: ChatUnitOfWork;
   logger?: Logger;
 };
@@ -46,7 +46,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly access: CommunityAccessReader;
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
-  private readonly images: ImageOwnerReader;
+  private readonly images: MemberImageReader;
   private readonly uow: ChatUnitOfWork;
   private readonly logger: Logger;
 
@@ -611,6 +611,28 @@ export class ChatServiceImpl implements ChatService {
     );
     this.logger.debug('message queue read', { orgId, communityId, count: flags.length });
     return { flags, messages };
+  }
+
+  async getMessage(
+    orgId: string,
+    actor: Actor,
+    messageId: string,
+  ): Promise<{ message: Message; assetIds: string[] }> {
+    const message = await this.mustMessage(this.repo, orgId, messageId);
+    const users = await this.repo.participants(orgId, message.chatId);
+    const participant = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
+    if (!participant) {
+      const flagged =
+        isStaffRole(actor.role) &&
+        (await this.repo.listOpenFlags(orgId, message.communityId)).some(
+          (flag) => flag.messageId === messageId,
+        );
+      if (!flagged) {
+        throw new NotFoundError('Message', messageId);
+      }
+    }
+    const assetIds = await this.repo.attachmentIds(orgId, messageId);
+    return { message: this.present(message, actor), assetIds };
   }
 
   private async setLock(

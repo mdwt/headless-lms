@@ -60,6 +60,13 @@ export function orgSeeds(): SeedAutomation[] {
       actions: [{ type: 'sendDigest', input: {} }],
       filter: null,
     },
+    {
+      name: 'Remove unattached uploads',
+      description: 'Remove member uploads older than an hour that nothing references.',
+      triggers: ['schedule:0 * * * *'],
+      actions: [{ type: 'removeUnattachedUploads', input: {} }],
+      filter: null,
+    },
   ];
 }
 

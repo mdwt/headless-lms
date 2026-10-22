@@ -28,10 +28,10 @@ import { listAssetsAction } from "../actions";
 const PAGE_SIZE = 20;
 
 const KIND_LABEL: Record<AssetKind, string> = {
-  content: "image",
   image: "image",
   video: "video",
-  download: "file",
+  audio: "audio",
+  document: "file",
 };
 
 export function AssetPickerDialog({

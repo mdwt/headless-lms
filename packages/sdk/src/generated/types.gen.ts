@@ -7810,7 +7810,33 @@ export type ReportCommentResponses = {
 export type ReportCommentResponse = ReportCommentResponses[keyof ReportCommentResponses];
 
 export type GetAssetDownloadUrlData = {
-  body?: never;
+  /**
+   * What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is.
+   */
+  body: {
+    via:
+      | {
+          activity: string;
+        }
+      | {
+          course: string;
+        }
+      | {
+          download: string;
+        }
+      | {
+          community: string;
+        }
+      | {
+          post: string;
+        }
+      | {
+          message: string;
+        }
+      | {
+          profile: string;
+        };
+  };
   path: {
     id: string;
   };
@@ -7819,6 +7845,14 @@ export type GetAssetDownloadUrlData = {
 };
 
 export type GetAssetDownloadUrlErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
   /**
    * Default Response
    */
@@ -7849,7 +7883,14 @@ export type GetAssetDownloadUrlResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content" | "image";
+      /**
+       * The media class, derived by the server from the content type.
+       */
+      kind: "image" | "video" | "audio" | "document";
+      /**
+       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+       */
+      source: "library" | "member";
       filename: string;
       contentType: string;
       size: number;
@@ -7867,6 +7908,9 @@ export type GetAssetDownloadUrlResponse =
 export type RequestMemberUploadData = {
   body: {
     filename: string;
+    /**
+     * Must be an `image*` type. The size is checked when the upload is finalized.
+     */
     contentType: string;
   };
   path?: never;
@@ -7891,6 +7935,14 @@ export type RequestMemberUploadErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type RequestMemberUploadError = RequestMemberUploadErrors[keyof RequestMemberUploadErrors];
@@ -7904,7 +7956,14 @@ export type RequestMemberUploadResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content" | "image";
+      /**
+       * The media class, derived by the server from the content type.
+       */
+      kind: "image" | "video" | "audio" | "document";
+      /**
+       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+       */
+      source: "library" | "member";
       filename: string;
       contentType: string;
       size: number;
@@ -7951,6 +8010,14 @@ export type FinalizeMemberUploadErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type FinalizeMemberUploadError =
@@ -7964,7 +8031,14 @@ export type FinalizeMemberUploadResponses = {
     orgId: string;
     id: string;
     key: string;
-    kind: "video" | "download" | "content" | "image";
+    /**
+     * The media class, derived by the server from the content type.
+     */
+    kind: "image" | "video" | "audio" | "document";
+    /**
+     * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+     */
+    source: "library" | "member";
     filename: string;
     contentType: string;
     size: number;
@@ -7977,6 +8051,51 @@ export type FinalizeMemberUploadResponses = {
 
 export type FinalizeMemberUploadResponse =
   FinalizeMemberUploadResponses[keyof FinalizeMemberUploadResponses];
+
+export type DeleteMemberUploadData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/member/uploads/{id}";
+};
+
+export type DeleteMemberUploadErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteMemberUploadError = DeleteMemberUploadErrors[keyof DeleteMemberUploadErrors];
+
+export type DeleteMemberUploadResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
 
 export type ListMemberDownloadsData = {
   body?: never;
@@ -9854,8 +9973,10 @@ export type GetCourseEnrollmentSeriesResponse =
 export type RequestUploadData = {
   body: {
     filename: string;
+    /**
+     * The media class is derived from this.
+     */
     contentType: string;
-    kind: "video" | "download" | "content" | "image";
   };
   path?: never;
   query?: never;
@@ -9892,7 +10013,14 @@ export type RequestUploadResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content" | "image";
+      /**
+       * The media class, derived by the server from the content type.
+       */
+      kind: "image" | "video" | "audio" | "document";
+      /**
+       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+       */
+      source: "library" | "member";
       filename: string;
       contentType: string;
       size: number;
@@ -9958,7 +10086,14 @@ export type ConfirmAssetResponses = {
     orgId: string;
     id: string;
     key: string;
-    kind: "video" | "download" | "content" | "image";
+    /**
+     * The media class, derived by the server from the content type.
+     */
+    kind: "image" | "video" | "audio" | "document";
+    /**
+     * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+     */
+    source: "library" | "member";
     filename: string;
     contentType: string;
     size: number;
@@ -9979,7 +10114,14 @@ export type ListAssetsData = {
     pageSize?: number;
     search?: string;
     sort?: string;
-    kind?: "video" | "download" | "content" | "image";
+    /**
+     * The media class, derived by the server from the content type.
+     */
+    kind?: "image" | "video" | "audio" | "document";
+    /**
+     * Defaults to `library`.
+     */
+    source?: "library" | "member";
   };
   url: "/api/assets";
 };
@@ -10014,7 +10156,14 @@ export type ListAssetsResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content" | "image";
+      /**
+       * The media class, derived by the server from the content type.
+       */
+      kind: "image" | "video" | "audio" | "document";
+      /**
+       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+       */
+      source: "library" | "member";
       filename: string;
       contentType: string;
       size: number;
@@ -10061,6 +10210,14 @@ export type DeleteAssetErrors = {
    * Default Response
    */
   404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -10122,7 +10279,14 @@ export type GetAssetResponses = {
     orgId: string;
     id: string;
     key: string;
-    kind: "video" | "download" | "content" | "image";
+    /**
+     * The media class, derived by the server from the content type.
+     */
+    kind: "image" | "video" | "audio" | "document";
+    /**
+     * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+     */
+    source: "library" | "member";
     filename: string;
     contentType: string;
     size: number;
@@ -10186,7 +10350,14 @@ export type RequestAssetDownloadResponses = {
       orgId: string;
       id: string;
       key: string;
-      kind: "video" | "download" | "content" | "image";
+      /**
+       * The media class, derived by the server from the content type.
+       */
+      kind: "image" | "video" | "audio" | "document";
+      /**
+       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
+       */
+      source: "library" | "member";
       filename: string;
       contentType: string;
       size: number;

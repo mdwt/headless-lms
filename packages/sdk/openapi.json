@@ -24077,10 +24077,123 @@
     "/api/member/assets/{id}/url": {
       "post": {
         "operationId": "getAssetDownloadUrl",
-        "summary": "Get a short-lived presigned URL to serve an asset to the student",
+        "summary": "Get a short-lived URL for an asset, served as what the reference names",
         "tags": [
           "Assets"
         ],
+        "description": "The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "via": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "activity": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "activity"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "course": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "course"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "download": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "download"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "community": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "community"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "post": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "post"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "message": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "profile": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "profile"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "via"
+                ],
+                "description": "What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is."
+              }
+            }
+          },
+          "description": "What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is."
+        },
         "parameters": [
           {
             "schema": {
@@ -24121,11 +24234,20 @@
                         "kind": {
                           "type": "string",
                           "enum": [
+                            "image",
                             "video",
-                            "download",
-                            "content",
-                            "image"
-                          ]
+                            "audio",
+                            "document"
+                          ],
+                          "description": "The media class, derived by the server from the content type."
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "library",
+                            "member"
+                          ],
+                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                         },
                         "filename": {
                           "type": "string",
@@ -24165,6 +24287,7 @@
                         "id",
                         "key",
                         "kind",
+                        "source",
                         "filename",
                         "contentType",
                         "size",
@@ -24179,6 +24302,31 @@
                   "required": [
                     "url",
                     "asset"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ],
                   "additionalProperties": false
                 }
@@ -24241,10 +24389,11 @@
     "/api/member/uploads": {
       "post": {
         "operationId": "requestMemberUpload",
-        "summary": "Register an image and get a presigned upload URL",
+        "summary": "Register an image you are about to upload and get a presigned upload URL",
         "tags": [
           "Assets"
         ],
+        "description": "Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.",
         "requestBody": {
           "required": true,
           "content": {
@@ -24258,7 +24407,8 @@
                   },
                   "contentType": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^image\\/",
+                    "description": "Must be an `image/*` type. The size is checked when the upload is finalized."
                   }
                 },
                 "required": [
@@ -24295,11 +24445,20 @@
                         "kind": {
                           "type": "string",
                           "enum": [
+                            "image",
                             "video",
-                            "download",
-                            "content",
-                            "image"
-                          ]
+                            "audio",
+                            "document"
+                          ],
+                          "description": "The media class, derived by the server from the content type."
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "library",
+                            "member"
+                          ],
+                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                         },
                         "filename": {
                           "type": "string",
@@ -24339,6 +24498,7 @@
                         "id",
                         "key",
                         "kind",
+                        "source",
                         "filename",
                         "contentType",
                         "size",
@@ -24433,6 +24593,31 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -24440,10 +24625,11 @@
     "/api/member/uploads/{id}/finalize": {
       "post": {
         "operationId": "finalizeMemberUpload",
-        "summary": "Confirm an image upload you started",
+        "summary": "Confirm an upload you started",
         "tags": [
           "Assets"
         ],
+        "description": "Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.",
         "parameters": [
           {
             "schema": {
@@ -24477,11 +24663,20 @@
                     "kind": {
                       "type": "string",
                       "enum": [
+                        "image",
                         "video",
-                        "download",
-                        "content",
-                        "image"
-                      ]
+                        "audio",
+                        "document"
+                      ],
+                      "description": "The media class, derived by the server from the content type."
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "library",
+                        "member"
+                      ],
+                      "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                     },
                     "filename": {
                       "type": "string",
@@ -24521,6 +24716,7 @@
                     "id",
                     "key",
                     "kind",
+                    "source",
                     "filename",
                     "contentType",
                     "size",
@@ -24560,6 +24756,135 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/uploads/{id}": {
+      "delete": {
+        "operationId": "deleteMemberUpload",
+        "summary": "Delete an upload of yours that nothing references",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -30385,22 +30710,13 @@
                   },
                   "contentType": {
                     "type": "string",
-                    "minLength": 1
-                  },
-                  "kind": {
-                    "type": "string",
-                    "enum": [
-                      "video",
-                      "download",
-                      "content",
-                      "image"
-                    ]
+                    "minLength": 1,
+                    "description": "The media class is derived from this."
                   }
                 },
                 "required": [
                   "filename",
-                  "contentType",
-                  "kind"
+                  "contentType"
                 ]
               }
             }
@@ -30432,11 +30748,20 @@
                         "kind": {
                           "type": "string",
                           "enum": [
+                            "image",
                             "video",
-                            "download",
-                            "content",
-                            "image"
-                          ]
+                            "audio",
+                            "document"
+                          ],
+                          "description": "The media class, derived by the server from the content type."
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "library",
+                            "member"
+                          ],
+                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                         },
                         "filename": {
                           "type": "string",
@@ -30476,6 +30801,7 @@
                         "id",
                         "key",
                         "kind",
+                        "source",
                         "filename",
                         "contentType",
                         "size",
@@ -30614,11 +30940,20 @@
                     "kind": {
                       "type": "string",
                       "enum": [
+                        "image",
                         "video",
-                        "download",
-                        "content",
-                        "image"
-                      ]
+                        "audio",
+                        "document"
+                      ],
+                      "description": "The media class, derived by the server from the content type."
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "library",
+                        "member"
+                      ],
+                      "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                     },
                     "filename": {
                       "type": "string",
@@ -30658,6 +30993,7 @@
                     "id",
                     "key",
                     "kind",
+                    "source",
                     "filename",
                     "contentType",
                     "size",
@@ -30799,15 +31135,29 @@
             "schema": {
               "type": "string",
               "enum": [
+                "image",
                 "video",
-                "download",
-                "content",
-                "image"
+                "audio",
+                "document"
               ]
             },
             "in": "query",
             "name": "kind",
-            "required": false
+            "required": false,
+            "description": "The media class, derived by the server from the content type."
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "library",
+                "member"
+              ]
+            },
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "description": "Defaults to `library`."
           }
         ],
         "responses": {
@@ -30838,11 +31188,20 @@
                           "kind": {
                             "type": "string",
                             "enum": [
+                              "image",
                               "video",
-                              "download",
-                              "content",
-                              "image"
-                            ]
+                              "audio",
+                              "document"
+                            ],
+                            "description": "The media class, derived by the server from the content type."
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "library",
+                              "member"
+                            ],
+                            "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                           },
                           "filename": {
                             "type": "string",
@@ -30882,6 +31241,7 @@
                           "id",
                           "key",
                           "kind",
+                          "source",
                           "filename",
                           "contentType",
                           "size",
@@ -31013,11 +31373,20 @@
                     "kind": {
                       "type": "string",
                       "enum": [
+                        "image",
                         "video",
-                        "download",
-                        "content",
-                        "image"
-                      ]
+                        "audio",
+                        "document"
+                      ],
+                      "description": "The media class, derived by the server from the content type."
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "library",
+                        "member"
+                      ],
+                      "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                     },
                     "filename": {
                       "type": "string",
@@ -31057,6 +31426,7 @@
                     "id",
                     "key",
                     "kind",
+                    "source",
                     "filename",
                     "contentType",
                     "size",
@@ -31149,7 +31519,7 @@
       },
       "delete": {
         "operationId": "deleteAsset",
-        "summary": "Delete an asset (removes the object from storage)",
+        "summary": "Delete an asset nothing references (removes the object from storage)",
         "tags": [
           "Assets"
         ],
@@ -31246,6 +31616,31 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -31312,11 +31707,20 @@
                         "kind": {
                           "type": "string",
                           "enum": [
+                            "image",
                             "video",
-                            "download",
-                            "content",
-                            "image"
-                          ]
+                            "audio",
+                            "document"
+                          ],
+                          "description": "The media class, derived by the server from the content type."
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "library",
+                            "member"
+                          ],
+                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
                         },
                         "filename": {
                           "type": "string",
@@ -31356,6 +31760,7 @@
                         "id",
                         "key",
                         "kind",
+                        "source",
                         "filename",
                         "contentType",
                         "size",

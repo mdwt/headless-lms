@@ -71,6 +71,7 @@ export interface ScheduledWork {
   expireDueGrants(orgId: string, now: Date): Promise<void>;
   sendDigest(orgId: string, now: Date): Promise<void>;
   hasDuePosts(orgId: string, now: Date): Promise<boolean>;
+  removeUnattachedUploads(orgId: string, now: Date): Promise<void>;
 }
 
 export interface GrantWriter {
@@ -114,6 +115,7 @@ export const emptyScheduledWork: ScheduledWork = {
   expireDueGrants: async () => {},
   sendDigest: async () => {},
   hasDuePosts: async () => false,
+  removeUnattachedUploads: async () => {},
 };
 
 export function actorOf(event: DomainEvent): string | undefined {

@@ -17,7 +17,7 @@ import {
   getAssetUrlAction,
   requestUploadAction,
 } from "@/app/(dashboard)/media/actions";
-import { kindForFile, putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
+import { putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
 
 export async function uploadEditorFile(
   file: File,
@@ -26,7 +26,6 @@ export async function uploadEditorFile(
   const ticket = await requestUploadAction({
     filename: file.name,
     contentType: file.type || "application/octet-stream",
-    kind: kindForFile(file),
   });
 
   await putToStorage(ticket.uploadUrl, ticket.headers, file, opts.onProgress);

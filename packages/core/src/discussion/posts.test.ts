@@ -5,7 +5,7 @@ import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import type {
   AuthorRoleReader,
   CreatePostInput,
@@ -65,7 +65,7 @@ function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
   roles?: Record<string, Role>;
-  images?: ImageOwnerReader;
+  images?: MemberImageReader;
 }) {
   const rows: Post[] = [];
   const flags: PostFlag[] = [];

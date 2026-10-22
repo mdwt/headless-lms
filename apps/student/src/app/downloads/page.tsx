@@ -10,7 +10,7 @@ async function thumbnailsFor(downloads: Download[]): Promise<Map<string, string>
   await Promise.all(
     downloads.map(async (d) => {
       if (!d.thumbnailAssetId) return;
-      const url = await memberApi.assetUrl(d.thumbnailAssetId);
+      const url = await memberApi.assetUrl(d.thumbnailAssetId, { download: d.id });
       if (url) urls.set(d.id, url);
     }),
   );

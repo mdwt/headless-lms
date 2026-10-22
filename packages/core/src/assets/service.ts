@@ -1,11 +1,9 @@
-// assets context — service. Owns org-scoped key construction and the asset
-// lifecycle (register → upload → confirm → serve → remove); delegates the
-// actual object operations to the ObjectStorage port. Org isolation is enforced
-// by scoping every lookup to the caller's org (cross-org reads return null).
 import { genId } from '../shared/id.js';
 import type { Logger, ObjectStorage } from '../shared/ports.js';
+import { ConflictError } from '../shared/errors.js';
 import type {
   Asset,
+  AssetKind,
   AssetsQuery,
   DownloadTicket,
   Page,
@@ -16,10 +14,24 @@ import type {
   AssetsRepository,
   AssetsService,
   AssetsUnitOfWork,
-  ImageUploadInput,
+  MemberUploadInput,
 } from './ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
+
+export function kindOf(contentType: string): AssetKind {
+  const type = contentType.trim().toLowerCase();
+  if (type.startsWith('image/')) {
+    return 'image';
+  }
+  if (type.startsWith('video/')) {
+    return 'video';
+  }
+  if (type.startsWith('audio/')) {
+    return 'audio';
+  }
+  return 'document';
+}
 
 function orgPrefix(orgId: string): string {
   return `org/${orgId}/`;
@@ -34,6 +46,7 @@ export type AssetsServiceParams = {
   storage: ObjectStorage;
   repo: AssetsRepository;
   uow: AssetsUnitOfWork;
+  memberImageMaxBytes: number;
   logger?: Logger;
 };
 
@@ -41,18 +54,21 @@ export class AssetsServiceImpl implements AssetsService {
   private readonly storage: ObjectStorage;
   private readonly repo: AssetsRepository;
   private readonly uow: AssetsUnitOfWork;
+  private readonly memberImageMaxBytes: number;
   private readonly logger: Logger;
 
   constructor(params: AssetsServiceParams) {
     this.storage = params.storage;
     this.repo = params.repo;
     this.uow = params.uow;
+    this.memberImageMaxBytes = params.memberImageMaxBytes;
     this.logger = params.logger ?? noopLogger;
   }
 
   async requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket> {
     const id = genId('asset');
-    const key = `${orgPrefix(orgId)}${input.kind}/${id}/${sanitizeFilename(input.filename)}`;
+    const kind = kindOf(input.contentType);
+    const key = `${orgPrefix(orgId)}${kind}/${id}/${sanitizeFilename(input.filename)}`;
     const presigned = await this.storage.presignUpload({ key, contentType: input.contentType });
     const now = new Date();
     const asset = await this.uow.run(async ({ assets, outbox }) => {
@@ -60,7 +76,8 @@ export class AssetsServiceImpl implements AssetsService {
         orgId,
         id,
         key,
-        kind: input.kind,
+        kind,
+        source: input.source,
         filename: input.filename,
         contentType: input.contentType,
         size: 0,
@@ -72,7 +89,12 @@ export class AssetsServiceImpl implements AssetsService {
       await outbox.append([assetEvents.assetCreated.make({ orgId, data: asset })]);
       return asset;
     });
-    this.logger.info('asset upload requested', { orgId, assetId: id, kind: input.kind });
+    this.logger.info('asset upload requested', {
+      orgId,
+      assetId: id,
+      kind,
+      source: input.source,
+    });
     return {
       asset,
       uploadUrl: presigned.url,
@@ -82,19 +104,20 @@ export class AssetsServiceImpl implements AssetsService {
     };
   }
 
-  async requestImageUpload(
+  async requestMemberUpload(
     orgId: string,
     orgUserId: string,
-    input: ImageUploadInput,
+    input: MemberUploadInput,
   ): Promise<UploadTicket> {
-    const ticket = await this.requestUpload(orgId, {
+    if (kindOf(input.contentType) !== 'image') {
+      throw new ConflictError('A member upload must be an image');
+    }
+    return this.requestUpload(orgId, {
       filename: input.filename,
       contentType: input.contentType,
-      kind: 'image',
+      source: 'member',
       uploadedBy: orgUserId,
     });
-    this.logger.debug('image upload requested', { orgId, orgUserId, assetId: ticket.asset.id });
-    return ticket;
   }
 
   async confirm(orgId: string, id: string): Promise<Asset | null> {
@@ -105,7 +128,21 @@ export class AssetsServiceImpl implements AssetsService {
     const stat = await this.storage.stat(asset.key);
     if (!stat) {
       this.logger.debug('asset not yet uploaded', { orgId, assetId: id });
-      return asset; // not uploaded yet — stays pending
+      return asset;
+    }
+    if (asset.source === 'member') {
+      const contentType = stat.contentType ?? asset.contentType;
+      const reason =
+        kindOf(contentType) !== 'image'
+          ? 'A member upload must be an image'
+          : stat.size > this.memberImageMaxBytes
+            ? 'This image is too large'
+            : null;
+      if (reason) {
+        await this.discard(orgId, asset);
+        this.logger.info('member upload refused', { orgId, assetId: id, reason });
+        throw new ConflictError(reason);
+      }
     }
     const updated = await this.uow.run(async ({ assets, outbox }) => {
       const updated = await assets.update(id, {
@@ -122,9 +159,10 @@ export class AssetsServiceImpl implements AssetsService {
     return updated;
   }
 
-  async confirmOwnImage(orgId: string, id: string, orgUserId: string): Promise<Asset | null> {
-    if (!(await this.ownsImage(orgId, id, orgUserId))) {
-      this.logger.debug('image confirm refused', { orgId, assetId: id, orgUserId });
+  async confirmOwn(orgId: string, id: string, orgUserId: string): Promise<Asset | null> {
+    const asset = await this.repo.findById(orgId, id);
+    if (!asset || asset.source !== 'member' || asset.uploadedBy !== orgUserId) {
+      this.logger.debug('upload confirm refused', { orgId, assetId: id, orgUserId });
       return null;
     }
     return this.confirm(orgId, id);
@@ -132,11 +170,17 @@ export class AssetsServiceImpl implements AssetsService {
 
   async ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
     const asset = await this.repo.findById(orgId, assetId);
-    return asset !== null && asset.kind === 'image' && asset.uploadedBy === orgUserId;
+    return (
+      asset !== null &&
+      asset.source === 'member' &&
+      asset.kind === 'image' &&
+      asset.status === 'ready' &&
+      asset.uploadedBy === orgUserId
+    );
   }
 
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {
-    return this.repo.list(orgId, query);
+    return this.repo.list(orgId, { ...query, source: query.source ?? 'library' });
   }
 
   get(orgId: string, id: string): Promise<Asset | null> {
@@ -166,15 +210,45 @@ export class AssetsServiceImpl implements AssetsService {
     if (!asset) {
       return false;
     }
+    if (await this.repo.isReferenced(orgId, id)) {
+      throw new ConflictError('This file is still in use');
+    }
+    await this.discard(orgId, asset);
+    this.logger.info('asset removed', { orgId, assetId: id });
+    return true;
+  }
+
+  async removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean> {
+    const asset = await this.repo.findById(orgId, id);
+    if (!asset || asset.source !== 'member' || asset.uploadedBy !== orgUserId) {
+      return false;
+    }
+    return this.remove(orgId, id);
+  }
+
+  async removeUnattached(orgId: string, before: Date): Promise<number> {
+    const stale = await this.repo.listUnreferencedMemberUploads(orgId, before);
+    let removed = 0;
+    for (const asset of stale) {
+      if (await this.repo.isReferenced(orgId, asset.id)) {
+        continue;
+      }
+      await this.discard(orgId, asset);
+      removed += 1;
+    }
+    if (removed > 0) {
+      this.logger.info('unattached uploads removed', { orgId, count: removed });
+    }
+    return removed;
+  }
+
+  private async discard(orgId: string, asset: Asset): Promise<void> {
     await this.storage.remove(asset.key);
-    const deleted = await this.uow.run(async ({ assets, outbox }) => {
-      const deleted = await assets.delete(id);
+    await this.uow.run(async ({ assets, outbox }) => {
+      const deleted = await assets.delete(asset.id);
       if (deleted) {
         await outbox.append([assetEvents.assetDeleted.make({ orgId, data: asset })]);
       }
-      return deleted;
     });
-    this.logger.info('asset removed', { orgId, assetId: id });
-    return deleted;
   }
 }

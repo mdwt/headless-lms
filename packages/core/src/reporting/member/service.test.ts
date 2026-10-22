@@ -74,7 +74,6 @@ function fakeRepo(refs: ContentRef[]): MemberReportRepository {
     downloadHasAsset: async () => false,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
-    assetVisible: async () => false,
   };
 }
 
@@ -94,7 +93,8 @@ const SIGNED_ASSET: Asset = {
   orgId: 'o1',
   id: 'a1',
   key: 'k1',
-  kind: 'download',
+  kind: 'document',
+  source: 'library',
   filename: 'ch1.pdf',
   contentType: 'application/pdf',
   size: 10,
@@ -111,12 +111,14 @@ function fakeAssets(captured: { expiry?: number; filename?: string } = {}): Asse
     requestUpload: async () => {
       throw new Error('not used');
     },
-    requestImageUpload: async () => {
+    requestMemberUpload: async () => {
       throw new Error('not used');
     },
     confirm: async () => null,
-    confirmOwnImage: async () => null,
+    confirmOwn: async () => null,
     ownsImage: async () => false,
+    removeOwn: async () => false,
+    removeUnattached: async () => 0,
     list: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     get: async () => SIGNED_ASSET,
     requestDownload: async (_orgId, _id, filename, expiresInSeconds) => {
@@ -196,7 +198,6 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
     downloadHasAsset: async () => false,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
-    assetVisible: async () => false,
     ...over,
   };
 }

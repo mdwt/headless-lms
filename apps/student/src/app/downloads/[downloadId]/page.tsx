@@ -21,7 +21,7 @@ export default async function DownloadDetailPage({
 
   const { download, assets } = detail;
   const thumbnailUrl = download.thumbnailAssetId
-    ? await memberApi.assetUrl(download.thumbnailAssetId)
+    ? await memberApi.assetUrl(download.thumbnailAssetId, { download: download.id })
     : null;
 
   return (

@@ -20,12 +20,9 @@ import { AssetPickerDialog } from "@/app/(dashboard)/media/_components/asset-pic
 import { getAssetUrlAction } from "@/app/(dashboard)/media/actions";
 import type { Asset, AssetKind } from "@/lib/api/types";
 
-/** The API's coarse kinds don't cover audio — it, like any other non-image,
- *  non-video upload, is a `download`. */
 function assetKindFor(kind: EditorMediaKind): AssetKind {
-  if (kind === "image") return "content";
-  if (kind === "video") return "video";
-  return "download";
+  if (kind === "file") return "document";
+  return kind;
 }
 
 interface PickRequest {
@@ -77,7 +74,7 @@ export function useAssetPicker(): {
   const picker = (
     <AssetPickerDialog
       open={!!request}
-      kind={request?.kind ?? "content"}
+      kind={request?.kind ?? "image"}
       onOpenChange={(open) => {
         if (!open) settle(null);
       }}

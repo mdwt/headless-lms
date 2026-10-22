@@ -1,8 +1,12 @@
 import { type ContentServicePort } from '../../content/index.js';
 import type { CommunityAccessReader } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
-import type { AssetsService, DownloadTicket } from '../../assets/index.js';
+import type { AssetReference, AssetsService, DownloadTicket } from '../../assets/index.js';
+import type { ChatService, PostService } from '../../discussion/index.js';
+import type { IdentityService } from '../../identity/index.js';
+import type { OrganizationsRepository } from '../../organizations/index.js';
 import type { Actor } from '../../shared/actor.js';
+import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import type {
   Activity,
   CommunityHome,
@@ -27,6 +31,10 @@ export type MemberReportServiceParams = {
   progress: ProgressService;
   assets: AssetsService;
   access?: CommunityAccessReader;
+  posts?: Pick<PostService, 'getPost'>;
+  chats?: Pick<ChatService, 'getMessage'>;
+  profiles?: Pick<IdentityService, 'getProfile'>;
+  orgUsers?: Pick<OrganizationsRepository, 'findOrgUserById'>;
   deliveryExpirySeconds: number;
   logger?: Logger;
 };
@@ -37,6 +45,10 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly progress: ProgressService;
   private readonly assets: AssetsService;
   private readonly access: CommunityAccessReader;
+  private readonly posts: Pick<PostService, 'getPost'>;
+  private readonly chats: Pick<ChatService, 'getMessage'>;
+  private readonly profiles: Pick<IdentityService, 'getProfile'>;
+  private readonly orgUsers: Pick<OrganizationsRepository, 'findOrgUserById'>;
   private readonly deliveryExpirySeconds: number;
   private readonly logger: Logger;
 
@@ -51,6 +63,18 @@ export class MemberReportServiceImpl implements MemberReportService {
       openSpaceIds: async () => [],
       grantOpensCommunity: async () => false,
     };
+    this.posts = params.posts ?? {
+      getPost: async (_orgId, _actor, postId) => {
+        throw new NotFoundError('Post', postId);
+      },
+    };
+    this.chats = params.chats ?? {
+      getMessage: async (_orgId, _actor, messageId) => {
+        throw new NotFoundError('Message', messageId);
+      },
+    };
+    this.profiles = params.profiles ?? { getProfile: async () => null };
+    this.orgUsers = params.orgUsers ?? { findOrgUserById: async () => null };
     this.deliveryExpirySeconds = params.deliveryExpirySeconds;
     this.logger = params.logger ?? noopLogger;
   }
@@ -241,13 +265,17 @@ export class MemberReportServiceImpl implements MemberReportService {
     };
   }
 
-  async assetUrl(orgId: string, orgUserId: string, assetId: string): Promise<DownloadTicket | null> {
-    const visible = await this.repo.assetVisible(orgId, orgUserId, assetId);
-    if (!visible) {
+  async assetUrl(
+    orgId: string,
+    actor: Actor,
+    assetId: string,
+    via: AssetReference,
+  ): Promise<DownloadTicket | null> {
+    if (!(await this.references(orgId, actor, assetId, via))) {
       return null;
     }
     const asset = await this.assets.get(orgId, assetId);
-    if (!asset) {
+    if (!asset || asset.status !== 'ready') {
       return null;
     }
     const ticket = await this.assets.requestDownload(
@@ -259,7 +287,69 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!ticket) {
       return null;
     }
-    this.logger.info('member asset signed', { orgId, assetId });
+    this.logger.info('member asset signed', { orgId, assetId, via: Object.keys(via)[0] });
     return ticket;
+  }
+
+  private async references(
+    orgId: string,
+    actor: Actor,
+    assetId: string,
+    via: AssetReference,
+  ): Promise<boolean> {
+    if ('activity' in via) {
+      const activity = await this.content.getActivity(orgId, via.activity);
+      if (!activity || !isActivityPublished(activity.settings)) {
+        return false;
+      }
+      const ref = await this.repo.activeRef(orgId, actor.id, activity.courseId);
+      if (!ref) {
+        return false;
+      }
+      const links = await this.content.listCourseActivityAssets(ref.orgId, activity.courseId);
+      return links.some((link) => link.activityId === via.activity && link.assetId === assetId);
+    }
+    if ('course' in via) {
+      const course = await this.getCourse(orgId, actor.id, via.course);
+      return course !== null && course.thumbnailAssetId === assetId;
+    }
+    if ('download' in via) {
+      const detail = await this.getDownload(orgId, actor.id, via.download);
+      return detail !== null && detail.download.thumbnailAssetId === assetId;
+    }
+    if ('community' in via) {
+      if (!(await this.access.isCommunityMember(orgId, actor, via.community))) {
+        return false;
+      }
+      const community = await this.content.getCommunity(orgId, via.community);
+      return community !== null && community.thumbnailAssetId === assetId;
+    }
+    if ('post' in via) {
+      const post = await this.readable(() => this.posts.getPost(orgId, actor, via.post));
+      return post !== null && post.coverAssetId === assetId;
+    }
+    if ('message' in via) {
+      const read = await this.readable(() => this.chats.getMessage(orgId, actor, via.message));
+      return read !== null && read.assetIds.includes(assetId);
+    }
+    const orgUser = await this.orgUsers.findOrgUserById(orgId, via.profile);
+    if (!orgUser) {
+      return false;
+    }
+    const profile = await this.profiles.getProfile(orgUser.userId);
+    return (
+      profile !== null && profile.imageAssetOrgId === orgId && profile.imageAssetId === assetId
+    );
+  }
+
+  private async readable<T>(read: () => Promise<T>): Promise<T | null> {
+    try {
+      return await read();
+    } catch (error) {
+      if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+        return null;
+      }
+      throw error;
+    }
   }
 }

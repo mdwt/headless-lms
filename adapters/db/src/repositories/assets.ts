@@ -1,9 +1,9 @@
-// assets — Drizzle repository (implements the core outbound port).
-import { and, eq, ilike, sql, asc, desc, type SQL } from "drizzle-orm";
+import { and, eq, ilike, lt, sql, asc, desc, type SQL } from "drizzle-orm";
 import type { AssetsRepository } from "@headless-lms/core/assets";
 import type {
   Asset,
   AssetKind,
+  AssetSource,
   AssetStatus,
   AssetsQuery,
   Logger,
@@ -22,6 +22,7 @@ function toAsset(row: Row): Asset {
     id: row.id,
     key: row.key,
     kind: row.kind as AssetKind,
+    source: row.source as AssetSource,
     filename: row.filename,
     contentType: row.contentType,
     size: row.size,
@@ -32,12 +33,24 @@ function toAsset(row: Row): Asset {
   };
 }
 
-// Whitelisted sort columns; anything else falls back to newest-first.
 const SORT_COLUMNS = {
   filename: assets.filename,
   size: assets.size,
   createdAt: assets.createdAt,
 } as const;
+
+function referenced(orgId: SQL, assetId: SQL): SQL {
+  return sql`(
+    exists (select 1 from user_profiles p where p.image_asset_org_id = ${orgId} and p.image_asset_id = ${assetId})
+    or exists (select 1 from posts p where p.org_id = ${orgId} and p.cover_asset_id = ${assetId})
+    or exists (select 1 from message_attachments ma where ma.org_id = ${orgId} and ma.asset_id = ${assetId})
+    or exists (select 1 from activity_assets aa where aa.org_id = ${orgId} and aa.asset_id = ${assetId})
+    or exists (select 1 from download_assets da where da.org_id = ${orgId} and da.asset_id = ${assetId})
+    or exists (select 1 from courses c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
+    or exists (select 1 from downloads d where d.org_id = ${orgId} and d.thumbnail_asset_id = ${assetId})
+    or exists (select 1 from communities c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
+  )`;
+}
 
 export class DrizzleAssetsRepository implements AssetsRepository {
   constructor(
@@ -56,6 +69,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
         orgId: asset.orgId,
         key: asset.key,
         kind: asset.kind,
+        source: asset.source,
         filename: asset.filename,
         contentType: asset.contentType,
         size: asset.size,
@@ -74,6 +88,9 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     const filters: (SQL | undefined)[] = [eq(assets.orgId, orgId)];
     if (query.kind) {
       filters.push(eq(assets.kind, query.kind));
+    }
+    if (query.source) {
+      filters.push(eq(assets.source, query.source));
     }
     const q = query.search?.trim();
     if (q) {
@@ -144,6 +161,30 @@ export class DrizzleAssetsRepository implements AssetsRepository {
       .where(eq(assets.id, id))
       .returning({ id: assets.id });
     return deleted.length > 0;
+  }
+
+  async isReferenced(orgId: string, id: string): Promise<boolean> {
+    const result = await this.db.execute<{ used: boolean }>(
+      sql`select ${referenced(sql`${orgId}`, sql`${id}`)} as used`,
+    );
+    const rows = Array.isArray(result) ? result : result.rows;
+    return rows[0]?.used === true;
+  }
+
+  async listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]> {
+    const rows = await this.db
+      .select()
+      .from(assets)
+      .where(
+        and(
+          eq(assets.orgId, orgId),
+          eq(assets.source, "member"),
+          lt(assets.createdAt, before),
+          sql`not ${referenced(sql`${assets.orgId}`, sql`${assets.id}`)}`,
+        ),
+      )
+      .orderBy(asc(assets.createdAt));
+    return rows.map(toAsset);
   }
 }
 translateDbErrors(DrizzleAssetsRepository);

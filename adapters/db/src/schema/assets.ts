@@ -1,5 +1,3 @@
-// assets table — the org's media library. Org-scoped: composite (org_id, id) PK
-// with org_id → organizations.id, mirroring the multi-tenant table shape.
 import { pgTable, text, bigint, timestamp, primaryKey } from "drizzle-orm/pg-core";
 import type { Asset } from "@headless-lms/core/schemas";
 import { genId } from "@headless-lms/core/shared/id";
@@ -16,10 +14,10 @@ export const assets = pgTable(
       .notNull()
       .$defaultFn(() => genId("asset")),
     key: text("key").notNull(),
-    kind: text("kind", { enum: ["video", "download", "content", "image"] }).notNull(),
+    kind: text("kind", { enum: ["image", "video", "audio", "document"] }).notNull(),
+    source: text("source", { enum: ["library", "member"] }).notNull().default("library"),
     filename: text("filename").notNull(),
     contentType: text("content_type").notNull(),
-    // Bytes; bigint because media files exceed int4. 0 until upload confirmed.
     size: bigint("size", { mode: "number" }).notNull().default(0),
     status: text("status", { enum: ["pending", "ready"] })
       .notNull()

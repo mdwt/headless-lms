@@ -83,6 +83,8 @@ import type {
   DeleteCourseResponses,
   DeleteDownloadErrors,
   DeleteDownloadResponses,
+  DeleteMemberUploadErrors,
+  DeleteMemberUploadResponses,
   DeleteModuleResponses,
   DeleteSpaceErrors,
   DeleteSpaceResponses,
@@ -5375,15 +5377,49 @@ export class Discussion {
 
 export class Assets {
   /**
-   * Get a short-lived presigned URL to serve an asset to the student
+   * Get a short-lived URL for an asset, served as what the reference names
+   *
+   * The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.
    */
   public static getAssetDownloadUrl<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
+      via:
+        | {
+            activity: string;
+          }
+        | {
+            course: string;
+          }
+        | {
+            download: string;
+          }
+        | {
+            community: string;
+          }
+        | {
+            post: string;
+          }
+        | {
+            message: string;
+          }
+        | {
+            profile: string;
+          };
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<GetAssetDownloadUrlResponses, GetAssetDownloadUrlErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "via" },
+          ],
+        },
+      ],
+    );
     return (options?.client ?? client).post<
       GetAssetDownloadUrlResponses,
       GetAssetDownloadUrlErrors,
@@ -5394,11 +5430,18 @@ export class Assets {
       url: "/api/member/assets/{id}/url",
       ...options,
       ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 
   /**
-   * Register an image and get a presigned upload URL
+   * Register an image you are about to upload and get a presigned upload URL
+   *
+   * Member uploads are images only. The asset is yours: only you can finalize it, attach it to your profile, a post or a message, or delete it while nothing references it.
    */
   public static requestMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5437,7 +5480,9 @@ export class Assets {
   }
 
   /**
-   * Confirm an image upload you started
+   * Confirm an upload you started
+   *
+   * Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409.
    */
   public static finalizeMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5465,13 +5510,35 @@ export class Assets {
   }
 
   /**
+   * Delete an upload of yours that nothing references
+   */
+  public static deleteMemberUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteMemberUploadResponses, DeleteMemberUploadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteMemberUploadResponses,
+      DeleteMemberUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Register an asset and get a presigned upload URL
    */
   public static requestUpload<ThrowOnError extends boolean = false>(
     parameters: {
       filename: string;
       contentType: string;
-      kind: "video" | "download" | "content" | "image";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
@@ -5482,7 +5549,6 @@ export class Assets {
           args: [
             { in: "body", key: "filename" },
             { in: "body", key: "contentType" },
-            { in: "body", key: "kind" },
           ],
         },
       ],
@@ -5537,7 +5603,8 @@ export class Assets {
       pageSize?: number;
       search?: string;
       sort?: string;
-      kind?: "video" | "download" | "content" | "image";
+      kind?: "image" | "video" | "audio" | "document";
+      source?: "library" | "member";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {
@@ -5551,6 +5618,7 @@ export class Assets {
             { in: "query", key: "search" },
             { in: "query", key: "sort" },
             { in: "query", key: "kind" },
+            { in: "query", key: "source" },
           ],
         },
       ],
@@ -5569,7 +5637,7 @@ export class Assets {
   }
 
   /**
-   * Delete an asset (removes the object from storage)
+   * Delete an asset nothing references (removes the object from storage)
    */
   public static deleteAsset<ThrowOnError extends boolean = false>(
     parameters: {

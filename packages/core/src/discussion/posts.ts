@@ -6,7 +6,7 @@ import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, SpaceDetail } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { ImageOwnerReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
 import type { Page, Post, PostFlag, PostFlagResolution, PostStatus } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
@@ -32,7 +32,7 @@ export type PostServiceParams = {
   content: CommunityReader;
   authors: AuthorRoleReader;
   commentFlags: PostCommentFlagReader;
-  images: ImageOwnerReader;
+  images: MemberImageReader;
   uow: PostUnitOfWork;
   logger?: Logger;
 };
@@ -43,7 +43,7 @@ export class PostServiceImpl implements PostService {
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
   private readonly commentFlags: PostCommentFlagReader;
-  private readonly images: ImageOwnerReader;
+  private readonly images: MemberImageReader;
   private readonly uow: PostUnitOfWork;
   private readonly logger: Logger;
 

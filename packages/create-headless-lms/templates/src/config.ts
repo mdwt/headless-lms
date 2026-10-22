@@ -60,6 +60,7 @@ export function loadServerConfig(): ServerConfig {
     // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
     // default must never silently extend entitled/paywalled link lifetimes.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    memberImageMaxBytes: Number(process.env.MEMBER_IMAGE_MAX_BYTES ?? 10 * 1024 * 1024),
     container,
   };
 }
