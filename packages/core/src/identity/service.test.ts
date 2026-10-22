@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
-import { ConflictError, ForbiddenError } from '../shared/errors.js';
+import { ConflictError } from '../shared/errors.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
