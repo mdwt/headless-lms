@@ -49,7 +49,7 @@ export type DiscussionServiceParams = {
   posts: Pick<PostRepository, 'find'>;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
-  communities?: { listIds(orgId: string): Promise<string[]> };
+  communities: { listIds(orgId: string): Promise<string[]> };
   logger?: Logger;
 };
 
@@ -70,7 +70,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.posts = params.posts;
     this.uow = params.uow;
     this.settings = params.settings;
-    this.communities = params.communities ?? { listIds: async () => [] };
+    this.communities = params.communities;
     this.logger = params.logger ?? noopLogger;
   }
 

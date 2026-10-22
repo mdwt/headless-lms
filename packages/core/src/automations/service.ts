@@ -8,13 +8,7 @@
 import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catalog.js';
 import { executeAction } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
-import {
-  emptyCommunityMail,
-  emptyScheduledWork,
-  type CommunityMailReads,
-  type GrantWriter,
-  type ScheduledWork,
-} from './community-mail.js';
+import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
 import { communitySeeds, orgSeeds, seedKey, type SeedAutomation } from './seeds.js';
 import {
   AutomationKindMismatchError,
@@ -152,9 +146,9 @@ export type AutomationsServiceParams = {
   integrations: Pick<IntegrationsService, 'available'>;
   credentials: CredentialStore;
   webhooks: WebhookSender;
-  mail?: CommunityMailReads;
-  grants?: GrantWriter;
-  scheduledWork?: ScheduledWork;
+  mail: CommunityMailReads;
+  grants: GrantWriter;
+  scheduledWork: ScheduledWork;
   logger?: Logger;
 };
 
@@ -183,13 +177,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.integrations = params.integrations;
     this.credentials = params.credentials;
     this.webhooks = params.webhooks;
-    this.mail = params.mail ?? emptyCommunityMail;
-    this.grants = params.grants ?? {
-      grant: async () => {
-        throw new Error('grantAccess: no grant writer configured');
-      },
-    };
-    this.scheduledWork = params.scheduledWork ?? emptyScheduledWork;
+    this.mail = params.mail;
+    this.grants = params.grants;
+    this.scheduledWork = params.scheduledWork;
     this.logger = params.logger ?? noopLogger;
   }
 

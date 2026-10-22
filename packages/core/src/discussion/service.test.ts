@@ -274,6 +274,7 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
     posts: { find: async () => null },
     uow,
     settings,
+    communities: { listIds: async () => [] },
   });
   return {
     service,
@@ -1111,6 +1112,7 @@ describe('comments on a post', () => {
       posts: { find: async () => ({ ...post, commentsClosed }) },
       uow,
       settings,
+      communities: { listIds: async () => [] },
     });
     return { service, appended };
   }

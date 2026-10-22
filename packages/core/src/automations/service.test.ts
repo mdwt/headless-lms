@@ -30,7 +30,7 @@ import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
-import { emptyScheduledWork, type ScheduledWork } from './community-mail.js';
+import { emptyCommunityMail, emptyScheduledWork, type ScheduledWork } from './community-mail.js';
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -231,7 +231,7 @@ function build(
   lookups = fakeLookups(),
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
-  scheduledWork?: ScheduledWork,
+  scheduledWork: ScheduledWork = emptyScheduledWork,
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
   const svc = new AutomationsServiceImpl({
@@ -244,7 +244,13 @@ function build(
     integrations,
     credentials,
     webhooks,
-    ...(scheduledWork ? { scheduledWork } : {}),
+    mail: emptyCommunityMail,
+    grants: {
+      grant: async () => {
+        throw new Error('grantAccess: no grant writer configured');
+      },
+    },
+    scheduledWork,
   });
   return {
     svc,
