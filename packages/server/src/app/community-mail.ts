@@ -44,7 +44,11 @@ export async function listCommunityIds(
   const ids: string[] = [];
   let page = 1;
   for (;;) {
-    const result = await content.listCommunities(orgId, { page, pageSize: PAGE });
+    const result = await content.listCommunities(orgId, {
+      page,
+      pageSize: PAGE,
+      status: 'published',
+    });
     ids.push(...result.rows.map((row) => row.id));
     if (result.rows.length < PAGE) {
       return ids;
