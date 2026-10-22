@@ -307,11 +307,29 @@ export class DiscussionServiceImpl implements DiscussionService {
   async postComments(orgId: string, postId: string, actor: Actor): Promise<CommentView[]> {
     const { post, space } = await this.visiblePost(orgId, actor, postId);
     const rows = await this.repo.listByPost(orgId, postId);
+    const comments = await this.thread(
+      orgId,
+      rows,
+      actor,
+      post.reactionsEnabled ?? space.settings.reactions,
+      (person) => this.canModerate(person),
+    );
+    this.logger.debug('post comments read', { orgId, postId, count: comments.length });
+    return comments;
+  }
+
+  private async thread(
+    orgId: string,
+    rows: Comment[],
+    actor: Actor,
+    reactionsOn: boolean,
+    seesHeld: (actor: Actor) => boolean,
+  ): Promise<CommentView[]> {
     const readable = rows.filter((comment) => {
       if (comment.status === 'published' || comment.status === 'removed') {
         return true;
       }
-      return this.canModerate(actor) || comment.orgUserId === actor.id;
+      return seesHeld(actor) || comment.orgUserId === actor.id;
     });
     const replies = readable.filter(
       (comment) => comment.parentId !== null && comment.status !== 'removed',
@@ -325,7 +343,6 @@ export class DiscussionServiceImpl implements DiscussionService {
     const served = [...roots, ...replies.filter((reply) => rootIds.has(reply.parentId!))].sort(
       (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
     );
-    const reactionsOn = post.reactionsEnabled ?? space.settings.reactions;
     const [authors, reactions] = await Promise.all([
       this.repo.authorsOf(orgId, this.peopleIn(served)),
       reactionsOn
@@ -336,7 +353,6 @@ export class DiscussionServiceImpl implements DiscussionService {
           )
         : Promise.resolve<Record<string, CommentReactions>>({}),
     ]);
-    this.logger.debug('post comments read', { orgId, postId, count: served.length });
     return served.map((comment) =>
       this.toView(comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS),
     );
@@ -382,41 +398,11 @@ export class DiscussionServiceImpl implements DiscussionService {
       return { config, comments: [] };
     }
     const rows = await this.repo.listByActivity(orgId, activityId);
-    // A pending comment is visible to its own author and to staff, nobody else.
-    const readable = rows.filter((c) => {
-      if (c.status === 'published' || c.status === 'removed') {
-        return true;
-      }
-      return this.isStaff(actor) || c.orgUserId === actor.id;
-    });
-    // Replies nest one level, so a reply has nothing hanging off it — a removed
-    // reply is simply dropped rather than held open as a placeholder.
-    const replies = readable.filter((c) => c.parentId !== null && c.status !== 'removed');
-    const heldOpen = new Set(replies.map((r) => r.parentId));
-    // A removed root survives only to hold replies THIS reader can see. Judging
-    // it against every reply would show a marker with nothing beneath it.
-    const roots = readable.filter(
-      (c) => c.parentId === null && (c.status !== 'removed' || heldOpen.has(c.id)),
-    );
-    const rootIds = new Set(roots.map((r) => r.id));
-    const served = [...roots, ...replies.filter((r) => rootIds.has(r.parentId!))].sort(
-      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-    );
-
-    const [authors, reactions] = await Promise.all([
-      this.repo.authorsOf(orgId, this.peopleIn(served)),
-      config.reactions
-        ? this.repo.reactionsOf(
-            orgId,
-            served.map((c) => c.id),
-            actor.id,
-          )
-        : Promise.resolve<Record<string, CommentReactions>>({}),
-    ]);
-
     return {
       config,
-      comments: served.map((c) => this.toView(c, authors, reactions[c.id] ?? EMPTY_REACTIONS)),
+      comments: await this.thread(orgId, rows, actor, config.reactions, (person) =>
+        this.isStaff(person),
+      ),
     };
   }
 
