@@ -10,6 +10,7 @@ import { executeAction } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
 import { communitySeeds, orgSeeds, seedKey, type SeedAutomation } from './seeds.js';
+import { cronSupported } from './schedule.js';
 import {
   AutomationKindMismatchError,
   InvalidTriggerError,
@@ -96,6 +97,9 @@ function assertAuthorableTriggers(triggers: string[]): void {
   for (const trigger of triggers) {
     if (trigger.startsWith('automation.')) {
       throw new InvalidTriggerError(trigger);
+    }
+    if (trigger.startsWith('schedule:') && !cronSupported(trigger.slice('schedule:'.length))) {
+      throw new InvalidTriggerError(trigger, 'schedule');
     }
   }
 }

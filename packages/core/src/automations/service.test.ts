@@ -677,6 +677,19 @@ describe('AutomationsService CRUD', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it('rejects a schedule the matcher cannot run', async () => {
+    const { svc, repo, append } = build();
+    await expect(
+      svc.create('org-1', {
+        name: 'Every five',
+        triggers: ['schedule:*/5 * * * *'],
+        actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
+      }),
+    ).rejects.toThrow(InvalidTriggerError);
+    expect(repo.insert).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
   it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
     const { svc, repo, append } = build();
     await expect(
