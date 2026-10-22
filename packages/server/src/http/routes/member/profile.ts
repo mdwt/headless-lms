@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { Container } from '../../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { UnauthorizedError } from '../../plugins/auth.js';
 import { ErrorBody, UpdateProfile, UserProfile } from '../../schemas/index.js';
 
@@ -26,10 +25,19 @@ export async function memberProfileRoutes(
     },
     handler: async (req) => {
       const profile = await container.identity.getProfile(req.userId);
-      if (!profile) {
-        throw new NotFoundError('Profile', req.userId);
-      }
-      return profile;
+      return (
+        profile ?? {
+          userId: req.userId,
+          displayName: null,
+          headline: null,
+          bio: null,
+          imageAssetOrgId: null,
+          imageAssetId: null,
+          extra: {},
+          createdAt: new Date(0),
+          updatedAt: new Date(0),
+        }
+      );
     },
   });
 
