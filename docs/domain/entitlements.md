@@ -49,12 +49,12 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 - `entitlement.expired` — emitted by the expiry run. One event per grant whose `expires_at` has passed.
 - `entitlement.ending_soon` — the same run, once per grant per community that grant opens, when the grant enters the seven days before `expires_at`. The data is the grant unchanged plus `communityId`.
 
-The expiry run records every emission in its own ledger, `entitlement_notices`, keyed by grant, kind and community. That is what makes "once" true: a grant is expired once and reminded once per community, however often the run fires and whatever happens to the outbox afterwards. The grant row itself does not change.
+The expiry run records every emission in its own ledger, one record per grant per term for an expiry and one per grant per community per term for a reminder. The term is the grant's expiry date at the time, so a renewed grant is expired and reminded again for its new term. That is what makes "once" true: within a term a grant is expired once and reminded once per community, however often the run fires and whatever happens to the outbox afterwards. Reminders go only for published communities. The grant row itself does not change.
 - `entitlement.space_member.created`
 - `entitlement.space_member.updated`
 - `entitlement.space_member.deleted` — `metadata.previousStatus` is the status the row had. `requested` is a declined request, `invited` a refused invitation, `active` the member leaving.
 
-Grant events carry the full entitlement snapshot; subscribers can tell content types apart from the content reference it carries. Space member events carry the space member row, including the community id. They are specified with the community feature and are not emitted yet.
+Grant events carry the full entitlement snapshot; subscribers can tell content types apart from the content reference it carries. Space member events carry the space member row, including the community id.
 
 ## Relationship to progress
 

@@ -14,6 +14,8 @@ description: Notion-style activity content editing with the content-plate plugin
 
 ## Swapping the editor
 
-The editor is behind `@headless-lms/editor`: an `EditorModule` bundles the client-side `Editor`, an RSC-safe `Renderer`, a `validate` function, and `meta: { type, version }` identifying the content format. Implement the contract and register your module in the frontend to replace Plate entirely — existing content keeps working as long as your module declares the format it can render.
+The editor is behind `@headless-lms/editor`: an `EditorModule` bundles the client-side `Editor`, an RSC-safe `Renderer`, an optional `validate` function, a required `assetIds` function, and `meta: { type, version }` identifying the content format. Implement the contract and register your module in the frontend to replace Plate entirely — existing content keeps working as long as your module declares the format it can render.
+
+`assetIds(config)` is a pure function that returns the ids of the media library files a config shows: every image, video, audio or file node that names a host asset. When an activity is saved, the admin sends these ids as the activity's asset links, together with any links the activity already has that the editor does not manage. The server accepts only ready files from the org's media library and refuses the save, naming the ids, otherwise. A learner is served an activity's file only through its link, so a file the editor shows but `assetIds` leaves out never reaches students. An editor that embeds no host assets returns `[]`. The Plate editor collects every node's `assetId`.
 
 A host that lays out the editing screen itself passes `slots` to the `Editor`: DOM elements for the `toolbar` and the `blocks` library. An editor lists the slots it fills in `EditorModule.slots`, and the admin shows the matching toolbar and Blocks panel only for those.

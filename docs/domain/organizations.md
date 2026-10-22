@@ -82,4 +82,4 @@ The organization is the tenant root. Every org-scoped record across the system b
 
 ## Build state
 
-The four roles owner, admin, instructor and student are built and **persisted**. Moderator is specified with the community feature and is not built yet. The role enum and the auth adapter still list the four.
+The five roles owner, admin, instructor, moderator and student are built and **persisted**. Only an owner or admin manages members: inviting, changing a role, giving or removing the moderator role, and removing someone. No invite or role change makes someone the owner.

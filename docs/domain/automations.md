@@ -15,6 +15,10 @@ The domain owns the automations themselves — what they are, what triggers them
 - **Webhook** — how a webhook automation is managed: its URL, the events it subscribes to, a description, and whether it's enabled. Each webhook has a signing secret, and every delivery is signed with it so the receiving system can verify the delivery came from this system. The webhook holds a reference to the secret, never the secret itself.
 - **AutomationRun** — a record of one automation firing: which automation ran, the event that triggered it, when it started and finished, its outcome, and the result of each action within it. For a webhook, each run is one delivery. This is the audit trail — how a user sees which automations fired, what set them off, when, and whether each step succeeded or failed.
 
+An automation's triggers are events or schedules. A schedule fires at the times a cron expression names, in UTC; one the system cannot match is refused when the automation is saved. A trigger can carry a filter, an equality match on fields of the event, so "a post was published in this community" differs from "a post was published anywhere".
+
+An automation is the org's own or a system one. System automations are seeded for every org and every community and encode what the product does by default: the access emails, the community emails, and the timed work — publishing due posts, expiring due grants, sending the digest, removing member uploads nothing uses. A system automation can be turned off or have its actions changed, and cannot be deleted. Timed work runs only when there is something to do, so an idle schedule leaves no run behind.
+
 The domain stores what an automation is and the history of every time it ran. What it does not hold is the live state of a run still in progress — where a paused drip currently sits, how long is left on its wait — which lives with the execution infrastructure until the run completes and its outcome is recorded here.
 
 ## Capabilities
@@ -23,6 +27,8 @@ The domain stores what an automation is and the history of every time it ran. Wh
 - **Manage a webhook** — create one for a URL and a set of events, change its URL, events or description, and delete it. A webhook may only subscribe to events the system emits. Creating a webhook generates its signing secret; deleting it destroys the secret. A webhook changes only through these capabilities, never as a workflow.
 - **Reveal or rotate a webhook's signing secret** — rotating replaces the secret at once; the old one stops verifying.
 - **Turn one on or off** — an automation only fires while it's enabled.
+- **Grant access** — an action that gives the person the event names access to a content item or bundle. Running it again changes nothing: an active grant keeps the later expiry, a revoked grant stays revoked.
+- **Fire a schedule** — at each matching time, run the automations scheduled for it. A time is run once per automation, and a time missed while the system was down runs late rather than never.
 - **Run the automations bound to an event** — when an event fires, find the enabled automations listening for it and set each running against it. An event runs at most once per automation, however many times it arrives.
 - **Rerun a run** — run a finished run again, with the automation as it is now; its new outcome replaces the previous one. For a webhook, this resends the delivery.
 - **Query run history** — see which automations ran, what triggered them, when, and what happened in each, down to the outcome of individual actions. History outlives the automation.

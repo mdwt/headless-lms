@@ -26,6 +26,12 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 `.env.example` documents every variable and the command that mints a Hatchet token for the local `hatchet` container.
 
+### Member uploads
+
+| Variable                 | Required | Default    | Notes                                                                                                                                                      |
+| ------------------------ | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MEMBER_IMAGE_MAX_BYTES` | no       | `10485760` | The largest image a member may upload (profile photo, post cover, message attachment), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise. |
+
 These commands run across all workspaces:
 
 - `pnpm build` · `pnpm test` · `pnpm lint` · `pnpm typecheck`

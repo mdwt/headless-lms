@@ -95,11 +95,13 @@ Who may do what:
 
 | Operation | Library | Member |
 |---|---|---|
-| Upload | staff, any content type | any org user, `image/*` only, size-capped at confirm |
-| Confirm | staff | the uploader |
+| Upload | staff, any content type | any org user, `image/*` only |
+| Confirm | staff | the uploader only; the file is copied to a key the upload ticket cannot reach, then its stored size and type are checked there |
 | List | staff, the media library | staff, with `source=member` |
-| Serve | through the content a grant covers | through the post, message or profile that references it |
-| Delete | staff, when nothing references it | the uploader, when nothing references it; the hourly sweep |
+| Serve | through the content a grant covers, inline lesson media included; staff by id | through the post, message or profile that references it; never to staff by id |
+| Delete | staff, when nothing references it | the uploader or staff, when nothing references it; the hourly sweep, which also removes stray objects under the uploads prefix once the ticket has expired |
+
+A delete removes the registry row first, so the references decide atomically, and removes the stored object after commit.
 
 ## API changes
 
@@ -108,11 +110,62 @@ Who may do what:
 | `POST /api/uploads` | Body is `{ filename, contentType }`. `kind` is no longer accepted. `uploadedBy` is the staff org user |
 | `GET /api/assets` | Query gains `source`, default `library` |
 | `DELETE /api/assets/:id` | 409 when the asset is referenced |
+| `POST /api/assets/:id/confirm` | 403 for a member upload |
+| `POST /api/assets/:id/download-url` | 403 for a member upload |
+| `POST /api/courses/:courseId/modules/:moduleId/activities`, `PATCH …/activities/:activityId` | 409, naming the ids, when an activity uses a file that is not a ready library file of the org |
 | `POST /api/member/uploads` | `contentType` must match `image/*` |
 | `DELETE /api/member/uploads/:id` | New. The uploader removes their own unreferenced upload |
 | `POST /api/member/assets/:id/url` | Body is a required reference: `{ via: { activity } | { course } | { download } | { community } | { post } | { message } | { profile } }` |
 
-`Asset` gains `source`. `kind` values are `image`, `video`, `audio`, `document`.
+`Asset` gains `source` and no longer carries `key`. `kind` values are `image`, `video`, `audio`, `document`.
+
+## Third pass
+
+Reviewed again on 2026-10-22 against the code at `f6fd57d`. F1, F2, F7 and F9 held. F3, F4, F5, F6, F8 and F10 were only partly done:
+
+- **F3:** a member could re-upload past the size and type check after finalize.
+- **F4:** the sweep opened a run every hour with nothing to do.
+- **F5:** inline lesson media no longer reached students, and staff could sign any member file.
+- **F6:** the directory still exposed a photo id from another org.
+- **F8:** a check-then-delete race remained, and inline media did not count as a reference.
+- **F10:** the docs stated things the code did not do.
+
+The findings were fixed as follows.
+
+| ID | Finding | Decision |
+|---|---|---|
+| F11 | Inline lesson media never reached students. The member URL needs an activity–asset link, and nothing created one for media in the editor content. The same gap let staff delete a file a lesson shows | The editor contract gains `assetIds(config)`; content-plate implements it; the admin save sends the editor's ids; content refuses ids that are not ready library files of the org; migration 0006 links the media already in stored lessons |
+| F12 | The size and type check could be bypassed by re-uploading to the presigned URL after finalize | Finalize copies the upload to a final key the ticket cannot reach |
+| F13 | Confirming a ready asset again deleted the bytes of a referenced file | Confirm acts on pending uploads only |
+| F14 | Check-then-delete race in delete, removeOwn and the sweep | Row first in the unit of work, a foreign-key refusal is a 409, the object after commit |
+| F15 | Staff could sign and confirm any member file by id, DM attachments included | Refused; staff may still delete an unreferenced member file |
+| F16 | The directory returned a photo id from another org | Only the photo uploaded in this org |
+| F17 | The one-hour grace sat in the composition root | In assets core |
+| F18 | Kind was not re-derived from the stored content type | It is |
+| F19 | `confirmAsset` lacked its error response | It documents 403 |
+| F20 | An invalid `MEMBER_IMAGE_MAX_BYTES` disabled the cap, and no template listed it | Validated at startup; in the env templates and the self-hosting docs |
+| F21 | 0004 mapped kind by the old kind | By content type |
+| F22 | reporting/member took a repository and had silent optional stubs | Required deps, the organizations service |
+| F23 | Member responses carried the storage key | No file, upload or download response carries it; the automation run record keeps the full event, which the doc states |
+| F24 | `assets.md` described checks the code did not do | Corrected |
+
+## Fourth pass
+
+The third-pass fixes were verified in the code, and these were found and fixed:
+
+| ID | Finding | Decision |
+|---|---|---|
+| T1 | The size and type could still change between `stat` and `copy` | Copy first, then check the copy |
+| T2 | The ticket kept accepting writes after finalize, leaving objects nothing removed | The storage port can list a prefix; the sweep removes objects under the org's uploads prefix that no row holds once the ticket has expired |
+| T3 | A finalize that failed after the copy orphaned it | The final key is unique per attempt and removed when marking ready fails |
+| T4 | Two finalizes at once returned 500 or a stale row | A failed copy re-reads the row |
+| T5 | A dangling inline id blocked every save with a message naming nothing | The conflict names the ids and the builder shows it |
+| T6 | A file deleted during a save made the link insert a 500 | A 409 naming the file |
+| T7 | The editor contract docs omitted `assetIds` | Documented |
+| T8 | `assets.md` said no API response carries the key | It names the run record |
+| T9 | A programmatic image cap was not validated | The assets service refuses it |
+
+Open, for the next run: two concurrent finalizes of one upload with a re-upload in between can refuse the new bytes and delete the row the other made ready (OP5 in `docs/community-code-review.md`).
 
 ## Tracking
 
@@ -120,11 +173,14 @@ Who may do what:
 |---|---|---|
 | F1 | `kind` is the media class, `source` is the origin | completed |
 | F2 | `uploaded_by` is the org user for every asset | completed |
-| F3 | Member uploads are images with a size cap | completed |
-| F4 | Member files can be deleted and are swept | completed |
-| F5 | Serve through the reference | completed |
-| F6 | Profile photo stays in its org | completed |
+| F3 | Member uploads are images with a size cap | completed in the third and fourth pass (F12, T1) |
+| F4 | Member files can be deleted and are swept | completed in the third and fourth pass (F14, T2) |
+| F5 | Serve through the reference | completed in the third pass (F11, F15) |
+| F6 | Profile photo stays in its org | completed in the third pass (F16) |
 | F7 | Library list defaults to library source | completed |
-| F8 | Referenced assets refuse deletion before storage is touched | completed |
+| F8 | Referenced assets refuse deletion before storage is touched | completed in the third pass (F11, F14) |
 | F9 | Storage key stripped from public events | completed |
-| F10 | Docs rewritten | completed |
+| F10 | Docs rewritten | completed in the third and fourth pass (F24, T7, T8) |
+| F11–F24 | Third pass | completed |
+| T1–T9 | Fourth pass | completed |
+| OP5 | Concurrent finalize with a re-upload | open |

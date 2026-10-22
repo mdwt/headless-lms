@@ -696,52 +696,233 @@ Decisions taken for the items that were still open:
 - **D4 and D5.** `visiblePost` is gone; the discussion service asks the post service, and the post service checks the loaded space once.
 - **D9 and D11.** The member message-queue route is deleted. The per-community welcome and membership-ended seeds are org-wide.
 
+## Third pass
+
+Reviewed again on 2026-10-22 against the code at `f6fd57d`. Six reviewers read every tracked item in the code and traced its failure scenario, and swept the spec, the exploration and the domain docs line by line. The second pass had closed most items, but not all of them:
+
+- **Not fixed:** E5. The topic swap wrote a temporary name containing a NUL byte, which Postgres text rejects, so every topic edit that kept a topic failed.
+- **Partly fixed:**
+  - A1: the composition root still held pagination, the published filter, staff ∪ moderators, a name fallback and the upload grace window.
+  - A2: the notice ledger was keyed per grant, so a renewed grant was never expired or reminded again, and the hourly select scanned every grant that ever expired.
+  - A7: new comments were added elsewhere on the branch.
+  - D1: the analytics `>=` boundary and a Drizzle copy of the opens rule remained.
+  - D5: entitlements still loaded the space twice.
+  - D6: `openSpaceNames` still listed spaces twice, and `memberCommunityTitles` still made one read per community.
+  - S1: any staff role could promote a student to owner, because the student path skipped `manage_users`.
+  - S3: `resolveFlags` still accepted `removed`.
+  - S4: `getMessage` still served a lapsed participant.
+- **Regression:** C1 below. Staff could no longer delete a flagged message in a chat they were not in.
+
+The third pass also found new defects. The tables below list every one, with the decision taken.
+
+### Organizations
+
+| ID | Finding | Decision |
+|---|---|---|
+| O1 | Promoting a student called Better Auth server-side with no permission check; any staff role could make a student owner or admin | Core checks `manage_users` on the actor for every role change, invite and member removal; no role change or invite grants `owner` |
+| O2 | A moderator could not be made a student again | Changing a moderator to student removes the membership and keeps the org user as a student |
+| O3 | `organization.user.updated` had no actor | The role route records the actor on the mirror event |
+| O4 | The admin app had no way to give a student the moderator role | Students list: Make moderator. Team list: Remove moderator role |
+
+### Chats
+
+| ID | Finding | Decision |
+|---|---|---|
+| C1 | Staff could not delete a flagged message in a chat they were not in, or in a locked chat | The writable-chat guard applies to the author only |
+| C2 | A DM request started without a body could never carry a message; attachments without a body were dropped | A request is started with its message; while pending the creator cannot send |
+| C3 | `getMessage` served a lapsed participant and the attachments of a deleted message | Grant check for non-staff; a deleted message carries no attachments for non-staff |
+| C4 | One lapsed member stopped every send in a group | Lapsed members are skipped in a group; a DM still refuses |
+| C5 | Adding a person checked every pair already in the group | Only the new person against each active participant, in one query |
+| C6 | Rejoining a DM committed before the send was checked; a DM rejoin emitted `chat.participant.added` | Send rule first, one transaction; a DM rejoin emits `chat.updated` |
+| C7 | Staff DMs became message requests | A request only between two people who are not staff |
+| C8 | Flagging a message twice returned 409 | Returns the existing flag, emits nothing |
+| C9 | Resolving message flags could record `deleted` or `locked` without acting | The resolve route accepts `dismissed` only |
+| C10 | "Muted until unmuted" could not be expressed | A mute is `null` or `{ until }`, `until: null` meaning until unmuted; `'infinity'` stays in the adapter |
+| C11 | The message queue did not serve the chat | Each entry carries the message, its flags, the chat and its participants |
+
+### Posts and comments
+
+| ID | Finding | Decision |
+|---|---|---|
+| P1 | Removing a draft and restoring it published a post the author never submitted | Only a published or pending post can be removed |
+| P2 | An author removing their own post resolved the flags against them | Flags are resolved by a moderator's or staff's removal only |
+| P3 | Comments were accepted on unpublished posts and emailed to followers | Comment only on a published post |
+| P4 | Publish due posts ignored whether the author could still open the space and the topic rule | Same checks as submit; a refused post goes back to draft |
+| P5 | Submit skipped the topic rule | Submit checks it |
+| P6 | Staff and moderators could read members' drafts and scheduled posts | Author only |
+| P7 | Post routes ignored `:communityId` | Core refuses a space of another community |
+| P8 | Flagging a post twice returned 409 | Returns the existing flag |
+| P9 | Resolving post flags accepted `removed` | `dismissed` only |
+| P10 | No saved list and no own-posts list | `GET …/own-posts` and `GET …/bookmarks` |
+| P11 | Feeds paged by offset | Keyset cursor on `(pinned, published_at, id)`; a malformed cursor is a 400 |
+| P12 | Moderators could not dismiss comment flags | `DELETE /api/member/comments/:commentId/reports` |
+| P13 | Authors and senders carried no profile | One author view (display name, headline, photo in this org only) for comments, posts and messages |
+
+### Entitlements
+
+| ID | Finding | Decision |
+|---|---|---|
+| N1 | Notices keyed per grant silenced a renewed grant; `''` meant "no community"; check-then-insert could emit twice; the select scanned every expired grant | Two notice tables keyed per term, claimed by one insert that copies the term in SQL and re-checks the due predicate |
+| N2 | The first run after deploy would emit `entitlement.expired` for every grant that ever expired | The migration records an expiry notice for every grant already expired |
+| N3 | Four different expiry boundaries | One predicate and its negation everywhere, the admin app included |
+| N4 | `communitiesOpenedBy` copied the opens rule | Built on the shared rule |
+| N5 | The community-member rule lived in four places | One SQL answer, used by every caller and the directory |
+| N6 | `openSpaceIds` re-implemented `canOpen` | One pure space-open rule |
+| N7 | `listSpaceMembers` loaded the space twice | Once |
+| N8 | Capacity counted members whose grant lapsed | Counts holders of the published community |
+| N9 | Space-member transitions were not conditional | Row lock and status check inside the transaction |
+| N10 | Approve did not check the requester's grant | It does |
+| N11 | An unpublished community was usable by grant holders | Closed to everyone but staff, moderators included |
+| N12 | The grant-access action overwrote expiry, reactivated revoked grants and re-emitted `created` | Idempotent: create, extend to the later expiry, or leave a revoked grant |
+| N13 | Changing a space's access rule left rows that still acted | Requests only in by-request, invitations only in by-invite, rows ignored in all-members |
+
+### Automations
+
+| ID | Finding | Decision |
+|---|---|---|
+| M1 | Webhooks for `message.sent`, `message.deleted`, `message.reported` and `community.updated` failed on every delivery: `omit` on a strict schema rejected the omitted key | Every public schema strips; a catalog test parses a full row through every event |
+| M2 | A request DM sent Message request and New message | New message skips a request |
+| M3 | Lapsed or removed members kept receiving excerpts | Recipients filtered through entitlements |
+| M4 | The inline engine forgot slots missed while down | On start it fires the latest missed slot within a day; run dedupe stops repeats |
+| M5 | A Hatchet outage turned committed automation writes into 500s | Reconcile after commit, logged; periodic reconcile |
+| M6 | Inline and Hatchet read day-of-month with day-of-week differently | Standard cron OR |
+| M7 | Hourly schedules opened a run with nothing to do | Every timed action checks for work first |
+| M8 | Concurrent seeding failed on the unique index | Insert on conflict do nothing |
+| M9 | The 0005 dedupe kept both rows on a timestamp tie | Tie-break on id |
+| M10 | The digest template lacks the spec's params | Open: the digest is silenced until the email-preference decision |
+
+### Content
+
+| ID | Finding | Decision |
+|---|---|---|
+| K1 | Topic edits failed (NUL temporary name) and ran outside a transaction | One transaction under the space lock; the name constraint is deferred to commit |
+| K2 | Removing a referenced topic returned 500 | Conflict before anything is written |
+| K3 | The staff space route checked the community in the transport | Core reads a space of the community |
+| K4 | `space.updated` from a cascade had no actor | It carries the actor |
+| K5 | The digest's published filter lived in the composition root | Content lists published community ids |
+| K6 | Community created and deleted published DM settings | All three community events strip settings |
+
+### Integration
+
+| ID | Finding | Decision |
+|---|---|---|
+| X1 | The composition root's mail layer held rules (A1, D6) | A mapping only; each rule moved to its context |
+| X2 | Message senders had no profile (P13) | Sender view from the shared author projection |
+| X3 | The moderator rule was repeated as `isStaffRole(r) \|\| r === 'moderator'` | `canModerate` from the authorization matrix |
+| X4 | The SDK did not export Communities, Posts, Chats and Profile | Exported |
+| X5 | The import boundary lint listed internal files by name and missed the new ones | Any deep import into another context is refused |
+| X6 | A member route imported the server package from inside the server | Relative import |
+| X7 | Comments added on the branch (A7) | Removed |
+| X8 | Stale docs: build state, ownership, route prefixes, event and migration lines | Corrected |
+| X10 | OpenAPI, SDK and API docs | Regenerated; an orphaned API page removed |
+
+## Fourth pass
+
+Three reviewers verified the third-pass fixes against the code. Every item held, and they found the following, which were fixed:
+
+| ID | Finding | Decision |
+|---|---|---|
+| Q1 | Blocking. `DELETE /api/students/:id` deleted any org user, admins included, for any staff role; resending a student invite skipped `manage_users` | Both require `manage_users`; the delete takes students only; a person who has written gets a 409, not a 500 |
+| Q2 | The actor for the mirror event sat in a shared map and was misattributed under concurrency | An async-local scope around the Better Auth call |
+| Q3 | Demoting a moderator was two Better Auth calls with no recovery | One call; the mirror keeps the person as a student in one transaction; a promotion that does not take effect is refused |
+| R1 | A request started without a body never notified its message; concurrent creator sends both passed | A request needs its message; the creator cannot send while it is pending |
+| R2 | The "until unmuted" wire value was year 275760, not RFC 3339; `until: null` meant 1970 | The mute shape above; explicit null refused |
+| R3 | A blocked person could write into a DM the blocker had left | The pair is checked in a DM whether or not the other person left |
+| R4 | New message decided "request" when the email was derived, not when the message was stored | `message.sent` carries `metadata.chatStatus` |
+| G1 | 0006 carried old notices onto a renewed grant's term | Only current-term reminders carry over |
+| G2 | A database that applied an earlier draft of 0003/0004 kept the placeholder resolver, the old check and old kinds | 0006 converges them |
+| G3, G4 | The notice key lost microseconds; an expiry could race a renewal | One-statement claim (see N1) |
+| G5 | The membership rule existed in TypeScript and SQL | SQL only |
+| G6 | Remove worked in an all-members space | Refused |
+| G7 | Home member counts disagreed with capacity | Same rule |
+| G8 | Two expiry boundary copies remained | Shared predicate |
+| G9 | `communityModeratorIds` had no test | Tested |
+| G10 | `hasDue` loaded every due post | An exists query |
+| T1–T9 | Assets: size check race at finalize, stray uploads after the ticket, orphaned copies, double finalize, dangling inline ids, the library check race, editor contract docs, the run record key, the cap validation | See `docs/assets-review.md` |
+
+The fourth pass also found that the space-member subquery inside the batched access read compared unqualified columns. As a result, a person was never seen as active in a by-request or by-invite space. It is fixed, and a test pins the SQL.
+
+Verification after the fourth pass:
+
+| Check | Result |
+|---|---|
+| `pnpm typecheck` | passes, every package and both apps |
+| `pnpm lint` | passes |
+| `pnpm test` | 84 files, 944 tests, all pass |
+| Migrations | 0003–0006 applied in Postgres 17 to a database built from `main`'s 0000–0002 and seeded with resolved reports, inline lesson media, expired, renewed and expiring grants, and old-draft rows: legacy flags keep a null resolver, kinds follow content type, inline media is linked in document order, only current-term notices exist, nine system automations per org, the topic constraint is deferred |
+| Schema drift | `drizzle-kit generate` reports no changes |
+| Contract | OpenAPI regenerated from the route schemas; SDK and API docs regenerated from it |
+
+## Open
+
+These are not fixed. Each needs a decision or work outside this branch, and the next review run should pick them up.
+
+| ID | Item | Why it is open |
+|---|---|---|
+| OP1 | An author cannot discard their own draft or scheduled post. P1 stops removal of unpublished posts so a restore cannot publish them, and the spec has no discard operation | Product decision: hard delete of an unpublished post by its author, or a removal that restore refuses to publish |
+| OP2 | Unblocking a closed DM sets it to `open` (spec), so a request that was blocked opens without acceptance. The exploration says nothing can be sent until the recipient accepts | Needs the acceptance recorded on the chat (for example `accepted_at`) and the spec line changed; a spec decision |
+| OP3 | M10: the digest template has none of the spec's params | Waits on the deferred email-preference decision, as the spec says |
+| OP4 | No repository or migration test runs against a real Postgres in CI. SQL is pinned by capture tests against a fake client; the migrations were verified by hand in this review | Needs a Postgres test harness for `adapters/db` |
+| OP5 | Two concurrent finalizes of one member upload with a re-upload in between can refuse the new bytes and delete the row the other just made ready | Narrow race; needs a row lock across finalize |
+| OP6 | The deferred topic name constraint is not expressible in the Drizzle schema, so `db:push` builds a database without it | A Drizzle limitation; migrations are the supported path |
+
 ## Tracking
 
 | ID | Title | Status |
 |---|---|---|
-| B1 | Migration aborts on resolved reports | completed |
+| B1 | Migration aborts on resolved reports | completed (third pass: legacy resolver is null, not a placeholder id) |
 | B2 | Asset ids unchecked at write time | completed |
 | B3 | No seed backfill for existing orgs | completed |
 | B4 | No member upload route | completed |
-| S1 | Student cannot become moderator | completed |
-| S2 | Message request blocks the wrong side | completed |
-| S3 | Moderation actions leave flags open | completed |
-| S4 | Lapsed member can still chat | completed |
-| S5 | `startDirect` drops the body | completed |
-| S6 | Schedule loop and cron matcher | completed |
+| S1 | Student cannot become moderator | completed in the third pass (O1, O4) |
+| S2 | Message request blocks the wrong side | completed (third and fourth pass: C2, R1) |
+| S3 | Moderation actions leave flags open | completed in the third pass (P2, P9, C9) |
+| S4 | Lapsed member can still chat | completed in the third pass (C3) |
+| S5 | `startDirect` drops the body | completed (third pass: C6) |
+| S6 | Schedule loop and cron matcher | completed (third pass: M4–M6) |
 | S7 | `editMessage` ignores lock | completed |
 | S8 | `listSpaceMembers` leaks moderation state | completed |
-| S9 | Digest for draft communities | completed |
-| A1 | Read layer in composition root | completed |
-| A2 | Outbox as ledger | completed |
+| S9 | Digest for draft communities | completed (third pass: K5) |
+| A1 | Read layer in composition root | completed in the third pass (X1) |
+| A2 | Outbox as ledger | completed in the third and fourth pass (N1, N2, G1–G4) |
 | A3 | `contentId` overloaded on `ending_soon` | completed |
-| A4 | Optional deps with silent stubs | completed |
+| A4 | Optional deps with silent stubs | completed (third pass: F22) |
 | A5 | Timer in core | completed |
-| A6 | Space-open rule in SQL | completed |
-| A7 | Comments in code | completed |
-| D1 | Four grant-covers implementations | completed |
+| A6 | Space-open rule in SQL | completed (third pass: N6) |
+| A7 | Comments in code | completed in the third pass (X7) |
+| D1 | Four grant-covers implementations | completed in the third pass (N3, N4) |
 | D2 | Hardcoded staff list in SQL | completed |
 | D3 | `postComments` duplicates threading | completed |
 | D4 | `visiblePost` duplicates `loadVisible` | completed |
-| D5 | Double `getSpace` | completed |
-| D6 | N+1 in mail reads and `send` | completed |
+| D5 | Double `getSpace` | completed in the third pass (N7) |
+| D6 | N+1 in mail reads and `send` | completed in the third pass (X1, C5) |
 | D7 | `recentRecipients` filters in JS | completed |
 | D8 | `listSchedules` loads every automation | completed |
-| D9 | Duplicate message-queue route | completed |
+| D9 | Duplicate message-queue route | completed (third pass: orphaned API page removed) |
 | D10 | `filterMatches` twice | completed |
 | D11 | Unfiltered per-community seeds | completed |
 | E1 | Leave DM dead end | completed |
-| E2 | Restore always publishes | completed |
+| E2 | Restore always publishes | completed (third pass: P1) |
 | E3 | Schedule from pending | completed |
-| E4 | Seed duplicates on redelivery | completed |
-| E5 | Topic rename swap | completed |
-| E6 | Decorative `:communityId` | completed |
+| E4 | Seed duplicates on redelivery | completed in the third pass (M8, M9) |
+| E5 | Topic rename swap | completed in the third pass (K1) |
+| E6 | Decorative `:communityId` | completed (third pass: P7, K3) |
 | E7 | Profile GET 404 | completed |
 | E8 | Raw ISO date in email | completed |
 | E9 | One missing email fails audience | completed |
-| E10 | Minute cron writes runs and events | completed |
+| E10 | Minute cron writes runs and events | completed in the third pass (M7) |
 | E11 | Settings delete placement vs spec | completed |
 | T1 | Lint failure | completed |
 | T2 | Test title inverted | completed |
 | T3 | `CommentEvent` misnamed | completed |
+| O1–O4 | Third pass, organizations | completed |
+| C1–C11 | Third pass, chats | completed |
+| P1–P13 | Third pass, posts and comments | completed |
+| N1–N13 | Third pass, entitlements | completed |
+| M1–M9 | Third pass, automations | completed |
+| M10 | Digest template params | open (OP3) |
+| K1–K6 | Third pass, content | completed |
+| X1–X8, X10 | Third pass, integration | completed |
+| X9 | DB-level tests | open (OP4) |
+| Q1–Q3, R1–R4, G1–G10, T1–T9 | Fourth pass | completed |
+| OP1–OP6 | Open items | open, for the next review run |

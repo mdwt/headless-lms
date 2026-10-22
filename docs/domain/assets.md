@@ -15,7 +15,7 @@ A file enters the registry from one of two places, and the `source` of an asset 
 
 **Library.** Staff put files in the org's media library: a course video, an inline image, a download product's files, a course or community thumbnail. The file belongs to the org. A member reaches it only through content a grant covers: the activity that links it, the download that lists it, the course or community whose thumbnail it is.
 
-**Member.** A person uploads a file of their own: a profile photo, a post cover, a message attachment. The file belongs to that person. Only they can finalize it, attach it, or delete it. Who may see it follows the thing it is attached to.
+**Member.** A person uploads a file of their own: a profile photo, a post cover, a message attachment. The file belongs to that person. Only they can finalize it or attach it. While nothing references it, they or staff may delete it. Who may see it follows the thing it is attached to.
 
 Both sources share the registry row, the storage key, the presigned upload and download, the pending-to-ready lifecycle, and the deletion rule. They differ in who may upload, what is allowed, who owns the file, where it is listed, how it is served, and how it dies.
 
@@ -25,8 +25,8 @@ Both sources share the registry row, the storage key, the presigned upload and d
 | What is allowed | any content type | images only, size-capped when finalized |
 | Who owns it | the org; `uploaded_by` records the staff org user | the uploading org user |
 | Where it is listed | the media library | `source=member` in the library, never by default |
-| How it is served | through the content a grant covers | through the profile, post or message it is attached to |
-| Who deletes it | staff, when nothing references it | the uploader, when nothing references it; the hourly sweep |
+| How it is served | to staff by id; to a member through the content a grant covers | through the profile, post or message it is attached to, never by id |
+| Who deletes it | staff, when nothing references it | the uploader or staff, when nothing references it; the hourly sweep |
 
 ## Model
 
@@ -46,12 +46,12 @@ Both sources share the registry row, the storage key, the presigned upload and d
 ## Capabilities
 
 - **Request an upload** — register a pending asset and hand back a short-lived upload link. Staff register library files. Any org user registers a member file, which must be an image.
-- **Confirm an upload** — once the client has uploaded, read the object's real size and content type from storage and mark the asset ready. A member file whose stored bytes are not an image, or are over the configured limit, is discarded instead and the caller is told why. Only the uploader confirms a member file.
-- **Serve** — hand back a short-lived download link. Staff serve any library file. A member is served a file through a reference, after the owning domain has said the member may see the thing referenced and that it references this asset.
+- **Confirm an upload** — once the client has uploaded, read the stored object's size and content type from storage and mark the asset ready. The content type is the one stored with the object; the bytes are not inspected. The media class is derived again from it. A member file is first copied to a location its upload link does not reach, and its size and content type are read from that copy, so the upload cannot be replaced between the check and the move. A member file whose stored content type is not an image, or whose size is over the configured limit, is discarded instead, the upload and the copy both, and the caller is told why. Only the uploader confirms a member file; staff confirm library files. Only a pending asset is confirmed; confirming a ready one changes nothing, and two confirms of the same upload at once leave one ready file.
+- **Serve** — hand back a short-lived download link. Staff serve any library file by id, and no member file. A member file, and a library file asked for by a member, is served only through a reference, after the owning domain has said the caller may see the thing referenced and that it references this asset.
 - **Browse the library** — list and read assets, scoped to the org. The list is the library unless `source=member` is asked for.
-- **Remove an asset** — delete both the stored object and its registry entry. An asset still referenced by content, a post, a message or a profile cannot be removed; the request is refused before storage is touched. Nothing that removes the referencing record removes the asset.
-- **Remove own upload** — the uploader removes their own member file while nothing references it.
-- **Sweep unattached uploads** — a system automation runs hourly and removes member files older than an hour that nothing references.
+- **Remove an asset** — delete the registry entry, then the stored object. An asset still referenced by content, a post, a message or a profile cannot be removed: the references refuse the delete, and storage is not touched. Nothing that removes the referencing record removes the asset.
+- **Remove own upload** — the uploader removes their own member file while nothing references it. Staff may remove it too, under the same rule.
+- **Sweep unattached uploads** — a system automation runs hourly and removes member files older than an hour that nothing references. The hour is the assets domain's rule. A file attached while the sweep runs is kept. An upload link keeps working until it expires, even after its upload is confirmed or refused, so the sweep also removes any object in the org's member upload location that no asset holds and that was last written longer ago than an upload link lives.
 
 ## Boundaries
 
@@ -64,7 +64,7 @@ Both sources share the registry row, the storage key, the presigned upload and d
 
 ## Events
 
-- `asset.created`, `asset.ready`, `asset.deleted` — the asset row without its storage key. The key is internal and never leaves the system.
+- `asset.created`, `asset.ready`, `asset.deleted` — the asset row. The storage key is internal: no file, upload or download response carries it, and a webhook receives the event without it. The automation run record is the one place it appears: a run keeps the event that triggered it in full, key included, and staff can read run records through the API.
 
 ## Build state
 

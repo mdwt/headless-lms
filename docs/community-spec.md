@@ -119,7 +119,7 @@ This section lists every term used in this document with the context that owns i
 
 ## Data model
 
-This section specifies the database tables. The feature adds eighteen tables, changes `content_items`, `comments` and `assets`, renames `comment_reports`, and adds columns on `automations`. The `entitlements` table does not change. The section has two parts. Part 1 covers the structure of a community and access to it, in the content, organizations, entitlements and identity contexts. Part 2 covers what members write, in the discussion context. Each part starts with a diagram. Each table then has a description of its purpose and the SQL that creates it.
+This section specifies the database tables. The feature adds twenty tables, changes `content_items`, `comments` and `assets`, renames `comment_reports`, and adds columns on `automations`. The `entitlements` table does not change. The section has two parts. Part 1 covers the structure of a community and access to it, in the content, organizations, entitlements and identity contexts. Part 2 covers what members write, in the discussion context. Each part starts with a diagram. Each table then has a description of its purpose and the SQL that creates it.
 
 All tables follow the conventions of the existing schema in `adapters/db/src/schema`. Every row carries `org_id`, and the primary key is `(org_id, id)`. Ids are text values made of a prefix and a KSUID, for example `spc_2HkY…`. Every table has `created_at` and `updated_at`. Enum columns are `text`; the allowed values are enforced in application code and are listed in a comment in the SQL. Foreign keys between org-owned tables include `org_id` on both sides. A foreign key cascades on delete where the child row is part of the parent. It does not cascade where it references a row owned by another context, such as a file in assets. There is no soft delete: a removed post keeps its row with status `removed`, as a removed comment does today.
 
@@ -213,7 +213,7 @@ create index spaces_order_idx on spaces (org_id, community_id, seq);
 
 #### space\_topics
 
-The `space_topics` table holds the topics defined on a space. Where a space defines topics, each post in that space carries one, and the space feed can be filtered by topic. A space without topics has posts without a topic. Topics are deleted with their space.
+The `space_topics` table holds the topics defined on a space. Where a space defines topics, each post in that space carries one, and the space feed can be filtered by topic. A space without topics has posts without a topic. Topics are deleted with their space. Setting a space's topics replaces the list in one transaction under a lock on the space; a topic a post still references is refused with a conflict before anything is written. The name constraint is checked at commit, so two topics can exchange names in one write.
 
 ```sql
 create table space_topics (
@@ -225,7 +225,7 @@ create table space_topics (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   primary key (org_id, id),
-  unique (org_id, space_id, name),
+  unique (org_id, space_id, name) deferrable initially deferred,
   unique (org_id, space_id, id),
   foreign key (org_id, space_id) references spaces(org_id, id) on delete cascade
 );
@@ -269,9 +269,9 @@ Two lookups are extended for the new content type: the title lookup in the entit
 
 The `space_members` table holds a person's place in one space. It exists only for a `by_request` or `by_invite` space, and it is checked on top of the grant to the community, never instead of it. An `all_members` space has no space members; the grant to the community is enough. The row carries `community_id` so a community's automations can filter on it.
 
-A request to join creates a row with status `requested`. Approval sets it to `active`. An invitation creates a row with status `invited`. Acceptance sets it to `active`. Declining a request, refusing an invitation, and leaving a space delete the row. Removal by staff or a moderator sets it to `revoked`. The `source` column records how the row was made: `request`, `invite`, or `manual`.
+A request to join creates a row with status `requested`. Approval sets it to `active`. An invitation creates a row with status `invited`. Acceptance sets it to `active`. Declining a request, refusing an invitation, and leaving a space delete the row. Removal by staff or a moderator sets it to `revoked`. The `source` column records how the row was made: `request`, `invite`, or `manual`. Requests and approvals happen only in a `by_request` space, invitations and acceptances only in a `by_invite` space; in an `all_members` space the rows are ignored. Every transition locks the row inside its transaction and checks the status there, so a decline cannot delete a row an approval has just made active, and a second approval is refused. Approval requires the requester to still hold a grant to the community.
 
-Capacity is not stored as a count. On approval or acceptance, entitlements asks content to lock the space row in the same transaction, counts the space's rows with status `active`, and rejects the operation when the count equals the capacity. Entitlements does not update the `spaces` table.
+Capacity is not stored as a count. On approval or acceptance, entitlements asks content to lock the space row in the same transaction, counts the space's rows with status `active` whose holder still holds an active grant to the community, and rejects the operation when the count equals the capacity. A member whose grant lapsed frees their seat without their row changing. Entitlements does not update the `spaces` table.
 
 ```sql
 create table space_members (
@@ -294,9 +294,35 @@ create index space_members_space_idx on space_members (org_id, space_id, status)
 create index space_members_community_idx on space_members (org_id, community_id);
 ```
 
+#### entitlement\_expiry\_notices, entitlement\_ending\_soon\_notices
+
+These two tables record that the expiry run has emitted an event, so each emission happens once. `entitlement_expiry_notices` holds one row per grant per term when `entitlement.expired` is emitted. `entitlement_ending_soon_notices` holds one row per grant per community per term when `entitlement.ending_soon` is emitted. The term is the grant's `expires_at` at the time: a renewed grant has a new `expires_at`, so it is expired and reminded again. The run claims a row with an insert that does nothing on conflict and emits the event only when the insert wrote the row, in the same transaction as the outbox append. The grant row does not change.
+
+```sql
+create table entitlement_expiry_notices (
+  org_id          text not null references organizations(id),
+  entitlement_id  text not null,
+  expires_at      timestamptz not null,
+  notified_at     timestamptz not null default now(),
+  primary key (org_id, entitlement_id, expires_at),
+  foreign key (org_id, entitlement_id) references entitlements(org_id, id) on delete cascade
+);
+
+create table entitlement_ending_soon_notices (
+  org_id          text not null references organizations(id),
+  entitlement_id  text not null,
+  community_id    text not null,
+  expires_at      timestamptz not null,
+  notified_at     timestamptz not null default now(),
+  primary key (org_id, entitlement_id, community_id, expires_at),
+  foreign key (org_id, entitlement_id) references entitlements(org_id, id) on delete cascade,
+  foreign key (org_id, community_id) references communities(org_id, id) on delete cascade
+);
+```
+
 #### user\_profiles
 
-The `user_profiles` table holds the profile other members see. The `users` table holds a first name, a last name and an email, and the avatar comes from the Better Auth user record. This table adds a display name, a headline, a bio, a profile photo, and an `extra` JSON column for fields the application defines that are not files. It is global like `users`: one profile per person, so it carries no `org_id`. The photo is an asset. Both asset columns are null, or both are set, and the foreign key does not cascade. The query that loads comment authors is extended with these columns and is reused for post authors, message senders and the directory.
+The `user_profiles` table holds the profile other members see. The `users` table holds a first name, a last name and an email, and the avatar comes from the Better Auth user record. This table adds a display name, a headline, a bio, a profile photo, and an `extra` JSON column for fields the application defines that are not files. It is global like `users`: one profile per person, so it carries no `org_id`. The photo is an asset. Both asset columns are null, or both are set, and the foreign key does not cascade. The query that loads comment authors is extended with these columns and is reused for post authors, message senders and the directory. An author view carries the display name, falling back to first and last name, the headline, and the photo only when the photo was uploaded in the org being served.
 
 ```sql
 create table user_profiles (
@@ -340,19 +366,20 @@ alter table comments add constraint comments_community_check
 create index comments_post_idx on comments (org_id, post_id, status, created_at);
 ```
 
-The `comment_reports` table is renamed to `comment_flags`. It gains a `resolution` column with the values `dismissed` and `removed`, set together with `resolved_at`, and a `resolved_by` column holding the moderator's org user id. The id prefix `crp` does not change. The `comment_reactions` table does not change.
+The `comment_reports` table is renamed to `comment_flags`. It gains a `resolution` column with the values `dismissed` and `removed`, set together with `resolved_at`, and a `resolved_by` column holding the moderator's org user id. A report resolved before this feature did not record who resolved it: the migration sets its resolution to `dismissed` and leaves `resolved_by` null. Every resolution made from now on sets all three. The id prefix `crp` does not change. The `comment_reactions` table does not change.
 
 ```sql
 alter table comment_reports rename to comment_flags;
 alter table comment_flags add column resolution text;        -- dismissed | removed
 alter table comment_flags add column resolved_by text;
+update comment_flags set resolution = 'dismissed' where resolved_at is not null;
 alter table comment_flags add constraint comment_flags_resolved_check
-  check ((resolved_at is null) = (resolution is null) and (resolved_at is null) = (resolved_by is null));
+  check ((resolved_at is null) = (resolution is null) and (resolved_by is null or resolved_at is not null));
 ```
 
 #### posts
 
-The `posts` table holds one row per post. A post has an author, a space, the community that space belongs to, a title, a body, an optional topic and a status. `community_id` is stored on the row, the same way an activity stores `course_id`, so an event that carries the row can be filtered on it. The status values are `draft`, `scheduled`, `pending`, `published` and `removed`. `pending` means awaiting review; it is the value `comments.status` uses for the same state. A post moves from `draft` or `scheduled` to `pending` when the space requires review and the author is not staff, and to `published` otherwise. Staff or a moderator move a published post to `removed`.
+The `posts` table holds one row per post. A post has an author, a space, the community that space belongs to, a title, a body, an optional topic and a status. `community_id` is stored on the row, the same way an activity stores `course_id`, so an event that carries the row can be filtered on it. The status values are `draft`, `scheduled`, `pending`, `published` and `removed`. `pending` means awaiting review; it is the value `comments.status` uses for the same state. A post moves from `draft` or `scheduled` to `pending` when the space requires review and the author is not staff, and to `published` otherwise. A post is submitted only with a topic its space allows. The author, staff or a moderator move a published or pending post to `removed`; restoring it applies the space's review rule again. A draft or scheduled post is seen by its author only; moderators and staff see pending, published and removed posts. A comment is accepted only on a published post. When the Publish due posts automation finds that the author can no longer open the space or the topic no longer fits it, the post goes back to `draft` with `discussion.post.updated`.
 
 `comments_closed` and `reactions_enabled` are nullable. Null means the space default applies. `pinned` is a boolean. The cover is `cover_asset_id`, a non-cascading foreign key to assets, the same shape as a course thumbnail. The `extra` column holds application-defined fields that are not files. A post's topic is a topic of its own space. The foreign key includes `space_id`, and it does not cascade: a topic cannot be deleted while a post references it. A removed post keeps its row and its comments. The author foreign key does not cascade.
 
@@ -431,11 +458,12 @@ create table post_bookmarks (
   foreign key (org_id, post_id)     references posts(org_id, id)     on delete cascade,
   foreign key (org_id, org_user_id) references org_users(org_id, id) on delete cascade
 );
+create index post_bookmarks_user_idx on post_bookmarks (org_id, org_user_id, created_at);
 ```
 
 #### post\_flags
 
-The `post_flags` table holds flags on posts and has the same shape as `comment_flags`. A person can flag a post once. A flag is open until a moderator resolves it, and the resolution is recorded on the row. The moderation queue of a space consists of the open rows in `post_flags` and `comment_flags` for that space's posts.
+The `post_flags` table holds flags on posts and has the same shape as `comment_flags`. A person can flag a post once; flagging it again returns the existing flag and emits nothing. A flag is open until a moderator acts on the item: removing the post resolves its open flags as `removed` when staff or a moderator removes it, and dismissing is the only resolution made without acting on the item. An author who removes their own post leaves its flags open. The resolution is recorded on the row. The same rules hold for comment flags. The moderation queue of a space consists of the open rows in `post_flags` and `comment_flags` for that space's posts.
 
 ```sql
 create table post_flags (
@@ -465,9 +493,9 @@ The `chats` table holds one row per chat. A chat belongs to a community and is d
 
 ![Chat model](diagrams/chat-model.png)
 
-`org_id` is the tenant. `community_id` is the boundary inside it. Every chat table carries both. Two people have at most one DM inside one community. The same pair in another community of that org is a different chat. The service enforces the rule; no constraint does. Starting a DM takes an advisory lock on the community id and the two org user ids in sorted order, then looks for an existing chat of kind `direct` in that community whose `chat_users` rows are exactly these two people, inside the transaction that would create the new one. If one exists it is returned; otherwise the chat and its two `chat_users` rows are created.
+`org_id` is the tenant. `community_id` is the boundary inside it. Every chat table carries both. Two people have at most one DM inside one community. The same pair in another community of that org is a different chat. The service enforces the rule; no constraint does. Starting a DM takes an advisory lock on the community id and the two org user ids in sorted order, then looks for an existing chat of kind `direct` in that community whose `chat_users` rows are exactly these two people, inside the transaction that would create the new one. If one exists, the actor rejoins it if they had left, the first message is written into it under the send rules, and it is returned; a send the rules refuse leaves the chat untouched. Otherwise the chat and its two `chat_users` rows are created. A DM rejoin emits `discussion.chat.updated`.
 
-The `status` column holds the message request state of a direct chat. When the community's DM settings make a first message a request, a new DM has status `pending` until the recipient accepts it, after which it is `open`. A group chat is created `open`. `pending` is never used for a group chat. A block in this community sets the direct chat between those two people to `closed`. Unblocking removes the block row and, when that direct chat is `closed` and not locked, sets it back to `open`. In a group chat that already contains both, the blocked pair cannot send and the other participants can. Staff can lock a chat; a locked chat is readable, and no participant can send to it.
+The `status` column holds the message request state of a direct chat. When the community's DM settings make a first message a request, a new DM between two people who are not staff has status `pending` until the recipient accepts it, after which it is `open`. A request is started with its message; while it is pending, the creator cannot send. The recipient accepts explicitly or by replying. A group chat is created `open`. `pending` is never used for a group chat. A block in this community sets the direct chat between those two people to `closed`. Unblocking removes the block row and, when that direct chat is `closed` and not locked, sets it back to `open`. In a group chat that already contains both, the blocked pair cannot send and the other participants can. Staff can lock a chat; a locked chat is readable, and no participant can send to it.
 
 ```sql
 create table chats (
@@ -492,7 +520,7 @@ create table chats (
 
 #### chat\_users
 
-The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set.
+The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set. `'infinity'` is how the column stores a mute until unmuted; the API carries a mute as `null` or `{ until }`, where `until` is null for a mute until unmuted.
 
 ```sql
 create table chat_users (
@@ -515,7 +543,7 @@ create index chat_users_user_idx on chat_users (org_id, community_id, org_user_i
 
 #### messages
 
-The `messages` table holds the messages sent in a chat. A message has a sender, a body, the community the chat belongs to, an optional reference to the message it replies to, and timestamps for edits and deletion. `community_id` is stored on the row so an event that carries it can be filtered on the community. A deleted message keeps its row with `deleted_at` set; the service serves it with an empty body as a placeholder. The sender foreign key does not cascade.
+The `messages` table holds the messages sent in a chat. A message has a sender, a body, the community the chat belongs to, an optional reference to the message it replies to, and timestamps for edits and deletion. `community_id` is stored on the row so an event that carries it can be filtered on the community. A deleted message keeps its row with `deleted_at` set; the service serves it with an empty body as a placeholder, and without its attachments to anyone but staff. Each message is served with its sender's author view. The sender foreign key does not cascade.
 
 ```sql
 create table messages (
@@ -541,7 +569,7 @@ create index messages_chat_idx on messages (org_id, chat_id, created_at);
 
 #### message\_attachments, message\_reactions, message\_flags
 
-Three tables hold rows attached to a message. `message_attachments` links a message to files in assets, one row per file, in the same way `activity_assets` links an activity to its files; the foreign key to assets does not cascade. `message_reactions` has the same shape as `post_reactions`. `message_flags` has the same shape as `post_flags`, with the resolution values `dismissed`, `deleted` and `locked`. The community's message queue consists of the open rows in `message_flags` for chats in that community and is visible to staff only.
+Three tables hold rows attached to a message. `message_attachments` links a message to files in assets, one row per file, in the same way `activity_assets` links an activity to its files; the foreign key to assets does not cascade. `message_reactions` has the same shape as `post_reactions`. `message_flags` has the same shape as `post_flags`, with the resolution values `dismissed`, `deleted` and `locked`. The community's message queue consists of the open rows in `message_flags` for chats in that community and is visible to staff only. Each entry carries the flagged message, its flags, the chat and its active participants, and no other message. Flags are resolved by deleting the message or locking the chat; dismissing is the only resolution made on its own. Staff delete a flagged message without being in the chat, and in a locked chat.
 
 ```sql
 create table message_attachments (
@@ -594,7 +622,7 @@ create index message_flags_open_idx on message_flags (org_id, community_id, mess
 
 #### blocked\_users
 
-The `blocked_users` table records that one person has blocked another inside one community, one row per direction. The service checks the table in both directions before a message is sent in that community and before a person is added to a group chat in that community. A block in one community does nothing to a chat in another. The blocked person is not notified.
+The `blocked_users` table records that one person has blocked another inside one community, one row per direction. The service checks the table in both directions before a message is sent in that community and before a person is added to a group chat in that community. Adding a person checks that person against each active participant, not every pair already in the group. A block in one community does nothing to a chat in another. The blocked person is not notified.
 
 ```sql
 create table blocked_users (
@@ -637,7 +665,14 @@ The progress, automations, reporting and assets contexts get no new tables. The 
 
 ### Migration
 
-The schema changes ship as one Drizzle migration, generated after all schema files are updated. Two statements are added by hand at the top of the migration because drizzle-kit does not generate them: the rename of `comment_reports` to `comment_flags`, and dropping the not-null constraint on `comments.activity_id`.
+The schema changes ship as four Drizzle migrations, each generated from the schema files with the statements drizzle-kit cannot generate added by hand.
+
+- `0003_community` adds the community tables. By hand: the rename of `comment_reports` to `comment_flags`, the resolution backfill for reports resolved before the feature, and dropping the not-null constraint on `comments.activity_id`.
+- `0004_assets_sources` adds `assets.source`, maps `kind` from each row's content type, and converts `uploaded_by` to the org user.
+- `0005_notices_and_seed_index` adds the partial unique index on system automations, removes duplicate system rows, and inserts the org seeds for every org that exists before the deploy.
+- `0006_community_review_fixes` replaces the first notice ledger with the two per-term notice tables, carrying over an ending-soon notice only for the grant's current term, records an expiry notice for every grant already past `expires_at` so the first run does not emit for old expiries, makes the topic name constraint deferred, adds the bookmark index, and links the files lesson content already embeds to their activities. It also converges a database that applied an earlier draft of 0003 and 0004: it clears the placeholder resolver on old flags, re-adds the flag check, and re-derives asset kinds from their content type.
+
+The deferred topic name constraint exists only in the migrations; drizzle-kit cannot express it, so a database built with `db:push` does not have it and topic name swaps fail there. Databases are built with the migrations.
 
 ### Delete behaviour
 
@@ -667,9 +702,9 @@ triggers: ['schedule:0 * * * *']        -- every hour
 triggers: ['schedule:0 7 * * *']        -- daily at 07:00 UTC; every schedule runs in UTC
 ```
 
-Three system actions are added for the timed work, named here by what they do. Each calls one operation on the context that owns the work. Publish due posts calls discussion, which selects posts with status `scheduled` and a `scheduled_at` in the past and submits each one as if the author had submitted it. Expire due grants calls entitlements, which selects grants with an `expires_at` in the past that have not yet been expired and emits `entitlement.expired` once for each, and selects grants that enter the seven-day window and emits `entitlement.ending_soon` once per grant per community that grant opens. Entitlements records each emission in `entitlement_notices`, keyed by grant, kind and community, in the same transaction as the outbox append; that ledger, not the outbox, is what makes each emission happen once. Send digest calls discussion, which emits `discussion.digest.due` once per community. Each operation writes through its context's unit of work, so the events it produces go through the outbox like any other event.
+Four system actions are added for the timed work, named here by what they do. Each calls one operation on the context that owns the work. Publish due posts calls discussion, which selects posts with status `scheduled` and a `scheduled_at` in the past and submits each one as if the author had submitted it, under the same open and topic checks. Expire due grants calls entitlements, which selects grants with an `expires_at` in the past that have not yet been expired and emits `entitlement.expired` once for each, and selects grants that enter the seven-day window and emits `entitlement.ending_soon` once per grant per published community that grant opens. Entitlements claims each emission in the notice tables, keyed per term, in the same transaction as the outbox append; those tables, not the outbox, make each emission happen once. Send digest calls discussion, which emits `discussion.digest.due` once per published community. Remove unattached uploads calls assets, which deletes member uploads older than an hour that nothing references. Each operation writes through its context's unit of work, so the events it produces go through the outbox like any other event.
 
-Four system automations use these actions. They are seeded for every org on `organization.created` with `source = system`, and can be disabled but not deleted: Publish due posts (`schedule:* * * * *`), Expire due grants (`schedule:0 * * * *`), Digest (`schedule:0 7 * * *`), and Remove unattached uploads (`schedule:0 * * * *`). A migration inserts the same rows for every org that exists before this deploy, and a partial unique index on `(org_id, name, filter community)` for `source = system` rows keeps a redelivered event from seeding twice. Publish due posts opens a run only when a post is due.
+Four system automations use these actions. They are seeded for every org on `organization.created` with `source = system`, and can be disabled but not deleted: Publish due posts (`schedule:* * * * *`), Expire due grants (`schedule:0 * * * *`), Digest (`schedule:0 7 * * *`), and Remove unattached uploads (`schedule:0 * * * *`). A migration inserts the same rows for every org that exists before this deploy, and a partial unique index on `(org_id, name, filter community)` for `source = system` rows keeps a redelivered event from seeding twice. Publish due posts, Expire due grants and Remove unattached uploads open a run only when there is work to do. When the inline engine starts, it fires the latest slot each schedule missed within the last day; the run dedupe stops a slot that already ran from running twice. When both day fields of a cron are restricted, a time matches either one, as in standard cron.
 
 ### content
 
@@ -681,15 +716,15 @@ Content serves one reader to other contexts. It returns one space (community id,
 
 Organizations owns roles. Community adds one, moderator, beside owner, admin, instructor and student. It is a Better Auth role, held org-wide like the other four: one person holds one role, and a moderator moderates every space of every community they hold a grant to. It is not a staff role; a moderator does not reach the back office. Staff stays `owner`, `admin` and `instructor`.
 
-Owners and admins give and remove the role through the existing membership path under `manage_users`. Better Auth stores the member role, and the mirror hook writes `org_users.role`. A student with no membership gets one created. A person who already has a membership gets `updateRole`. The hook emits `organization.user.updated`. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator. What each moderation operation requires is decided by the context that owns the operation against the actor's role, as it is for every operation today. Organizations stores nothing for the role beyond `org_users.role`.
+Owners and admins give and remove the role through the existing membership path under `manage_users`, which core checks on the actor for every role change, invite and member removal. No role change or invite grants `owner`. Better Auth stores the member role, and the mirror hook writes `org_users.role`. A student with no membership gets one created. A person who already has a membership gets `updateRole`. Removing the moderator role makes the person a student again: the role is set to `student` and the membership is removed. The hook emits `organization.user.updated`. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator. What each moderation operation requires is decided by the context that owns the operation against the actor's role, as it is for every operation today. Organizations stores nothing for the role beyond `org_users.role`.
 
 ### entitlements
 
 Entitlements already answers whether an org user holds an active grant to a registry item, directly or through a bundle. Community uses that to check a person's grant to a community. Entitlements also performs the expiry of due grants, which the Expire due grants automation calls.
 
-Entitlements gains the space member operations: request to join, invite, accept an invitation, approve, decline, leave, remove, and list a space's members. They write `space_members` and emit `entitlement.space_member.created`, `entitlement.space_member.updated` and `entitlement.space_member.deleted`. Capacity is enforced inside approve and accept by asking content to lock the space row in the same transaction, as the data model section specifies.
+Entitlements gains the space member operations: request to join, invite, accept an invitation, approve, decline, leave, remove, and list a space's members. A member listing a space's members sees its active rows; staff and moderators see every status. They write `space_members` and emit `entitlement.space_member.created`, `entitlement.space_member.updated` and `entitlement.space_member.deleted`. Capacity is enforced inside approve and accept by asking content to lock the space row in the same transaction, as the data model section specifies.
 
-Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The same reader answers whether a grant opens a given community, directly or through a bundle, which the welcome and membership-ended derivations call. The rule for opening a space is defined here and nowhere else. An `all_members` space requires a grant to the community. A `by_request` or `by_invite` space requires, on top of that, a space member row with status `active`. Staff pass without either. A moderator passes the space check but not the community check, so a moderator who holds a grant to the community opens every space in it. To evaluate the rule, entitlements reads the space through content's reader. Content exposes the row lock entitlements takes during approval and acceptance.
+Entitlements serves a reader to discussion and reporting that answers three questions: whether a person is a member of a community, whether a person can open a space, and which spaces of a community a person can open. The same reader answers which published communities a grant opens, directly or through a bundle, which the welcome and membership-ended derivations call, and which of a list of people are members of a community or can open a space, which the email derivations use to drop recipients who lost access. The rule for opening a space is defined here and nowhere else. An `all_members` space requires a grant to the community. A `by_request` or `by_invite` space requires, on top of that, a space member row with status `active`. Staff pass without either. A moderator passes the space check but not the community check, so a moderator who holds a grant to the community opens every space in it. A community that is not published opens to staff only. To evaluate the rule, entitlements reads the space through content's reader. Content exposes the row lock entitlements takes during approval and acceptance.
 
 ### discussion
 
@@ -715,7 +750,7 @@ The composition root in `packages/server/src/app/container.ts` wires the new ser
 
 ### HTTP routes
 
-The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links and DM settings; they use `resolveScope`. The moderator role is given through the existing org user role route, which writes the Better Auth membership. Member routes under `/api/member/communities` and `/api/member/chats` cover feeds, posts, comments, space members, the directory and chats; they use `requireOrgSession` and pass the org user as the actor. The directory and the community home call `reporting/member`. Staff analytics call `reporting/admin`. The `/api/member` prefix is the member HTTP API. Moderator actions use the member routes; core decides from the actor's role whether the caller may perform them. Every handler consists of a schema and one core call.
+The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links and DM settings; they use `resolveScope`. The moderator role is given through the existing org user role route, which writes the Better Auth membership. Member routes under `/api/member` (`communities`, `posts`, `comments`, `chats`, `messages`, `profile`, `uploads` and `assets`) cover feeds, posts, comments, space members, the directory, chats and member files; they use `requireOrgSession` and pass the org user as the actor. The directory and the community home call `reporting/member`. Staff analytics call `reporting/admin`. The `/api/member` prefix is the member HTTP API. Moderator actions use the member routes; core decides from the actor's role whether the caller may perform them. Every handler consists of a schema and one core call.
 
 ## Domain events
 
@@ -741,9 +776,9 @@ The community's events follow the per-type pattern of the existing course and do
 
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
-| `content.community.created` | a community is created, as a draft | owner, admin | community | yes |
+| `content.community.created` | a community is created, as a draft | owner, admin | community | yes, without settings |
 | `content.community.updated` | title, description, thumbnail, status or settings change; publishing and unpublishing are status changes; DM settings ride in `settings.dm` | owner, admin | community | yes, without settings |
-| `content.community.deleted` | the registry row is deleted; cascades have run | owner, admin | community | yes |
+| `content.community.deleted` | the registry row is deleted; cascades have run | owner, admin | community | yes, without settings |
 | `content.community.space.created` | a space is added | owner, admin | space with topics and links | yes |
 | `content.community.space.updated` | name, description, access rule, capacity, settings, topics or links change; a link removed by its resource's deletion fires it too | owner, admin, cascade | space with topics and links | yes |
 | `content.community.space.deleted` | a space is deleted | owner, admin | space | yes |
@@ -755,7 +790,7 @@ Organizations adds one event, `organization.user.updated`. No event fires today 
 
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
-| `organization.user.updated` | an org user's role is changed | owner, admin | org user | yes |
+| `organization.user.updated` | an org user's role is changed; `metadata.actorOrgUserId` is set when the change came through the role route | owner, admin | org user | yes |
 
 ### entitlements
 
@@ -766,8 +801,8 @@ The four grant events stay as they are. A grant row does not gain `spaceId`. Spa
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
 | `entitlement.created` | a grant is made. A grant to a community, or to a bundle holding one, is how someone becomes a member | staff, member, import, automation | entitlement | yes |
-| `entitlement.updated` | a grant's status or expiry changes. Becoming `revoked` is a removal | staff | entitlement | yes |
-| `entitlement.deleted` | a grant is deleted | staff | entitlement | yes |
+| `entitlement.updated` | a grant's expiry changes, including the grant access action extending an active grant | staff, automation | entitlement | yes |
+| `entitlement.deleted` | a grant is revoked or deleted | staff | entitlement | yes |
 | `entitlement.expired` | the expiry run finds `expires_at` passed; one event per grant, once | scheduler | entitlement | yes |
 | `entitlement.ending_soon` | the expiry run finds a grant entering the seven days before `expires_at`; once per grant per community it opens | scheduler | the grant, plus `communityId` | yes |
 | `entitlement.space_member.created` | a request (`requested`), an invitation (`invited`), or a direct addition (`active`) | member, staff, moderator | space member | yes |
@@ -783,17 +818,18 @@ The comment events stay as they are, including `discussion.comment.reported`. Wh
 | Event | Fires when | Triggered by | Data | Public |
 | --- | --- | --- | --- | --- |
 | `discussion.post.created` | a post is created. Its status says what happened: `draft` saved, `scheduled` with a time set, `pending` submitted into review where the space requires it, `published` outright. Entering `pending` sets `metadata.previousStatus` | member, staff | post | yes |
-| `discussion.post.updated` | title, body, topic, extra fields, schedule, pin state or comments state change; a scheduled post moved into review by the Publish due posts automation shows as status `pending` and sets `metadata.previousStatus`. An edit that stays `pending` sets `previousStatus` to `pending` | author, staff, moderator, automation | post | yes |
+| `discussion.post.updated` | title, body, topic, extra fields, schedule, pin state or comments state change; a scheduled post moved into review by the Publish due posts automation shows as status `pending` and sets `metadata.previousStatus`; a scheduled post the automation cannot publish goes back to `draft`. An edit that stays `pending` sets `previousStatus` to `pending` | author, staff, moderator, automation | post | yes |
 | `discussion.post.published` | status becomes `published`, from submit, approval, restore or the Publish due posts automation; `published_at` set; `metadata.previousStatus` is the status it left | author, staff, moderator, automation | post | yes |
 | `discussion.post.removed` | staff or the moderator remove it, or the author removes their own | author, staff, moderator | post | yes |
 | `discussion.post.reported` | someone flags the post; one event per person | anyone who can see it | post flag | yes |
 | `discussion.comment.created`, `.published`, `.removed`, `.reported` | as today; a comment on a post adds `postId` and `communityId`, and is created published so only `.created` fires | member, staff, moderator | comment, comment flag | yes |
 | `discussion.chat.created` | a DM or a group chat is started in one community. A DM is `pending` when the settings make the first message a request. A group chat is `open` | member, staff | chat with participant ids | yes, ids only |
-| `discussion.chat.updated` | a message request is accepted, a block closes the direct chat, a participant leaves, or staff lock or unlock the chat | member, staff | chat with participant ids | yes, ids only |
+| `discussion.chat.updated` | a message request is accepted, a block closes the direct chat, a participant leaves or rejoins a DM, or staff lock or unlock the chat | member, staff | chat with participant ids | yes, ids only |
 | `discussion.chat.participant.added` | someone is added to a group chat; its own event because the email addresses the added person. Data includes `communityId` | participant | { chatId, communityId, orgUserId, addedBy } | yes |
-| `discussion.message.sent` | a message is stored | participant | message | yes, without body |
+| `discussion.message.sent` | a message is stored; `metadata.chatStatus` is the chat's status after the write, so the message of a request is recognisable from the event | participant | message | yes, without body |
 | `discussion.message.deleted` | the author or staff delete it; the placeholder stays | author, staff | message | yes, without body |
 | `discussion.message.reported` | a participant flags a message | participant | message flag | yes, without reason |
+| `discussion.digest.due` | the Digest system automation runs; once per published community per period | scheduler | { communityId, period } | yes |
 
 Flag resolution, message edits, blocks, reactions, follows, bookmarks, read positions and mutes emit nothing. They are a member's own state or a moderator's bookkeeping, as comment reactions and report resolution are today, and no automation or email reads them. A message body never leaves the system: `publicData` on every message event strips it, so a webhook learns that a message was sent and by whom, never what it said.
 
@@ -820,25 +856,23 @@ This section specifies the changes to the automations context and the automation
 
 **Trigger filter.** `automations` gains `filter jsonb` (nullable). A filter is an equality match on top-level fields of the event's `data`, for example `{ "spaceId": "spc_…" }`. The automations service loads by trigger as today, then keeps automations whose filter is null or is contained in `data` (`data @> filter`, evaluated in the service). This is what lets "when a post is published in Announcements" differ from "when a post is published anywhere".
 
-**Grant access action.** Its input is the content item or bundle to grant and an optional expiry in days; the recipient is `data.orgUserId` on entitlement, post and progress events, and `data.id` on `organization.student.created`, which carries the org user. It makes the grant through entitlements and is idempotent on the existing unique constraints. This is the action behind "grant the community when a person joins the org" and "grant the community when someone completes the course".
+**Grant access action.** Its input is the content item or bundle to grant and an optional expiry in days; the recipient is `data.orgUserId` on entitlement, post and progress events, and `data.id` on `organization.student.created`, which carries the org user. It makes the grant through entitlements and is idempotent: with no grant it creates one and emits `entitlement.created`; with an active grant it keeps the later of the two expiries, where no expiry is later than any date, and emits `entitlement.updated` only when that changed; a revoked grant is left revoked and nothing is emitted. This is the action behind "grant the community when a person joins the org" and "grant the community when someone completes the course".
 
 **`sendEmail` audience derivation.** Each new template declares which events it derives from and who receives it; the table in the emails section is that registry. A derivation returns zero or more recipients, so "email the space's members" is one action, not one per member. Recipients who muted the thing or blocked the sender are dropped inside the derivation, read from discussion.
 
 **Default automations.** `automations` gains `source text enum system, user` (default `user`). When a community is created, content emits `content.community.created` and a subscriber in automations seeds the system automations for that community (filter on `communityId`), enabled. They appear in the dashboard, can be disabled or have their actions changed, and cannot be deleted. The org-wide ones are seeded on `organization.created`: `accessGranted`, `accessRevoked`, You are now a moderator, Welcome to the community and Membership ended. The last two are org-wide because a grant event does not name a community; their derivation asks entitlements which communities the grant opens and sends one email per community, so one event opens one run however many communities the org has.
 
-**Digest.** A digest email summarises the activity a member has not seen since the previous digest. It runs on a schedule trigger: the Digest system automation calls discussion's send digest operation, which emits `discussion.digest.due { communityId, period }` once per community per period, and a default automation sends the digest template from that event. This event has no actor and is specified here rather than in the events section.
+**Digest.** A digest email summarises the activity a member has not seen since the previous digest. It runs on a schedule trigger: the Digest system automation calls discussion's send digest operation, which emits `discussion.digest.due { communityId, period }` once per community per period, and a default automation sends the digest template from that event. This event has no actor; it is listed with the discussion events.
 
 ### Default automations per community
 
-A filter matches top-level fields of `data`. It cannot see `metadata`, and it cannot see whether a bundle contains a community. Where the condition is a transition, the derivation reads `metadata.previousStatus`. Where the condition is "this grant opens this community", the filter is null and the derivation asks entitlements.
+A filter matches top-level fields of `data`. It cannot see `metadata`, and it cannot see whether a bundle contains a community. Where the condition is a transition, the derivation reads `metadata.previousStatus`. Welcome to the community and Membership ended are org-wide automations, seeded on `organization.created`; their derivation asks entitlements which published communities the grant opens and sends one email per community. Every derivation that sends an excerpt drops recipients who can no longer open the space or are no longer members of the community.
 
 New post in a space and the digest are listed here and are not sent until the deferred email-preference decision gives them an opt-out. The other rows do not wait on that decision.
 
 | Name | Trigger | Filter | Action |
 | --- | --- | --- | --- |
-| Welcome to the community | `entitlement.created` | none; the derivation asks whether the grant opens this community | send the Welcome to the community email |
 | Membership ending soon | `entitlement.ending_soon` | `communityId` of this community | send the Membership ending soon email |
-| Membership ended | `entitlement.expired`, `entitlement.deleted` | none; the derivation asks whether the grant opens this community | send the Membership ended email |
 | New post in a space | `discussion.post.published` | `communityId` | send the New post in a space email to the space's members who can open it. Waits on the email-preference opt-out |
 | Your post was published | `discussion.post.published` | `communityId`; the derivation sends only when `metadata.previousStatus` is `pending` | send the Your post was published email to the author |
 | Your post was removed | `discussion.post.removed` by someone else | `communityId` | send the Your post was removed email to the author |
@@ -850,7 +884,7 @@ New post in a space and the digest are listed here and are not sent until the de
 | Request approved | `entitlement.space_member.updated` with status `active` | `communityId`; the derivation sends only when `metadata.previousStatus` is `requested` | send the Request approved email to the member |
 | Request declined | `entitlement.space_member.deleted` | `communityId`; the derivation sends only when `metadata.previousStatus` is `requested` | send the Request declined email to the person who asked |
 | Invited to a space | `entitlement.space_member.created` with status `invited` | `communityId` | send the Invited to a space email to the member |
-| New message | `discussion.message.sent` | `communityId` | send the New message email to participants not muted, batched: one email per chat per recipient per 15 minutes |
+| New message | `discussion.message.sent` | `communityId` | send the New message email to participants not muted, batched: one email per chat per recipient per 15 minutes. A pending request sends Message request instead |
 | Message request | `discussion.chat.created` with status `pending` and kind `direct` | `communityId` | send the Message request email to the recipient |
 | Added to a group chat | `discussion.chat.participant.added` | `communityId` | send the Added to a group chat email to the person |
 | Something was flagged | `discussion.post.reported`, `discussion.comment.reported` | `communityId` | send the Something was flagged email to staff and the community's moderators |
@@ -949,14 +983,14 @@ This section specifies authentication and authorization for the community. Authe
 
 **One route guard per surface.**
 
-- Member-facing community routes (`/api/member/communities/*` and `/api/member/chats/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
+- Member-facing community routes (`/api/member/communities/*`, `/posts/*`, `/comments/*`, `/chats/*`, `/messages/*`, `/profile`, `/uploads/*`, `/assets/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
 **Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file that is not an image or is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
 
 **Serving a file to a member.** `POST /api/member/assets/:id/url` takes a body naming what the asset is being served as: `{ via: { activity } }`, `{ course }`, `{ download }`, `{ community }`, `{ post }`, `{ message }` or `{ profile: orgUserId }`. `reporting/member` asks the owning context whether the caller may see the referenced thing, checks that the thing references this asset, and asks assets to sign. There is no way for a member to be served an asset by id alone.
 
-**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
+**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, single messages and their files, directory, and the emails that carry excerpts. A community that is not published is closed the same way to everyone but staff.
 
 **Who may do what.** Core enforces every row below; the route guards only authenticate.
 
@@ -971,10 +1005,10 @@ This section specifies authentication and authorization for the community. Authe
 | Pin, close comments, turn reactions off | no | yes | yes |
 | Review a post awaiting review | no | yes | yes |
 | Flag a post, comment or message | if they can see it | yes | yes |
-| Work a space's flag queue | no | yes | yes |
+| Work a space's flag queue, dismiss flags | no | yes | yes |
 | Work the community's message flag queue | no | no | yes |
 | Start a DM or a group chat, add to a group chat | per the DM settings; everyone involved must be a member or staff | same | per the DM settings |
-| Read a chat | participants only | participants only | only a flagged message, in the queue |
+| Read a chat | participants only | participants only | a flagged message with its chat and participants, in the queue |
 | Block, mute | own only | own only | own only |
 | Lock a chat | no | no | yes |
 | Set up the community, spaces, topics, links, post defaults, DM settings | no | no | owner, admin |

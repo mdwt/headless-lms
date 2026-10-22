@@ -151,9 +151,9 @@ flags scope to the community.
    and writes them, discussion reads them to decide what it accepts and serves.
    Removing an activity removes its comments, reactions and reports. Removing a
    space removes its posts.
-2. **discussion → identity** — discussion references the person's org user
+2. **discussion → organizations** — discussion references the person's org user
    in the org on every comment, reaction and report, and reads their role from
-   it. Identity owns the org user and the role; discussion stores neither.
+   it. Organizations owns the org user and the role; discussion stores neither.
 3. **discussion → entitlements** — an activity's comments are gated by access to
    the content it attaches to. Entitlements resolves access; discussion serves
    and accepts nothing for content a person cannot open. Entitlements decides

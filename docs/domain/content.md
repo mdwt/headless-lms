@@ -51,7 +51,7 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 - **Course** — the root: title, status (draft/published), ordered modules, and its settings, including the discussion settings that discussion reads.
 - **Module** — title, `seq` (order within the course), parent course, an ordered list of activities.
 - **Activity** — the leaf, sitting directly in a module. It is a unit of content: a `seq` (order within the module), a **settings blob** holding whatever that content needs, a completion rule, and links to any assets it uses. An activity that is a video has a video asset linked; one that is an assessment carries its rules in the blob. The domain doesn't categorise it — it stores the content, and the learner-facing surface renders whatever is there.
-- **Activity–asset link** — the many-to-many relation between an activity and the assets it uses. Assets are linked here rather than held in the activity's blob, because they are owned by the assets domain and tracked for usage, which a blob can't express.
+- **Activity–asset link** — the many-to-many relation between an activity and the assets it uses. Every asset an activity uses is linked here, including the files its content shows inline, because they are owned by the assets domain and tracked for usage, which a blob can't express. A link names a ready file from the org's media library and nothing else.
 
 ### Gating rules
 
@@ -74,7 +74,7 @@ Each other type defines its own entities. A download owns an ordered set of asse
 
 ## Activity settings and assets
 
-An activity is just content. Its settings blob holds whatever that piece of content needs — a video's playback settings, an assessment's rules, a page's body — and the learner-facing surface renders whatever is there. The domain doesn't classify activities or branch on a type; it stores content uniformly. Assets are the one thing kept out of the blob: the assets an activity uses are linked through an activity–asset relation, so the assets domain can own them and track their usage.
+An activity is just content. Its settings blob holds whatever that piece of content needs — a video's playback settings, an assessment's rules, a page's body — and the learner-facing surface renders whatever is there. The domain doesn't classify activities or branch on a type; it stores content uniformly. The blob may name the files it shows, but the link is what counts: every asset an activity uses is linked through the activity–asset relation, so the assets domain can own them and track their usage, and a learner is served an activity's file only through its link. Content refuses a link to anything that is not a ready library file of the org.
 
 ## Boundaries
 

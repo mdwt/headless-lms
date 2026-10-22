@@ -43,9 +43,7 @@ The person in the admin app. Owner, admin, and instructor call this service. The
 
 ## Build state
 
-`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, and the download paywall. The admin service answers the org overview, the enrollment series, course analytics, the roster, and a student's record.
-
-Directory, community home, and community staff analytics are specified with the community feature and are not built. Directory and community home are methods on `reporting/member`. Community staff analytics are a method on `reporting/admin`.
+`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the download paywall, the community directory, the community home, and files served through what references them. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, and community staff analytics.
 
 ## Boundaries
 

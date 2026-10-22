@@ -26,6 +26,7 @@ src/
   editor.tsx        # 'use client' contract Editor — Plate + EditorKit + Save
   renderer.tsx      # RSC-safe contract Renderer — PlateStatic + BaseEditorKit
   validate.ts       # shallow node-array check
+  asset-ids.ts      # contract assetIds — host asset ids the content shows
   editor/
     editor-kit.tsx        # assembled interactive plugin kit
     editor-base-kit.tsx   # assembled static (server) kit
@@ -48,6 +49,15 @@ Uploads go through the **host app's media API**, not the package: the contract's
 and `hooks/use-upload-file.tsx` exposes it to the media components via
 `UploadProvider`. Without a handler, files fall back to non-persistent local
 object URLs.
+
+## Asset links
+
+The contract's required `assetIds(config)` returns every `assetId` on a node of
+the config, in document order, without duplicates. The admin app sends them as
+the activity's asset links on save (plus any links the activity has that the
+editor does not manage); the server accepts only ready media library files of
+the org, and a learner is served an activity's file only through its link. A
+media node without an `assetId` (a non-persistent local preview) is not linked.
 
 ## Styling
 

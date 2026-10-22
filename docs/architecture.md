@@ -74,8 +74,7 @@ It answers the courses, progress, and downloads they can open, the community dir
 `reporting/admin` is the person in the admin app: owner, admin, and instructor. It answers the org overview, course
 analytics, the roster, a student's record, and the community staff analytics.
 
-`reporting/member` and `reporting/admin` are the services in the code. Directory, community home, and community
-staff analytics are specified with the community feature and are not built yet.
+`reporting/member` and `reporting/admin` are the services in the code.
 
 | Type        | Description                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------------------ |
