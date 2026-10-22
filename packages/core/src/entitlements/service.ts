@@ -308,7 +308,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       }
       throw new ForbiddenError('You cannot open this space');
     }
-    return this.repo.listSpaceMembers(orgId, spaceId);
+    const rows = await this.repo.listSpaceMembers(orgId, spaceId);
+    if (isStaffRole(actor.role) || actor.role === 'moderator') {
+      return rows;
+    }
+    return rows.filter((row) => row.status === 'active');
   }
 
   async expireDue(orgId: string, now: Date): Promise<void> {

@@ -310,6 +310,25 @@ describe('community access', () => {
 });
 
 describe('space members', () => {
+  it('shows a member only the active rows and shows staff and moderators every status', async () => {
+    const rows: SpaceMember[] = [
+      MEMBER,
+      { ...MEMBER, id: 'spm_2', status: 'invited' },
+      { ...MEMBER, id: 'spm_3', status: 'active' },
+      { ...MEMBER, id: 'spm_4', status: 'revoked' },
+    ];
+    const repo = fakeRepo({ listSpaceMembers: vi.fn().mockResolvedValue(rows) });
+    const content = fakeContent({
+      getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'all_members' }),
+    });
+    const { svc } = build(repo, content);
+    await expect(svc.listSpaceMembers('org-1', student, 'spc_1')).resolves.toEqual([
+      expect.objectContaining({ id: 'spm_3', status: 'active' }),
+    ]);
+    await expect(svc.listSpaceMembers('org-1', moderator, 'spc_1')).resolves.toEqual(rows);
+    await expect(svc.listSpaceMembers('org-1', owner, 'spc_1')).resolves.toEqual(rows);
+  });
+
   it('records a join request from a community member', async () => {
     const { svc, appended } = build();
     const row = await svc.requestJoin('org-1', student, 'spc_1');
