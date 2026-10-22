@@ -111,7 +111,12 @@ function fakeAssets(captured: { expiry?: number; filename?: string } = {}): Asse
     requestUpload: async () => {
       throw new Error('not used');
     },
+    requestImageUpload: async () => {
+      throw new Error('not used');
+    },
     confirm: async () => null,
+    confirmOwnImage: async () => null,
+    ownsImage: async () => false,
     list: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     get: async () => SIGNED_ASSET,
     requestDownload: async (_orgId, _id, filename, expiresInSeconds) => {

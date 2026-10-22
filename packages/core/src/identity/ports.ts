@@ -51,7 +51,12 @@ export interface SessionAdmin {
 // Inbound port (use cases the service exposes).
 export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
   getProfile(userId: string): Promise<UserProfile | null>;
-  updateProfile(userId: string, actorUserId: string, patch: UpdateProfileInput): Promise<UserProfile>;
+  updateProfile(
+    userId: string,
+    actorUserId: string,
+    orgUserId: string,
+    patch: UpdateProfileInput,
+  ): Promise<UserProfile>;
 }
 
 // Outbound port (persistence contract the repository fulfils).

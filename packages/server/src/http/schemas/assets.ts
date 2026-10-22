@@ -39,6 +39,12 @@ export const RequestUpload = z.object({
 });
 export type RequestUpload = z.infer<typeof RequestUpload>;
 
+export const RequestImageUpload = z.object({
+  filename: z.string().min(1),
+  contentType: z.string().min(1),
+});
+export type RequestImageUpload = z.infer<typeof RequestImageUpload>;
+
 export const UploadTicket = uploadTicketSchema;
 export type UploadTicket = z.infer<typeof UploadTicket>;
 

@@ -2,11 +2,15 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { Container } from '../../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { UnauthorizedError } from '../../plugins/auth.js';
 import { ErrorBody, UpdateProfile, UserProfile } from '../../schemas/index.js';
 
 const errors = { 401: ErrorBody, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody };
 
-export async function memberProfileRoutes(app: FastifyInstance, container: Container): Promise<void> {
+export async function memberProfileRoutes(
+  app: FastifyInstance,
+  container: Container,
+): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ['Profile'];
 
@@ -41,7 +45,11 @@ export async function memberProfileRoutes(app: FastifyInstance, container: Conta
       response: { 200: UserProfile, ...errors },
     },
     handler: async (req) => {
-      return container.identity.updateProfile(req.userId, req.userId, req.body);
+      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
+      if (!orgUser) {
+        throw new UnauthorizedError();
+      }
+      return container.identity.updateProfile(req.userId, req.userId, orgUser.id, req.body);
     },
   });
 }

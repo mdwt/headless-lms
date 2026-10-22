@@ -6,6 +6,7 @@ import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, SpaceDetail } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import type { Page, Post, PostFlag, PostFlagResolution, PostStatus } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
@@ -31,6 +32,7 @@ export type PostServiceParams = {
   content: CommunityReader;
   authors: AuthorRoleReader;
   commentFlags: PostCommentFlagReader;
+  images: ImageOwnerReader;
   uow: PostUnitOfWork;
   logger?: Logger;
 };
@@ -41,6 +43,7 @@ export class PostServiceImpl implements PostService {
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
   private readonly commentFlags: PostCommentFlagReader;
+  private readonly images: ImageOwnerReader;
   private readonly uow: PostUnitOfWork;
   private readonly logger: Logger;
 
@@ -50,12 +53,14 @@ export class PostServiceImpl implements PostService {
     this.content = params.content;
     this.authors = params.authors;
     this.commentFlags = params.commentFlags;
+    this.images = params.images;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
 
   async create(orgId: string, actor: Actor, input: CreatePostInput): Promise<Post> {
     const space = await this.requireOpen(orgId, actor, input.spaceId);
+    await this.requireOwnedImage(orgId, actor.id, input.coverAssetId);
     this.assertTopic(space, input.topicId);
     const now = new Date();
     const landing = this.initial(input, space, actor, now);
@@ -110,6 +115,9 @@ export class PostServiceImpl implements PostService {
     }
     if (patch.topicId !== undefined) {
       this.assertTopic(space, patch.topicId);
+    }
+    if (typeof patch.coverAssetId === 'string') {
+      await this.requireOwnedImage(orgId, actor.id, patch.coverAssetId);
     }
     if (!this.patchChanges(post, patch)) {
       return post;
@@ -617,6 +625,20 @@ export class PostServiceImpl implements PostService {
       return { status: 'pending' as const, scheduledAt: null, publishedAt: null, removedBy: null };
     }
     return { status: 'published' as const, scheduledAt: null, publishedAt: now, removedBy: null };
+  }
+
+  private async requireOwnedImage(
+    orgId: string,
+    orgUserId: string,
+    assetId: string | null,
+  ): Promise<void> {
+    if (assetId === null) {
+      return;
+    }
+    if (!(await this.images.ownsImage(orgId, assetId, orgUserId))) {
+      this.logger.debug('cover refused', { orgId, orgUserId, assetId });
+      throw new NotFoundError('Asset', assetId);
+    }
   }
 
   private async requireOpen(orgId: string, actor: Actor, spaceId: string): Promise<SpaceDetail> {

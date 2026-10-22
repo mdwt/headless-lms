@@ -117,4 +117,32 @@ describe('AssetsService logging', () => {
       },
     ]);
   });
+
+  it('accepts an image the org user uploaded and refuses every other asset', async () => {
+    const { repo } = fakeRepo();
+    const { uow } = fakeUow(repo);
+    const svc = new AssetsServiceImpl({ storage: fakeStorage(), repo, uow });
+
+    const video = await svc.requestUpload('org-1', {
+      kind: 'video',
+      filename: 'a.mp4',
+      contentType: 'video/mp4',
+      uploadedBy: 'ou_1',
+    });
+    const image = await svc.requestImageUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+
+    expect(image.asset.kind).toBe('image');
+    expect(image.asset.uploadedBy).toBe('ou_1');
+    expect(await svc.ownsImage('org-1', image.asset.id, 'ou_1')).toBe(true);
+    expect(await svc.ownsImage('org-1', image.asset.id, 'ou_2')).toBe(false);
+    expect(await svc.ownsImage('org-1', video.asset.id, 'ou_1')).toBe(false);
+    expect(await svc.confirmOwnImage('org-1', image.asset.id, 'ou_2')).toBeNull();
+    expect(await svc.confirmOwnImage('org-1', video.asset.id, 'ou_1')).toBeNull();
+    const confirmed = await svc.confirmOwnImage('org-1', image.asset.id, 'ou_1');
+    expect(confirmed?.status).toBe('ready');
+    expect(confirmed?.kind).toBe('image');
+  });
 });

@@ -12,7 +12,12 @@ import type {
   RequestUploadInput,
   UploadTicket,
 } from './model.js';
-import type { AssetsRepository, AssetsService, AssetsUnitOfWork } from './ports.js';
+import type {
+  AssetsRepository,
+  AssetsService,
+  AssetsUnitOfWork,
+  ImageUploadInput,
+} from './ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
 
@@ -77,6 +82,21 @@ export class AssetsServiceImpl implements AssetsService {
     };
   }
 
+  async requestImageUpload(
+    orgId: string,
+    orgUserId: string,
+    input: ImageUploadInput,
+  ): Promise<UploadTicket> {
+    const ticket = await this.requestUpload(orgId, {
+      filename: input.filename,
+      contentType: input.contentType,
+      kind: 'image',
+      uploadedBy: orgUserId,
+    });
+    this.logger.debug('image upload requested', { orgId, orgUserId, assetId: ticket.asset.id });
+    return ticket;
+  }
+
   async confirm(orgId: string, id: string): Promise<Asset | null> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) {
@@ -100,6 +120,19 @@ export class AssetsServiceImpl implements AssetsService {
     });
     this.logger.info('asset confirmed', { orgId, assetId: id });
     return updated;
+  }
+
+  async confirmOwnImage(orgId: string, id: string, orgUserId: string): Promise<Asset | null> {
+    if (!(await this.ownsImage(orgId, id, orgUserId))) {
+      this.logger.debug('image confirm refused', { orgId, assetId: id, orgUserId });
+      return null;
+    }
+    return this.confirm(orgId, id);
+  }
+
+  async ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
+    const asset = await this.repo.findById(orgId, assetId);
+    return asset !== null && asset.kind === 'image' && asset.uploadedBy === orgUserId;
   }
 
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>> {

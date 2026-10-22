@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
-import { ConflictError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -47,7 +48,7 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
-function build(repo = fakeRepo()) {
+function build(repo = fakeRepo(), images: ImageOwnerReader = { ownsImage: async () => true }) {
   const appended: NewDomainEvent[] = [];
   const uow: IdentityUnitOfWork = {
     run: (fn) =>
@@ -61,8 +62,8 @@ function build(repo = fakeRepo()) {
       }),
   };
   const mailer = { send: vi.fn() } as unknown as Mailer;
-  const service = new IdentityServiceImpl({ repo, uow, mailer });
-  return { service, repo, appended, mailer };
+  const service = new IdentityServiceImpl({ repo, uow, mailer, images });
+  return { service, repo, appended, mailer, images };
 }
 
 describe('password reset emails', () => {
@@ -164,5 +165,43 @@ describe('linkOrCreateUser', () => {
     ).rejects.toBeInstanceOf(ConflictError);
     expect(repo.insertUser).not.toHaveBeenCalled();
     expect(repo.updateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('updateProfile', () => {
+  const photo = { imageAssetOrgId: 'org-1', imageAssetId: 'ast_1' };
+
+  it('saves a photo the org user uploaded', async () => {
+    const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+    const { service } = build(repo);
+
+    const profile = await service.updateProfile('usr_invited', 'usr_invited', 'ou_1', photo);
+
+    expect(profile.imageAssetId).toBe('ast_1');
+    expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', photo);
+  });
+
+  it('refuses a photo the org user did not upload', async () => {
+    const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+    const { service } = build(repo, { ownsImage: async () => false });
+
+    await expect(
+      service.updateProfile('usr_invited', 'usr_invited', 'ou_1', photo),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(repo.upsertProfile).not.toHaveBeenCalled();
+  });
+
+  it('clears a photo without asking who uploaded it', async () => {
+    const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+    const ownsImage = vi.fn(async () => false);
+    const { service } = build(repo, { ownsImage });
+
+    await service.updateProfile('usr_invited', 'usr_invited', 'ou_1', {
+      imageAssetOrgId: null,
+      imageAssetId: null,
+    });
+
+    expect(ownsImage).not.toHaveBeenCalled();
+    expect(repo.upsertProfile).toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import type {
   AuthorRoleReader,
   CreatePostInput,
@@ -64,6 +65,7 @@ function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
   roles?: Record<string, Role>;
+  images?: ImageOwnerReader;
 }) {
   const rows: Post[] = [];
   const flags: PostFlag[] = [];
@@ -261,6 +263,7 @@ function harness(options?: {
     },
     authors,
     commentFlags,
+    images: options?.images ?? { ownsImage: async () => true },
     uow,
   });
 
@@ -552,5 +555,16 @@ describe('posts', () => {
     );
     const queue = await svc.moderationQueue(ORG, moderator, 'spc_1');
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
+  });
+
+  it('refuses a cover the author did not upload', async () => {
+    const { svc } = harness({ images: { ownsImage: async () => false } });
+    await expect(
+      svc.create(ORG, member, draftInput({ coverAssetId: 'ast_paid' })),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    const created = await svc.create(ORG, member, draftInput());
+    await expect(
+      svc.update(ORG, created.id, member, { coverAssetId: 'ast_paid' }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

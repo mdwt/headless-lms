@@ -236,6 +236,16 @@ export async function buildContainer(
     studentPortalUrl: config.studentPortalUrl,
   });
 
+  const assets = new AssetsServiceImpl({
+    storage,
+    repo: new DrizzleAssetsRepository(db, assetsLogger),
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      assets: new DrizzleAssetsRepository(tx, assetsLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    logger: assetsLogger,
+  });
+
   /*
    * Identity
    */
@@ -248,6 +258,7 @@ export async function buildContainer(
     logger: logger.child({ name: 'identity' }),
     uow: identityUoW,
     mailer,
+    images: assets,
   });
 
   /*
@@ -345,6 +356,7 @@ export async function buildContainer(
     content,
     authors,
     commentFlags: discussionReads,
+    images: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -356,20 +368,12 @@ export async function buildContainer(
     access: entitlements,
     content,
     authors,
+    images: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       chats: new DrizzleChatRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     logger: discussionLogger,
-  });
-  const assets = new AssetsServiceImpl({
-    storage,
-    repo: new DrizzleAssetsRepository(db, assetsLogger),
-    uow: new DrizzleUnitOfWork(db, (tx) => ({
-      assets: new DrizzleAssetsRepository(tx, assetsLogger),
-      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
-    })),
-    logger: assetsLogger,
   });
 
   const reporting = {

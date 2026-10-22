@@ -9,11 +9,26 @@ import type {
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
-export interface AssetsService {
+export interface ImageOwnerReader {
+  ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
+}
+
+export interface ImageUploadInput {
+  filename: string;
+  contentType: string;
+}
+
+export interface AssetsService extends ImageOwnerReader {
   /** Register an asset and return a presigned URL to upload its bytes. */
   requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
+  requestImageUpload(
+    orgId: string,
+    orgUserId: string,
+    input: ImageUploadInput,
+  ): Promise<UploadTicket>;
   /** After upload, capture size/content-type from storage and mark ready. */
   confirm(orgId: string, id: string): Promise<Asset | null>;
+  confirmOwnImage(orgId: string, id: string, orgUserId: string): Promise<Asset | null>;
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
   get(orgId: string, id: string): Promise<Asset | null>;
   /** Short-lived presigned URL to download/serve the asset. `expiresInSeconds`

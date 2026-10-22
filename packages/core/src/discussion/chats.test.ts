@@ -5,6 +5,7 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
 import { isStaffRole } from '../organizations/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
 import type {
   AuthorRoleReader,
@@ -60,7 +61,11 @@ function dataOf(event: NewDomainEvent): Record<string, unknown> {
   return {};
 }
 
-function harness(options?: { settings?: Partial<DmSettings> | null; members?: string[] }) {
+function harness(options?: {
+  settings?: Partial<DmSettings> | null;
+  members?: string[];
+  images?: ImageOwnerReader;
+}) {
   const chats: Chat[] = [];
   const users: ChatUser[] = [];
   const messages: Message[] = [];
@@ -71,8 +76,7 @@ function harness(options?: { settings?: Partial<DmSettings> | null; members?: st
   const members = new Set(
     options?.members ?? [member.id, other.id, third.id, fourth.id, moderator.id],
   );
-  const settings =
-    options?.settings === null ? null : { ...dmSettings, ...options?.settings };
+  const settings = options?.settings === null ? null : { ...dmSettings, ...options?.settings };
 
   const pair = (a: string, b: string) => [a, b].sort().join(':');
 
@@ -319,6 +323,7 @@ function harness(options?: { settings?: Partial<DmSettings> | null; members?: st
       },
     },
     authors,
+    images: options?.images ?? { ownsImage: async () => true },
     uow,
   });
 
@@ -357,6 +362,28 @@ describe('chats', () => {
     expect(dataOf(calls[0]![1]!).chatId).toBe(chat.id);
     expect(dataOf(calls[0]![1]!).communityId).toBe(COMMUNITY);
     expect(attachments).toEqual([{ messageId: dataOf(calls[0]![1]!).id, assetIds: ['ast_1'] }]);
+  });
+
+  it('refuses an attachment the sender did not upload', async () => {
+    const { svc, attachments } = harness({ images: { ownsImage: async () => false } });
+    await expect(
+      svc.startDirect(ORG, member, {
+        communityId: COMMUNITY,
+        orgUserId: other.id,
+        body: 'Hello',
+        assetIds: ['ast_paid'],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    await expect(
+      svc.send(ORG, member, chat.id, { body: 'File', replyToId: null, assetIds: ['ast_paid'] }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(attachments).toEqual([]);
   });
 
   it('returns the existing direct chat in that community without a second event', async () => {

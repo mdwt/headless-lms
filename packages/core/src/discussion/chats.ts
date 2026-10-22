@@ -6,6 +6,7 @@ import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import type {
   Chat,
   ChatUser,
@@ -35,6 +36,7 @@ export type ChatServiceParams = {
   access: CommunityAccessReader;
   content: CommunityReader;
   authors: AuthorRoleReader;
+  images: ImageOwnerReader;
   uow: ChatUnitOfWork;
   logger?: Logger;
 };
@@ -44,6 +46,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly access: CommunityAccessReader;
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
+  private readonly images: ImageOwnerReader;
   private readonly uow: ChatUnitOfWork;
   private readonly logger: Logger;
 
@@ -52,6 +55,7 @@ export class ChatServiceImpl implements ChatService {
     this.access = params.access;
     this.content = params.content;
     this.authors = params.authors;
+    this.images = params.images;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -64,6 +68,7 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(orgId, actor, input.communityId);
     const role = await this.requirePerson(orgId, input.communityId, input.orgUserId);
     this.assertMayMessage(settings, actor, role);
+    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       await chats.lockDirectPair(orgId, input.communityId, actor.id, input.orgUserId);
       const existing = await chats.findDirect(orgId, input.communityId, actor.id, input.orgUserId);
@@ -305,6 +310,7 @@ export class ChatServiceImpl implements ChatService {
           throw new NotFoundError('Message', input.replyToId);
         }
       }
+      await this.requireOwnedImages(orgId, actor.id, input.assetIds);
       const now = new Date();
       const message = await chats.insertMessage(
         orgId,
@@ -687,6 +693,19 @@ export class ChatServiceImpl implements ChatService {
   private assertActive(users: ChatUser[], orgUserId: string): void {
     if (!users.some((user) => user.orgUserId === orgUserId && user.leftAt === null)) {
       throw new ForbiddenError('You are not in this chat');
+    }
+  }
+
+  private async requireOwnedImages(
+    orgId: string,
+    orgUserId: string,
+    assetIds: string[],
+  ): Promise<void> {
+    for (const assetId of assetIds) {
+      if (!(await this.images.ownsImage(orgId, assetId, orgUserId))) {
+        this.logger.debug('attachment refused', { orgId, orgUserId, assetId });
+        throw new NotFoundError('Asset', assetId);
+      }
     }
   }
 

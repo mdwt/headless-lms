@@ -7,6 +7,7 @@ import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
+import type { ImageOwnerReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
 export class IdentityServiceImpl implements IdentityService {
@@ -14,17 +15,20 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly logger: Logger;
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
+  private readonly images: ImageOwnerReader;
 
   constructor(input: {
     repo: IdentityRepository;
     logger?: Logger;
     mailer: Mailer;
     uow: IdentityUnitOfWork;
+    images: ImageOwnerReader;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
     this.logger = input.logger ?? noopLogger;
     this.uow = input.uow;
+    this.images = input.images;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -107,6 +111,7 @@ export class IdentityServiceImpl implements IdentityService {
   async updateProfile(
     userId: string,
     actorUserId: string,
+    orgUserId: string,
     patch: UpdateProfileInput,
   ): Promise<UserProfile> {
     if (actorUserId !== userId) {
@@ -114,13 +119,35 @@ export class IdentityServiceImpl implements IdentityService {
     }
     const orgSet = patch.imageAssetOrgId !== undefined;
     const idSet = patch.imageAssetId !== undefined;
-    if (orgSet !== idSet || (orgSet && (patch.imageAssetOrgId === null) !== (patch.imageAssetId === null))) {
-      throw new ConflictError('A profile photo needs both the asset and its organization, or neither');
+    if (
+      orgSet !== idSet ||
+      (orgSet && (patch.imageAssetOrgId === null) !== (patch.imageAssetId === null))
+    ) {
+      throw new ConflictError(
+        'A profile photo needs both the asset and its organization, or neither',
+      );
     }
     const user = await this.repo.findUserById(userId);
     if (!user) {
       throw new NotFoundError('User', userId);
     }
-    return this.repo.upsertProfile(userId, patch);
+    if (patch.imageAssetId != null && patch.imageAssetOrgId != null) {
+      const owned = await this.images.ownsImage(
+        patch.imageAssetOrgId,
+        patch.imageAssetId,
+        orgUserId,
+      );
+      if (!owned) {
+        this.logger.debug('profile photo refused', {
+          userId,
+          orgUserId,
+          assetId: patch.imageAssetId,
+        });
+        throw new NotFoundError('Asset', patch.imageAssetId);
+      }
+    }
+    const profile = await this.repo.upsertProfile(userId, patch);
+    this.logger.info('profile updated', { userId });
+    return profile;
   }
 }

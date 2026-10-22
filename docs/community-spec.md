@@ -952,6 +952,8 @@ This section specifies authentication and authorization for the community. Authe
 - Member-facing community routes (`/api/member/communities/*` and `/api/member/chats/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
+**Member images.** `POST /api/member/uploads` and `POST /api/member/uploads/:id/finalize` use `requireOrgSession`. The kind is `image` and `uploadedBy` is the caller's org user. A profile photo, a post cover, and a message attachment must be an image that org user uploaded.
+
 **Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
 
 **Who may do what.** Core enforces every row below; the route guards only authenticate.
