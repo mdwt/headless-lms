@@ -457,6 +457,11 @@ export interface ChatRepository {
     messageId: string,
     resolved: { resolvedAt: Date; resolvedBy: string; resolution: MessageFlagResolution },
   ): Promise<void>;
+  resolveOpenFlagsForChat(
+    orgId: string,
+    chatId: string,
+    resolved: { resolvedAt: Date; resolvedBy: string; resolution: MessageFlagResolution },
+  ): Promise<void>;
 }
 
 export interface ChatWriteScope {

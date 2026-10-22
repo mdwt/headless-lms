@@ -395,6 +395,11 @@ export class ChatServiceImpl implements ChatService {
       if (!next) {
         throw new NotFoundError('Message', messageId);
       }
+      await chats.resolveFlags(orgId, messageId, {
+        resolvedAt: now,
+        resolvedBy: actor.id,
+        resolution: 'deleted',
+      });
       await outbox.append([
         discussionEvents.messageDeleted.make({
           orgId,
@@ -628,6 +633,13 @@ export class ChatServiceImpl implements ChatService {
         lockedAt: locked ? now : null,
         lockedBy: locked ? actor.id : null,
       });
+      if (locked) {
+        await chats.resolveOpenFlagsForChat(orgId, chatId, {
+          resolvedAt: now,
+          resolvedBy: actor.id,
+          resolution: 'locked',
+        });
+      }
       const users = await chats.participants(orgId, chatId);
       await outbox.append([this.updatedEvent(orgId, actor, next, users)]);
       return next;

@@ -151,7 +151,7 @@ export class PostServiceImpl implements PostService {
   async schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<Post> {
     const { post } = await this.loadVisible(orgId, actor, postId);
     this.assertAuthor(actor, post);
-    if (post.status === 'published' || post.status === 'removed') {
+    if (post.status === 'published' || post.status === 'removed' || post.status === 'pending') {
       throw new ConflictError('This post cannot be scheduled');
     }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
@@ -215,6 +215,11 @@ export class PostServiceImpl implements PostService {
       const next = await this.mustUpdate(posts, orgId, postId, {
         status: 'removed',
         removedBy: actor.id,
+      });
+      await posts.resolveFlags(orgId, postId, {
+        resolvedAt: new Date(),
+        resolvedBy: actor.id,
+        resolution: 'removed',
       });
       await outbox.append([
         discussionEvents.postRemoved.make({

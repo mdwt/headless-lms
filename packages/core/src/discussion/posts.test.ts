@@ -381,16 +381,28 @@ describe('posts', () => {
   });
 
   it('lets the author remove their post and a moderator remove anyone', async () => {
-    const { svc, calls } = harness();
+    const { svc, calls, flags } = harness();
     const created = await svc.create(ORG, member, draftInput());
+    await svc.flag(ORG, created.id, other, 'spam');
     await expect(svc.remove(ORG, created.id, other)).rejects.toBeInstanceOf(ForbiddenError);
     const removed = await svc.remove(ORG, created.id, member);
     expect(removed.status).toBe('removed');
     expect(removed.removedBy).toBe(member.id);
+    expect(flags[0]).toMatchObject({ resolution: 'removed', resolvedBy: member.id });
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.removed',
       metadata: { actorOrgUserId: member.id, previousStatus: 'published' },
     });
+  });
+
+  it('refuses to schedule a post that is awaiting review', async () => {
+    const { svc, setSpaces } = harness();
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const created = await svc.create(ORG, member, draftInput());
+    expect(created.status).toBe('pending');
+    await expect(
+      svc.schedule(ORG, created.id, member, new Date('2026-10-22T08:00:00.000Z')),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('restores a removed post to published', async () => {

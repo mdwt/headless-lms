@@ -264,6 +264,18 @@ function harness(options?: {
         }
       }
     },
+    async resolveOpenFlagsForChat(orgId, chatId, resolved) {
+      const ids = new Set(
+        messages.filter((row) => row.orgId === orgId && row.chatId === chatId).map((row) => row.id),
+      );
+      for (const flag of flags) {
+        if (flag.orgId === orgId && ids.has(flag.messageId) && !flag.resolvedAt) {
+          flag.resolvedAt = resolved.resolvedAt;
+          flag.resolvedBy = resolved.resolvedBy;
+          flag.resolution = resolved.resolution;
+        }
+      }
+    },
   };
 
   const access: CommunityAccessReader = {
@@ -668,7 +680,7 @@ describe('chats', () => {
   });
 
   it('deletes a message for the author or staff and hides the body from members', async () => {
-    const { svc } = harness();
+    const { svc, flags } = harness();
     const chat = await svc.startGroup(ORG, member, {
       communityId: COMMUNITY,
       orgUserIds: [other.id, staff.id],
@@ -682,8 +694,10 @@ describe('chats', () => {
     );
     const edited = await svc.editMessage(ORG, member, sent.id, 'Edited');
     expect(edited.body).toBe('Edited');
+    await svc.flagMessage(ORG, other, sent.id, 'spam');
     const removed = await svc.deleteMessage(ORG, staff, sent.id);
     expect(removed.deletedAt).toBeInstanceOf(Date);
+    expect(flags[0]).toMatchObject({ resolution: 'deleted', resolvedBy: staff.id });
     const seen = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
     expect(seen.rows[0]?.body).toBe('');
     const staffSeen = await svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 });
@@ -737,7 +751,7 @@ describe('chats', () => {
   });
 
   it('refuses an edit when the chat is locked or the author has left', async () => {
-    const { svc } = harness({ settings: { firstMessageIsRequest: false } });
+    const { svc, flags } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
@@ -746,7 +760,9 @@ describe('chats', () => {
     });
     const page = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 });
     const messageId = page.rows[0]!.id;
+    await svc.flagMessage(ORG, other, messageId, 'spam');
     await svc.lock(ORG, staff, chat.id);
+    expect(flags[0]).toMatchObject({ resolution: 'locked', resolvedBy: staff.id });
     await expect(svc.editMessage(ORG, member, messageId, 'Changed')).rejects.toThrow(
       'You cannot send in this chat',
     );

@@ -945,6 +945,14 @@ describe('reports', () => {
     await service.reportComment('o1', commentId, other, 'spam');
     await service.resolveReports('o1', commentId, staff);
     expect(reports.every((r) => r.resolvedAt !== null)).toBe(true);
+    expect(reports[0]?.resolution).toBe('dismissed');
+  });
+
+  it('resolves open reports as removed when the comment is removed', async () => {
+    const { service, reports, commentId } = await seeded();
+    await service.reportComment('o1', commentId, other, 'spam');
+    await service.remove('o1', commentId, staff);
+    expect(reports[0]).toMatchObject({ resolution: 'removed', resolvedBy: staff.id });
   });
 
   it('refuses to close reports for a learner', async () => {

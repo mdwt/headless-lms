@@ -293,7 +293,12 @@ export class DiscussionServiceImpl implements DiscussionService {
           metadata: { actorOrgUserId: actor.id },
         }),
       ]);
-      this.logger.info('comment created', { orgId, commentId: row.id, postId, status: 'published' });
+      this.logger.info('comment created', {
+        orgId,
+        commentId: row.id,
+        postId,
+        status: 'published',
+      });
       return row;
     });
     return this.renderOne(orgId, saved, actor);
@@ -308,10 +313,13 @@ export class DiscussionServiceImpl implements DiscussionService {
       }
       return this.canModerate(actor) || comment.orgUserId === actor.id;
     });
-    const replies = readable.filter((comment) => comment.parentId !== null && comment.status !== 'removed');
+    const replies = readable.filter(
+      (comment) => comment.parentId !== null && comment.status !== 'removed',
+    );
     const heldOpen = new Set(replies.map((reply) => reply.parentId));
     const roots = readable.filter(
-      (comment) => comment.parentId === null && (comment.status !== 'removed' || heldOpen.has(comment.id)),
+      (comment) =>
+        comment.parentId === null && (comment.status !== 'removed' || heldOpen.has(comment.id)),
     );
     const rootIds = new Set(roots.map((root) => root.id));
     const served = [...roots, ...replies.filter((reply) => rootIds.has(reply.parentId!))].sort(
@@ -329,7 +337,9 @@ export class DiscussionServiceImpl implements DiscussionService {
         : Promise.resolve<Record<string, CommentReactions>>({}),
     ]);
     this.logger.debug('post comments read', { orgId, postId, count: served.length });
-    return served.map((comment) => this.toView(comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS));
+    return served.map((comment) =>
+      this.toView(comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS),
+    );
   }
 
   private async visiblePost(
@@ -414,7 +424,9 @@ export class DiscussionServiceImpl implements DiscussionService {
     const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
     if (!config.enabled) {
       throw new ForbiddenError(
-        comment.postId ? 'Comments are closed on this post' : 'discussion is not open on this activity',
+        comment.postId
+          ? 'Comments are closed on this post'
+          : 'discussion is not open on this activity',
       );
     }
     // Editing is the author's alone — moderators remove, they do not rewrite.
@@ -470,6 +482,11 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
+      await scope.discussion.resolveReportsFor(orgId, commentId, {
+        resolvedAt: new Date(),
+        resolvedBy: actor.id,
+        resolution: 'removed',
+      });
       await scope.outbox.append([
         discussionEvents.commentRemoved.make({
           orgId,

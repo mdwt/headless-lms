@@ -546,6 +546,32 @@ export class DrizzleChatRepository implements ChatRepository {
     return rows.map(toMessage);
   }
 
+  async resolveOpenFlagsForChat(
+    orgId: string,
+    chatId: string,
+    resolved: { resolvedAt: Date; resolvedBy: string; resolution: MessageFlagResolution },
+  ): Promise<void> {
+    const inChat = this.db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.orgId, orgId), eq(messages.chatId, chatId)));
+    await this.db
+      .update(messageFlags)
+      .set({
+        resolvedAt: resolved.resolvedAt,
+        resolvedBy: resolved.resolvedBy,
+        resolution: resolved.resolution,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(messageFlags.orgId, orgId),
+          inArray(messageFlags.messageId, inChat),
+          isNull(messageFlags.resolvedAt),
+        ),
+      );
+  }
+
   async resolveFlags(
     orgId: string,
     messageId: string,
