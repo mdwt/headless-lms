@@ -54,4 +54,4 @@ export type {
   ReactionCounts,
   ReactionEmoji,
 } from './types.js';
-export type { CommentEvent } from './events.js';
+export type { DiscussionEvent } from './events.js';
