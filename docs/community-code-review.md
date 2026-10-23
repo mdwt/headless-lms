@@ -849,9 +849,13 @@ Verification after the fourth pass:
 | `pnpm typecheck` | passes, every package and both apps |
 | `pnpm lint` | passes |
 | `pnpm test` | 84 files, 944 tests, all pass |
-| Migrations | 0003–0006 applied in Postgres 17 to a database built from `main`'s 0000–0002 and seeded with resolved reports, inline lesson media, expired, renewed and expiring grants, and old-draft rows: legacy flags keep a null resolver, kinds follow content type, inline media is linked in document order, only current-term notices exist, nine system automations per org, the topic constraint is deferred |
+| Migrations | 0000–0006 applied in Postgres 17 to an empty database; `drizzle-kit check` passes; the topic constraint is deferred and the first notice ledger is gone |
 | Schema drift | `drizzle-kit generate` reports no changes |
 | Contract | OpenAPI regenerated from the route schemas; SDK and API docs regenerated from it |
+
+## Migrations carry schema only
+
+No release holds data from before the feature, so every data statement left the migrations: the flag resolution backfill (B1), the asset source, kind and uploader conversion, the notice copies (G1), the system seed backfill for existing orgs (B3, E4), the fix-ups for databases that ran an earlier draft (G2), and the lesson media links. The last one read the Plate document shape in SQL, which no editor-neutral layer may do. The fixes those items name for the running code stand. An org gets its system automations when it is created.
 
 ## Open
 
@@ -872,7 +876,7 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 |---|---|---|
 | B1 | Migration aborts on resolved reports | completed (third pass: legacy resolver is null, not a placeholder id) |
 | B2 | Asset ids unchecked at write time | completed |
-| B3 | No seed backfill for existing orgs | completed |
+| B3 | No seed backfill for existing orgs | withdrawn: migrations carry schema only |
 | B4 | No member upload route | completed |
 | S1 | Student cannot become moderator | completed in the third pass (O1, O4) |
 | S2 | Message request blocks the wrong side | completed (third and fourth pass: C2, R1) |

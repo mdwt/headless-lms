@@ -134,7 +134,7 @@ The findings were fixed as follows.
 
 | ID | Finding | Decision |
 |---|---|---|
-| F11 | Inline lesson media never reached students. The member URL needs an activity–asset link, and nothing created one for media in the editor content. The same gap let staff delete a file a lesson shows | The editor contract gains `assetIds(config)`; content-plate implements it; the admin save sends the editor's ids; content refuses ids that are not ready library files of the org; migration 0006 links the media already in stored lessons |
+| F11 | Inline lesson media never reached students. The member URL needs an activity–asset link, and nothing created one for media in the editor content. The same gap let staff delete a file a lesson shows | The editor contract gains `assetIds(config)`; content-plate implements it; the admin save sends the editor's ids; content refuses ids that are not ready library files of the org |
 | F12 | The size and type check could be bypassed by re-uploading to the presigned URL after finalize | Finalize copies the upload to a final key the ticket cannot reach |
 | F13 | Confirming a ready asset again deleted the bytes of a referenced file | Confirm acts on pending uploads only |
 | F14 | Check-then-delete race in delete, removeOwn and the sweep | Row first in the unit of work, a foreign-key refusal is a 409, the object after commit |

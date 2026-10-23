@@ -667,10 +667,12 @@ The progress, automations, reporting and assets contexts get no new tables. The 
 
 The schema changes ship as four Drizzle migrations, each generated from the schema files with the statements drizzle-kit cannot generate added by hand.
 
-- `0003_community` adds the community tables. By hand: the rename of `comment_reports` to `comment_flags`, the resolution backfill for reports resolved before the feature, and dropping the not-null constraint on `comments.activity_id`.
-- `0004_assets_sources` adds `assets.source`, maps `kind` from each row's content type, and converts `uploaded_by` to the org user.
-- `0005_notices_and_seed_index` adds the partial unique index on system automations, removes duplicate system rows, and inserts the org seeds for every org that exists before the deploy.
-- `0006_community_review_fixes` replaces the first notice ledger with the two per-term notice tables, carrying over an ending-soon notice only for the grant's current term, records an expiry notice for every grant already past `expires_at` so the first run does not emit for old expiries, makes the topic name constraint deferred, adds the bookmark index, and links the files lesson content already embeds to their activities. It also converges a database that applied an earlier draft of 0003 and 0004: it clears the placeholder resolver on old flags, re-adds the flag check, and re-derives asset kinds from their content type.
+- `0003_community` adds the community tables. By hand: the rename of `comment_reports` to `comment_flags` and dropping the not-null constraint on `comments.activity_id`.
+- `0004_assets_sources` adds `assets.source`.
+- `0005_notices_and_seed_index` adds the partial unique index on system automations.
+- `0006_community_review_fixes` replaces the first notice ledger with the two per-term notice tables, makes the topic name constraint deferred, and adds the bookmark index.
+
+The migrations change the schema only. No release holds data from before the feature, so they carry no backfills, data copies or seeds. An org gets its system automations when it is created.
 
 The deferred topic name constraint exists only in the migrations; drizzle-kit cannot express it, so a database built with `db:push` does not have it and topic name swaps fail there. Databases are built with the migrations.
 
