@@ -115,7 +115,7 @@ This section lists every term used in this document with the context that owns i
 | Block | discussion | One person stopping another from messaging them inside one community; checked on every send in that community |
 | Directory | reporting/member | Grants (entitlements) plus roles (organizations) plus profiles (identity). A method on the member service. Reporting owns no data |
 | Analytics | reporting/admin | Staff reads across the contexts, a method on the admin service. Reporting owns no data |
-| Files | assets | Post covers, message attachments, profile photos. Each is a member upload: an image the person uploaded themselves, with `source = member`. A cover and a profile photo are asset ids. Served through the post, message or profile that references it, never by id alone |
+| Files | assets | Post covers, message attachments, profile photos. Each is a member upload: an image the person uploaded themselves, with `source = member`. A cover and a profile photo are asset ids. The post, message or profile that holds a file is returned with the file's signed URL; no route serves a file by id |
 
 ## Data model
 
@@ -752,7 +752,7 @@ The composition root in `packages/server/src/app/container.ts` wires the new ser
 
 ### HTTP routes
 
-The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links and DM settings; they use `resolveScope`. The moderator role is given through the existing org user role route, which writes the Better Auth membership. Member routes under `/api/member` (`communities`, `posts`, `comments`, `chats`, `messages`, `profile`, `uploads` and `assets`) cover feeds, posts, comments, space members, the directory, chats and member files; they use `requireOrgSession` and pass the org user as the actor. The directory and the community home call `reporting/member`. Staff analytics call `reporting/admin`. The `/api/member` prefix is the member HTTP API. Moderator actions use the member routes; core decides from the actor's role whether the caller may perform them. Every handler consists of a schema and one core call.
+The API remains schema-first and the SDK remains generated from the OpenAPI document. The routes are in three groups. Staff routes under `/api/communities` set up communities, spaces, topics, links and DM settings; they use `resolveScope`. The moderator role is given through the existing org user role route, which writes the Better Auth membership. Member routes under `/api/member` (`communities`, `posts`, `comments`, `chats`, `messages`, `profile` and `uploads`) cover feeds, posts, comments, space members, the directory, chats and member uploads; they use `requireOrgSession` and pass the org user as the actor. The directory and the community home call `reporting/member`. Staff analytics call `reporting/admin`. The `/api/member` prefix is the member HTTP API. Moderator actions use the member routes; core decides from the actor's role whether the caller may perform them. Every handler consists of a schema and one core call.
 
 ## Domain events
 
@@ -985,12 +985,25 @@ This section specifies authentication and authorization for the community. Authe
 
 **One route guard per surface.**
 
-- Member-facing community routes (`/api/member/communities/*`, `/posts/*`, `/comments/*`, `/chats/*`, `/messages/*`, `/profile`, `/uploads/*`, `/assets/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
+- Member-facing community routes (`/api/member/communities/*`, `/posts/*`, `/comments/*`, `/chats/*`, `/messages/*`, `/profile`, `/uploads/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
 **Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file that is not an image or is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
 
-**Serving a file to a member.** `POST /api/member/assets/:id/url` takes a body naming what the asset is being served as: `{ via: { activity } }`, `{ course }`, `{ download }`, `{ community }`, `{ post }`, `{ message }` or `{ profile: orgUserId }`. `reporting/member` asks the owning context whether the caller may see the referenced thing, checks that the thing references this asset, and asks assets to sign. There is no way for a member to be served an asset by id alone.
+**Serving files.** A response that returns something holding a file returns the file's signed URL with it, and no route serves a file by id. The context that answers the read has already decided the caller may see the thing, and it asks assets to sign that thing's files in one batch. Assets signs only ready files of the org.
+
+| Response | Field |
+| --- | --- |
+| Course, download, community (staff and member) | `thumbnailUrl` |
+| Activity (staff and member lists) | `assetUrls`: the activity's linked files, keyed by asset id |
+| Download files (staff and member) | each file's stored `filename`, `contentType`, `size`, and a `url` that downloads it under its display name, or its filename when it has none |
+| Post, in every post response | `coverUrl`, and `author.imageUrl` |
+| Message, in every message response | `attachments`: `{ assetId, url }` in order, empty to a member for a deleted message; `sender.imageUrl` |
+| Comment | `author.imageUrl`, `removedBy.imageUrl`, and in the staff list `reporter.imageUrl` |
+| Profile, directory entry | `imageUrl`, only inside the org the photo belongs to |
+| Library asset (staff list, get, confirm), finalized member upload | `url` to show it and `downloadUrl` to save it under its filename; both `null` while pending, and for a member upload in the staff library |
+
+Every URL lives `DELIVERY_URL_EXPIRY` seconds. A client that outlives one reads the content again; the editor contract's `refreshUrl` is that read for a playing video.
 
 **Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, single messages and their files, directory, and the emails that carry excerpts. A community that is not published is closed the same way to everyone but staff.
 
@@ -1032,5 +1045,5 @@ Instructors count as staff for moderation and posting, as they do for course com
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 
 - `GET /api/comments` and the other staff comment routes run under `requireOrgSession` only; any org user reaches them. They get `resolveScope`.
-- `POST /api/member/assets/:id/url` mints a presigned URL for any asset in the org without an access check. Community attachments need the check, so the route gains a required reference in its body and `reporting/member` applies the owning context's rule, as the member images section specifies.
+- `POST /api/member/assets/:id/url` mints a presigned URL for any asset in the org without an access check. The route is removed, along with the staff `POST /api/assets/:id/download-url` and the download file redirect: files are signed in the responses that carry them, as the serving files section specifies.
 - The two access readers disagree: entitlements honours bundles and ignores publish state, the course entitlement reader on `reporting/member` honours publish state and ignores bundles. Community uses entitlements for the grant and content for publish state, and that course reader is corrected to honour bundles.

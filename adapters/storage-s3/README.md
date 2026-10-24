@@ -57,13 +57,13 @@ the bucket name cannot be a subdomain — they need path style. Set
 
 ## Environment variables (reference installation)
 
-| Variable                   | Required | Maps to                 | Notes                                                        |
-| -------------------------- | -------- | ----------------------- | ------------------------------------------------------------ |
-| `STORAGE_REGION`           | yes      | `region`                |                                                              |
-| `STORAGE_BUCKET`           | yes      | `bucket`                | Must exist; kept private.                                    |
-| `STORAGE_ACCESS_KEY`       | no       | `accessKeyId`           | Omit for the default credential chain.                       |
-| `STORAGE_SECRET_KEY`       | no       | `secretAccessKey`       | Omit for the default credential chain.                       |
-| `STORAGE_ENDPOINT`         | no       | `endpoint`              | Full URL, for S3-compatible stores.                          |
-| `STORAGE_FORCE_PATH_STYLE` | no       | `forcePathStyle`        | `"true"` / `"false"`.                                        |
-| `STORAGE_UPLOAD_EXPIRY`    | no       | `uploadExpirySeconds`   | Default 300. Stray member uploads older than this are swept. |
-| `STORAGE_DOWNLOAD_EXPIRY`  | no       | `downloadExpirySeconds` | Default 86400.                                               |
+| Variable                   | Required | Maps to                 | Notes                                                                                                                    |
+| -------------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `STORAGE_REGION`           | yes      | `region`                |                                                                                                                          |
+| `STORAGE_BUCKET`           | yes      | `bucket`                | Must exist; kept private.                                                                                                |
+| `STORAGE_ACCESS_KEY`       | no       | `accessKeyId`           | Omit for the default credential chain.                                                                                   |
+| `STORAGE_SECRET_KEY`       | no       | `secretAccessKey`       | Omit for the default credential chain.                                                                                   |
+| `STORAGE_ENDPOINT`         | no       | `endpoint`              | Full URL, for S3-compatible stores.                                                                                      |
+| `STORAGE_FORCE_PATH_STYLE` | no       | `forcePathStyle`        | `"true"` / `"false"`.                                                                                                    |
+| `STORAGE_UPLOAD_EXPIRY`    | no       | `uploadExpirySeconds`   | Default 300. Stray member uploads older than this are swept.                                                             |
+| `STORAGE_DOWNLOAD_EXPIRY`  | no       | `downloadExpirySeconds` | Download lifetime when the caller names none. Default 86400. The API names `DELIVERY_URL_EXPIRY` on every URL it serves. |

@@ -6,7 +6,7 @@ The question under review: the assets context serves two different uses, product
 
 ## The two uses
 
-**Library files.** Staff upload a course video, an inline image, a download product's files, a course or community thumbnail. The file lives in the org's media library. A member reaches it only through content a grant covers. The download route is the clean example on `main`: `/api/member/downloads/:downloadId/assets/:assetId` checks the grant on the download, then that the download links the file, then signs.
+**Library files.** Staff upload a course video, an inline image, a download product's files, a course or community thumbnail. The file lives in the org's media library. A member reaches it only with content a grant covers.
 
 **Member files.** A member uploads a profile photo, a post cover or a message attachment. The file belongs to that person. Ownership matters at write time. Who may see it follows the thing it is attached to: a post cover is visible to whoever can open the post, an attachment to the chat's participants, a photo to the org's members.
 
@@ -98,7 +98,7 @@ Who may do what:
 | Upload | staff, any content type | any org user, `image/*` only |
 | Confirm | staff | the uploader only; the file is copied to a key the upload ticket cannot reach, then its stored size and type are checked there |
 | List | staff, the media library | staff, with `source=member` |
-| Serve | through the content a grant covers, inline lesson media included; staff by id | through the post, message or profile that references it; never to staff by id |
+| Serve | signed in the response that returns the content a grant covers, inline lesson media included; signed in the library for staff | signed in the response that returns the post, message or profile it is attached to; never in the staff library |
 | Delete | staff, when nothing references it | the uploader or staff, when nothing references it; the hourly sweep, which also removes stray objects under the uploads prefix once the ticket has expired |
 
 A delete removes the registry row first, so the references decide atomically, and removes the stored object after commit.
@@ -111,13 +111,14 @@ A delete removes the registry row first, so the references decide atomically, an
 | `GET /api/assets` | Query gains `source`, default `library` |
 | `DELETE /api/assets/:id` | 409 when the asset is referenced |
 | `POST /api/assets/:id/confirm` | 403 for a member upload |
-| `POST /api/assets/:id/download-url` | 403 for a member upload |
+| `POST /api/assets/:id/download-url` | Removed in the fifth pass |
 | `POST /api/courses/:courseId/modules/:moduleId/activities`, `PATCH …/activities/:activityId` | 409, naming the ids, when an activity uses a file that is not a ready library file of the org |
 | `POST /api/member/uploads` | `contentType` must match `image/*` |
 | `DELETE /api/member/uploads/:id` | New. The uploader removes their own unreferenced upload |
-| `POST /api/member/assets/:id/url` | Body is a required reference: `{ via: { activity } | { course } | { download } | { community } | { post } | { message } | { profile } }` |
+| `POST /api/member/assets/:id/url` | Removed in the fifth pass |
+| `GET /api/member/downloads/:downloadId/assets/:assetId` | Removed in the fifth pass |
 
-`Asset` gains `source` and no longer carries `key`. `kind` values are `image`, `video`, `audio`, `document`.
+`Asset` gains `source` and `url`, and no longer carries `key`. `kind` values are `image`, `video`, `audio`, `document`. Every response that returns a file carries its signed URL; the fields are listed in the serving files section of `docs/community-spec.md`.
 
 ## Third pass
 
@@ -167,6 +168,20 @@ The third-pass fixes were verified in the code, and these were found and fixed:
 
 Open, for the next run: two concurrent finalizes of one upload with a re-upload in between can refuse the new bytes and delete the row the other made ready (OP5 in `docs/community-code-review.md`).
 
+## Fifth pass
+
+Reviewed on 2026-10-24. A file is served in the response that carries the content it belongs to. The per-file URL routes and everything built around them are removed.
+
+| ID | Finding | Decision |
+|---|---|---|
+| V1 | A frontend got a file URL by sending `POST /api/member/assets/:id/url` with a `via` body, one request per file. A read was a POST, a page showed nothing until it had made one request per image, no URL could sit in markup, and every frontend had to know which reference to name for which file | Removed. Each context that answers a read asks assets to sign the files of what it returns, in one batch: `thumbnailUrl` on courses, downloads and communities, `assetUrls` on activities, `coverUrl` on posts, `imageUrl` on profiles, authors and directory entries, `attachments` on messages, `url` on download files, `url` and `downloadUrl` on library assets. Reporting's reference check, `AssetReference`, `DownloadTicket` and the per-asset signing methods are gone |
+| V2 | Staff fetched a URL per file with `POST /api/assets/:id/download-url`: every library card, preview, thumbnail, picked asset and upload | Removed. Library list, get and confirm return `url` to show a ready library file and `downloadUrl` to save it under its filename; both are `null` for pending files and member uploads |
+| V3 | A message response never said what was attached to it. The only way to reach an attachment was the removed route, given an id the client had no way to learn | Every message response carries `attachments`, `{ assetId, url }` in order, loaded for a page of messages in one query. A member gets none for a deleted message; staff working the queue see them |
+| V4 | The download file link was a redirect route per file, and the admin fetched each file's details with one request per file | The download's file rows carry the stored `filename`, `contentType`, `size` and a `url` that saves the file under its display name, or its filename without one. The redirect route and the repository's per-file link check are gone |
+| V5 | Lesson content stored the URL from save time, and the editor contract had an async `resolveAssetUrl` the Plate nodes awaited one by one during render | The contract takes `assetUrls`, the map the activity response carries. Plate applies it to the document once, before the editor or the renderer reads it, so every node, the toolbar and the image preview see the served URL. `refreshUrl` stays for a video that outlives its URL; the student app answers it by reading the course's activities again |
+| V6 | Post and message writes returned a bare row, so a client had to read the post or chat again to show a cover, a sender photo or an attachment | Every post and message response is the full view |
+| V7 | Staff URLs lived for the storage default and member URLs for `DELIVERY_URL_EXPIRY` | One lifetime, `DELIVERY_URL_EXPIRY`, for every URL a response carries |
+
 ## Tracking
 
 | ID | Title | Status |
@@ -175,7 +190,7 @@ Open, for the next run: two concurrent finalizes of one upload with a re-upload 
 | F2 | `uploaded_by` is the org user for every asset | completed |
 | F3 | Member uploads are images with a size cap | completed in the third and fourth pass (F12, T1) |
 | F4 | Member files can be deleted and are swept | completed in the third and fourth pass (F14, T2) |
-| F5 | Serve through the reference | completed in the third pass (F11, F15) |
+| F5 | Serve through the reference | superseded in the fifth pass (V1): files are signed in the responses that carry them |
 | F6 | Profile photo stays in its org | completed in the third pass (F16) |
 | F7 | Library list defaults to library source | completed |
 | F8 | Referenced assets refuse deletion before storage is touched | completed in the third pass (F11, F14) |
@@ -183,4 +198,5 @@ Open, for the next run: two concurrent finalizes of one upload with a re-upload 
 | F10 | Docs rewritten | completed in the third and fourth pass (F24, T7, T8) |
 | F11–F24 | Third pass | completed |
 | T1–T9 | Fourth pass | completed |
+| V1–V7 | Fifth pass: files served in the responses that carry them | completed |
 | OP5 | Concurrent finalize with a re-upload | open |

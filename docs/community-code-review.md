@@ -857,6 +857,10 @@ Verification after the fourth pass:
 
 No release holds data from before the feature, so every data statement left the migrations: the flag resolution backfill (B1), the asset source, kind and uploader conversion, the notice copies (G1), the system seed backfill for existing orgs (B3, E4), the fix-ups for databases that ran an earlier draft (G2), and the lesson media links. The last one read the Plate document shape in SQL, which no editor-neutral layer may do. The fixes those items name for the running code stand. An org gets its system automations when it is created.
 
+## Files are served in the responses that carry them
+
+On 2026-10-24 the per-file URL routes were removed: `POST /api/member/assets/:id/url` with its `via` reference, the staff `POST /api/assets/:id/download-url`, and the download file redirect. A response that returns something holding a file now returns the file's signed URL with it. The decisions are V1–V7 in `docs/assets-review.md`. The write-time ownership checks of B2 still decide which files a post, message or profile may hold, and so which files their responses sign.
+
 ## Open
 
 These are not fixed. Each needs a decision or work outside this branch, and the next review run should pick them up.

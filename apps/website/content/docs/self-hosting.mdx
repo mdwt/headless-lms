@@ -26,10 +26,11 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 `.env.example` documents every variable and the command that mints a Hatchet token for the local `hatchet` container.
 
-### Member uploads
+### Files
 
 | Variable                 | Required | Default    | Notes                                                                                                                                                      |
 | ------------------------ | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DELIVERY_URL_EXPIRY`    | no       | `300`      | How long the file URLs in API responses stay valid, in seconds. Every course, lesson, download, post, message, profile and library response signs its files with this lifetime. Must be a positive integer; the API does not start otherwise. |
 | `MEMBER_IMAGE_MAX_BYTES` | no       | `10485760` | The largest image a member may upload (profile photo, post cover, message attachment), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise. |
 
 These commands run across all workspaces:

@@ -27,6 +27,7 @@ src/
   renderer.tsx      # RSC-safe contract Renderer — PlateStatic + BaseEditorKit
   validate.ts       # shallow node-array check
   asset-ids.ts      # contract assetIds — host asset ids the content shows
+  asset-urls.ts     # applies the host's assetUrls to asset-backed nodes
   editor/
     editor-kit.tsx        # assembled interactive plugin kit
     editor-base-kit.tsx   # assembled static (server) kit
@@ -56,8 +57,17 @@ The contract's required `assetIds(config)` returns every `assetId` on a node of
 the config, in document order, without duplicates. The admin app sends them as
 the activity's asset links on save (plus any links the activity has that the
 editor does not manage); the server accepts only ready media library files of
-the org, and a learner is served an activity's file only through its link. A
-media node without an `assetId` (a non-persistent local preview) is not linked.
+the org. A media node without an `assetId` (a non-persistent local preview) is
+not linked.
+
+## Asset URLs
+
+The API returns each activity with `assetUrls`, a signed URL per linked file
+keyed by asset id, and the host passes it to `Editor` and `Renderer` as
+`assetUrls`. Both apply it to the config before rendering: every node whose
+`assetId` is in the map gets that URL as its `url`, so the URL stored at save
+time is never what reaches the browser. Nodes without an `assetId` (external
+media) keep their own `url`.
 
 ## Styling
 
