@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { withAssetUrls } from "./asset-urls";
+import { withAssetUrls, withoutAssetUrls } from "./asset-urls";
 
 describe("withAssetUrls", () => {
-  it("gives every node with a served asset that asset's url, nested ones included", () => {
+  it("gives every asset node the url the host served for it, nested ones included", () => {
     const config = [
-      { type: "video", assetId: "ast_video", url: "https://old/video", children: [{ text: "" }] },
+      { type: "video", assetId: "ast_video", children: [{ text: "" }] },
       {
         type: "column_group",
-        children: [
-          { type: "img", assetId: "ast_image", url: "https://old/image", children: [{ text: "" }] },
-        ],
+        children: [{ type: "img", assetId: "ast_image", children: [{ text: "" }] }],
       },
     ];
 
@@ -27,18 +25,34 @@ describe("withAssetUrls", () => {
     ]);
   });
 
-  it("keeps the stored url of external media and of assets the host did not serve", () => {
-    const config = [
-      { type: "img", url: "https://example.com/a.png", children: [{ text: "" }] },
-      { type: "img", assetId: "ast_gone", url: "https://old/gone", children: [{ text: "" }] },
-    ];
-
-    expect(withAssetUrls(config, { ast_other: "https://new/other" })).toEqual(config);
+  it("leaves an asset node the host did not serve without a url", () => {
+    expect(
+      withAssetUrls([{ type: "img", assetId: "ast_gone", url: "https://x", children: [] }], {}),
+    ).toEqual([{ type: "img", assetId: "ast_gone", children: [] }]);
   });
 
-  it("leaves the config as it is without a map", () => {
-    const config = [{ type: "img", assetId: "ast_image", url: "https://old", children: [] }];
+  it("keeps the url of external media", () => {
+    const config = [{ type: "img", url: "https://example.com/a.png", children: [{ text: "" }] }];
 
-    expect(withAssetUrls(config, undefined)).toBe(config);
+    expect(withAssetUrls(config, {})).toEqual(config);
+  });
+});
+
+describe("withoutAssetUrls", () => {
+  it("drops the url of every asset node and keeps the url of external media", () => {
+    expect(
+      withoutAssetUrls([
+        { type: "img", assetId: "ast_image", url: "https://signed", children: [{ text: "" }] },
+        {
+          type: "toggle",
+          children: [{ type: "file", assetId: "ast_file", url: "https://signed", children: [] }],
+        },
+        { type: "video", url: "https://youtube.com/watch?v=1", children: [{ text: "" }] },
+      ]),
+    ).toEqual([
+      { type: "img", assetId: "ast_image", children: [{ text: "" }] },
+      { type: "toggle", children: [{ type: "file", assetId: "ast_file", children: [] }] },
+      { type: "video", url: "https://youtube.com/watch?v=1", children: [{ text: "" }] },
+    ]);
   });
 });

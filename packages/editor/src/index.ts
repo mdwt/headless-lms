@@ -23,10 +23,9 @@ export interface UploadedEditorFile {
 }
 
 /**
- * Displayable URLs for the host assets a config references, keyed by asset id.
- * The host passes the map its API returned with the content; media nodes that
- * persist an asset id look their URL up here instead of trusting the `url`
- * embedded in stored config, which was only valid when the content was saved.
+ * Displayable URLs for the host assets a config references, keyed by asset id:
+ * the map the host's API returned with the content. A config stores the asset
+ * id of a media node and never its URL; the URL comes from this map.
  */
 export type AssetUrls = Readonly<Record<string, string>>;
 
@@ -36,8 +35,9 @@ export interface PageEditorProps {
   /** The stored editor config blob, verbatim. `null`/invalid → start empty. */
   initialConfig: unknown;
   /** URLs for the host assets the initial config references. */
-  assetUrls?: AssetUrls;
-  /** Persist the current config. The editor awaits this for pending state. */
+  assetUrls: AssetUrls;
+  /** Persist the current config. The editor awaits this for pending state.
+   *  Configs handed to `onSave` and `onChange` carry asset ids, not URLs. */
   onSave: (config: unknown) => Promise<void>;
   /**
    * Fired with the current config on every edit. Lets the host own the save
@@ -73,7 +73,7 @@ export interface EditorModule {
    *  May render 'use client' islands internally. Props passed into islands must be
    *  serializable; composition across the boundary only via children.
    *  Asset-backed media nodes take their URL from `assetUrls`. */
-  Renderer: ComponentType<{ config: unknown; assetUrls?: AssetUrls }>;
+  Renderer: ComponentType<{ config: unknown; assetUrls: AssetUrls }>;
   validate?: (config: unknown) => { ok: true } | { ok: false; errors: string[] };
   assetIds: (config: unknown) => string[];
   slots?: readonly EditorSlot[];

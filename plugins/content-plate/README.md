@@ -54,20 +54,20 @@ object URLs.
 ## Asset links
 
 The contract's required `assetIds(config)` returns every `assetId` on a node of
-the config, in document order, without duplicates. The admin app sends them as
-the activity's asset links on save (plus any links the activity has that the
-editor does not manage); the server accepts only ready media library files of
-the org. A media node without an `assetId` (a non-persistent local preview) is
-not linked.
+the config, in document order, without duplicates. When an activity's content
+is saved, the admin sends exactly these ids as the activity's asset links; the
+server accepts only ready media library files of the org. A media node without
+an `assetId` (a non-persistent local preview) is not linked.
 
 ## Asset URLs
 
 The API returns each activity with `assetUrls`, a signed URL per linked file
 keyed by asset id, and the host passes it to `Editor` and `Renderer` as
-`assetUrls`. Both apply it to the config before rendering: every node whose
-`assetId` is in the map gets that URL as its `url`, so the URL stored at save
-time is never what reaches the browser. Nodes without an `assetId` (external
-media) keep their own `url`.
+`assetUrls`. A stored config holds a media node's `assetId` and never its URL.
+Both entries give every asset node the URL from the map before rendering, and
+an asset node the host did not serve has none. The editor drops the URL of
+every asset node from the configs it hands to `onSave` and `onChange`. External
+media keeps its own `url`.
 
 ## Styling
 

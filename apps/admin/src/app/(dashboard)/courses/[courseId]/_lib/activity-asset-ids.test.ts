@@ -10,27 +10,16 @@ const editor = {
 const content = (ids: string[], type = "plate") => ({ type, version: 1, config: { ids } });
 
 describe("activityAssetIds", () => {
-  it("links the media the editor content uses", () => {
-    expect(activityAssetIds(editor, undefined, content(["ast_video", "ast_image"]), [])).toEqual([
+  it("links exactly the media the editor content uses", () => {
+    expect(activityAssetIds(editor, content(["ast_video", "ast_image"]))).toEqual([
       "ast_video",
       "ast_image",
     ]);
+    expect(activityAssetIds(editor, content([]))).toEqual([]);
   });
 
-  it("drops media removed from the content and keeps links the editor does not manage", () => {
-    expect(
-      activityAssetIds(
-        editor,
-        content(["ast_old", "ast_kept"]),
-        content(["ast_kept", "ast_new"]),
-        ["ast_old", "ast_kept", "ast_transcript"],
-      ),
-    ).toEqual(["ast_kept", "ast_new", "ast_transcript"]);
-  });
-
-  it("keeps every link when the stored content is in another editor's format", () => {
-    expect(
-      activityAssetIds(editor, content(["ast_old"], "tiptap"), content(["ast_new"]), ["ast_old"]),
-    ).toEqual(["ast_new", "ast_old"]);
+  it("leaves the links alone for content this editor cannot read, or none", () => {
+    expect(activityAssetIds(editor, content(["ast_new"], "tiptap"))).toBeUndefined();
+    expect(activityAssetIds(editor, undefined)).toBeUndefined();
   });
 });

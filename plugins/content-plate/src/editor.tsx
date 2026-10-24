@@ -11,7 +11,7 @@ import { useEffect } from "react";
 
 import type { PageEditorProps } from "@headless-lms/editor";
 
-import { withAssetUrls } from "./asset-urls";
+import { withAssetUrls, withoutAssetUrls } from "./asset-urls";
 
 import { EditorKit } from "./editor/editor-kit";
 import { HostSlotsProvider } from "./hooks/use-host-slots";
@@ -43,7 +43,7 @@ export function Editor({
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        void onSave(editor.children);
+        void onSave(withoutAssetUrls(editor.children));
       }
     };
     window.addEventListener("keydown", handler);
@@ -54,7 +54,7 @@ export function Editor({
     <UploadProvider uploadFile={uploadFile ?? null}>
       <PickAssetProvider pickAsset={pickAsset ?? null}>
         <HostSlotsProvider slots={slots ?? NO_SLOTS}>
-          <Plate editor={editor} onValueChange={({ value }) => onChange?.(value)}>
+          <Plate editor={editor} onValueChange={({ value }) => onChange?.(withoutAssetUrls(value))}>
             <EditorContainer className="h-auto overflow-visible" variant="default">
               <EditorArea placeholder="Type '/' for commands…" variant="default" />
             </EditorContainer>

@@ -102,24 +102,24 @@ export async function updateActivitySettingsAction(
   patch: Partial<ActivitySettings>,
 ): Promise<SaveRefusal | null> {
   const headers = await authHeaders();
-  const [activities, links] = await Promise.all([
-    Content.listActivities({ courseId }, headers),
-    Content.listActivityAssets({ courseId }, headers),
-  ]);
+  const activities = await Content.listActivities({ courseId }, headers);
   const activity = activities.find((a) => a.id === activityId && a.moduleId === moduleId);
   if (!activity) throw new Error("Activity not found");
 
-  const stored = (activity.settings ?? {}) as ActivitySettings;
-  const settings: ActivitySettings = { ...stored, ...patch };
-  const assetIds = activityAssetIds(
-    editorModule,
-    stored.content,
-    settings.content,
-    links.filter((l) => l.activityId === activityId).map((l) => l.assetId),
-  );
+  const settings: ActivitySettings = {
+    ...((activity.settings ?? {}) as ActivitySettings),
+    ...patch,
+  };
+  const assetIds = patch.content ? activityAssetIds(editorModule, settings.content) : undefined;
   try {
     await Content.updateActivity(
-      { courseId, moduleId, activityId, settings: settings as JsonValueInput, assetIds },
+      {
+        courseId,
+        moduleId,
+        activityId,
+        settings: settings as JsonValueInput,
+        ...(assetIds ? { assetIds } : {}),
+      },
       headers,
     );
   } catch (err) {
@@ -139,10 +139,7 @@ export async function setActivityPublishedAction(
   published: boolean,
 ): Promise<void> {
   const headers = await authHeaders();
-  const [activities, links] = await Promise.all([
-    Content.listActivities({ courseId }, headers),
-    Content.listActivityAssets({ courseId }, headers),
-  ]);
+  const activities = await Content.listActivities({ courseId }, headers);
   const activity = activities.find((a) => a.id === activityId && a.moduleId === moduleId);
   if (!activity) throw new Error("Activity not found");
 
@@ -150,9 +147,8 @@ export async function setActivityPublishedAction(
     ...((activity.settings ?? {}) as ActivitySettings),
     published,
   };
-  const assetIds = links.filter((l) => l.activityId === activityId).map((l) => l.assetId);
   await Content.updateActivity(
-    { courseId, moduleId, activityId, settings: settings as JsonValueInput, assetIds },
+    { courseId, moduleId, activityId, settings: settings as JsonValueInput },
     headers,
   );
   revalidateBuilder();

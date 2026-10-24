@@ -12,7 +12,7 @@ import { BaseEditorKit } from "./editor/editor-base-kit";
 import { EditorStatic } from "./ui/editor-static";
 import { isNodeList } from "./validate";
 
-export function Renderer({ config, assetUrls }: { config: unknown; assetUrls?: AssetUrls }) {
+export function Renderer({ config, assetUrls }: { config: unknown; assetUrls: AssetUrls }) {
   const editor = createSlateEditor({
     plugins: BaseEditorKit,
     value: isNodeList(config) ? withAssetUrls(config as Value, assetUrls) : [],
