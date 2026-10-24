@@ -180,7 +180,8 @@ Reviewed on 2026-10-24. A file is served in the response that carries the conten
 | V4 | The download file link was a redirect route per file, and the admin fetched each file's details with one request per file | The download's file rows carry the stored `filename`, `contentType`, `size` and a `url` that saves the file under its display name, or its filename without one. The redirect route and the repository's per-file link check are gone |
 | V5 | Lesson content stored the URL from save time, and the editor contract had an async `resolveAssetUrl` the Plate nodes awaited one by one during render | The contract takes `assetUrls`, the map the activity response carries. A config stores a media node's asset id and never its URL: Plate drops the URL from every config it hands back, and gives each asset node the served URL before the editor or the renderer reads it, so every node, the toolbar and the image preview see it. `refreshUrl` stays for a video that outlives its URL; the student app answers it by reading the course's activities again. A save of the content sends exactly the editor's ids as the activity's links; a save that leaves the content alone leaves the links alone, and nothing keeps links the editor does not know |
 | V6 | Post and message writes returned a bare row, so a client had to read the post or chat again to show a cover, a sender photo or an attachment | Every post and message response is the full view |
-| V7 | Staff URLs lived for the storage default and member URLs for `DELIVERY_URL_EXPIRY` | One lifetime, `DELIVERY_URL_EXPIRY`, for every URL a response carries |
+| V7 | Staff URLs lived for the storage default and member URLs for `DELIVERY_URL_EXPIRY` | One lifetime, `DELIVERY_URL_EXPIRY`, for every URL a response carries, 24 hours by default |
+| V8 | Course, download and community thumbnails and a download's files were stored unchecked, so staff could point a course thumbnail at a member's message attachment and every student would be served it | Each must be a ready library file of the org; otherwise the write is refused with a 409 naming the ids |
 
 ## Tracking
 
@@ -198,5 +199,5 @@ Reviewed on 2026-10-24. A file is served in the response that carries the conten
 | F10 | Docs rewritten | completed in the third and fourth pass (F24, T7, T8) |
 | F11–F24 | Third pass | completed |
 | T1–T9 | Fourth pass | completed |
-| V1–V7 | Fifth pass: files served in the responses that carry them | completed |
+| V1–V8 | Fifth pass: files served in the responses that carry them | completed |
 | OP5 | Concurrent finalize with a re-upload | open |

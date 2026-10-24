@@ -528,6 +528,46 @@ describe('activities', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it('refuses a thumbnail or download file that is not a ready library file of the org', async () => {
+    const repo = makeRepo();
+    const { svc, append } = build(repo, {
+      libraryAssetsAmong: async (_orgId, assetIds) => assetIds.filter((id) => id === 'ast_lib'),
+    });
+    const owner: Actor = { id: 'ou_owner', role: 'owner' };
+
+    await expect(
+      svc.updateCourse('org1', 'c1', { thumbnailAssetId: 'ast_member' }),
+    ).rejects.toThrow(
+      'A course can only use ready files from the media library. Not available: ast_member',
+    );
+    await expect(
+      svc.updateDownload('org1', 'd1', { thumbnailAssetId: 'ast_member' }),
+    ).rejects.toThrow('A download can only use ready files from the media library');
+    await expect(svc.addDownloadAsset('org1', 'd1', { assetId: 'ast_member' })).rejects.toThrow(
+      'A download can only use ready files from the media library',
+    );
+    await expect(
+      svc.updateCommunity('org1', 'cmy1', { thumbnailAssetId: 'ast_member' }, owner),
+    ).rejects.toThrow('A community can only use ready files from the media library');
+    expect(repo.updateCourse).not.toHaveBeenCalled();
+    expect(repo.updateDownload).not.toHaveBeenCalled();
+    expect(repo.addDownloadAsset).not.toHaveBeenCalled();
+    expect(repo.updateCommunity).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('checks no file when a write clears the thumbnail or leaves it alone', async () => {
+    const repo = makeRepo();
+    const libraryAssetsAmong = vi.fn(async (_orgId: string, assetIds: string[]) => assetIds);
+    vi.mocked(repo.updateCourse).mockResolvedValue(makeCourse());
+    const { svc } = build(repo, { libraryAssetsAmong });
+
+    await svc.updateCourse('org1', 'c1', { thumbnailAssetId: null });
+    await svc.updateCourse('org1', 'c1', { title: 'Fundraising 101' });
+
+    expect(libraryAssetsAmong).not.toHaveBeenCalled();
+  });
+
   it('throws NotFoundError when updating an activity that lives in another module', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ moduleId: 'other' }));

@@ -92,7 +92,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       summary: 'Update a download',
       params: DownloadIdParam,
       body: UpdateDownload,
-      response: { 200: Download, 404: ErrorBody },
+      response: { 200: Download, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -148,7 +148,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       summary: 'Link a media-library asset to a download',
       params: DownloadIdParam,
       body: AddDownloadAsset,
-      response: { 200: z.array(DownloadFile), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

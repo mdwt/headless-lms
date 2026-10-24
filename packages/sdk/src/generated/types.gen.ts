@@ -545,6 +545,14 @@ export type UpdateCourseErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type UpdateCourseError = UpdateCourseErrors[keyof UpdateCourseErrors];
@@ -2507,6 +2515,14 @@ export type UpdateDownloadErrors = {
     message?: string;
     requestId?: string;
   };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
 };
 
 export type UpdateDownloadError = UpdateDownloadErrors[keyof UpdateDownloadErrors];
@@ -2595,6 +2611,14 @@ export type AddDownloadAssetErrors = {
    * Default Response
    */
   404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;

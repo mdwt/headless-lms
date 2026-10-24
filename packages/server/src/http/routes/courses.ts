@@ -89,7 +89,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
       summary: 'Update a course',
       params: CourseIdParam,
       body: UpdateCourse,
-      response: { 200: Course, 404: ErrorBody },
+      response: { 200: Course, 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

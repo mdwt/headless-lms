@@ -859,7 +859,7 @@ No release holds data from before the feature, so every data statement left the 
 
 ## Files are served in the responses that carry them
 
-On 2026-10-24 the per-file URL routes were removed: `POST /api/member/assets/:id/url` with its `via` reference, the staff `POST /api/assets/:id/download-url`, and the download file redirect. A response that returns something holding a file now returns the file's signed URL with it. The decisions are V1–V7 in `docs/assets-review.md`. The write-time ownership checks of B2 still decide which files a post, message or profile may hold, and so which files their responses sign.
+On 2026-10-24 the per-file URL routes were removed: `POST /api/member/assets/:id/url` with its `via` reference, the staff `POST /api/assets/:id/download-url`, and the download file redirect. A response that returns something holding a file now returns the file's signed URL with it. The decisions are V1–V8 in `docs/assets-review.md`. The write-time ownership checks of B2 still decide which files a post, message or profile may hold, and so which files their responses sign.
 
 ## Open
 

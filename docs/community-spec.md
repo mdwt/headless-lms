@@ -1003,7 +1003,9 @@ This section specifies authentication and authorization for the community. Authe
 | Profile, directory entry | `imageUrl`, only inside the org the photo belongs to |
 | Library asset (staff list, get, confirm), finalized member upload | `url` to show it and `downloadUrl` to save it under its filename; both `null` while pending, and for a member upload in the staff library |
 
-Every URL lives `DELIVERY_URL_EXPIRY` seconds. A client that outlives one reads the content again; the editor contract's `refreshUrl` is that read for a playing video.
+Every URL lives `DELIVERY_URL_EXPIRY` seconds, 24 hours by default. A client that outlives one reads the content again; the editor contract's `refreshUrl` is that read for a playing video.
+
+Because a response signs every file its content holds, the write decides which files those are. A course, download or community thumbnail, a file added to a download, and an activity's links must be ready files of the org's media library; anything else is refused with a 409 naming the ids. A post cover, a message attachment and a profile photo must be a ready member image the author uploaded.
 
 **Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, single messages and their files, directory, and the emails that carry excerpts. A community that is not published is closed the same way to everyone but staff.
 

@@ -71,7 +71,7 @@ export function loadServerConfig(): ServerConfig {
     clientOrigins: parseClientOrigins(),
     // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
     // default must never silently extend entitled/paywalled link lifetimes.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     container,
   };

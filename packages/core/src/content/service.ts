@@ -167,6 +167,7 @@ export class ContentService
   }
 
   async updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView> {
+    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A course');
     const course = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCourse(orgId, id, patch);
       if (!updated) {
@@ -355,16 +356,21 @@ export class ContentService
     return modules;
   }
 
-  private async assertLibraryAssets(orgId: string, assetIds: string[]): Promise<void> {
-    if (assetIds.length === 0) {
+  private async assertLibraryAssets(
+    orgId: string,
+    assetIds: (string | null | undefined)[],
+    user = 'An activity',
+  ): Promise<void> {
+    const ids = assetIds.filter((id): id is string => typeof id === 'string');
+    if (ids.length === 0) {
       return;
     }
-    const library = new Set(await this.libraryAssets.libraryAssetsAmong(orgId, assetIds));
-    const refused = assetIds.filter((id) => !library.has(id));
+    const library = new Set(await this.libraryAssets.libraryAssetsAmong(orgId, ids));
+    const refused = ids.filter((id) => !library.has(id));
     if (refused.length > 0) {
-      this.logger.warn('activity assets refused', { orgId, assetIds: refused });
+      this.logger.warn('library assets refused', { orgId, assetIds: refused });
       throw new ConflictError(
-        `An activity can only use ready files from the media library. Not available: ${refused.join(', ')}`,
+        `${user} can only use ready files from the media library. Not available: ${refused.join(', ')}`,
       );
     }
   }
@@ -476,6 +482,7 @@ export class ContentService
     id: string,
     patch: UpdateDownloadInput,
   ): Promise<DownloadView> {
+    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A download');
     const download = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateDownload(orgId, id, patch);
       if (!updated) {
@@ -521,6 +528,7 @@ export class ContentService
     downloadId: string,
     input: AddDownloadAssetInput,
   ): Promise<DownloadFile[]> {
+    await this.assertLibraryAssets(orgId, [input.assetId], 'A download');
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.addDownloadAsset(orgId, downloadId, input);
       await outbox.append([
@@ -810,6 +818,7 @@ export class ContentService
     actor: Actor,
   ): Promise<CommunityView> {
     assertConfigurator(actor);
+    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A community');
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCommunity(orgId, id, patch);
       if (!updated) {
