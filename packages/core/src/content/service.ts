@@ -1,14 +1,17 @@
 import type {
   Activity,
   ActivityAsset,
+  ActivityView,
   Bundle,
   BundleItem,
   Community,
-  Course,
+  CommunityView,
   CourseSettings,
+  CourseView,
   DmSettings,
-  Download,
   DownloadAsset,
+  DownloadFile,
+  DownloadView,
   Module,
   SaveActivityInput,
   Space,
@@ -45,7 +48,7 @@ import type {
 } from './types.js';
 import { contentEvents } from './events.js';
 import type { Actor } from '../shared/actor.js';
-import type { LibraryAssetReader } from '../assets/index.js';
+import type { AssetUrlSigner, LibraryAssetReader } from '../assets/index.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
@@ -63,6 +66,7 @@ export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
   libraryAssets: LibraryAssetReader;
+  assetUrls: AssetUrlSigner;
   logger?: Logger;
 };
 
@@ -75,6 +79,8 @@ function assertConfigurator(actor: Actor): void {
     throw new ForbiddenError('Only an owner or an admin can configure a community');
   }
 }
+
+type WithThumbnail = { thumbnailAssetId: string | null };
 
 function sameIdSet(current: string[], requested: string[]): boolean {
   if (current.length !== requested.length) {
@@ -90,34 +96,77 @@ export class ContentService
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: LibraryAssetReader;
+  private readonly assetUrls: AssetUrlSigner;
   private readonly logger: Logger;
 
   constructor(params: ContentServiceParams) {
     this.repo = params.repo;
     this.uow = params.uow;
     this.libraryAssets = params.libraryAssets;
+    this.assetUrls = params.assetUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
-  listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
-    return this.repo.listCourses(orgId, query);
+  private async withThumbnails<T extends WithThumbnail>(
+    orgId: string,
+    items: T[],
+  ): Promise<(T & { thumbnailUrl: string | null })[]> {
+    const urls = await this.assetUrls.urls(
+      orgId,
+      items.flatMap((item) => (item.thumbnailAssetId ? [item.thumbnailAssetId] : [])),
+    );
+    return items.map((item) => ({
+      ...item,
+      thumbnailUrl: item.thumbnailAssetId ? (urls[item.thumbnailAssetId] ?? null) : null,
+    }));
   }
 
-  getCourse(orgId: string, id: string): Promise<Course | null> {
-    return this.repo.findCourseById(orgId, id);
+  private async withThumbnail<T extends WithThumbnail>(
+    orgId: string,
+    item: T,
+  ): Promise<T & { thumbnailUrl: string | null }> {
+    const [view] = await this.withThumbnails(orgId, [item]);
+    return view!;
   }
 
-  async createCourse(orgId: string, input: CreateCourseInput): Promise<Course> {
+  private async pageWithThumbnails<T extends WithThumbnail>(
+    orgId: string,
+    page: Page<T>,
+  ): Promise<Page<T & { thumbnailUrl: string | null }>> {
+    return { ...page, rows: await this.withThumbnails(orgId, page.rows) };
+  }
+
+  private async downloadFiles(orgId: string, links: DownloadAsset[]): Promise<DownloadFile[]> {
+    const signed = await this.assetUrls.downloads(
+      orgId,
+      links.map((link) => ({ assetId: link.assetId, saveAs: link.displayName })),
+    );
+    return links.flatMap((link) => {
+      const file = signed[link.assetId];
+      return file ? [{ ...link, ...file }] : [];
+    });
+  }
+
+  async listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<CourseView>> {
+    return this.pageWithThumbnails(orgId, await this.repo.listCourses(orgId, query));
+  }
+
+  async getCourse(orgId: string, id: string): Promise<CourseView | null> {
+    const course = await this.repo.findCourseById(orgId, id);
+    return course ? this.withThumbnail(orgId, course) : null;
+  }
+
+  async createCourse(orgId: string, input: CreateCourseInput): Promise<CourseView> {
     const course = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createCourse(orgId, input, slugify(input.title));
       await outbox.append([contentEvents.courseCreated.make({ orgId, data: created })]);
       return created;
     });
     this.logger.info('course created', { orgId, courseId: course.id, title: course.title });
-    return course;
+    return this.withThumbnail(orgId, course);
   }
 
-  async updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course> {
+  async updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView> {
     const course = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCourse(orgId, id, patch);
       if (!updated) {
@@ -128,7 +177,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('course updated', { orgId, courseId: id, fields: Object.keys(patch) });
-    return course;
+    return this.withThumbnail(orgId, course);
   }
 
   async patchCourseSettings(
@@ -180,6 +229,25 @@ export class ContentService
   }
   listCourseActivities(orgId: string, courseId: string): Promise<Activity[]> {
     return this.repo.listActivitiesForCourse(orgId, courseId);
+  }
+  async listCourseActivityViews(orgId: string, courseId: string): Promise<ActivityView[]> {
+    const [activities, links] = await Promise.all([
+      this.repo.listActivitiesForCourse(orgId, courseId),
+      this.repo.listActivityAssetsForCourse(orgId, courseId),
+    ]);
+    const urls = await this.assetUrls.urls(
+      orgId,
+      links.map((link) => link.assetId),
+    );
+    return activities.map((activity) => ({
+      ...activity,
+      assetUrls: Object.fromEntries(
+        links.flatMap((link) => {
+          const url = urls[link.assetId];
+          return link.activityId === activity.id && url ? [[link.assetId, url]] : [];
+        }),
+      ),
+    }));
   }
   listCourseActivityAssets(orgId: string, courseId: string): Promise<ActivityAsset[]> {
     return this.repo.listActivityAssetsForCourse(orgId, courseId);
@@ -384,25 +452,30 @@ export class ContentService
 
   // --- downloads ------------------------------------------------------------
 
-  listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<Download>> {
-    return this.repo.listDownloads(orgId, query);
+  async listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<DownloadView>> {
+    return this.pageWithThumbnails(orgId, await this.repo.listDownloads(orgId, query));
   }
 
-  getDownload(orgId: string, id: string): Promise<Download | null> {
-    return this.repo.getDownload(orgId, id);
+  async getDownload(orgId: string, id: string): Promise<DownloadView | null> {
+    const download = await this.repo.getDownload(orgId, id);
+    return download ? this.withThumbnail(orgId, download) : null;
   }
 
-  async createDownload(orgId: string, input: CreateDownloadInput): Promise<Download> {
+  async createDownload(orgId: string, input: CreateDownloadInput): Promise<DownloadView> {
     const download = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createDownload(orgId, input, slugify(input.title));
       await outbox.append([contentEvents.downloadCreated.make({ orgId, data: created })]);
       return created;
     });
     this.logger.info('download created', { orgId, downloadId: download.id, title: download.title });
-    return download;
+    return this.withThumbnail(orgId, download);
   }
 
-  async updateDownload(orgId: string, id: string, patch: UpdateDownloadInput): Promise<Download> {
+  async updateDownload(
+    orgId: string,
+    id: string,
+    patch: UpdateDownloadInput,
+  ): Promise<DownloadView> {
     const download = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateDownload(orgId, id, patch);
       if (!updated) {
@@ -413,7 +486,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('download updated', { orgId, downloadId: id, fields: Object.keys(patch) });
-    return download;
+    return this.withThumbnail(orgId, download);
   }
 
   async removeDownload(orgId: string, id: string, actor: Actor): Promise<void> {
@@ -439,15 +512,15 @@ export class ContentService
 
   // --- download asset links ------------------------------------------------
 
-  listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadAsset[]> {
-    return this.repo.listDownloadAssets(orgId, downloadId);
+  async listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadFile[]> {
+    return this.downloadFiles(orgId, await this.repo.listDownloadAssets(orgId, downloadId));
   }
 
   async addDownloadAsset(
     orgId: string,
     downloadId: string,
     input: AddDownloadAssetInput,
-  ): Promise<DownloadAsset[]> {
+  ): Promise<DownloadFile[]> {
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.addDownloadAsset(orgId, downloadId, input);
       await outbox.append([
@@ -456,14 +529,14 @@ export class ContentService
       return assets;
     });
     this.logger.info('download asset added', { orgId, downloadId, assetId: input.assetId });
-    return assets;
+    return this.downloadFiles(orgId, assets);
   }
 
   async removeDownloadAsset(
     orgId: string,
     downloadId: string,
     assetId: string,
-  ): Promise<DownloadAsset[]> {
+  ): Promise<DownloadFile[]> {
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.removeDownloadAsset(orgId, downloadId, assetId);
       await outbox.append([
@@ -472,7 +545,7 @@ export class ContentService
       return assets;
     });
     this.logger.info('download asset removed', { orgId, downloadId, assetId });
-    return assets;
+    return this.downloadFiles(orgId, assets);
   }
 
   async renameDownloadAsset(
@@ -480,7 +553,7 @@ export class ContentService
     downloadId: string,
     assetId: string,
     displayName: string | null,
-  ): Promise<DownloadAsset[]> {
+  ): Promise<DownloadFile[]> {
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.renameDownloadAsset(orgId, downloadId, assetId, displayName);
       await outbox.append([
@@ -489,7 +562,7 @@ export class ContentService
       return assets;
     });
     this.logger.info('download asset renamed', { orgId, downloadId, assetId });
-    return assets;
+    return this.downloadFiles(orgId, assets);
   }
 
   /** The caller must send the COMPLETE ordered set — a partial list would
@@ -498,7 +571,7 @@ export class ContentService
     orgId: string,
     downloadId: string,
     assetIds: string[],
-  ): Promise<DownloadAsset[]> {
+  ): Promise<DownloadFile[]> {
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.listDownloadAssets(orgId, downloadId);
       const currentIds = new Set(current.map((a) => a.assetId));
@@ -523,7 +596,7 @@ export class ContentService
       return assets;
     });
     this.logger.debug('download assets reordered', { orgId, downloadId });
-    return assets;
+    return this.downloadFiles(orgId, assets);
   }
 
   // --- bundles --------------------------------------------------------------
@@ -670,12 +743,13 @@ export class ContentService
     return { accessRule, capacity, settings };
   }
 
-  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>> {
-    return this.repo.listCommunities(orgId, query);
+  async listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>> {
+    return this.pageWithThumbnails(orgId, await this.repo.listCommunities(orgId, query));
   }
 
-  getCommunity(orgId: string, id: string): Promise<Community | null> {
-    return this.repo.findCommunityById(orgId, id);
+  async getCommunity(orgId: string, id: string): Promise<CommunityView | null> {
+    const community = await this.repo.findCommunityById(orgId, id);
+    return community ? this.withThumbnail(orgId, community) : null;
   }
 
   listPublishedCommunityIds(orgId: string): Promise<string[]> {
@@ -712,7 +786,7 @@ export class ContentService
     orgId: string,
     input: CreateCommunityInput,
     actor: Actor,
-  ): Promise<Community> {
+  ): Promise<CommunityView> {
     assertConfigurator(actor);
     const community = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createCommunity(orgId, input, slugify(input.title));
@@ -726,7 +800,7 @@ export class ContentService
       return created;
     });
     this.logger.info('community created', { orgId, communityId: community.id });
-    return community;
+    return this.withThumbnail(orgId, community);
   }
 
   async updateCommunity(
@@ -734,7 +808,7 @@ export class ContentService
     id: string,
     patch: UpdateCommunityInput,
     actor: Actor,
-  ): Promise<Community> {
+  ): Promise<CommunityView> {
     assertConfigurator(actor);
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCommunity(orgId, id, patch);
@@ -751,14 +825,14 @@ export class ContentService
       return updated;
     });
     this.logger.info('community updated', { orgId, communityId: id });
-    return community;
+    return this.withThumbnail(orgId, community);
   }
 
-  publishCommunity(orgId: string, id: string, actor: Actor): Promise<Community> {
+  publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView> {
     return this.updateCommunity(orgId, id, { status: 'published' }, actor);
   }
 
-  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<Community> {
+  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView> {
     return this.updateCommunity(orgId, id, { status: 'draft' }, actor);
   }
 
@@ -792,7 +866,7 @@ export class ContentService
     id: string,
     patch: PatchDmSettingsInput,
     actor: Actor,
-  ): Promise<Community> {
+  ): Promise<CommunityView> {
     assertConfigurator(actor);
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.patchDmSettings(orgId, id, patch);
@@ -809,7 +883,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('community dm settings patched', { orgId, communityId: id });
-    return community;
+    return this.withThumbnail(orgId, community);
   }
 
   async createSpace(

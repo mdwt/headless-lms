@@ -387,6 +387,7 @@ export type ListCoursesResponses = {
       };
       createdAt: string;
       updatedAt: string;
+      thumbnailUrl: string | null;
     }>;
     total: number;
     page: number;
@@ -432,6 +433,7 @@ export type CreateCourseResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -513,6 +515,7 @@ export type GetCourseResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -571,6 +574,7 @@ export type UpdateCourseResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -702,6 +706,7 @@ export type ListCommunitiesResponses = {
       };
       createdAt: string;
       updatedAt: string;
+      thumbnailUrl: string | null;
     }>;
     total: number;
     page: number;
@@ -784,6 +789,7 @@ export type CreateCommunityResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -914,6 +920,7 @@ export type GetCommunityResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -996,6 +1003,7 @@ export type UpdateCommunityResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -1082,6 +1090,7 @@ export type PatchCommunityDmSettingsResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -1160,6 +1169,7 @@ export type PublishCommunityResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -1237,6 +1247,7 @@ export type UnpublishCommunityResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -1389,8 +1400,13 @@ export type GetCommunityMessageQueueResponses = {
           headline: string | null;
           image: string | null;
           imageAssetId: string | null;
+          imageUrl: string | null;
           role: "owner" | "admin" | "instructor" | "moderator" | "student";
         };
+        attachments: Array<{
+          assetId: string;
+          url: string;
+        }>;
       };
       flags: Array<{
         orgId: string;
@@ -2351,6 +2367,7 @@ export type ListDownloadsResponses = {
       thumbnailAssetId: string | null;
       createdAt: string;
       updatedAt: string;
+      thumbnailUrl: string | null;
     }>;
     total: number;
     page: number;
@@ -2387,6 +2404,7 @@ export type CreateDownloadResponses = {
     thumbnailAssetId: string | null;
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -2459,6 +2477,7 @@ export type GetDownloadResponses = {
     thumbnailAssetId: string | null;
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -2508,6 +2527,7 @@ export type UpdateDownloadResponses = {
     thumbnailAssetId: string | null;
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -2548,6 +2568,10 @@ export type ListDownloadAssetsResponses = {
     displayName: string | null;
     createdAt: string;
     updatedAt: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    url: string;
   }>;
 };
 
@@ -2592,6 +2616,10 @@ export type AddDownloadAssetResponses = {
     displayName: string | null;
     createdAt: string;
     updatedAt: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    url: string;
   }>;
 };
 
@@ -2643,6 +2671,10 @@ export type ReorderDownloadAssetsResponses = {
     displayName: string | null;
     createdAt: string;
     updatedAt: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    url: string;
   }>;
 };
 
@@ -2685,6 +2717,10 @@ export type RemoveDownloadAssetResponses = {
     displayName: string | null;
     createdAt: string;
     updatedAt: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    url: string;
   }>;
 };
 
@@ -2729,6 +2765,10 @@ export type RenameDownloadAssetResponses = {
     displayName: string | null;
     createdAt: string;
     updatedAt: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    url: string;
   }>;
 };
 
@@ -3121,6 +3161,7 @@ export type GetMemberProfileResponses = {
     extra: JsonValue;
     createdAt: string;
     updatedAt: string;
+    imageUrl: string | null;
   };
 };
 
@@ -3191,6 +3232,7 @@ export type UpdateMemberProfileResponses = {
     extra: JsonValue;
     createdAt: string;
     updatedAt: string;
+    imageUrl: string | null;
   };
 };
 
@@ -3323,6 +3365,7 @@ export type GetMemberCommunityDirectoryResponses = {
     headline: string | null;
     bio: string | null;
     imageAssetId: string | null;
+    imageUrl: string | null;
   }>;
 };
 
@@ -4089,6 +4132,7 @@ export type GetMemberFeedResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      coverUrl: string | null;
       author: {
         id: string;
         firstName: string | null;
@@ -4097,6 +4141,7 @@ export type GetMemberFeedResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
     }>;
@@ -4176,6 +4221,7 @@ export type ListOwnPostsResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
     author: {
       id: string;
       firstName: string | null;
@@ -4184,6 +4230,7 @@ export type ListOwnPostsResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
   }>;
@@ -4261,6 +4308,7 @@ export type ListBookmarkedPostsResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
     author: {
       id: string;
       firstName: string | null;
@@ -4269,6 +4317,7 @@ export type ListBookmarkedPostsResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
   }>;
@@ -4361,6 +4410,7 @@ export type GetSpaceFeedResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      coverUrl: string | null;
       author: {
         id: string;
         firstName: string | null;
@@ -4369,6 +4419,7 @@ export type GetSpaceFeedResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
     }>;
@@ -4450,6 +4501,7 @@ export type GetSpaceQueueResponses = {
       reactionsEnabled: boolean | null;
       createdAt: string;
       updatedAt: string;
+      coverUrl: string | null;
       author: {
         id: string;
         firstName: string | null;
@@ -4458,6 +4510,7 @@ export type GetSpaceQueueResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
     }>;
@@ -4569,6 +4622,18 @@ export type CreatePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -4644,6 +4709,7 @@ export type GetPostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
     author: {
       id: string;
       firstName: string | null;
@@ -4652,6 +4718,7 @@ export type GetPostResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
   };
@@ -4735,6 +4802,18 @@ export type UpdatePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -4810,6 +4889,18 @@ export type SubmitPostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -4887,6 +4978,18 @@ export type SchedulePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -4962,6 +5065,18 @@ export type ApprovePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5037,6 +5152,18 @@ export type RemovePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5112,6 +5239,18 @@ export type RestorePostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5187,6 +5326,18 @@ export type PinPostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5262,6 +5413,18 @@ export type UnpinPostResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5337,6 +5500,18 @@ export type ClosePostCommentsResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5413,6 +5588,18 @@ export type OpenPostCommentsResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5491,6 +5678,18 @@ export type SetPostReactionPolicyResponses = {
     reactionsEnabled: boolean | null;
     createdAt: string;
     updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
   };
 };
 
@@ -5958,6 +6157,7 @@ export type ListPostCommentsResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -5970,6 +6170,7 @@ export type ListPostCommentsResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -6050,6 +6251,7 @@ export type CreatePostCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -6062,6 +6264,7 @@ export type CreatePostCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -6563,8 +6766,13 @@ export type ListChatMessagesResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
+      attachments: Array<{
+        assetId: string;
+        url: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -6640,6 +6848,21 @@ export type SendChatMessageResponses = {
     deletedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    sender: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    attachments: Array<{
+      assetId: string;
+      url: string;
+    }>;
   };
 };
 
@@ -6707,6 +6930,21 @@ export type DeleteChatMessageResponses = {
     deletedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    sender: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    attachments: Array<{
+      assetId: string;
+      url: string;
+    }>;
   };
 };
 
@@ -6777,6 +7015,21 @@ export type EditChatMessageResponses = {
     deletedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    sender: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    attachments: Array<{
+      assetId: string;
+      url: string;
+    }>;
   };
 };
 
@@ -7396,6 +7649,7 @@ export type ListMemberCoursesResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   }>;
 };
 
@@ -7449,6 +7703,7 @@ export type GetMemberCourseResponses = {
     };
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   };
 };
 
@@ -7530,6 +7785,9 @@ export type ListMemberActivitiesResponses = {
     settings: JsonValue;
     createdAt: string;
     updatedAt: string;
+    assetUrls: {
+      [key: string]: string;
+    };
   }>;
 };
 
@@ -7664,6 +7922,7 @@ export type ListActivityCommentsResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       body: string | null;
@@ -7676,6 +7935,7 @@ export type ListActivityCommentsResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       } | null;
       reactions: {
@@ -7742,6 +8002,7 @@ export type PostCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -7754,6 +8015,7 @@ export type PostCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -7869,6 +8131,7 @@ export type EditCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -7881,6 +8144,7 @@ export type EditCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -8081,101 +8345,6 @@ export type ReportCommentResponses = {
 
 export type ReportCommentResponse = ReportCommentResponses[keyof ReportCommentResponses];
 
-export type GetAssetDownloadUrlData = {
-  /**
-   * What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is.
-   */
-  body: {
-    via:
-      | {
-          activity: string;
-        }
-      | {
-          course: string;
-        }
-      | {
-          download: string;
-        }
-      | {
-          community: string;
-        }
-      | {
-          post: string;
-        }
-      | {
-          message: string;
-        }
-      | {
-          profile: string;
-        };
-  };
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/member/assets/{id}/url";
-};
-
-export type GetAssetDownloadUrlErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type GetAssetDownloadUrlError = GetAssetDownloadUrlErrors[keyof GetAssetDownloadUrlErrors];
-
-export type GetAssetDownloadUrlResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    url: string;
-    asset: {
-      orgId: string;
-      id: string;
-      /**
-       * The media class, derived by the server from the content type.
-       */
-      kind: "image" | "video" | "audio" | "document";
-      /**
-       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
-       */
-      source: "library" | "member";
-      filename: string;
-      contentType: string;
-      size: number;
-      status: "pending" | "ready";
-      uploadedBy: string;
-      createdAt: string;
-      updatedAt: string;
-    };
-  };
-};
-
-export type GetAssetDownloadUrlResponse =
-  GetAssetDownloadUrlResponses[keyof GetAssetDownloadUrlResponses];
-
 export type RequestMemberUploadData = {
   body: {
     filename: string;
@@ -8241,6 +8410,14 @@ export type RequestMemberUploadResponses = {
       uploadedBy: string;
       createdAt: string;
       updatedAt: string;
+      /**
+       * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+       */
+      url: string | null;
+      /**
+       * The same file as a download saved under its filename. `null` when `url` is.
+       */
+      downloadUrl: string | null;
     };
     uploadUrl: string;
     method: "PUT";
@@ -8315,6 +8492,14 @@ export type FinalizeMemberUploadResponses = {
     uploadedBy: string;
     createdAt: string;
     updatedAt: string;
+    /**
+     * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+     */
+    url: string | null;
+    /**
+     * The same file as a download saved under its filename. `null` when `url` is.
+     */
+    downloadUrl: string | null;
   };
 };
 
@@ -8389,6 +8574,7 @@ export type ListMemberDownloadsResponses = {
     thumbnailAssetId: string | null;
     createdAt: string;
     updatedAt: string;
+    thumbnailUrl: string | null;
   }>;
 };
 
@@ -8434,6 +8620,7 @@ export type GetMemberDownloadResponses = {
       thumbnailAssetId: string | null;
       createdAt: string;
       updatedAt: string;
+      thumbnailUrl: string | null;
     };
     assets: Array<{
       orgId: string;
@@ -8444,36 +8631,16 @@ export type GetMemberDownloadResponses = {
       displayName: string | null;
       createdAt: string;
       updatedAt: string;
+      filename: string;
+      contentType: string;
+      size: number;
+      url: string;
     }>;
   };
 };
 
 export type GetMemberDownloadResponse =
   GetMemberDownloadResponses[keyof GetMemberDownloadResponses];
-
-export type GetMemberDownloadAssetData = {
-  body?: never;
-  path: {
-    downloadId: string;
-    assetId: string;
-  };
-  query?: never;
-  url: "/api/member/downloads/{downloadId}/assets/{assetId}";
-};
-
-export type GetMemberDownloadAssetErrors = {
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type GetMemberDownloadAssetError =
-  GetMemberDownloadAssetErrors[keyof GetMemberDownloadAssetErrors];
 
 export type ListCommentsData = {
   body?: never;
@@ -8513,6 +8680,7 @@ export type ListCommentsResponses = {
         headline: string | null;
         image: string | null;
         imageAssetId: string | null;
+        imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
       authorEmail: string;
@@ -8526,6 +8694,7 @@ export type ListCommentsResponses = {
           headline: string | null;
           image: string | null;
           imageAssetId: string | null;
+          imageUrl: string | null;
           role: "owner" | "admin" | "instructor" | "moderator" | "student";
         };
         reason: string;
@@ -8738,6 +8907,7 @@ export type ReplyToCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
     body: string | null;
@@ -8750,6 +8920,7 @@ export type ReplyToCommentResponses = {
       headline: string | null;
       image: string | null;
       imageAssetId: string | null;
+      imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     } | null;
     reactions: {
@@ -8839,6 +9010,9 @@ export type ListActivitiesResponses = {
     settings: JsonValue;
     createdAt: string;
     updatedAt: string;
+    assetUrls: {
+      [key: string]: string;
+    };
   }>;
 };
 
@@ -10358,6 +10532,14 @@ export type RequestUploadResponses = {
       uploadedBy: string;
       createdAt: string;
       updatedAt: string;
+      /**
+       * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+       */
+      url: string | null;
+      /**
+       * The same file as a download saved under its filename. `null` when `url` is.
+       */
+      downloadUrl: string | null;
     };
     uploadUrl: string;
     method: "PUT";
@@ -10438,6 +10620,14 @@ export type ConfirmAssetResponses = {
     uploadedBy: string;
     createdAt: string;
     updatedAt: string;
+    /**
+     * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+     */
+    url: string | null;
+    /**
+     * The same file as a download saved under its filename. `null` when `url` is.
+     */
+    downloadUrl: string | null;
   };
 };
 
@@ -10507,6 +10697,14 @@ export type ListAssetsResponses = {
       uploadedBy: string;
       createdAt: string;
       updatedAt: string;
+      /**
+       * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+       */
+      url: string | null;
+      /**
+       * The same file as a download saved under its filename. `null` when `url` is.
+       */
+      downloadUrl: string | null;
     }>;
     total: number;
     page: number;
@@ -10629,90 +10827,18 @@ export type GetAssetResponses = {
     uploadedBy: string;
     createdAt: string;
     updatedAt: string;
+    /**
+     * A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.
+     */
+    url: string | null;
+    /**
+     * The same file as a download saved under its filename. `null` when `url` is.
+     */
+    downloadUrl: string | null;
   };
 };
 
 export type GetAssetResponse = GetAssetResponses[keyof GetAssetResponses];
-
-export type RequestAssetDownloadData = {
-  body: {
-    filename?: string;
-  };
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/assets/{id}/download-url";
-};
-
-export type RequestAssetDownloadErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type RequestAssetDownloadError =
-  RequestAssetDownloadErrors[keyof RequestAssetDownloadErrors];
-
-export type RequestAssetDownloadResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    url: string;
-    asset: {
-      orgId: string;
-      id: string;
-      /**
-       * The media class, derived by the server from the content type.
-       */
-      kind: "image" | "video" | "audio" | "document";
-      /**
-       * Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.
-       */
-      source: "library" | "member";
-      filename: string;
-      contentType: string;
-      size: number;
-      status: "pending" | "ready";
-      uploadedBy: string;
-      createdAt: string;
-      updatedAt: string;
-    };
-  };
-};
-
-export type RequestAssetDownloadResponse =
-  RequestAssetDownloadResponses[keyof RequestAssetDownloadResponses];
 
 export type ListAvailableIntegrationsData = {
   body?: never;

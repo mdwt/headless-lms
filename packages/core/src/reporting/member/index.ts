@@ -2,11 +2,12 @@
 export { MemberReportServiceImpl } from './service.js';
 export type { MemberReportService, MemberReportRepository } from './ports.js';
 export type {
-  Course,
+  CourseView,
   Module,
   ContentRef,
   CourseProgressView,
   DirectoryEntry,
+  DirectoryRow,
   CommunityHome,
   CommunityHomeSpace,
 } from './model.js';

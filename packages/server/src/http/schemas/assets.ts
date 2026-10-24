@@ -1,11 +1,9 @@
 import { z } from 'zod';
 import {
   assetKindSchema,
-  assetReferenceSchema,
-  assetSchema,
   assetSourceSchema,
   assetStatusSchema,
-  downloadTicketSchema,
+  assetViewSchema,
   uploadTicketSchema,
 } from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
@@ -23,9 +21,22 @@ export type AssetSource = z.infer<typeof AssetSource>;
 export const AssetStatus = assetStatusSchema;
 export type AssetStatus = z.infer<typeof AssetStatus>;
 
-export const Asset = assetSchema
+export const Asset = assetViewSchema
   .omit({ key: true })
-  .extend({ kind: AssetKind, source: AssetSource })
+  .extend({
+    kind: AssetKind,
+    source: AssetSource,
+    url: z
+      .string()
+      .nullable()
+      .describe(
+        'A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.',
+      ),
+    downloadUrl: z
+      .string()
+      .nullable()
+      .describe('The same file as a download saved under its filename. `null` when `url` is.'),
+  })
   .strip();
 export type Asset = z.infer<typeof Asset>;
 
@@ -58,16 +69,3 @@ export type RequestMemberUpload = z.infer<typeof RequestMemberUpload>;
 
 export const UploadTicket = uploadTicketSchema.extend({ asset: Asset });
 export type UploadTicket = z.infer<typeof UploadTicket>;
-
-export const RequestDownload = z.object({ filename: z.string().optional() });
-export type RequestDownload = z.infer<typeof RequestDownload>;
-
-export const DownloadTicket = downloadTicketSchema.extend({ asset: Asset });
-export type DownloadTicket = z.infer<typeof DownloadTicket>;
-
-export const AssetReference = z
-  .object({ via: assetReferenceSchema })
-  .describe(
-    'What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is.',
-  );
-export type AssetReference = z.infer<typeof AssetReference>;

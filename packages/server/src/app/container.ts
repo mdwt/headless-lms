@@ -115,7 +115,7 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Presigned URL lifetime for entitled download delivery, seconds. Mirrors
+  /** Lifetime of every signed file URL a response carries, seconds. Mirrors
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
   memberImageMaxBytes: number;
@@ -245,6 +245,7 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
+    urlExpirySeconds: config.deliveryExpirySeconds,
     logger: assetsLogger,
   });
 
@@ -261,6 +262,7 @@ export async function buildContainer(
     uow: identityUoW,
     mailer,
     images: assets,
+    assetUrls: assets,
   });
 
   /*
@@ -303,6 +305,7 @@ export async function buildContainer(
     repo: new DrizzleContentRepository(db, contentLogger),
     uow: contentUow,
     libraryAssets: assets,
+    assetUrls: assets,
     logger: contentLogger,
   });
   // Entitlements: reads on the root db; writes + outbox append in one tx.
@@ -352,6 +355,7 @@ export async function buildContainer(
     profiles: discussionReads,
     commentFlags: discussionReads,
     images: assets,
+    assetUrls: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -365,6 +369,7 @@ export async function buildContainer(
     authors,
     profiles: discussionReads,
     images: assets,
+    assetUrls: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       chats: new DrizzleChatRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -377,6 +382,7 @@ export async function buildContainer(
     content: content,
     posts,
     communities: { listIds: (orgId) => content.listPublishedCommunityIds(orgId) },
+    assetUrls: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -393,14 +399,8 @@ export async function buildContainer(
       repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
-      assets,
+      assetUrls: assets,
       access: entitlements,
-      posts,
-      chats,
-      profiles: identity,
-      organizations,
-      deliveryExpirySeconds: config.deliveryExpirySeconds,
-      logger: reportingLogger,
     }),
   };
 

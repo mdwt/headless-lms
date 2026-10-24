@@ -28,7 +28,8 @@ import type {
   PostService,
 } from './ports.js';
 import { discussionEvents } from './events.js';
-import { authorView } from './authors.js';
+import { authorImageIds, authorView } from './authors.js';
+import type { AssetUrls, AssetUrlSigner } from '../assets/index.js';
 
 /** A course with no stored settings. Discussion is opt-in, so the common case
  *  persists no row at all and every existing course stays silent. */
@@ -49,6 +50,7 @@ export type DiscussionServiceParams = {
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
   communities: { listIds(orgId: string): Promise<string[]> };
+  assetUrls: AssetUrlSigner;
   logger?: Logger;
 };
 
@@ -60,6 +62,7 @@ export class DiscussionServiceImpl implements DiscussionService {
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
   private readonly communities: { listIds(orgId: string): Promise<string[]> };
+  private readonly assetUrls: AssetUrlSigner;
   private readonly logger: Logger;
 
   constructor(params: DiscussionServiceParams) {
@@ -70,6 +73,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.uow = params.uow;
     this.settings = params.settings;
     this.communities = params.communities;
+    this.assetUrls = params.assetUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -102,10 +106,15 @@ export class DiscussionServiceImpl implements DiscussionService {
     return isStaffRole(actor.role);
   }
 
+  private authorUrls(orgId: string, authors: Record<string, AuthorRecord>) {
+    return this.assetUrls.urls(orgId, authorImageIds(orgId, Object.values(authors)));
+  }
+
   private toView(
     orgId: string,
     comment: Comment,
     authors: Record<string, AuthorRecord>,
+    urls: AssetUrls,
     reactions: CommentReactions,
   ): CommentView {
     const author = authors[comment.orgUserId];
@@ -122,10 +131,10 @@ export class DiscussionServiceImpl implements DiscussionService {
       postId: comment.postId,
       communityId: comment.communityId,
       parentId: comment.parentId,
-      author: authorView(orgId, author),
+      author: authorView(orgId, author, urls),
       body: comment.status === 'removed' ? null : comment.body,
       status: comment.status,
-      removedBy: remover ? authorView(orgId, remover) : null,
+      removedBy: remover ? authorView(orgId, remover, urls) : null,
       reactions: reactions.reactions,
       viewerReaction: reactions.viewerReaction,
       createdAt: comment.createdAt,
@@ -151,7 +160,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         ? EMPTY_REACTIONS
         : ((await this.repo.reactionsOf(orgId, [comment.id], actor.id))[comment.id] ??
           EMPTY_REACTIONS);
-    return this.toView(orgId, comment, authors, stored);
+    return this.toView(orgId, comment, authors, await this.authorUrls(orgId, authors), stored);
   }
 
   private activityIdOf(comment: Comment): string {
@@ -346,8 +355,9 @@ export class DiscussionServiceImpl implements DiscussionService {
           )
         : Promise.resolve<Record<string, CommentReactions>>({}),
     ]);
+    const urls = await this.authorUrls(orgId, authors);
     return served.map((comment) =>
-      this.toView(orgId, comment, authors, reactions[comment.id] ?? EMPTY_REACTIONS),
+      this.toView(orgId, comment, authors, urls, reactions[comment.id] ?? EMPTY_REACTIONS),
     );
   }
 
@@ -675,6 +685,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     const authors = await this.repo.authorsOf(orgId, [
       ...new Set([...this.peopleIn(rows), ...reports.map((r) => r.orgUserId)]),
     ]);
+    const urls = await this.authorUrls(orgId, authors);
 
     const byComment = new Map<string, CommentReport[]>();
     for (const report of reports) {
@@ -696,7 +707,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           courseId,
           body: comment.body,
           status: comment.status,
-          author: authorView(orgId, author),
+          author: authorView(orgId, author, urls),
           authorEmail: author.email,
           removedBy: comment.removedBy,
           reports: (byComment.get(comment.id) ?? []).map((r) => {
@@ -705,7 +716,7 @@ export class DiscussionServiceImpl implements DiscussionService {
               throw new NotFoundError('OrgUser', r.orgUserId);
             }
             return {
-              reporter: authorView(orgId, reporter),
+              reporter: authorView(orgId, reporter, urls),
               reason: r.reason,
               createdAt: r.createdAt,
             };

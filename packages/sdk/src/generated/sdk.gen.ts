@@ -111,8 +111,6 @@ import type {
   FlagPostResponses,
   FollowPostErrors,
   FollowPostResponses,
-  GetAssetDownloadUrlErrors,
-  GetAssetDownloadUrlResponses,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
@@ -146,7 +144,6 @@ import type {
   GetMemberCourseProgressErrors,
   GetMemberCourseProgressResponses,
   GetMemberCourseResponses,
-  GetMemberDownloadAssetErrors,
   GetMemberDownloadErrors,
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
@@ -283,8 +280,6 @@ import type {
   ReportCommentResponses,
   ReportProgressErrors,
   ReportProgressResponses,
-  RequestAssetDownloadErrors,
-  RequestAssetDownloadResponses,
   RequestMemberUploadErrors,
   RequestMemberUploadResponses,
   RequestSpaceMembershipErrors,
@@ -1786,40 +1781,6 @@ export class Content {
     >({
       responseStyle: "data",
       url: "/api/member/downloads/{downloadId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a short-lived signed URL for an entitled asset
-   */
-  public static getMemberDownloadAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      downloadId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetMemberDownloadAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "downloadId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      unknown,
-      GetMemberDownloadAssetErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/downloads/{downloadId}/assets/{assetId}",
       ...options,
       ...params,
     });
@@ -5427,68 +5388,6 @@ export class Discussion {
 
 export class Assets {
   /**
-   * Get a short-lived URL for an asset, served as what the reference names
-   *
-   * The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.
-   */
-  public static getAssetDownloadUrl<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-      via:
-        | {
-            activity: string;
-          }
-        | {
-            course: string;
-          }
-        | {
-            download: string;
-          }
-        | {
-            community: string;
-          }
-        | {
-            post: string;
-          }
-        | {
-            message: string;
-          }
-        | {
-            profile: string;
-          };
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetAssetDownloadUrlResponses, GetAssetDownloadUrlErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "via" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      GetAssetDownloadUrlResponses,
-      GetAssetDownloadUrlErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/assets/{id}/url",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
    * Register an image you are about to upload and get a presigned upload URL
    *
    * Member uploads are images only. The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.
@@ -5729,52 +5628,6 @@ export class Assets {
         ...params,
       },
     );
-  }
-
-  /**
-   * Get a short-lived presigned URL to download/serve an asset
-   *
-   * Library files only. A member upload is served through what it is attached to and is answered with 403.
-   */
-  public static requestAssetDownload<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-      filename?: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    RequestAssetDownloadResponses,
-    RequestAssetDownloadErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "filename" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      RequestAssetDownloadResponses,
-      RequestAssetDownloadErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets/{id}/download-url",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
   }
 }
 

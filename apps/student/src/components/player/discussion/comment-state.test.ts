@@ -10,6 +10,7 @@ const author = {
   headline: null,
   image: null,
   imageAssetId: null,
+  imageUrl: null,
   role: "student" as const,
 };
 const instructor = {
@@ -20,6 +21,7 @@ const instructor = {
   headline: null,
   image: null,
   imageAssetId: null,
+  imageUrl: null,
   role: "instructor" as const,
 };
 

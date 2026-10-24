@@ -6,13 +6,12 @@ import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ContentRef,
-  DirectoryEntry,
+  DirectoryRow,
   MemberReportRepository,
 } from "@headless-lms/core/reporting/member";
 import {
   bundleItems,
   courses,
-  downloadAssets,
   downloads,
   entitlements,
   orgUsers,
@@ -138,22 +137,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
     return rows[0] ?? null;
   }
 
-  async downloadHasAsset(orgId: string, downloadId: string, assetId: string): Promise<boolean> {
-    const [row] = await this.db
-      .select({ id: downloadAssets.id })
-      .from(downloadAssets)
-      .where(
-        and(
-          eq(downloadAssets.orgId, orgId),
-          eq(downloadAssets.downloadId, downloadId),
-          eq(downloadAssets.assetId, assetId),
-        ),
-      )
-      .limit(1);
-    return row !== undefined;
-  }
-
-  async directory(orgId: string, communityId: string): Promise<DirectoryEntry[]> {
+  async directory(orgId: string, communityId: string): Promise<DirectoryRow[]> {
     const rows = await this.db
       .select({
         orgUserId: orgUsers.id,

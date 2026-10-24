@@ -4,12 +4,10 @@ import {
   jsonValueSchema,
   postFeedPageSchema,
   postFlagSchema,
-  postSchema,
   postViewSchema,
 } from '@headless-lms/core/schemas';
 import { CommentView } from './discussion.js';
 
-export const Post = postSchema;
 export const PostView = postViewSchema;
 export const PostFlag = postFlagSchema;
 export const PostFeedPage = postFeedPageSchema;

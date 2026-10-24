@@ -10,6 +10,7 @@ export type {
   CommentStatus,
   Message,
   MessageAttachment,
+  MessageFile,
   MessageFlag,
   MessageFlagResolution,
   MessageReaction,
@@ -59,6 +60,7 @@ export interface CommentAuthor {
   headline: string | null;
   image: string | null;
   imageAssetId: string | null;
+  imageUrl: string | null;
   role: Role;
 }
 

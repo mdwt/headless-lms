@@ -1,18 +1,10 @@
 import { NodeApi, type TCaptionElement, type TImageElement, type TResizableProps } from "platejs";
 import { SlateElement, type SlateElementProps } from "platejs/static";
 
-import type { ResolveAssetUrl } from "@headless-lms/editor";
-
-import { freshMediaUrl } from "../lib/media-url";
-
-export async function ImageElementStatic({
-  resolveAssetUrl,
-  ...props
-}: SlateElementProps<TImageElement & TCaptionElement & TResizableProps> & {
-  resolveAssetUrl?: ResolveAssetUrl;
-}) {
-  const { align = "center", caption, width } = props.element;
-  const url = await freshMediaUrl(props.element, resolveAssetUrl);
+export function ImageElementStatic(
+  props: SlateElementProps<TImageElement & TCaptionElement & TResizableProps>,
+) {
+  const { align = "center", caption, url, width } = props.element;
 
   return (
     <SlateElement className="py-2.5" {...props}>

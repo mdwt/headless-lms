@@ -3,8 +3,8 @@
 /**
  * Settings → Thumbnail: pick the course's cover, either by uploading a new
  * image or by linking one already in the media library. Nothing is copied —
- * the course stores the asset id and pages re-sign a fresh URL at render time,
- * so the preview URL held here is only good for this session.
+ * the course stores the asset id and every read of the course carries a fresh
+ * URL, so the preview URL held here is only good for this session.
  */
 
 import { useRef, useState } from "react";
@@ -14,11 +14,7 @@ import { toast } from "sonner";
 import { SettingsSection } from "@/components/forms/settings-section";
 import { Button } from "@/components/ui/button";
 import { AssetPickerDialog } from "@/app/(dashboard)/media/_components/asset-picker-dialog";
-import {
-  confirmAssetAction,
-  getAssetUrlAction,
-  requestUploadAction,
-} from "@/app/(dashboard)/media/actions";
+import { confirmAssetAction, requestUploadAction } from "@/app/(dashboard)/media/actions";
 import { putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
 import type { Asset } from "@/lib/api/types";
 
@@ -31,7 +27,7 @@ export function ThumbnailField({
 }: {
   courseId: string;
   assetId: string | null;
-  /** Presigned preview URL for `assetId`, resolved on the server. */
+  /** The course's thumbnail URL, as the course read served it. */
   url: string | null;
 }) {
   const [preview, setPreview] = useState<{ id: string; url: string } | null>(
@@ -60,8 +56,8 @@ export function ThumbnailField({
   async function onSelect(asset: Asset) {
     setPickerOpen(false);
     try {
-      const signed = await getAssetUrlAction(asset.id, asset.filename);
-      await save({ id: asset.id, url: signed });
+      if (!asset.url) throw new Error(`${asset.filename} cannot be shown`);
+      await save({ id: asset.id, url: asset.url });
     } catch (err) {
       toast.error("Couldn't use that file", { description: (err as Error).message });
     }
@@ -80,9 +76,9 @@ export function ThumbnailField({
         contentType: file.type,
       });
       await putToStorage(ticket.uploadUrl, ticket.headers, file, setProgress);
-      await confirmAssetAction(ticket.asset.id);
-      const signed = await getAssetUrlAction(ticket.asset.id, file.name);
-      await save({ id: ticket.asset.id, url: signed });
+      const asset = await confirmAssetAction(ticket.asset.id);
+      if (!asset.url) throw new Error(`${file.name} has not finished uploading`);
+      await save({ id: asset.id, url: asset.url });
     } catch (err) {
       toast.error("Upload failed", { description: (err as Error).message });
       setBusy(null);

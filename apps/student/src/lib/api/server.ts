@@ -11,7 +11,7 @@ import "server-only";
  * rejected session before handing over to /login.
  */
 import { unstable_rethrow } from "next/navigation";
-import { Assets, Content, Organizations, Progress } from "@headless-lms/sdk";
+import { Content, Organizations, Progress } from "@headless-lms/sdk";
 
 import { statusOf } from "./shared";
 import { authHeaders } from "./server-call";
@@ -66,7 +66,7 @@ export const memberApi = {
     const headers = await authHeaders();
     return orNullOn404(() => Content.listMemberModules({ courseId }, headers));
   },
-  /** Bare published-activity rows for an enrolled course. */
+  /** Published activities of an enrolled course, each with its files' URLs. */
   async listActivities(courseId: string): Promise<Activity[] | null> {
     const headers = await authHeaders();
     return orNullOn404(() => Content.listMemberActivities({ courseId }, headers));
@@ -87,13 +87,5 @@ export const memberApi = {
   async getDownload(downloadId: string): Promise<DownloadDetail | null> {
     const headers = await authHeaders();
     return orNullOn404(() => Content.getMemberDownload({ downloadId }, headers));
-  },
-  async assetUrl(
-    assetId: string,
-    via: Parameters<typeof Assets.getAssetDownloadUrl>[0]["via"],
-  ): Promise<string | null> {
-    const headers = await authHeaders();
-    const ticket = await orNull(() => Assets.getAssetDownloadUrl({ id: assetId, via }, headers));
-    return ticket?.url ?? null;
   },
 };

@@ -1,12 +1,12 @@
 export type {
   AssetKind,
-  AssetReference,
   AssetSource,
   AssetStatus,
+  AssetUrls,
+  AssetView,
   Asset,
   RequestUploadInput,
   UploadTicket,
-  DownloadTicket,
   AssetsQuery,
   Page,
 } from '../types/index.js';

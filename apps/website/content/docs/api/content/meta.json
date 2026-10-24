@@ -32,7 +32,6 @@
     "listMemberActivities",
     "listMemberDownloads",
     "getMemberDownload",
-    "getMemberDownloadAsset",
     "listModules",
     "createModule",
     "listActivities",

@@ -1,14 +1,19 @@
 import type {
   Activity,
   ActivityAsset,
+  ActivityView,
   Bundle,
   BundleItem,
   Community,
+  CommunityView,
   Course,
   CourseSettings,
+  CourseView,
   DmSettings,
   Download,
   DownloadAsset,
+  DownloadFile,
+  DownloadView,
   Module,
   SaveActivityInput,
   Space,
@@ -51,8 +56,8 @@ export interface SpaceRowLock {
 }
 
 export interface CommunitiesService extends CommunityReader {
-  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>>;
-  getCommunity(orgId: string, id: string): Promise<Community | null>;
+  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>>;
+  getCommunity(orgId: string, id: string): Promise<CommunityView | null>;
   listPublishedCommunityIds(orgId: string): Promise<string[]>;
   listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]>;
   getCommunitySpace(
@@ -60,22 +65,22 @@ export interface CommunitiesService extends CommunityReader {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceDetail | null>;
-  createCommunity(orgId: string, input: CreateCommunityInput, actor: Actor): Promise<Community>;
+  createCommunity(orgId: string, input: CreateCommunityInput, actor: Actor): Promise<CommunityView>;
   updateCommunity(
     orgId: string,
     id: string,
     patch: UpdateCommunityInput,
     actor: Actor,
-  ): Promise<Community>;
-  publishCommunity(orgId: string, id: string, actor: Actor): Promise<Community>;
-  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<Community>;
+  ): Promise<CommunityView>;
+  publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
+  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
   deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void>;
   patchDmSettings(
     orgId: string,
     id: string,
     patch: PatchDmSettingsInput,
     actor: Actor,
-  ): Promise<Community>;
+  ): Promise<CommunityView>;
 
   createSpace(
     orgId: string,
@@ -128,11 +133,11 @@ export interface CommunitiesService extends CommunityReader {
 }
 
 export interface CourseManagementService {
-  listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
-  getCourse(orgId: string, id: string): Promise<Course | null>;
-  createCourse(orgId: string, input: CreateCourseInput): Promise<Course>;
+  listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<CourseView>>;
+  getCourse(orgId: string, id: string): Promise<CourseView | null>;
+  createCourse(orgId: string, input: CreateCourseInput): Promise<CourseView>;
   /** @throws NotFoundError when no course with this id exists in the org. */
-  updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course>;
+  updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView>;
   /** @throws NotFoundError when no course with this id exists in the org. */
   patchCourseSettings(
     orgId: string,
@@ -144,6 +149,7 @@ export interface CourseManagementService {
 
   listCourseModules(orgId: string, courseId: string): Promise<Module[]>;
   listCourseActivities(orgId: string, courseId: string): Promise<Activity[]>;
+  listCourseActivityViews(orgId: string, courseId: string): Promise<ActivityView[]>;
   listCourseActivityAssets(orgId: string, courseId: string): Promise<ActivityAsset[]>;
   getActivity(orgId: string, activityId: string): Promise<Activity | null>;
   getModule(orgId: string, moduleId: string): Promise<Module | null>;
@@ -178,33 +184,33 @@ export interface CourseManagementService {
 }
 
 export interface DownloadablesService {
-  listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<Download>>;
-  getDownload(orgId: string, id: string): Promise<Download | null>;
-  createDownload(orgId: string, input: CreateDownloadInput): Promise<Download>;
+  listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<DownloadView>>;
+  getDownload(orgId: string, id: string): Promise<DownloadView | null>;
+  createDownload(orgId: string, input: CreateDownloadInput): Promise<DownloadView>;
   /** @throws NotFoundError when no download with this id exists in the org. */
-  updateDownload(orgId: string, id: string, patch: UpdateDownloadInput): Promise<Download>;
+  updateDownload(orgId: string, id: string, patch: UpdateDownloadInput): Promise<DownloadView>;
   /** @throws NotFoundError when no download with this id exists in the org. */
   removeDownload(orgId: string, id: string, actor: Actor): Promise<void>;
 
-  listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadAsset[]>;
+  listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadFile[]>;
   addDownloadAsset(
     orgId: string,
     downloadId: string,
     input: AddDownloadAssetInput,
-  ): Promise<DownloadAsset[]>;
-  removeDownloadAsset(orgId: string, downloadId: string, assetId: string): Promise<DownloadAsset[]>;
+  ): Promise<DownloadFile[]>;
+  removeDownloadAsset(orgId: string, downloadId: string, assetId: string): Promise<DownloadFile[]>;
   renameDownloadAsset(
     orgId: string,
     downloadId: string,
     assetId: string,
     displayName: string | null,
-  ): Promise<DownloadAsset[]>;
+  ): Promise<DownloadFile[]>;
   /** @throws ConflictError when assetIds is not exactly the download's current asset set. */
   reorderDownloadAssets(
     orgId: string,
     downloadId: string,
     assetIds: string[],
-  ): Promise<DownloadAsset[]>;
+  ): Promise<DownloadFile[]>;
 }
 
 export interface BundlesService {

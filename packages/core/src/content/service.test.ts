@@ -7,7 +7,7 @@ import { contentEvents } from './events.js';
 import type { ContentRepository, ContentUnitOfWork } from './ports.js';
 import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
-import type { LibraryAssetReader } from '../assets/index.js';
+import type { AssetUrlSigner, LibraryAssetReader } from '../assets/index.js';
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
 function makeCourse(over: Partial<Course> = {}): Course {
@@ -109,9 +109,32 @@ const libraryAssets: LibraryAssetReader = {
   libraryAssetsAmong: async (_orgId, assetIds) => assetIds,
 };
 
+const UNSIGNED = 'ast_unsigned';
+
+const assetUrls: AssetUrlSigner = {
+  urls: async (_orgId, ids) =>
+    Object.fromEntries(
+      ids.filter((id) => id !== UNSIGNED).map((id) => [id, `https://signed/${id}`]),
+    ),
+  downloads: async (_orgId, files) =>
+    Object.fromEntries(
+      files
+        .filter((file) => file.assetId !== UNSIGNED)
+        .map((file) => [
+          file.assetId,
+          {
+            filename: `${file.assetId}.pdf`,
+            contentType: 'application/pdf',
+            size: 100,
+            url: `https://signed/${file.assetId}?as=${file.saveAs ?? `${file.assetId}.pdf`}`,
+          },
+        ]),
+    ),
+};
+
 function build(repo = makeRepo(), assets: LibraryAssetReader = libraryAssets) {
   const { uow, append, appended } = fakeUow(repo);
-  const svc = new ContentService({ repo, uow, libraryAssets: assets });
+  const svc = new ContentService({ repo, uow, libraryAssets: assets, assetUrls });
   return { svc, repo, append, appended };
 }
 
@@ -156,7 +179,7 @@ describe('ContentServiceImpl', () => {
       { title: 'My New Course' },
       'my-new-course',
     );
-    expect(result).toEqual(created);
+    expect(result).toEqual({ ...created, thumbnailUrl: null });
   });
 
   it('delegates course reads to the content repository', async () => {
@@ -168,7 +191,11 @@ describe('ContentServiceImpl', () => {
     const result = await svc.getCourse('org1', 'c1');
 
     expect(repo.findCourseById).toHaveBeenCalledWith('org1', 'c1');
-    expect(result).toEqual({ ...course, settings: { transcriptDownloads: false } });
+    expect(result).toEqual({
+      ...course,
+      settings: { transcriptDownloads: false },
+      thumbnailUrl: null,
+    });
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -250,7 +277,7 @@ describe('ContentServiceImpl', () => {
     const result = await svc.updateCourse('org1', 'c1', { title: 'Renamed' });
 
     expect(repo.updateCourse).toHaveBeenCalledWith('org1', 'c1', { title: 'Renamed' });
-    expect(result).toEqual(updated);
+    expect(result).toEqual({ ...updated, thumbnailUrl: null });
     expect(appended).toEqual([
       { type: 'content.course.updated', version: 1, orgId: 'org1', data: updated },
     ]);
@@ -600,6 +627,7 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
+      assetUrls,
       logger,
     });
 
@@ -629,6 +657,7 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
+      assetUrls,
       logger,
     });
 
@@ -658,6 +687,7 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
+      assetUrls,
       logger,
     });
 
@@ -700,7 +730,7 @@ describe('downloads', () => {
       { title: 'My Great Workbook' },
       'my-great-workbook',
     );
-    expect(result).toEqual(download);
+    expect(result).toEqual({ ...download, thumbnailUrl: null });
     expect(appended).toEqual([
       { type: 'content.download.created', version: 1, orgId: 'o1', data: download },
     ]);
@@ -753,6 +783,16 @@ function makeDownloadAsset(over: Partial<DownloadAsset> = {}): DownloadAsset {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...over,
+  };
+}
+
+function asFile(link: DownloadAsset) {
+  return {
+    ...link,
+    filename: `${link.assetId}.pdf`,
+    contentType: 'application/pdf',
+    size: 100,
+    url: `https://signed/${link.assetId}?as=${link.displayName ?? `${link.assetId}.pdf`}`,
   };
 }
 
@@ -813,7 +853,7 @@ describe('download assets', () => {
     const result = await svc.reorderDownloadAssets('o1', 'd1', ['a2', 'a1']);
 
     expect(repo.reorderDownloadAssets).toHaveBeenCalledWith('o1', 'd1', ['a2', 'a1']);
-    expect(result).toEqual(reordered);
+    expect(result).toEqual(reordered.map(asFile));
     expect(appended).toEqual([
       {
         type: 'content.download.assets.reordered',
@@ -833,7 +873,7 @@ describe('download assets', () => {
     const result = await svc.addDownloadAsset('o1', 'd1', { assetId: 'a1' });
 
     expect(repo.addDownloadAsset).toHaveBeenCalledWith('o1', 'd1', { assetId: 'a1' });
-    expect(result).toEqual(list);
+    expect(result).toEqual(list.map(asFile));
     expect(appended).toEqual([
       {
         type: 'content.download.asset.added',
@@ -853,7 +893,7 @@ describe('download assets', () => {
     const result = await svc.removeDownloadAsset('o1', 'd1', 'a1');
 
     expect(repo.removeDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1');
-    expect(result).toEqual(list);
+    expect(result).toEqual(list.map(asFile));
     expect(appended).toEqual([
       {
         type: 'content.download.asset.removed',
@@ -873,7 +913,9 @@ describe('download assets', () => {
     const result = await svc.renameDownloadAsset('o1', 'd1', 'a1', 'Workbook');
 
     expect(repo.renameDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1', 'Workbook');
-    expect(result).toEqual(list);
+    expect(result).toEqual(list.map(asFile));
+    expect(result[0]?.filename).toBe('a1.pdf');
+    expect(result[0]?.url).toBe('https://signed/a1?as=Workbook');
     expect(appended).toEqual([
       {
         type: 'content.download.asset.renamed',
@@ -924,7 +966,7 @@ describe('communities', () => {
     const result = await svc.createCommunity('org1', { title: 'Makers' }, owner);
 
     expect(repo.createCommunity).toHaveBeenCalledWith('org1', { title: 'Makers' }, 'makers');
-    expect(result).toEqual(community);
+    expect(result).toEqual({ ...community, thumbnailUrl: null });
     expect(appended).toEqual([
       {
         type: 'content.community.created',
@@ -1071,7 +1113,7 @@ describe('spaces', () => {
       calls.push('write');
       return space;
     });
-    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets });
+    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets, assetUrls });
     const input = {
       topics: [
         { id: 'top_b', name: 'Wins' },
@@ -1184,6 +1226,127 @@ describe('spaces', () => {
       type: 'content.community.space.updated',
       metadata: { actorOrgUserId: 'ou_owner' },
     });
+  });
+});
+
+describe('signed file URLs', () => {
+  it('carries the thumbnail URL on course, download and community reads and writes', async () => {
+    const repo = makeRepo();
+    const course = makeCourse({ thumbnailAssetId: 'ast_cover' });
+    const download = makeDownload({ thumbnailAssetId: 'ast_dl' });
+    const community = makeCommunity({ thumbnailAssetId: 'ast_cmy' });
+    vi.mocked(repo.findCourseById).mockResolvedValue(course);
+    vi.mocked(repo.listCourses).mockResolvedValue({
+      rows: [course, makeCourse({ id: 'c2' })],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+    vi.mocked(repo.updateCourse).mockResolvedValue(course);
+    vi.mocked(repo.getDownload).mockResolvedValue(download);
+    vi.mocked(repo.updateDownload).mockResolvedValue(download);
+    vi.mocked(repo.findCommunityById).mockResolvedValue(community);
+    vi.mocked(repo.updateCommunity).mockResolvedValue(community);
+    const { svc } = build(repo);
+
+    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBe('https://signed/ast_cover');
+    expect(
+      (await svc.listCourses('org1', { page: 1, pageSize: 20 })).rows.map((c) => c.thumbnailUrl),
+    ).toEqual(['https://signed/ast_cover', null]);
+    expect((await svc.updateCourse('org1', 'c1', { title: 'x' })).thumbnailUrl).toBe(
+      'https://signed/ast_cover',
+    );
+    expect((await svc.getDownload('o1', 'd1'))?.thumbnailUrl).toBe('https://signed/ast_dl');
+    expect((await svc.updateDownload('o1', 'd1', { title: 'x' })).thumbnailUrl).toBe(
+      'https://signed/ast_dl',
+    );
+    expect((await svc.getCommunity('org1', 'cmy_1'))?.thumbnailUrl).toBe('https://signed/ast_cmy');
+    expect((await svc.updateCommunity('org1', 'cmy_1', { title: 'x' }, owner)).thumbnailUrl).toBe(
+      'https://signed/ast_cmy',
+    );
+  });
+
+  it('leaves the thumbnail URL empty when the signer cannot sign the file', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ thumbnailAssetId: UNSIGNED }));
+    const { svc } = build(repo);
+
+    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBeNull();
+  });
+
+  it('gives each activity the URLs of its own linked files only', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listActivitiesForCourse).mockResolvedValue([
+      makeActivity({ id: 'act1' }),
+      makeActivity({ id: 'act2', seq: 1 }),
+      makeActivity({ id: 'act3', seq: 2 }),
+    ]);
+    vi.mocked(repo.listActivityAssetsForCourse).mockResolvedValue([
+      {
+        orgId: 'org1',
+        id: 'aca1',
+        activityId: 'act1',
+        assetId: 'ast_video',
+        seq: 0,
+        createdAt: AT,
+        updatedAt: AT,
+      },
+      {
+        orgId: 'org1',
+        id: 'aca2',
+        activityId: 'act1',
+        assetId: 'ast_image',
+        seq: 1,
+        createdAt: AT,
+        updatedAt: AT,
+      },
+      {
+        orgId: 'org1',
+        id: 'aca3',
+        activityId: 'act2',
+        assetId: 'ast_pdf',
+        seq: 0,
+        createdAt: AT,
+        updatedAt: AT,
+      },
+      {
+        orgId: 'org1',
+        id: 'aca4',
+        activityId: 'act2',
+        assetId: UNSIGNED,
+        seq: 1,
+        createdAt: AT,
+        updatedAt: AT,
+      },
+    ]);
+    const { svc } = build(repo);
+
+    const views = await svc.listCourseActivityViews('org1', 'c1');
+
+    expect(views.map((view) => [view.id, view.assetUrls])).toEqual([
+      ['act1', { ast_video: 'https://signed/ast_video', ast_image: 'https://signed/ast_image' }],
+      ['act2', { ast_pdf: 'https://signed/ast_pdf' }],
+      ['act3', {}],
+    ]);
+  });
+
+  it('signs download files to save under their display name and drops a file it cannot sign', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listDownloadAssets).mockResolvedValue([
+      makeDownloadAsset({ id: 'da1', assetId: 'a1', displayName: 'Workbook.pdf' }),
+      makeDownloadAsset({ id: 'da2', assetId: 'a2', seq: 1 }),
+      makeDownloadAsset({ id: 'da3', assetId: UNSIGNED, seq: 2 }),
+    ]);
+    const { svc } = build(repo);
+
+    const files = await svc.listDownloadAssets('o1', 'd1');
+
+    expect(
+      files.map((file) => [file.id, file.filename, file.contentType, file.size, file.url]),
+    ).toEqual([
+      ['da1', 'a1.pdf', 'application/pdf', 100, 'https://signed/a1?as=Workbook.pdf'],
+      ['da2', 'a2.pdf', 'application/pdf', 100, 'https://signed/a2?as=a2.pdf'],
+    ]);
   });
 });
 

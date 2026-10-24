@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 
 import editorModule from "@/editor.config";
-import { getAssetUrlAction } from "@/app/(dashboard)/media/actions";
 import {
   deleteActivityAction,
   updateActivitySettingsAction,
@@ -48,8 +47,6 @@ import { uploadEditorFile } from "./editor-upload";
 const { Editor, validate, meta } = editorModule;
 const hasBlockLibrary = editorModule.slots?.includes("blocks") ?? false;
 const hasToolbar = editorModule.slots?.includes("toolbar") ?? false;
-
-const resolveAssetUrl = (assetId: string) => getAssetUrlAction(assetId).catch(() => null);
 
 const schema = z.object({
   title: z
@@ -435,7 +432,7 @@ export function ActivityBuilder({
                 onChange={onEditorChange}
                 onSave={onEditorSave}
                 pickAsset={pickAsset}
-                resolveAssetUrl={resolveAssetUrl}
+                assetUrls={activity.assetUrls}
                 uploadFile={uploadEditorFile}
                 slots={slots}
               />

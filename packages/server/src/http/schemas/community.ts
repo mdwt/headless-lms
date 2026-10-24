@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
-  communitySchema,
   communityStatusSchema,
+  communityViewSchema,
   createCommunityInputSchema,
   createSpaceInputSchema,
   dmSettingsSchema,
@@ -19,7 +19,7 @@ import type {
 } from '@headless-lms/core/reporting/member';
 import { ListQuery, paginated, type Matches } from './shared.js';
 
-export const Community = communitySchema;
+export const Community = communityViewSchema;
 export const CommunitiesQuery = ListQuery.extend({
   status: communityStatusSchema.optional(),
 });
@@ -49,6 +49,7 @@ export const DirectoryEntry = z.object({
   headline: z.string().nullable(),
   bio: z.string().nullable(),
   imageAssetId: z.string().nullable(),
+  imageUrl: z.string().nullable(),
 });
 type _DirectoryMatches = Matches<DomainDirectoryEntry, z.infer<typeof DirectoryEntry>> &
   Matches<z.infer<typeof DirectoryEntry>, DomainDirectoryEntry>;

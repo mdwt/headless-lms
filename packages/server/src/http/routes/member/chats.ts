@@ -14,10 +14,10 @@ import {
   FlagReason,
   ListQuery,
   MarkRead,
-  Message,
   MessageFlag,
   MessageIdParam,
   MessagesPage,
+  MessageView,
   MuteChat,
   OrgUserBody,
   ResolveMessageFlags,
@@ -174,7 +174,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       summary: 'Send a message',
       params: ChatIdParam,
       body: SendMessage,
-      response: { 201: Message, ...errors },
+      response: { 201: MessageView, ...errors },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -193,7 +193,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       summary: 'Edit your own message',
       params: MessageIdParam,
       body: EditMessage,
-      response: { 200: Message, ...errors },
+      response: { 200: MessageView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -210,7 +210,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Delete a message',
       params: MessageIdParam,
-      response: { 200: Message, ...errors },
+      response: { 200: MessageView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);

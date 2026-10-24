@@ -1,6 +1,6 @@
-// HTTP routes for the assets media library + content delivery. All require a
-// session with an active organization; assets are stored under the org's
-// private prefix and served only through short-lived presigned URLs.
+// HTTP routes for the assets media library. All require a session with an
+// active organization; assets are stored under the org's private prefix and
+// served only through the short-lived signed URLs responses carry.
 //
 // `req.orgId` is already the domain organization id these tables key on — the
 // session guard translates it from better-auth's id once per request.
@@ -12,9 +12,7 @@ import {
   AssetIdParam,
   AssetsPage,
   AssetsQuery,
-  DownloadTicket,
   ErrorBody,
-  RequestDownload,
   RequestUpload,
   UploadTicket,
 } from '../schemas/index.js';
@@ -130,46 +128,6 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
         throw new NotFoundError('Asset', req.params.id);
       }
       return asset;
-    },
-  });
-
-  r.route({
-    method: 'POST',
-    url: '/api/assets/:id/download-url',
-    preHandler: staff,
-    // Every body field is optional, so a bodyless POST is valid — the
-    // generated SDK omits the body entirely when no field is set, which
-    // Fastify hands to validation as `null`. Normalize before it gets there.
-    preValidation: (req, _reply, done) => {
-      req.body ??= {};
-      done();
-    },
-    schema: {
-      operationId: 'requestAssetDownload',
-      tags,
-      summary: 'Get a short-lived presigned URL to download/serve an asset',
-      description:
-        'Library files only. A member upload is served through what it is attached to and is answered with 403.',
-      params: AssetIdParam,
-      body: RequestDownload,
-      response: {
-        200: DownloadTicket,
-        400: ErrorBody,
-        401: ErrorBody,
-        403: ErrorBody,
-        404: ErrorBody,
-      },
-    },
-    handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      const ticket = await assets.requestLibraryDownload(orgId, req.params.id, req.body.filename);
-      if (!ticket) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
-      return ticket;
     },
   });
 

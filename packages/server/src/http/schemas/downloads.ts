@@ -5,9 +5,9 @@
 import { z } from 'zod';
 import {
   addDownloadAssetInputSchema,
-  downloadAssetSchema,
-  downloadSchema,
+  downloadFileSchema,
   downloadStatusSchema,
+  downloadViewSchema,
   reorderDownloadAssetsInputSchema,
 } from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
@@ -15,11 +15,11 @@ import { ListQuery, paginated } from './shared.js';
 export const DownloadStatus = downloadStatusSchema;
 export type DownloadStatus = z.infer<typeof DownloadStatus>;
 
-export const Download = downloadSchema;
+export const Download = downloadViewSchema;
 export type Download = z.infer<typeof Download>;
 
-export const DownloadAsset = downloadAssetSchema;
-export type DownloadAsset = z.infer<typeof DownloadAsset>;
+export const DownloadFile = downloadFileSchema;
+export type DownloadFile = z.infer<typeof DownloadFile>;
 
 export const CreateDownload = z.object({
   title: z.string().min(1),

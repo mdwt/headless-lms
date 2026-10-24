@@ -8,7 +8,6 @@ import { PlateElement, type PlateElementProps, useEditorPlugin, withHOC } from "
 import { useEffect, useMemo, useState } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 
-import { useFreshMediaUrl } from "../hooks/use-resolve-asset-url";
 import { cn } from "../lib/utils";
 
 import { blockSelectionVariants } from "./block-selection";
@@ -57,8 +56,6 @@ export const ImageElement = withHOC(
       element: props.element,
     });
 
-    const freshUrl = useFreshMediaUrl(props.element);
-
     return (
       <PlateElement className="my-1" {...props}>
         <figure className="relative m-0" contentEditable={false}>
@@ -96,7 +93,7 @@ export const ImageElement = withHOC(
                     height="auto"
                     width="100%"
                     {...imageProps}
-                    src={freshUrl ?? imageProps.src}
+                    src={imageProps.src}
                   />
                 ) : (
                   <LazyLoadImage
@@ -123,7 +120,7 @@ export const ImageElement = withHOC(
                       } as any
                     }
                     {...imageProps}
-                    src={freshUrl ?? imageProps.src}
+                    src={imageProps.src}
                   />
                 )}
 

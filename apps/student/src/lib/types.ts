@@ -11,6 +11,8 @@ export interface Lesson {
   order: number;
   /** The activity's `settings.content` Plate value, or null when unset. */
   content: ActivityContent | null;
+  /** URLs for the files the activity links, keyed by asset id. */
+  assetUrls: Record<string, string>;
 }
 
 export interface Module {

@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import type { EditorMediaKind, UploadedEditorFile } from "@headless-lms/editor";
 
 import { AssetPickerDialog } from "@/app/(dashboard)/media/_components/asset-picker-dialog";
-import { getAssetUrlAction } from "@/app/(dashboard)/media/actions";
 import type { Asset, AssetKind } from "@/lib/api/types";
 
 function assetKindFor(kind: EditorMediaKind): AssetKind {
@@ -53,20 +52,19 @@ export function useAssetPicker(): {
   );
 
   const onSelect = useCallback(
-    async (asset: Asset) => {
-      try {
-        const url = await getAssetUrlAction(asset.id, asset.filename);
-        settle({
-          id: asset.id,
-          name: asset.filename,
-          size: asset.size,
-          type: asset.contentType,
-          url,
-        });
-      } catch {
+    (asset: Asset) => {
+      if (!asset.url) {
         toast.error("Couldn't open that file", { description: asset.filename });
         settle(null);
+        return;
       }
+      settle({
+        id: asset.id,
+        name: asset.filename,
+        size: asset.size,
+        type: asset.contentType,
+        url: asset.url,
+      });
     },
     [settle],
   );

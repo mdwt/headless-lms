@@ -1,5 +1,5 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
-import type { User, UserProfile } from './model.js';
+import type { User, UserProfile, UserProfileView } from './model.js';
 import type { UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
@@ -7,7 +7,7 @@ import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
-import type { MemberImageReader } from '../assets/index.js';
+import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
 const UNNAMED = 'A member';
@@ -18,6 +18,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
   private readonly images: MemberImageReader;
+  private readonly assetUrls: AssetUrlSigner;
 
   constructor(input: {
     repo: IdentityRepository;
@@ -25,12 +26,14 @@ export class IdentityServiceImpl implements IdentityService {
     mailer: Mailer;
     uow: IdentityUnitOfWork;
     images: MemberImageReader;
+    assetUrls: AssetUrlSigner;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
     this.logger = input.logger ?? noopLogger;
     this.uow = input.uow;
     this.images = input.images;
+    this.assetUrls = input.assetUrls;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -106,14 +109,10 @@ export class IdentityServiceImpl implements IdentityService {
     await this.mailer.send(input.email, 'magicLink', { url: input.url });
   }
 
-  getProfile(userId: string): Promise<UserProfile | null> {
-    return this.repo.findProfile(userId);
-  }
-
-  async profileOf(userId: string): Promise<UserProfile> {
+  async profileOf(orgId: string, userId: string): Promise<UserProfileView> {
     const stored = await this.repo.findProfile(userId);
     if (stored) {
-      return stored;
+      return this.view(orgId, stored);
     }
     const never = new Date(0);
     return {
@@ -123,10 +122,17 @@ export class IdentityServiceImpl implements IdentityService {
       bio: null,
       imageAssetOrgId: null,
       imageAssetId: null,
+      imageUrl: null,
       extra: {},
       createdAt: never,
       updatedAt: never,
     };
+  }
+
+  private async view(orgId: string, profile: UserProfile): Promise<UserProfileView> {
+    const imageAssetId = profile.imageAssetOrgId === orgId ? profile.imageAssetId : null;
+    const urls = imageAssetId ? await this.assetUrls.urls(orgId, [imageAssetId]) : {};
+    return { ...profile, imageUrl: imageAssetId ? (urls[imageAssetId] ?? null) : null };
   }
 
   async displayName(userId: string | null): Promise<string> {
@@ -146,11 +152,12 @@ export class IdentityServiceImpl implements IdentityService {
   }
 
   async updateProfile(
+    orgId: string,
     userId: string,
     actorUserId: string,
     orgUserId: string,
     patch: UpdateProfileInput,
-  ): Promise<UserProfile> {
+  ): Promise<UserProfileView> {
     if (actorUserId !== userId) {
       throw new ForbiddenError('You can only update your own profile');
     }
@@ -185,6 +192,6 @@ export class IdentityServiceImpl implements IdentityService {
     }
     const profile = await this.repo.upsertProfile(userId, patch);
     this.logger.info('profile updated', { userId });
-    return profile;
+    return this.view(orgId, profile);
   }
 }

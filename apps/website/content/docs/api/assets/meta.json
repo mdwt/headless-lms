@@ -2,7 +2,6 @@
   "title": "Assets",
   "description": "The org media library: uploads, serving and lifecycle",
   "pages": [
-    "getAssetDownloadUrl",
     "requestMemberUpload",
     "finalizeMemberUpload",
     "deleteMemberUpload",
@@ -10,7 +9,6 @@
     "confirmAsset",
     "listAssets",
     "getAsset",
-    "deleteAsset",
-    "requestAssetDownload"
+    "deleteAsset"
   ]
 }

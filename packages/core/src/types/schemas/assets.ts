@@ -29,6 +29,14 @@ export const assetSchema = z
 export type Asset = z.output<typeof assetSchema>;
 export type AssetInput = z.input<typeof assetSchema>;
 
+export const assetViewSchema = assetSchema
+  .extend({ url: z.string().nullable(), downloadUrl: z.string().nullable() })
+  .strict();
+export type AssetView = z.output<typeof assetViewSchema>;
+
+export const assetUrlsSchema = z.record(idSchema, z.string());
+export type AssetUrls = z.infer<typeof assetUrlsSchema>;
+
 export const requestUploadInputSchema = z
   .object({
     uploadedBy: idSchema,
@@ -41,7 +49,7 @@ export type RequestUploadInput = z.infer<typeof requestUploadInputSchema>;
 
 export const uploadTicketSchema = z
   .object({
-    asset: assetSchema,
+    asset: assetViewSchema,
     uploadUrl: z.string().trim().min(1),
     method: z.literal('PUT'),
     expiresInSeconds: z.number().int().positive(),
@@ -49,14 +57,6 @@ export const uploadTicketSchema = z
   })
   .strict();
 export type UploadTicket = z.infer<typeof uploadTicketSchema>;
-
-export const downloadTicketSchema = z
-  .object({
-    url: z.string().trim().min(1),
-    asset: assetSchema,
-  })
-  .strict();
-export type DownloadTicket = z.infer<typeof downloadTicketSchema>;
 
 export const assetsQuerySchema = z
   .object({
@@ -69,14 +69,3 @@ export const assetsQuerySchema = z
   })
   .strict();
 export type AssetsQuery = z.infer<typeof assetsQuerySchema>;
-
-export const assetReferenceSchema = z.union([
-  z.object({ activity: idSchema }).strict(),
-  z.object({ course: idSchema }).strict(),
-  z.object({ download: idSchema }).strict(),
-  z.object({ community: idSchema }).strict(),
-  z.object({ post: idSchema }).strict(),
-  z.object({ message: idSchema }).strict(),
-  z.object({ profile: idSchema }).strict(),
-]);
-export type AssetReference = z.infer<typeof assetReferenceSchema>;

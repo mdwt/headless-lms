@@ -8,7 +8,6 @@ import { PlateElement, type PlateElementProps, useEditorMounted, withHOC } from 
 import LiteYouTubeEmbed from "react-lite-youtube-embed";
 import ReactPlayer from "react-player";
 
-import { useFreshMediaUrl } from "../hooks/use-resolve-asset-url";
 import { cn } from "../lib/utils";
 
 import { Caption, CaptionTextarea } from "./caption";
@@ -30,7 +29,6 @@ export const MediaVideoElement = withHOC(
     });
     const width = useResizableValue("width");
 
-    const freshUrl = useFreshMediaUrl(props.element);
     const isEditorMounted = useEditorMounted();
 
     const isTweet = true;
@@ -92,7 +90,7 @@ export const MediaVideoElement = withHOC(
               {/* TODO: Lazy load */}
               {isUpload && isEditorMounted && (
                 <div ref={handleRef}>
-                  <ReactPlayer controls height="100%" src={freshUrl ?? unsafeUrl} width="100%" />
+                  <ReactPlayer controls height="100%" src={unsafeUrl} width="100%" />
                 </div>
               )}
 

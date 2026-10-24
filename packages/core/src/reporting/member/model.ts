@@ -1,7 +1,13 @@
 // reporting/member — read model. Reuses the content domain's Course/Module
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
-export type { Activity, Course, Module, Download, DownloadAsset } from '../../content/index.js';
+export type {
+  ActivityView,
+  CourseView,
+  DownloadFile,
+  DownloadView,
+  Module,
+} from '../../content/index.js';
 
 /** An active-entitlement pointer: the org + content item a student may consume. */
 export interface ContentRef {
@@ -11,7 +17,7 @@ export interface ContentRef {
 
 /** Per-course progress for the student surface. Derived on read against the
  *  current published structure — never stored. */
-export interface DirectoryEntry {
+export interface DirectoryRow {
   orgUserId: string;
   userId: string;
   role: string;
@@ -19,6 +25,10 @@ export interface DirectoryEntry {
   headline: string | null;
   bio: string | null;
   imageAssetId: string | null;
+}
+
+export interface DirectoryEntry extends DirectoryRow {
+  imageUrl: string | null;
 }
 
 export interface CommunityHomeSpace {

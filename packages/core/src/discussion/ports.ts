@@ -272,18 +272,18 @@ export interface PostCommentFlagReader {
 }
 
 export interface PostService {
-  create(orgId: string, actor: Actor, input: CreatePostInput): Promise<Post>;
-  update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<Post>;
-  submit(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<Post>;
-  approve(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  remove(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  restore(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  pin(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  unpin(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  closeComments(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  openComments(orgId: string, postId: string, actor: Actor): Promise<Post>;
-  setReactions(orgId: string, postId: string, actor: Actor, enabled: boolean): Promise<Post>;
+  create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView>;
+  update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
+  submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<PostView>;
+  approve(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  remove(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  restore(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  pin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  unpin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  closeComments(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  openComments(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  setReactions(orgId: string, postId: string, actor: Actor, enabled: boolean): Promise<PostView>;
   setReaction(
     orgId: string,
     postId: string,
@@ -416,9 +416,9 @@ export interface ChatService {
   addParticipant(orgId: string, actor: Actor, chatId: string, orgUserId: string): Promise<Chat>;
   leave(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   accept(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
-  send(orgId: string, actor: Actor, chatId: string, input: SendMessageInput): Promise<Message>;
-  editMessage(orgId: string, actor: Actor, messageId: string, body: string): Promise<Message>;
-  deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<Message>;
+  send(orgId: string, actor: Actor, chatId: string, input: SendMessageInput): Promise<MessageView>;
+  editMessage(orgId: string, actor: Actor, messageId: string, body: string): Promise<MessageView>;
+  deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView>;
   setReaction(
     orgId: string,
     actor: Actor,
@@ -440,11 +440,6 @@ export interface ChatService {
   lock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
   listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]>;
-  getMessage(
-    orgId: string,
-    actor: Actor,
-    messageId: string,
-  ): Promise<{ message: Message; assetIds: string[] }>;
   chatSummary(
     orgId: string,
     chatId: string,
@@ -499,7 +494,7 @@ export interface ChatRepository {
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<Message>>;
   attach(orgId: string, communityId: string, messageId: string, assetIds: string[]): Promise<void>;
-  attachmentIds(orgId: string, messageId: string): Promise<string[]>;
+  attachmentsOf(orgId: string, messageIds: string[]): Promise<Record<string, string[]>>;
   blockedWith(
     orgId: string,
     communityId: string,

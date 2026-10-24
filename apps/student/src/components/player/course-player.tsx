@@ -29,7 +29,7 @@ import {
 } from "@/lib/video-tracking";
 import editorMedia from "@/editor-media.config";
 import type { MediaTrackingEvent } from "@headless-lms/editor";
-import { Assets } from "@headless-lms/sdk";
+import { Content } from "@headless-lms/sdk";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";
@@ -171,16 +171,13 @@ export function CoursePlayer({
     async (assetId: string): Promise<string | null> => {
       ensureClientSdk();
       try {
-        const ticket = await Assets.getAssetDownloadUrl({
-          id: assetId,
-          via: { activity: curLessonId },
-        });
-        return ticket.url;
+        const activities = await Content.listMemberActivities({ courseId: course.id });
+        return activities.find((a) => a.id === curLessonId)?.assetUrls[assetId] ?? null;
       } catch {
         return null;
       }
     },
-    [curLessonId],
+    [course.id, curLessonId],
   );
 
   // Flush unsent watch state when the tab hides or the lesson unmounts.

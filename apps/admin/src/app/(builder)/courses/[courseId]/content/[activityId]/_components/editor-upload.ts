@@ -4,19 +4,15 @@
  * presigned PUT ticket) → PUT the bytes to storage (XHR, real progress) →
  * POST /api/assets/:id/confirm.
  *
- * The returned URL is a short-lived presigned URL (for immediate display in
- * the editing session). The durable reference is the returned asset `id`,
- * which the editor persists on the media node — media nodes re-sign fresh
- * URLs for it whenever they render (the contract's `resolveAssetUrl`).
+ * The returned URL is the short-lived one the confirm response carries, for
+ * display in the editing session. The durable reference is the returned asset
+ * `id`, which the editor persists on the media node; later reads of the
+ * activity serve its URL in `assetUrls`.
  */
 
 import type { UploadedEditorFile } from "@headless-lms/editor";
 
-import {
-  confirmAssetAction,
-  getAssetUrlAction,
-  requestUploadAction,
-} from "@/app/(dashboard)/media/actions";
+import { confirmAssetAction, requestUploadAction } from "@/app/(dashboard)/media/actions";
 import { putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
 
 export async function uploadEditorFile(
@@ -29,15 +25,16 @@ export async function uploadEditorFile(
   });
 
   await putToStorage(ticket.uploadUrl, ticket.headers, file, opts.onProgress);
-  await confirmAssetAction(ticket.asset.id);
-
-  const url = await getAssetUrlAction(ticket.asset.id, file.name);
+  const asset = await confirmAssetAction(ticket.asset.id);
+  if (!asset.url) {
+    throw new Error(`${file.name} has not finished uploading`);
+  }
 
   return {
-    id: ticket.asset.id,
+    id: asset.id,
     name: file.name,
     size: file.size,
     type: file.type,
-    url,
+    url: asset.url,
   };
 }

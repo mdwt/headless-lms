@@ -44,6 +44,7 @@ function adaptModule(m: WireModule, activities: WireActivity[]): Module {
           title: s.title?.trim() || "Untitled activity",
           order: a.seq,
           content: s.content ?? null,
+          assetUrls: a.assetUrls,
         };
       }),
   };

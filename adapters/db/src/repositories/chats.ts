@@ -437,15 +437,25 @@ export class DrizzleChatRepository implements ChatRepository {
     );
   }
 
-  async attachmentIds(orgId: string, messageId: string): Promise<string[]> {
+  async attachmentsOf(orgId: string, messageIds: string[]): Promise<Record<string, string[]>> {
+    if (messageIds.length === 0) {
+      return {};
+    }
     const rows = await this.db
-      .select({ assetId: messageAttachments.assetId })
+      .select({ messageId: messageAttachments.messageId, assetId: messageAttachments.assetId })
       .from(messageAttachments)
       .where(
-        and(eq(messageAttachments.orgId, orgId), eq(messageAttachments.messageId, messageId)),
+        and(
+          eq(messageAttachments.orgId, orgId),
+          inArray(messageAttachments.messageId, [...new Set(messageIds)]),
+        ),
       )
-      .orderBy(asc(messageAttachments.seq));
-    return rows.map((row) => row.assetId);
+      .orderBy(asc(messageAttachments.messageId), asc(messageAttachments.seq));
+    const byMessage: Record<string, string[]> = {};
+    for (const row of rows) {
+      (byMessage[row.messageId] ??= []).push(row.assetId);
+    }
+    return byMessage;
   }
 
   async setReaction(

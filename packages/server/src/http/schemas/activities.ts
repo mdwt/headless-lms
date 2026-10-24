@@ -4,12 +4,12 @@
 import { z } from 'zod';
 import {
   activityAssetSchema,
-  activitySchema,
+  activityViewSchema,
   moduleSchema,
   saveActivityInputSchema,
 } from '@headless-lms/core/schemas';
 
-export const Activity = activitySchema;
+export const Activity = activityViewSchema;
 export type Activity = z.infer<typeof Activity>;
 
 export const ActivityAsset = activityAssetSchema;
@@ -22,7 +22,7 @@ export type Module = z.infer<typeof Module>;
 export const ModuleList = z.array(Module);
 export type ModuleList = z.infer<typeof ModuleList>;
 
-/** A course's activities as bare rows, ordered by (moduleId, seq). */
+/** A course's activities, each with signed URLs for the files it links, ordered by (moduleId, seq). */
 export const ActivityList = z.array(Activity);
 export type ActivityList = z.infer<typeof ActivityList>;
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { assetUrlsSchema } from './assets.js';
 import { activityCommentsRuleSchema, commentSettingsSchema } from './discussion.js';
 import { idSchema, jsonValueSchema } from './shared.js';
 
@@ -106,6 +107,11 @@ export const courseSchema = z
   .strict();
 export type Course = z.output<typeof courseSchema>;
 
+export const courseViewSchema = courseSchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type CourseView = z.output<typeof courseViewSchema>;
+
 export const activitySchema = z
   .object({
     orgId: idSchema,
@@ -120,6 +126,9 @@ export const activitySchema = z
   .strict();
 export type Activity = z.output<typeof activitySchema>;
 export type ActivityInput = z.input<typeof activitySchema>;
+
+export const activityViewSchema = activitySchema.extend({ assetUrls: assetUrlsSchema }).strict();
+export type ActivityView = z.output<typeof activityViewSchema>;
 
 export const moduleSchema = z
   .object({
@@ -210,6 +219,11 @@ export const downloadSchema = z
 export type Download = z.output<typeof downloadSchema>;
 export type DownloadInput = z.input<typeof downloadSchema>;
 
+export const downloadViewSchema = downloadSchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type DownloadView = z.output<typeof downloadViewSchema>;
+
 export const downloadAssetSchema = z
   .object({
     orgId: idSchema,
@@ -224,6 +238,16 @@ export const downloadAssetSchema = z
   .strict();
 export type DownloadAsset = z.output<typeof downloadAssetSchema>;
 export type DownloadAssetInput = z.input<typeof downloadAssetSchema>;
+
+export const downloadFileSchema = downloadAssetSchema
+  .extend({
+    filename: z.string(),
+    contentType: z.string(),
+    size: z.number().int().min(0),
+    url: z.string(),
+  })
+  .strict();
+export type DownloadFile = z.output<typeof downloadFileSchema>;
 
 export const listDownloadsQuerySchema = z
   .object({
@@ -323,6 +347,11 @@ export const communitySchema = z
   })
   .strict();
 export type Community = z.output<typeof communitySchema>;
+
+export const communityViewSchema = communitySchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type CommunityView = z.output<typeof communityViewSchema>;
 
 export const spaceAccessRuleSchema = z.enum(['all_members', 'by_request', 'by_invite']);
 export type SpaceAccessRule = z.infer<typeof spaceAccessRuleSchema>;

@@ -54,6 +54,7 @@ export const commentAuthorSchema = z
     headline: z.string().nullable(),
     image: z.string().nullable(),
     imageAssetId: idSchema.nullable(),
+    imageUrl: z.string().nullable(),
     role: roleSchema,
   })
   .strict();
@@ -181,7 +182,9 @@ export const postSchema = z
   .strict();
 export type Post = z.output<typeof postSchema>;
 
-export const postViewSchema = postSchema.extend({ author: commentAuthorSchema }).strict();
+export const postViewSchema = postSchema
+  .extend({ coverUrl: z.string().nullable(), author: commentAuthorSchema })
+  .strict();
 export type PostView = z.output<typeof postViewSchema>;
 
 export const postFeedPageSchema = z
@@ -303,7 +306,12 @@ export const messageSchema = z
   .strict();
 export type Message = z.output<typeof messageSchema>;
 
-export const messageViewSchema = messageSchema.extend({ sender: commentAuthorSchema }).strict();
+export const messageFileSchema = z.object({ assetId: idSchema, url: z.string() }).strict();
+export type MessageFile = z.output<typeof messageFileSchema>;
+
+export const messageViewSchema = messageSchema
+  .extend({ sender: commentAuthorSchema, attachments: z.array(messageFileSchema) })
+  .strict();
 export type MessageView = z.output<typeof messageViewSchema>;
 
 export const messageAttachmentSchema = z

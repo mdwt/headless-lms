@@ -4,13 +4,11 @@ import {
   chatSchema,
   messageFlagResolutionSchema,
   messageFlagSchema,
-  messageSchema,
   messageViewSchema,
 } from '@headless-lms/core/schemas';
 import { paginated } from './shared.js';
 
 export const Chat = chatSchema;
-export const Message = messageSchema;
 export const MessageFlag = messageFlagSchema;
 export const MessageView = messageViewSchema;
 export const MessagesPage = paginated(MessageView);

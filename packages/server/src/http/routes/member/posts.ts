@@ -12,7 +12,6 @@ import {
   FeedQuery,
   FlagReason,
   MemberFeedQuery,
-  Post,
   PostComments,
   PostComment,
   PostFeedPage,
@@ -147,7 +146,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Create a post',
       params: CommunitySpaceParam,
       body: CreatePost,
-      response: { 201: Post, ...errors },
+      response: { 201: PostView, ...errors },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -188,7 +187,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Edit your own post',
       params: PostIdParam,
       body: UpdatePost,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -205,7 +204,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Submit a draft or scheduled post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -223,7 +222,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Schedule a post',
       params: PostIdParam,
       body: SchedulePost,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -240,7 +239,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Publish a post that is awaiting review',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -257,7 +256,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Remove a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -274,7 +273,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Restore a removed post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -291,7 +290,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Pin a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -308,7 +307,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Unpin a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -325,7 +324,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Close comments on a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -342,7 +341,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Open comments on a post',
       params: PostIdParam,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -360,7 +359,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Turn reactions on or off for a post',
       params: PostIdParam,
       body: SetPostReactions,
-      response: { 200: Post, ...errors },
+      response: { 200: PostView, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);

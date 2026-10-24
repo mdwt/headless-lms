@@ -24,12 +24,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Pagination } from "@/components/data-table/pagination";
 import { AssetCard } from "./_components/asset-card";
 import { AssetPreviewDialog } from "./_components/asset-preview-dialog";
-import {
-  confirmAssetAction,
-  deleteAssetAction,
-  getAssetUrlAction,
-  requestUploadAction,
-} from "./actions";
+import { confirmAssetAction, deleteAssetAction, requestUploadAction } from "./actions";
 import { putToStorage } from "./upload-to-storage";
 
 const KIND_TABS: { label: string; value: "all" | AssetKind }[] = [
@@ -227,8 +222,8 @@ function MediaViewInner({
                 }}
                 onCopyLink={async (a) => {
                   try {
-                    const url = await getAssetUrlAction(a.id);
-                    await navigator.clipboard.writeText(url);
+                    if (!a.url) throw new Error("No link");
+                    await navigator.clipboard.writeText(a.url);
                     toast.success("Link copied");
                   } catch {
                     toast.error("Couldn't copy link");

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
-import type { MemberImageReader } from '../assets/index.js';
+import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -48,6 +48,13 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
+const assetUrls: AssetUrlSigner = {
+  urls: vi.fn(async (orgId: string, ids: readonly string[]) =>
+    Object.fromEntries(ids.map((id) => [id, `https://signed/${orgId}/${id}`])),
+  ),
+  downloads: async () => ({}),
+};
+
 function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async () => true }) {
   const appended: NewDomainEvent[] = [];
   const uow: IdentityUnitOfWork = {
@@ -62,7 +69,7 @@ function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async
       }),
   };
   const mailer = { send: vi.fn() } as unknown as Mailer;
-  const service = new IdentityServiceImpl({ repo, uow, mailer, images });
+  const service = new IdentityServiceImpl({ repo, uow, mailer, images, assetUrls });
   return { service, repo, appended, mailer, images };
 }
 
@@ -194,9 +201,16 @@ describe('updateProfile', () => {
     const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
     const { service } = build(repo);
 
-    const profile = await service.updateProfile('usr_invited', 'usr_invited', 'ou_1', photo);
+    const profile = await service.updateProfile(
+      'org-1',
+      'usr_invited',
+      'usr_invited',
+      'ou_1',
+      photo,
+    );
 
     expect(profile.imageAssetId).toBe('ast_1');
+    expect(profile.imageUrl).toBe('https://signed/org-1/ast_1');
     expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', photo);
   });
 
@@ -205,7 +219,7 @@ describe('updateProfile', () => {
     const { service } = build(repo, { ownsImage: async () => false });
 
     await expect(
-      service.updateProfile('usr_invited', 'usr_invited', 'ou_1', photo),
+      service.updateProfile('org-1', 'usr_invited', 'usr_invited', 'ou_1', photo),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(repo.upsertProfile).not.toHaveBeenCalled();
   });
@@ -215,12 +229,65 @@ describe('updateProfile', () => {
     const ownsImage = vi.fn(async () => false);
     const { service } = build(repo, { ownsImage });
 
-    await service.updateProfile('usr_invited', 'usr_invited', 'ou_1', {
+    const profile = await service.updateProfile('org-1', 'usr_invited', 'usr_invited', 'ou_1', {
       imageAssetOrgId: null,
       imageAssetId: null,
     });
 
+    expect(profile.imageUrl).toBeNull();
+
     expect(ownsImage).not.toHaveBeenCalled();
     expect(repo.upsertProfile).toHaveBeenCalled();
+  });
+});
+
+describe('profileOf', () => {
+  const stored = {
+    userId: 'usr_invited',
+    displayName: 'Sarah',
+    headline: null,
+    bio: null,
+    imageAssetOrgId: 'org-1',
+    imageAssetId: 'ast_1',
+    extra: {},
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+  };
+
+  it('signs the photo inside the org it belongs to', async () => {
+    const repo = fakeRepo({ findProfile: vi.fn().mockResolvedValue(stored) });
+
+    const profile = await build(repo).service.profileOf('org-1', 'usr_invited');
+
+    expect(profile).toEqual({ ...stored, imageUrl: 'https://signed/org-1/ast_1' });
+  });
+
+  it('serves no photo URL in another org', async () => {
+    const repo = fakeRepo({ findProfile: vi.fn().mockResolvedValue(stored) });
+
+    const profile = await build(repo).service.profileOf('org-2', 'usr_invited');
+
+    expect(profile.imageAssetId).toBe('ast_1');
+    expect(profile.imageUrl).toBeNull();
+  });
+
+  it('serves an empty profile without a photo URL when none is stored', async () => {
+    const profile = await build().service.profileOf('org-1', 'usr_invited');
+
+    expect(profile).toMatchObject({ userId: 'usr_invited', imageAssetId: null, imageUrl: null });
+  });
+
+  it('signs a saved photo only when it belongs to the org of the request', async () => {
+    const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+
+    const profile = await build(repo).service.updateProfile(
+      'org-2',
+      'usr_invited',
+      'usr_invited',
+      'ou_1',
+      { imageAssetOrgId: 'org-1', imageAssetId: 'ast_1' },
+    );
+
+    expect(profile.imageUrl).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
 import { InvalidCursorError } from './model.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { MemberImageReader } from '../assets/index.js';
+import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import type {
   AuthorProfileReader,
   AuthorRecord,
@@ -80,12 +80,26 @@ function feedOrder(a: Post, b: Post): number {
   return a.id < b.id ? 1 : -1;
 }
 
+function signer(unsigned: string[] = []): AssetUrlSigner {
+  return {
+    async urls(_orgId, assetIds) {
+      return Object.fromEntries(
+        assetIds.filter((id) => !unsigned.includes(id)).map((id) => [id, `signed:${id}`]),
+      );
+    },
+    async downloads() {
+      return {};
+    },
+  };
+}
+
 function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
   roles?: Record<string, Role>;
   images?: MemberImageReader;
   profiles?: Record<string, Partial<AuthorRecord>>;
+  unsigned?: string[];
 }) {
   const rows: Post[] = [];
   const bookmarks: { postId: string; orgUserId: string }[] = [];
@@ -294,9 +308,7 @@ function harness(options?: {
     },
     async rolesOf(_orgId, orgUserIds) {
       const roles = options?.roles ?? {};
-      return Object.fromEntries(
-        orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])),
-      );
+      return Object.fromEntries(orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])));
     },
   };
 
@@ -353,6 +365,7 @@ function harness(options?: {
     profiles,
     commentFlags,
     images: options?.images ?? { ownsImage: async () => true },
+    assetUrls: signer(options?.unsigned),
     uow,
   });
 
@@ -891,6 +904,7 @@ describe('posts', () => {
       headline: 'Founder at Acme',
       image: null,
       imageAssetId: 'ast_photo',
+      imageUrl: 'signed:ast_photo',
       role: 'student',
     });
     const feedPage = await svc.spaceFeed(ORG, member, 'cmy_1', 'spc_1', feed);
@@ -899,6 +913,58 @@ describe('posts', () => {
       displayName: 'First Last',
       image: 'https://img',
       imageAssetId: null,
+      imageUrl: null,
     });
+  });
+
+  it('serves the cover and author photo URLs from every call that returns a post', async () => {
+    const { svc, setSpaces } = harness({
+      roles: { ou_mod: 'moderator' },
+      profiles: { ou_member: { imageAssetOrgId: ORG, imageAssetId: 'ast_photo' } },
+    });
+    const signed = { coverUrl: 'signed:ast_cover', author: { imageUrl: 'signed:ast_photo' } };
+    const created = await svc.create(ORG, member, draftInput({ coverAssetId: 'ast_cover' }));
+    expect(created).toMatchObject(signed);
+    const id = created.id;
+    expect(await svc.update(ORG, id, member, { title: 'Hello' })).toMatchObject(signed);
+    expect(await svc.update(ORG, id, member, { title: 'Revised' })).toMatchObject(signed);
+    expect(await svc.getPost(ORG, other, id)).toMatchObject(signed);
+    expect(await svc.pin(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.pin(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.unpin(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.closeComments(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.openComments(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.setReactions(ORG, id, moderator, false)).toMatchObject(signed);
+    expect((await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed)).rows[0]).toMatchObject(signed);
+    expect((await svc.memberFeed(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
+    expect((await svc.listOwn(ORG, member, 'cmy_1'))[0]).toMatchObject(signed);
+    await svc.bookmark(ORG, id, other);
+    expect((await svc.listBookmarked(ORG, other, 'cmy_1'))[0]).toMatchObject(signed);
+    expect(await svc.remove(ORG, id, member)).toMatchObject(signed);
+    expect(await svc.restore(ORG, id, moderator)).toMatchObject(signed);
+
+    const draft = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
+    );
+    expect(draft).toMatchObject(signed);
+    expect(
+      await svc.schedule(ORG, draft.id, member, new Date('2026-10-30T09:00:00.000Z')),
+    ).toMatchObject(signed);
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const submitted = await svc.submit(ORG, draft.id, member);
+    expect(submitted).toMatchObject({ status: 'pending', ...signed });
+    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    expect(queue.pending[0]).toMatchObject(signed);
+    expect(await svc.approve(ORG, draft.id, moderator)).toMatchObject(signed);
+  });
+
+  it('serves no cover URL for a post without a cover or a cover the signer leaves out', async () => {
+    const { svc } = harness({ unsigned: ['ast_gone'] });
+    const bare = await svc.create(ORG, member, draftInput());
+    expect(bare).toMatchObject({ coverAssetId: null, coverUrl: null, author: { imageUrl: null } });
+    const gone = await svc.create(ORG, member, draftInput({ coverAssetId: 'ast_gone' }));
+    expect(gone).toMatchObject({ coverAssetId: 'ast_gone', coverUrl: null });
   });
 });

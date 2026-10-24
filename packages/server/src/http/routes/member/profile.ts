@@ -24,7 +24,7 @@ export async function memberProfileRoutes(
       response: { 200: UserProfile, ...errors },
     },
     handler: async (req) => {
-      return container.identity.profileOf(req.userId);
+      return container.identity.profileOf(req.orgId, req.userId);
     },
   });
 
@@ -44,7 +44,13 @@ export async function memberProfileRoutes(
       if (!orgUser) {
         throw new UnauthorizedError();
       }
-      return container.identity.updateProfile(req.userId, req.userId, orgUser.id, req.body);
+      return container.identity.updateProfile(
+        req.orgId,
+        req.userId,
+        req.userId,
+        orgUser.id,
+        req.body,
+      );
     },
   });
 }

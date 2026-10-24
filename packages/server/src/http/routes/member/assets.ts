@@ -4,8 +4,6 @@ import { z } from 'zod';
 import {
   Asset,
   AssetIdParam,
-  AssetReference,
-  DownloadTicket,
   ErrorBody,
   RequestMemberUpload,
   UploadTicket,
@@ -29,35 +27,6 @@ export async function memberAssetsRoutes(
   container: Container,
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-
-  r.route({
-    method: 'POST',
-    url: '/api/member/assets/:id/url',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'getAssetDownloadUrl',
-      tags,
-      summary: 'Get a short-lived URL for an asset, served as what the reference names',
-      description:
-        'The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.',
-      params: AssetIdParam,
-      body: AssetReference,
-      response: { 200: DownloadTicket, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
-    },
-    handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const ticket = await container.reporting.member.assetUrl(
-        req.orgId,
-        actor,
-        req.params.id,
-        req.body.via,
-      );
-      if (!ticket) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
-      return ticket;
-    },
-  });
 
   r.route({
     method: 'POST',

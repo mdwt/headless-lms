@@ -101,6 +101,7 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     repo,
     uow,
     memberImageMaxBytes: 1000,
+    urlExpirySeconds: 600,
     ...overrides,
     storage,
   });
@@ -226,7 +227,13 @@ describe('AssetsService', () => {
     const { repo, assets } = fakeRepo(new Set(['asset_used']));
     const { uow } = fakeUow(repo);
     const storage = fakeStorage();
-    const svc = new AssetsServiceImpl({ storage, repo, uow, memberImageMaxBytes: 1000 });
+    const svc = new AssetsServiceImpl({
+      storage,
+      repo,
+      uow,
+      memberImageMaxBytes: 1000,
+      urlExpirySeconds: 600,
+    });
     const now = new Date();
     assets.push({
       orgId: 'org-1',
@@ -267,7 +274,13 @@ describe('AssetsService', () => {
     const { repo, assets } = fakeRepo(new Set(['asset_kept']));
     const { uow, appended } = fakeUow(repo);
     const storage = fakeStorage();
-    const svc = new AssetsServiceImpl({ storage, repo, uow, memberImageMaxBytes: 1000 });
+    const svc = new AssetsServiceImpl({
+      storage,
+      repo,
+      uow,
+      memberImageMaxBytes: 1000,
+      urlExpirySeconds: 600,
+    });
     const now = new Date('2026-10-22T12:00:00Z');
     const old = new Date('2026-10-22T10:00:00Z');
     const base = {
@@ -306,7 +319,13 @@ describe('AssetsService', () => {
     const { repo, assets } = fakeRepo();
     const { uow } = fakeUow(repo);
     const storage = fakeStorage();
-    const svc = new AssetsServiceImpl({ storage, repo, uow, memberImageMaxBytes: 1000 });
+    const svc = new AssetsServiceImpl({
+      storage,
+      repo,
+      uow,
+      memberImageMaxBytes: 1000,
+      urlExpirySeconds: 600,
+    });
     const old = new Date('2026-10-01T00:00:00Z');
     assets.push({
       orgId: 'org-1',
@@ -368,11 +387,11 @@ describe('AssetsService', () => {
     expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: confirmed?.key });
     expect(storage.stat).toHaveBeenCalledWith(confirmed?.key);
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    const signed = await svc.requestDownload('org-1', ticket.asset.id);
-    expect(storage.presignDownload).toHaveBeenCalledWith(
-      expect.objectContaining({ key: confirmed?.key }),
-    );
-    expect(signed?.asset.key).toBe(confirmed?.key);
+    expect(confirmed?.url).toBe('https://storage/download');
+    expect(storage.presignDownload).toHaveBeenCalledWith({
+      key: confirmed?.key,
+      expiresInSeconds: 600,
+    });
   });
 
   it('leaves a ready asset and its bytes alone when it is confirmed again', async () => {
@@ -409,7 +428,7 @@ describe('AssetsService', () => {
     expect(confirmed).toMatchObject({ kind: 'video', contentType: 'video/mp4', size: 42 });
   });
 
-  it('refuses staff the finalize and sign of a member upload but lets them delete it', async () => {
+  it('refuses staff the finalize and the URL of a member upload but lets them delete it', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
     const library = await svc.requestUpload('org-1', {
       filename: 'a.png',
@@ -425,10 +444,10 @@ describe('AssetsService', () => {
     await expect(svc.confirm('org-1', member.asset.id)).rejects.toThrow(
       'Only the uploader can finalize a member upload',
     );
-    await expect(svc.requestLibraryDownload('org-1', member.asset.id)).rejects.toThrow(
-      'A member upload is served through what it is attached to',
-    );
-    expect(await svc.requestLibraryDownload('org-1', library.asset.id)).not.toBeNull();
+    await svc.confirm('org-1', library.asset.id);
+    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+    expect((await svc.get('org-1', member.asset.id))?.url).toBeNull();
+    expect((await svc.get('org-1', library.asset.id))?.url).toBe('https://storage/download');
     expect(await svc.remove('org-1', member.asset.id)).toBe(true);
   });
 
@@ -618,5 +637,163 @@ describe('AssetsService', () => {
     for (const memberImageMaxBytes of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => service({ memberImageMaxBytes })).toThrow('invalid memberImageMaxBytes');
     }
+  });
+
+  it('refuses a URL lifetime that is not a positive integer', () => {
+    const { repo } = fakeRepo();
+    const { uow } = fakeUow(repo);
+    for (const urlExpirySeconds of [0, -1, 1.5, Number.NaN]) {
+      expect(
+        () =>
+          new AssetsServiceImpl({
+            storage: fakeStorage(),
+            repo,
+            uow,
+            memberImageMaxBytes: 1000,
+            urlExpirySeconds,
+          }),
+      ).toThrow('invalid urlExpirySeconds');
+    }
+  });
+
+  it('signs the URL of a ready library asset and none for a pending one', async () => {
+    const { svc, storage } = service({
+      storage: fakeStorage({ size: 10, contentType: 'image/png' }),
+    });
+    const ticket = await svc.requestUpload('org-1', {
+      filename: 'a.png',
+      contentType: 'image/png',
+      source: 'library',
+      uploadedBy: 'ou_staff',
+    });
+    expect(ticket.asset.url).toBeNull();
+    expect((await svc.get('org-1', ticket.asset.id))?.url).toBeNull();
+    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toBeNull();
+
+    const confirmed = await svc.confirm('org-1', ticket.asset.id);
+
+    expect(confirmed?.url).toBe('https://storage/download');
+    expect((await svc.get('org-1', ticket.asset.id))?.url).toBe('https://storage/download');
+    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toBe(
+      'https://storage/download',
+    );
+    expect(confirmed?.downloadUrl).toBe('https://storage/download');
+    expect(ticket.asset.downloadUrl).toBeNull();
+    expect(storage.presignDownload).toHaveBeenCalledWith({
+      key: confirmed?.key,
+      expiresInSeconds: 600,
+    });
+    expect(storage.presignDownload).toHaveBeenCalledWith({
+      key: confirmed?.key,
+      downloadFilename: 'a.png',
+      expiresInSeconds: 600,
+    });
+  });
+
+  it('lists member uploads to staff without a URL', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
+    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    const own = await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+
+    expect(own?.url).toBe('https://storage/download');
+    const listed = await svc.list('org-1', { page: 1, pageSize: 20, source: 'member' });
+    expect(listed.rows.map((a) => [a.status, a.url, a.downloadUrl])).toEqual([
+      ['ready', null, null],
+    ]);
+  });
+
+  it('signs display URLs only for the ready assets of the org, once per id', async () => {
+    const { svc, assets, storage } = service();
+    vi.mocked(storage.presignDownload).mockImplementation(
+      async ({ key }) => `https://signed/${key}`,
+    );
+    const now = new Date();
+    const base = {
+      kind: 'image' as const,
+      source: 'library' as const,
+      filename: 'a.png',
+      contentType: 'image/png',
+      size: 10,
+      uploadedBy: 'ou_1',
+      createdAt: now,
+      updatedAt: now,
+    };
+    assets.push(
+      { ...base, orgId: 'org-1', id: 'ast_ready', key: 'k-ready', status: 'ready' },
+      { ...base, orgId: 'org-1', id: 'ast_pending', key: 'k-pending', status: 'pending' },
+      { ...base, orgId: 'org-2', id: 'ast_other', key: 'k-other', status: 'ready' },
+    );
+
+    const urls = await svc.urls('org-1', [
+      'ast_ready',
+      'ast_ready',
+      'ast_pending',
+      'ast_other',
+      'ast_missing',
+    ]);
+
+    expect(urls).toEqual({ ast_ready: 'https://signed/k-ready' });
+    expect(storage.presignDownload).toHaveBeenCalledTimes(1);
+    expect(storage.presignDownload).toHaveBeenCalledWith({ key: 'k-ready', expiresInSeconds: 600 });
+    expect(await svc.urls('org-1', [])).toEqual({});
+  });
+
+  it('signs downloads under the given name, or the asset filename', async () => {
+    const { svc, assets, storage } = service();
+    vi.mocked(storage.presignDownload).mockImplementation(
+      async ({ key, downloadFilename }) => `https://signed/${key}?as=${downloadFilename}`,
+    );
+    const now = new Date();
+    const base = {
+      orgId: 'org-1',
+      kind: 'document' as const,
+      source: 'library' as const,
+      contentType: 'application/pdf',
+      status: 'ready' as const,
+      uploadedBy: 'ou_1',
+      createdAt: now,
+      updatedAt: now,
+    };
+    assets.push(
+      { ...base, id: 'ast_guide', key: 'k-guide', filename: 'guide.pdf', size: 100 },
+      { ...base, id: 'ast_notes', key: 'k-notes', filename: 'notes.pdf', size: 200 },
+      {
+        ...base,
+        id: 'ast_pending',
+        key: 'k-pending',
+        filename: 'x.pdf',
+        size: 0,
+        status: 'pending',
+      },
+    );
+
+    const files = await svc.downloads('org-1', [
+      { assetId: 'ast_guide', saveAs: 'Workbook.pdf' },
+      { assetId: 'ast_notes', saveAs: null },
+      { assetId: 'ast_pending', saveAs: null },
+    ]);
+
+    expect(files).toEqual({
+      ast_guide: {
+        filename: 'guide.pdf',
+        contentType: 'application/pdf',
+        size: 100,
+        url: 'https://signed/k-guide?as=Workbook.pdf',
+      },
+      ast_notes: {
+        filename: 'notes.pdf',
+        contentType: 'application/pdf',
+        size: 200,
+        url: 'https://signed/k-notes?as=notes.pdf',
+      },
+    });
+    expect(storage.presignDownload).toHaveBeenCalledWith({
+      key: 'k-guide',
+      downloadFilename: 'Workbook.pdf',
+      expiresInSeconds: 600,
+    });
   });
 });

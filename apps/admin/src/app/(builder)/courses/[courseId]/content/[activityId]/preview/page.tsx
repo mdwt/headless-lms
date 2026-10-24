@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import editorModule from "@/editor.config";
 import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
-import { resolveAssetUrl } from "@/lib/api/asset-url";
 import type { ActivitySettings } from "@/lib/api/types";
 import { formatContentType } from "@/lib/format";
 
@@ -55,7 +54,7 @@ export default async function ActivityPreviewPage({
               editor renders <code>{formatContentType(meta)}</code>. It can&apos;t be displayed.
             </p>
           ) : (
-            <Renderer config={stored.config} resolveAssetUrl={resolveAssetUrl} />
+            <Renderer config={stored.config} assetUrls={activity.assetUrls} />
           )}
         </article>
       </main>

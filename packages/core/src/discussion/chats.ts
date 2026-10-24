@@ -6,7 +6,7 @@ import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { MemberImageReader } from '../assets/index.js';
+import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import type {
   Chat,
   ChatUser,
@@ -20,7 +20,7 @@ import type {
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
-import { authorView } from './authors.js';
+import { authorImageIds, authorView } from './authors.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -42,6 +42,7 @@ export type ChatServiceParams = {
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
   images: MemberImageReader;
+  assetUrls: AssetUrlSigner;
   uow: ChatUnitOfWork;
   logger?: Logger;
 };
@@ -53,6 +54,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
   private readonly images: MemberImageReader;
+  private readonly assetUrls: AssetUrlSigner;
   private readonly uow: ChatUnitOfWork;
   private readonly logger: Logger;
 
@@ -63,6 +65,7 @@ export class ChatServiceImpl implements ChatService {
     this.authors = params.authors;
     this.profiles = params.profiles;
     this.images = params.images;
+    this.assetUrls = params.assetUrls;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -319,7 +322,7 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     chatId: string,
     input: SendMessageInput,
-  ): Promise<Message> {
+  ): Promise<MessageView> {
     const preview = await this.mustChat(this.repo, orgId, chatId);
     await this.requireActor(orgId, actor, preview.communityId);
     const settings = await this.requireSettings(orgId, preview.communityId);
@@ -340,7 +343,7 @@ export class ChatServiceImpl implements ChatService {
       return written.message;
     });
     this.logger.info('message sent', { orgId, chatId, messageId: saved.id });
-    return saved;
+    return this.viewOf(orgId, actor, saved);
   }
 
   async editMessage(
@@ -348,7 +351,7 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     messageId: string,
     body: string,
-  ): Promise<Message> {
+  ): Promise<MessageView> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireWritableChat(orgId, actor, message.chatId);
     if (message.orgUserId !== actor.id) {
@@ -358,17 +361,17 @@ export class ChatServiceImpl implements ChatService {
       throw new ConflictError('This message was deleted');
     }
     if (message.body === body) {
-      return message;
+      return this.viewOf(orgId, actor, message);
     }
     const saved = await this.repo.updateMessage(orgId, messageId, { body, editedAt: new Date() });
     if (!saved) {
       throw new NotFoundError('Message', messageId);
     }
     this.logger.info('message edited', { orgId, messageId });
-    return saved;
+    return this.viewOf(orgId, actor, saved);
   }
 
-  async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<Message> {
+  async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
     if (!isStaffRole(actor.role)) {
@@ -401,7 +404,7 @@ export class ChatServiceImpl implements ChatService {
       return next;
     });
     this.logger.info('message deleted', { orgId, messageId });
-    return saved;
+    return this.viewOf(orgId, actor, saved);
   }
 
   async setReaction(
@@ -592,10 +595,7 @@ export class ChatServiceImpl implements ChatService {
     this.logger.debug('chat messages read', { orgId, chatId });
     return {
       ...page,
-      rows: await this.withSenders(
-        orgId,
-        page.rows.map((message) => this.present(message, actor)),
-      ),
+      rows: await this.withSenders(orgId, actor, page.rows),
     };
   }
 
@@ -613,7 +613,7 @@ export class ChatServiceImpl implements ChatService {
       ...new Set(messages.map((message) => message.chatId)),
     ]);
     const byChat = new Map(summaries.map((summary) => [summary.chat.id, summary]));
-    const views = await this.withSenders(orgId, messages);
+    const views = await this.withSenders(orgId, actor, messages);
     const entries: MessageQueueEntry[] = views.flatMap((message) => {
       const summary = byChat.get(message.chatId);
       if (!summary) {
@@ -630,33 +630,6 @@ export class ChatServiceImpl implements ChatService {
     });
     this.logger.debug('message queue read', { orgId, communityId, count: entries.length });
     return { entries };
-  }
-
-  async getMessage(
-    orgId: string,
-    actor: Actor,
-    messageId: string,
-  ): Promise<{ message: Message; assetIds: string[] }> {
-    const message = await this.mustMessage(this.repo, orgId, messageId);
-    const staff = isStaffRole(actor.role);
-    if (!staff) {
-      await this.requireActor(orgId, actor, message.communityId);
-    }
-    const users = await this.repo.participants(orgId, message.chatId);
-    const participant = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
-    if (!participant) {
-      const flagged =
-        staff &&
-        (await this.repo.listOpenFlags(orgId, message.communityId)).some(
-          (flag) => flag.messageId === messageId,
-        );
-      if (!flagged) {
-        throw new NotFoundError('Message', messageId);
-      }
-    }
-    const assetIds =
-      message.deletedAt !== null && !staff ? [] : await this.repo.attachmentIds(orgId, messageId);
-    return { message: this.present(message, actor), assetIds };
   }
 
   async chatSummary(
@@ -1038,19 +1011,45 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  private async withSenders(orgId: string, messages: Message[]): Promise<MessageView[]> {
+  private async viewOf(orgId: string, actor: Actor, message: Message): Promise<MessageView> {
+    const [view] = await this.withSenders(orgId, actor, [message]);
+    return view!;
+  }
+
+  private async withSenders(
+    orgId: string,
+    actor: Actor,
+    messages: Message[],
+  ): Promise<MessageView[]> {
     if (messages.length === 0) {
       return [];
     }
-    const records = await this.profiles.authorsOf(orgId, [
-      ...new Set(messages.map((message) => message.orgUserId)),
+    const [records, attached] = await Promise.all([
+      this.profiles.authorsOf(orgId, [...new Set(messages.map((message) => message.orgUserId))]),
+      this.repo.attachmentsOf(
+        orgId,
+        messages.map((message) => message.id),
+      ),
+    ]);
+    const shown = (message: Message) =>
+      message.deletedAt !== null && !isStaffRole(actor.role) ? [] : (attached[message.id] ?? []);
+    const urls = await this.assetUrls.urls(orgId, [
+      ...messages.flatMap(shown),
+      ...authorImageIds(orgId, Object.values(records)),
     ]);
     return messages.map((message) => {
       const record = records[message.orgUserId];
       if (!record) {
         throw new NotFoundError('OrgUser', message.orgUserId);
       }
-      return { ...message, sender: authorView(orgId, record) };
+      return {
+        ...this.present(message, actor),
+        sender: authorView(orgId, record, urls),
+        attachments: shown(message).flatMap((assetId) => {
+          const url = urls[assetId];
+          return url ? [{ assetId, url }] : [];
+        }),
+      };
     });
   }
 

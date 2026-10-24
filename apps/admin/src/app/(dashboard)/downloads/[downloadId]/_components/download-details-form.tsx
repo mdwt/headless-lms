@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/http";
 import type { Download } from "@/lib/api/types";
 
-import { confirmAssetAction, getAssetUrlAction, requestUploadAction } from "../../../media/actions";
+import { confirmAssetAction, requestUploadAction } from "../../../media/actions";
 import { putToStorage } from "../../../media/upload-to-storage";
 import { updateDownloadAction } from "../../actions";
 
@@ -95,7 +95,11 @@ export function DownloadDetailsForm({ download }: { download: Download }) {
             <Textarea id="description" rows={5} {...register("description")} />
           </Field>
 
-          <ThumbnailField downloadId={download.id} thumbnailAssetId={download.thumbnailAssetId} />
+          <ThumbnailField
+            downloadId={download.id}
+            thumbnailAssetId={download.thumbnailAssetId}
+            url={download.thumbnailUrl}
+          />
         </SettingsSection>
       </form>
     </SettingsSurface>
@@ -109,27 +113,15 @@ export function DownloadDetailsForm({ download }: { download: Download }) {
 function ThumbnailField({
   downloadId,
   thumbnailAssetId,
+  url,
 }: {
   downloadId: string;
   thumbnailAssetId: string | null;
+  url: string | null;
 }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
-  const [url, setUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!thumbnailAssetId) return;
-    let cancelled = false;
-    void getAssetUrlAction(thumbnailAssetId)
-      .then((u) => {
-        if (!cancelled) setUrl(u);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [thumbnailAssetId]);
 
   async function onFileSelected(file: File) {
     setUploading(true);

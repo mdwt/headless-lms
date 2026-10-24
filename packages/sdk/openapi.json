@@ -1143,6 +1143,10 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "thumbnailUrl": {
+                            "nullable": true,
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -1157,7 +1161,8 @@
                           "thumbnailAssetId",
                           "settings",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "thumbnailUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -1313,6 +1318,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -1327,7 +1336,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -1443,6 +1453,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -1457,7 +1471,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -1631,6 +1646,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -1645,7 +1664,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -2022,6 +2042,10 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "thumbnailUrl": {
+                            "nullable": true,
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -2035,7 +2059,8 @@
                           "thumbnailAssetId",
                           "settings",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "thumbnailUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -2294,6 +2319,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -2307,7 +2336,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -2531,6 +2561,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -2544,7 +2578,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -2797,6 +2832,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -2810,7 +2849,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -3197,6 +3237,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3210,7 +3254,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -3434,6 +3479,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3447,7 +3496,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -3671,6 +3721,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -3684,7 +3738,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -4127,6 +4182,10 @@
                                     "type": "string",
                                     "minLength": 1
                                   },
+                                  "imageUrl": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
                                   "role": {
                                     "type": "string",
                                     "enum": [
@@ -4146,9 +4205,30 @@
                                   "headline",
                                   "image",
                                   "imageAssetId",
+                                  "imageUrl",
                                   "role"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "attachments": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "assetId": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "url": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "assetId",
+                                    "url"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -4163,7 +4243,8 @@
                               "deletedAt",
                               "createdAt",
                               "updatedAt",
-                              "sender"
+                              "sender",
+                              "attachments"
                             ],
                             "additionalProperties": false
                           },
@@ -7715,6 +7796,10 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "thumbnailUrl": {
+                            "nullable": true,
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -7728,7 +7813,8 @@
                           "category",
                           "thumbnailAssetId",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "thumbnailUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -7848,6 +7934,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7861,7 +7951,8 @@
                     "category",
                     "thumbnailAssetId",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -7941,6 +8032,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7954,7 +8049,8 @@
                     "category",
                     "thumbnailAssetId",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -8092,6 +8188,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -8105,7 +8205,8 @@
                     "category",
                     "thumbnailAssetId",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -8251,6 +8352,20 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "filename": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "url": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -8261,7 +8376,11 @@
                       "seq",
                       "displayName",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "filename",
+                      "contentType",
+                      "size",
+                      "url"
                     ],
                     "additionalProperties": false
                   }
@@ -8377,6 +8496,20 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "filename": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "url": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -8387,7 +8520,11 @@
                       "seq",
                       "displayName",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "filename",
+                      "contentType",
+                      "size",
+                      "url"
                     ],
                     "additionalProperties": false
                   }
@@ -8505,6 +8642,20 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "filename": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "url": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -8515,7 +8666,11 @@
                       "seq",
                       "displayName",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "filename",
+                      "contentType",
+                      "size",
+                      "url"
                     ],
                     "additionalProperties": false
                   }
@@ -8662,6 +8817,20 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "filename": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "url": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -8672,7 +8841,11 @@
                       "seq",
                       "displayName",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "filename",
+                      "contentType",
+                      "size",
+                      "url"
                     ],
                     "additionalProperties": false
                   }
@@ -8773,6 +8946,20 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "filename": {
+                        "type": "string"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "url": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -8783,7 +8970,11 @@
                       "seq",
                       "displayName",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "filename",
+                      "contentType",
+                      "size",
+                      "url"
                     ],
                     "additionalProperties": false
                   }
@@ -9694,6 +9885,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "imageUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -9705,7 +9900,8 @@
                     "imageAssetId",
                     "extra",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "imageUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -9904,6 +10100,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "imageUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -9915,7 +10115,8 @@
                     "imageAssetId",
                     "extra",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "imageUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -10259,6 +10460,10 @@
                       "imageAssetId": {
                         "nullable": true,
                         "type": "string"
+                      },
+                      "imageUrl": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -10268,7 +10473,8 @@
                       "displayName",
                       "headline",
                       "bio",
-                      "imageAssetId"
+                      "imageAssetId",
+                      "imageUrl"
                     ],
                     "additionalProperties": false
                   }
@@ -12587,6 +12793,10 @@
                             "type": "string",
                             "format": "date-time"
                           },
+                          "coverUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -12619,6 +12829,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -12638,6 +12852,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -12663,6 +12878,7 @@
                           "reactionsEnabled",
                           "createdAt",
                           "updatedAt",
+                          "coverUrl",
                           "author"
                         ],
                         "additionalProperties": false
@@ -12920,6 +13136,10 @@
                         "type": "string",
                         "format": "date-time"
                       },
+                      "coverUrl": {
+                        "nullable": true,
+                        "type": "string"
+                      },
                       "author": {
                         "type": "object",
                         "properties": {
@@ -12952,6 +13172,10 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "role": {
                             "type": "string",
                             "enum": [
@@ -12971,6 +13195,7 @@
                           "headline",
                           "image",
                           "imageAssetId",
+                          "imageUrl",
                           "role"
                         ],
                         "additionalProperties": false
@@ -12996,6 +13221,7 @@
                       "reactionsEnabled",
                       "createdAt",
                       "updatedAt",
+                      "coverUrl",
                       "author"
                     ],
                     "additionalProperties": false
@@ -13217,6 +13443,10 @@
                         "type": "string",
                         "format": "date-time"
                       },
+                      "coverUrl": {
+                        "nullable": true,
+                        "type": "string"
+                      },
                       "author": {
                         "type": "object",
                         "properties": {
@@ -13249,6 +13479,10 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "role": {
                             "type": "string",
                             "enum": [
@@ -13268,6 +13502,7 @@
                           "headline",
                           "image",
                           "imageAssetId",
+                          "imageUrl",
                           "role"
                         ],
                         "additionalProperties": false
@@ -13293,6 +13528,7 @@
                       "reactionsEnabled",
                       "createdAt",
                       "updatedAt",
+                      "coverUrl",
                       "author"
                     ],
                     "additionalProperties": false
@@ -13552,6 +13788,10 @@
                             "type": "string",
                             "format": "date-time"
                           },
+                          "coverUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -13584,6 +13824,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -13603,6 +13847,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -13628,6 +13873,7 @@
                           "reactionsEnabled",
                           "createdAt",
                           "updatedAt",
+                          "coverUrl",
                           "author"
                         ],
                         "additionalProperties": false
@@ -13896,6 +14142,10 @@
                             "type": "string",
                             "format": "date-time"
                           },
+                          "coverUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -13928,6 +14178,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -13947,6 +14201,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -13972,6 +14227,7 @@
                           "reactionsEnabled",
                           "createdAt",
                           "updatedAt",
+                          "coverUrl",
                           "author"
                         ],
                         "additionalProperties": false
@@ -14393,6 +14649,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -14414,7 +14734,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -14632,6 +14954,10 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -14664,6 +14990,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -14683,6 +15013,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -14708,6 +15039,7 @@
                     "reactionsEnabled",
                     "createdAt",
                     "updatedAt",
+                    "coverUrl",
                     "author"
                   ],
                   "additionalProperties": false
@@ -14958,6 +15290,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -14979,7 +15375,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -15196,6 +15594,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15217,7 +15679,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -15451,6 +15915,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15472,7 +16000,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -15689,6 +16219,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15710,7 +16304,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -15927,6 +16523,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -15948,7 +16608,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -16165,6 +16827,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -16186,7 +16912,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -16403,6 +17131,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -16424,7 +17216,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -16641,6 +17435,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -16662,7 +17520,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -16879,6 +17739,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -16900,7 +17824,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -17117,6 +18043,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -17138,7 +18128,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -17374,6 +18366,70 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -17395,7 +18451,9 @@
                     "commentsClosed",
                     "reactionsEnabled",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "coverUrl",
+                    "author"
                   ],
                   "additionalProperties": false
                 }
@@ -18631,6 +19689,10 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "role": {
                             "type": "string",
                             "enum": [
@@ -18650,6 +19712,7 @@
                           "headline",
                           "image",
                           "imageAssetId",
+                          "imageUrl",
                           "role"
                         ],
                         "additionalProperties": false
@@ -18699,6 +19762,10 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
                           "role": {
                             "type": "string",
                             "enum": [
@@ -18718,6 +19785,7 @@
                           "headline",
                           "image",
                           "imageAssetId",
+                          "imageUrl",
                           "role"
                         ],
                         "additionalProperties": false
@@ -18969,6 +20037,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -18988,6 +20060,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -19037,6 +20110,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -19056,6 +20133,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -20625,6 +21703,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -20644,9 +21726,30 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "assetId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "assetId",
+                                "url"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -20661,7 +21764,8 @@
                           "deletedAt",
                           "createdAt",
                           "updatedAt",
-                          "sender"
+                          "sender",
+                          "attachments"
                         ],
                         "additionalProperties": false
                       }
@@ -20895,6 +21999,86 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "sender": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assetId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -20908,7 +22092,9 @@
                     "editedAt",
                     "deletedAt",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "sender",
+                    "attachments"
                   ],
                   "additionalProperties": false
                 }
@@ -21108,6 +22294,86 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "sender": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assetId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -21121,7 +22387,9 @@
                     "editedAt",
                     "deletedAt",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "sender",
+                    "attachments"
                   ],
                   "additionalProperties": false
                 }
@@ -21299,6 +22567,86 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "sender": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "assetId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assetId",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -21312,7 +22660,9 @@
                     "editedAt",
                     "deletedAt",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "sender",
+                    "attachments"
                   ],
                   "additionalProperties": false
                 }
@@ -23124,6 +24474,10 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "thumbnailUrl": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -23138,7 +24492,8 @@
                       "thumbnailAssetId",
                       "settings",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "thumbnailUrl"
                     ],
                     "additionalProperties": false
                   }
@@ -23255,6 +24610,10 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -23269,7 +24628,8 @@
                     "thumbnailAssetId",
                     "settings",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "thumbnailUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -23465,6 +24825,12 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "assetUrls": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
                       }
                     },
                     "required": [
@@ -23475,7 +24841,8 @@
                       "seq",
                       "settings",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "assetUrls"
                     ],
                     "additionalProperties": false
                   }
@@ -23803,6 +25170,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -23822,6 +25193,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -23871,6 +25243,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -23890,6 +25266,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -24073,6 +25450,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -24092,6 +25473,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -24141,6 +25523,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -24160,6 +25546,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -24357,6 +25744,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -24376,6 +25767,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -24425,6 +25817,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -24444,6 +25840,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -25142,313 +26539,6 @@
         }
       }
     },
-    "/api/member/assets/{id}/url": {
-      "post": {
-        "operationId": "getAssetDownloadUrl",
-        "summary": "Get a short-lived URL for an asset, served as what the reference names",
-        "tags": [
-          "Assets"
-        ],
-        "description": "The body names what the asset is being served as. The content that owns the reference decides whether the caller may see it. A 404 means the asset, the reference, or the access is missing.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "via": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "activity": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "activity"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "course": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "course"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "download": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "download"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "community": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "community"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "post": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "post"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "message": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "profile": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": [
-                          "profile"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "via"
-                ],
-                "description": "What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is."
-              }
-            }
-          },
-          "description": "What the asset is being served as. The owning content decides whether the caller may see it: an activity through the course grant, a course, download or community through its thumbnail, a post through its cover, a message through its attachments, a profile through the org user whose photo it is."
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "asset": {
-                      "type": "object",
-                      "properties": {
-                        "orgId": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "kind": {
-                          "type": "string",
-                          "enum": [
-                            "image",
-                            "video",
-                            "audio",
-                            "document"
-                          ],
-                          "description": "The media class, derived by the server from the content type."
-                        },
-                        "source": {
-                          "type": "string",
-                          "enum": [
-                            "library",
-                            "member"
-                          ],
-                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
-                        },
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "contentType": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "size": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "pending",
-                            "ready"
-                          ]
-                        },
-                        "uploadedBy": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "orgId",
-                        "id",
-                        "kind",
-                        "source",
-                        "filename",
-                        "contentType",
-                        "size",
-                        "status",
-                        "uploadedBy",
-                        "createdAt",
-                        "updatedAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "url",
-                    "asset"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/member/uploads": {
       "post": {
         "operationId": "requestMemberUpload",
@@ -25550,6 +26640,16 @@
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                          "type": "string"
+                        },
+                        "downloadUrl": {
+                          "nullable": true,
+                          "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -25563,7 +26663,9 @@
                         "status",
                         "uploadedBy",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "url",
+                        "downloadUrl"
                       ],
                       "additionalProperties": false
                     },
@@ -25763,6 +26865,16 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "url": {
+                      "nullable": true,
+                      "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                      "type": "string"
+                    },
+                    "downloadUrl": {
+                      "nullable": true,
+                      "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -25776,7 +26888,9 @@
                     "status",
                     "uploadedBy",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "url",
+                    "downloadUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -26027,6 +27141,10 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "thumbnailUrl": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -26040,7 +27158,8 @@
                       "category",
                       "thumbnailAssetId",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "thumbnailUrl"
                     ],
                     "additionalProperties": false
                   }
@@ -26124,6 +27243,10 @@
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "thumbnailUrl": {
+                          "nullable": true,
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -26137,7 +27260,8 @@
                         "category",
                         "thumbnailAssetId",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "thumbnailUrl"
                       ],
                       "additionalProperties": false
                     },
@@ -26178,6 +27302,20 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "url": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -26188,7 +27326,11 @@
                           "seq",
                           "displayName",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "filename",
+                          "contentType",
+                          "size",
+                          "url"
                         ],
                         "additionalProperties": false
                       }
@@ -26200,68 +27342,6 @@
                   ],
                   "additionalProperties": false
                 }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/member/downloads/{downloadId}/assets/{assetId}": {
-      "get": {
-        "operationId": "getMemberDownloadAsset",
-        "summary": "Redirect to a short-lived signed URL for an entitled asset",
-        "tags": [
-          "Content"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "downloadId",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "assetId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -26461,6 +27541,10 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "role": {
                                 "type": "string",
                                 "enum": [
@@ -26480,6 +27564,7 @@
                               "headline",
                               "image",
                               "imageAssetId",
+                              "imageUrl",
                               "role"
                             ],
                             "additionalProperties": false
@@ -26531,6 +27616,10 @@
                                       "type": "string",
                                       "minLength": 1
                                     },
+                                    "imageUrl": {
+                                      "nullable": true,
+                                      "type": "string"
+                                    },
                                     "role": {
                                       "type": "string",
                                       "enum": [
@@ -26550,6 +27639,7 @@
                                     "headline",
                                     "image",
                                     "imageAssetId",
+                                    "imageUrl",
                                     "role"
                                   ],
                                   "additionalProperties": false
@@ -27134,6 +28224,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -27153,6 +28247,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -27202,6 +28297,10 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
                         "role": {
                           "type": "string",
                           "enum": [
@@ -27221,6 +28320,7 @@
                         "headline",
                         "image",
                         "imageAssetId",
+                        "imageUrl",
                         "role"
                       ],
                       "additionalProperties": false
@@ -27544,6 +28644,12 @@
                       "updatedAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "assetUrls": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
                       }
                     },
                     "required": [
@@ -27554,7 +28660,8 @@
                       "seq",
                       "settings",
                       "createdAt",
-                      "updatedAt"
+                      "updatedAt",
+                      "assetUrls"
                     ],
                     "additionalProperties": false
                   }
@@ -32032,6 +33139,16 @@
                         "updatedAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "url": {
+                          "nullable": true,
+                          "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                          "type": "string"
+                        },
+                        "downloadUrl": {
+                          "nullable": true,
+                          "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -32045,7 +33162,9 @@
                         "status",
                         "uploadedBy",
                         "createdAt",
-                        "updatedAt"
+                        "updatedAt",
+                        "url",
+                        "downloadUrl"
                       ],
                       "additionalProperties": false
                     },
@@ -32220,6 +33339,16 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "url": {
+                      "nullable": true,
+                      "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                      "type": "string"
+                    },
+                    "downloadUrl": {
+                      "nullable": true,
+                      "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -32233,7 +33362,9 @@
                     "status",
                     "uploadedBy",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "url",
+                    "downloadUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -32488,6 +33619,16 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "url": {
+                            "nullable": true,
+                            "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                            "type": "string"
+                          },
+                          "downloadUrl": {
+                            "nullable": true,
+                            "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -32501,7 +33642,9 @@
                           "status",
                           "uploadedBy",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "url",
+                          "downloadUrl"
                         ],
                         "additionalProperties": false
                       }
@@ -32668,6 +33811,16 @@
                     "updatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "url": {
+                      "nullable": true,
+                      "description": "A short-lived signed URL that shows a ready library file. `null` while pending and for a member upload, which is served with what it is attached to.",
+                      "type": "string"
+                    },
+                    "downloadUrl": {
+                      "nullable": true,
+                      "description": "The same file as a download saved under its filename. `null` when `url` is.",
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -32681,7 +33834,9 @@
                     "status",
                     "uploadedBy",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "url",
+                    "downloadUrl"
                   ],
                   "additionalProperties": false
                 }
@@ -32866,241 +34021,6 @@
             }
           },
           "409": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/assets/{id}/download-url": {
-      "post": {
-        "operationId": "requestAssetDownload",
-        "summary": "Get a short-lived presigned URL to download/serve an asset",
-        "tags": [
-          "Assets"
-        ],
-        "description": "Library files only. A member upload is served through what it is attached to and is answered with 403.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "filename": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "asset": {
-                      "type": "object",
-                      "properties": {
-                        "orgId": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "kind": {
-                          "type": "string",
-                          "enum": [
-                            "image",
-                            "video",
-                            "audio",
-                            "document"
-                          ],
-                          "description": "The media class, derived by the server from the content type."
-                        },
-                        "source": {
-                          "type": "string",
-                          "enum": [
-                            "library",
-                            "member"
-                          ],
-                          "description": "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload."
-                        },
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "contentType": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "size": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": [
-                            "pending",
-                            "ready"
-                          ]
-                        },
-                        "uploadedBy": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "orgId",
-                        "id",
-                        "kind",
-                        "source",
-                        "filename",
-                        "contentType",
-                        "size",
-                        "status",
-                        "uploadedBy",
-                        "createdAt",
-                        "updatedAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "url",
-                    "asset"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
             "description": "Default Response",
             "content": {
               "application/json": {

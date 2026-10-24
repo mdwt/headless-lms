@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { jsonValueSchema, userProfileSchema } from '@headless-lms/core/schemas';
+import { jsonValueSchema, userProfileViewSchema } from '@headless-lms/core/schemas';
 
-export const UserProfile = userProfileSchema;
+export const UserProfile = userProfileViewSchema;
 export const UpdateProfile = z
   .object({
     displayName: z.string().nullable().optional(),

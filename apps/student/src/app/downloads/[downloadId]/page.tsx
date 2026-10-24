@@ -4,7 +4,6 @@ import { ArrowLeft, Download as DownloadIcon } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
 import { memberApi } from "@/lib/api/server";
-import { API_URL } from "@/lib/api/server-call";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +19,7 @@ export default async function DownloadDetailPage({
   if (!detail) notFound();
 
   const { download, assets } = detail;
-  const thumbnailUrl = download.thumbnailAssetId
-    ? await memberApi.assetUrl(download.thumbnailAssetId, { download: download.id })
-    : null;
+  const thumbnailUrl = download.thumbnailUrl;
 
   return (
     <div className="mx-auto max-w-[860px] px-7 pb-[70px] pt-[30px]">
@@ -65,10 +62,7 @@ export default async function DownloadDetailPage({
               </div>
             </div>
             <Button asChild variant="brand" size="pillSm" className="shrink-0">
-              <a
-                href={`${API_URL}/api/member/downloads/${download.id}/assets/${asset.assetId}`}
-                download
-              >
+              <a href={asset.url} download>
                 Download
               </a>
             </Button>

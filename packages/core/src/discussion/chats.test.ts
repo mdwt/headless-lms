@@ -5,7 +5,7 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
 import { isStaffRole } from '../organizations/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { MemberImageReader } from '../assets/index.js';
+import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
 import type {
   AuthorRoleReader,
@@ -61,10 +61,24 @@ function dataOf(event: NewDomainEvent): Record<string, unknown> {
   return {};
 }
 
+function signer(unsigned: string[] = []): AssetUrlSigner {
+  return {
+    async urls(_orgId, assetIds) {
+      return Object.fromEntries(
+        assetIds.filter((id) => !unsigned.includes(id)).map((id) => [id, `signed:${id}`]),
+      );
+    },
+    async downloads() {
+      return {};
+    },
+  };
+}
+
 function harness(options?: {
   settings?: Partial<DmSettings> | null;
   members?: string[];
   images?: MemberImageReader;
+  unsigned?: string[];
 }) {
   const chats: Chat[] = [];
   const users: ChatUser[] = [];
@@ -208,10 +222,15 @@ function harness(options?: {
     async attach(_orgId, _communityId, messageId, assetIds) {
       attachments.push({ messageId, assetIds: [...assetIds] });
     },
-    async attachmentIds(_orgId, messageId) {
-      return attachments
-        .filter((row) => row.messageId === messageId)
-        .flatMap((row) => row.assetIds);
+    async attachmentsOf(_orgId, messageIds) {
+      return Object.fromEntries(
+        messageIds.flatMap((messageId) => {
+          const ids = attachments
+            .filter((row) => row.messageId === messageId)
+            .flatMap((row) => row.assetIds);
+          return ids.length > 0 ? [[messageId, ids]] : [];
+        }),
+      );
     },
     async blockedWith(_orgId, communityId, orgUserId, otherIds) {
       queries.blockedWith += 1;
@@ -390,14 +409,16 @@ function harness(options?: {
               role: roles[id] ?? 'student',
               displayName: id === member.id ? 'Sarah' : null,
               headline: null,
-              imageAssetOrgId: id === member.id ? 'org_elsewhere' : null,
-              imageAssetId: id === member.id ? 'ast_photo' : null,
+              imageAssetOrgId: id === member.id ? 'org_elsewhere' : id === other.id ? ORG : null,
+              imageAssetId:
+                id === member.id ? 'ast_photo' : id === other.id ? 'ast_other_photo' : null,
             },
           ]),
         );
       },
     },
     images: options?.images ?? { ownsImage: async () => true },
+    assetUrls: signer(options?.unsigned),
     uow,
   });
 
@@ -770,8 +791,8 @@ describe('chats', () => {
     );
   });
 
-  it('reads one message with its attachments for participants and for staff on a flag', async () => {
-    const { svc } = harness();
+  it('serves each message with its attachments in order, signed, to a participant', async () => {
+    const { svc } = harness({ unsigned: ['asset_gone'] });
     const chat = await svc.startGroup(ORG, member, {
       communityId: COMMUNITY,
       orgUserIds: [other.id, moderator.id],
@@ -779,22 +800,80 @@ describe('chats', () => {
     const sent = await svc.send(ORG, member, chat.id, {
       body: 'Look',
       replyToId: null,
-      assetIds: ['asset_1'],
+      assetIds: ['asset_2', 'asset_gone', 'asset_1'],
     });
-    await expect(svc.getMessage(ORG, other, sent.id)).resolves.toMatchObject({
-      message: { id: sent.id, body: 'Look' },
-      assetIds: ['asset_1'],
-    });
-    await expect(svc.getMessage(ORG, staff, sent.id)).rejects.toBeInstanceOf(NotFoundError);
-    await svc.leave(ORG, other, chat.id);
-    await expect(svc.getMessage(ORG, other, sent.id)).rejects.toBeInstanceOf(NotFoundError);
-    await svc.flagMessage(ORG, moderator, sent.id, 'spam');
-    await expect(svc.getMessage(ORG, staff, sent.id)).resolves.toMatchObject({
-      assetIds: ['asset_1'],
-    });
-    await expect(svc.getMessage(ORG, moderator, 'msg_missing')).rejects.toBeInstanceOf(
-      NotFoundError,
+    expect(sent.attachments).toEqual([
+      { assetId: 'asset_2', url: 'signed:asset_2' },
+      { assetId: 'asset_1', url: 'signed:asset_1' },
+    ]);
+    const plain = await svc.send(ORG, other, chat.id, messageInput('Nice'));
+    expect(plain.attachments).toEqual([]);
+    const page = await svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 });
+    const byId = new Map(page.rows.map((row) => [row.id, row.attachments]));
+    expect(byId.get(sent.id)).toEqual([
+      { assetId: 'asset_2', url: 'signed:asset_2' },
+      { assetId: 'asset_1', url: 'signed:asset_1' },
+    ]);
+    expect(byId.get(plain.id)).toEqual([]);
+    await expect(svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
+      'You are not in this chat',
     );
+    await svc.leave(ORG, other, chat.id);
+    await expect(svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
+      'You are not in this chat',
+    );
+  });
+
+  it('returns the sender and attachments from send, edit and delete', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, staff.id],
+    });
+    const sent = await svc.send(ORG, other, chat.id, {
+      body: 'Look',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
+    const sender = {
+      id: other.id,
+      imageAssetId: 'ast_other_photo',
+      imageUrl: 'signed:ast_other_photo',
+    };
+    expect(sent).toMatchObject({
+      sender,
+      attachments: [{ assetId: 'asset_1', url: 'signed:asset_1' }],
+    });
+    const same = await svc.editMessage(ORG, other, sent.id, 'Look');
+    expect(same).toMatchObject({ sender, attachments: [{ assetId: 'asset_1' }] });
+    const edited = await svc.editMessage(ORG, other, sent.id, 'Look here');
+    expect(edited).toMatchObject({
+      body: 'Look here',
+      sender,
+      attachments: [{ assetId: 'asset_1' }],
+    });
+    const removedByAuthor = await svc.deleteMessage(ORG, other, sent.id);
+    expect(removedByAuthor).toMatchObject({ body: '', sender, attachments: [] });
+    const kept = await svc.send(ORG, other, chat.id, {
+      body: 'Again',
+      replyToId: null,
+      assetIds: ['asset_2'],
+    });
+    const removedByStaff = await svc.deleteMessage(ORG, staff, kept.id);
+    expect(removedByStaff).toMatchObject({
+      body: 'Again',
+      attachments: [{ assetId: 'asset_2', url: 'signed:asset_2' }],
+    });
+  });
+
+  it('does not sign a sender photo from another org', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    const sent = await svc.send(ORG, member, chat.id, messageInput('Hi'));
+    expect(sent.sender).toMatchObject({ id: member.id, imageAssetId: null, imageUrl: null });
   });
 
   it('deletes a message for the author or staff and hides the body from members', async () => {
@@ -822,6 +901,7 @@ describe('chats', () => {
       id: member.id,
       displayName: 'Sarah',
       imageAssetId: null,
+      imageUrl: null,
     });
     const staffSeen = await svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 });
     expect(staffSeen.rows[0]?.body).toBe('Edited');
@@ -956,11 +1036,11 @@ describe('chats', () => {
     );
   });
 
-  it('serves no attachments of a deleted message and nothing to a lapsed participant', async () => {
+  it('serves no attachments of a deleted message to a member and all of them to staff', async () => {
     const { svc, dropMember } = harness();
     const chat = await svc.startGroup(ORG, member, {
       communityId: COMMUNITY,
-      orgUserIds: [other.id, staff.id],
+      orgUserIds: [other.id, third.id],
     });
     const sent = await svc.send(ORG, member, chat.id, {
       body: 'Look',
@@ -972,16 +1052,22 @@ describe('chats', () => {
       replyToId: null,
       assetIds: ['asset_2'],
     });
+    await svc.flagMessage(ORG, other, sent.id, 'spam');
     await svc.deleteMessage(ORG, member, sent.id);
-    await expect(svc.getMessage(ORG, other, sent.id)).resolves.toEqual({
-      message: expect.objectContaining({ id: sent.id, body: '' }),
-      assetIds: [],
+    const page = await svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 });
+    const byId = new Map(page.rows.map((row) => [row.id, row]));
+    expect(byId.get(sent.id)).toMatchObject({ body: '', attachments: [] });
+    expect(byId.get(kept.id)).toMatchObject({
+      body: 'Keep',
+      attachments: [{ assetId: 'asset_2', url: 'signed:asset_2' }],
     });
-    await expect(svc.getMessage(ORG, staff, sent.id)).resolves.toMatchObject({
-      assetIds: ['asset_1'],
-    });
+    await svc.flagMessage(ORG, third, kept.id, 'rude');
+    const queue = await svc.messageQueue(ORG, staff, COMMUNITY);
+    expect(queue.entries.map((entry) => entry.message.attachments)).toEqual([
+      [{ assetId: 'asset_2', url: 'signed:asset_2' }],
+    ]);
     dropMember(other.id);
-    await expect(svc.getMessage(ORG, other, kept.id)).rejects.toThrow(
+    await expect(svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
       'You are not a member of this community',
     );
   });
@@ -1129,13 +1215,22 @@ describe('chats', () => {
       orgUserIds: [other.id, third.id],
     });
     await svc.send(ORG, member, chat.id, messageInput('Before'));
-    const sent = await svc.send(ORG, member, chat.id, messageInput('Rude'));
+    const sent = await svc.send(ORG, member, chat.id, {
+      body: 'Rude',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
     await svc.flagMessage(ORG, other, sent.id, 'spam');
     await svc.flagMessage(ORG, third, sent.id, 'rude');
     const queue = await svc.messageQueue(ORG, staff, COMMUNITY);
     expect(queue.entries).toHaveLength(1);
     expect(queue.entries[0]).toMatchObject({
-      message: { id: sent.id, body: 'Rude' },
+      message: {
+        id: sent.id,
+        body: 'Rude',
+        sender: { id: member.id },
+        attachments: [{ assetId: 'asset_1', url: 'signed:asset_1' }],
+      },
       chat: { id: chat.id, kind: 'group' },
       participantIds: [member.id, other.id, third.id].sort(),
     });

@@ -136,26 +136,6 @@ async function composeEntitlements(grants: EntitlementGrant[]): Promise<Entitlem
   });
 }
 
-/** Join bare download→asset link rows with each asset's file metadata. Also
- *  used by the download-asset server actions to return display rows. */
-export async function composeDownloadAssets(
-  links: Awaited<ReturnType<typeof Content.listDownloadAssets>>,
-): Promise<DownloadAsset[]> {
-  const headers = await authHeaders();
-  const assetIds = [...new Set(links.map((l) => l.assetId))];
-  const assets = await Promise.all(assetIds.map((id) => Assets.getAsset({ id }, headers)));
-  const assetById = new Map(assets.map((a) => [a.id, a]));
-  return links.map((l) => {
-    const asset = assetById.get(l.assetId);
-    return {
-      ...l,
-      filename: asset?.filename ?? l.assetId,
-      contentType: asset?.contentType ?? "application/octet-stream",
-      size: asset?.size ?? 0,
-    };
-  });
-}
-
 export const serverApi = {
   // reporting
   async overview(): Promise<OverviewStats> {
@@ -256,8 +236,7 @@ export const serverApi = {
     return await Content.getDownload({ downloadId }, await authHeaders());
   },
   async listDownloadAssets(downloadId: string): Promise<DownloadAsset[]> {
-    const links = await Content.listDownloadAssets({ downloadId }, await authHeaders());
-    return composeDownloadAssets(links);
+    return await Content.listDownloadAssets({ downloadId }, await authHeaders());
   },
   /** Header stats for one download, composed from its assets + grants. */
   async downloadStats(

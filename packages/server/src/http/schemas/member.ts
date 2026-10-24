@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { progressReportItemSchema } from '@headless-lms/core/schemas';
 import { Course } from './content.js';
 import { Module } from './activities.js';
-import { Download, DownloadAsset } from './downloads.js';
+import { Download, DownloadFile } from './downloads.js';
 import { OrgRole } from './shared.js';
 
 /** Courses the authenticated student is actively enrolled in (published only). */
@@ -26,7 +26,7 @@ export type MemberDownloads = z.infer<typeof MemberDownloads>;
 /** One entitled download plus its ordered assets. */
 export const MemberDownload = z.object({
   download: Download,
-  assets: z.array(DownloadAsset),
+  assets: z.array(DownloadFile),
 });
 export type MemberDownload = z.infer<typeof MemberDownload>;
 

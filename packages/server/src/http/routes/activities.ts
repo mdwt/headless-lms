@@ -56,7 +56,7 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return content.listCourseActivities(scope.orgId, req.params.courseId);
+      return content.listCourseActivityViews(scope.orgId, req.params.courseId);
     },
   });
 

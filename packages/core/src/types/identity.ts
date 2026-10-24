@@ -10,6 +10,7 @@ export type {
   ProvisionUserInput,
   UpdateUserInput,
   UserProfile,
+  UserProfileView,
 } from './schemas/identity.js';
 
 export interface User {

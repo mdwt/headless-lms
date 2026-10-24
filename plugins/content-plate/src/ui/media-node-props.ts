@@ -10,7 +10,7 @@ export interface MediaNodeSize {
 /**
  * Node props for a media block backed by a host asset. Shared by the upload
  * path and the library-pick path so both persist the same durable `assetId` —
- * the embedded `url` is a short-lived presign the host re-signs at render time.
+ * the embedded `url` only shows the file until the host serves its own URL.
  * `assetId` is omitted when the host tracks no asset (local object-URL fallback).
  */
 export function mediaNodeProps(

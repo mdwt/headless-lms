@@ -6,7 +6,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   AddDownloadAsset,
   Download,
-  DownloadAsset,
+  DownloadFile,
   DownloadAssetParams,
   DownloadIdParam,
   DownloadsPage,
@@ -130,7 +130,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       tags: ['Content'],
       summary: "List a download's assets in order",
       params: DownloadIdParam,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -148,7 +148,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       summary: 'Link a media-library asset to a download',
       params: DownloadIdParam,
       body: AddDownloadAsset,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -168,7 +168,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       summary: "Reorder a download's assets (send the complete set)",
       params: DownloadIdParam,
       body: ReorderDownloadAssets,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody, 409: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody, 409: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -186,7 +186,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       summary: "Set an asset's display name within a download",
       params: DownloadAssetParams,
       body: RenameDownloadAsset,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -208,7 +208,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
       tags: ['Content'],
       summary: 'Unlink an asset from a download (the asset itself survives)',
       params: DownloadAssetParams,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), 404: ErrorBody },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

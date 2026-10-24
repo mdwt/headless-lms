@@ -1,4 +1,4 @@
-import type { User, UserProfile } from './model.js';
+import type { User, UserProfile, UserProfileView } from './model.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { JsonValue } from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
@@ -50,15 +50,15 @@ export interface SessionAdmin {
 
 // Inbound port (use cases the service exposes).
 export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
-  getProfile(userId: string): Promise<UserProfile | null>;
-  profileOf(userId: string): Promise<UserProfile>;
+  profileOf(orgId: string, userId: string): Promise<UserProfileView>;
   displayName(userId: string | null): Promise<string>;
   updateProfile(
+    orgId: string,
     userId: string,
     actorUserId: string,
     orgUserId: string,
     patch: UpdateProfileInput,
-  ): Promise<UserProfile>;
+  ): Promise<UserProfileView>;
 }
 
 // Outbound port (persistence contract the repository fulfils).

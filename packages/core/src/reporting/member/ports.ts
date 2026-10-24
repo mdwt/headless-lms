@@ -1,47 +1,39 @@
-import type { AssetReference, DownloadTicket } from '../../assets/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type {
-  Activity,
+  ActivityView,
   CommunityHome,
-  Course,
-  Module,
   ContentRef,
   CourseProgressView,
+  CourseView,
   DirectoryEntry,
-  Download,
-  DownloadAsset,
+  DirectoryRow,
+  DownloadFile,
+  DownloadView,
+  Module,
 } from './model.js';
 
 export interface MemberReportService {
-  listCourses(orgId: string, orgUserId: string): Promise<Course[]>;
-  getCourse(orgId: string, orgUserId: string, courseId: string): Promise<Course | null>;
+  listCourses(orgId: string, orgUserId: string): Promise<CourseView[]>;
+  getCourse(orgId: string, orgUserId: string, courseId: string): Promise<CourseView | null>;
   listModules(orgId: string, orgUserId: string, courseId: string): Promise<Module[] | null>;
-  listActivities(orgId: string, orgUserId: string, courseId: string): Promise<Activity[] | null>;
+  listActivities(
+    orgId: string,
+    orgUserId: string,
+    courseId: string,
+  ): Promise<ActivityView[] | null>;
   courseProgress(
     orgId: string,
     orgUserId: string,
     courseId: string,
   ): Promise<CourseProgressView | null>;
-  listDownloads(orgId: string, orgUserId: string): Promise<Download[]>;
+  listDownloads(orgId: string, orgUserId: string): Promise<DownloadView[]>;
   getDownload(
     orgId: string,
     orgUserId: string,
     downloadId: string,
-  ): Promise<{ download: Download; assets: DownloadAsset[] } | null>;
-  downloadAssetUrl(
-    orgId: string,
-    orgUserId: string,
-    downloadId: string,
-    assetId: string,
-  ): Promise<{ url: string; filename: string } | null>;
+  ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null>;
   directory(orgId: string, actor: Actor, communityId: string): Promise<DirectoryEntry[] | null>;
   communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
-  assetUrl(
-    orgId: string,
-    actor: Actor,
-    assetId: string,
-    via: AssetReference,
-  ): Promise<DownloadTicket | null>;
 }
 
 export interface MemberReportRepository {
@@ -53,7 +45,6 @@ export interface MemberReportRepository {
     orgUserId: string,
     downloadId: string,
   ): Promise<ContentRef | null>;
-  downloadHasAsset(orgId: string, downloadId: string, assetId: string): Promise<boolean>;
-  directory(orgId: string, communityId: string): Promise<DirectoryEntry[]>;
+  directory(orgId: string, communityId: string): Promise<DirectoryRow[]>;
   spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
 }

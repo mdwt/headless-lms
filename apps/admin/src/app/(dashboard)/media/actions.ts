@@ -1,6 +1,6 @@
 "use server";
 
-// Server actions for media (asset) mutations and presigned-URL brokering.
+// Server actions for media (asset) mutations.
 
 import { revalidatePath } from "next/cache";
 import { Assets } from "@headless-lms/sdk";
@@ -23,16 +23,6 @@ export async function deleteAssetAction(id: string): Promise<void> {
   revalidatePath("/media");
 }
 
-/**
- * Broker a short-lived presigned URL for previewing/serving an asset. Fetched
- * on demand by the grid/preview components — not cached long-term (these URLs
- * expire within minutes).
- */
-export async function getAssetUrlAction(id: string, filename?: string): Promise<string> {
-  const ticket = await Assets.requestAssetDownload({ id, filename }, await authHeaders());
-  return ticket.url;
-}
-
 export interface UploadMeta {
   filename: string;
   contentType: string;
@@ -48,7 +38,8 @@ export async function requestUploadAction(meta: UploadMeta): Promise<UploadTicke
 }
 
 /** Step 3 of upload: confirm so the API captures the final size/content-type. */
-export async function confirmAssetAction(id: string): Promise<void> {
-  await Assets.confirmAsset({ id }, await authHeaders());
+export async function confirmAssetAction(id: string): Promise<Asset> {
+  const asset = await Assets.confirmAsset({ id }, await authHeaders());
   revalidatePath("/media");
+  return asset;
 }

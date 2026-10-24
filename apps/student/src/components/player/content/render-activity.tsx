@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import editorModule from "@/editor.config";
-import { resolveAssetUrl } from "@/lib/api/asset-url";
 import type { ActivityContent } from "@/lib/api/types";
 
 // Renders an activity's stored content on the SERVER via the installed editor's
@@ -12,8 +11,8 @@ import type { ActivityContent } from "@/lib/api/types";
 // the client would produce a hydration mismatch. No editor JS ships either; a
 // config in a foreign format renders a notice, never the content.
 export function renderActivityContent(
-  activityId: string,
   content: ActivityContent | null,
+  assetUrls: Record<string, string>,
 ): ReactNode {
   const { Renderer, meta } = editorModule;
 
@@ -29,10 +28,7 @@ export function renderActivityContent(
   }
   return (
     <div className="mx-auto max-w-[760px] px-6 py-10">
-      <Renderer
-        config={content.config}
-        resolveAssetUrl={(assetId) => resolveAssetUrl(assetId, { activity: activityId })}
-      />
+      <Renderer config={content.config} assetUrls={assetUrls} />
     </div>
   );
 }

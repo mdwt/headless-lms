@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { MemberReportServiceImpl, type MemberReportServiceParams } from './service.js';
 import type { MemberReportRepository, ContentRef } from './index.js';
-import type { Activity, ContentServicePort, Course, Module } from '../../content/index.js';
+import type {
+  Activity,
+  ActivityView,
+  ContentServicePort,
+  Course,
+  DownloadFile,
+  Module,
+} from '../../content/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
-import type { Asset, AssetsService } from '../../assets/index.js';
+import type { AssetUrlSigner } from '../../assets/index.js';
 
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
@@ -71,7 +78,6 @@ function fakeRepo(refs: ContentRef[]): MemberReportRepository {
       refs.find((r) => r.orgId === orgId && r.contentId === courseId) ?? null,
     activeDownloadRefs: async () => [],
     activeDownloadRef: async () => null,
-    downloadHasAsset: async () => false,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
   };
@@ -86,74 +92,23 @@ function fakeContent(
     getCourse: async (_org: string, id: string) => courses[id] ?? null,
     listCourseModules: async (_org: string, courseId: string) => modules[courseId] ?? [],
     listCourseActivities: async (_org: string, courseId: string) => activities[courseId] ?? [],
+    listCourseActivityViews: async (_org: string, courseId: string) =>
+      (activities[courseId] ?? []).map((a) => ({ ...a, assetUrls: {} })),
   } as unknown as ContentServicePort;
 }
 
-const SIGNED_ASSET: Asset = {
-  orgId: 'o1',
-  id: 'a1',
-  key: 'k1',
-  kind: 'document',
-  source: 'library',
-  filename: 'ch1.pdf',
-  contentType: 'application/pdf',
-  size: 10,
-  status: 'ready',
-  uploadedBy: 'u1',
-  createdAt: AT,
-  updatedAt: AT,
+const assetUrls: AssetUrlSigner = {
+  urls: async (_orgId, ids) => Object.fromEntries(ids.map((id) => [id, `https://signed/${id}`])),
+  downloads: async () => ({}),
 };
 
-// Neutral AssetsService fake for tests that don't exercise download delivery —
-// the constructor now requires one, but only the "download delivery" suite below cares.
-function fakeAssets(captured: { expiry?: number; filename?: string } = {}): AssetsService {
-  return {
-    requestUpload: async () => {
-      throw new Error('not used');
-    },
-    requestMemberUpload: async () => {
-      throw new Error('not used');
-    },
-    confirm: async () => null,
-    confirmOwn: async () => null,
-    ownsImage: async () => false,
-    libraryAssetsAmong: async () => [],
-    requestLibraryDownload: async () => null,
-    removeOwn: async () => false,
-    hasUnattached: async () => false,
-    removeUnattached: async () => 0,
-    list: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    get: async () => SIGNED_ASSET,
-    requestDownload: async (_orgId, _id, filename, expiresInSeconds) => {
-      captured.expiry = expiresInSeconds;
-      captured.filename = filename;
-      return { url: 'https://storage.example/signed', asset: {} as never };
-    },
-    remove: async () => false,
-  };
-}
-
-const noCommunityReads: Pick<
-  MemberReportServiceParams,
-  'access' | 'posts' | 'chats' | 'profiles' | 'organizations'
-> = {
+const deps: Pick<MemberReportServiceParams, 'assetUrls' | 'access'> = {
+  assetUrls,
   access: { isCommunityMember: async () => false, openSpaceIds: async () => [] },
-  posts: {
-    getPost: async () => {
-      throw new Error('not used');
-    },
-  },
-  chats: {
-    getMessage: async () => {
-      throw new Error('not used');
-    },
-  },
-  profiles: { getProfile: async () => null },
-  organizations: { getOrgUserById: async () => null },
 };
 
-// Full-surface ContentService fake for the download-delivery suite: every
-// member rejects or returns empty by default, overridable per test.
+// Full-surface ContentService fake: every member rejects or returns empty by
+// default, overridable per test.
 function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServicePort {
   const rejectMutation = async (): Promise<never> => {
     throw new Error('not used');
@@ -167,6 +122,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     deleteCourse: rejectMutation,
     listCourseModules: async () => [],
     listCourseActivities: async () => [],
+    listCourseActivityViews: async () => [],
     listCourseActivityAssets: async () => [],
     getActivity: async () => null,
     getModule: async () => null,
@@ -213,14 +169,13 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
   };
 }
 
-// Full-surface MemberReportRepository fake for the download-delivery suite.
+// Full-surface MemberReportRepository fake.
 function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): MemberReportRepository {
   return {
     activeRefs: async () => [],
     activeRef: async () => null,
     activeDownloadRefs: async () => [],
     activeDownloadRef: async () => null,
-    downloadHasAsset: async () => false,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
     ...over,
@@ -236,9 +191,7 @@ describe('MemberReportServiceImpl', () => {
       ]),
       content: fakeContent({ c1: course('c1', 'published'), c2: course('c2', 'draft') }, {}),
       progress: fakeProgress([]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     const rows = await svc.listCourses('o1', 'stu_1');
     expect(rows.map((c) => c.id)).toEqual(['c1']);
@@ -249,9 +202,7 @@ describe('MemberReportServiceImpl', () => {
       repo: fakeRepo([{ orgId: 'o1', contentId: 'c1' }]),
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     expect(await svc.getCourse('o1', 'stu_1', 'cX')).toBeNull();
     expect(await svc.listModules('o1', 'stu_1', 'cX')).toBeNull();
@@ -262,9 +213,7 @@ describe('MemberReportServiceImpl', () => {
       repo: fakeRepo([{ orgId: 'o2', contentId: 'c1' }]),
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     expect(await svc.listCourses('o1', 'stu_1')).toEqual([]);
     expect(await svc.getCourse('o1', 'stu_1', 'c1')).toBeNull();
@@ -291,9 +240,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         { c1: progressActivities },
       ),
       progress: fakeProgress([]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     expect(await svc.courseProgress('o1', 'stu_1', 'c1')).toBeNull();
   });
@@ -319,9 +266,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
           completedAt: new Date('2026-07-23T09:31:00Z'),
         }),
       ]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     // a3 is a draft — absent from the map and the denominator
@@ -358,9 +303,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
           completedAt: new Date('2026-07-23T09:32:00Z'),
         }),
       ]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     expect(view).toMatchObject({ percent: 100, completed: true });
@@ -382,9 +325,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         }),
         progressRecord({ targetType: 'activity', targetId: 'a2' }),
       ]),
-      assets: fakeAssets(),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     expect(view?.positions).toEqual({
@@ -393,109 +334,104 @@ describe('MemberReportServiceImpl.courseProgress', () => {
   });
 });
 
-describe('download delivery', () => {
-  const download = { id: 'd1', status: 'published' } as never;
-  const link = (over: Partial<{ assetId: string; displayName: string | null }> = {}) => ({
-    orgId: 'o1',
-    id: 'da1',
-    downloadId: 'd1',
-    assetId: 'a1',
-    seq: 0,
-    displayName: null,
-    createdAt: AT,
-    updatedAt: AT,
-    ...over,
-  });
-
-  it('returns null when the student has no entitlement', async () => {
-    const captured: { expiry?: number; filename?: string } = {};
+describe('signed file URLs', () => {
+  it('serves the published activity views of an enrolled course', async () => {
+    const views: ActivityView[] = [
+      { ...activity('a1', 0), assetUrls: { ast_video: 'https://signed/ast_video' } },
+      { ...activity('a2', 1, { published: false }), assetUrls: {} },
+    ];
     const svc = new MemberReportServiceImpl({
-      repo: fakeEntitlementReader({
-        // Both would let the request through if gate 1 were bypassed — only
-        // the missing entitlement (activeDownloadRef → null) can produce
-        // null here.
-        downloadHasAsset: async () => true,
-      }),
-      content: fakeContentService({
-        getDownload: async () => download,
-        listDownloadAssets: async () => [link()],
-      }),
+      repo: fakeEntitlementReader({ activeRef: async () => ({ orgId: 'o1', contentId: 'c1' }) }),
+      content: fakeContentService({ listCourseActivityViews: async () => views }),
       progress: fakeProgress([]),
-      assets: fakeAssets(captured),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
 
-    expect(await svc.downloadAssetUrl('o1', 'stu_1', 'd1', 'a1')).toBeNull();
-    expect(captured.expiry).toBeUndefined();
+    expect(await svc.listActivities('o1', 'stu_1', 'c1')).toEqual([views[0]]);
   });
 
-  it('returns null when the asset belongs to a different download', async () => {
-    const captured: { expiry?: number; filename?: string } = {};
+  it('returns no activities for a course the student is not enrolled in', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeEntitlementReader({
-        activeDownloadRef: async () => ({ orgId: 'o1', contentId: 'd1' }),
-        downloadHasAsset: async () => false,
-      }),
-      content: fakeContentService({
-        getDownload: async () => download,
-        // The link lookup itself would succeed for the requested asset id —
-        // only the downloadHasAsset gate can produce null here.
-        listDownloadAssets: async () => [link({ assetId: 'a_other' })],
-      }),
+      repo: fakeEntitlementReader(),
+      content: fakeContentService(),
       progress: fakeProgress([]),
-      assets: fakeAssets(captured),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
 
-    expect(await svc.downloadAssetUrl('o1', 'stu_1', 'd1', 'a_other')).toBeNull();
-    expect(captured.expiry).toBeUndefined();
+    expect(await svc.listActivities('o1', 'stu_1', 'c1')).toBeNull();
   });
 
-  it('signs with the configured expiry and the display name', async () => {
-    const captured: { expiry?: number; filename?: string } = {};
+  it('serves an entitled download with the files content signed', async () => {
+    const download = { id: 'd1', status: 'published', thumbnailUrl: null } as never;
+    const files: DownloadFile[] = [
+      {
+        orgId: 'o1',
+        id: 'da1',
+        downloadId: 'd1',
+        assetId: 'a1',
+        seq: 0,
+        displayName: 'Chapter One',
+        filename: 'Chapter One',
+        contentType: 'application/pdf',
+        size: 10,
+        url: 'https://signed/a1',
+        createdAt: AT,
+        updatedAt: AT,
+      },
+    ];
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader({
         activeDownloadRef: async () => ({ orgId: 'o1', contentId: 'd1' }),
-        downloadHasAsset: async () => true,
       }),
       content: fakeContentService({
         getDownload: async () => download,
-        listDownloadAssets: async () => [link({ displayName: 'Chapter One' })],
+        listDownloadAssets: async () => files,
       }),
       progress: fakeProgress([]),
-      assets: fakeAssets(captured),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
 
-    const result = await svc.downloadAssetUrl('o1', 'stu_1', 'd1', 'a1');
-
-    expect(result?.url).toBe('https://storage.example/signed');
-    expect(captured.expiry).toBe(300);
-    expect(captured.filename).toBe('Chapter One');
+    expect(await svc.getDownload('o1', 'stu_1', 'd1')).toEqual({ download, assets: files });
   });
 
-  it('falls back to the asset filename when there is no display name', async () => {
-    const captured: { expiry?: number; filename?: string } = {};
+  it('serves no download the student is not entitled to', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeEntitlementReader({
-        activeDownloadRef: async () => ({ orgId: 'o1', contentId: 'd1' }),
-        downloadHasAsset: async () => true,
-      }),
-      content: fakeContentService({
-        getDownload: async () => download,
-        listDownloadAssets: async () => [link()],
-      }),
+      repo: fakeEntitlementReader(),
+      content: fakeContentService({ getDownload: async () => ({ status: 'published' }) as never }),
       progress: fakeProgress([]),
-      assets: fakeAssets(captured),
-      ...noCommunityReads,
-      deliveryExpirySeconds: 300,
+      ...deps,
     });
 
-    await svc.downloadAssetUrl('o1', 'stu_1', 'd1', 'a1');
+    expect(await svc.getDownload('o1', 'stu_1', 'd1')).toBeNull();
+  });
 
-    expect(captured.filename).toBe('ch1.pdf');
+  it('adds the signed photo URL to each directory entry', async () => {
+    const row = {
+      orgUserId: 'ou_sarah',
+      userId: 'usr_sarah',
+      role: 'student',
+      displayName: 'Sarah',
+      headline: null,
+      bio: null,
+    };
+    const svc = new MemberReportServiceImpl({
+      repo: fakeEntitlementReader({
+        directory: async () => [
+          { ...row, imageAssetId: 'ast_photo' },
+          { ...row, orgUserId: 'ou_james', userId: 'usr_james', imageAssetId: null },
+        ],
+      }),
+      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      progress: fakeProgress([]),
+      assetUrls,
+      access: { isCommunityMember: async () => true, openSpaceIds: async () => [] },
+    });
+
+    const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1');
+
+    expect(entries?.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
+      ['ou_sarah', 'https://signed/ast_photo'],
+      ['ou_james', null],
+    ]);
   });
 });
