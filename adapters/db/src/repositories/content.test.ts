@@ -44,7 +44,7 @@ function repoOver(existingTopicIds: string[]) {
 }
 
 describe("DrizzleContentRepository.setSpaceTopics", () => {
-  it("swaps two topic names without writing a temporary name", async () => {
+  it("renames kept topics in place without writing a temporary name", async () => {
     const { repo, statements } = repoOver(["top_a", "top_b"]);
 
     await repo.setSpaceTopics("org1", "spc_1", {

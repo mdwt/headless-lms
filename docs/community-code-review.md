@@ -795,7 +795,7 @@ The third pass also found new defects. The tables below list every one, with the
 
 | ID | Finding | Decision |
 |---|---|---|
-| K1 | Topic edits failed (NUL temporary name) and ran outside a transaction | One transaction under the space lock; the name constraint is deferred to commit |
+| K1 | Topic edits failed (NUL temporary name) and ran outside a transaction | One transaction under the space lock; a name another topic still holds is refused with a conflict |
 | K2 | Removing a referenced topic returned 500 | Conflict before anything is written |
 | K3 | The staff space route checked the community in the transport | Core reads a space of the community |
 | K4 | `space.updated` from a cascade had no actor | It carries the actor |
@@ -849,7 +849,7 @@ Verification after the fourth pass:
 | `pnpm typecheck` | passes, every package and both apps |
 | `pnpm lint` | passes |
 | `pnpm test` | 84 files, 944 tests, all pass |
-| Migrations | 0000–0006 applied in Postgres 17 to an empty database; `drizzle-kit check` passes; the topic constraint is deferred and the first notice ledger is gone |
+| Migrations | 0000–0006 applied in Postgres 17 to an empty database; `drizzle-kit check` passes; the first notice ledger is gone |
 | Schema drift | `drizzle-kit generate` reports no changes |
 | Contract | OpenAPI regenerated from the route schemas; SDK and API docs regenerated from it |
 
@@ -872,7 +872,6 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | OP3 | M10: the digest template has none of the spec's params | Waits on the deferred email-preference decision, as the spec says |
 | OP4 | No repository or migration test runs against a real Postgres in CI. SQL is pinned by capture tests against a fake client; the migrations were verified by hand in this review | Needs a Postgres test harness for `adapters/db` |
 | OP5 | Two concurrent finalizes of one member upload with a re-upload in between can refuse the new bytes and delete the row the other just made ready | Narrow race; needs a row lock across finalize |
-| OP6 | The deferred topic name constraint is not expressible in the Drizzle schema, so `db:push` builds a database without it | A Drizzle limitation; migrations are the supported path |
 
 ## Tracking
 
@@ -913,7 +912,7 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | E2 | Restore always publishes | completed (third pass: P1) |
 | E3 | Schedule from pending | completed |
 | E4 | Seed duplicates on redelivery | completed in the third pass (M8, M9) |
-| E5 | Topic rename swap | completed in the third pass (K1) |
+| E5 | Topic rename swap | withdrawn: a name another topic holds is a duplicate and gets a 409 |
 | E6 | Decorative `:communityId` | completed (third pass: P7, K3) |
 | E7 | Profile GET 404 | completed |
 | E8 | Raw ISO date in email | completed |
@@ -933,4 +932,4 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | X1–X8, X10 | Third pass, integration | completed |
 | X9 | DB-level tests | open (OP4) |
 | Q1–Q3, R1–R4, G1–G10, T1–T9 | Fourth pass | completed |
-| OP1–OP6 | Open items | open, for the next review run |
+| OP1–OP5 | Open items | open, for the next review run |

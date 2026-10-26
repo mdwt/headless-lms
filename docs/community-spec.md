@@ -213,7 +213,7 @@ create index spaces_order_idx on spaces (org_id, community_id, seq);
 
 #### space\_topics
 
-The `space_topics` table holds the topics defined on a space. Where a space defines topics, each post in that space carries one, and the space feed can be filtered by topic. A space without topics has posts without a topic. Topics are deleted with their space. Setting a space's topics replaces the list in one transaction under a lock on the space; a topic a post still references is refused with a conflict before anything is written. The name constraint is checked at commit, so two topics can exchange names in one write.
+The `space_topics` table holds the topics defined on a space. Where a space defines topics, each post in that space carries one, and the space feed can be filtered by topic. A space without topics has posts without a topic. Topics are deleted with their space. Setting a space's topics replaces the list in one transaction under a lock on the space; a topic a post still references is refused with a conflict before anything is written. A topic given a name another topic in the space still holds is refused with a conflict.
 
 ```sql
 create table space_topics (
@@ -225,7 +225,7 @@ create table space_topics (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   primary key (org_id, id),
-  unique (org_id, space_id, name) deferrable initially deferred,
+  unique (org_id, space_id, name),
   unique (org_id, space_id, id),
   foreign key (org_id, space_id) references spaces(org_id, id) on delete cascade
 );
@@ -670,11 +670,10 @@ The schema changes ship as four Drizzle migrations, each generated from the sche
 - `0003_community` adds the community tables. By hand: the rename of `comment_reports` to `comment_flags` and dropping the not-null constraint on `comments.activity_id`.
 - `0004_assets_sources` adds `assets.source`.
 - `0005_notices_and_seed_index` adds the partial unique index on system automations.
-- `0006_community_review_fixes` replaces the first notice ledger with the two per-term notice tables, makes the topic name constraint deferred, and adds the bookmark index.
+- `0006_community_review_fixes` replaces the first notice ledger with the two per-term notice tables and adds the bookmark index.
 
 The migrations change the schema only. No release holds data from before the feature, so they carry no backfills, data copies or seeds. An org gets its system automations when it is created.
 
-The deferred topic name constraint exists only in the migrations; drizzle-kit cannot express it, so a database built with `db:push` does not have it and topic name swaps fail there. Databases are built with the migrations.
 
 ### Delete behaviour
 
