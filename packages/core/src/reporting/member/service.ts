@@ -1,11 +1,13 @@
-import { type ContentServicePort } from '../../content/index.js';
-import type { CommunityAccessReader } from '../../entitlements/index.js';
+import { type ContentServicePort, type SpaceDetail } from '../../content/index.js';
+import type { CommunityAccessReader, SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetUrlSigner } from '../../assets/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type {
   ActivityView,
   CommunityHome,
+  CommunityHomeLink,
+  CommunityHomeSpace,
   CourseProgressView,
   CourseView,
   DirectoryEntry,
@@ -24,7 +26,7 @@ export type MemberReportServiceParams = {
   content: ContentServicePort;
   progress: ProgressService;
   assetUrls: AssetUrlSigner;
-  access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds'>;
+  access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
 };
 
 export class MemberReportServiceImpl implements MemberReportService {
@@ -32,7 +34,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
   private readonly assetUrls: AssetUrlSigner;
-  private readonly access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds'>;
+  private readonly access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
 
   constructor(params: MemberReportServiceParams) {
     this.repo = params.repo;
@@ -181,20 +183,112 @@ export class MemberReportServiceImpl implements MemberReportService {
       return null;
     }
     const spaces = await this.content.listSpaces(orgId, communityId);
-    const open = new Set(await this.access.openSpaceIds(orgId, actor, communityId));
-    const counts = await this.repo.spaceMemberCounts(orgId, communityId);
     return {
       communityId,
       title: community.title,
-      spaces: spaces
-        .filter((space) => open.has(space.id) || space.accessRule === 'by_request')
-        .map((space) => ({
-          id: space.id,
-          name: space.name,
-          memberCount: counts[space.id] ?? 0,
-          open: open.has(space.id),
-          accessRule: space.accessRule,
-        })),
+      description: community.description,
+      thumbnailUrl: community.thumbnailUrl,
+      dm: community.settings.dm,
+      spaces: await this.homeSpaces(orgId, actor, communityId, spaces),
     };
   }
+
+  async communitySpace(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<CommunityHomeSpace | null> {
+    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+      return null;
+    }
+    const space = await this.content.getSpace(orgId, spaceId);
+    if (!space || space.communityId !== communityId) {
+      return null;
+    }
+    const [view] = await this.homeSpaces(orgId, actor, communityId, [space]);
+    return view ?? null;
+  }
+
+  private async homeSpaces(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaces: SpaceDetail[],
+  ): Promise<CommunityHomeSpace[]> {
+    const [openIds, counts, standings] = await Promise.all([
+      this.access.openSpaceIds(orgId, actor, communityId),
+      this.repo.spaceMemberCounts(orgId, communityId),
+      this.access.spaceStandings(orgId, actor, communityId),
+    ]);
+    const open = new Set(openIds);
+    return Promise.all(
+      spaces.map(async (space) => {
+        const memberCount = counts[space.id] ?? 0;
+        return {
+          id: space.id,
+          name: space.name,
+          description: space.description,
+          memberCount,
+          capacity: space.capacity,
+          open: open.has(space.id),
+          accessRule: space.accessRule,
+          standing: standingOf(space, open.has(space.id), memberCount, standings[space.id]),
+          settings: space.settings,
+          topics: space.topics.map((topic) => ({ id: topic.id, name: topic.name })),
+          links: await this.linkViews(orgId, space.links),
+        };
+      }),
+    );
+  }
+
+  private async linkViews(
+    orgId: string,
+    links: SpaceDetail['links'],
+  ): Promise<CommunityHomeLink[]> {
+    const views = await Promise.all(
+      links.map(async (link): Promise<CommunityHomeLink | null> => {
+        const course = await this.content.getCourse(orgId, link.contentId);
+        if (course) {
+          return { id: link.id, contentId: link.contentId, type: 'course', title: course.title };
+        }
+        const download = await this.content.getDownload(orgId, link.contentId);
+        if (download) {
+          return { id: link.id, contentId: link.contentId, type: 'download', title: download.title };
+        }
+        const community = await this.content.getCommunity(orgId, link.contentId);
+        if (community) {
+          return {
+            id: link.id,
+            contentId: link.contentId,
+            type: 'community',
+            title: community.title,
+          };
+        }
+        return null;
+      }),
+    );
+    return views.filter((view): view is CommunityHomeLink => view !== null);
+  }
+}
+
+function standingOf(
+  space: SpaceDetail,
+  open: boolean,
+  memberCount: number,
+  status: SpaceMember['status'] | undefined,
+): CommunityHomeSpace['standing'] {
+  if (space.accessRule === 'all_members' || (open && status !== 'active')) {
+    return 'open';
+  }
+  if (status === 'active') {
+    return 'member';
+  }
+  if (status === 'requested' || status === 'invited') {
+    return status;
+  }
+  if (space.capacity !== null && memberCount >= space.capacity) {
+    return 'full';
+  }
+  return 'none';
 }

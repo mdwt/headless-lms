@@ -99,6 +99,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     claimNotice: vi.fn().mockResolvedValue(true),
     communityModeratorIds: vi.fn().mockResolvedValue([]),
     communityIdsOpenedFor: vi.fn().mockResolvedValue([]),
+    listSpaceMembersFor: vi.fn().mockResolvedValue([]),
     ...over,
   };
 }

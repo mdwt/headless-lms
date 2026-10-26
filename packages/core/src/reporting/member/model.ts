@@ -31,17 +31,41 @@ export interface DirectoryEntry extends DirectoryRow {
   imageUrl: string | null;
 }
 
+export interface CommunityHomeLink {
+  id: string;
+  contentId: string;
+  type: 'course' | 'download' | 'community';
+  title: string;
+}
+
 export interface CommunityHomeSpace {
   id: string;
   name: string;
+  description: string | null;
   memberCount: number;
+  capacity: number | null;
   open: boolean;
   accessRule: 'all_members' | 'by_request' | 'by_invite';
+  standing: 'open' | 'member' | 'requested' | 'invited' | 'full' | 'none';
+  settings: { comments: boolean; reactions: boolean; requireReview: boolean };
+  topics: { id: string; name: string }[];
+  links: CommunityHomeLink[];
 }
 
 export interface CommunityHome {
   communityId: string;
   title: string;
+  description: string;
+  thumbnailUrl: string | null;
+  dm: {
+    enabled: boolean;
+    memberToMember: boolean;
+    memberToStaff: boolean;
+    staffToAnyone: boolean;
+    firstMessageIsRequest: boolean;
+    groupChats: boolean;
+    groupSize: number;
+  };
   spaces: CommunityHomeSpace[];
 }
 

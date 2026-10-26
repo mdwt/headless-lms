@@ -104,7 +104,11 @@ const assetUrls: AssetUrlSigner = {
 
 const deps: Pick<MemberReportServiceParams, 'assetUrls' | 'access'> = {
   assetUrls,
-  access: { isCommunityMember: async () => false, openSpaceIds: async () => [] },
+  access: {
+    isCommunityMember: async () => false,
+    openSpaceIds: async () => [],
+    spaceStandings: async () => ({}),
+  },
 };
 
 // Full-surface ContentService fake: every member rejects or returns empty by
@@ -424,7 +428,11 @@ describe('signed file URLs', () => {
       content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
       assetUrls,
-      access: { isCommunityMember: async () => true, openSpaceIds: async () => [] },
+      access: {
+        isCommunityMember: async () => true,
+        openSpaceIds: async () => [],
+        spaceStandings: async () => ({}),
+      },
     });
 
     const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1');

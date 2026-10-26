@@ -5,6 +5,7 @@ import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { UnauthorizedError } from '../../plugins/auth.js';
 import {
   CommunityHome,
+  CommunityHomeSpace,
   CommunityParam,
   CommunitySpaceParam,
   DirectoryEntry,
@@ -49,6 +50,32 @@ export async function memberCommunityRoutes(
         throw new NotFoundError('Community', req.params.communityId);
       }
       return home;
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/spaces/:spaceId',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getMemberSpace',
+      tags,
+      summary: 'One space as a member sees it: its topics, links, settings and where the viewer stands',
+      params: CommunitySpaceParam,
+      response: { 200: CommunityHomeSpace, ...errors },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      const space = await container.reporting.member.communitySpace(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.params.spaceId,
+      );
+      if (!space) {
+        throw new NotFoundError('Space', req.params.spaceId);
+      }
+      return space;
     },
   });
 

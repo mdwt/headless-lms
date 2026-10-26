@@ -4876,18 +4876,156 @@ export type GetMemberCommunityHomeResponses = {
   200: {
     communityId: string;
     title: string;
+    description: string;
+    thumbnailUrl: string | null;
+    dm: {
+      enabled: boolean;
+      memberToMember: boolean;
+      memberToStaff: boolean;
+      staffToAnyone: boolean;
+      firstMessageIsRequest: boolean;
+      groupChats: boolean;
+      groupSize: number;
+    };
     spaces: Array<{
       id: string;
       name: string;
+      description: string | null;
       memberCount: number;
+      capacity: number | null;
       open: boolean;
       accessRule: "all_members" | "by_request" | "by_invite";
+      /**
+       * Where the viewer stands with this space, and so which action it offers
+       */
+      standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+      settings: {
+        comments: boolean;
+        reactions: boolean;
+        requireReview: boolean;
+      };
+      topics: Array<{
+        id: string;
+        name: string;
+      }>;
+      links: Array<{
+        id: string;
+        contentId: string;
+        type: "course" | "download" | "community";
+        title: string;
+      }>;
     }>;
   };
 };
 
 export type GetMemberCommunityHomeResponse =
   GetMemberCommunityHomeResponses[keyof GetMemberCommunityHomeResponses];
+
+export type GetMemberSpaceData = {
+  body?: never;
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}";
+};
+
+export type GetMemberSpaceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberSpaceError = GetMemberSpaceErrors[keyof GetMemberSpaceErrors];
+
+export type GetMemberSpaceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    description: string | null;
+    memberCount: number;
+    capacity: number | null;
+    open: boolean;
+    accessRule: "all_members" | "by_request" | "by_invite";
+    /**
+     * Where the viewer stands with this space, and so which action it offers
+     */
+    standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+    settings: {
+      comments: boolean;
+      reactions: boolean;
+      requireReview: boolean;
+    };
+    topics: Array<{
+      id: string;
+      name: string;
+    }>;
+    links: Array<{
+      id: string;
+      contentId: string;
+      type: "course" | "download" | "community";
+      title: string;
+    }>;
+  };
+};
+
+export type GetMemberSpaceResponse = GetMemberSpaceResponses[keyof GetMemberSpaceResponses];
 
 export type GetMemberCommunityDirectoryData = {
   body?: never;

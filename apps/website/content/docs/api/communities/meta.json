@@ -23,6 +23,7 @@
     "removeSpaceLink",
     "reorderSpaceLinks",
     "getMemberCommunityHome",
+    "getMemberSpace",
     "getMemberCommunityDirectory",
     "listSpaceMembers",
     "addSpaceMember",

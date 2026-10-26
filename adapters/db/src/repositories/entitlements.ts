@@ -482,6 +482,24 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return row ? toSpaceMember(row) : null;
   }
 
+  async listSpaceMembersFor(
+    orgId: string,
+    orgUserId: string,
+    communityId: string,
+  ): Promise<SpaceMember[]> {
+    const rows = await this.db
+      .select()
+      .from(spaceMembers)
+      .where(
+        and(
+          eq(spaceMembers.orgId, orgId),
+          eq(spaceMembers.orgUserId, orgUserId),
+          eq(spaceMembers.communityId, communityId),
+        ),
+      );
+    return rows.map(toSpaceMember);
+  }
+
   async lockSpaceMember(
     orgId: string,
     spaceId: string,

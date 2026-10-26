@@ -54,18 +54,40 @@ export const DirectoryEntry = z.object({
 type _DirectoryMatches = Matches<DomainDirectoryEntry, z.infer<typeof DirectoryEntry>> &
   Matches<z.infer<typeof DirectoryEntry>, DomainDirectoryEntry>;
 
+export const CommunityHomeSpace = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  memberCount: z.number().int(),
+  capacity: z.number().int().nullable(),
+  open: z.boolean(),
+  accessRule: z.enum(['all_members', 'by_request', 'by_invite']),
+  standing: z
+    .enum(['open', 'member', 'requested', 'invited', 'full', 'none'])
+    .describe('Where the viewer stands with this space, and so which action it offers'),
+  settings: z.object({
+    comments: z.boolean(),
+    reactions: z.boolean(),
+    requireReview: z.boolean(),
+  }),
+  topics: z.array(z.object({ id: z.string(), name: z.string() })),
+  links: z.array(
+    z.object({
+      id: z.string(),
+      contentId: z.string(),
+      type: z.enum(['course', 'download', 'community']),
+      title: z.string(),
+    }),
+  ),
+});
+
 export const CommunityHome = z.object({
   communityId: z.string(),
   title: z.string(),
-  spaces: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      memberCount: z.number().int(),
-      open: z.boolean(),
-      accessRule: z.enum(['all_members', 'by_request', 'by_invite']),
-    }),
-  ),
+  description: z.string(),
+  thumbnailUrl: z.string().nullable(),
+  dm: dmSettingsSchema,
+  spaces: z.array(CommunityHomeSpace),
 });
 type _HomeMatches = Matches<DomainCommunityHome, z.infer<typeof CommunityHome>> &
   Matches<z.infer<typeof CommunityHome>, DomainCommunityHome>;

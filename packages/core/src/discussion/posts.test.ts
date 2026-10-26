@@ -257,6 +257,9 @@ function harness(options?: {
     async isCommunityMember() {
       return true;
     },
+    async spaceStandings() {
+      return {};
+    },
     async canOpenSpace(_orgId, actor) {
       if (options?.open === false) {
         return false;

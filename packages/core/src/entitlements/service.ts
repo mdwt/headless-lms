@@ -170,6 +170,15 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return opensSpace(facts.role, facts.member, space.accessRule, facts.activeInSpace);
   }
 
+  async spaceStandings(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+  ): Promise<Record<string, SpaceMember['status']>> {
+    const rows = await this.repo.listSpaceMembersFor(orgId, actor.id, communityId);
+    return Object.fromEntries(rows.map((row) => [row.spaceId, row.status]));
+  }
+
   async openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]> {
     const facts = await this.accessOf(orgId, actor.id, communityId, null);
     if (!facts?.member) {

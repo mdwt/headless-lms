@@ -32,6 +32,11 @@ export interface CommunityAccessReader {
   canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean>;
   openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]>;
   openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]>;
+  spaceStandings(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+  ): Promise<Record<string, SpaceMember['status']>>;
   communityMembersAmong(
     orgId: string,
     communityId: string,
@@ -159,6 +164,7 @@ export interface EntitlementsRepository {
     orgUserIds: string[],
   ): Promise<AccessFacts[]>;
   findSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
+  listSpaceMembersFor(orgId: string, orgUserId: string, communityId: string): Promise<SpaceMember[]>;
   lockSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
   listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]>;
   insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember>;

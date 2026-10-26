@@ -160,6 +160,8 @@ import type {
   GetMemberOrgResponses,
   GetMemberProfileErrors,
   GetMemberProfileResponses,
+  GetMemberSpaceErrors,
+  GetMemberSpaceResponses,
   GetMemberViewerErrors,
   GetMemberViewerResponses,
   GetOverviewErrors,
@@ -2995,6 +2997,40 @@ export class Communities {
     >({
       responseStyle: "data",
       url: "/api/member/communities/{communityId}/home",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * One space as a member sees it: its topics, links, settings and where the viewer stands
+   */
+  public static getMemberSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberSpaceResponses, GetMemberSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetMemberSpaceResponses,
+      GetMemberSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}",
       ...options,
       ...params,
     });

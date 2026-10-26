@@ -2,6 +2,7 @@ import type { Actor } from '../../shared/actor.js';
 import type {
   ActivityView,
   CommunityHome,
+  CommunityHomeSpace,
   ContentRef,
   CourseProgressView,
   CourseView,
@@ -34,6 +35,12 @@ export interface MemberReportService {
   ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null>;
   directory(orgId: string, actor: Actor, communityId: string): Promise<DirectoryEntry[] | null>;
   communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
+  communitySpace(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ): Promise<CommunityHomeSpace | null>;
 }
 
 export interface MemberReportRepository {
