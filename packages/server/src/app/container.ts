@@ -353,7 +353,7 @@ export async function buildContainer(
     content,
     authors,
     profiles: discussionReads,
-    commentFlags: discussionReads,
+    comments: discussionReads,
     images: assets,
     assetUrls: assets,
     uow: new DrizzleUnitOfWork(db, (tx) => ({

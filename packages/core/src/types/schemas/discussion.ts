@@ -183,9 +183,32 @@ export const postSchema = z
 export type Post = z.output<typeof postSchema>;
 
 export const postViewSchema = postSchema
-  .extend({ coverUrl: z.string().nullable(), author: commentAuthorSchema })
+  .extend({
+    coverUrl: z.string().nullable(),
+    author: commentAuthorSchema,
+    reactions: reactionCountsSchema,
+    viewerReaction: reactionEmojiSchema.nullable(),
+    commentCount: z.number().int().min(0),
+    following: z.boolean(),
+    bookmarked: z.boolean(),
+  })
   .strict();
 export type PostView = z.output<typeof postViewSchema>;
+
+export const flaggedCommentSchema = commentReportSchema
+  .extend({
+    comment: z
+      .object({
+        id: idSchema,
+        postId: idSchema,
+        body: z.string(),
+        orgUserId: idSchema,
+        status: commentStatusSchema,
+      })
+      .strict(),
+  })
+  .strict();
+export type FlaggedComment = z.output<typeof flaggedCommentSchema>;
 
 export const postReactionSchema = z
   .object({
@@ -300,9 +323,25 @@ export const messageFileSchema = z.object({ assetId: idSchema, url: z.string() }
 export type MessageFile = z.output<typeof messageFileSchema>;
 
 export const messageViewSchema = messageSchema
-  .extend({ sender: commentAuthorSchema, attachments: z.array(messageFileSchema) })
+  .extend({
+    sender: commentAuthorSchema,
+    attachments: z.array(messageFileSchema),
+    reactions: reactionCountsSchema,
+    viewerReaction: reactionEmojiSchema.nullable(),
+  })
   .strict();
 export type MessageView = z.output<typeof messageViewSchema>;
+
+export const chatLastMessageSchema = z
+  .object({
+    id: idSchema,
+    orgUserId: idSchema,
+    body: z.string(),
+    createdAt: z.coerce.date(),
+    deletedAt: z.coerce.date().nullable(),
+  })
+  .strict();
+export type ChatLastMessage = z.output<typeof chatLastMessageSchema>;
 
 export const messageAttachmentSchema = z
   .object({

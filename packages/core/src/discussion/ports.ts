@@ -4,7 +4,9 @@
 import type {
   Activity,
   Chat,
+  ChatLastMessage,
   ChatUser,
+  FlaggedComment,
   JsonValue,
   Message,
   MessageFlag,
@@ -13,6 +15,7 @@ import type {
   Post,
   PostFlag,
   PostFlagResolution,
+  PostStatus,
   PostView,
 } from '../types/index.js';
 import type { SpaceDetail } from '../content/index.js';
@@ -136,7 +139,7 @@ export interface ActivityGetter {
   getActivity(orgId: string, activityId: string): Promise<Activity | null>;
 }
 
-export interface DiscussionRepository extends PostCommentFlagReader, AuthorProfileReader {
+export interface DiscussionRepository extends PostCommentReader, AuthorProfileReader {
   insertComment(orgId: string, comment: Comment): Promise<Comment>;
   findComment(orgId: string, id: string): Promise<Comment | null>;
   updateComment(
@@ -241,14 +244,21 @@ export interface PostReactions {
   viewerReaction?: ReactionEmoji;
 }
 
+export type PageQuery = Pick<FeedQuery, 'page' | 'pageSize'>;
+
+export interface BookmarkQuery extends PageQuery {
+  visibleStatuses: PostStatus[];
+}
+
 export interface SpaceModerationQueue {
   pending: PostView[];
   flags: PostFlag[];
-  commentFlags: CommentReport[];
+  commentFlags: FlaggedComment[];
 }
 
-export interface PostCommentFlagReader {
-  listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<CommentReport[]>;
+export interface PostCommentReader {
+  listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<FlaggedComment[]>;
+  publishedCommentCounts(orgId: string, postIds: string[]): Promise<Record<string, number>>;
 }
 
 export interface PostService {
@@ -294,8 +304,18 @@ export interface PostService {
     communityId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<PostView>>;
-  listOwn(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
-  listBookmarked(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
+  listOwn(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    query: PageQuery,
+  ): Promise<Page<PostView>>;
+  listBookmarked(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    query: PageQuery,
+  ): Promise<Page<PostView>>;
   getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
   visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
@@ -315,12 +335,26 @@ export interface PostRepository {
   update(orgId: string, id: string, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
   listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;
-  listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
-  listBookmarked(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
+  listByAuthor(
+    orgId: string,
+    orgUserId: string,
+    spaceIds: string[],
+    query: PageQuery,
+  ): Promise<Page<Post>>;
+  listBookmarked(
+    orgId: string,
+    orgUserId: string,
+    spaceIds: string[],
+    query: BookmarkQuery,
+  ): Promise<Page<Post>>;
   listPending(orgId: string, spaceId: string): Promise<Post[]>;
   listDue(orgId: string, now: Date): Promise<Post[]>;
   hasDue(orgId: string, now: Date): Promise<boolean>;
-  reactionsOf(orgId: string, postId: string, viewerId: string): Promise<PostReactions>;
+  reactionsOf(
+    orgId: string,
+    postIds: string[],
+    viewerId: string,
+  ): Promise<Record<string, PostReactions>>;
   setReaction(
     orgId: string,
     postId: string,
@@ -330,8 +364,10 @@ export interface PostRepository {
   follow(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unfollow(orgId: string, postId: string, orgUserId: string): Promise<void>;
   followerIds(orgId: string, postId: string): Promise<string[]>;
+  followedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]>;
   bookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
+  bookmarkedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]>;
   insertFlag(orgId: string, flag: PostFlag): Promise<PostFlag | null>;
   findFlag(orgId: string, postId: string, orgUserId: string): Promise<PostFlag | null>;
   listOpenFlags(orgId: string, spaceId: string): Promise<PostFlag[]>;
@@ -373,6 +409,12 @@ export interface ChatListItem {
   muted: boolean;
   mutedUntil: Date | null;
   unread: number;
+  lastMessage: ChatLastMessage | null;
+}
+
+export interface MessageReactions {
+  reactions: ReactionCounts;
+  viewerReaction?: ReactionEmoji;
 }
 
 export interface ChatSummary {
@@ -495,6 +537,11 @@ export interface ChatRepository {
     orgUserId: string,
     emoji: ReactionEmoji | null,
   ): Promise<void>;
+  reactionsOf(
+    orgId: string,
+    messageIds: string[],
+    viewerId: string,
+  ): Promise<Record<string, MessageReactions>>;
   block(
     orgId: string,
     communityId: string,

@@ -33,8 +33,8 @@ const container = {
   posts: {
     spaceFeed: record('spaceFeed', { rows: [], total: 0, page: 1, pageSize: 5 }),
     moderationQueue: record('moderationQueue', { pending: [], flags: [], commentFlags: [] }),
-    listOwn: record('listOwn', []),
-    listBookmarked: record('listBookmarked', []),
+    listOwn: record('listOwn', { rows: [], total: 0, page: 2, pageSize: 5 }),
+    listBookmarked: record('listBookmarked', { rows: [], total: 0, page: 1, pageSize: 20 }),
   },
 } as unknown as Container;
 
@@ -88,15 +88,20 @@ describe('member post and comment routes', () => {
     expect(last('moderationQueue')).toEqual([ORG.id, ORG_USER, 'cmy_1', 'spc_1']);
   });
 
-  it('serves your own posts and your bookmarks for a community', async () => {
-    const own = await app.inject({ method: 'GET', url: '/api/member/communities/cmy_1/own-posts' });
+  it('pages your own posts and your bookmarks for a community', async () => {
+    const own = await app.inject({
+      method: 'GET',
+      url: '/api/member/communities/cmy_1/own-posts?page=2&pageSize=5',
+    });
     const saved = await app.inject({
       method: 'GET',
       url: '/api/member/communities/cmy_1/bookmarks',
     });
     expect([own.statusCode, saved.statusCode]).toEqual([200, 200]);
-    expect(last('listOwn')).toEqual([ORG.id, ORG_USER, 'cmy_1']);
-    expect(last('listBookmarked')).toEqual([ORG.id, ORG_USER, 'cmy_1']);
+    expect(own.json()).toEqual({ rows: [], total: 0, page: 2, pageSize: 5 });
+    expect(saved.json()).toEqual({ rows: [], total: 0, page: 1, pageSize: 20 });
+    expect(last('listOwn')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 2, pageSize: 5 }]);
+    expect(last('listBookmarked')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 1, pageSize: 20 }]);
   });
 
   it('accepts only a dismissal when resolving post flags', async () => {

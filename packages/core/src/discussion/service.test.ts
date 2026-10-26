@@ -165,6 +165,9 @@ export function fakeRepo() {
     async listOpenFlagsForSpace() {
       return [];
     },
+    async publishedCommentCounts() {
+      return {};
+    },
     async resolveReportsFor(orgId, commentId, resolved) {
       for (const r of reports) {
         if (r.orgId === orgId && r.commentId === commentId && !r.resolvedAt) {

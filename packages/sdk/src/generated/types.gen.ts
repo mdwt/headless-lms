@@ -2076,6 +2076,10 @@ export type GetCommunityMessageQueueResponses = {
           assetId: string;
           url: string;
         }>;
+        reactions: {
+          [key: string]: number;
+        };
+        viewerReaction: string | null;
       };
       flags: Array<{
         orgId: string;
@@ -6133,6 +6137,13 @@ export type GetMemberFeedResponses = {
         imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
     }>;
     total: number;
     page: number;
@@ -6147,7 +6158,10 @@ export type ListOwnPostsData = {
   path: {
     communityId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/member/communities/{communityId}/own-posts";
 };
 
@@ -6215,39 +6229,51 @@ export type ListOwnPostsResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    orgId: string;
-    id: string;
-    communityId: string;
-    spaceId: string;
-    orgUserId: string;
-    topicId: string | null;
-    title: string;
-    body: string;
-    extra: JsonValue;
-    coverAssetId: string | null;
-    status: "draft" | "scheduled" | "pending" | "published" | "removed";
-    scheduledAt: string | null;
-    publishedAt: string | null;
-    removedBy: string | null;
-    pinned: boolean;
-    commentsClosed: boolean | null;
-    reactionsEnabled: boolean | null;
-    createdAt: string;
-    updatedAt: string;
-    coverUrl: string | null;
-    author: {
+  200: {
+    rows: Array<{
+      orgId: string;
       id: string;
-      firstName: string | null;
-      lastName: string | null;
-      displayName: string | null;
-      headline: string | null;
-      image: string | null;
-      imageAssetId: string | null;
-      imageUrl: string | null;
-      role: "owner" | "admin" | "instructor" | "moderator" | "student";
-    };
-  }>;
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+      topicId: string | null;
+      title: string;
+      body: string;
+      extra: JsonValue;
+      coverAssetId: string | null;
+      status: "draft" | "scheduled" | "pending" | "published" | "removed";
+      scheduledAt: string | null;
+      publishedAt: string | null;
+      removedBy: string | null;
+      pinned: boolean;
+      commentsClosed: boolean | null;
+      reactionsEnabled: boolean | null;
+      createdAt: string;
+      updatedAt: string;
+      coverUrl: string | null;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        imageUrl: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListOwnPostsResponse = ListOwnPostsResponses[keyof ListOwnPostsResponses];
@@ -6257,7 +6283,10 @@ export type ListBookmarkedPostsData = {
   path: {
     communityId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/member/communities/{communityId}/bookmarks";
 };
 
@@ -6325,39 +6354,51 @@ export type ListBookmarkedPostsResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    orgId: string;
-    id: string;
-    communityId: string;
-    spaceId: string;
-    orgUserId: string;
-    topicId: string | null;
-    title: string;
-    body: string;
-    extra: JsonValue;
-    coverAssetId: string | null;
-    status: "draft" | "scheduled" | "pending" | "published" | "removed";
-    scheduledAt: string | null;
-    publishedAt: string | null;
-    removedBy: string | null;
-    pinned: boolean;
-    commentsClosed: boolean | null;
-    reactionsEnabled: boolean | null;
-    createdAt: string;
-    updatedAt: string;
-    coverUrl: string | null;
-    author: {
+  200: {
+    rows: Array<{
+      orgId: string;
       id: string;
-      firstName: string | null;
-      lastName: string | null;
-      displayName: string | null;
-      headline: string | null;
-      image: string | null;
-      imageAssetId: string | null;
-      imageUrl: string | null;
-      role: "owner" | "admin" | "instructor" | "moderator" | "student";
-    };
-  }>;
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+      topicId: string | null;
+      title: string;
+      body: string;
+      extra: JsonValue;
+      coverAssetId: string | null;
+      status: "draft" | "scheduled" | "pending" | "published" | "removed";
+      scheduledAt: string | null;
+      publishedAt: string | null;
+      removedBy: string | null;
+      pinned: boolean;
+      commentsClosed: boolean | null;
+      reactionsEnabled: boolean | null;
+      createdAt: string;
+      updatedAt: string;
+      coverUrl: string | null;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        imageUrl: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListBookmarkedPostsResponse =
@@ -6474,6 +6515,13 @@ export type GetSpaceFeedResponses = {
         imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
     }>;
     total: number;
     page: number;
@@ -6590,6 +6638,13 @@ export type GetSpaceQueueResponses = {
         imageUrl: string | null;
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
     }>;
     flags: Array<{
       orgId: string;
@@ -6614,6 +6669,13 @@ export type GetSpaceQueueResponses = {
       resolvedBy: string | null;
       createdAt: string;
       updatedAt: string;
+      comment: {
+        id: string;
+        postId: string;
+        body: string;
+        orgUserId: string;
+        status: "pending" | "published" | "removed";
+      };
     }>;
   };
 };
@@ -6734,6 +6796,13 @@ export type CreatePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -6844,6 +6913,13 @@ export type GetPostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -6960,6 +7036,13 @@ export type UpdatePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7070,6 +7153,13 @@ export type SubmitPostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7182,6 +7272,13 @@ export type SchedulePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7292,6 +7389,13 @@ export type ApprovePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7402,6 +7506,13 @@ export type RemovePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7512,6 +7623,13 @@ export type RestorePostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7622,6 +7740,13 @@ export type PinPostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7732,6 +7857,13 @@ export type UnpinPostResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7842,6 +7974,13 @@ export type ClosePostCommentsResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -7953,6 +8092,13 @@ export type OpenPostCommentsResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -8066,6 +8212,13 @@ export type SetPostReactionPolicyResponses = {
       imageUrl: string | null;
       role: "owner" | "admin" | "instructor" | "moderator" | "student";
     };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
   };
 };
 
@@ -8953,6 +9106,13 @@ export type ListMemberChatsResponses = {
     muted: boolean;
     mutedUntil: string | null;
     unread: number;
+    lastMessage: {
+      id: string;
+      orgUserId: string;
+      body: string;
+      createdAt: string;
+      deletedAt: string | null;
+    } | null;
   }>;
 };
 
@@ -9514,6 +9674,10 @@ export type ListChatMessagesResponses = {
         assetId: string;
         url: string;
       }>;
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
     }>;
     total: number;
     page: number;
@@ -9627,6 +9791,10 @@ export type SendChatMessageResponses = {
       assetId: string;
       url: string;
     }>;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
   };
 };
 
@@ -9732,6 +9900,10 @@ export type DeleteChatMessageResponses = {
       assetId: string;
       url: string;
     }>;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
   };
 };
 
@@ -9840,6 +10012,10 @@ export type EditChatMessageResponses = {
       assetId: string;
       url: string;
     }>;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
   };
 };
 

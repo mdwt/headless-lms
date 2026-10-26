@@ -19,7 +19,6 @@ import {
   PostIdParam,
   PostReactions,
   PostView,
-  PostViews,
   ResolvePostFlags,
   SchedulePost,
   SetPostReactions,
@@ -70,11 +69,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Your own posts in a community, newest first',
       params: CommunityParam,
-      response: { 200: PostViews, ...errors },
+      querystring: PageQuery,
+      response: { 200: PostFeedPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.listOwn(req.orgId, actor, req.params.communityId);
+      return posts.listOwn(req.orgId, actor, req.params.communityId, req.query);
     },
   });
 
@@ -85,13 +85,14 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'listBookmarkedPosts',
       tags,
-      summary: 'The posts you bookmarked in a community',
+      summary: 'The posts you bookmarked in a community, newest bookmark first',
       params: CommunityParam,
-      response: { 200: PostViews, ...errors },
+      querystring: PageQuery,
+      response: { 200: PostFeedPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.listBookmarked(req.orgId, actor, req.params.communityId);
+      return posts.listBookmarked(req.orgId, actor, req.params.communityId, req.query);
     },
   });
 

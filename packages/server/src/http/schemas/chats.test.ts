@@ -34,7 +34,13 @@ describe('chat schemas', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    const item = { chat, participantIds: [], lastReadMessageId: null, unread: 0 };
+    const item = {
+      chat,
+      participantIds: [],
+      lastReadMessageId: null,
+      unread: 0,
+      lastMessage: null,
+    };
     const parsed = ChatListItem.parse({
       ...item,
       muted: true,

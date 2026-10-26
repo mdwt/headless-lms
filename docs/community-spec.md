@@ -520,7 +520,7 @@ create table chats (
 
 #### chat\_users
 
-The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set. A mute is the `muted` flag with an optional `muted_until`; a mute with no end stays until unmuted, and the API carries both fields as they are.
+The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set. A mute is the `muted` flag with an optional `muted_until`; a mute with no end stays until unmuted, and the API carries both fields as they are. A person's chat list reads one row per chat they are in, with the people in it, their own read position and mute, the unread count, and the chat's last message, found for the whole list in one query; a deleted last message shows an empty body to a member.
 
 ```sql
 create table chat_users (
@@ -643,7 +643,7 @@ create index blocked_users_blocked_idx on blocked_users (org_id, community_id, b
 
 #### Feeds
 
-There is no table for feeds. The space feed is a query over `posts` for one space: published posts, pinned first, then newest, optionally filtered by topic. The member feed is the same query over the spaces that entitlements reports the person can open. Both queries use `posts_feed_idx` and paginate on `(pinned, published_at, id)`.
+There is no table for feeds. The space feed is a query over `posts` for one space: published posts, pinned first, then newest, optionally filtered by topic. The member feed is the same query over the spaces that entitlements reports the person can open. Both queries use `posts_feed_idx` and paginate on `(pinned, published_at, id)`. A person's own posts are a query over `posts` by author across those spaces in every status, newest first; their bookmarks are a query over `post_bookmarks` joined to `posts`, newest bookmark first, holding others' posts only in the statuses the person may see. Both page the same way as the feeds. The reaction counts, the reader's reaction, the published comment count, and the reader's follows and bookmarks are read for a whole page in one query each.
 
 ```sql
 -- space feed
@@ -731,6 +731,8 @@ Entitlements serves a reader to discussion and reporting that answers three ques
 ### discussion
 
 Discussion keeps its comment operations; posting a comment and the flag and queue operations take a target that is either an activity or a post. A comment on a post is created published. It adds the post operations: create a draft, update, submit, schedule, approve, remove, restore, pin, unpin, close comments, open comments, set a reaction, follow, unfollow, bookmark, unbookmark, flag, resolve flags, read the space feed, read the member feed, read one post, read a space's moderation queue, and the publishing of due posts, which the Publish due posts automation calls. It adds the chat operations: start a DM, start a group chat, add a participant, leave, accept a message request, send, edit and delete a message, set a reaction, mark as read, mute, unmute, block, unblock, flag a message, resolve message flags, lock and unlock a chat, list a person's chats, read a chat's messages, and read the community's message queue.
+
+Every read of a post is a read by one person and carries that person's state on it, so a screen needs no second read: the reaction counts per emoji, the reader's own reaction, the number of published comments, and whether the reader follows or bookmarked the post. The feeds, one post, a person's own posts, their bookmarks, the pending posts in a moderation queue and the post a write returns all carry the same shape. A person's own posts and their bookmarks are paged like the feeds, newest first; the bookmarks hold only the posts the person may still see. A comment flag in a moderation queue carries the flagged comment with it, so a moderator sees what was flagged. A chat's messages are read newest first: the first page is the latest messages. Every message carries its reaction counts and the reader's own reaction. A person's chat list carries each chat's last message, blank for a deleted message as a member sees it.
 
 The post and chat operations share the actor and the readers. From entitlements they use the access reader on every post write and every feed read. From content they use the community reader for post defaults, topics and the DM settings. For author and sender display they use the profile query that comment authors use today, extended with the profile columns. Each aggregate has its own repository and its own write scope with the outbox; a post write and a chat write never share a transaction.
 

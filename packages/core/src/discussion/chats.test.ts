@@ -86,6 +86,7 @@ function harness(options?: {
   const attachments: { messageId: string; assetIds: string[] }[] = [];
   const blocks: { communityId: string; blocker: string; blocked: string }[] = [];
   const flags: MessageFlag[] = [];
+  const reactions: { messageId: string; orgUserId: string; emoji: string }[] = [];
   const calls: NewDomainEvent[][] = [];
   const members = new Set(
     options?.members ?? [member.id, other.id, third.id, fourth.id, moderator.id],
@@ -139,6 +140,11 @@ function harness(options?: {
           const mine = users.find(
             (user) => user.chatId === chat.id && user.orgUserId === orgUserId,
           );
+          const last = messages
+            .filter((row) => row.chatId === chat.id)
+            .sort(
+              (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+            )[0];
           return {
             chat: { ...chat },
             participantIds: users
@@ -149,6 +155,15 @@ function harness(options?: {
             muted: mine?.muted ?? false,
             mutedUntil: mine?.mutedUntil ?? null,
             unread: 0,
+            lastMessage: last
+              ? {
+                  id: last.id,
+                  orgUserId: last.orgUserId,
+                  body: last.body,
+                  createdAt: last.createdAt,
+                  deletedAt: last.deletedAt,
+                }
+              : null,
           };
         });
     },
@@ -211,7 +226,7 @@ function harness(options?: {
     async listMessages(orgId, chatId, query) {
       const matched = messages
         .filter((row) => row.orgId === orgId && row.chatId === chatId)
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1));
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
       const start = (query.page - 1) * query.pageSize;
       const page: Page<Message> = {
         rows: matched.slice(start, start + query.pageSize).map((row) => ({ ...row })),
@@ -245,7 +260,32 @@ function harness(options?: {
         ),
       );
     },
-    async setReaction() {},
+    async setReaction(_orgId, _communityId, messageId, orgUserId, emoji) {
+      const index = reactions.findIndex(
+        (row) => row.messageId === messageId && row.orgUserId === orgUserId,
+      );
+      if (index >= 0) {
+        reactions.splice(index, 1);
+      }
+      if (emoji !== null) {
+        reactions.push({ messageId, orgUserId, emoji });
+      }
+    },
+    async reactionsOf(_orgId, messageIds, viewerId) {
+      const byMessage: Record<string, { reactions: Record<string, number>; viewerReaction?: string }> =
+        {};
+      for (const row of reactions) {
+        if (!messageIds.includes(row.messageId)) {
+          continue;
+        }
+        const entry = (byMessage[row.messageId] ??= { reactions: {} });
+        entry.reactions[row.emoji] = (entry.reactions[row.emoji] ?? 0) + 1;
+        if (row.orgUserId === viewerId) {
+          entry.viewerReaction = row.emoji;
+        }
+      }
+      return byMessage;
+    },
     async block(_orgId, communityId, blocker, blocked) {
       if (
         !blocks.some(
@@ -1247,5 +1287,75 @@ describe('chats', () => {
       participantIds: [member.id, other.id, third.id].sort(),
     });
     expect(queue.entries[0]?.flags.map((flag) => flag.reason)).toEqual(['spam', 'rude']);
+  });
+
+  it('serves messages newest first with reaction counts and the viewer reaction', async () => {
+    const { svc, messages } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    const first = await svc.send(ORG, member, chat.id, messageInput('First'));
+    const second = await svc.send(ORG, other, chat.id, messageInput('Second'));
+    const third_ = await svc.send(ORG, third, chat.id, messageInput('Third'));
+    for (const [index, id] of [first.id, second.id, third_.id].entries()) {
+      messages.find((row) => row.id === id)!.createdAt = new Date(index * 60_000);
+    }
+    await svc.setReaction(ORG, member, second.id, '👍');
+    await svc.setReaction(ORG, other, second.id, '👍');
+    await svc.setReaction(ORG, third, second.id, '🎉');
+    const page = await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 2 });
+    expect(page.rows.map((row) => row.id)).toEqual([third_.id, second.id]);
+    expect(page).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    expect(page.rows[0]).toMatchObject({ reactions: {}, viewerReaction: null });
+    expect(page.rows[1]).toMatchObject({
+      reactions: { '👍': 2, '🎉': 1 },
+      viewerReaction: '👍',
+    });
+    const rest = await svc.messages(ORG, third, chat.id, { page: 2, pageSize: 2 });
+    expect(rest.rows.map((row) => row.id)).toEqual([first.id]);
+    expect(
+      (await svc.messages(ORG, third, chat.id, { page: 1, pageSize: 20 })).rows[1],
+    ).toMatchObject({ viewerReaction: '🎉' });
+    await svc.setReaction(ORG, member, second.id, null);
+    const edited = await svc.editMessage(ORG, other, second.id, 'Second again');
+    expect(edited).toMatchObject({ reactions: { '👍': 1, '🎉': 1 }, viewerReaction: '👍' });
+    expect(
+      (await svc.messages(ORG, member, chat.id, { page: 1, pageSize: 20 })).rows[1],
+    ).toMatchObject({ viewerReaction: null });
+  });
+
+  it('lists each chat with its last message, blank for a deleted one unless staff reads it', async () => {
+    const { svc, messages } = harness({ settings: { firstMessageIsRequest: false } });
+    const empty = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    const group = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, staff.id],
+    });
+    const earlier = await svc.send(ORG, other, group.id, messageInput('Earlier'));
+    const latest = await svc.send(ORG, member, group.id, messageInput('Latest'));
+    messages.find((row) => row.id === earlier.id)!.createdAt = new Date(0);
+    messages.find((row) => row.id === latest.id)!.createdAt = new Date(60_000);
+    const byId = (items: ChatListItem[]) => new Map(items.map((item) => [item.chat.id, item]));
+    const listed = byId(await svc.listChats(ORG, member, COMMUNITY));
+    expect(listed.get(empty.id)?.lastMessage).toBeNull();
+    expect(listed.get(group.id)?.lastMessage).toEqual({
+      id: latest.id,
+      orgUserId: member.id,
+      body: 'Latest',
+      createdAt: new Date(60_000),
+      deletedAt: null,
+    });
+    await svc.deleteMessage(ORG, member, latest.id);
+    const afterDelete = byId(await svc.listChats(ORG, other, COMMUNITY)).get(group.id);
+    expect(afterDelete?.lastMessage).toMatchObject({ id: latest.id, body: '' });
+    expect(afterDelete?.lastMessage?.deletedAt).toBeInstanceOf(Date);
+    const staffSees = byId(await svc.listChats(ORG, staff, COMMUNITY)).get(group.id);
+    expect(staffSees?.lastMessage).toMatchObject({ id: latest.id, body: 'Latest' });
   });
 });

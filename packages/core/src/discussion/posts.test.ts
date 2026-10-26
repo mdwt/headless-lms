@@ -12,12 +12,12 @@ import type {
   AuthorRoleReader,
   CreatePostInput,
   FeedQuery,
-  PostCommentFlagReader,
+  PostCommentReader,
   PostReactions,
   PostRepository,
   PostUnitOfWork,
 } from './ports.js';
-import type { CommentReport, Post, PostFlag, Role } from '../types/index.js';
+import type { FlaggedComment, Post, PostFlag, Role } from '../types/index.js';
 
 const AT = new Date('2026-10-21T12:00:00.000Z');
 const ORG = 'org-1';
@@ -103,7 +103,8 @@ function harness(options?: {
   const rows: Post[] = [];
   const bookmarks: { postId: string; orgUserId: string }[] = [];
   const flags: PostFlag[] = [];
-  const commentFlagRows: { spaceId: string; flag: CommentReport }[] = [];
+  const commentFlagRows: { spaceId: string; flag: FlaggedComment }[] = [];
+  const commentRows: { postId: string; status: 'pending' | 'published' | 'removed' }[] = [];
   const followed = new Set<string>();
   const reactions: { postId: string; orgUserId: string; emoji: string }[] = [];
   let current = options?.spaces ?? [space()];
@@ -144,20 +145,39 @@ function harness(options?: {
         pageSize: query.pageSize,
       };
     },
-    async listByAuthor(orgId, orgUserId, spaceIds) {
-      return rows
+    async listByAuthor(orgId, orgUserId, spaceIds, query) {
+      const matching = rows
         .filter(
           (row) =>
             row.orgId === orgId && row.orgUserId === orgUserId && spaceIds.includes(row.spaceId),
         )
-        .map((row) => ({ ...row }));
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      const start = (query.page - 1) * query.pageSize;
+      return {
+        rows: matching.slice(start, start + query.pageSize).map((row) => ({ ...row })),
+        total: matching.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
-    async listBookmarked(orgId, orgUserId, spaceIds) {
-      return bookmarks
+    async listBookmarked(orgId, orgUserId, spaceIds, query) {
+      const matching = [...bookmarks]
+        .reverse()
         .filter((mark) => mark.orgUserId === orgUserId)
         .flatMap((mark) => rows.filter((row) => row.id === mark.postId))
-        .filter((row) => row.orgId === orgId && spaceIds.includes(row.spaceId))
-        .map((row) => ({ ...row }));
+        .filter(
+          (row) =>
+            row.orgId === orgId &&
+            spaceIds.includes(row.spaceId) &&
+            (row.orgUserId === orgUserId || query.visibleStatuses.includes(row.status)),
+        );
+      const start = (query.page - 1) * query.pageSize;
+      return {
+        rows: matching.slice(start, start + query.pageSize).map((row) => ({ ...row })),
+        total: matching.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
     async listPending(orgId, spaceId) {
       return rows
@@ -184,18 +204,19 @@ function harness(options?: {
           row.scheduledAt <= now,
       );
     },
-    async reactionsOf(_orgId, postId, viewerId) {
-      const counts: PostReactions = { reactions: {} };
+    async reactionsOf(_orgId, postIds, viewerId) {
+      const byPost: Record<string, PostReactions> = {};
       for (const reaction of reactions) {
-        if (reaction.postId !== postId) {
+        if (!postIds.includes(reaction.postId)) {
           continue;
         }
+        const counts = (byPost[reaction.postId] ??= { reactions: {} });
         counts.reactions[reaction.emoji] = (counts.reactions[reaction.emoji] ?? 0) + 1;
         if (reaction.orgUserId === viewerId) {
           counts.viewerReaction = reaction.emoji;
         }
       }
-      return counts;
+      return byPost;
     },
     async setReaction(_orgId, postId, orgUserId, emoji) {
       const index = reactions.findIndex(
@@ -214,6 +235,9 @@ function harness(options?: {
     async followerIds() {
       return [];
     },
+    async followedAmong(_orgId, postIds, orgUserId) {
+      return postIds.filter((postId) => followed.has(`${postId}:${orgUserId}`));
+    },
     async unfollow(_orgId, postId, orgUserId) {
       followed.delete(`${postId}:${orgUserId}`);
     },
@@ -222,7 +246,19 @@ function harness(options?: {
         bookmarks.push({ postId, orgUserId });
       }
     },
-    async unbookmark() {},
+    async unbookmark(_orgId, postId, orgUserId) {
+      const index = bookmarks.findIndex(
+        (mark) => mark.postId === postId && mark.orgUserId === orgUserId,
+      );
+      if (index >= 0) {
+        bookmarks.splice(index, 1);
+      }
+    },
+    async bookmarkedAmong(_orgId, postIds, orgUserId) {
+      return bookmarks
+        .filter((mark) => mark.orgUserId === orgUserId && postIds.includes(mark.postId))
+        .map((mark) => mark.postId);
+    },
     async insertFlag(_orgId, flag) {
       if (flags.some((row) => row.postId === flag.postId && row.orgUserId === flag.orgUserId)) {
         return null;
@@ -292,14 +328,23 @@ function harness(options?: {
     },
   };
 
-  const commentFlags: PostCommentFlagReader = {
+  const comments: PostCommentReader = {
     async listOpenFlagsForSpace(orgId, spaceId) {
       return commentFlagRows
         .filter(
           (row) =>
             row.flag.orgId === orgId && row.spaceId === spaceId && row.flag.resolvedAt === null,
         )
-        .map((row) => ({ ...row.flag }));
+        .map((row) => ({ ...row.flag, comment: { ...row.flag.comment } }));
+    },
+    async publishedCommentCounts(_orgId, postIds) {
+      const counts: Record<string, number> = {};
+      for (const row of commentRows) {
+        if (row.status === 'published' && postIds.includes(row.postId)) {
+          counts[row.postId] = (counts[row.postId] ?? 0) + 1;
+        }
+      }
+      return counts;
     },
   };
 
@@ -364,7 +409,7 @@ function harness(options?: {
     },
     authors,
     profiles,
-    commentFlags,
+    comments,
     images: options?.images ?? { ownsImage: async () => true },
     assetUrls: signer(options?.unsigned),
     uow,
@@ -376,6 +421,7 @@ function harness(options?: {
     rows,
     flags,
     commentFlagRows,
+    commentRows,
     calls,
     followed,
     setSpaces(next: SpaceDetail[]) {
@@ -702,7 +748,7 @@ describe('posts', () => {
 
   it('includes open comment flags on that space and leaves resolved and other spaces out', async () => {
     const { svc, commentFlagRows } = harness();
-    const open: CommentReport = {
+    const open: FlaggedComment = {
       id: 'crp_open',
       orgId: ORG,
       commentId: 'cmt_1',
@@ -713,6 +759,13 @@ describe('posts', () => {
       resolvedBy: null,
       createdAt: AT,
       updatedAt: AT,
+      comment: {
+        id: 'cmt_1',
+        postId: 'pst_1',
+        body: 'Buy now',
+        orgUserId: member.id,
+        status: 'published',
+      },
     };
     commentFlagRows.push(
       { spaceId: 'spc_1', flag: open },
@@ -730,6 +783,13 @@ describe('posts', () => {
     );
     const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
+    expect(queue.commentFlags[0]?.comment).toEqual({
+      id: 'cmt_1',
+      postId: 'pst_1',
+      body: 'Buy now',
+      orgUserId: member.id,
+      status: 'published',
+    });
   });
 
   it('refuses a cover the author did not upload', async () => {
@@ -837,19 +897,116 @@ describe('posts', () => {
     const draft = await svc.create(ORG, member, draftInput({ mode: 'draft', title: 'Draft' }));
     const published = await svc.create(ORG, member, draftInput({ title: 'Published' }));
     await svc.create(ORG, other, draftInput({ title: 'Theirs' }));
-    const own = await svc.listOwn(ORG, member, 'cmy_1');
-    expect(own.map((post) => post.id).sort()).toEqual([draft.id, published.id].sort());
-    expect(own[0]?.author.id).toBe(member.id);
+    const own = await svc.listOwn(ORG, member, 'cmy_1', feed);
+    expect(own.rows.map((post) => post.id).sort()).toEqual([draft.id, published.id].sort());
+    expect(own.total).toBe(2);
+    expect(own.rows[0]?.author.id).toBe(member.id);
 
     const theirs = await svc.create(ORG, other, draftInput({ title: 'Saved' }));
     await svc.bookmark(ORG, theirs.id, member);
     await svc.bookmark(ORG, published.id, other);
-    expect((await svc.listBookmarked(ORG, member, 'cmy_1')).map((post) => post.id)).toEqual([
-      theirs.id,
-    ]);
+    const saved = await svc.listBookmarked(ORG, member, 'cmy_1', feed);
+    expect(saved.rows.map((post) => post.id)).toEqual([theirs.id]);
+    expect(saved.rows[0]?.bookmarked).toBe(true);
     await svc.remove(ORG, theirs.id, moderator);
-    expect(await svc.listBookmarked(ORG, member, 'cmy_1')).toEqual([]);
-    expect(await svc.listOwn(ORG, outsider, 'cmy_1')).toEqual([]);
+    expect((await svc.listBookmarked(ORG, member, 'cmy_1', feed)).rows).toEqual([]);
+    expect((await svc.listBookmarked(ORG, moderator, 'cmy_1', feed)).rows).toEqual([]);
+    await svc.bookmark(ORG, theirs.id, moderator);
+    expect(
+      (await svc.listBookmarked(ORG, moderator, 'cmy_1', feed)).rows.map((post) => post.id),
+    ).toEqual([theirs.id]);
+    expect((await svc.listOwn(ORG, outsider, 'cmy_1', feed)).rows).toEqual([]);
+  });
+
+  it('pages own posts and bookmarks newest first and carries the total', async () => {
+    const { svc, rows } = harness();
+    const ids: string[] = [];
+    for (const [index, title] of ['One', 'Two', 'Three'].entries()) {
+      const post = await svc.create(ORG, member, draftInput({ title }));
+      const row = rows.find((item) => item.id === post.id);
+      row!.createdAt = new Date(AT.getTime() + index * 60_000);
+      ids.push(post.id);
+      await svc.bookmark(ORG, post.id, other);
+    }
+    const first = await svc.listOwn(ORG, member, 'cmy_1', { page: 1, pageSize: 2 });
+    expect(first.rows.map((post) => post.id)).toEqual([ids[2], ids[1]]);
+    expect(first).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    const second = await svc.listOwn(ORG, member, 'cmy_1', { page: 2, pageSize: 2 });
+    expect(second.rows.map((post) => post.id)).toEqual([ids[0]]);
+    const saved = await svc.listBookmarked(ORG, other, 'cmy_1', { page: 1, pageSize: 2 });
+    expect(saved.rows.map((post) => post.id)).toEqual([ids[2], ids[1]]);
+    expect(saved).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+  });
+
+  it('carries reaction counts, the viewer reaction, comment count, follow and bookmark on every post view', async () => {
+    const { svc, commentRows } = harness();
+    const post = await svc.create(ORG, member, draftInput());
+    await svc.create(ORG, member, draftInput({ title: 'Other' }));
+    await svc.setReaction(ORG, post.id, member, '👍');
+    await svc.setReaction(ORG, post.id, other, '👍');
+    await svc.setReaction(ORG, post.id, moderator, '🎉');
+    await svc.follow(ORG, post.id, other);
+    await svc.bookmark(ORG, post.id, other);
+    commentRows.push(
+      { postId: post.id, status: 'published' },
+      { postId: post.id, status: 'published' },
+      { postId: post.id, status: 'pending' },
+      { postId: post.id, status: 'removed' },
+    );
+    const state = {
+      reactions: { '👍': 2, '🎉': 1 },
+      commentCount: 2,
+    };
+    expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
+      ...state,
+      viewerReaction: '👍',
+      following: true,
+      bookmarked: true,
+    });
+    expect(await svc.getPost(ORG, moderator, post.id)).toMatchObject({
+      ...state,
+      viewerReaction: '🎉',
+      following: false,
+      bookmarked: false,
+    });
+    const bare = { reactions: {}, viewerReaction: null, commentCount: 0 };
+    const feedPage = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed);
+    expect(feedPage.rows.find((row) => row.id === post.id)).toMatchObject({
+      ...state,
+      viewerReaction: '👍',
+      following: true,
+      bookmarked: true,
+    });
+    expect(feedPage.rows.find((row) => row.title === 'Other')).toMatchObject({
+      ...bare,
+      following: false,
+      bookmarked: false,
+    });
+    expect(
+      (await svc.memberFeed(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
+    ).toMatchObject({
+      viewerReaction: '👍',
+      following: false,
+      bookmarked: false,
+    });
+    expect((await svc.listOwn(ORG, member, 'cmy_1', feed)).rows[0]).toMatchObject(state);
+    expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject({
+      ...state,
+      bookmarked: true,
+    });
+    expect(await svc.pin(ORG, post.id, moderator)).toMatchObject({
+      ...state,
+      viewerReaction: '🎉',
+    });
+    await svc.unfollow(ORG, post.id, other);
+    await svc.unbookmark(ORG, post.id, other);
+    await svc.setReaction(ORG, post.id, other, null);
+    expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
+      reactions: { '👍': 1, '🎉': 1 },
+      viewerReaction: null,
+      following: false,
+      bookmarked: false,
+    });
   });
 
   it('pages a feed by page and size, pinned first, then newest, then id', async () => {
@@ -932,9 +1089,9 @@ describe('posts', () => {
     expect(await svc.setReactions(ORG, id, moderator, false)).toMatchObject(signed);
     expect((await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed)).rows[0]).toMatchObject(signed);
     expect((await svc.memberFeed(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
-    expect((await svc.listOwn(ORG, member, 'cmy_1'))[0]).toMatchObject(signed);
+    expect((await svc.listOwn(ORG, member, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
     await svc.bookmark(ORG, id, other);
-    expect((await svc.listBookmarked(ORG, other, 'cmy_1'))[0]).toMatchObject(signed);
+    expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
     expect(await svc.remove(ORG, id, member)).toMatchObject(signed);
     expect(await svc.restore(ORG, id, moderator)).toMatchObject(signed);
 

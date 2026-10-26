@@ -153,7 +153,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'listChatMessages',
       tags,
-      summary: 'Read the messages in a chat',
+      summary: 'Read the messages in a chat, newest first',
       params: ChatIdParam,
       querystring: PageQuery,
       response: { 200: MessagesPage, ...errors },

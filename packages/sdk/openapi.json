@@ -6146,6 +6146,18 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "reactions": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "viewerReaction": {
+                                "nullable": true,
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -6161,7 +6173,9 @@
                               "createdAt",
                               "updatedAt",
                               "sender",
-                              "attachments"
+                              "attachments",
+                              "reactions",
+                              "viewerReaction"
                             ],
                             "additionalProperties": false
                           },
@@ -18829,6 +18843,29 @@
                               "role"
                             ],
                             "additionalProperties": false
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "commentCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "following": {
+                            "type": "boolean"
+                          },
+                          "bookmarked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -18852,7 +18889,12 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
-                          "author"
+                          "author",
+                          "reactions",
+                          "viewerReaction",
+                          "commentCount",
+                          "following",
+                          "bookmarked"
                         ],
                         "additionalProperties": false
                       }
@@ -19067,6 +19109,28 @@
         "parameters": [
           {
             "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string"
             },
             "in": "path",
@@ -19080,183 +19144,238 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "orgId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "id": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "communityId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "spaceId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "orgUserId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "topicId": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "title": {
-                        "type": "string"
-                      },
-                      "body": {
-                        "type": "string"
-                      },
-                      "extra": {
-                        "$ref": "#/components/schemas/JsonValue"
-                      },
-                      "coverAssetId": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "draft",
-                          "scheduled",
-                          "pending",
-                          "published",
-                          "removed"
-                        ]
-                      },
-                      "scheduledAt": {
-                        "nullable": true,
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "publishedAt": {
-                        "nullable": true,
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "removedBy": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "pinned": {
-                        "type": "boolean"
-                      },
-                      "commentsClosed": {
-                        "nullable": true,
-                        "type": "boolean"
-                      },
-                      "reactionsEnabled": {
-                        "nullable": true,
-                        "type": "boolean"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "coverUrl": {
-                        "nullable": true,
-                        "type": "string"
-                      },
-                      "author": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
+                          "orgId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
                           },
-                          "firstName": {
-                            "nullable": true,
-                            "type": "string"
+                          "communityId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "lastName": {
-                            "nullable": true,
-                            "type": "string"
+                          "spaceId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "displayName": {
-                            "nullable": true,
-                            "type": "string"
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "headline": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "image": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "imageAssetId": {
+                          "topicId": {
                             "nullable": true,
                             "type": "string",
                             "minLength": 1
                           },
-                          "imageUrl": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "coverAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "scheduled",
+                              "pending",
+                              "published",
+                              "removed"
+                            ]
+                          },
+                          "scheduledAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "publishedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "removedBy": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "pinned": {
+                            "type": "boolean"
+                          },
+                          "commentsClosed": {
+                            "nullable": true,
+                            "type": "boolean"
+                          },
+                          "reactionsEnabled": {
+                            "nullable": true,
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "coverUrl": {
                             "nullable": true,
                             "type": "string"
                           },
-                          "role": {
-                            "type": "string",
-                            "enum": [
-                              "owner",
-                              "admin",
-                              "instructor",
-                              "moderator",
-                              "student"
-                            ]
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "imageUrl",
+                              "role"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "commentCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "following": {
+                            "type": "boolean"
+                          },
+                          "bookmarked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
+                          "orgId",
                           "id",
-                          "firstName",
-                          "lastName",
-                          "displayName",
-                          "headline",
-                          "image",
-                          "imageAssetId",
-                          "imageUrl",
-                          "role"
+                          "communityId",
+                          "spaceId",
+                          "orgUserId",
+                          "topicId",
+                          "title",
+                          "body",
+                          "extra",
+                          "coverAssetId",
+                          "status",
+                          "scheduledAt",
+                          "publishedAt",
+                          "removedBy",
+                          "pinned",
+                          "commentsClosed",
+                          "reactionsEnabled",
+                          "createdAt",
+                          "updatedAt",
+                          "coverUrl",
+                          "author",
+                          "reactions",
+                          "viewerReaction",
+                          "commentCount",
+                          "following",
+                          "bookmarked"
                         ],
                         "additionalProperties": false
                       }
                     },
-                    "required": [
-                      "orgId",
-                      "id",
-                      "communityId",
-                      "spaceId",
-                      "orgUserId",
-                      "topicId",
-                      "title",
-                      "body",
-                      "extra",
-                      "coverAssetId",
-                      "status",
-                      "scheduledAt",
-                      "publishedAt",
-                      "removedBy",
-                      "pinned",
-                      "commentsClosed",
-                      "reactionsEnabled",
-                      "createdAt",
-                      "updatedAt",
-                      "coverUrl",
-                      "author"
-                    ],
-                    "additionalProperties": false
-                  }
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -19437,11 +19556,33 @@
     "/api/member/communities/{communityId}/bookmarks": {
       "get": {
         "operationId": "listBookmarkedPosts",
-        "summary": "The posts you bookmarked in a community",
+        "summary": "The posts you bookmarked in a community, newest bookmark first",
         "tags": [
           "Posts"
         ],
         "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
           {
             "schema": {
               "type": "string"
@@ -19457,183 +19598,238 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "orgId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "id": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "communityId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "spaceId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "orgUserId": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "topicId": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "title": {
-                        "type": "string"
-                      },
-                      "body": {
-                        "type": "string"
-                      },
-                      "extra": {
-                        "$ref": "#/components/schemas/JsonValue"
-                      },
-                      "coverAssetId": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "draft",
-                          "scheduled",
-                          "pending",
-                          "published",
-                          "removed"
-                        ]
-                      },
-                      "scheduledAt": {
-                        "nullable": true,
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "publishedAt": {
-                        "nullable": true,
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "removedBy": {
-                        "nullable": true,
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "pinned": {
-                        "type": "boolean"
-                      },
-                      "commentsClosed": {
-                        "nullable": true,
-                        "type": "boolean"
-                      },
-                      "reactionsEnabled": {
-                        "nullable": true,
-                        "type": "boolean"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "coverUrl": {
-                        "nullable": true,
-                        "type": "string"
-                      },
-                      "author": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
                         "type": "object",
                         "properties": {
+                          "orgId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
                           },
-                          "firstName": {
-                            "nullable": true,
-                            "type": "string"
+                          "communityId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "lastName": {
-                            "nullable": true,
-                            "type": "string"
+                          "spaceId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "displayName": {
-                            "nullable": true,
-                            "type": "string"
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
                           },
-                          "headline": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "image": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "imageAssetId": {
+                          "topicId": {
                             "nullable": true,
                             "type": "string",
                             "minLength": 1
                           },
-                          "imageUrl": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "extra": {
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "coverAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "scheduled",
+                              "pending",
+                              "published",
+                              "removed"
+                            ]
+                          },
+                          "scheduledAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "publishedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "removedBy": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "pinned": {
+                            "type": "boolean"
+                          },
+                          "commentsClosed": {
+                            "nullable": true,
+                            "type": "boolean"
+                          },
+                          "reactionsEnabled": {
+                            "nullable": true,
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "coverUrl": {
                             "nullable": true,
                             "type": "string"
                           },
-                          "role": {
-                            "type": "string",
-                            "enum": [
-                              "owner",
-                              "admin",
-                              "instructor",
-                              "moderator",
-                              "student"
-                            ]
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "owner",
+                                  "admin",
+                                  "instructor",
+                                  "moderator",
+                                  "student"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "imageUrl",
+                              "role"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "commentCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "following": {
+                            "type": "boolean"
+                          },
+                          "bookmarked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
+                          "orgId",
                           "id",
-                          "firstName",
-                          "lastName",
-                          "displayName",
-                          "headline",
-                          "image",
-                          "imageAssetId",
-                          "imageUrl",
-                          "role"
+                          "communityId",
+                          "spaceId",
+                          "orgUserId",
+                          "topicId",
+                          "title",
+                          "body",
+                          "extra",
+                          "coverAssetId",
+                          "status",
+                          "scheduledAt",
+                          "publishedAt",
+                          "removedBy",
+                          "pinned",
+                          "commentsClosed",
+                          "reactionsEnabled",
+                          "createdAt",
+                          "updatedAt",
+                          "coverUrl",
+                          "author",
+                          "reactions",
+                          "viewerReaction",
+                          "commentCount",
+                          "following",
+                          "bookmarked"
                         ],
                         "additionalProperties": false
                       }
                     },
-                    "required": [
-                      "orgId",
-                      "id",
-                      "communityId",
-                      "spaceId",
-                      "orgUserId",
-                      "topicId",
-                      "title",
-                      "body",
-                      "extra",
-                      "coverAssetId",
-                      "status",
-                      "scheduledAt",
-                      "publishedAt",
-                      "removedBy",
-                      "pinned",
-                      "commentsClosed",
-                      "reactionsEnabled",
-                      "createdAt",
-                      "updatedAt",
-                      "coverUrl",
-                      "author"
-                    ],
-                    "additionalProperties": false
-                  }
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -20025,6 +20221,29 @@
                               "role"
                             ],
                             "additionalProperties": false
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "commentCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "following": {
+                            "type": "boolean"
+                          },
+                          "bookmarked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -20048,7 +20267,12 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
-                          "author"
+                          "author",
+                          "reactions",
+                          "viewerReaction",
+                          "commentCount",
+                          "following",
+                          "bookmarked"
                         ],
                         "additionalProperties": false
                       }
@@ -20437,6 +20661,29 @@
                               "role"
                             ],
                             "additionalProperties": false
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "commentCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "following": {
+                            "type": "boolean"
+                          },
+                          "bookmarked": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -20460,7 +20707,12 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
-                          "author"
+                          "author",
+                          "reactions",
+                          "viewerReaction",
+                          "commentCount",
+                          "following",
+                          "bookmarked"
                         ],
                         "additionalProperties": false
                       }
@@ -20580,6 +20832,42 @@
                           "updatedAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "comment": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "postId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "body": {
+                                "type": "string"
+                              },
+                              "orgUserId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "published",
+                                  "removed"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "postId",
+                              "body",
+                              "orgUserId",
+                              "status"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -20592,7 +20880,8 @@
                           "resolution",
                           "resolvedBy",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "comment"
                         ],
                         "additionalProperties": false
                       }
@@ -21015,6 +21304,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -21038,7 +21350,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -21389,6 +21706,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -21412,7 +21752,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -21796,6 +22141,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -21819,7 +22187,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -22170,6 +22543,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -22193,7 +22589,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -22561,6 +22962,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -22584,7 +23008,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -22935,6 +23364,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -22958,7 +23410,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -23309,6 +23766,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -23332,7 +23812,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -23683,6 +24168,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -23706,7 +24214,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -24057,6 +24570,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -24080,7 +24616,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -24431,6 +24972,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -24454,7 +25018,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -24805,6 +25374,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -24828,7 +25420,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -25179,6 +25776,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -25202,7 +25822,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -25572,6 +26197,29 @@
                         "role"
                       ],
                       "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -25595,7 +26243,12 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
-                    "author"
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
                   ],
                   "additionalProperties": false
                 }
@@ -28241,6 +28894,40 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "lastMessage": {
+                        "nullable": true,
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "deletedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "orgUserId",
+                          "body",
+                          "createdAt",
+                          "deletedAt"
+                        ],
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -28249,7 +28936,8 @@
                       "lastReadMessageId",
                       "muted",
                       "mutedUntil",
-                      "unread"
+                      "unread",
+                      "lastMessage"
                     ],
                     "additionalProperties": false
                   }
@@ -29821,7 +30509,7 @@
     "/api/member/chats/{chatId}/messages": {
       "get": {
         "operationId": "listChatMessages",
-        "summary": "Read the messages in a chat",
+        "summary": "Read the messages in a chat, newest first",
         "tags": [
           "Chats"
         ],
@@ -29995,6 +30683,18 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "reactions": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "viewerReaction": {
+                            "nullable": true,
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -30010,7 +30710,9 @@
                           "createdAt",
                           "updatedAt",
                           "sender",
-                          "attachments"
+                          "attachments",
+                          "reactions",
+                          "viewerReaction"
                         ],
                         "additionalProperties": false
                       }
@@ -30396,6 +31098,18 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -30411,7 +31125,9 @@
                     "createdAt",
                     "updatedAt",
                     "sender",
-                    "attachments"
+                    "attachments",
+                    "reactions",
+                    "viewerReaction"
                   ],
                   "additionalProperties": false
                 }
@@ -30761,6 +31477,18 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -30776,7 +31504,9 @@
                     "createdAt",
                     "updatedAt",
                     "sender",
-                    "attachments"
+                    "attachments",
+                    "reactions",
+                    "viewerReaction"
                   ],
                   "additionalProperties": false
                 }
@@ -31104,6 +31834,18 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -31119,7 +31861,9 @@
                     "createdAt",
                     "updatedAt",
                     "sender",
-                    "attachments"
+                    "attachments",
+                    "reactions",
+                    "viewerReaction"
                   ],
                   "additionalProperties": false
                 }

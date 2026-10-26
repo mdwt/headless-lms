@@ -3556,12 +3556,22 @@ export class Posts {
   public static listOwnPosts<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
+      page?: number;
+      pageSize?: number;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListOwnPostsResponses, ListOwnPostsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
-      [{ args: [{ in: "path", key: "communityId" }] }],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
     );
     return (options?.client ?? client).get<
       ListOwnPostsResponses,
@@ -3577,17 +3587,27 @@ export class Posts {
   }
 
   /**
-   * The posts you bookmarked in a community
+   * The posts you bookmarked in a community, newest bookmark first
    */
   public static listBookmarkedPosts<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
+      page?: number;
+      pageSize?: number;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListBookmarkedPostsResponses, ListBookmarkedPostsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
-      [{ args: [{ in: "path", key: "communityId" }] }],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
     );
     return (options?.client ?? client).get<
       ListBookmarkedPostsResponses,
@@ -4525,7 +4545,7 @@ export class Chats {
   }
 
   /**
-   * Read the messages in a chat
+   * Read the messages in a chat, newest first
    */
   public static listChatMessages<ThrowOnError extends boolean = false>(
     parameters: {

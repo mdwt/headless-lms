@@ -1,6 +1,11 @@
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { ChatListItem, ChatRepository, FeedQuery } from "@headless-lms/core/discussion";
+import type {
+  ChatListItem,
+  ChatRepository,
+  FeedQuery,
+  MessageReactions,
+} from "@headless-lms/core/discussion";
 import type {
   Chat,
   ChatUser,
@@ -234,18 +239,39 @@ export class DrizzleChatRepository implements ChatRepository {
       return [];
     }
     const ids = rows.map((row) => row.chat.id);
-    const people = await this.db
-      .select()
-      .from(chatUsers)
-      .where(
-        and(eq(chatUsers.orgId, orgId), inArray(chatUsers.chatId, ids), isNull(chatUsers.leftAt)),
-      );
+    const [people, latest] = await Promise.all([
+      this.db
+        .select()
+        .from(chatUsers)
+        .where(
+          and(
+            eq(chatUsers.orgId, orgId),
+            inArray(chatUsers.chatId, ids),
+            isNull(chatUsers.leftAt),
+          ),
+        ),
+      this.db
+        .selectDistinctOn([messages.chatId], {
+          chatId: messages.chatId,
+          id: messages.id,
+          orgUserId: messages.orgUserId,
+          body: messages.body,
+          createdAt: messages.createdAt,
+          deletedAt: messages.deletedAt,
+        })
+        .from(messages)
+        .where(and(eq(messages.orgId, orgId), inArray(messages.chatId, ids)))
+        .orderBy(asc(messages.chatId), desc(messages.createdAt), desc(messages.id)),
+    ]);
     const byChat = new Map<string, string[]>();
     for (const person of people) {
       const list = byChat.get(person.chatId) ?? [];
       list.push(person.orgUserId);
       byChat.set(person.chatId, list);
     }
+    const lastByChat = new Map(
+      latest.map(({ chatId, ...message }) => [chatId, message] as const),
+    );
     return rows.map((row) => ({
       chat: toChat(row.chat),
       participantIds: (byChat.get(row.chat.id) ?? []).sort(),
@@ -253,6 +279,7 @@ export class DrizzleChatRepository implements ChatRepository {
       muted: row.muted,
       mutedUntil: row.mutedUntil,
       unread: row.unread,
+      lastMessage: lastByChat.get(row.chat.id) ?? null,
     }));
   }
 
@@ -397,7 +424,7 @@ export class DrizzleChatRepository implements ChatRepository {
       .select()
       .from(messages)
       .where(where)
-      .orderBy(asc(messages.createdAt), asc(messages.id))
+      .orderBy(desc(messages.createdAt), desc(messages.id))
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
     const [{ total } = { total: 0 }] = await this.db
@@ -474,6 +501,40 @@ export class DrizzleChatRepository implements ChatRepository {
         target: [messageReactions.orgId, messageReactions.messageId, messageReactions.orgUserId],
         set: { emoji, updatedAt: new Date() },
       });
+  }
+
+  async reactionsOf(
+    orgId: string,
+    messageIds: string[],
+    viewerId: string,
+  ): Promise<Record<string, MessageReactions>> {
+    if (messageIds.length === 0) {
+      return {};
+    }
+    const rows = await this.db
+      .select({
+        messageId: messageReactions.messageId,
+        emoji: messageReactions.emoji,
+        count: sql<number>`cast(count(*) as int)`,
+        mine: sql<boolean>`bool_or(${messageReactions.orgUserId} = ${viewerId})`,
+      })
+      .from(messageReactions)
+      .where(
+        and(
+          eq(messageReactions.orgId, orgId),
+          inArray(messageReactions.messageId, [...new Set(messageIds)]),
+        ),
+      )
+      .groupBy(messageReactions.messageId, messageReactions.emoji);
+    const byMessage: Record<string, MessageReactions> = {};
+    for (const row of rows) {
+      const entry = (byMessage[row.messageId] ??= { reactions: {} });
+      entry.reactions[row.emoji] = row.count;
+      if (row.mine) {
+        entry.viewerReaction = row.emoji;
+      }
+    }
+    return byMessage;
   }
 
   async block(

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  commentReportSchema,
+  flaggedCommentSchema,
   jsonValueSchema,
   postFlagSchema,
   postViewSchema,
@@ -11,7 +11,6 @@ import { PageQuery, paginated } from './shared.js';
 export const PostView = postViewSchema;
 export const PostFlag = postFlagSchema;
 export const PostFeedPage = paginated(PostView);
-export const PostViews = z.array(PostView);
 export const PostIdParam = z.object({ postId: z.string() });
 export const FeedQuery = PageQuery.extend({ topicId: z.string().optional() }).strict();
 
@@ -51,7 +50,7 @@ export const PostReactions = z.object({
 export const SpaceQueue = z.object({
   pending: z.array(PostView),
   flags: z.array(PostFlag),
-  commentFlags: z.array(commentReportSchema),
+  commentFlags: z.array(flaggedCommentSchema),
 });
 
 export const PostComments = z.array(CommentView);

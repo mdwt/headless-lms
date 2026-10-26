@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  chatLastMessageSchema,
   chatSchema,
   messageFlagResolutionSchema,
   messageFlagSchema,
@@ -19,6 +20,7 @@ export const ChatListItem = z.object({
   muted: z.boolean(),
   mutedUntil: z.coerce.date().nullable(),
   unread: z.number().int(),
+  lastMessage: chatLastMessageSchema.nullable(),
 });
 
 export const MessageQueueEntry = z.object({

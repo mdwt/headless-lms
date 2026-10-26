@@ -42,6 +42,126 @@ describe("DrizzlePostRepository.listPublished", () => {
   });
 });
 
+function capture(countRows: unknown[][] = [[0]]) {
+  const statements: { text: string; params: unknown[] }[] = [];
+  const client = {
+    async query(config: string | { text: string }, params: unknown[] = []) {
+      const text = typeof config === "string" ? config : config.text;
+      statements.push({ text, params });
+      return text.includes("count(*)")
+        ? { rows: countRows, rowCount: countRows.length }
+        : { rows: [], rowCount: 0 };
+    },
+  };
+  return { statements, repo: new DrizzlePostRepository(drizzle({ client: client as never })) };
+}
+
+describe("DrizzlePostRepository.listByAuthor", () => {
+  it("pages the author's posts newest first with a count", async () => {
+    const { repo, statements } = capture([[4]]);
+    await expect(
+      repo.listByAuthor("org1", "ou_1", ["spc_1", "spc_2"], { page: 2, pageSize: 3 }),
+    ).resolves.toEqual({ rows: [], total: 4, page: 2, pageSize: 3 });
+    expect(statements).toHaveLength(2);
+    expect(statements[0]?.text).toMatch(
+      /where \("posts"\."org_id" = \$\d+ and "posts"\."org_user_id" = \$\d+ and "posts"\."space_id" in \(\$\d+, \$\d+\)\) order by "posts"\."created_at" desc, "posts"\."id" desc limit \$\d+ offset \$\d+$/,
+    );
+    expect(statements[0]?.params).toEqual(["org1", "ou_1", "spc_1", "spc_2", 3, 3]);
+    expect(statements[1]?.text).toMatch(/^select cast\(count\(\*\) as int\) .*from "posts" where /);
+  });
+
+  it("returns an empty page without a query when there are no spaces", async () => {
+    const { repo, statements } = capture();
+    await expect(repo.listByAuthor("org1", "ou_1", [], { page: 1, pageSize: 20 })).resolves.toEqual(
+      { rows: [], total: 0, page: 1, pageSize: 20 },
+    );
+    expect(statements).toHaveLength(0);
+  });
+});
+
+describe("DrizzlePostRepository.listBookmarked", () => {
+  it("pages newest bookmark first, keeping own posts and others' visible statuses", async () => {
+    const { repo, statements } = capture([[9]]);
+    await expect(
+      repo.listBookmarked("org1", "ou_1", ["spc_1"], {
+        page: 1,
+        pageSize: 10,
+        visibleStatuses: ["published", "pending"],
+      }),
+    ).resolves.toEqual({ rows: [], total: 9, page: 1, pageSize: 10 });
+    expect(statements).toHaveLength(2);
+    expect(statements[0]?.text).toMatch(
+      /from "post_bookmarks" inner join "posts" on .* where \("post_bookmarks"\."org_id" = \$\d+ and "post_bookmarks"\."org_user_id" = \$\d+ and "posts"\."space_id" in \(\$\d+\) and \("posts"\."org_user_id" = \$\d+ or "posts"\."status" in \(\$\d+, \$\d+\)\)\) order by "post_bookmarks"\."created_at" desc, "posts"\."id" desc limit \$\d+$/,
+    );
+    expect(statements[0]?.params).toEqual([
+      "org1",
+      "ou_1",
+      "spc_1",
+      "ou_1",
+      "published",
+      "pending",
+      10,
+    ]);
+    expect(statements[1]?.text).toMatch(
+      /^select cast\(count\(\*\) as int\) .*from "post_bookmarks" inner join "posts" .* where /,
+    );
+    expect(statements[1]?.params).toEqual(["org1", "ou_1", "spc_1", "ou_1", "published", "pending"]);
+  });
+});
+
+describe("DrizzlePostRepository viewer state", () => {
+  it("groups reaction counts by post and emoji for the whole page in one query", async () => {
+    const statements: { text: string; params: unknown[] }[] = [];
+    const client = {
+      async query(config: string | { text: string }, params: unknown[] = []) {
+        statements.push({ text: typeof config === "string" ? config : config.text, params });
+        return {
+          rows: [
+            ["pst_1", "👍", 2, true],
+            ["pst_1", "🎉", 1, false],
+            ["pst_3", "👍", 1, false],
+          ],
+          rowCount: 3,
+        };
+      },
+    };
+    const repo = new DrizzlePostRepository(drizzle({ client: client as never }));
+    await expect(repo.reactionsOf("org1", ["pst_1", "pst_2", "pst_3"], "ou_1")).resolves.toEqual({
+      pst_1: { reactions: { "👍": 2, "🎉": 1 }, viewerReaction: "👍" },
+      pst_3: { reactions: { "👍": 1 } },
+    });
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.text).toMatch(
+      /^select "post_id", "emoji", cast\(count\(\*\) as int\), bool_or\("org_user_id" = \$\d+\) from "post_reactions" where \("post_reactions"\."org_id" = \$\d+ and "post_reactions"\."post_id" in \(\$\d+, \$\d+, \$\d+\)\) group by "post_reactions"\."post_id", "post_reactions"\."emoji"$/,
+    );
+    expect(statements[0]?.params).toEqual(["ou_1", "org1", "pst_1", "pst_2", "pst_3"]);
+  });
+
+  it("reads the viewer's follows and bookmarks among a page of posts in one query each", async () => {
+    const { repo, statements } = capture();
+    await repo.followedAmong("org1", ["pst_1", "pst_2"], "ou_1");
+    await repo.bookmarkedAmong("org1", ["pst_1", "pst_2"], "ou_1");
+    expect(statements).toHaveLength(2);
+    expect(statements[0]?.text).toMatch(
+      /^select "post_id" from "post_follows" where \("post_follows"\."org_id" = \$\d+ and "post_follows"\."org_user_id" = \$\d+ and "post_follows"\."post_id" in \(\$\d+, \$\d+\)\)$/,
+    );
+    expect(statements[1]?.text).toMatch(
+      /^select "post_id" from "post_bookmarks" where \("post_bookmarks"\."org_id" = \$\d+ and "post_bookmarks"\."org_user_id" = \$\d+ and "post_bookmarks"\."post_id" in \(\$\d+, \$\d+\)\)$/,
+    );
+    for (const statement of statements) {
+      expect(statement.params).toEqual(["org1", "ou_1", "pst_1", "pst_2"]);
+    }
+  });
+
+  it("skips the query for an empty page", async () => {
+    const { repo, statements } = capture();
+    await expect(repo.reactionsOf("org1", [], "ou_1")).resolves.toEqual({});
+    await expect(repo.followedAmong("org1", [], "ou_1")).resolves.toEqual([]);
+    await expect(repo.bookmarkedAmong("org1", [], "ou_1")).resolves.toEqual([]);
+    expect(statements).toHaveLength(0);
+  });
+});
+
 describe("DrizzlePostRepository.hasDue", () => {
   it("asks for the existence of one due post instead of loading them", async () => {
     const statements: { text: string; params: unknown[] }[] = [];

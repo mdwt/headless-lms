@@ -579,11 +579,16 @@ export class ChatServiceImpl implements ChatService {
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
     const now = new Date();
-    const items = (await this.repo.listForUser(orgId, communityId, actor.id)).map((item) =>
-      item.muted && item.mutedUntil !== null && item.mutedUntil <= now
-        ? { ...item, muted: false, mutedUntil: null }
-        : item,
-    );
+    const items = (await this.repo.listForUser(orgId, communityId, actor.id)).map((item) => ({
+      ...item,
+      ...(item.muted && item.mutedUntil !== null && item.mutedUntil <= now
+        ? { muted: false, mutedUntil: null }
+        : {}),
+      lastMessage:
+        item.lastMessage && item.lastMessage.deletedAt !== null && !isStaffRole(actor.role)
+          ? { ...item.lastMessage, body: '' }
+          : item.lastMessage,
+    }));
     this.logger.debug('chats listed', { orgId, communityId, count: items.length });
     return items;
   }
@@ -1031,12 +1036,11 @@ export class ChatServiceImpl implements ChatService {
     if (messages.length === 0) {
       return [];
     }
-    const [records, attached] = await Promise.all([
+    const messageIds = messages.map((message) => message.id);
+    const [records, attached, reactions] = await Promise.all([
       this.profiles.authorsOf(orgId, [...new Set(messages.map((message) => message.orgUserId))]),
-      this.repo.attachmentsOf(
-        orgId,
-        messages.map((message) => message.id),
-      ),
+      this.repo.attachmentsOf(orgId, messageIds),
+      this.repo.reactionsOf(orgId, messageIds, actor.id),
     ]);
     const shown = (message: Message) =>
       message.deletedAt !== null && !isStaffRole(actor.role) ? [] : (attached[message.id] ?? []);
@@ -1049,6 +1053,7 @@ export class ChatServiceImpl implements ChatService {
       if (!record) {
         throw new NotFoundError('Member', message.orgUserId);
       }
+      const counts = reactions[message.id];
       return {
         ...this.present(message, actor),
         sender: authorView(orgId, record, urls),
@@ -1056,6 +1061,8 @@ export class ChatServiceImpl implements ChatService {
           const url = urls[assetId];
           return url ? [{ assetId, url }] : [];
         }),
+        reactions: counts?.reactions ?? {},
+        viewerReaction: counts?.viewerReaction ?? null,
       };
     });
   }

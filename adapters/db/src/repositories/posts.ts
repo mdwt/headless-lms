@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
+  BookmarkQuery,
   FeedQuery,
+  PageQuery,
   PostReactions,
   PostRepository,
   PostPatch,
@@ -137,28 +139,49 @@ export class DrizzlePostRepository implements PostRepository {
     return { rows: rows.map(toPost), total, page: query.page, pageSize: query.pageSize };
   }
 
-  async listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]> {
+  async listByAuthor(
+    orgId: string,
+    orgUserId: string,
+    spaceIds: string[],
+    query: PageQuery,
+  ): Promise<Page<Post>> {
     if (spaceIds.length === 0) {
-      return [];
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
     }
+    const where = and(
+      eq(posts.orgId, orgId),
+      eq(posts.orgUserId, orgUserId),
+      inArray(posts.spaceId, spaceIds),
+    );
     const rows = await this.db
       .select()
       .from(posts)
-      .where(
-        and(
-          eq(posts.orgId, orgId),
-          eq(posts.orgUserId, orgUserId),
-          inArray(posts.spaceId, spaceIds),
-        ),
-      )
-      .orderBy(desc(posts.createdAt), desc(posts.id));
-    return rows.map(toPost);
+      .where(where)
+      .orderBy(desc(posts.createdAt), desc(posts.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(posts)
+      .where(where);
+    return { rows: rows.map(toPost), total, page: query.page, pageSize: query.pageSize };
   }
 
-  async listBookmarked(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]> {
+  async listBookmarked(
+    orgId: string,
+    orgUserId: string,
+    spaceIds: string[],
+    query: BookmarkQuery,
+  ): Promise<Page<Post>> {
     if (spaceIds.length === 0) {
-      return [];
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
     }
+    const where = and(
+      eq(postBookmarks.orgId, orgId),
+      eq(postBookmarks.orgUserId, orgUserId),
+      inArray(posts.spaceId, spaceIds),
+      or(eq(posts.orgUserId, orgUserId), inArray(posts.status, query.visibleStatuses)),
+    );
     const rows = await this.db
       .select({ post: posts })
       .from(postBookmarks)
@@ -166,15 +189,24 @@ export class DrizzlePostRepository implements PostRepository {
         posts,
         and(eq(posts.orgId, postBookmarks.orgId), eq(posts.id, postBookmarks.postId)),
       )
-      .where(
-        and(
-          eq(postBookmarks.orgId, orgId),
-          eq(postBookmarks.orgUserId, orgUserId),
-          inArray(posts.spaceId, spaceIds),
-        ),
+      .where(where)
+      .orderBy(desc(postBookmarks.createdAt), desc(posts.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(postBookmarks)
+      .innerJoin(
+        posts,
+        and(eq(posts.orgId, postBookmarks.orgId), eq(posts.id, postBookmarks.postId)),
       )
-      .orderBy(desc(postBookmarks.createdAt), desc(posts.id));
-    return rows.map((row) => toPost(row.post));
+      .where(where);
+    return {
+      rows: rows.map((row) => toPost(row.post)),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   async listPending(orgId: string, spaceId: string): Promise<Post[]> {
@@ -209,24 +241,33 @@ export class DrizzlePostRepository implements PostRepository {
     return result.rows[0]?.due === true;
   }
 
-  async reactionsOf(orgId: string, postId: string, viewerId: string): Promise<PostReactions> {
+  async reactionsOf(
+    orgId: string,
+    postIds: string[],
+    viewerId: string,
+  ): Promise<Record<string, PostReactions>> {
+    if (postIds.length === 0) {
+      return {};
+    }
     const rows = await this.db
       .select({
+        postId: postReactions.postId,
         emoji: postReactions.emoji,
         count: sql<number>`cast(count(*) as int)`,
         mine: sql<boolean>`bool_or(${postReactions.orgUserId} = ${viewerId})`,
       })
       .from(postReactions)
-      .where(and(eq(postReactions.orgId, orgId), eq(postReactions.postId, postId)))
-      .groupBy(postReactions.emoji);
-    const reactions: PostReactions = { reactions: {} };
+      .where(and(eq(postReactions.orgId, orgId), inArray(postReactions.postId, postIds)))
+      .groupBy(postReactions.postId, postReactions.emoji);
+    const byPost: Record<string, PostReactions> = {};
     for (const row of rows) {
-      reactions.reactions[row.emoji] = row.count;
+      const entry = (byPost[row.postId] ??= { reactions: {} });
+      entry.reactions[row.emoji] = row.count;
       if (row.mine) {
-        reactions.viewerReaction = row.emoji;
+        entry.viewerReaction = row.emoji;
       }
     }
-    return reactions;
+    return byPost;
   }
 
   async setReaction(
@@ -268,6 +309,23 @@ export class DrizzlePostRepository implements PostRepository {
     return rows.map((row) => row.orgUserId);
   }
 
+  async followedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]> {
+    if (postIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ postId: postFollows.postId })
+      .from(postFollows)
+      .where(
+        and(
+          eq(postFollows.orgId, orgId),
+          eq(postFollows.orgUserId, orgUserId),
+          inArray(postFollows.postId, postIds),
+        ),
+      );
+    return rows.map((row) => row.postId);
+  }
+
   async unfollow(orgId: string, postId: string, orgUserId: string): Promise<void> {
     await this.db
       .delete(postFollows)
@@ -294,6 +352,23 @@ export class DrizzlePostRepository implements PostRepository {
           eq(postBookmarks.orgUserId, orgUserId),
         ),
       );
+  }
+
+  async bookmarkedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]> {
+    if (postIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ postId: postBookmarks.postId })
+      .from(postBookmarks)
+      .where(
+        and(
+          eq(postBookmarks.orgId, orgId),
+          eq(postBookmarks.orgUserId, orgUserId),
+          inArray(postBookmarks.postId, postIds),
+        ),
+      );
+    return rows.map((row) => row.postId);
   }
 
   async insertFlag(orgId: string, flag: PostFlag): Promise<PostFlag | null> {

@@ -9,6 +9,7 @@ import type {
 import type {
   Comment,
   CommentReport,
+  FlaggedComment,
   ListCommentsQuery,
   Logger,
   Page,
@@ -235,9 +236,18 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     return row ?? null;
   }
 
-  async listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<CommentReport[]> {
+  async listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<FlaggedComment[]> {
     const rows = await this.db
-      .select({ flag: commentFlags })
+      .select({
+        flag: commentFlags,
+        comment: {
+          id: comments.id,
+          postId: posts.id,
+          body: comments.body,
+          orgUserId: comments.orgUserId,
+          status: comments.status,
+        },
+      })
       .from(commentFlags)
       .innerJoin(
         comments,
@@ -252,7 +262,34 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
         ),
       )
       .orderBy(asc(commentFlags.createdAt), asc(commentFlags.id));
-    return rows.map((row) => row.flag);
+    return rows.map((row) => ({ ...row.flag, comment: row.comment }));
+  }
+
+  async publishedCommentCounts(
+    orgId: string,
+    postIds: string[],
+  ): Promise<Record<string, number>> {
+    if (postIds.length === 0) {
+      return {};
+    }
+    const rows = await this.db
+      .select({ postId: comments.postId, count: sql<number>`cast(count(*) as int)` })
+      .from(comments)
+      .where(
+        and(
+          eq(comments.orgId, orgId),
+          inArray(comments.postId, postIds),
+          eq(comments.status, "published"),
+        ),
+      )
+      .groupBy(comments.postId);
+    const byPost: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.postId !== null) {
+        byPost[row.postId] = row.count;
+      }
+    }
+    return byPost;
   }
 
   async listOpenReports(orgId: string, commentIds: string[]): Promise<CommentReport[]> {
