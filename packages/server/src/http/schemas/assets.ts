@@ -62,7 +62,7 @@ export const RequestMemberUpload = z.object({
   filename: z.string().min(1),
   contentType: z
     .string()
-    .regex(/^image\//i, 'A member upload must be an image')
+    .regex(/^image\/[a-z0-9.+-]+$/i, 'A member upload must be an image')
     .describe('Must be an `image/*` type. The size is checked when the upload is finalized.'),
 });
 export type RequestMemberUpload = z.infer<typeof RequestMemberUpload>;

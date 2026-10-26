@@ -241,7 +241,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_request');
     if (canModerate(actor.role)) {
-      throw new ForbiddenError('You do not request a place in a space');
+      throw new ForbiddenError('Staff do not request a place in a space');
     }
     await this.assertGrant(orgId, actor, actor.id, space.communityId);
     const created = await this.createMember(orgId, actor, space, actor.id, 'requested', 'request');
@@ -264,7 +264,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_invite');
     await this.assertCanManage(orgId, actor, space.communityId);
-    await this.assertGrant(orgId, actor, orgUserId, space.communityId);
+    await this.assertHolds(orgId, actor, orgUserId, space.communityId);
     const created = await this.createMember(orgId, actor, space, orgUserId, 'invited', 'invite');
     this.logger.info('space member created', { orgId, spaceId, orgUserId, status: created.status });
     return created;
@@ -280,18 +280,24 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
-    await this.assertGrant(orgId, actor, orgUserId, space.communityId);
+    await this.assertHolds(orgId, actor, orgUserId, space.communityId);
     const created = await this.uow.run(async (scope) => {
       const locked = await this.lockSpace(scope.spaces, orgId, spaceId);
       this.assertHasMembers(locked.accessRule);
-      await this.assertRoom(scope.entitlements, orgId, locked);
-      return this.insertMember(scope.entitlements, scope.outbox, orgId, actor, {
-        communityId: space.communityId,
-        spaceId,
-        orgUserId,
-        status: 'active',
-        source: 'manual',
-      });
+      return this.insertMember(
+        scope.entitlements,
+        scope.outbox,
+        orgId,
+        actor,
+        {
+          communityId: space.communityId,
+          spaceId,
+          orgUserId,
+          status: 'active',
+          source: 'manual',
+        },
+        locked,
+      );
     });
     this.logger.info('space member created', { orgId, spaceId, orgUserId, status: created.status });
     return created;
@@ -359,8 +365,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember> {
-    await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
+    await this.assertGrant(orgId, actor, actor.id, space.communityId);
     return this.deleteMember(orgId, actor, spaceId, actor.id, 'invited', () =>
       ownRowMissing('invited'),
     );
@@ -372,8 +379,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember> {
-    await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     this.assertHolder(actor);
+    await this.assertGrant(orgId, actor, actor.id, space.communityId);
     return this.deleteMember(orgId, actor, spaceId, actor.id, 'active', () =>
       ownRowMissing('active'),
     );
@@ -533,6 +541,19 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     }
   }
 
+  private async assertHolds(
+    orgId: string,
+    actor: Actor,
+    orgUserId: string,
+    communityId: string,
+  ): Promise<void> {
+    const facts = await this.accessOf(orgId, orgUserId, communityId, null);
+    if (facts && isStaffRole(facts.role)) {
+      throw new ForbiddenError('Staff do not hold a place in a space');
+    }
+    await this.assertGrant(orgId, actor, orgUserId, communityId);
+  }
+
   private async assertCanManage(orgId: string, actor: Actor, communityId: string): Promise<void> {
     const facts = await this.accessOf(orgId, actor.id, communityId, null);
     if (facts?.member && canModerate(facts.role)) {
@@ -576,6 +597,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     orgId: string,
     actor: Actor,
     input: InsertSpaceMemberInput,
+    room?: Space,
   ): Promise<SpaceMember> {
     const existing = await entitlements.lockSpaceMember(orgId, input.spaceId, input.orgUserId);
     if (existing && existing.status !== 'revoked') {
@@ -584,6 +606,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
           ? 'You already have a place in this space'
           : 'That person already has a place in this space',
       );
+    }
+    if (room) {
+      await this.assertRoom(entitlements, orgId, room);
     }
     if (existing) {
       await entitlements.deleteSpaceMember(orgId, existing.id);
@@ -612,6 +637,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       const locked = await this.lockSpace(spaces, orgId, spaceId);
       this.assertRule(locked.accessRule, rule);
       const row = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
+      if (row?.status === 'active') {
+        throw alreadyPlaced(actor, orgUserId);
+      }
       if (!row || row.status !== from) {
         throw missing();
       }
@@ -643,6 +671,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const row = await this.uow.run(async ({ entitlements, outbox }) => {
       const current = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
+      if (from !== 'active' && current?.status === 'active') {
+        throw alreadyPlaced(actor, orgUserId);
+      }
       if (!current || current.status !== from) {
         throw missing();
       }
@@ -686,6 +717,14 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       throw new ConflictError('This space is full');
     }
   }
+}
+
+function alreadyPlaced(actor: Actor, orgUserId: string): ConflictError {
+  return new ConflictError(
+    orgUserId === actor.id
+      ? 'You already have a place in this space'
+      : 'That person already has a place in this space',
+  );
 }
 
 function ownRowMissing(status: 'invited' | 'active'): ConflictError {

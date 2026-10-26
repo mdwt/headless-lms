@@ -781,7 +781,10 @@ export class ContentService
     return space?.communityId === communityId ? space : null;
   }
 
-  listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
+  async listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
+    if (!(await this.getCommunity(orgId, communityId))) {
+      throw new NotFoundError('Community', communityId);
+    }
     return this.repo.listSpaces(orgId, communityId);
   }
 
@@ -1079,6 +1082,9 @@ export class ContentService
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
         throw new NotFoundError('Space', spaceId);
+      }
+      if (current.links.some((link) => link.contentId === contentId)) {
+        throw new ConflictError('This space already links to that content');
       }
       const updated = await content.addSpaceLink(orgId, spaceId, contentId);
       await outbox.append([

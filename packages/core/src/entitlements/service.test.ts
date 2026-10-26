@@ -808,7 +808,7 @@ describe('space member transitions', () => {
   it('refuses a second approval and emits nothing', async () => {
     const { svc, repo, appended } = tracked({ ...MEMBER, status: 'active' });
     await expect(svc.approve('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
-      NotFoundError,
+      ConflictError,
     );
     expect(repo.updateSpaceMemberStatus).not.toHaveBeenCalled();
     expect(appended).toEqual([]);
@@ -817,7 +817,7 @@ describe('space member transitions', () => {
   it('refuses a decline once the request was approved', async () => {
     const { svc, repo, appended, lockedInTx } = tracked({ ...MEMBER, status: 'active' });
     await expect(svc.decline('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
-      NotFoundError,
+      ConflictError,
     );
     expect(lockedInTx).toEqual([true]);
     expect(repo.deleteSpaceMember).not.toHaveBeenCalled();

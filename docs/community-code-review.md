@@ -900,6 +900,51 @@ The API was started against a freshly migrated database and driven over HTTP as 
 | Live run | 85 HTTP checks against the running API, all pass; the only errors in the server log are the mail sends of a server with no email transport |
 | Contract | OpenAPI, SDK and API docs regenerated |
 
+## Seventh pass
+
+Reviewed on 2026-10-26. Every one of the 102 operations this branch adds was driven over HTTP against the running API: the happy path, each validation failure, no session, the wrong person, an id from another org, a missing id, and every conflict the rules define. Three scripted sweeps made about 1,900 checks and validated every success body against the OpenAPI schema. No undeclared field, no missing field, no leaked storage key. One 500 was found and fixed. The rest of what the sweeps found is below, with the decision taken.
+
+### Errors, validation and logging
+
+| ID | Finding | Decision |
+|---|---|---|
+| H1 | A validation failure answered with Fastify's own code and zod's own text: `FST_ERR_VALIDATION` and `querystring/ Unrecognized key: "pageSize"`. A body that was not JSON answered `FST_ERR_CTP_INVALID_JSON_BODY` with Fastify's sentence | Every refusal has the same envelope: `error`, `message`, and on a validation failure `issues`, each with a `path` like `body.topics[1].name` and a plain-language message such as `is required`, `must not be empty`, `must be one of "draft", "published"`, `has an unknown field "bogus"`. Bad JSON is `invalid_body`, an unknown route is `not_found` with the route named, a wrong media type is `unsupported_media_type`. A response that does not match its own schema is logged as a server bug and answered as a 500 |
+| H2 | A 500 carried no message, so a UI showed nothing, and a 4xx was never logged, so a refused request left no trace | A 500 says what to do with the request id. Every refused request is logged at info with its status, code and message; every 500 at error with the stack. The access log is on by default; `REQUEST_LOGGING=false` turns it off |
+| H3 | No route declared 400 or 401, so the spec said a list with a bad page size could only return 200 | The spec carries 400 on every operation with a body, query or params, 401 on every authenticated operation, and 500 on all |
+| H4 | Session refusals read like log lines: `no session on the request`, `not a staff member of the active organization`. Comment refusals began lowercase: `only the author may edit a comment`. Not-found messages named internal types: `OrgUser not found`, `PostFlag not found` | Sentences a UI can show: `Sign in to continue`, `Choose an organization to continue`, `Only staff of this organization can do this`, `You can edit only your own comment`, `Member not found`, `Flag not found` |
+| H5 | A duplicate composite key surfaced as `org_id, space_id, content_id "org_…, spc_…, crs_…" is already in use` | Adding a link a space already has is `This space already links to that content`; any composite duplicate the database still catches is `This already exists` |
+| H6 | Identity logged whole user records, email included, on create, link and update | It logs the user id |
+
+### Found on the running server and fixed
+
+| ID | Finding | Fix |
+|---|---|---|
+| L1 | `PUT …/blocks/{orgUserId}` with an id that is not a member reached the database and returned a 500 | The target must be a member of the community; otherwise 403 |
+| L2 | A moderator could not lock a chat, work the message queue, resolve message flags or delete another member's message, while the same role approves and removes space members. The spec gives moderation to staff and moderators | Chats use the moderation rule |
+| L3 | `listActivityComments` had no access check: a member without the course read the whole thread, while every write on the same activity was refused | The read requires access, as the writes do; the spec declares 403 |
+| L4 | `GET /api/member/communities/{id}/feed`, `own-posts` and `bookmarks` answered 200 with nothing for an unknown or unpublished community, while `home` answered 404 | All four answer 404 |
+| L5 | `GET /api/communities/{id}/spaces` answered 200 with an empty list for an unknown or foreign community, while every sibling route answered 404 | 404 |
+| L6 | A post could be scheduled for a time already past and then sat in `scheduled` until the next timed run | `A scheduled time must be in the future`, on create and on schedule |
+| L7 | A comment on an unknown activity was 403 for a student and 404 for staff | 404 for everyone; the access check comes after the existence check |
+| L8 | Empty or whitespace titles, names, message bodies and flag reasons were stored; a profile field had no length limit; `image/` with no subtype passed as an image type | Titles, names, bodies and reasons are trimmed and must not be empty; profile fields have limits; the image type needs a subtype |
+| L9 | A lapsed mute was still reported as `muted: true` with its past `mutedUntil` | The chat list reports a lapsed mute as not muted |
+| L10 | Inviting or adding a staff member to a space said `That person is not a member of this community`; adding a person already in a full space said `This space is full`; approving or declining a person already active said `Space member not found`; refusing an invitation or leaving without a grant was a 409 while every other membership route is a 403 | `Staff do not hold a place in a space`; the existing place is reported before capacity; an active member is `already has a place`; the grant is checked first |
+| L11 | Creating a comment returned 200 while every other create returns 201 | 201 |
+| L12 | The feeds and the message list accepted `search`, `sort` and any unknown query key and ignored them | They take `page` and `pageSize` only, and refuse anything else |
+| L13 | The directory showed `displayName: null` for people whose posts showed their name | The directory falls back to the person's name as the author view does |
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `pnpm typecheck` | passes |
+| `pnpm lint` | passes |
+| `pnpm test` | 84 files, 969 tests, all pass |
+| Live run | 85 smoke checks and three sweeps (468, 541 and 803 checks) against the rebuilt API; every remaining sweep failure is the sweep's own expectation of the behaviour this pass changed |
+| Contract | OpenAPI, SDK and API docs regenerated; the error envelope is documented on the API reference page |
+
+Note for anyone running tests from inside a package: the packages resolve each other through their built `dist`, so `pnpm --filter <pkg> test` and the API process see stale code until `pnpm build` runs. The root `pnpm test` aliases every package to its source and does not have this problem.
+
 ## Open
 
 These are not fixed. Each needs a decision or work outside this branch, and the next review run should pick them up.
@@ -971,4 +1016,5 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | X9 | DB-level tests | open (OP4) |
 | Q1–Q3, R1–R4, G1–G10, T1–T9 | Fourth pass | completed |
 | Z1–Z5 | Sixth pass, found on the running server | completed |
+| H1–H6, L1–L13 | Seventh pass, every new endpoint driven live | completed |
 | OP1–OP4 | Open items | open, for the next review run |

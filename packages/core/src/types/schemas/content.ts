@@ -433,7 +433,7 @@ export type ListCommunitiesQuery = z.infer<typeof listCommunitiesQuerySchema>;
 
 export const createCommunityInputSchema = z
   .object({
-    title: z.string(),
+    title: z.string().trim().min(1),
     description: z.string().optional(),
   })
   .strict();
@@ -441,7 +441,7 @@ export type CreateCommunityInput = z.infer<typeof createCommunityInputSchema>;
 
 export const updateCommunityInputSchema = z
   .object({
-    title: z.string().optional(),
+    title: z.string().trim().min(1).optional(),
     description: z.string().optional(),
     status: communityStatusSchema.optional(),
     thumbnailAssetId: idSchema.nullable().optional(),
@@ -454,7 +454,7 @@ export type PatchDmSettingsInput = z.infer<typeof patchDmSettingsInputSchema>;
 
 export const createSpaceInputSchema = z
   .object({
-    name: z.string(),
+    name: z.string().trim().min(1),
     description: z.string().optional(),
     accessRule: spaceAccessRuleSchema.optional(),
     capacity: z.number().int().min(0).nullable().optional(),
@@ -465,7 +465,7 @@ export type CreateSpaceInput = z.infer<typeof createSpaceInputSchema>;
 
 export const updateSpaceInputSchema = z
   .object({
-    name: z.string().optional(),
+    name: z.string().trim().min(1).optional(),
     description: z.string().optional(),
     accessRule: spaceAccessRuleSchema.optional(),
     capacity: z.number().int().min(0).nullable().optional(),

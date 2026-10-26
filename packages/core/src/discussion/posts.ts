@@ -173,6 +173,9 @@ export class PostServiceImpl implements PostService {
     if (post.status === 'published' || post.status === 'removed' || post.status === 'pending') {
       throw new ConflictError('This post cannot be scheduled');
     }
+    if (scheduledAt <= new Date()) {
+      throw new ConflictError('A scheduled time must be in the future');
+    }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, {
         status: 'scheduled',
@@ -406,7 +409,7 @@ export class PostServiceImpl implements PostService {
       if (!created) {
         const existing = await posts.findFlag(orgId, postId, actor.id);
         if (!existing) {
-          throw new NotFoundError('PostFlag', postId);
+          throw new NotFoundError('Flag', postId);
         }
         return existing;
       }
@@ -463,7 +466,7 @@ export class PostServiceImpl implements PostService {
     communityId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<PostView>> {
-    const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
+    const spaceIds = await this.openSpaceIdsIn(orgId, actor, communityId);
     const page = await this.feedPage(orgId, spaceIds, query);
     this.logger.debug('member feed read', {
       orgId,
@@ -474,15 +477,26 @@ export class PostServiceImpl implements PostService {
     return page;
   }
 
+  private async openSpaceIdsIn(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+  ): Promise<string[]> {
+    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+      throw new NotFoundError('Community', communityId);
+    }
+    return this.access.openSpaceIds(orgId, actor, communityId);
+  }
+
   async listOwn(orgId: string, actor: Actor, communityId: string): Promise<PostView[]> {
-    const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
+    const spaceIds = await this.openSpaceIdsIn(orgId, actor, communityId);
     const rows = await this.repo.listByAuthor(orgId, actor.id, spaceIds);
     this.logger.debug('own posts read', { orgId, communityId, rows: rows.length });
     return this.withAuthors(orgId, rows);
   }
 
   async listBookmarked(orgId: string, actor: Actor, communityId: string): Promise<PostView[]> {
-    const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
+    const spaceIds = await this.openSpaceIdsIn(orgId, actor, communityId);
     const rows = await this.repo.listBookmarked(orgId, actor.id, spaceIds);
     const visible = rows.filter((post) => this.canSee(actor, post));
     this.logger.debug('bookmarked posts read', { orgId, communityId, rows: visible.length });
@@ -654,7 +668,7 @@ export class PostServiceImpl implements PostService {
     return posts.map((post) => {
       const record = records[post.orgUserId];
       if (!record) {
-        throw new NotFoundError('OrgUser', post.orgUserId);
+        throw new NotFoundError('Member', post.orgUserId);
       }
       return {
         ...post,
@@ -742,6 +756,9 @@ export class PostServiceImpl implements PostService {
     if (input.mode === 'schedule') {
       if (!input.scheduledAt) {
         throw new ConflictError('A scheduled post needs a time');
+      }
+      if (input.scheduledAt <= now) {
+        throw new ConflictError('A scheduled time must be in the future');
       }
       return {
         status: 'scheduled' as const,

@@ -36,7 +36,7 @@ export const StartDirectChat = z
   .object({
     communityId: z.string(),
     orgUserId: z.string(),
-    body: z.string().nullable(),
+    body: z.string().trim().min(1).max(10_000).nullable(),
     assetIds: z.array(z.string()).default([]),
   })
   .strict();
@@ -50,7 +50,7 @@ export const StartGroupChat = z
 
 export const SendMessage = z
   .object({
-    body: z.string(),
+    body: z.string().trim().min(1).max(10_000),
     replyToId: z.string().nullable().default(null),
     assetIds: z.array(z.string()).default([]),
   })

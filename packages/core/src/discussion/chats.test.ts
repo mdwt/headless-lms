@@ -770,7 +770,9 @@ describe('chats', () => {
       body: 'Hello',
       assetIds: [],
     });
-    await expect(svc.lock(ORG, moderator, chat.id)).rejects.toThrow('You cannot lock this chat');
+    await expect(svc.lock(ORG, member, chat.id)).rejects.toThrow('You cannot lock this chat');
+    await svc.lock(ORG, moderator, chat.id);
+    await svc.unlock(ORG, moderator, chat.id);
     await svc.lock(ORG, staff, chat.id);
     await expect(svc.send(ORG, member, chat.id, messageInput('Later'))).rejects.toThrow(
       'This chat is locked',
@@ -779,18 +781,22 @@ describe('chats', () => {
     await expect(svc.messages(ORG, member, chat.id, page)).resolves.toMatchObject({
       total: 1,
     });
-    await expect(svc.messageQueue(ORG, moderator, COMMUNITY)).rejects.toThrow(
+    await expect(svc.messageQueue(ORG, member, COMMUNITY)).rejects.toThrow(
       'You cannot work this queue',
     );
+    await expect(svc.messageQueue(ORG, moderator, COMMUNITY)).resolves.toBeDefined();
     const messageId = String(dataOf(calls[0]![1]!).id);
     await svc.flagMessage(ORG, other, messageId, 'spam');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
     await svc.resolveMessageFlags(ORG, staff, messageId, 'dismissed');
     expect(flags[0]?.resolution).toBe('dismissed');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
-    await expect(svc.resolveMessageFlags(ORG, moderator, messageId, 'dismissed')).rejects.toThrow(
+    await expect(svc.resolveMessageFlags(ORG, member, messageId, 'dismissed')).rejects.toThrow(
       'You cannot work this queue',
     );
+    await expect(
+      svc.resolveMessageFlags(ORG, moderator, messageId, 'dismissed'),
+    ).resolves.toBeUndefined();
   });
 
   it('serves each message with its attachments in order, signed, to a participant', async () => {
@@ -885,7 +891,7 @@ describe('chats', () => {
       orgUserIds: [other.id, staff.id],
     });
     const sent = await svc.send(ORG, member, chat.id, messageInput('Secret'));
-    await expect(svc.deleteMessage(ORG, moderator, sent.id)).rejects.toThrow(
+    await expect(svc.deleteMessage(ORG, other, sent.id)).rejects.toThrow(
       'You cannot delete this message',
     );
     await expect(svc.editMessage(ORG, other, sent.id, 'No')).rejects.toThrow(

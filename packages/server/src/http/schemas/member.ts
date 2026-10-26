@@ -55,10 +55,12 @@ export type ProgressReportItem = z.infer<typeof ProgressReportItem>;
 
 /** The report envelope: the target (key names the content type) and a batch of
  *  items. `[]` is a bare touch — it creates the record. */
-export const ReportProgress = z.object({
-  activity: z.string(),
-  reports: z.array(ProgressReportItem),
-});
+export const ReportProgress = z
+  .object({
+    activity: z.string(),
+    reports: z.array(ProgressReportItem),
+  })
+  .strict();
 export type ReportProgress = z.infer<typeof ReportProgress>;
 
 /** The reported target's state after the service decided. */

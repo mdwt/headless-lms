@@ -510,7 +510,7 @@ describe('posts', () => {
     const scheduled = await svc.create(
       ORG,
       member,
-      draftInput({ mode: 'schedule', scheduledAt: new Date('2026-10-30T09:00:00.000Z') }),
+      draftInput({ mode: 'schedule', scheduledAt: new Date(Date.now() + 24 * 60 * 60_000) }),
     );
     calls.length = 0;
     await expect(svc.remove(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
@@ -601,10 +601,10 @@ describe('posts', () => {
   it('answers whether a post is due without loading the due posts', async () => {
     const { svc, repo } = harness({ roles: { ou_member: 'student' } });
     const listDue = vi.spyOn(repo, 'listDue');
-    const when = new Date('2026-10-21T08:00:00.000Z');
+    const when = new Date(Date.now() + 60 * 60_000);
     await svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: when }));
-    await expect(svc.hasDue(ORG, new Date('2026-10-21T07:00:00.000Z'))).resolves.toBe(false);
-    await expect(svc.hasDue(ORG, new Date('2026-10-21T09:00:00.000Z'))).resolves.toBe(true);
+    await expect(svc.hasDue(ORG, new Date(when.getTime() - 60_000))).resolves.toBe(false);
+    await expect(svc.hasDue(ORG, new Date(when.getTime() + 60_000))).resolves.toBe(true);
     expect(listDue).not.toHaveBeenCalled();
   });
 
@@ -613,7 +613,7 @@ describe('posts', () => {
       roles: { ou_staff: 'owner', ou_member: 'student' },
     });
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const when = new Date('2026-10-21T08:00:00.000Z');
+    const when = new Date(Date.now() + 60 * 60_000);
     const scheduled = await svc.create(
       ORG,
       member,
@@ -625,7 +625,7 @@ describe('posts', () => {
       draftInput({ mode: 'schedule', scheduledAt: when, title: 'Staff' }),
     );
     calls.length = 0;
-    await svc.publishDue(ORG, new Date('2026-10-21T09:00:00.000Z'));
+    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
     const events = calls[0] ?? [];
     const idOf = (event: NewDomainEvent): string | undefined => {
       const data = event.data;
@@ -742,7 +742,7 @@ describe('posts', () => {
 
   it('moves a due post back to draft when its author can no longer open the space', async () => {
     const { svc, calls, rows } = harness({ roles: { ou_member: 'student', ou_out: 'student' } });
-    const when = new Date('2026-10-21T08:00:00.000Z');
+    const when = new Date(Date.now() + 60 * 60_000);
     const scheduled = await svc.create(
       ORG,
       member,
@@ -753,7 +753,7 @@ describe('posts', () => {
       row.orgUserId = outsider.id;
     }
     calls.length = 0;
-    await svc.publishDue(ORG, new Date('2026-10-21T09:00:00.000Z'));
+    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
     expect(rows.find((item) => item.id === scheduled.id)).toMatchObject({
       status: 'draft',
       scheduledAt: null,
@@ -769,7 +769,7 @@ describe('posts', () => {
 
   it('moves a due post back to draft when its topic no longer fits the space', async () => {
     const { svc, calls, rows, setSpaces } = harness({ roles: { ou_member: 'student' } });
-    const when = new Date('2026-10-21T08:00:00.000Z');
+    const when = new Date(Date.now() + 60 * 60_000);
     const scheduled = await svc.create(
       ORG,
       member,
@@ -777,7 +777,7 @@ describe('posts', () => {
     );
     setSpaces([space({ topics: [topic('top_1')] })]);
     calls.length = 0;
-    await svc.publishDue(ORG, new Date('2026-10-21T09:00:00.000Z'));
+    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
     expect(rows.find((item) => item.id === scheduled.id)?.status).toBe('draft');
     expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.updated']);
   });
@@ -797,7 +797,7 @@ describe('posts', () => {
     const scheduled = await svc.create(
       ORG,
       member,
-      draftInput({ mode: 'schedule', scheduledAt: new Date('2026-10-30T09:00:00.000Z') }),
+      draftInput({ mode: 'schedule', scheduledAt: new Date(Date.now() + 24 * 60 * 60_000) }),
     );
     for (const reader of [moderator, staff]) {
       await expect(svc.getPost(ORG, reader, draft.id)).rejects.toBeInstanceOf(NotFoundError);
@@ -942,7 +942,7 @@ describe('posts', () => {
     );
     expect(draft).toMatchObject(signed);
     expect(
-      await svc.schedule(ORG, draft.id, member, new Date('2026-10-30T09:00:00.000Z')),
+      await svc.schedule(ORG, draft.id, member, new Date(Date.now() + 24 * 60 * 60_000)),
     ).toMatchObject(signed);
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
     const submitted = await svc.submit(ORG, draft.id, member);

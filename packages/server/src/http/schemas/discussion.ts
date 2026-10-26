@@ -64,15 +64,15 @@ export const ActivityComments = z.object({
 });
 export type ActivityComments = z.infer<typeof ActivityComments>;
 
-export const PostComment = z.object({
-  body: z.string().min(1).max(10_000),
-  parentId: z.string().nullable().default(null),
-});
+export const PostComment = z
+  .object({
+    body: z.string().min(1).max(10_000),
+    parentId: z.string().nullable().default(null),
+  })
+  .strict();
 export type PostComment = z.infer<typeof PostComment>;
 
-export const EditComment = z.object({
-  body: z.string().min(1).max(10_000),
-});
+export const EditComment = z.object({ body: z.string().min(1).max(10_000) }).strict();
 export type EditComment = z.infer<typeof EditComment>;
 
 /** The staff PATCH writes status and nothing else: publishing covers approving
@@ -84,9 +84,7 @@ export const PatchComment = z.object({
 export type PatchComment = z.infer<typeof PatchComment>;
 
 /** Replaces whatever the reader had. Clearing is DELETE, which carries no body. */
-export const SetCommentReaction = z.object({
-  emoji: ReactionEmoji,
-});
+export const SetCommentReaction = z.object({ emoji: ReactionEmoji }).strict();
 export type SetCommentReaction = z.infer<typeof SetCommentReaction>;
 
 /** A moderator's reply, posted from the queue against the comment it answers. */
@@ -95,9 +93,7 @@ export const ReplyToComment = z.object({
 });
 export type ReplyToComment = z.infer<typeof ReplyToComment>;
 
-export const ReportComment = z.object({
-  reason: z.string().max(1_000).default(''),
-});
+export const ReportComment = z.object({ reason: z.string().max(1_000).default('') }).strict();
 export type ReportComment = z.infer<typeof ReportComment>;
 
 export const Comment = commentSchema;

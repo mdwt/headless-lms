@@ -2,7 +2,7 @@ import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import { isStaffRole } from '../organizations/index.js';
+import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
@@ -374,7 +374,7 @@ export class ChatServiceImpl implements ChatService {
   async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
-    if (!isStaffRole(actor.role)) {
+    if (!canModerate(actor.role)) {
       if (message.orgUserId !== actor.id) {
         throw new ForbiddenError('You cannot delete this message');
       }
@@ -454,6 +454,7 @@ export class ChatServiceImpl implements ChatService {
     }
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
+    await this.requirePerson(orgId, communityId, orgUserId);
     const closed = await this.uow.run(async ({ chats, outbox }) => {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.block(orgId, communityId, actor.id, orgUserId);
@@ -548,7 +549,7 @@ export class ChatServiceImpl implements ChatService {
     messageId: string,
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
   ): Promise<void> {
-    if (!isStaffRole(actor.role)) {
+    if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
     const message = await this.mustMessage(this.repo, orgId, messageId);
@@ -577,7 +578,12 @@ export class ChatServiceImpl implements ChatService {
   async listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]> {
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
-    const items = await this.repo.listForUser(orgId, communityId, actor.id);
+    const now = new Date();
+    const items = (await this.repo.listForUser(orgId, communityId, actor.id)).map((item) =>
+      item.muted && item.mutedUntil !== null && item.mutedUntil <= now
+        ? { ...item, muted: false, mutedUntil: null }
+        : item,
+    );
     this.logger.debug('chats listed', { orgId, communityId, count: items.length });
     return items;
   }
@@ -600,7 +606,7 @@ export class ChatServiceImpl implements ChatService {
   }
 
   async messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue> {
-    if (!isStaffRole(actor.role)) {
+    if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
     await this.requireActor(orgId, actor, communityId);
@@ -659,7 +665,7 @@ export class ChatServiceImpl implements ChatService {
     chatId: string,
     locked: boolean,
   ): Promise<Chat> {
-    if (!isStaffRole(actor.role)) {
+    if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot lock this chat');
     }
     const chat = await this.mustChat(this.repo, orgId, chatId);
@@ -1041,7 +1047,7 @@ export class ChatServiceImpl implements ChatService {
     return messages.map((message) => {
       const record = records[message.orgUserId];
       if (!record) {
-        throw new NotFoundError('OrgUser', message.orgUserId);
+        throw new NotFoundError('Member', message.orgUserId);
       }
       return {
         ...this.present(message, actor),

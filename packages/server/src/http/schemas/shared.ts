@@ -13,6 +13,28 @@ export const ErrorBody = z.object({
 });
 export type ErrorBody = z.infer<typeof ErrorBody>;
 
+/** A 400 from request validation: `message` names the first problem, `issues` lists them all. */
+export const ValidationErrorBody = ErrorBody.extend({
+  issues: z
+    .array(
+      z.object({
+        path: z.string().describe('Where in the request, such as `body.topics[1].name`'),
+        message: z.string(),
+      }),
+    )
+    .optional(),
+});
+export type ValidationErrorBody = z.infer<typeof ValidationErrorBody>;
+
+/** Page position only, for lists that take no search or sort. */
+export const PageQuery = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export type PageQuery = z.infer<typeof PageQuery>;
+
 /**
  * Common list query for page-based collections. `z.coerce` because query-string
  * values arrive as strings; defaults make the params optional for callers.

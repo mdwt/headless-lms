@@ -46,16 +46,21 @@ import type {
   ConnectIntegrationResponses,
   CreateActivityErrors,
   CreateActivityResponses,
+  CreateAutomationErrors,
   CreateAutomationResponses,
   CreateBundleErrors,
   CreateBundleResponses,
   CreateCommunityErrors,
   CreateCommunityResponses,
+  CreateCourseErrors,
   CreateCourseResponses,
+  CreateDownloadErrors,
   CreateDownloadResponses,
   CreateInviteErrors,
   CreateInviteResponses,
+  CreateModuleErrors,
   CreateModuleResponses,
+  CreateOrganizationErrors,
   CreateOrganizationResponses,
   CreatePostCommentErrors,
   CreatePostCommentResponses,
@@ -67,6 +72,7 @@ import type {
   CreateWebhookResponses,
   DeclineSpaceRequestErrors,
   DeclineSpaceRequestResponses,
+  DeleteActivityErrors,
   DeleteActivityResponses,
   DeleteAssetErrors,
   DeleteAssetResponses,
@@ -86,6 +92,7 @@ import type {
   DeleteDownloadResponses,
   DeleteMemberUploadErrors,
   DeleteMemberUploadResponses,
+  DeleteModuleErrors,
   DeleteModuleResponses,
   DeleteSpaceErrors,
   DeleteSpaceResponses,
@@ -133,6 +140,7 @@ import type {
   GetCourseResponses,
   GetDownloadErrors,
   GetDownloadResponses,
+  GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
   GetInviteErrors,
   GetInviteResponses,
@@ -148,10 +156,13 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
+  GetMemberOrgErrors,
   GetMemberOrgResponses,
   GetMemberProfileErrors,
   GetMemberProfileResponses,
+  GetMemberViewerErrors,
   GetMemberViewerResponses,
+  GetOverviewErrors,
   GetOverviewResponses,
   GetPostErrors,
   GetPostResponses,
@@ -169,6 +180,7 @@ import type {
   GetWebhookResponses,
   GetWebhookSecretErrors,
   GetWebhookSecretResponses,
+  GrantEntitlementErrors,
   GrantEntitlementResponses,
   InviteSpaceMemberErrors,
   InviteSpaceMemberResponses,
@@ -179,15 +191,21 @@ import type {
   LeaveChatResponses,
   LeaveSpaceErrors,
   LeaveSpaceResponses,
+  ListActivitiesErrors,
   ListActivitiesResponses,
+  ListActivityAssetsErrors,
   ListActivityAssetsResponses,
   ListActivityCommentsErrors,
   ListActivityCommentsResponses,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAutomationActionsErrors,
   ListAutomationActionsResponses,
+  ListAutomationRunsErrors,
   ListAutomationRunsResponses,
+  ListAutomationsErrors,
   ListAutomationsResponses,
+  ListAutomationTriggersErrors,
   ListAutomationTriggersResponses,
   ListAvailableIntegrationsErrors,
   ListAvailableIntegrationsResponses,
@@ -195,9 +213,11 @@ import type {
   ListBookmarkedPostsResponses,
   ListBundleItemsErrors,
   ListBundleItemsResponses,
+  ListBundlesErrors,
   ListBundlesResponses,
   ListChatMessagesErrors,
   ListChatMessagesResponses,
+  ListCommentsErrors,
   ListCommentsResponses,
   ListCommunitiesErrors,
   ListCommunitiesResponses,
@@ -205,20 +225,27 @@ import type {
   ListCommunitySpacesResponses,
   ListConnectionsErrors,
   ListConnectionsResponses,
+  ListCoursesErrors,
   ListCoursesResponses,
   ListDownloadAssetsErrors,
   ListDownloadAssetsResponses,
+  ListDownloadsErrors,
   ListDownloadsResponses,
+  ListEntitlementsErrors,
   ListEntitlementsResponses,
   ListMemberActivitiesErrors,
   ListMemberActivitiesResponses,
   ListMemberChatsErrors,
   ListMemberChatsResponses,
+  ListMemberCoursesErrors,
   ListMemberCoursesResponses,
+  ListMemberDownloadsErrors,
   ListMemberDownloadsResponses,
   ListMemberModulesErrors,
   ListMemberModulesResponses,
+  ListMembersErrors,
   ListMembersResponses,
+  ListModulesErrors,
   ListModulesResponses,
   ListOwnPostsErrors,
   ListOwnPostsResponses,
@@ -226,7 +253,9 @@ import type {
   ListPostCommentsResponses,
   ListSpaceMembersErrors,
   ListSpaceMembersResponses,
+  ListStudentsErrors,
   ListStudentsResponses,
+  ListWebhooksErrors,
   ListWebhooksResponses,
   LockChatErrors,
   LockChatResponses,
@@ -266,9 +295,11 @@ import type {
   RemoveSpaceMemberResponses,
   RenameDownloadAssetErrors,
   RenameDownloadAssetResponses,
+  ReorderActivitiesErrors,
   ReorderActivitiesResponses,
   ReorderDownloadAssetsErrors,
   ReorderDownloadAssetsResponses,
+  ReorderModulesErrors,
   ReorderModulesResponses,
   ReorderSpaceLinksErrors,
   ReorderSpaceLinksResponses,
@@ -352,6 +383,7 @@ import type {
   UpdateMemberProfileResponses,
   UpdateMemberRoleErrors,
   UpdateMemberRoleResponses,
+  UpdateModuleErrors,
   UpdateModuleResponses,
   UpdateOrganizationErrors,
   UpdateOrganizationResponses,
@@ -432,7 +464,7 @@ export class Organizations {
       slug: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateOrganizationResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateOrganizationResponses, CreateOrganizationErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -446,7 +478,7 @@ export class Organizations {
     );
     return (options?.client ?? client).post<
       CreateOrganizationResponses,
-      unknown,
+      CreateOrganizationErrors,
       ThrowOnError,
       "data"
     >({
@@ -475,7 +507,7 @@ export class Organizations {
       status?: "active" | "invited";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -491,7 +523,12 @@ export class Organizations {
         },
       ],
     );
-    return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListMembersResponses,
+      ListMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/organizations/members",
       ...options,
@@ -662,8 +699,13 @@ export class Organizations {
    */
   public static getMemberOrg<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetMemberOrgResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetMemberOrgResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetMemberOrgResponses, GetMemberOrgErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberOrgResponses,
+      GetMemberOrgErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/member/org",
       ...options,
@@ -675,14 +717,17 @@ export class Organizations {
    */
   public static getMemberViewer<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetMemberViewerResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetMemberViewerResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/member/viewer",
-        ...options,
-      },
-    );
+  ): RequestResult<GetMemberViewerResponses, GetMemberViewerErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberViewerResponses,
+      GetMemberViewerErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/viewer",
+      ...options,
+    });
   }
 
   /**
@@ -696,7 +741,7 @@ export class Organizations {
       sort?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListStudentsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListStudentsResponses, ListStudentsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -710,7 +755,12 @@ export class Organizations {
         },
       ],
     );
-    return (options?.client ?? client).get<ListStudentsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListStudentsResponses,
+      ListStudentsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/students",
       ...options,
@@ -845,7 +895,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListCoursesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListCoursesResponses, ListCoursesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -861,7 +911,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListCoursesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListCoursesResponses,
+      ListCoursesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses",
       ...options,
@@ -879,7 +934,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateCourseResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateCourseResponses, CreateCourseErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -892,7 +947,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateCourseResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).post<
+      CreateCourseResponses,
+      CreateCourseErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses",
       ...options,
@@ -1062,7 +1122,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListDownloadsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListDownloadsResponses, ListDownloadsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1078,7 +1138,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListDownloadsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListDownloadsResponses,
+      ListDownloadsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/downloads",
       ...options,
@@ -1096,7 +1161,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateDownloadResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateDownloadResponses, CreateDownloadErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1109,19 +1174,22 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateDownloadResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/downloads",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      CreateDownloadResponses,
+      CreateDownloadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/downloads",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
@@ -1411,7 +1479,7 @@ export class Content {
       sort?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListBundlesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListBundlesResponses, ListBundlesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1425,7 +1493,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListBundlesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListBundlesResponses,
+      ListBundlesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/bundles",
       ...options,
@@ -1658,10 +1731,10 @@ export class Content {
    */
   public static listMemberCourses<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListMemberCoursesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberCoursesResponses, ListMemberCoursesErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
       ListMemberCoursesResponses,
-      unknown,
+      ListMemberCoursesErrors,
       ThrowOnError,
       "data"
     >({
@@ -1750,10 +1823,10 @@ export class Content {
    */
   public static listMemberDownloads<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListMemberDownloadsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberDownloadsResponses, ListMemberDownloadsErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
       ListMemberDownloadsResponses,
-      unknown,
+      ListMemberDownloadsErrors,
       ThrowOnError,
       "data"
     >({
@@ -1794,9 +1867,14 @@ export class Content {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListModulesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListModulesResponses, ListModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
-    return (options?.client ?? client).get<ListModulesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListModulesResponses,
+      ListModulesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules",
       ...options,
@@ -1813,7 +1891,7 @@ export class Content {
       title: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateModuleResponses, CreateModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1825,7 +1903,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateModuleResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).post<
+      CreateModuleResponses,
+      CreateModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules",
       ...options,
@@ -1846,9 +1929,14 @@ export class Content {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListActivitiesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
-    return (options?.client ?? client).get<ListActivitiesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListActivitiesResponses,
+      ListActivitiesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/activities",
       ...options,
@@ -1864,11 +1952,11 @@ export class Content {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListActivityAssetsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListActivityAssetsResponses, ListActivityAssetsErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
       ListActivityAssetsResponses,
-      unknown,
+      ListActivityAssetsErrors,
       ThrowOnError,
       "data"
     >({
@@ -1888,7 +1976,7 @@ export class Content {
       orderedIds: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ReorderModulesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ReorderModulesResponses, ReorderModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1900,19 +1988,22 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<ReorderModulesResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/reorder",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      ReorderModulesResponses,
+      ReorderModulesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/reorder",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
@@ -1924,7 +2015,7 @@ export class Content {
       moduleId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<DeleteModuleResponses, DeleteModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1936,14 +2027,17 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).delete<DeleteModuleResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/{moduleId}",
-        ...options,
-        ...params,
-      },
-    );
+    return (options?.client ?? client).delete<
+      DeleteModuleResponses,
+      DeleteModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/{moduleId}",
+      ...options,
+      ...params,
+    });
   }
 
   /**
@@ -1956,7 +2050,7 @@ export class Content {
       title: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<UpdateModuleResponses, UpdateModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1969,7 +2063,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).patch<UpdateModuleResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).patch<
+      UpdateModuleResponses,
+      UpdateModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules/{moduleId}",
       ...options,
@@ -1992,7 +2091,7 @@ export class Content {
       orderedIds: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ReorderActivitiesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ReorderActivitiesResponses, ReorderActivitiesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2007,7 +2106,7 @@ export class Content {
     );
     return (options?.client ?? client).post<
       ReorderActivitiesResponses,
-      unknown,
+      ReorderActivitiesErrors,
       ThrowOnError,
       "data"
     >({
@@ -2076,7 +2175,7 @@ export class Content {
       activityId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<DeleteActivityResponses, DeleteActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2091,7 +2190,7 @@ export class Content {
     );
     return (options?.client ?? client).delete<
       DeleteActivityResponses,
-      unknown,
+      DeleteActivityErrors,
       ThrowOnError,
       "data"
     >({
@@ -3387,8 +3486,6 @@ export class Posts {
       communityId: string;
       page?: number;
       pageSize?: number;
-      search?: string;
-      sort?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<GetMemberFeedResponses, GetMemberFeedErrors, ThrowOnError, "data"> {
@@ -3400,8 +3497,6 @@ export class Posts {
             { in: "path", key: "communityId" },
             { in: "query", key: "page" },
             { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
           ],
         },
       ],
@@ -3480,8 +3575,6 @@ export class Posts {
       spaceId: string;
       page?: number;
       pageSize?: number;
-      search?: string;
-      sort?: string;
       topicId?: string;
     },
     options?: Options<never, ThrowOnError>,
@@ -3495,8 +3588,6 @@ export class Posts {
             { in: "path", key: "spaceId" },
             { in: "query", key: "page" },
             { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
             { in: "query", key: "topicId" },
           ],
         },
@@ -4405,8 +4496,6 @@ export class Chats {
       chatId: string;
       page?: number;
       pageSize?: number;
-      search?: string;
-      sort?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListChatMessagesResponses, ListChatMessagesErrors, ThrowOnError, "data"> {
@@ -4418,8 +4507,6 @@ export class Chats {
             { in: "path", key: "chatId" },
             { in: "query", key: "page" },
             { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
           ],
         },
       ],
@@ -5230,7 +5317,7 @@ export class Discussion {
       orgUserId?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListCommentsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListCommentsResponses, ListCommentsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -5249,7 +5336,12 @@ export class Discussion {
         },
       ],
     );
-    return (options?.client ?? client).get<ListCommentsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListCommentsResponses,
+      ListCommentsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/comments",
       ...options,
@@ -5666,8 +5758,13 @@ export class Reporting {
    */
   public static getOverview<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetOverviewResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetOverviewResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetOverviewResponses, GetOverviewErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetOverviewResponses,
+      GetOverviewErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/overview",
       ...options,
@@ -5682,11 +5779,11 @@ export class Reporting {
       days?: number;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetEnrollmentSeriesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<GetEnrollmentSeriesResponses, GetEnrollmentSeriesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "days" }] }]);
     return (options?.client ?? client).get<
       GetEnrollmentSeriesResponses,
-      unknown,
+      GetEnrollmentSeriesErrors,
       ThrowOnError,
       "data"
     >({
@@ -5777,7 +5874,7 @@ export class Entitlements {
       type?: "course" | "download";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListEntitlementsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListEntitlementsResponses, ListEntitlementsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -5798,7 +5895,7 @@ export class Entitlements {
     );
     return (options?.client ?? client).get<
       ListEntitlementsResponses,
-      unknown,
+      ListEntitlementsErrors,
       ThrowOnError,
       "data"
     >({
@@ -5820,7 +5917,7 @@ export class Entitlements {
       expiresAt: unknown;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GrantEntitlementResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<GrantEntitlementResponses, GrantEntitlementErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -5836,7 +5933,7 @@ export class Entitlements {
     );
     return (options?.client ?? client).post<
       GrantEntitlementResponses,
-      unknown,
+      GrantEntitlementErrors,
       ThrowOnError,
       "data"
     >({
@@ -5906,16 +6003,19 @@ export class Automations {
       kind?: "workflow" | "webhook";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "kind" }] }]);
-    return (options?.client ?? client).get<ListAutomationsResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/automations",
-        ...options,
-        ...params,
-      },
-    );
+    return (options?.client ?? client).get<
+      ListAutomationsResponses,
+      ListAutomationsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations",
+      ...options,
+      ...params,
+    });
   }
 
   /**
@@ -5937,7 +6037,7 @@ export class Automations {
       } | null;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateAutomationResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -5954,7 +6054,7 @@ export class Automations {
     );
     return (options?.client ?? client).post<
       CreateAutomationResponses,
-      unknown,
+      CreateAutomationErrors,
       ThrowOnError,
       "data"
     >({
@@ -5975,10 +6075,15 @@ export class Automations {
    */
   public static listAutomationActions<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationActionsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListAutomationActionsResponses,
+    ListAutomationActionsErrors,
+    ThrowOnError,
+    "data"
+  > {
     return (options?.client ?? client).get<
       ListAutomationActionsResponses,
-      unknown,
+      ListAutomationActionsErrors,
       ThrowOnError,
       "data"
     >({
@@ -5993,10 +6098,15 @@ export class Automations {
    */
   public static listAutomationTriggers<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationTriggersResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListAutomationTriggersResponses,
+    ListAutomationTriggersErrors,
+    ThrowOnError,
+    "data"
+  > {
     return (options?.client ?? client).get<
       ListAutomationTriggersResponses,
-      unknown,
+      ListAutomationTriggersErrors,
       ThrowOnError,
       "data"
     >({
@@ -6121,7 +6231,7 @@ export class Automations {
       status?: "running" | "completed" | "failed";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationRunsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListAutomationRunsResponses, ListAutomationRunsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -6139,7 +6249,7 @@ export class Automations {
     );
     return (options?.client ?? client).get<
       ListAutomationRunsResponses,
-      unknown,
+      ListAutomationRunsErrors,
       ThrowOnError,
       "data"
     >({
@@ -6191,8 +6301,13 @@ export class Automations {
    */
   public static listWebhooks<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListWebhooksResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<ListWebhooksResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<ListWebhooksResponses, ListWebhooksErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListWebhooksResponses,
+      ListWebhooksErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/automations/webhooks",
       ...options,

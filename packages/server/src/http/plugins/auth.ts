@@ -7,7 +7,7 @@ import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
 
 /** The request carries no session. The central error handler maps this to 401. */
 export class UnauthorizedError extends Error {
-  constructor(message = 'no session on the request') {
+  constructor(message = 'Sign in to continue') {
     super(message);
     this.name = 'UnauthorizedError';
   }
@@ -54,12 +54,12 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     }
     const authOrgId = session.session.activeOrganizationId;
     if (!authOrgId) {
-      throw new UnauthorizedError();
+      throw new UnauthorizedError('Choose an organization to continue');
     }
 
     const org = await appServer.organizations.getByExternalId(authOrgId);
     if (!org) {
-      throw new UnauthorizedError('session organization not found');
+      throw new UnauthorizedError('Your session points to an organization that no longer exists');
     }
     request.authUser = session.user;
     request.userId = session.user.id;

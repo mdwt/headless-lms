@@ -42,7 +42,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userCreated.make({ orgId: '-', data: user })]);
       return user;
     });
-    this.logger.info('user created', { user: created });
+    this.logger.info('user created', { userId: created.id });
     return created;
   }
 
@@ -66,7 +66,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
-    this.logger.info('user linked to auth account', { user: linked });
+    this.logger.info('user linked to auth account', { userId: linked.id });
     return linked;
   }
 
@@ -81,7 +81,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
-    this.logger.info('user updated', { user: updated });
+    this.logger.info('user updated', { userId: updated.id });
     return updated;
   }
 

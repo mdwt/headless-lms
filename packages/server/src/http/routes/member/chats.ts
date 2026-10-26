@@ -12,7 +12,7 @@ import {
   EditMessage,
   ErrorBody,
   FlagReason,
-  ListQuery,
+  PageQuery,
   MarkRead,
   MessageFlag,
   MessageIdParam,
@@ -155,7 +155,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Read the messages in a chat',
       params: ChatIdParam,
-      querystring: ListQuery,
+      querystring: PageQuery,
       response: { 200: MessagesPage, ...errors },
     },
     handler: async (req) => {

@@ -34,7 +34,7 @@ export async function memberCommentsRoutes(
       tags: ['Discussion'],
       summary: "Read an activity's comments",
       params: DiscussionActivityParam,
-      response: { 200: ActivityComments, 404: ErrorBody },
+      response: { 200: ActivityComments, 403: ErrorBody, 404: ErrorBody },
     },
     handler: async (req) => {
       const orgId = req.orgId;
@@ -56,20 +56,21 @@ export async function memberCommentsRoutes(
       summary: 'Post a comment or reply on an activity',
       params: DiscussionActivityParam,
       body: PostComment,
-      response: { 200: CommentView, 403: ErrorBody, 404: ErrorBody },
+      response: { 201: CommentView, 403: ErrorBody, 404: ErrorBody },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const orgId = req.orgId;
       const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
       if (!orgUser) {
         throw new UnauthorizedError();
       }
-      return discussion.postComment(orgId, {
+      const comment = await discussion.postComment(orgId, {
         actor: orgUser,
         activityId: req.params.activityId,
         parentId: req.body.parentId,
         body: req.body.body,
       });
+      return reply.code(201).send(comment);
     },
   });
 

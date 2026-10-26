@@ -11,7 +11,7 @@ import {
   ErrorBody,
   FeedQuery,
   FlagReason,
-  ListQuery,
+  PageQuery,
   PostComments,
   PostComment,
   PostFeedPage,
@@ -52,7 +52,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Published posts across the spaces a member can open',
       params: CommunityParam,
-      querystring: ListQuery,
+      querystring: PageQuery,
       response: { 200: PostFeedPage, ...errors },
     },
     handler: async (req) => {
@@ -522,16 +522,17 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Comment on a post',
       params: PostIdParam,
       body: PostComment,
-      response: { 200: CommentView, ...errors },
+      response: { 201: CommentView, ...errors },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.discussion.postComment(req.orgId, {
+      const comment = await container.discussion.postComment(req.orgId, {
         actor,
         postId: req.params.postId,
         parentId: req.body.parentId,
         body: req.body.body,
       });
+      return reply.code(201).send(comment);
     },
   });
 }

@@ -18,6 +18,7 @@ import {
   spaceMembers,
   spaces,
   userProfiles,
+  users,
 } from "../schema/index.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
@@ -143,7 +144,9 @@ export class DrizzleMemberRepository implements MemberReportRepository {
         orgUserId: orgUsers.id,
         userId: orgUsers.userId,
         role: orgUsers.role,
-        displayName: userProfiles.displayName,
+        displayName: sql<
+          string | null
+        >`coalesce(nullif(trim(${userProfiles.displayName}), ''), nullif(trim(concat_ws(' ', ${users.firstName}, ${users.lastName})), ''))`,
         headline: userProfiles.headline,
         bio: userProfiles.bio,
         imageAssetId: sql<
@@ -152,6 +155,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
       })
       .from(orgUsers)
       .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
+      .leftJoin(users, eq(users.id, orgUsers.userId))
       .where(
         and(
           eq(orgUsers.orgId, orgId),

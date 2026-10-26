@@ -22,7 +22,7 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
       // identity for the portal brand.
       const org = await container.organizations.getById(req.orgId);
       if (!org) {
-        throw new UnauthorizedError('session organization not found');
+        throw new UnauthorizedError('Your session points to an organization that no longer exists');
       }
       return { id: org.id, name: org.name, slug: org.slug };
     },

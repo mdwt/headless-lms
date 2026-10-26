@@ -32,6 +32,7 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 | ------------------------ | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DELIVERY_URL_EXPIRY`    | no       | `86400`    | How long the file URLs in API responses stay valid, in seconds. Every course, lesson, download, post, message, profile and library response signs its files with this lifetime. Must be a positive integer; the API does not start otherwise. |
 | `MEMBER_IMAGE_MAX_BYTES` | no       | `10485760` | The largest image a member may upload (profile photo, post cover, message attachment), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise. |
+| `REQUEST_LOGGING`        | no       | `true`     | One log line per request with its id, status and duration. Set to `false` to turn the access log off. Refused requests and errors are logged either way. |
 
 These commands run across all workspaces:
 

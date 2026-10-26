@@ -179,7 +179,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const deleted = await this.uow.run(async ({ organizations, outbox }) => {
       const orgUser = await organizations.findOrgUser(orgId, userId);
       if (!orgUser) {
-        throw new NotFoundError('OrgUser', userId);
+        throw new NotFoundError('Member', userId);
       }
       const write = this.memberWrite(orgUser.id);
       if (write?.demote) {
@@ -187,7 +187,7 @@ export class OrganizationServiceImpl implements OrganizationService {
           role: STUDENT_ROLE,
         });
         if (!demoted) {
-          throw new NotFoundError('OrgUser', orgUser.id);
+          throw new NotFoundError('Member', orgUser.id);
         }
         if (orgUser.role !== STUDENT_ROLE) {
           await outbox.append([
@@ -205,7 +205,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       }
       const deletedUser = await organizations.deleteOrgUser(orgId, orgUser.id);
       if (!deletedUser) {
-        throw new NotFoundError('OrgUser', orgUser.id);
+        throw new NotFoundError('Member', orgUser.id);
       }
       await outbox.append([
         organizationEvents.orgUserDeleted.make({
@@ -223,11 +223,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     const updated = await this.uow.run(async ({ organizations, outbox }) => {
       const orgUser = await organizations.findOrgUser(orgId, userId);
       if (!orgUser) {
-        throw new NotFoundError('OrgUser', userId);
+        throw new NotFoundError('Member', userId);
       }
       const next = await organizations.updateOrgUser(orgId, orgUser.id, patch);
       if (!next) {
-        throw new NotFoundError('OrgUser', orgUser.id);
+        throw new NotFoundError('Member', orgUser.id);
       }
       if (patch.role !== undefined && patch.role !== orgUser.role) {
         const actorOrgUserId = this.memberWrite(orgUser.id)?.actorOrgUserId;
@@ -415,13 +415,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.uow.run(async ({ organizations, outbox }) => {
       const existing = await organizations.findOrgUser(invite.orgId, userId);
       if (!existing) {
-        throw new NotFoundError('OrgUser', userId);
+        throw new NotFoundError('Member', userId);
       }
       const activated = await organizations.updateOrgUser(invite.orgId, existing.id, {
         status: 'active',
       });
       if (!activated) {
-        throw new NotFoundError('OrgUser', existing.id);
+        throw new NotFoundError('Member', existing.id);
       }
       const acceptedInvite = await organizations.setInviteStatus(
         invite.orgId,
@@ -452,7 +452,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.uow.run(async ({ organizations, outbox }) => {
       const orgUser = await organizations.findOrgUser(invite.orgId, userId);
       if (!orgUser) {
-        throw new NotFoundError('OrgUser', userId);
+        throw new NotFoundError('Member', userId);
       }
       const acceptedInvite = await organizations.setInviteStatus(
         invite.orgId,

@@ -119,10 +119,10 @@ export class DiscussionServiceImpl implements DiscussionService {
   ): CommentView {
     const author = authors[comment.orgUserId];
     if (!author) {
-      throw new NotFoundError('OrgUser', comment.orgUserId);
+      throw new NotFoundError('Member', comment.orgUserId);
     }
     if (comment.removedBy && !authors[comment.removedBy]) {
-      throw new NotFoundError('OrgUser', comment.removedBy);
+      throw new NotFoundError('Member', comment.removedBy);
     }
     const remover = comment.removedBy ? authors[comment.removedBy] : undefined;
     return {
@@ -178,6 +178,19 @@ export class DiscussionServiceImpl implements DiscussionService {
     return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
   }
 
+  private async requireActivityOpen(orgId: string, activityId: string, actor: Actor): Promise<void> {
+    const activity = await this.content.getActivity(orgId, activityId);
+    if (!activity) {
+      throw new NotFoundError('Activity', activityId);
+    }
+    if (
+      !this.isStaff(actor) &&
+      !(await this.access.hasCourseAccess(orgId, actor.id, activity.courseId))
+    ) {
+      throw new ForbiddenError('You cannot open this activity');
+    }
+  }
+
   async postComment(orgId: string, input: PostCommentInput): Promise<CommentView> {
     if (input.postId) {
       return this.postOnPost(orgId, input.postId, input);
@@ -194,18 +207,16 @@ export class DiscussionServiceImpl implements DiscussionService {
     activityId: string,
     { actor, parentId, body }: PostCommentInput,
   ): Promise<CommentView> {
-    if (!(await this.hasAccess(orgId, activityId, actor))) {
-      throw new ForbiddenError('no access to this activity');
-    }
+    await this.requireActivityOpen(orgId, activityId, actor);
     const config = await this.resolveConfig(orgId, activityId);
 
     if (!config.enabled) {
-      throw new ForbiddenError('discussion is not open on this activity');
+      throw new ForbiddenError('Discussion is not open on this activity');
     }
 
     if (parentId !== null) {
       if (!config.threaded) {
-        throw new ForbiddenError('replies are disabled on this course');
+        throw new ForbiddenError('Replies are off on this course');
       }
       const parent = await this.repo.findComment(orgId, parentId);
       if (!parent || parent.activityId !== activityId) {
@@ -213,11 +224,11 @@ export class DiscussionServiceImpl implements DiscussionService {
       }
 
       if (parent.parentId !== null) {
-        throw new ForbiddenError('replies nest one level');
+        throw new ForbiddenError('A reply cannot have replies of its own');
       }
 
       if (parent.status !== 'published') {
-        throw new ForbiddenError('cannot reply to a comment that is not published');
+        throw new ForbiddenError('You can reply only to a published comment');
       }
     }
 
@@ -265,10 +276,10 @@ export class DiscussionServiceImpl implements DiscussionService {
         throw new NotFoundError('Comment', parentId);
       }
       if (parent.parentId !== null) {
-        throw new ForbiddenError('replies nest one level');
+        throw new ForbiddenError('A reply cannot have replies of its own');
       }
       if (parent.status !== 'published') {
-        throw new ForbiddenError('cannot reply to a comment that is not published');
+        throw new ForbiddenError('You can reply only to a published comment');
       }
     }
     const now = new Date();
@@ -382,6 +393,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     activityId: string,
     actor: Actor,
   ): Promise<ActivityComments> {
+    await this.requireActivityOpen(orgId, activityId, actor);
     const config = await this.resolveConfig(orgId, activityId);
     if (!config.enabled) {
       return { config, comments: [] };
@@ -401,15 +413,15 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new ForbiddenError(
         comment.postId
           ? 'Comments are closed on this post'
-          : 'discussion is not open on this activity',
+          : 'Discussion is not open on this activity',
       );
     }
     // Editing is the author's alone — moderators remove, they do not rewrite.
     if (comment.orgUserId !== actor.id) {
-      throw new ForbiddenError('only the author may edit a comment');
+      throw new ForbiddenError('You can edit only your own comment');
     }
     if (comment.status === 'removed') {
-      throw new ForbiddenError('a removed comment cannot be edited');
+      throw new ForbiddenError('A removed comment cannot be edited');
     }
     const updated = await this.repo.updateComment(orgId, commentId, {
       body,
@@ -436,10 +448,10 @@ export class DiscussionServiceImpl implements DiscussionService {
       }
     } else {
       if (!(await this.hasAccess(orgId, this.activityIdOf(comment), actor))) {
-        throw new ForbiddenError('no access to this activity');
+        throw new ForbiddenError('You cannot open this activity');
       }
       if (comment.orgUserId !== actor.id && !this.isStaff(actor)) {
-        throw new ForbiddenError('only the author or a moderator may remove a comment');
+        throw new ForbiddenError('You cannot remove this comment');
       }
     }
 
@@ -478,7 +490,7 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   async restore(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
     if (!this.isStaff(actor)) {
-      throw new ForbiddenError('only a moderator may restore a comment');
+      throw new ForbiddenError('You cannot restore this comment');
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
@@ -524,7 +536,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
     const activityId = this.activityIdOf(comment);
     if (!(await this.hasAccess(orgId, activityId, actor))) {
-      throw new ForbiddenError('no access to this activity');
+      throw new ForbiddenError('You cannot open this activity');
     }
     const config = await this.resolveConfig(orgId, activityId);
     return { comment, config };
@@ -538,15 +550,15 @@ export class DiscussionServiceImpl implements DiscussionService {
   ): Promise<CommentReactions> {
     const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
     if (!config.enabled && !comment.postId) {
-      throw new ForbiddenError('discussion is not open on this activity');
+      throw new ForbiddenError('Discussion is not open on this activity');
     }
     if (!config.reactions && emoji !== null) {
       throw new ForbiddenError(
-        comment.postId ? 'Reactions are off on this post' : 'reactions are disabled on this course',
+        comment.postId ? 'Reactions are off on this post' : 'Reactions are off on this course',
       );
     }
     if (comment.status === 'removed') {
-      throw new ForbiddenError('a removed comment cannot be reacted to');
+      throw new ForbiddenError('A removed comment cannot be reacted to');
     }
     await this.repo.setReaction(orgId, commentId, actor.id, emoji);
     const stored = await this.repo.reactionsOf(orgId, [commentId], actor.id);
@@ -555,14 +567,14 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   async approve(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
     if (!this.isStaff(actor)) {
-      throw new ForbiddenError('only a moderator may approve a comment');
+      throw new ForbiddenError('You cannot approve this comment');
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.status !== 'pending') {
-      throw new ForbiddenError('only a pending comment can be approved');
+      throw new ForbiddenError('Only a comment awaiting review can be approved');
     }
     return this.uow.run(async (scope) => {
       const updated = await scope.discussion.updateComment(orgId, commentId, {
@@ -585,7 +597,7 @@ export class DiscussionServiceImpl implements DiscussionService {
    *  comment is already published and neither of them would run. */
   async publish(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
     if (!this.isStaff(actor)) {
-      throw new ForbiddenError('only a moderator may publish a comment');
+      throw new ForbiddenError('You cannot publish this comment');
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
@@ -611,7 +623,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         throw new ForbiddenError('You cannot work this queue');
       }
     } else if (!this.isStaff(actor)) {
-      throw new ForbiddenError('only a moderator may resolve a report');
+      throw new ForbiddenError('You cannot resolve this report');
     }
     await this.repo.resolveReportsFor(orgId, commentId, {
       resolvedAt: new Date(),
@@ -632,7 +644,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     // moderator needs to see. Hidden does not: nothing in it is being served,
     // so nobody is looking at a comment to flag.
     if (!config.enabled && !comment.postId) {
-      throw new ForbiddenError('discussion is not open on this activity');
+      throw new ForbiddenError('Discussion is not open on this activity');
     }
     const now = new Date();
     const report: CommentReport = {
@@ -697,7 +709,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       rows: page.rows.map(({ comment, courseId, activityTitle }) => {
         const author = authors[comment.orgUserId];
         if (!author) {
-          throw new NotFoundError('OrgUser', comment.orgUserId);
+          throw new NotFoundError('Member', comment.orgUserId);
         }
         return {
           id: comment.id,
@@ -713,7 +725,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           reports: (byComment.get(comment.id) ?? []).map((r) => {
             const reporter = authors[r.orgUserId];
             if (!reporter) {
-              throw new NotFoundError('OrgUser', r.orgUserId);
+              throw new NotFoundError('Member', r.orgUserId);
             }
             return {
               reporter: authorView(orgId, reporter, urls),

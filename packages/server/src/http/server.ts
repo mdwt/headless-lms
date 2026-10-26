@@ -5,7 +5,7 @@ import type { ServerConfig } from './config.js';
 import { registerCors } from './plugins/cors.js';
 import { registerOpenApi } from './plugins/openapi.js';
 import { registerAuth } from './plugins/auth.js';
-import { errorHandler } from './plugins/error-handler.js';
+import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { registerRoutes } from './routes.js';
 
 export async function buildServer(
@@ -38,6 +38,7 @@ export async function buildServer(
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler(errorHandler);
+  app.setNotFoundHandler(notFoundHandler);
 
   registerCors(app, config);
   registerOpenApi(app, config);
