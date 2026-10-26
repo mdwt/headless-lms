@@ -4,7 +4,7 @@
 // organizations context (`org_users`), not here.
 import { eq, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { IdentityRepository, UpdateProfileInput } from "@headless-lms/core/identity";
+import type { IdentityRepository, ProfilePatch } from "@headless-lms/core/identity";
 import type {
   CreateUserInput,
   Logger,
@@ -82,7 +82,7 @@ export class DrizzleIdentityRepository implements IdentityRepository {
     return row ?? null;
   }
 
-  async upsertProfile(userId: string, patch: UpdateProfileInput): Promise<UserProfile> {
+  async upsertProfile(userId: string, patch: ProfilePatch): Promise<UserProfile> {
     const existing = await this.findProfile(userId);
     if (!existing) {
       const [row] = await this.db

@@ -436,7 +436,7 @@ export class ChatServiceImpl implements ChatService {
     const chat = await this.mustChat(this.repo, orgId, chatId);
     await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
-    await this.repo.setMuted(orgId, chatId, actor.id, { until: until ?? null });
+    await this.repo.setMuted(orgId, chatId, actor.id, true, until ?? null);
     this.logger.debug('chat muted', { orgId, chatId });
   }
 
@@ -444,7 +444,7 @@ export class ChatServiceImpl implements ChatService {
     const chat = await this.mustChat(this.repo, orgId, chatId);
     await this.requireActor(orgId, actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
-    await this.repo.setMuted(orgId, chatId, actor.id, null);
+    await this.repo.setMuted(orgId, chatId, actor.id, false, null);
     this.logger.debug('chat unmuted', { orgId, chatId });
   }
 
@@ -931,7 +931,8 @@ export class ChatServiceImpl implements ChatService {
       joinedAt: now,
       leftAt: null,
       lastReadMessageId: null,
-      mute: null,
+      muted: false,
+      mutedUntil: null,
       createdAt: now,
       updatedAt: now,
     };

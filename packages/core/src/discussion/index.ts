@@ -22,9 +22,6 @@ export type {
   UpdatePostInput,
   PostPatch,
   FeedQuery,
-  PostFeedQuery,
-  FeedPosition,
-  PublishedPostsQuery,
   PostReactions,
   SpaceModerationQueue,
   PostCommentFlagReader,
@@ -50,7 +47,6 @@ export type {
   CommentReport,
   CommentSettings,
 } from './model.js';
-export { InvalidCursorError } from './model.js';
 export type {
   CommentsConfig,
   CommentView,

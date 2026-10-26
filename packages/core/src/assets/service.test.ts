@@ -218,7 +218,7 @@ describe('AssetsService', () => {
       contentType: 'image/png',
     });
     await expect(fake.svc.confirmOwn('org-1', spoofed.asset.id, 'ou_1')).rejects.toThrow(
-      'A member upload must be an image',
+      'The uploaded file is not the declared type',
     );
     expect(await fake.svc.get('org-1', spoofed.asset.id)).toBeNull();
   });
@@ -383,7 +383,8 @@ describe('AssetsService', () => {
     const confirmed = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
 
     expect(confirmed?.status).toBe('ready');
-    expect(confirmed?.key).not.toBe(ticket.asset.key);
+    expect(ticket.asset.key).toBe(`org/org-1/uploads/${ticket.asset.id}/me.png`);
+    expect(confirmed?.key).toBe(`org/org-1/image/${ticket.asset.id}/me.png`);
     expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: confirmed?.key });
     expect(storage.stat).toHaveBeenCalledWith(confirmed?.key);
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
@@ -499,65 +500,67 @@ describe('AssetsService', () => {
       'This image is too large',
     );
     const copied = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
-    expect(vi.mocked(storage.stat).mock.calls.map(([key]) => key)).toEqual([copied]);
-    expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(storage.remove).toHaveBeenCalledWith(copied);
+    expect(vi.mocked(storage.stat).mock.calls.map(([key]) => key)).toEqual([
+      ticket.asset.key,
+      copied,
+    ]);
+    expect(vi.mocked(storage.remove).mock.calls.map(([key]) => key).sort()).toEqual(
+      [copied, ticket.asset.key].sort(),
+    );
     expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
   });
 
-  it('removes the finalized object when marking the upload ready fails or finds nothing', async () => {
-    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
-    const { svc, repo } = service({ storage });
+  it('refuses a stored object whose type is not the declared one', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png,text/plain' });
+    const { svc } = service({ storage });
     const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
       filename: 'me.png',
       contentType: 'image/png',
     });
-    const markReady = repo.markReady.bind(repo);
 
-    repo.markReady = async () => {
-      throw new Error('database unavailable');
-    };
     await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
-      'database unavailable',
+      'The uploaded file is not the declared type',
     );
-    const first = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
-    expect(storage.remove).toHaveBeenCalledWith(first);
-    expect(storage.remove).not.toHaveBeenCalledWith(ticket.asset.key);
+    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+  });
 
-    repo.markReady = async () => null;
+  it('keeps a pending upload pending without copying when nothing was uploaded', async () => {
+    const storage = fakeStorage({ size: 10, contentType: 'image/png' });
+    const { svc } = service({ storage });
+    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    vi.mocked(storage.stat).mockResolvedValueOnce(null);
+
     expect(await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).toMatchObject({
       status: 'pending',
     });
-    const second = vi.mocked(storage.copy).mock.calls[1]?.[0].to;
-    expect(second).not.toBe(first);
-    expect(storage.remove).toHaveBeenCalledWith(second);
-
-    repo.markReady = markReady;
-    const ready = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
-    expect(ready?.status).toBe('ready');
-    expect(storage.remove).not.toHaveBeenCalledWith(ready?.key);
+    expect(storage.copy).not.toHaveBeenCalled();
+    expect(storage.remove).not.toHaveBeenCalled();
   });
 
-  it('returns the asset a concurrent finalize made ready when the copy fails', async () => {
+  it('returns the current row and keeps the final object when another finalize won', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
-    const { svc, assets } = service({ storage });
+    const { svc, repo, assets } = service({ storage });
     const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
       filename: 'me.png',
       contentType: 'image/png',
     });
-    const winnerKey = 'org/org-1/image/winner/me.png';
-    vi.mocked(storage.copy).mockImplementationOnce(async () => {
-      Object.assign(assets[0]!, { status: 'ready', key: winnerKey });
-      throw new Error('NoSuchKey');
-    });
+    const finalKey = `org/org-1/image/${ticket.asset.id}/me.png`;
+    repo.markReady = async () => {
+      Object.assign(assets[0]!, { status: 'ready', key: finalKey, size: 10 });
+      return null;
+    };
 
     const result = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
 
-    expect(result).toMatchObject({ status: 'ready', key: winnerKey });
+    expect(result).toMatchObject({ status: 'ready', key: finalKey });
+    expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: finalKey });
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
-  it('keeps a pending upload pending when nothing was uploaded and rethrows other copy failures', async () => {
+  it('propagates a storage failure during finalize', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
     const { svc } = service({ storage });
     const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
@@ -566,13 +569,9 @@ describe('AssetsService', () => {
     });
     vi.mocked(storage.copy).mockRejectedValue(new Error('copy failed'));
 
-    vi.mocked(storage.stat).mockResolvedValueOnce(null);
-    expect(await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).toMatchObject({
-      status: 'pending',
-    });
-
     await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow('copy failed');
     expect(storage.remove).not.toHaveBeenCalled();
+    expect(await svc.get('org-1', ticket.asset.id)).toMatchObject({ status: 'pending' });
   });
 
   it('sweeps stray objects under the uploads prefix that no asset holds once the ticket has expired', async () => {

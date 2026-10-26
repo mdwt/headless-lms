@@ -1,5 +1,5 @@
-import { genId, ksuid } from '../shared/id.js';
-import type { Logger, ObjectStorage, StoredObjectInfo } from '../shared/ports.js';
+import { genId } from '../shared/id.js';
+import type { Logger, ObjectStorage } from '../shared/ports.js';
 import { ConflictError, ForbiddenError } from '../shared/errors.js';
 import type {
   Asset,
@@ -52,7 +52,7 @@ function storedKey(orgId: string, folder: string, id: string, filename: string):
 }
 
 function finalMemberKey(orgId: string, asset: Asset): string {
-  return `${orgPrefix(orgId)}image/${asset.id}/${ksuid()}/${sanitizeFilename(asset.filename)}`;
+  return `${orgPrefix(orgId)}image/${asset.id}/${sanitizeFilename(asset.filename)}`;
 }
 
 function graceCutoff(now: Date): Date {
@@ -342,84 +342,38 @@ export class AssetsServiceImpl implements AssetsService {
   }
 
   private async finalizeMember(orgId: string, asset: Asset): Promise<Asset | null> {
+    if (!(await this.storage.stat(asset.key))) {
+      this.logger.debug('asset not yet uploaded', { orgId, assetId: asset.id });
+      return asset;
+    }
     const key = finalMemberKey(orgId, asset);
-    try {
-      await this.storage.copy({ from: asset.key, to: key });
-    } catch (error) {
-      return this.afterFailedCopy(orgId, asset, error);
+    await this.storage.copy({ from: asset.key, to: key });
+    const stat = await this.storage.stat(key);
+    if (!stat) {
+      throw new Error('copied upload not found');
     }
-    let ready: Asset | null;
-    try {
-      const stat = await this.storage.stat(key);
-      if (!stat) {
-        throw new Error('copied upload not found');
-      }
-      ready = await this.acceptMemberUpload(orgId, asset, key, stat);
-    } catch (error) {
-      await this.releaseFinalKey(orgId, asset.id, key);
-      throw error;
-    }
-    if (!ready) {
-      await this.removeObject(orgId, asset.id, key);
-      return this.repo.findById(orgId, asset.id);
-    }
-    await this.removeObject(orgId, asset.id, asset.key);
-    return ready;
-  }
-
-  private async acceptMemberUpload(
-    orgId: string,
-    asset: Asset,
-    key: string,
-    stat: StoredObjectInfo,
-  ): Promise<Asset | null> {
-    const contentType = stat.contentType ?? asset.contentType;
+    const contentType = asset.contentType;
     const kind = kindOf(contentType);
     const reason =
       kind !== 'image'
         ? 'A member upload must be an image'
-        : stat.size > this.memberImageMaxBytes
-          ? 'This image is too large'
-          : null;
+        : stat.contentType !== undefined && stat.contentType !== contentType
+          ? 'The uploaded file is not the declared type'
+          : stat.size > this.memberImageMaxBytes
+            ? 'This image is too large'
+            : null;
     if (reason) {
+      await this.removeObject(orgId, asset.id, key);
       await this.discard(orgId, asset);
       this.logger.info('member upload refused', { orgId, assetId: asset.id, reason });
       throw new ConflictError(reason);
     }
-    return this.markReady(orgId, asset, { key, kind, size: stat.size, contentType });
-  }
-
-  private async afterFailedCopy(
-    orgId: string,
-    asset: Asset,
-    error: unknown,
-  ): Promise<Asset | null> {
-    const current = await this.repo.findById(orgId, asset.id);
-    if (!current || current.status === 'ready') {
-      return current;
+    const ready = await this.markReady(orgId, asset, { key, kind, size: stat.size, contentType });
+    if (!ready) {
+      return this.repo.findById(orgId, asset.id);
     }
-    if (!(await this.storage.stat(asset.key))) {
-      this.logger.debug('asset not yet uploaded', { orgId, assetId: asset.id });
-      return current;
-    }
-    throw error;
-  }
-
-  private async releaseFinalKey(orgId: string, assetId: string, key: string): Promise<void> {
-    let current: Asset | null;
-    try {
-      current = await this.repo.findById(orgId, assetId);
-    } catch (error) {
-      this.logger.warn('finalized object kept', {
-        orgId,
-        assetId,
-        error: (error as Error).message,
-      });
-      return;
-    }
-    if (current?.key !== key) {
-      await this.removeObject(orgId, assetId, key);
-    }
+    await this.removeObject(orgId, asset.id, asset.key);
+    return ready;
   }
 
   private async markReady(

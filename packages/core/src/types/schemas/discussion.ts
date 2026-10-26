@@ -187,14 +187,6 @@ export const postViewSchema = postSchema
   .strict();
 export type PostView = z.output<typeof postViewSchema>;
 
-export const postFeedPageSchema = z
-  .object({
-    rows: z.array(postViewSchema),
-    nextCursor: z.string().nullable(),
-  })
-  .strict();
-export type PostFeedPage = z.output<typeof postFeedPageSchema>;
-
 export const postReactionSchema = z
   .object({
     orgId: idSchema,
@@ -270,9 +262,6 @@ export const chatSchema = z
   .strict();
 export type Chat = z.output<typeof chatSchema>;
 
-export const chatMuteSchema = z.object({ until: z.coerce.date().nullable() }).strict();
-export type ChatMute = z.output<typeof chatMuteSchema>;
-
 export const chatUserSchema = z
   .object({
     orgId: idSchema,
@@ -282,7 +271,8 @@ export const chatUserSchema = z
     joinedAt: z.coerce.date(),
     leftAt: z.coerce.date().nullable(),
     lastReadMessageId: idSchema.nullable(),
-    mute: chatMuteSchema.nullable(),
+    muted: z.boolean(),
+    mutedUntil: z.coerce.date().nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })

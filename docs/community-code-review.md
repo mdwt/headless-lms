@@ -688,7 +688,7 @@ Reviewed again on 2026-10-22 after the fix commits from `8150241` to `4144428` a
 
 Decisions taken for the items that were still open:
 
-- **S6.** The Hatchet engine registers one cron per enabled schedule automation through the Hatchet cron client, reconciling on start and whenever an automation is created, updated, deleted or seeded. The inline engine keeps the catch-up loop in the defaults adapter. Every schedule runs in UTC, and the spec line that said "in the org's timezone" now says UTC. An org timezone is a separate feature and nothing in the code or the spec claims it.
+- **S6.** The Hatchet engine registers one cron per enabled schedule automation through the Hatchet cron client, reconciling on start and whenever an automation is created, updated, deleted or seeded. The inline engine keeps its timer in the defaults adapter. Every schedule runs in UTC, and the spec line that said "in the org's timezone" now says UTC. An org timezone is a separate feature and nothing in the code or the spec claims it.
 - **B3 and E4.** One migration, `0005_notices_and_seed_index.sql`, removes duplicate system rows, adds a partial unique index on `(org_id, name, filter community)` for system rows, and inserts the nine org seeds for every existing org with `ON CONFLICT DO NOTHING`. The same migration creates the notices table and backfills it from the outbox so no grant is expired or reminded twice across the deploy.
 - **A1 and D6.** The composition root's mail layer calls only context services. Entitlements gained `openSpaceIdsFor`, `moderatorsWithAccess`, `communityIdsOpenedFor`, `communitiesOpenedBy`, `membersAmong` and `countActiveSpaceMembers`; organizations gained `orgUserIdsByRole` and `getOrgUserById`; identity gained `displayName`; posts gained `visible`, `find` and `followerIds`; chats gained `getMessage`, `chatSummary`, `latestMessageBody` and `isBlocked`. The moderation audience is two queries, member community titles is one query plus one read per community, and `send` loads roles, blocks and membership for all participants in one query each.
 - **A2.** `entitlement_notices` is the ledger. The grant row does not change, as the spec requires.
@@ -737,7 +737,7 @@ The third pass also found new defects. The tables below list every one, with the
 | C7 | Staff DMs became message requests | A request only between two people who are not staff |
 | C8 | Flagging a message twice returned 409 | Returns the existing flag, emits nothing |
 | C9 | Resolving message flags could record `deleted` or `locked` without acting | The resolve route accepts `dismissed` only |
-| C10 | "Muted until unmuted" could not be expressed | A mute is `null` or `{ until }`, `until: null` meaning until unmuted; `'infinity'` stays in the adapter |
+| C10 | "Muted until unmuted" could not be expressed | Sixth pass: `muted` boolean plus an optional `mutedUntil`; nothing special-cased |
 | C11 | The message queue did not serve the chat | Each entry carries the message, its flags, the chat and its participants |
 
 ### Posts and comments
@@ -754,7 +754,7 @@ The third pass also found new defects. The tables below list every one, with the
 | P8 | Flagging a post twice returned 409 | Returns the existing flag |
 | P9 | Resolving post flags accepted `removed` | `dismissed` only |
 | P10 | No saved list and no own-posts list | `GET …/own-posts` and `GET …/bookmarks` |
-| P11 | Feeds paged by offset | Keyset cursor on `(pinned, published_at, id)`; a malformed cursor is a 400 |
+| P11 | Feeds paged by offset | Withdrawn in the sixth pass: feeds page by `page` and `pageSize` like every other list, pinned first, then newest |
 | P12 | Moderators could not dismiss comment flags | `DELETE /api/member/comments/:commentId/reports` |
 | P13 | Authors and senders carried no profile | One author view (display name, headline, photo in this org only) for comments, posts and messages |
 
@@ -762,7 +762,7 @@ The third pass also found new defects. The tables below list every one, with the
 
 | ID | Finding | Decision |
 |---|---|---|
-| N1 | Notices keyed per grant silenced a renewed grant; `''` meant "no community"; check-then-insert could emit twice; the select scanned every expired grant | Two notice tables keyed per term, claimed by one insert that copies the term in SQL and re-checks the due predicate |
+| N1 | Notices keyed per grant silenced a renewed grant; `''` meant "no community"; check-then-insert could emit twice; the select scanned every expired grant | Two notice tables keyed per term; a notice is one insert of the term, on conflict do nothing |
 | N2 | The first run after deploy would emit `entitlement.expired` for every grant that ever expired | The migration records an expiry notice for every grant already expired |
 | N3 | Four different expiry boundaries | One predicate and its negation everywhere, the admin app included |
 | N4 | `communitiesOpenedBy` copied the opens rule | Built on the shared rule |
@@ -783,7 +783,7 @@ The third pass also found new defects. The tables below list every one, with the
 | M1 | Webhooks for `message.sent`, `message.deleted`, `message.reported` and `community.updated` failed on every delivery: `omit` on a strict schema rejected the omitted key | Every public schema strips; a catalog test parses a full row through every event |
 | M2 | A request DM sent Message request and New message | New message skips a request |
 | M3 | Lapsed or removed members kept receiving excerpts | Recipients filtered through entitlements |
-| M4 | The inline engine forgot slots missed while down | On start it fires the latest missed slot within a day; run dedupe stops repeats |
+| M4 | The inline engine forgot slots missed while down | Withdrawn in the sixth pass: the timer walks the minutes between its own ticks and nothing before the process started |
 | M5 | A Hatchet outage turned committed automation writes into 500s | Reconcile after commit, logged; periodic reconcile |
 | M6 | Inline and Hatchet read day-of-month with day-of-week differently | Standard cron OR |
 | M7 | Hourly schedules opened a run with nothing to do | Every timed action checks for work first |
@@ -826,12 +826,12 @@ Three reviewers verified the third-pass fixes against the code. Every item held,
 | Q2 | The actor for the mirror event sat in a shared map and was misattributed under concurrency | An async-local scope around the Better Auth call |
 | Q3 | Demoting a moderator was two Better Auth calls with no recovery | One call; the mirror keeps the person as a student in one transaction; a promotion that does not take effect is refused |
 | R1 | A request started without a body never notified its message; concurrent creator sends both passed | A request needs its message; the creator cannot send while it is pending |
-| R2 | The "until unmuted" wire value was year 275760, not RFC 3339; `until: null` meant 1970 | The mute shape above; explicit null refused |
+| R2 | The "until unmuted" wire value was year 275760, not RFC 3339; `until: null` meant 1970 | Superseded by the sixth-pass shape under C10 |
 | R3 | A blocked person could write into a DM the blocker had left | The pair is checked in a DM whether or not the other person left |
 | R4 | New message decided "request" when the email was derived, not when the message was stored | `message.sent` carries `metadata.chatStatus` |
 | G1 | 0006 carried old notices onto a renewed grant's term | Only current-term reminders carry over |
 | G2 | A database that applied an earlier draft of 0003/0004 kept the placeholder resolver, the old check and old kinds | 0006 converges them |
-| G3, G4 | The notice key lost microseconds; an expiry could race a renewal | One-statement claim (see N1) |
+| G3, G4 | The notice key lost microseconds; an expiry could race a renewal | Withdrawn in the sixth pass: the insert on the term key is the claim, and a renewal moves the term |
 | G5 | The membership rule existed in TypeScript and SQL | SQL only |
 | G6 | Remove worked in an all-members space | Refused |
 | G7 | Home member counts disagreed with capacity | Same rule |
@@ -861,6 +861,45 @@ No release holds data from before the feature, so every data statement left the 
 
 On 2026-10-24 the per-file URL routes were removed: `POST /api/member/assets/:id/url` with its `via` reference, the staff `POST /api/assets/:id/download-url`, and the download file redirect. A response that returns something holding a file now returns the file's signed URL with it. The decisions are V1–V8 in `docs/assets-review.md`. The write-time ownership checks of B2 still decide which files a post, message or profile may hold, and so which files their responses sign.
 
+## Sixth pass
+
+Reviewed on 2026-10-26. This pass asked a different question of the earlier fixes: was the thing fixed a requirement, or an edge the review itself raised and then built machinery for? Seven fixes failed that test and were taken out, and the first run of the API against a live database found five defects the unit tests could not see.
+
+### Taken out
+
+| ID | What was built | What stands now |
+|---|---|---|
+| E5, K1, OP6 | A deferred unique constraint so two topics could exchange names in one save, which Drizzle cannot express | The constraint is a plain unique again. A topic given a name another topic in the space still holds is a 409. The schema and the migrations agree |
+| M4 | The inline engine fired every slot a schedule missed in the last day when the process started | The timer walks the minutes between its own ticks and nothing before the process started |
+| N1, G3, G4 | The notice claim was an insert-select that joined the grant, re-checked the due predicate and locked the row | The claim is one insert of the term the grant was listed with, on conflict do nothing. The two notice tables keyed per term stay |
+| T3, T4, OP5 | A final key per finalize attempt, a release of the copy when marking ready failed, a re-read of the row after a failed copy | One final key per upload, the copy is checked, a refused upload leaves nothing behind, a finalize that finds the row ready returns it, a storage error propagates |
+| V5 (part) | `refreshUrl` in the editor contract for a video still playing when its 24-hour URL expires | Gone from the contract, the Plate plugin and the student app. A client that outlives a URL reads the content again |
+| P11 | Feeds paged by a base64 keyset cursor with its own 400 | Feeds page by `page` and `pageSize` with the shared page envelope, pinned first, then newest, then id |
+| C10, R2 | A mute as `null` or `{ until }` with `'infinity'` stored for "until unmuted" | `muted` boolean plus an optional `muted_until`, on the row and on the wire |
+
+### Found on the running server
+
+The API was started against a freshly migrated database and driven over HTTP as an owner and two students: organization and community setup, topics, publishing, invites, grants, feeds, posts, a message request, mutes, a member image through the presigned upload, the profile photo, the delete rules, a by-request space at capacity, revocation and unpublishing. Eighty-five checks pass. These five did not on the first run:
+
+| ID | Finding | Fix |
+|---|---|---|
+| Z1 | `POST /api/organizations/invites` returned the whole invite row, `tokenHash` included, with a 200 that bypassed the 201 response schema | The handler sends the six fields of the `Invite` schema with a 201 |
+| Z2 | Accepting an invalid invite was a 500; the student app expects a 400 | `InviteError` is mapped to 400 `invalid_invite` |
+| Z3 | Setting a profile photo needed `imageAssetOrgId` in the body, which the client had to guess; without it the write was a 409 | The body takes `imageAssetId` only. The org is the session's, and identity records it with the asset |
+| Z4 | A member upload declared `image/png` and stored with another content type was marked ready as an image with the merged type string | Finalize refuses a stored type that is not the declared one, with a 409 |
+| Z5 | Two system automations in every org were named Digest: the timed one and the email | The timed one is Send digest, as the spec names its action |
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `pnpm typecheck` | passes, every package and both apps |
+| `pnpm lint` | passes |
+| `pnpm test` | 84 files, 965 tests, all pass |
+| Migrations | 0000–0006 applied to an empty Postgres 17 database; `drizzle-kit check` passes; the topic constraint is a plain unique; `chat_users` has `muted` and `muted_until` |
+| Live run | 85 HTTP checks against the running API, all pass; the only errors in the server log are the mail sends of a server with no email transport |
+| Contract | OpenAPI, SDK and API docs regenerated |
+
 ## Open
 
 These are not fixed. Each needs a decision or work outside this branch, and the next review run should pick them up.
@@ -871,7 +910,6 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | OP2 | Unblocking a closed DM sets it to `open` (spec), so a request that was blocked opens without acceptance. The exploration says nothing can be sent until the recipient accepts | Needs the acceptance recorded on the chat (for example `accepted_at`) and the spec line changed; a spec decision |
 | OP3 | M10: the digest template has none of the spec's params | Waits on the deferred email-preference decision, as the spec says |
 | OP4 | No repository or migration test runs against a real Postgres in CI. SQL is pinned by capture tests against a fake client; the migrations were verified by hand in this review | Needs a Postgres test harness for `adapters/db` |
-| OP5 | Two concurrent finalizes of one member upload with a re-upload in between can refuse the new bytes and delete the row the other just made ready | Narrow race; needs a row lock across finalize |
 
 ## Tracking
 
@@ -932,4 +970,5 @@ These are not fixed. Each needs a decision or work outside this branch, and the 
 | X1–X8, X10 | Third pass, integration | completed |
 | X9 | DB-level tests | open (OP4) |
 | Q1–Q3, R1–R4, G1–G10, T1–T9 | Fourth pass | completed |
-| OP1–OP5 | Open items | open, for the next review run |
+| Z1–Z5 | Sixth pass, found on the running server | completed |
+| OP1–OP4 | Open items | open, for the next review run |

@@ -1,13 +1,14 @@
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
+  FeedQuery,
   PostReactions,
   PostRepository,
   PostPatch,
-  PublishedPostsQuery,
 } from "@headless-lms/core/discussion";
 import type {
   Logger,
+  Page,
   Post,
   PostFlag,
   PostFlagResolution,
@@ -112,32 +113,28 @@ export class DrizzlePostRepository implements PostRepository {
     return row ? toPost(row) : null;
   }
 
-  async listPublished(
-    orgId: string,
-    spaceIds: string[],
-    query: PublishedPostsQuery,
-  ): Promise<Post[]> {
+  async listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>> {
     if (spaceIds.length === 0) {
-      return [];
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
     }
-    const after = query.after;
+    const where = and(
+      eq(posts.orgId, orgId),
+      inArray(posts.spaceId, spaceIds),
+      eq(posts.status, "published"),
+      query.topicId ? eq(posts.topicId, query.topicId) : undefined,
+    );
     const rows = await this.db
       .select()
       .from(posts)
-      .where(
-        and(
-          eq(posts.orgId, orgId),
-          inArray(posts.spaceId, spaceIds),
-          eq(posts.status, "published"),
-          query.topicId ? eq(posts.topicId, query.topicId) : undefined,
-          after
-            ? sql`(${posts.pinned}, ${posts.publishedAt}, ${posts.id}) < (${after.pinned}::boolean, ${after.publishedAt.toISOString()}::timestamptz, ${after.id})`
-            : undefined,
-        ),
-      )
+      .where(where)
       .orderBy(desc(posts.pinned), desc(posts.publishedAt), desc(posts.id))
-      .limit(query.limit);
-    return rows.map(toPost);
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(posts)
+      .where(where);
+    return { rows: rows.map(toPost), total, page: query.page, pageSize: query.pageSize };
   }
 
   async listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]> {

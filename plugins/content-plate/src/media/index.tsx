@@ -9,13 +9,9 @@ const MediaTrackingContext = createContext<MediaTracking>({});
 export function MediaProvider({
   onEvent,
   startPosition,
-  refreshUrl,
   children,
 }: MediaTracking & { children: ReactNode }) {
-  const value = useMemo(
-    () => ({ onEvent, startPosition, refreshUrl }),
-    [onEvent, startPosition, refreshUrl],
-  );
+  const value = useMemo(() => ({ onEvent, startPosition }), [onEvent, startPosition]);
   return <MediaTrackingContext.Provider value={value}>{children}</MediaTrackingContext.Provider>;
 }
 

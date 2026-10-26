@@ -97,14 +97,11 @@ export interface MediaTrackingEvent {
   duration: number | null;
 }
 
-/** Host-provided callbacks for media playback: facts out, resume/refresh in. */
+/** Host-provided callbacks for media playback: facts out, resume in. */
 export interface MediaTracking {
   onEvent?: (event: MediaTrackingEvent) => void;
   /** Resume point for an asset, seconds. */
   startPosition?: (assetId: string) => number | undefined;
-  /** Fresh playback URL once the one the content carried has expired; the host
-   *  reads the content again. */
-  refreshUrl?: (assetId: string) => Promise<string | null>;
 }
 
 /**

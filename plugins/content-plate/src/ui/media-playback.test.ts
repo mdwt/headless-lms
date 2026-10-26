@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  captureError,
   consumeSeekSuppression,
   createResumeState,
   resumeTarget,
@@ -16,31 +15,6 @@ describe("resume choreography", () => {
     const seek = consumeSeekSuppression(next);
     expect(seek.report).toBe(false);
     expect(consumeSeekSuppression(seek.next).report).toBe(true); // user seeks still report
-  });
-
-  it("fresh load with an expired first presign still resumes at the saved position", () => {
-    let st = createResumeState();
-    const err = captureError(st, 0); // nothing played yet
-    expect(err.retry).toBe(true);
-    st = err.next;
-    expect(st.resumeAt).toBeNull();
-    const { target } = resumeTarget(st, 612, 1475);
-    expect(target).toBe(612);
-  });
-
-  it("mid-playback expiry resumes at the interrupted position, not the saved one", () => {
-    let st = resumeTarget(createResumeState(), 612, 1475).next;
-    const err = captureError(st, 300);
-    expect(err.retry).toBe(true);
-    st = err.next;
-    const { target } = resumeTarget(st, 612, 1475);
-    expect(target).toBe(300);
-  });
-
-  it("retries the refresh only once", () => {
-    const first = captureError(createResumeState(), 10);
-    expect(first.retry).toBe(true);
-    expect(captureError(first.next, 20).retry).toBe(false);
   });
 
   it("no saved position: no seek, no suppression", () => {

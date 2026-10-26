@@ -1,6 +1,5 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
 import type {
-  ChatMute,
   ChatStatus,
   EmailTemplateId,
   EmailTemplateParams,
@@ -60,7 +59,12 @@ export interface CommunityMailReads {
     kind: 'direct' | 'group';
     status: ChatStatus;
     createdBy: string;
-    participants: { orgUserId: string; mute: ChatMute | null; leftAt: Date | null }[];
+    participants: {
+      orgUserId: string;
+      muted: boolean;
+      mutedUntil: Date | null;
+      leftAt: Date | null;
+    }[];
   } | null>;
   latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
   pairBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;

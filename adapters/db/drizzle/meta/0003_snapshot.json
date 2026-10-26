@@ -3509,6 +3509,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "muted": {
+          "name": "muted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "muted_until": {
           "name": "muted_until",
           "type": "timestamp with time zone",

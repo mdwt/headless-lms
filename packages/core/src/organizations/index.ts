@@ -15,7 +15,7 @@ export type {
   NewInviteRow,
 } from './ports.js';
 export type { Organization, OrgUser, Invite } from './model.js';
-export { OrganizationRuleError } from './members.js';
+export { InviteError, OrganizationRuleError } from './members.js';
 export type { Member, MemberRoleChange, MemberStatus, MembersQuery, Page } from './members.js';
 export {
   ROLES,

@@ -28,7 +28,7 @@ The domain stores what an automation is and the history of every time it ran. Wh
 - **Reveal or rotate a webhook's signing secret** — rotating replaces the secret at once; the old one stops verifying.
 - **Turn one on or off** — an automation only fires while it's enabled.
 - **Grant access** — an action that gives the person the event names access to a content item or bundle. Running it again changes nothing: an active grant keeps the later expiry, a revoked grant stays revoked.
-- **Fire a schedule** — at each matching time, run the automations scheduled for it. A time is run once per automation, and a time missed while the system was down runs late rather than never.
+- **Fire a schedule** — at each matching time, run the automations scheduled for it. A time is run once per automation.
 - **Run the automations bound to an event** — when an event fires, find the enabled automations listening for it and set each running against it. An event runs at most once per automation, however many times it arrives.
 - **Rerun a run** — run a finished run again, with the automation as it is now; its new outcome replaces the previous one. For a webhook, this resends the delivery.
 - **Query run history** — see which automations ran, what triggered them, when, and what happened in each, down to the outcome of individual actions. History outlives the automation.

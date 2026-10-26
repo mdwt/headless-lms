@@ -7,9 +7,12 @@ export interface UpdateProfileInput {
   displayName?: string | null;
   headline?: string | null;
   bio?: string | null;
-  imageAssetOrgId?: string | null;
   imageAssetId?: string | null;
   extra?: JsonValue;
+}
+
+export interface ProfilePatch extends UpdateProfileInput {
+  imageAssetOrgId?: string | null;
 }
 
 export interface UserProvisioner {
@@ -69,7 +72,7 @@ export interface IdentityRepository {
   findUserByExternalId(externalId: string): Promise<User | null>;
   findUserByEmail(email: string): Promise<User | null>;
   findProfile(userId: string): Promise<UserProfile | null>;
-  upsertProfile(userId: string, patch: UpdateProfileInput): Promise<UserProfile>;
+  upsertProfile(userId: string, patch: ProfilePatch): Promise<UserProfile>;
 }
 
 export interface IdentityTxScope {

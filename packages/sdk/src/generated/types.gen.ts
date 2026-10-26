@@ -3196,7 +3196,6 @@ export type UpdateMemberProfileData = {
     displayName?: string | null;
     headline?: string | null;
     bio?: string | null;
-    imageAssetOrgId?: string | null;
     imageAssetId?: string | null;
     extra?: JsonValueInput;
   };
@@ -4080,21 +4079,15 @@ export type GetMemberFeedData = {
     communityId: string;
   };
   query?: {
-    cursor?: string;
-    limit?: number;
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: string;
   };
   url: "/api/member/communities/{communityId}/feed";
 };
 
 export type GetMemberFeedErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
   /**
    * Default Response
    */
@@ -4169,7 +4162,9 @@ export type GetMemberFeedResponses = {
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
     }>;
-    nextCursor: string | null;
+    total: number;
+    page: number;
+    pageSize: number;
   };
 };
 
@@ -4357,22 +4352,16 @@ export type GetSpaceFeedData = {
     spaceId: string;
   };
   query?: {
-    cursor?: string;
-    limit?: number;
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: string;
     topicId?: string;
   };
   url: "/api/member/communities/{communityId}/spaces/{spaceId}/feed";
 };
 
 export type GetSpaceFeedErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
   /**
    * Default Response
    */
@@ -4447,7 +4436,9 @@ export type GetSpaceFeedResponses = {
         role: "owner" | "admin" | "instructor" | "moderator" | "student";
       };
     }>;
-    nextCursor: string | null;
+    total: number;
+    page: number;
+    pageSize: number;
   };
 };
 
@@ -6368,9 +6359,8 @@ export type ListMemberChatsResponses = {
     };
     participantIds: Array<string>;
     lastReadMessageId: string | null;
-    mute: {
-      until: string | null;
-    } | null;
+    muted: boolean;
+    mutedUntil: string | null;
     unread: number;
   }>;
 };

@@ -195,9 +195,9 @@ describe('displayName', () => {
 });
 
 describe('updateProfile', () => {
-  const photo = { imageAssetOrgId: 'org-1', imageAssetId: 'ast_1' };
+  const photo = { imageAssetId: 'ast_1' };
 
-  it('saves a photo the org user uploaded', async () => {
+  it('saves a photo the org user uploaded under the org of the request', async () => {
     const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
     const { service } = build(repo);
 
@@ -211,7 +211,10 @@ describe('updateProfile', () => {
 
     expect(profile.imageAssetId).toBe('ast_1');
     expect(profile.imageUrl).toBe('https://signed/org-1/ast_1');
-    expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', photo);
+    expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
+      ...photo,
+      imageAssetOrgId: 'org-1',
+    });
   });
 
   it('refuses a photo the org user did not upload', async () => {
@@ -230,14 +233,16 @@ describe('updateProfile', () => {
     const { service } = build(repo, { ownsImage });
 
     const profile = await service.updateProfile('org-1', 'usr_invited', 'usr_invited', 'ou_1', {
-      imageAssetOrgId: null,
       imageAssetId: null,
     });
 
     expect(profile.imageUrl).toBeNull();
 
     expect(ownsImage).not.toHaveBeenCalled();
-    expect(repo.upsertProfile).toHaveBeenCalled();
+    expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
+      imageAssetId: null,
+      imageAssetOrgId: null,
+    });
   });
 });
 
@@ -277,7 +282,7 @@ describe('profileOf', () => {
     expect(profile).toMatchObject({ userId: 'usr_invited', imageAssetId: null, imageUrl: null });
   });
 
-  it('signs a saved photo only when it belongs to the org of the request', async () => {
+  it('stores a saved photo under the org of the request and signs it there', async () => {
     const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
 
     const profile = await build(repo).service.updateProfile(
@@ -285,9 +290,13 @@ describe('profileOf', () => {
       'usr_invited',
       'usr_invited',
       'ou_1',
-      { imageAssetOrgId: 'org-1', imageAssetId: 'ast_1' },
+      { imageAssetId: 'ast_1' },
     );
 
-    expect(profile.imageUrl).toBeNull();
+    expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
+      imageAssetId: 'ast_1',
+      imageAssetOrgId: 'org-2',
+    });
+    expect(profile.imageUrl).toBe('https://signed/org-2/ast_1');
   });
 });

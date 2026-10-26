@@ -1,8 +1,8 @@
 "use client";
 // Vidstack island for the static video node. Emits media facts to the host's
 // MediaTracking context; plays plain progressive sources (no hls.js). The
-// resume/retry choreography lives in media-playback.ts, tested there.
-import { useRef, useState } from "react";
+// resume choreography lives in media-playback.ts, tested there.
+import { useRef } from "react";
 import {
   MediaPlayer,
   MediaProvider as VidstackMediaProvider,
@@ -15,7 +15,6 @@ import "@vidstack/react/player/styles/default/layouts/video.css";
 
 import { useMediaTracking, type MediaTrackingEvent } from "../media";
 import {
-  captureError,
   consumeSeekSuppression,
   createResumeState,
   resumeTarget,
@@ -31,10 +30,9 @@ export function MediaVideoPlayer({
   url: string;
   name?: string;
 }) {
-  const { onEvent, startPosition, refreshUrl } = useMediaTracking();
+  const { onEvent, startPosition } = useMediaTracking();
   const playerRef = useRef<MediaPlayerInstance>(null);
   const stateRef = useRef(createResumeState());
-  const [src, setSrc] = useState(url);
 
   const duration = () => {
     const raw = playerRef.current?.duration;
@@ -49,7 +47,7 @@ export function MediaVideoPlayer({
     <MediaPlayer
       ref={playerRef}
       className="overflow-hidden rounded-sm"
-      src={{ src, type: videoMimeType(name) }}
+      src={{ src: url, type: videoMimeType(name) }}
       playsInline
       onCanPlay={() => {
         const saved = assetId ? startPosition?.(assetId) : undefined;
@@ -70,17 +68,6 @@ export function MediaVideoPlayer({
       }}
       onEnded={() => emit("ended", playerRef.current?.duration ?? 0)}
       onTimeUpdate={(detail: MediaTimeUpdateEventDetail) => emit("timeupdate", detail.currentTime)}
-      onError={() => {
-        const { retry, next } = captureError(stateRef.current, playerRef.current?.currentTime);
-        stateRef.current = next;
-        if (retry && assetId && refreshUrl) {
-          void refreshUrl(assetId)
-            .then((fresh) => {
-              if (fresh) setSrc(fresh);
-            })
-            .catch(() => {});
-        }
-      }}
     >
       <VidstackMediaProvider />
       <DefaultVideoLayout icons={defaultLayoutIcons} />

@@ -3340,7 +3340,6 @@ export class Profile {
       displayName?: string | null;
       headline?: string | null;
       bio?: string | null;
-      imageAssetOrgId?: string | null;
       imageAssetId?: string | null;
       extra?: JsonValueInput;
     },
@@ -3354,7 +3353,6 @@ export class Profile {
             { in: "body", key: "displayName" },
             { in: "body", key: "headline" },
             { in: "body", key: "bio" },
-            { in: "body", key: "imageAssetOrgId" },
             { in: "body", key: "imageAssetId" },
             { in: "body", key: "extra" },
           ],
@@ -3387,8 +3385,10 @@ export class Posts {
   public static getMemberFeed<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
-      cursor?: string;
-      limit?: number;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<GetMemberFeedResponses, GetMemberFeedErrors, ThrowOnError, "data"> {
@@ -3398,8 +3398,10 @@ export class Posts {
         {
           args: [
             { in: "path", key: "communityId" },
-            { in: "query", key: "cursor" },
-            { in: "query", key: "limit" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
           ],
         },
       ],
@@ -3476,8 +3478,10 @@ export class Posts {
     parameters: {
       communityId: string;
       spaceId: string;
-      cursor?: string;
-      limit?: number;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: string;
       topicId?: string;
     },
     options?: Options<never, ThrowOnError>,
@@ -3489,8 +3493,10 @@ export class Posts {
           args: [
             { in: "path", key: "communityId" },
             { in: "path", key: "spaceId" },
-            { in: "query", key: "cursor" },
-            { in: "query", key: "limit" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
             { in: "query", key: "topicId" },
           ],
         },

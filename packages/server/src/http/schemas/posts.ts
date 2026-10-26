@@ -2,22 +2,18 @@ import { z } from 'zod';
 import {
   commentReportSchema,
   jsonValueSchema,
-  postFeedPageSchema,
   postFlagSchema,
   postViewSchema,
 } from '@headless-lms/core/schemas';
 import { CommentView } from './discussion.js';
+import { ListQuery, paginated } from './shared.js';
 
 export const PostView = postViewSchema;
 export const PostFlag = postFlagSchema;
-export const PostFeedPage = postFeedPageSchema;
+export const PostFeedPage = paginated(PostView);
 export const PostViews = z.array(PostView);
 export const PostIdParam = z.object({ postId: z.string() });
-export const MemberFeedQuery = z.object({
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-export const FeedQuery = MemberFeedQuery.extend({ topicId: z.string().optional() });
+export const FeedQuery = ListQuery.extend({ topicId: z.string().optional() });
 
 export const CreatePost = z
   .object({

@@ -613,9 +613,8 @@ describe('expireDue', () => {
     expect(appended[0]).not.toHaveProperty('metadata');
     expect(repo.claimNotice).toHaveBeenCalledWith(
       'org-1',
-      { kind: 'expired', entitlementId: 'ent_1' },
+      { kind: 'expired', entitlementId: 'ent_1', expiresAt: grant.expiresAt },
       now,
-      new Date('2026-06-08T00:00:00Z'),
     );
   });
 
@@ -645,9 +644,13 @@ describe('expireDue', () => {
     );
     expect(repo.claimNotice).toHaveBeenCalledWith(
       'org-1',
-      { kind: 'ending_soon', entitlementId: 'ent_b', communityId: 'cmy_1' },
+      {
+        kind: 'ending_soon',
+        entitlementId: 'ent_b',
+        communityId: 'cmy_1',
+        expiresAt: bundle.expiresAt,
+      },
       now,
-      new Date('2026-06-08T00:00:00Z'),
     );
     expect(appended).toEqual([
       expect.objectContaining({

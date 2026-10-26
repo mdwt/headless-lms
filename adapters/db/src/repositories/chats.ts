@@ -3,7 +3,6 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { ChatListItem, ChatRepository, FeedQuery } from "@headless-lms/core/discussion";
 import type {
   Chat,
-  ChatMute,
   ChatUser,
   Logger,
   Message,
@@ -44,20 +43,6 @@ function toChat(row: ChatRow): Chat {
   };
 }
 
-function toMute(mutedUntil: Date | null): ChatMute | null {
-  if (mutedUntil === null) {
-    return null;
-  }
-  return { until: Number.isNaN(mutedUntil.getTime()) ? null : mutedUntil };
-}
-
-function toMutedUntil(mute: ChatMute | null) {
-  if (mute === null) {
-    return null;
-  }
-  return mute.until ?? sql`'infinity'::timestamptz`;
-}
-
 function toChatUser(row: ChatUserRow): ChatUser {
   return {
     orgId: row.orgId,
@@ -67,7 +52,8 @@ function toChatUser(row: ChatUserRow): ChatUser {
     joinedAt: row.joinedAt,
     leftAt: row.leftAt,
     lastReadMessageId: row.lastReadMessageId,
-    mute: toMute(row.mutedUntil),
+    muted: row.muted,
+    mutedUntil: row.mutedUntil,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -229,6 +215,7 @@ export class DrizzleChatRepository implements ChatRepository {
       .select({
         chat: chats,
         lastReadMessageId: chatUsers.lastReadMessageId,
+        muted: chatUsers.muted,
         mutedUntil: chatUsers.mutedUntil,
         unread,
       })
@@ -263,7 +250,8 @@ export class DrizzleChatRepository implements ChatRepository {
       chat: toChat(row.chat),
       participantIds: (byChat.get(row.chat.id) ?? []).sort(),
       lastReadMessageId: row.lastReadMessageId,
-      mute: toMute(row.mutedUntil),
+      muted: row.muted,
+      mutedUntil: row.mutedUntil,
       unread: row.unread,
     }));
   }
@@ -288,7 +276,8 @@ export class DrizzleChatRepository implements ChatRepository {
         joinedAt: user.joinedAt,
         leftAt: user.leftAt,
         lastReadMessageId: user.lastReadMessageId,
-        mutedUntil: toMutedUntil(user.mute),
+        muted: user.muted,
+        mutedUntil: user.mutedUntil,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -335,11 +324,12 @@ export class DrizzleChatRepository implements ChatRepository {
     orgId: string,
     chatId: string,
     orgUserId: string,
-    mute: ChatMute | null,
+    muted: boolean,
+    mutedUntil: Date | null,
   ): Promise<void> {
     await this.db
       .update(chatUsers)
-      .set({ mutedUntil: toMutedUntil(mute), updatedAt: new Date() })
+      .set({ muted, mutedUntil, updatedAt: new Date() })
       .where(
         and(
           eq(chatUsers.orgId, orgId),

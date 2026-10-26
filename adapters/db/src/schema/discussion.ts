@@ -435,6 +435,7 @@ export const chatUsers = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     leftAt: timestamp("left_at", { withTimezone: true }),
     lastReadMessageId: text("last_read_message_id"),
+    muted: boolean("muted").notNull().default(false),
     mutedUntil: timestamp("muted_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -642,9 +643,7 @@ type _CommentReactionsDrift = Expect<
 >;
 type _CommentFlagsDrift = Expect<NoDrift<typeof commentFlags.$inferSelect, CommentReport>>;
 type _ChatsDrift = Expect<NoDrift<typeof chats.$inferSelect, Chat>>;
-type _ChatUsersDrift = Expect<
-  NoDrift<Omit<typeof chatUsers.$inferSelect, "mutedUntil">, Omit<ChatUser, "mute">>
->;
+type _ChatUsersDrift = Expect<NoDrift<typeof chatUsers.$inferSelect, ChatUser>>;
 type _MessagesDrift = Expect<NoDrift<typeof messages.$inferSelect, Message>>;
 type _MessageAttachmentsDrift = Expect<
   NoDrift<typeof messageAttachments.$inferSelect, MessageAttachment>

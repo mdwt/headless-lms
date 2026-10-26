@@ -10110,10 +10110,6 @@
                     "nullable": true,
                     "type": "string"
                   },
-                  "imageAssetOrgId": {
-                    "nullable": true,
-                    "type": "string"
-                  },
                   "imageAssetId": {
                     "nullable": true,
                     "type": "string"
@@ -12746,10 +12742,13 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
             },
             "in": "query",
-            "name": "cursor",
+            "name": "page",
             "required": false
           },
           {
@@ -12760,7 +12759,23 @@
               "maximum": 100
             },
             "in": "query",
-            "name": "limit",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "sort",
             "required": false
           },
           {
@@ -12959,39 +12974,27 @@
                         "additionalProperties": false
                       }
                     },
-                    "nextCursor": {
-                      "nullable": true,
-                      "type": "string"
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
                     "rows",
-                    "nextCursor"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
+                    "total",
+                    "page",
+                    "pageSize"
                   ],
                   "additionalProperties": false
                 }
@@ -13725,10 +13728,13 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
             },
             "in": "query",
-            "name": "cursor",
+            "name": "page",
             "required": false
           },
           {
@@ -13739,7 +13745,23 @@
               "maximum": 100
             },
             "in": "query",
-            "name": "limit",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "sort",
             "required": false
           },
           {
@@ -13954,39 +13976,27 @@
                         "additionalProperties": false
                       }
                     },
-                    "nextCursor": {
-                      "nullable": true,
-                      "type": "string"
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
                     "rows",
-                    "nextCursor"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
+                    "total",
+                    "page",
+                    "pageSize"
                   ],
                   "additionalProperties": false
                 }
@@ -20459,20 +20469,13 @@
                         "nullable": true,
                         "type": "string"
                       },
-                      "mute": {
+                      "muted": {
+                        "type": "boolean"
+                      },
+                      "mutedUntil": {
                         "nullable": true,
-                        "type": "object",
-                        "properties": {
-                          "until": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "required": [
-                          "until"
-                        ],
-                        "additionalProperties": false
+                        "type": "string",
+                        "format": "date-time"
                       },
                       "unread": {
                         "type": "integer",
@@ -20484,7 +20487,8 @@
                       "chat",
                       "participantIds",
                       "lastReadMessageId",
-                      "mute",
+                      "muted",
+                      "mutedUntil",
                       "unread"
                     ],
                     "additionalProperties": false

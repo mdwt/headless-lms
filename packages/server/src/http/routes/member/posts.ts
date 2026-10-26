@@ -11,7 +11,7 @@ import {
   ErrorBody,
   FeedQuery,
   FlagReason,
-  MemberFeedQuery,
+  ListQuery,
   PostComments,
   PostComment,
   PostFeedPage,
@@ -52,8 +52,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Published posts across the spaces a member can open',
       params: CommunityParam,
-      querystring: MemberFeedQuery,
-      response: { 200: PostFeedPage, 400: ErrorBody, ...errors },
+      querystring: ListQuery,
+      response: { 200: PostFeedPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -105,7 +105,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       summary: 'Published posts in a space',
       params: CommunitySpaceParam,
       querystring: FeedQuery,
-      response: { 200: PostFeedPage, 400: ErrorBody, ...errors },
+      response: { 200: PostFeedPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AutomationExecutor } from "@headless-lms/core/types";
-import { fireDueSchedules, SCHEDULE_LOOKBACK_MS } from "./schedule.js";
+import { fireDueSchedules } from "./schedule.js";
 
 describe("fireDueSchedules", () => {
   const schedule = { orgId: "org-1", automationId: "atm_1", cron: "0 7 * * *" };
@@ -30,17 +30,22 @@ describe("fireDueSchedules", () => {
     );
   });
 
-  it("fires the latest slot missed before a restart once", async () => {
+  it("considers only the current minute on the first tick", async () => {
     const fireSchedule = vi.fn().mockResolvedValue(undefined);
     const lastFired = new Map<string, number>();
 
-    await fireDueSchedules(
-      executor(fireSchedule),
-      new Date("2026-10-22T06:30:00.000Z"),
-      lastFired,
-      SCHEDULE_LOOKBACK_MS,
-    );
+    await fireDueSchedules(executor(fireSchedule), new Date("2026-10-22T06:30:00.000Z"), lastFired);
+    expect(fireSchedule).not.toHaveBeenCalled();
+    expect([...lastFired.values()]).toEqual([new Date("2026-10-22T06:30:00.000Z").getTime()]);
+
     await fireDueSchedules(executor(fireSchedule), new Date("2026-10-22T06:31:00.000Z"), lastFired);
+    expect(fireSchedule).not.toHaveBeenCalled();
+  });
+
+  it("fires on the first tick when the current minute matches", async () => {
+    const fireSchedule = vi.fn().mockResolvedValue(undefined);
+
+    await fireDueSchedules(executor(fireSchedule), new Date("2026-10-21T07:00:45.000Z"), new Map());
 
     expect(fireSchedule).toHaveBeenCalledTimes(1);
     expect(fireSchedule).toHaveBeenCalledWith(

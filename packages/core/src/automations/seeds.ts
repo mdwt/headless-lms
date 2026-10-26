@@ -54,7 +54,7 @@ export function orgSeeds(): SeedAutomation[] {
       filter: null,
     },
     {
-      name: 'Digest',
+      name: 'Send digest',
       description: 'Open the daily digest for every community.',
       triggers: ['schedule:0 7 * * *'],
       actions: [{ type: 'sendDigest', input: {} }],

@@ -31,7 +31,7 @@ const container = {
   },
   discussion: { resolveReports: record('resolveReports', undefined) },
   posts: {
-    spaceFeed: record('spaceFeed', { rows: [], nextCursor: null }),
+    spaceFeed: record('spaceFeed', { rows: [], total: 0, page: 1, pageSize: 5 }),
     moderationQueue: record('moderationQueue', { pending: [], flags: [], commentFlags: [] }),
     listOwn: record('listOwn', []),
     listBookmarked: record('listBookmarked', []),
@@ -69,16 +69,16 @@ describe('member post and comment routes', () => {
   it('passes the community of the path to the space feed and the queue', async () => {
     const feed = await app.inject({
       method: 'GET',
-      url: '/api/member/communities/cmy_1/spaces/spc_1/feed?limit=5&cursor=abc',
+      url: '/api/member/communities/cmy_1/spaces/spc_1/feed?page=2&pageSize=5&topicId=tpc_1',
     });
     expect(feed.statusCode).toBe(200);
-    expect(feed.json()).toEqual({ rows: [], nextCursor: null });
+    expect(feed.json()).toEqual({ rows: [], total: 0, page: 1, pageSize: 5 });
     expect(last('spaceFeed')).toEqual([
       ORG.id,
       ORG_USER,
       'cmy_1',
       'spc_1',
-      { limit: 5, cursor: 'abc' },
+      { page: 2, pageSize: 5, topicId: 'tpc_1' },
     ]);
     const queue = await app.inject({
       method: 'GET',

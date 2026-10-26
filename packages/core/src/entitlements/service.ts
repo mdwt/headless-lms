@@ -444,11 +444,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     const appended = await this.uow.run(async ({ entitlements, outbox }) => {
       const events: NewDomainEvent[] = [];
       for (const grant of await entitlements.listGrantsExpiredBy(orgId, now)) {
+        if (!grant.expiresAt) {
+          continue;
+        }
         const claimed = await entitlements.claimNotice(
           orgId,
-          { kind: 'expired', entitlementId: grant.id },
+          { kind: 'expired', entitlementId: grant.id, expiresAt: grant.expiresAt },
           now,
-          until,
         );
         if (claimed) {
           events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
@@ -459,11 +461,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         now,
         until,
       )) {
+        if (!grant.expiresAt) {
+          continue;
+        }
         const claimed = await entitlements.claimNotice(
           orgId,
-          { kind: 'ending_soon', entitlementId: grant.id, communityId },
+          { kind: 'ending_soon', entitlementId: grant.id, communityId, expiresAt: grant.expiresAt },
           now,
-          until,
         );
         if (claimed) {
           events.push(

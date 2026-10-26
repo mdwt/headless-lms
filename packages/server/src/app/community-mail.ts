@@ -101,7 +101,8 @@ export function communityMail(deps: CommunityMailDeps): {
             createdBy: summary.chat.createdBy,
             participants: summary.participants.map((participant) => ({
               orgUserId: participant.orgUserId,
-              mute: participant.mute,
+              muted: participant.muted,
+              mutedUntil: participant.mutedUntil,
               leftAt: participant.leftAt,
             })),
           }

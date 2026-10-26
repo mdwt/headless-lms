@@ -1,6 +1,5 @@
 import { ConflictError, ForbiddenError, NotFoundError } from '@headless-lms/core/shared/errors';
-import { OrganizationRuleError } from '@headless-lms/core/organizations';
-import { InvalidCursorError } from '@headless-lms/core/discussion';
+import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
   ActionInvocationError,
   AlreadyConnectedError,
@@ -29,6 +28,9 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
   if (error instanceof OrganizationRuleError) {
     return reply.status(409).send({ error: 'conflict', message: error.message });
   }
+  if (error instanceof InviteError) {
+    return reply.status(400).send({ error: 'invalid_invite', message: error.message });
+  }
   if (error instanceof AlreadyConnectedError) {
     return reply.status(409).send({ error: 'already_connected', message: error.message });
   }
@@ -49,9 +51,6 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
   }
   if (error instanceof AutomationKindMismatchError) {
     return reply.status(409).send({ error: 'kind_mismatch', message: error.message });
-  }
-  if (error instanceof InvalidCursorError) {
-    return reply.status(400).send({ error: 'invalid_cursor', message: error.message });
   }
   if (error instanceof NoActiveOrgError) {
     return reply.status(403).send({ error: 'forbidden', message: error.message });

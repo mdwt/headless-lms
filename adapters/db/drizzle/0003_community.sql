@@ -111,6 +111,7 @@ CREATE TABLE "chat_users" (
 	"joined_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"left_at" timestamp with time zone,
 	"last_read_message_id" text,
+	"muted" boolean DEFAULT false NOT NULL,
 	"muted_until" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,

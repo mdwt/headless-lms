@@ -21,7 +21,7 @@ describe('chat schemas', () => {
     expect(MuteChat.safeParse({ until: 'tomorrow' }).success).toBe(false);
   });
 
-  it('carries a mute as its own shape with no sentinel time', () => {
+  it('carries a mute as a flag and an optional end time', () => {
     const chat = {
       orgId: 'org-1',
       id: 'cht_1',
@@ -35,8 +35,15 @@ describe('chat schemas', () => {
       updatedAt: new Date(),
     };
     const item = { chat, participantIds: [], lastReadMessageId: null, unread: 0 };
-    expect(ChatListItem.parse({ ...item, mute: null }).mute).toBeNull();
-    expect(ChatListItem.parse({ ...item, mute: { until: null } }).mute).toEqual({ until: null });
-    expect(ChatListItem.safeParse({ ...item, mutedUntil: null }).success).toBe(false);
+    const parsed = ChatListItem.parse({
+      ...item,
+      muted: true,
+      mutedUntil: '2030-01-01T00:00:00Z',
+    });
+    expect([parsed.muted, parsed.mutedUntil]).toEqual([true, new Date('2030-01-01T00:00:00Z')]);
+    const unmuted = ChatListItem.parse({ ...item, muted: false, mutedUntil: null });
+    expect([unmuted.muted, unmuted.mutedUntil]).toEqual([false, null]);
+    expect(ChatListItem.safeParse({ ...item, mute: null }).success).toBe(false);
+    expect(ChatListItem.safeParse({ ...item, muted: true }).success).toBe(false);
   });
 });

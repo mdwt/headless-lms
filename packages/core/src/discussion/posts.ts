@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
@@ -8,14 +7,7 @@ import type { Role } from '../organizations/index.js';
 import type { CommunityReader, SpaceDetail } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
-import type {
-  Post,
-  PostFeedPage,
-  PostFlag,
-  PostFlagResolution,
-  PostStatus,
-  PostView,
-} from '../types/index.js';
+import type { Post, PostFlag, PostFlagResolution, PostStatus, PostView } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
@@ -24,8 +16,7 @@ import type {
   AuthorProfileReader,
   AuthorRoleReader,
   CreatePostInput,
-  FeedPosition,
-  PostFeedQuery,
+  FeedQuery,
   PostPatch,
   PostCommentFlagReader,
   PostReactions,
@@ -35,36 +26,7 @@ import type {
   SpaceModerationQueue,
   UpdatePostInput,
 } from './ports.js';
-import type { ReactionEmoji } from './types.js';
-import { InvalidCursorError } from './model.js';
-
-const cursorSchema = z.tuple([z.boolean(), z.iso.datetime(), z.string().min(1)]);
-
-function encodeCursor(post: Post): string {
-  const at = post.publishedAt ?? post.createdAt;
-  return Buffer.from(JSON.stringify([post.pinned, at.toISOString(), post.id])).toString(
-    'base64url',
-  );
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function decodeCursor(cursor: string): FeedPosition {
-  const parsed = cursorSchema.safeParse(
-    parseJson(Buffer.from(cursor, 'base64url').toString('utf8')),
-  );
-  if (!parsed.success) {
-    throw new InvalidCursorError(cursor);
-  }
-  const [pinned, publishedAt, id] = parsed.data;
-  return { pinned, publishedAt: new Date(publishedAt), id };
-}
+import type { Page, ReactionEmoji } from './types.js';
 
 export type PostServiceParams = {
   repo: PostRepository;
@@ -484,8 +446,8 @@ export class PostServiceImpl implements PostService {
     actor: Actor,
     communityId: string,
     spaceId: string,
-    query: PostFeedQuery,
-  ): Promise<PostFeedPage> {
+    query: FeedQuery,
+  ): Promise<Page<PostView>> {
     const space = await this.requireOpen(orgId, actor, spaceId, communityId);
     if (query.topicId && !space.topics.some((topic) => topic.id === query.topicId)) {
       throw new NotFoundError('Topic', query.topicId);
@@ -499,8 +461,8 @@ export class PostServiceImpl implements PostService {
     orgId: string,
     actor: Actor,
     communityId: string,
-    query: Pick<PostFeedQuery, 'cursor' | 'limit'>,
-  ): Promise<PostFeedPage> {
+    query: Pick<FeedQuery, 'page' | 'pageSize'>,
+  ): Promise<Page<PostView>> {
     const spaceIds = await this.access.openSpaceIds(orgId, actor, communityId);
     const page = await this.feedPage(orgId, spaceIds, query);
     this.logger.debug('member feed read', {
@@ -667,20 +629,10 @@ export class PostServiceImpl implements PostService {
   private async feedPage(
     orgId: string,
     spaceIds: string[],
-    query: PostFeedQuery,
-  ): Promise<PostFeedPage> {
-    const after = query.cursor ? decodeCursor(query.cursor) : null;
-    const rows = await this.repo.listPublished(orgId, spaceIds, {
-      after,
-      limit: query.limit + 1,
-      topicId: query.topicId,
-    });
-    const page = rows.slice(0, query.limit);
-    const last = page.at(-1);
-    return {
-      rows: await this.withAuthors(orgId, page),
-      nextCursor: rows.length > query.limit && last ? encodeCursor(last) : null,
-    };
+    query: FeedQuery,
+  ): Promise<Page<PostView>> {
+    const page = await this.repo.listPublished(orgId, spaceIds, query);
+    return { ...page, rows: await this.withAuthors(orgId, page.rows) };
   }
 
   private async viewOf(orgId: string, post: Post): Promise<PostView> {

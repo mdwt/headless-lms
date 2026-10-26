@@ -520,7 +520,7 @@ create table chats (
 
 #### chat\_users
 
-The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set. `'infinity'` is how the column stores a mute until unmuted; the API carries a mute as `null` or `{ until }`, where `until` is null for a mute until unmuted.
+The `chat_users` table links a chat to the people in it and holds each person's own state: when they joined, when they left, the last message they read, and whether they have muted the chat. The unread count is the number of messages after the participant's last read message that they did not send. A participant who leaves keeps the row with `left_at` set. A mute is the `muted` flag with an optional `muted_until`; a mute with no end stays until unmuted, and the API carries both fields as they are.
 
 ```sql
 create table chat_users (
@@ -531,7 +531,8 @@ create table chat_users (
   joined_at             timestamptz not null default now(),
   left_at               timestamptz,
   last_read_message_id  text,
-  muted_until           timestamptz,                          -- null = not muted; 'infinity' = until unmuted
+  muted                 boolean not null default false,
+  muted_until           timestamptz,                          -- only with muted; null = until unmuted
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   primary key (org_id, chat_id, org_user_id),
@@ -705,7 +706,7 @@ triggers: ['schedule:0 7 * * *']        -- daily at 07:00 UTC; every schedule ru
 
 Four system actions are added for the timed work, named here by what they do. Each calls one operation on the context that owns the work. Publish due posts calls discussion, which selects posts with status `scheduled` and a `scheduled_at` in the past and submits each one as if the author had submitted it, under the same open and topic checks. Expire due grants calls entitlements, which selects grants with an `expires_at` in the past that have not yet been expired and emits `entitlement.expired` once for each, and selects grants that enter the seven-day window and emits `entitlement.ending_soon` once per grant per published community that grant opens. Entitlements claims each emission in the notice tables, keyed per term, in the same transaction as the outbox append; those tables, not the outbox, make each emission happen once. Send digest calls discussion, which emits `discussion.digest.due` once per published community. Remove unattached uploads calls assets, which deletes member uploads older than an hour that nothing references. Each operation writes through its context's unit of work, so the events it produces go through the outbox like any other event.
 
-Four system automations use these actions. They are seeded for every org on `organization.created` with `source = system`, and can be disabled but not deleted: Publish due posts (`schedule:* * * * *`), Expire due grants (`schedule:0 * * * *`), Digest (`schedule:0 7 * * *`), and Remove unattached uploads (`schedule:0 * * * *`). A migration inserts the same rows for every org that exists before this deploy, and a partial unique index on `(org_id, name, filter community)` for `source = system` rows keeps a redelivered event from seeding twice. Publish due posts, Expire due grants and Remove unattached uploads open a run only when there is work to do. When the inline engine starts, it fires the latest slot each schedule missed within the last day; the run dedupe stops a slot that already ran from running twice. When both day fields of a cron are restricted, a time matches either one, as in standard cron.
+Four system automations use these actions. They are seeded for every org on `organization.created` with `source = system`, and can be disabled but not deleted: Publish due posts (`schedule:* * * * *`), Expire due grants (`schedule:0 * * * *`), Send digest (`schedule:0 7 * * *`), and Remove unattached uploads (`schedule:0 * * * *`). A migration inserts the same rows for every org that exists before this deploy, and a partial unique index on `(org_id, name, filter community)` for `source = system` rows keeps a redelivered event from seeding twice. Publish due posts, Expire due grants and Remove unattached uploads open a run only when there is work to do. When both day fields of a cron are restricted, a time matches either one, as in standard cron.
 
 ### content
 
@@ -987,7 +988,7 @@ This section specifies authentication and authorization for the community. Authe
 - Member-facing community routes (`/api/member/communities/*`, `/posts/*`, `/comments/*`, `/chats/*`, `/messages/*`, `/profile`, `/uploads/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
-**Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file that is not an image or is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
+**Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file whose stored type is not the declared image type or that is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
 
 **Serving files.** A response that returns something holding a file returns the file's signed URL with it, and no route serves a file by id. The context that answers the read has already decided the caller may see the thing, and it asks assets to sign that thing's files in one batch. Assets signs only ready files of the org.
 
@@ -1002,7 +1003,7 @@ This section specifies authentication and authorization for the community. Authe
 | Profile, directory entry | `imageUrl`, only inside the org the photo belongs to |
 | Library asset (staff list, get, confirm), finalized member upload | `url` to show it and `downloadUrl` to save it under its filename; both `null` while pending, and for a member upload in the staff library |
 
-Every URL lives `DELIVERY_URL_EXPIRY` seconds, 24 hours by default. A client that outlives one reads the content again; the editor contract's `refreshUrl` is that read for a playing video.
+Every URL lives `DELIVERY_URL_EXPIRY` seconds, 24 hours by default. A client that outlives one reads the content again.
 
 Because a response signs every file its content holds, the write decides which files those are. A course, download or community thumbnail, a file added to a download, and an activity's links must be ready files of the org's media library; anything else is refused with a 409 naming the ids. A post cover, a message attachment and a profile photo must be a ready member image the author uploaded.
 

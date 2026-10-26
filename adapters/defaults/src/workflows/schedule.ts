@@ -2,7 +2,6 @@ import type { AutomationExecutor, ScheduledAutomation } from "@headless-lms/core
 import { cronMatches } from "@headless-lms/core/automations";
 
 const MINUTE_MS = 60_000;
-export const SCHEDULE_LOOKBACK_MS = 24 * 60 * MINUTE_MS;
 
 function floorUtcMinute(at: Date): number {
   const copy = new Date(at);
@@ -14,20 +13,10 @@ function scheduleKey(schedule: ScheduledAutomation): string {
   return `${schedule.orgId}\0${schedule.automationId}\0${schedule.cron}`;
 }
 
-function latestSlot(cron: string, nowMs: number, lookbackMs: number): number {
-  for (let minute = nowMs; minute >= nowMs - lookbackMs; minute -= MINUTE_MS) {
-    if (cronMatches(cron, new Date(minute))) {
-      return minute;
-    }
-  }
-  return nowMs;
-}
-
 export async function fireDueSchedules(
   executor: AutomationExecutor,
   now: Date,
   lastFired: Map<string, number>,
-  lookbackMs = 0,
 ): Promise<boolean> {
   if (!executor.listSchedules || !executor.fireSchedule) {
     return false;
@@ -44,8 +33,7 @@ export async function fireDueSchedules(
     const key = scheduleKey(schedule);
     seen.add(key);
     const previous = lastFired.get(key);
-    const start =
-      previous == null ? latestSlot(schedule.cron, nowMs, lookbackMs) : previous + MINUTE_MS;
+    const start = previous == null ? nowMs : previous + MINUTE_MS;
     for (let minute = start; minute <= nowMs; minute += MINUTE_MS) {
       if (cronMatches(schedule.cron, new Date(minute))) {
         try {
@@ -74,7 +62,6 @@ export function startScheduleLoop(getExecutor: () => AutomationExecutor | undefi
   const lastFired = new Map<string, number>();
   let timer: ReturnType<typeof setInterval> | undefined;
   let running = false;
-  let catchUp = true;
   const tick = () => {
     if (running) {
       return;
@@ -84,15 +71,9 @@ export function startScheduleLoop(getExecutor: () => AutomationExecutor | undefi
       return;
     }
     running = true;
-    void fireDueSchedules(executor, new Date(), lastFired, catchUp ? SCHEDULE_LOOKBACK_MS : 0)
-      .then((listed) => {
-        if (listed) {
-          catchUp = false;
-        }
-      })
-      .finally(() => {
-        running = false;
-      });
+    void fireDueSchedules(executor, new Date(), lastFired).finally(() => {
+      running = false;
+    });
   };
   tick();
   timer = setInterval(tick, MINUTE_MS);

@@ -161,26 +161,12 @@ export class IdentityServiceImpl implements IdentityService {
     if (actorUserId !== userId) {
       throw new ForbiddenError('You can only update your own profile');
     }
-    const orgSet = patch.imageAssetOrgId !== undefined;
-    const idSet = patch.imageAssetId !== undefined;
-    if (
-      orgSet !== idSet ||
-      (orgSet && (patch.imageAssetOrgId === null) !== (patch.imageAssetId === null))
-    ) {
-      throw new ConflictError(
-        'A profile photo needs both the asset and its organization, or neither',
-      );
-    }
     const user = await this.repo.findUserById(userId);
     if (!user) {
       throw new NotFoundError('User', userId);
     }
-    if (patch.imageAssetId != null && patch.imageAssetOrgId != null) {
-      const owned = await this.images.ownsImage(
-        patch.imageAssetOrgId,
-        patch.imageAssetId,
-        orgUserId,
-      );
+    if (patch.imageAssetId != null) {
+      const owned = await this.images.ownsImage(orgId, patch.imageAssetId, orgUserId);
       if (!owned) {
         this.logger.debug('profile photo refused', {
           userId,
@@ -190,7 +176,9 @@ export class IdentityServiceImpl implements IdentityService {
         throw new NotFoundError('Asset', patch.imageAssetId);
       }
     }
-    const profile = await this.repo.upsertProfile(userId, patch);
+    const imageAssetOrgId =
+      patch.imageAssetId === undefined ? undefined : patch.imageAssetId === null ? null : orgId;
+    const profile = await this.repo.upsertProfile(userId, { ...patch, imageAssetOrgId });
     this.logger.info('profile updated', { userId });
     return this.view(orgId, profile);
   }

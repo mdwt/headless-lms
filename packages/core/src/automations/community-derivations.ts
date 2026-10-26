@@ -1,7 +1,7 @@
 import { discussionEvents } from '../discussion/index.js';
 import { entitlementEvents } from '../entitlements/index.js';
 import { organizationEvents } from '../organizations/index.js';
-import type { ChatMute, EmailTemplateId } from '../types/index.js';
+import type { EmailTemplateId } from '../types/index.js';
 import type { DomainEvent } from '../shared/ports.js';
 import {
   actorOf,
@@ -31,11 +31,11 @@ function seatsLeft(capacity: number | null, active: number): string {
   return String(Math.max(capacity - active, 0));
 }
 
-function muted(mute: ChatMute | null, at: Date): boolean {
-  if (mute === null) {
-    return false;
-  }
-  return mute.until === null || mute.until.getTime() > at.getTime();
+function muted(participant: { muted: boolean; mutedUntil: Date | null }, at: Date): boolean {
+  return (
+    participant.muted &&
+    (participant.mutedUntil === null || participant.mutedUntil.getTime() > at.getTime())
+  );
 }
 
 function chatStatusOf(event: DomainEvent): string | undefined {
@@ -456,7 +456,7 @@ export const COMMUNITY_DERIVATIONS: {
         if (participant.leftAt || participant.orgUserId === message.orgUserId) {
           continue;
         }
-        if (muted(participant.mute, at) || recent.has(participant.orgUserId)) {
+        if (muted(participant, at) || recent.has(participant.orgUserId)) {
           continue;
         }
         if (

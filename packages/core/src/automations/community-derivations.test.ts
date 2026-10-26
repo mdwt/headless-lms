@@ -255,7 +255,8 @@ describe('community email audiences', () => {
   };
   const participants = ['ou_1', 'ou_2', 'ou_3'].map((orgUserId) => ({
     orgUserId,
-    mute: null as { until: Date | null } | null,
+    muted: false,
+    mutedUntil: null as Date | null,
     leftAt: null,
   }));
   const post = {
@@ -327,11 +328,11 @@ describe('community email audiences', () => {
   it('skips a participant muted until a later time or until unmuted', async () => {
     const event = ready(discussionEvents.messageSent.make({ orgId: 'org-1', data: message }));
     const people = [
-      { orgUserId: 'ou_1', mute: null, leftAt: null },
-      { orgUserId: 'ou_2', mute: { until: null }, leftAt: null },
-      { orgUserId: 'ou_3', mute: { until: new Date('2026-01-03T00:00:00Z') }, leftAt: null },
-      { orgUserId: 'ou_4', mute: { until: new Date('2026-01-01T00:00:00Z') }, leftAt: null },
-      { orgUserId: 'ou_5', mute: null, leftAt: null },
+      { orgUserId: 'ou_1', muted: false, mutedUntil: null, leftAt: null },
+      { orgUserId: 'ou_2', muted: true, mutedUntil: null, leftAt: null },
+      { orgUserId: 'ou_3', muted: true, mutedUntil: new Date('2026-01-03T00:00:00Z'), leftAt: null },
+      { orgUserId: 'ou_4', muted: true, mutedUntil: new Date('2026-01-01T00:00:00Z'), leftAt: null },
+      { orgUserId: 'ou_5', muted: false, mutedUntil: new Date('2026-01-03T00:00:00Z'), leftAt: null },
     ];
     const members = ['ou_2', 'ou_3', 'ou_4', 'ou_5'];
     expect(

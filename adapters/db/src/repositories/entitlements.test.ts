@@ -43,52 +43,43 @@ describe("expiry notices", () => {
     );
   });
 
-  it("claims a notice in one statement that copies the term in SQL and re-checks the due predicate", async () => {
+  it("claims a notice with a plain insert of the term it was listed with", async () => {
+    const expiresAt = new Date("2026-05-01T00:00:00Z");
     const won = capturingDb([{ entitlement_id: "ent_1" }] as never);
     await expect(
-      won.repo.claimNotice("org-1", { kind: "expired", entitlementId: "ent_1" }, now, until),
+      won.repo.claimNotice("org-1", { kind: "expired", entitlementId: "ent_1", expiresAt }, now),
     ).resolves.toBe(true);
     expect(won.queries).toHaveLength(1);
     const expired = won.queries[0]!;
     expect(expired.text).toMatch(
-      /^insert into "entitlement_expiry_notices" \("org_id", "entitlement_id", "expires_at", "notified_at"\)\s+select "entitlements"."org_id", "entitlements"."id", "entitlements"."expires_at", /,
+      /^insert into "entitlement_expiry_notices" \("org_id", "entitlement_id", "expires_at", "notified_at"\)\s+values \(\$1, \$2, \$3::timestamptz, \$4::timestamptz\)\s+on conflict do nothing\s+returning "entitlement_id"$/,
     );
-    expect(expired.text).toContain('"entitlements"."status" = $');
-    expect(expired.text).toContain('"entitlements"."expires_at" <= $');
-    expect(expired.text).toMatch(/not exists \(\s*select 1 from "entitlement_expiry_notices"/);
-    expect(expired.text).toMatch(
-      /for share of "entitlements"\s+on conflict do nothing\s+returning/,
-    );
-    expect(expired.values).toEqual(expect.arrayContaining(["ent_1", "org-1", "active"]));
-    expect(expired.values).not.toContain(until.toISOString());
+    expect(expired.text).not.toContain("select");
+    expect(expired.text).not.toContain("for share");
+    expect(expired.values).toEqual(["org-1", "ent_1", expiresAt.toISOString(), now.toISOString()]);
 
     const lost = capturingDb([]);
     await expect(
       lost.repo.claimNotice(
         "org-1",
-        { kind: "ending_soon", entitlementId: "ent_1", communityId: "cmy_1" },
+        { kind: "ending_soon", entitlementId: "ent_1", communityId: "cmy_1", expiresAt },
         now,
-        until,
       ),
     ).resolves.toBe(false);
+    expect(lost.queries).toHaveLength(1);
     const ending = lost.queries[0]!;
     expect(ending.text).toMatch(
-      /^insert into "entitlement_ending_soon_notices" \("org_id", "entitlement_id", "community_id", "expires_at", "notified_at"\)\s+select "entitlements"."org_id", "entitlements"."id", "communities"."id", "entitlements"."expires_at", /,
+      /^insert into "entitlement_ending_soon_notices" \("org_id", "entitlement_id", "community_id", "expires_at", "notified_at"\)\s+values \(\$1, \$2, \$3, \$4::timestamptz, \$5::timestamptz\)\s+on conflict do nothing\s+returning "entitlement_id"$/,
     );
-    expect(ending.text).toContain('inner join "communities"');
-    expect(ending.text).toContain(
-      '"entitlement_ending_soon_notices"."expires_at" = "entitlements"."expires_at"',
-    );
-    expect(ending.text).toMatch(/for share of "entitlements"\s+on conflict do nothing\s+returning/);
-    expect(ending.values).toEqual(
-      expect.arrayContaining([
-        "ent_1",
-        "cmy_1",
-        "published",
-        now.toISOString(),
-        until.toISOString(),
-      ]),
-    );
+    expect(ending.text).not.toContain("join");
+    expect(ending.text).not.toContain("for share");
+    expect(ending.values).toEqual([
+      "org-1",
+      "ent_1",
+      "cmy_1",
+      expiresAt.toISOString(),
+      now.toISOString(),
+    ]);
   });
 
   it("answers whether anything is due in one query", async () => {

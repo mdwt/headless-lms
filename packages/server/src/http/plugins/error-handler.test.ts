@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { NotFoundError, ConflictError } from '@headless-lms/core/shared/errors';
-import { OrganizationRuleError } from '@headless-lms/core/organizations';
+import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
   AlreadyConnectedError,
   InvalidConfigError,
   UnknownIntegrationError,
 } from '@headless-lms/core/integrations';
 import { AutomationKindMismatchError, ReservedActionError } from '@headless-lms/core/automations';
-import { InvalidCursorError } from '@headless-lms/core/discussion';
 import { errorHandler } from './error-handler.js';
 
 let app: FastifyInstance;
@@ -22,6 +21,9 @@ beforeAll(async () => {
     },
     'org-rule': () => {
       throw new OrganizationRuleError('cannot demote the last owner');
+    },
+    'invalid-invite': () => {
+      throw new InviteError('invalid invite');
     },
     'already-connected': () => {
       throw new AlreadyConnectedError('slack');
@@ -40,9 +42,6 @@ beforeAll(async () => {
     },
     'kind-mismatch': () => {
       throw new AutomationKindMismatchError('atm_1', 'webhook');
-    },
-    'invalid-cursor': () => {
-      throw new InvalidCursorError('nope');
     },
     unhandled: () => {
       throw new Error('boom');
@@ -77,15 +76,6 @@ describe('central error handler', () => {
     });
   });
 
-  it('maps InvalidCursorError to 400 invalid_cursor', async () => {
-    const res = await app.inject({ method: 'GET', url: '/invalid-cursor' });
-    expect(res.statusCode).toBe(400);
-    expect(res.json()).toEqual({
-      error: 'invalid_cursor',
-      message: 'The feed cursor is not one this feed returned',
-    });
-  });
-
   it('maps NotFoundError to 404 not_found', async () => {
     const res = await app.inject({ method: 'GET', url: '/not-found' });
     expect(res.statusCode).toBe(404);
@@ -105,6 +95,12 @@ describe('central error handler', () => {
     const res = await app.inject({ method: 'GET', url: '/org-rule' });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: 'conflict', message: 'cannot demote the last owner' });
+  });
+
+  it('maps InviteError to 400 invalid_invite', async () => {
+    const res = await app.inject({ method: 'GET', url: '/invalid-invite' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'invalid_invite', message: 'invalid invite' });
   });
 
   it('maps AlreadyConnectedError to 409 already_connected', async () => {

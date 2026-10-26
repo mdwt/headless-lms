@@ -4,7 +4,6 @@ import type { Actor } from '../shared/actor.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
-import { InvalidCursorError } from './model.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
 import type {
@@ -12,8 +11,8 @@ import type {
   AuthorRecord,
   AuthorRoleReader,
   CreatePostInput,
+  FeedQuery,
   PostCommentFlagReader,
-  PostFeedQuery,
   PostReactions,
   PostRepository,
   PostUnitOfWork,
@@ -63,7 +62,7 @@ function draftInput(over: Partial<CreatePostInput> = {}): CreatePostInput {
   };
 }
 
-const feed: PostFeedQuery = { limit: 20 };
+const feed: FeedQuery = { page: 1, pageSize: 20 };
 
 function topic(id: string) {
   return { orgId: ORG, id, spaceId: 'spc_1', name: id, seq: 0, createdAt: AT, updatedAt: AT };
@@ -128,23 +127,22 @@ function harness(options?: {
       return post ? { ...post } : null;
     },
     async listPublished(orgId, spaceIds, query) {
-      const after = query.after;
-      return rows
+      const matching = rows
         .filter(
           (row) =>
             row.orgId === orgId &&
             row.status === 'published' &&
             spaceIds.includes(row.spaceId) &&
-            (query.topicId === undefined || row.topicId === query.topicId) &&
-            (after === null ||
-              feedOrder(
-                { ...row },
-                { ...row, pinned: after.pinned, publishedAt: after.publishedAt, id: after.id },
-              ) > 0),
+            (query.topicId === undefined || row.topicId === query.topicId),
         )
-        .sort(feedOrder)
-        .slice(0, query.limit)
-        .map((row) => ({ ...row }));
+        .sort(feedOrder);
+      const start = (query.page - 1) * query.pageSize;
+      return {
+        rows: matching.slice(start, start + query.pageSize).map((row) => ({ ...row })),
+        total: matching.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
     async listByAuthor(orgId, orgUserId, spaceIds) {
       return rows
@@ -595,7 +593,7 @@ describe('posts', () => {
     await svc.create(ORG, member, draftInput({ spaceId: 'spc_2', title: 'Second' }));
     const page = await svc.memberFeed(ORG, member, 'cmy_1', feed);
     expect(page.rows).toHaveLength(2);
-    expect(page.nextCursor).toBeNull();
+    expect(page.total).toBe(2);
     const hidden = await svc.memberFeed(ORG, outsider, 'cmy_1', feed);
     expect(hidden.rows).toHaveLength(0);
   });
@@ -851,7 +849,7 @@ describe('posts', () => {
     expect(await svc.listOwn(ORG, outsider, 'cmy_1')).toEqual([]);
   });
 
-  it('pages a feed with a cursor on pinned, publish time and id', async () => {
+  it('pages a feed by page and size, pinned first, then newest, then id', async () => {
     const { svc, rows } = harness();
     const titles = ['One', 'Two', 'Three', 'Four', 'Five'];
     for (const [index, title] of titles.entries()) {
@@ -862,23 +860,17 @@ describe('posts', () => {
         row.pinned = title === 'Two';
       }
     }
-    const first = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { limit: 2 });
+    const first = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 1, pageSize: 2 });
     expect(first.rows.map((row) => row.title)).toEqual(['Two', 'Five']);
-    expect(first.nextCursor).toEqual(expect.any(String));
-    const second = await svc.memberFeed(ORG, other, 'cmy_1', {
-      limit: 2,
-      cursor: first.nextCursor ?? undefined,
-    });
+    expect(first).toMatchObject({ total: 5, page: 1, pageSize: 2 });
+    const second = await svc.memberFeed(ORG, other, 'cmy_1', { page: 2, pageSize: 2 });
     expect(second.rows.map((row) => row.title)).toEqual(['Four', 'Three']);
-    const last = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', {
-      limit: 2,
-      cursor: second.nextCursor ?? undefined,
-    });
+    const last = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 3, pageSize: 2 });
     expect(last.rows.map((row) => row.title)).toEqual(['One']);
-    expect(last.nextCursor).toBeNull();
-    await expect(
-      svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { limit: 2, cursor: 'not-a-cursor' }),
-    ).rejects.toBeInstanceOf(InvalidCursorError);
+    expect(last).toMatchObject({ total: 5, page: 3, pageSize: 2 });
+    const beyond = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 4, pageSize: 2 });
+    expect(beyond.rows).toEqual([]);
+    expect(beyond.total).toBe(5);
   });
 
   it('serves each post with its author profile, and the photo only when it is in this org', async () => {

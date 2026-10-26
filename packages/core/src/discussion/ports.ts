@@ -4,7 +4,6 @@
 import type {
   Activity,
   Chat,
-  ChatMute,
   ChatUser,
   JsonValue,
   Message,
@@ -12,7 +11,6 @@ import type {
   MessageFlagResolution,
   MessageView,
   Post,
-  PostFeedPage,
   PostFlag,
   PostFlagResolution,
   PostView,
@@ -238,24 +236,6 @@ export interface FeedQuery {
   topicId?: string;
 }
 
-export interface PostFeedQuery {
-  cursor?: string;
-  limit: number;
-  topicId?: string;
-}
-
-export interface FeedPosition {
-  pinned: boolean;
-  publishedAt: Date;
-  id: string;
-}
-
-export interface PublishedPostsQuery {
-  after: FeedPosition | null;
-  limit: number;
-  topicId?: string;
-}
-
 export interface PostReactions {
   reactions: ReactionCounts;
   viewerReaction?: ReactionEmoji;
@@ -306,14 +286,14 @@ export interface PostService {
     actor: Actor,
     communityId: string,
     spaceId: string,
-    query: PostFeedQuery,
-  ): Promise<PostFeedPage>;
+    query: FeedQuery,
+  ): Promise<Page<PostView>>;
   memberFeed(
     orgId: string,
     actor: Actor,
     communityId: string,
-    query: Pick<PostFeedQuery, 'cursor' | 'limit'>,
-  ): Promise<PostFeedPage>;
+    query: Pick<FeedQuery, 'page' | 'pageSize'>,
+  ): Promise<Page<PostView>>;
   listOwn(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
   listBookmarked(orgId: string, actor: Actor, communityId: string): Promise<PostView[]>;
   getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
@@ -334,7 +314,7 @@ export interface PostRepository {
   insert(orgId: string, post: Post): Promise<Post>;
   update(orgId: string, id: string, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
-  listPublished(orgId: string, spaceIds: string[], query: PublishedPostsQuery): Promise<Post[]>;
+  listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;
   listByAuthor(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
   listBookmarked(orgId: string, orgUserId: string, spaceIds: string[]): Promise<Post[]>;
   listPending(orgId: string, spaceId: string): Promise<Post[]>;
@@ -390,7 +370,8 @@ export interface ChatListItem {
   chat: Chat;
   participantIds: string[];
   lastReadMessageId: string | null;
-  mute: ChatMute | null;
+  muted: boolean;
+  mutedUntil: Date | null;
   unread: number;
 }
 
@@ -480,7 +461,13 @@ export interface ChatRepository {
   join(orgId: string, user: ChatUser): Promise<void>;
   markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
   setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
-  setMuted(orgId: string, chatId: string, orgUserId: string, mute: ChatMute | null): Promise<void>;
+  setMuted(
+    orgId: string,
+    chatId: string,
+    orgUserId: string,
+    muted: boolean,
+    mutedUntil: Date | null,
+  ): Promise<void>;
   insertMessage(orgId: string, message: Message): Promise<Message>;
   updateMessage(
     orgId: string,

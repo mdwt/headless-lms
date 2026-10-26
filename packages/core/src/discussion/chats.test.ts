@@ -146,7 +146,8 @@ function harness(options?: {
               .map((user) => user.orgUserId)
               .sort(),
             lastReadMessageId: mine?.lastReadMessageId ?? null,
-            mute: mine?.mute ?? null,
+            muted: mine?.muted ?? false,
+            mutedUntil: mine?.mutedUntil ?? null,
             unread: 0,
           };
         });
@@ -182,12 +183,13 @@ function harness(options?: {
         user.lastReadMessageId = messageId;
       }
     },
-    async setMuted(orgId, chatId, orgUserId, mute) {
+    async setMuted(orgId, chatId, orgUserId, muted, mutedUntil) {
       const user = users.find(
         (row) => row.orgId === orgId && row.chatId === chatId && row.orgUserId === orgUserId,
       );
       if (user) {
-        user.mute = mute;
+        user.muted = muted;
+        user.mutedUntil = mutedUntil;
       }
     },
     async insertMessage(_orgId, message) {
@@ -1188,7 +1190,7 @@ describe('chats', () => {
     expect(flags).toHaveLength(1);
   });
 
-  it('mutes until a time or until unmuted, with no sentinel time', async () => {
+  it('mutes with a flag and an optional end time, and unmuting clears both', async () => {
     const { svc, users } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
@@ -1196,16 +1198,20 @@ describe('chats', () => {
       body: null,
       assetIds: [],
     });
-    const mine = () => users.find((user) => user.orgUserId === member.id);
-    expect(mine()?.mute).toBeNull();
+    const mine = () => {
+      const user = users.find((row) => row.orgUserId === member.id);
+      return [user?.muted, user?.mutedUntil];
+    };
+    expect(mine()).toEqual([false, null]);
     await svc.mute(ORG, member, chat.id);
-    expect(mine()?.mute).toEqual({ until: null });
-    expect((await svc.listChats(ORG, member, COMMUNITY))[0]?.mute).toEqual({ until: null });
+    expect(mine()).toEqual([true, null]);
+    const listed = (await svc.listChats(ORG, member, COMMUNITY))[0];
+    expect([listed?.muted, listed?.mutedUntil]).toEqual([true, null]);
     const until = new Date('2030-01-01T00:00:00Z');
     await svc.mute(ORG, member, chat.id, until);
-    expect(mine()?.mute).toEqual({ until });
+    expect(mine()).toEqual([true, until]);
     await svc.unmute(ORG, member, chat.id);
-    expect(mine()?.mute).toBeNull();
+    expect(mine()).toEqual([false, null]);
   });
 
   it('serves each queued message with its flags, its chat and the people in it', async () => {

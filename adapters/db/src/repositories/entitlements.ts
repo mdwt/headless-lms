@@ -615,30 +615,15 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return this.holds(sql`(exists (${expired}) or exists (${ending}))`);
   }
 
-  async claimNotice(
-    orgId: string,
-    notice: EntitlementNotice,
-    now: Date,
-    until: Date,
-  ): Promise<boolean> {
+  async claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean> {
     const statement =
       notice.kind === "expired"
         ? sql`insert into ${entitlementExpiryNotices} ("org_id", "entitlement_id", "expires_at", "notified_at")
-            select ${entitlements.orgId}, ${entitlements.id}, ${entitlements.expiresAt}, ${at(now)}
-            from ${entitlements}
-            where ${entitlements.id} = ${notice.entitlementId}
-              and ${this.expiredUnnoticed(orgId, now)}
-            for share of ${entitlements}
+            values (${orgId}, ${notice.entitlementId}, ${at(notice.expiresAt)}, ${at(now)})
             on conflict do nothing
             returning "entitlement_id"`
         : sql`insert into ${entitlementEndingSoonNotices} ("org_id", "entitlement_id", "community_id", "expires_at", "notified_at")
-            select ${entitlements.orgId}, ${entitlements.id}, ${communities.id}, ${entitlements.expiresAt}, ${at(now)}
-            from ${entitlements}
-            inner join ${communities} on ${opensPublishedCommunity}
-            where ${entitlements.id} = ${notice.entitlementId}
-              and ${communities.id} = ${notice.communityId}
-              and ${this.endingUnnoticed(orgId, now, until)}
-            for share of ${entitlements}
+            values (${orgId}, ${notice.entitlementId}, ${notice.communityId}, ${at(notice.expiresAt)}, ${at(now)})
             on conflict do nothing
             returning "entitlement_id"`;
     const result = await this.db.execute<{ entitlement_id: string }>(statement);

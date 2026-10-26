@@ -41,8 +41,8 @@ export interface CommunityAccessReader {
 }
 
 export type EntitlementNotice =
-  | { kind: 'expired'; entitlementId: string }
-  | { kind: 'ending_soon'; entitlementId: string; communityId: string };
+  | { kind: 'expired'; entitlementId: string; expiresAt: Date }
+  | { kind: 'ending_soon'; entitlementId: string; communityId: string; expiresAt: Date };
 
 export interface EndingGrant {
   grant: Entitlement;
@@ -173,7 +173,7 @@ export interface EntitlementsRepository {
   listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]>;
   listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<EndingGrant[]>;
   hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean>;
-  claimNotice(orgId: string, notice: EntitlementNotice, now: Date, until: Date): Promise<boolean>;
+  claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
 }
