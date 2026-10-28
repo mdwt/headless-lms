@@ -41,6 +41,7 @@ export const ID_PREFIXES = {
   chat: 'cht',
   message: 'msg',
   messageFlag: 'mfl',
+  notification: 'ntf',
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;

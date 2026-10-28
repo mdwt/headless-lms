@@ -225,6 +225,15 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       .map((fact) => fact.orgUserId);
   }
 
+  async spaceOpeners(orgId: string, spaceId: string): Promise<string[]> {
+    const space = await this.content.getSpace(orgId, spaceId);
+    if (!space) {
+      return [];
+    }
+    const members = await this.repo.communityMemberIds(orgId, space.communityId);
+    return this.spaceOpenersAmong(orgId, spaceId, members);
+  }
+
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]> {
     return this.repo.communitiesOpenedBy(orgId, grant);
   }

@@ -1,7 +1,7 @@
 // member — Drizzle read repo (implements the reporting/member outbound port).
 // Active means stored status active and expires_at still ahead. A course or
 // download is reachable directly or through a bundle, and only when published.
-import { and, asc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
@@ -24,6 +24,22 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 import { communityMember, grantUnexpired, holdsCommunity } from "./grant-covers.js";
+
+function personColumns(orgId: string) {
+  return {
+    orgUserId: orgUsers.id,
+    userId: orgUsers.userId,
+    role: orgUsers.role,
+    displayName: sql<
+      string | null
+    >`coalesce(nullif(trim(${userProfiles.displayName}), ''), nullif(trim(concat_ws(' ', ${users.firstName}, ${users.lastName})), ''))`,
+    headline: userProfiles.headline,
+    bio: userProfiles.bio,
+    imageAssetId: sql<
+      string | null
+    >`case when ${userProfiles.imageAssetOrgId} = ${orgId} then ${userProfiles.imageAssetId} end`,
+  };
+}
 
 export class DrizzleMemberRepository implements MemberReportRepository {
   constructor(
@@ -140,19 +156,7 @@ export class DrizzleMemberRepository implements MemberReportRepository {
 
   async directory(orgId: string, communityId: string): Promise<DirectoryRow[]> {
     const rows = await this.db
-      .select({
-        orgUserId: orgUsers.id,
-        userId: orgUsers.userId,
-        role: orgUsers.role,
-        displayName: sql<
-          string | null
-        >`coalesce(nullif(trim(${userProfiles.displayName}), ''), nullif(trim(concat_ws(' ', ${users.firstName}, ${users.lastName})), ''))`,
-        headline: userProfiles.headline,
-        bio: userProfiles.bio,
-        imageAssetId: sql<
-          string | null
-        >`case when ${userProfiles.imageAssetOrgId} = ${orgId} then ${userProfiles.imageAssetId} end`,
-      })
+      .select(personColumns(orgId))
       .from(orgUsers)
       .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
       .leftJoin(users, eq(users.id, orgUsers.userId))
@@ -169,6 +173,18 @@ export class DrizzleMemberRepository implements MemberReportRepository {
       )
       .orderBy(asc(userProfiles.displayName), asc(orgUsers.id));
     return rows;
+  }
+
+  async people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    return this.db
+      .select(personColumns(orgId))
+      .from(orgUsers)
+      .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
+      .leftJoin(users, eq(users.id, orgUsers.userId))
+      .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
   }
 
   async spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>> {

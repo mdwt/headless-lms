@@ -1,6 +1,8 @@
 // reporting/member — read model. Reuses the content domain's Course/Module
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
+import type { NotificationKind } from '../../identity/index.js';
+
 export type {
   ActivityView,
   CourseView,
@@ -78,4 +80,28 @@ export interface CourseProgressView {
   completed: boolean;
   /** Per-activity reported state (the record's position map); absent key = none reported. */
   positions: Record<string, unknown>;
+}
+
+/** One of the viewer's notifications, with the names of what it refers to.
+ *  A post or chat the viewer can no longer see comes back null. */
+export interface NotificationView {
+  id: string;
+  kind: NotificationKind;
+  createdAt: Date;
+  readAt: Date | null;
+  actor: { orgUserId: string; displayName: string | null; imageUrl: string | null } | null;
+  community: { id: string; title: string } | null;
+  space: { id: string; name: string } | null;
+  post: { id: string; title: string } | null;
+  commentId: string | null;
+  chat: { id: string; title: string } | null;
+  messageId: string | null;
+}
+
+export interface NotificationsView {
+  rows: NotificationView[];
+  total: number;
+  page: number;
+  pageSize: number;
+  unreadCount: number;
 }

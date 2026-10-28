@@ -12388,6 +12388,536 @@ export type GetMemberDownloadResponses = {
 export type GetMemberDownloadResponse =
   GetMemberDownloadResponses[keyof GetMemberDownloadResponses];
 
+export type ListMemberNotificationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
+  url: "/api/member/notifications";
+};
+
+export type ListMemberNotificationsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListMemberNotificationsError =
+  ListMemberNotificationsErrors[keyof ListMemberNotificationsErrors];
+
+export type ListMemberNotificationsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      id: string;
+      kind:
+        | "newPostInSpace"
+        | "newCommentOnPost"
+        | "replyToYourComment"
+        | "yourPostWasPublished"
+        | "yourPostWasRemoved"
+        | "yourCommentWasRemoved"
+        | "requestApproved"
+        | "requestDeclined"
+        | "invitedToSpace"
+        | "newMessage"
+        | "messageRequest"
+        | "addedToGroupChat"
+        | "youAreNowAModerator"
+        | "membershipEndingSoon"
+        | "welcomeToCommunity"
+        | "postAwaitingReview"
+        | "joinRequest"
+        | "somethingWasFlagged"
+        | "messageWasFlagged";
+      createdAt: string;
+      readAt: string | null;
+      actor: {
+        orgUserId: string;
+        displayName: string | null;
+        imageUrl: string | null;
+      } | null;
+      community: {
+        id: string;
+        title: string;
+      } | null;
+      space: {
+        id: string;
+        name: string;
+      } | null;
+      /**
+       * Null when the viewer can no longer see the post
+       */
+      post: {
+        id: string;
+        title: string;
+      } | null;
+      commentId: string | null;
+      /**
+       * Null when the viewer is not in the chat
+       */
+      chat: {
+        id: string;
+        title: string;
+      } | null;
+      messageId: string | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+    unreadCount: number;
+  };
+};
+
+export type ListMemberNotificationsResponse =
+  ListMemberNotificationsResponses[keyof ListMemberNotificationsResponses];
+
+export type MarkMemberNotificationReadData = {
+  body?: never;
+  path: {
+    notificationId: string;
+  };
+  query?: never;
+  url: "/api/member/notifications/{notificationId}/read";
+};
+
+export type MarkMemberNotificationReadErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type MarkMemberNotificationReadError =
+  MarkMemberNotificationReadErrors[keyof MarkMemberNotificationReadErrors];
+
+export type MarkMemberNotificationReadResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    userId: string;
+    kind:
+      | "newPostInSpace"
+      | "newCommentOnPost"
+      | "replyToYourComment"
+      | "yourPostWasPublished"
+      | "yourPostWasRemoved"
+      | "yourCommentWasRemoved"
+      | "requestApproved"
+      | "requestDeclined"
+      | "invitedToSpace"
+      | "newMessage"
+      | "messageRequest"
+      | "addedToGroupChat"
+      | "youAreNowAModerator"
+      | "membershipEndingSoon"
+      | "welcomeToCommunity"
+      | "postAwaitingReview"
+      | "joinRequest"
+      | "somethingWasFlagged"
+      | "messageWasFlagged";
+    actorOrgUserId: string | null;
+    communityId: string | null;
+    spaceId: string | null;
+    postId: string | null;
+    commentId: string | null;
+    chatId: string | null;
+    messageId: string | null;
+    createdAt: string;
+    readAt: string | null;
+  };
+};
+
+export type MarkMemberNotificationReadResponse =
+  MarkMemberNotificationReadResponses[keyof MarkMemberNotificationReadResponses];
+
+export type MarkAllMemberNotificationsReadData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/notifications/read";
+};
+
+export type MarkAllMemberNotificationsReadErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type MarkAllMemberNotificationsReadError =
+  MarkAllMemberNotificationsReadErrors[keyof MarkAllMemberNotificationsReadErrors];
+
+export type MarkAllMemberNotificationsReadResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    updated: number;
+  };
+};
+
+export type MarkAllMemberNotificationsReadResponse =
+  MarkAllMemberNotificationsReadResponses[keyof MarkAllMemberNotificationsReadResponses];
+
+export type GetMemberNotificationPreferencesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/notification-preferences";
+};
+
+export type GetMemberNotificationPreferencesErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberNotificationPreferencesError =
+  GetMemberNotificationPreferencesErrors[keyof GetMemberNotificationPreferencesErrors];
+
+export type GetMemberNotificationPreferencesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    kind:
+      | "newPostInSpace"
+      | "newCommentOnPost"
+      | "replyToYourComment"
+      | "yourPostWasPublished"
+      | "yourPostWasRemoved"
+      | "yourCommentWasRemoved"
+      | "requestApproved"
+      | "requestDeclined"
+      | "invitedToSpace"
+      | "newMessage"
+      | "messageRequest"
+      | "addedToGroupChat"
+      | "youAreNowAModerator"
+      | "membershipEndingSoon"
+      | "welcomeToCommunity"
+      | "postAwaitingReview"
+      | "joinRequest"
+      | "somethingWasFlagged"
+      | "messageWasFlagged";
+    inApp: boolean;
+    email: boolean;
+  }>;
+};
+
+export type GetMemberNotificationPreferencesResponse =
+  GetMemberNotificationPreferencesResponses[keyof GetMemberNotificationPreferencesResponses];
+
+export type SetMemberNotificationPreferencesData = {
+  body: {
+    preferences: Array<{
+      kind:
+        | "newPostInSpace"
+        | "newCommentOnPost"
+        | "replyToYourComment"
+        | "yourPostWasPublished"
+        | "yourPostWasRemoved"
+        | "yourCommentWasRemoved"
+        | "requestApproved"
+        | "requestDeclined"
+        | "invitedToSpace"
+        | "newMessage"
+        | "messageRequest"
+        | "addedToGroupChat"
+        | "youAreNowAModerator"
+        | "membershipEndingSoon"
+        | "welcomeToCommunity"
+        | "postAwaitingReview"
+        | "joinRequest"
+        | "somethingWasFlagged"
+        | "messageWasFlagged";
+      inApp: boolean;
+      email: boolean;
+    }>;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/member/notification-preferences";
+};
+
+export type SetMemberNotificationPreferencesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type SetMemberNotificationPreferencesError =
+  SetMemberNotificationPreferencesErrors[keyof SetMemberNotificationPreferencesErrors];
+
+export type SetMemberNotificationPreferencesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    kind:
+      | "newPostInSpace"
+      | "newCommentOnPost"
+      | "replyToYourComment"
+      | "yourPostWasPublished"
+      | "yourPostWasRemoved"
+      | "yourCommentWasRemoved"
+      | "requestApproved"
+      | "requestDeclined"
+      | "invitedToSpace"
+      | "newMessage"
+      | "messageRequest"
+      | "addedToGroupChat"
+      | "youAreNowAModerator"
+      | "membershipEndingSoon"
+      | "welcomeToCommunity"
+      | "postAwaitingReview"
+      | "joinRequest"
+      | "somethingWasFlagged"
+      | "messageWasFlagged";
+    inApp: boolean;
+    email: boolean;
+  }>;
+};
+
+export type SetMemberNotificationPreferencesResponse =
+  SetMemberNotificationPreferencesResponses[keyof SetMemberNotificationPreferencesResponses];
+
 export type ListCommentsData = {
   body?: never;
   path?: never;

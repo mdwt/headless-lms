@@ -655,6 +655,34 @@ export class ChatServiceImpl implements ChatService {
     return { chat, participants };
   }
 
+  async titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>> {
+    if (chatIds.length === 0) {
+      return {};
+    }
+    const summaries = (await this.repo.chatSummaries(orgId, [...new Set(chatIds)])).filter(
+      (summary) => summary.participantIds.includes(actor.id),
+    );
+    const others = [
+      ...new Set(
+        summaries.flatMap((summary) => summary.participantIds.filter((id) => id !== actor.id)),
+      ),
+    ];
+    const records = others.length > 0 ? await this.profiles.authorsOf(orgId, others) : {};
+    const nameOf = (id: string): string => {
+      const record = records[id];
+      return (record && authorView(orgId, record, {}).displayName) || 'A member';
+    };
+    return Object.fromEntries(
+      summaries.flatMap((summary) => {
+        const names = summary.participantIds.filter((id) => id !== actor.id).map(nameOf);
+        if (names.length > 0) {
+          return [[summary.chat.id, names.join(', ')]];
+        }
+        return summary.chat.kind === 'group' ? [[summary.chat.id, 'Group chat']] : [];
+      }),
+    );
+  }
+
   async latestMessageBody(orgId: string, chatId: string): Promise<string | null> {
     const page = await this.repo.listMessages(orgId, chatId, { page: 1, pageSize: 1 });
     return page.rows[0]?.body ?? null;

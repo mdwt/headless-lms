@@ -15,6 +15,7 @@ import {
   DrizzleIdentityRepository,
   DrizzleMemberRepository,
   DrizzleMembersRepository,
+  DrizzleNotificationsRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
   DrizzleOutboxStore,
@@ -48,7 +49,11 @@ import {
   DiscussionServiceImpl,
   PostServiceImpl,
 } from '@headless-lms/core/discussion';
-import { IdentityServiceImpl, type SessionAdmin } from '@headless-lms/core/identity';
+import {
+  IdentityServiceImpl,
+  NotificationServiceImpl,
+  type SessionAdmin,
+} from '@headless-lms/core/identity';
 import {
   type OrgAdmin,
   OrganizationServiceImpl,
@@ -164,6 +169,7 @@ export interface Container {
 
   // Domains
   identity: IdentityServiceImpl;
+  notifications: NotificationServiceImpl;
   organizations: OrganizationServiceImpl;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
@@ -263,6 +269,10 @@ export async function buildContainer(
     mailer,
     images: assets,
     assetUrls: assets,
+  });
+  const notifications = new NotificationServiceImpl({
+    repo: new DrizzleNotificationsRepository(db),
+    logger: logger.child({ name: 'notifications' }),
   });
 
   /*
@@ -401,6 +411,9 @@ export async function buildContainer(
       progress,
       assetUrls: assets,
       access: entitlements,
+      notifications,
+      posts,
+      chats,
     }),
   };
 
@@ -441,12 +454,10 @@ export async function buildContainer(
   // Emails triggered by row-shaped events resolve their recipient and content
   // details at send time — the event carries ids only.
   const mailerLookups: MailerLookups = {
-    orgUserEmail: async (orgId, orgUserId) => {
+    orgUserPerson: async (orgId, orgUserId) => {
       const orgUser = await organizationsRepo.findOrgUserById(orgId, orgUserId);
-      if (!orgUser) {
-        return null;
-      }
-      return (await identity.getUserById(orgUser.userId))?.email ?? null;
+      const user = orgUser ? await identity.getUserById(orgUser.userId) : null;
+      return user ? { userId: user.id, email: user.email } : null;
     },
     contentInfo: async (orgId, contentId) => {
       const course = await content.getCourse(orgId, contentId);
@@ -485,6 +496,7 @@ export async function buildContainer(
     webhooks: options?.adapters?.webhooks ?? new FetchWebhookSender(),
     mail: wired.mail,
     grants: wired.grants,
+    desk: notifications,
     scheduledWork: wired.scheduledWork,
     logger: automationsLogger,
   });
@@ -614,6 +626,7 @@ export async function buildContainer(
   return {
     auth,
     identity,
+    notifications,
     organizations,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.
     orgProvider: auth,

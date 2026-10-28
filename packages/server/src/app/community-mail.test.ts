@@ -16,6 +16,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
       communitiesOpenedBy: reject,
       communityMembersAmong: reject,
       spaceOpenersAmong: reject,
+      spaceOpeners: reject,
       communityModeratorIds: reject,
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,

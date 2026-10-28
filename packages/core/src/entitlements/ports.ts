@@ -43,6 +43,7 @@ export interface CommunityAccessReader {
     orgUserIds: string[],
   ): Promise<string[]>;
   spaceOpenersAmong(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]>;
+  spaceOpeners(orgId: string, spaceId: string): Promise<string[]>;
 }
 
 export type EntitlementNotice =
@@ -181,6 +182,7 @@ export interface EntitlementsRepository {
   hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean>;
   claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
+  communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
 }
 

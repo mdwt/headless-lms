@@ -80,6 +80,7 @@ function fakeRepo(refs: ContentRef[]): MemberReportRepository {
     activeDownloadRef: async () => null,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
+    people: async () => [],
   };
 }
 
@@ -102,13 +103,31 @@ const assetUrls: AssetUrlSigner = {
   downloads: async () => ({}),
 };
 
-const deps: Pick<MemberReportServiceParams, 'assetUrls' | 'access'> = {
+const readers: Pick<MemberReportServiceParams, 'notifications' | 'posts' | 'chats'> = {
+  notifications: {
+    listNotifications: async (_orgId, _userId, query) => ({
+      rows: [],
+      total: 0,
+      page: query.page,
+      pageSize: query.pageSize,
+      unreadCount: 0,
+    }),
+  },
+  posts: { visibleTitles: async () => ({}) },
+  chats: { titlesFor: async () => ({}) },
+};
+
+const deps: Pick<
+  MemberReportServiceParams,
+  'assetUrls' | 'access' | 'notifications' | 'posts' | 'chats'
+> = {
   assetUrls,
   access: {
     isCommunityMember: async () => false,
     openSpaceIds: async () => [],
     spaceStandings: async () => ({}),
   },
+  ...readers,
 };
 
 // Full-surface ContentService fake: every member rejects or returns empty by
@@ -182,6 +201,7 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
     activeDownloadRef: async () => null,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
+    people: async () => [],
     ...over,
   };
 }
@@ -433,6 +453,7 @@ describe('signed file URLs', () => {
         openSpaceIds: async () => [],
         spaceStandings: async () => ({}),
       },
+      ...readers,
     });
 
     const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1');
@@ -441,5 +462,83 @@ describe('signed file URLs', () => {
       ['ou_sarah', 'https://signed/ast_photo'],
       ['ou_james', null],
     ]);
+  });
+
+  it('names what each notification refers to and leaves out what the viewer cannot see', async () => {
+    const row = {
+      orgId: 'o1',
+      userId: 'usr_james',
+      createdAt: AT,
+      readAt: null,
+      commentId: null,
+      messageId: null,
+    };
+    const svc = new MemberReportServiceImpl({
+      repo: fakeEntitlementReader({
+        people: async () => [
+          {
+            orgUserId: 'ou_sarah',
+            userId: 'usr_sarah',
+            role: 'student',
+            displayName: 'Sarah',
+            headline: null,
+            bio: null,
+            imageAssetId: 'ast_photo',
+          },
+        ],
+      }),
+      content: fakeContentService({
+        getCommunity: async () => ({ id: 'cmy_1', title: 'Founders' }) as never,
+        getSpace: async () => ({ id: 'spc_1', name: 'Announcements' }) as never,
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      notifications: {
+        listNotifications: async (_orgId, _userId, query) => ({
+          rows: [
+            {
+              ...row,
+              id: 'ntf_1',
+              kind: 'newPostInSpace',
+              actorOrgUserId: 'ou_sarah',
+              communityId: 'cmy_1',
+              spaceId: 'spc_1',
+              postId: 'pst_seen',
+              chatId: null,
+            },
+            {
+              ...row,
+              id: 'ntf_2',
+              kind: 'newMessage',
+              actorOrgUserId: 'ou_sarah',
+              communityId: 'cmy_1',
+              spaceId: null,
+              postId: 'pst_hidden',
+              chatId: 'cht_other',
+            },
+          ],
+          total: 2,
+          page: query.page,
+          pageSize: query.pageSize,
+          unreadCount: 2,
+        }),
+      },
+      posts: { visibleTitles: async () => ({ pst_seen: 'Launch week' }) },
+    });
+
+    const view = await svc.notifications('o1', { id: 'ou_james', role: 'student' }, 'usr_james', {
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(view.unreadCount).toBe(2);
+    expect(view.rows[0]).toMatchObject({
+      actor: { orgUserId: 'ou_sarah', displayName: 'Sarah', imageUrl: 'https://signed/ast_photo' },
+      community: { id: 'cmy_1', title: 'Founders' },
+      space: { id: 'spc_1', name: 'Announcements' },
+      post: { id: 'pst_seen', title: 'Launch week' },
+      chat: null,
+    });
+    expect(view.rows[1]).toMatchObject({ post: null, chat: null, space: null });
   });
 });

@@ -1,4 +1,5 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
+import type { NotificationDesk } from '../identity/index.js';
 import type {
   ChatStatus,
   EmailTemplateId,
@@ -17,6 +18,7 @@ export const MESSAGE_BATCH_MS = 15 * 60 * 1000;
 export interface EmailRecipient<K extends EmailTemplateId = EmailTemplateId> {
   to: string;
   orgUserId: string;
+  userId: string;
   params: EmailTemplateParams[K];
 }
 
@@ -33,6 +35,7 @@ export interface CommunityMailReads {
   ): Promise<string[]>;
   communityMembersAmong(orgId: string, communityId: string, ids: string[]): Promise<string[]>;
   spaceOpenersAmong(orgId: string, spaceId: string, ids: string[]): Promise<string[]>;
+  spaceOpeners(orgId: string, spaceId: string): Promise<string[]>;
   moderationAudience(orgId: string, communityId: string): Promise<string[]>;
   staffIds(orgId: string): Promise<string[]>;
   displayName(orgId: string, orgUserId: string): Promise<string>;
@@ -99,6 +102,7 @@ export interface ActionDeps {
   webhooks: WebhookSender;
   mail: CommunityMailReads;
   grants: GrantWriter;
+  desk: NotificationDesk;
   scheduledWork: ScheduledWork;
   automationId: string;
   actionInput: Record<string, JsonValue>;
@@ -112,6 +116,7 @@ export const emptyCommunityMail: CommunityMailReads = {
   communitiesOpenedBy: async () => [],
   communityMembersAmong: async () => [],
   spaceOpenersAmong: async () => [],
+  spaceOpeners: async () => [],
   moderationAudience: async () => [],
   staffIds: async () => [],
   displayName: async () => 'A member',
@@ -124,6 +129,11 @@ export const emptyCommunityMail: CommunityMailReads = {
   activeMemberCount: async () => 0,
   memberCommunityTitles: async () => [],
   recentMessageRecipients: async () => [],
+};
+
+export const emptyNotificationDesk: NotificationDesk = {
+  notify: async () => {},
+  preferencesFor: async () => ({}),
 };
 
 export const emptyScheduledWork: ScheduledWork = {
@@ -181,12 +191,12 @@ export async function address<K extends EmailTemplateId>(
   const recipients: EmailRecipient<K>[] = [];
   const logger = deps.logger ?? noopLogger;
   for (const orgUserId of wanted) {
-    const to = await deps.lookups.orgUserEmail(orgId, orgUserId);
-    if (!to) {
+    const person = await deps.lookups.orgUserPerson(orgId, orgUserId);
+    if (!person) {
       logger.warn('email skipped: recipient has no address', { orgId, orgUserId });
       continue;
     }
-    recipients.push({ to, orgUserId, params });
+    recipients.push({ to: person.email, orgUserId, userId: person.userId, params });
   }
   return recipients;
 }

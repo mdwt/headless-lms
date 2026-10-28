@@ -98,6 +98,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     hasDueNotices: vi.fn().mockResolvedValue(false),
     claimNotice: vi.fn().mockResolvedValue(true),
     communityModeratorIds: vi.fn().mockResolvedValue([]),
+    communityMemberIds: vi.fn().mockResolvedValue([]),
     communityIdsOpenedFor: vi.fn().mockResolvedValue([]),
     listSpaceMembersFor: vi.fn().mockResolvedValue([]),
     ...over,

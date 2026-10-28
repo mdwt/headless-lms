@@ -5,15 +5,22 @@
 // which (trigger, template) pairings are derivable. A template with no entry
 // (e.g. courseCompleted) makes `executeAction` throw a named error, recorded
 // by the engine as a failed action.
-import type { EmailTemplateId } from '../types/index.js';
-import { deliverWebhookInputSchema } from '../types/schemas/index.js';
+import type { EmailTemplateId, NotificationKind } from '../types/index.js';
+import { deliverWebhookInputSchema, notificationKindSchema } from '../types/schemas/index.js';
 import { entitlementEvents } from '../entitlements/index.js';
+import type { NewNotification } from '../identity/index.js';
 import type { DomainEvent } from '../shared/ports.js';
 import type { AutomationAction } from './model.js';
-import { ALL_EMAIL_TEMPLATE_IDS, DELIVER_WEBHOOK_ACTION, publicDataSchema } from './catalog.js';
+import {
+  ALL_EMAIL_TEMPLATE_IDS,
+  DELIVER_WEBHOOK_ACTION,
+  NOTIFY_ACTION,
+  publicDataSchema,
+} from './catalog.js';
 import { webhookHeaders } from './webhook-signing.js';
 import { address, firedAtOf, type ActionDeps, type EmailRecipient } from './community-mail.js';
 import { COMMUNITY_DERIVATIONS, type EmailDerivation } from './community-derivations.js';
+import { NOTIFICATION_PLACEMENTS } from './community-notifications.js';
 
 type SendEmailDerivations = { [K in EmailTemplateId]?: EmailDerivation<K> };
 
@@ -94,9 +101,16 @@ export async function executeAction(
         );
       }
       for (const recipient of derived) {
-        await deps.mailer.send(recipient.to, template, recipient.params);
+        await send(template, recipient, deps);
       }
       return derived.map((recipient) => recipient.orgUserId);
+    }
+    case NOTIFY_ACTION: {
+      const kind = notificationKindSchema.safeParse(action.input['kind']);
+      if (!kind.success) {
+        throw new Error(`${NOTIFY_ACTION}: unknown kind "${String(action.input['kind'])}"`);
+      }
+      return notify(kind.data, event, { ...deps, actionInput: action.input });
     }
     case 'grantAccess': {
       await grantAccess(action, event, deps);
@@ -126,6 +140,60 @@ export async function executeAction(
       throw new Error(`unknown automation action type "${action.type}"`);
     }
   }
+}
+
+async function send<K extends EmailTemplateId>(
+  template: K,
+  recipient: EmailRecipient<K>,
+  deps: ActionDeps,
+): Promise<void> {
+  await deps.mailer.send(recipient.to, template, recipient.params);
+}
+
+async function notify<K extends NotificationKind>(
+  kind: K,
+  event: DomainEvent,
+  deps: ActionDeps,
+): Promise<string[]> {
+  const derivation = SEND_EMAIL_DERIVATIONS[kind] as EmailDerivation<K> | undefined;
+  if (!derivation || !derivation.triggers.includes(event.type)) {
+    throw new Error(
+      `${NOTIFY_ACTION}: kind "${kind}" cannot be derived from event "${event.type}"`,
+    );
+  }
+  const recipients = await derivation.derive(event, deps);
+  if (!recipients) {
+    throw new Error(
+      `${NOTIFY_ACTION}: event "${event.type}" is missing the data required to derive kind "${kind}"`,
+    );
+  }
+  const preferences = await deps.desk.preferencesFor(
+    event.orgId,
+    recipients.map((recipient) => recipient.userId),
+    kind,
+  );
+  const placement = NOTIFICATION_PLACEMENTS[kind];
+  const notifications: NewNotification[] = [];
+  const reached: string[] = [];
+  for (const recipient of recipients) {
+    const preference = preferences[recipient.userId];
+    const email = preference?.email !== false;
+    const inApp = preference?.inApp !== false;
+    if (email) {
+      await send(kind, recipient, deps);
+    }
+    if (inApp) {
+      const placements = await placement.place(event, recipient, deps);
+      notifications.push(
+        ...placements.map((placed) => ({ ...placed, userId: recipient.userId, kind })),
+      );
+    }
+    if (email || inApp) {
+      reached.push(recipient.orgUserId);
+    }
+  }
+  await deps.desk.notify(event.orgId, notifications);
+  return reached;
 }
 
 function grantRecipient(event: DomainEvent): string | undefined {

@@ -115,6 +115,17 @@ export class DrizzlePostRepository implements PostRepository {
     return row ? toPost(row) : null;
   }
 
+  async findMany(orgId: string, ids: string[]): Promise<Post[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(posts)
+      .where(and(eq(posts.orgId, orgId), inArray(posts.id, ids)));
+    return rows.map(toPost);
+  }
+
   async listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>> {
     if (spaceIds.length === 0) {
       return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };

@@ -11,6 +11,7 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationsView,
 } from './model.js';
 
 export interface MemberReportService {
@@ -41,6 +42,12 @@ export interface MemberReportService {
     communityId: string,
     spaceId: string,
   ): Promise<CommunityHomeSpace | null>;
+  notifications(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    query: { page: number; pageSize: number },
+  ): Promise<NotificationsView>;
 }
 
 export interface MemberReportRepository {
@@ -54,4 +61,5 @@ export interface MemberReportRepository {
   ): Promise<ContentRef | null>;
   directory(orgId: string, communityId: string): Promise<DirectoryRow[]>;
   spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
+  people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]>;
 }

@@ -4,7 +4,12 @@ import { organizationEvents } from '../organizations/index.js';
 import { discussionEvents } from '../discussion/index.js';
 import { executeAction } from './actions.js';
 import { COMMUNITY_DERIVATIONS } from './community-derivations.js';
-import { emptyCommunityMail, emptyScheduledWork, type ActionDeps } from './community-mail.js';
+import {
+  emptyCommunityMail,
+  emptyNotificationDesk,
+  emptyScheduledWork,
+  type ActionDeps,
+} from './community-mail.js';
 import type { DomainEvent } from '../shared/ports.js';
 
 function ready(event: {
@@ -29,7 +34,10 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
   return {
     mailer: { send: vi.fn() },
     lookups: {
-      orgUserEmail: vi.fn(async (_orgId: string, orgUserId: string) => `${orgUserId}@example.com`),
+      orgUserPerson: vi.fn(async (_orgId: string, orgUserId: string) => ({
+        userId: `usr_${orgUserId}`,
+        email: `${orgUserId}@example.com`,
+      })),
       contentInfo: vi.fn(),
     },
     credentials: { reveal: vi.fn() },
@@ -44,6 +52,7 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
       space: vi.fn(async () => ({ name: 'Announcements', communityId: 'cmy_1', capacity: 4 })),
     },
     grants: { grant: vi.fn() },
+    desk: emptyNotificationDesk,
     scheduledWork: emptyScheduledWork,
     automationId: 'atm_1',
     actionInput: { template: 'welcomeToCommunity', communityId: 'cmy_1' },
@@ -95,13 +104,50 @@ describe('community email derivations', () => {
     expect(recipients).toEqual([]);
   });
 
-  it('does not send a new-post email until preferences exist', async () => {
-    expect(
-      await COMMUNITY_DERIVATIONS.newPostInSpace!.derive(
-        { type: 'discussion.post.published' } as never,
-        deps(),
-      ),
-    ).toEqual([]);
+  it('emails everyone who can open the space about a new post, except its author', async () => {
+    const event = ready(
+      discussionEvents.postPublished.make({
+        orgId: 'org-1',
+        data: {
+          orgId: 'org-1',
+          id: 'pst_1',
+          communityId: 'cmy_1',
+          spaceId: 'spc_1',
+          orgUserId: 'ou_1',
+          topicId: null,
+          title: 'Hello',
+          body: 'Body',
+          extra: null,
+          coverAssetId: null,
+          status: 'published',
+          scheduledAt: null,
+          publishedAt: new Date('2026-01-02T00:00:00Z'),
+          removedBy: null,
+          pinned: false,
+          commentsClosed: null,
+          reactionsEnabled: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-02T00:00:00Z'),
+        },
+        metadata: { previousStatus: 'draft' },
+      }),
+    );
+    const recipients = await COMMUNITY_DERIVATIONS.newPostInSpace!.derive(
+      event,
+      deps({
+        mail: {
+          ...deps().mail,
+          spaceOpeners: vi.fn(async () => ['ou_1', 'ou_2', 'ou_3']),
+        },
+      }),
+    );
+    expect(recipients?.map((recipient) => recipient.orgUserId)).toEqual(['ou_2', 'ou_3']);
+    expect(recipients?.[0]?.params).toEqual(
+      expect.objectContaining({ spaceName: 'Announcements', postTitle: 'Hello', postId: 'pst_1' }),
+    );
+  });
+
+  it('sends no digest', async () => {
     expect(
       await COMMUNITY_DERIVATIONS.digest!.derive(
         { type: 'discussion.digest.due' } as never,
@@ -463,5 +509,90 @@ describe('executeAction grant and schedule', () => {
       deps({ scheduledWork: { ...emptyScheduledWork, publishDuePosts } }),
     );
     expect(publishDuePosts).toHaveBeenCalledWith('org-1', new Date('2026-01-02T00:05:00.000Z'));
+  });
+});
+
+describe('executeAction notifications', () => {
+  const granted = () =>
+    ready(entitlementEvents.entitlementCreated.make({ orgId: 'org-1', data: ENTITLEMENT }));
+
+  it('emails and adds a notification for each person concerned', async () => {
+    const send = vi.fn(async () => {});
+    const notify = vi.fn(async () => {});
+    const recipients = await executeAction(
+      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
+      granted(),
+      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify } }),
+    );
+    expect(recipients).toEqual(['ou_1']);
+    expect(send).toHaveBeenCalledWith('ou_1@example.com', 'welcomeToCommunity', expect.anything());
+    expect(notify).toHaveBeenCalledWith('org-1', [
+      {
+        userId: 'usr_ou_1',
+        kind: 'welcomeToCommunity',
+        actorOrgUserId: null,
+        communityId: 'cmy_1',
+        spaceId: null,
+        postId: null,
+        commentId: null,
+        chatId: null,
+        messageId: null,
+      },
+    ]);
+  });
+
+  it('sends no email to a person who turned email off', async () => {
+    const send = vi.fn(async () => {});
+    const notify = vi.fn(async () => {});
+    const preferencesFor = vi.fn(async () => ({
+      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: true, email: false },
+    }));
+    const recipients = await executeAction(
+      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
+      granted(),
+      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
+    );
+    expect(recipients).toEqual(['ou_1']);
+    expect(send).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith('org-1', [
+      expect.objectContaining({ userId: 'usr_ou_1', kind: 'welcomeToCommunity' }),
+    ]);
+    expect(preferencesFor).toHaveBeenCalledWith('org-1', ['usr_ou_1'], 'welcomeToCommunity');
+  });
+
+  it('adds no notification for a person who turned in-app off', async () => {
+    const send = vi.fn(async () => {});
+    const notify = vi.fn(async () => {});
+    const preferencesFor = vi.fn(async () => ({
+      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: false, email: true },
+    }));
+    const recipients = await executeAction(
+      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
+      granted(),
+      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
+    );
+    expect(recipients).toEqual(['ou_1']);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith('org-1', []);
+  });
+
+  it('reaches no one who turned both off', async () => {
+    const send = vi.fn(async () => {});
+    const preferencesFor = vi.fn(async () => ({
+      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: false, email: false },
+    }));
+    const recipients = await executeAction(
+      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
+      granted(),
+      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, preferencesFor } }),
+    );
+    expect(recipients).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('refuses a kind that is not a notification', async () => {
+    await expect(
+      executeAction({ type: 'notify', input: { kind: 'accessGranted' } }, granted(), deps()),
+    ).rejects.toThrow('notify: unknown kind "accessGranted"');
   });
 });

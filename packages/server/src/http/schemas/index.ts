@@ -23,3 +23,4 @@ export * from './community.js';
 export * from './posts.js';
 export * from './chats.js';
 export * from './profile.js';
+export * from './notifications.js';

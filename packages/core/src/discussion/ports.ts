@@ -262,6 +262,7 @@ export interface PostCommentReader {
 }
 
 export interface PostService {
+  visibleTitles(orgId: string, actor: Actor, postIds: string[]): Promise<Record<string, string>>;
   create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView>;
   update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
   submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
@@ -334,6 +335,7 @@ export interface PostRepository {
   insert(orgId: string, post: Post): Promise<Post>;
   update(orgId: string, id: string, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
+  findMany(orgId: string, ids: string[]): Promise<Post[]>;
   listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;
   listByAuthor(
     orgId: string,
@@ -469,6 +471,7 @@ export interface ChatService {
   ): Promise<{ chat: Chat; participants: ChatUser[] } | null>;
   latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
   isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
+  titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>>;
   messages(
     orgId: string,
     actor: Actor,

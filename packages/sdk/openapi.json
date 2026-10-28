@@ -38946,6 +38946,1344 @@
         }
       }
     },
+    "/api/member/notifications": {
+      "get": {
+        "operationId": "listMemberNotifications",
+        "summary": "List your notifications, newest first, with your unread count",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "newPostInSpace",
+                              "newCommentOnPost",
+                              "replyToYourComment",
+                              "yourPostWasPublished",
+                              "yourPostWasRemoved",
+                              "yourCommentWasRemoved",
+                              "requestApproved",
+                              "requestDeclined",
+                              "invitedToSpace",
+                              "newMessage",
+                              "messageRequest",
+                              "addedToGroupChat",
+                              "youAreNowAModerator",
+                              "membershipEndingSoon",
+                              "welcomeToCommunity",
+                              "postAwaitingReview",
+                              "joinRequest",
+                              "somethingWasFlagged",
+                              "messageWasFlagged"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "readAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "actor": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "orgUserId": {
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "orgUserId",
+                              "displayName",
+                              "imageUrl"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "community": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "space": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "post": {
+                            "nullable": true,
+                            "description": "Null when the viewer can no longer see the post",
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "commentId": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "chat": {
+                            "nullable": true,
+                            "description": "Null when the viewer is not in the chat",
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "messageId": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "createdAt",
+                          "readAt",
+                          "actor",
+                          "community",
+                          "space",
+                          "post",
+                          "commentId",
+                          "chat",
+                          "messageId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "unreadCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize",
+                    "unreadCount"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "markMemberNotificationRead",
+        "summary": "Mark one of your notifications read",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "notificationId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "userId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "newPostInSpace",
+                        "newCommentOnPost",
+                        "replyToYourComment",
+                        "yourPostWasPublished",
+                        "yourPostWasRemoved",
+                        "yourCommentWasRemoved",
+                        "requestApproved",
+                        "requestDeclined",
+                        "invitedToSpace",
+                        "newMessage",
+                        "messageRequest",
+                        "addedToGroupChat",
+                        "youAreNowAModerator",
+                        "membershipEndingSoon",
+                        "welcomeToCommunity",
+                        "postAwaitingReview",
+                        "joinRequest",
+                        "somethingWasFlagged",
+                        "messageWasFlagged"
+                      ]
+                    },
+                    "actorOrgUserId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "communityId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "spaceId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "postId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "commentId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "chatId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "messageId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "readAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "userId",
+                    "kind",
+                    "actorOrgUserId",
+                    "communityId",
+                    "spaceId",
+                    "postId",
+                    "commentId",
+                    "chatId",
+                    "messageId",
+                    "createdAt",
+                    "readAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/notifications/read": {
+      "post": {
+        "operationId": "markAllMemberNotificationsRead",
+        "summary": "Mark all your notifications read",
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "updated": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "updated"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/notification-preferences": {
+      "get": {
+        "operationId": "getMemberNotificationPreferences",
+        "summary": "Read how you are told about each kind of notification",
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "newPostInSpace",
+                          "newCommentOnPost",
+                          "replyToYourComment",
+                          "yourPostWasPublished",
+                          "yourPostWasRemoved",
+                          "yourCommentWasRemoved",
+                          "requestApproved",
+                          "requestDeclined",
+                          "invitedToSpace",
+                          "newMessage",
+                          "messageRequest",
+                          "addedToGroupChat",
+                          "youAreNowAModerator",
+                          "membershipEndingSoon",
+                          "welcomeToCommunity",
+                          "postAwaitingReview",
+                          "joinRequest",
+                          "somethingWasFlagged",
+                          "messageWasFlagged"
+                        ]
+                      },
+                      "inApp": {
+                        "type": "boolean"
+                      },
+                      "email": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "inApp",
+                      "email"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setMemberNotificationPreferences",
+        "summary": "Set how you are told about the given kinds of notification",
+        "tags": [
+          "Notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "preferences": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "newPostInSpace",
+                            "newCommentOnPost",
+                            "replyToYourComment",
+                            "yourPostWasPublished",
+                            "yourPostWasRemoved",
+                            "yourCommentWasRemoved",
+                            "requestApproved",
+                            "requestDeclined",
+                            "invitedToSpace",
+                            "newMessage",
+                            "messageRequest",
+                            "addedToGroupChat",
+                            "youAreNowAModerator",
+                            "membershipEndingSoon",
+                            "welcomeToCommunity",
+                            "postAwaitingReview",
+                            "joinRequest",
+                            "somethingWasFlagged",
+                            "messageWasFlagged"
+                          ]
+                        },
+                        "inApp": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "inApp",
+                        "email"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "preferences"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "newPostInSpace",
+                          "newCommentOnPost",
+                          "replyToYourComment",
+                          "yourPostWasPublished",
+                          "yourPostWasRemoved",
+                          "yourCommentWasRemoved",
+                          "requestApproved",
+                          "requestDeclined",
+                          "invitedToSpace",
+                          "newMessage",
+                          "messageRequest",
+                          "addedToGroupChat",
+                          "youAreNowAModerator",
+                          "membershipEndingSoon",
+                          "welcomeToCommunity",
+                          "postAwaitingReview",
+                          "joinRequest",
+                          "somethingWasFlagged",
+                          "messageWasFlagged"
+                        ]
+                      },
+                      "inApp": {
+                        "type": "boolean"
+                      },
+                      "email": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "inApp",
+                      "email"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/comments": {
       "get": {
         "operationId": "listComments",

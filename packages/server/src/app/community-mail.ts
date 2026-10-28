@@ -18,6 +18,7 @@ export type CommunityMailDeps = {
     | 'communitiesOpenedBy'
     | 'communityMembersAmong'
     | 'spaceOpenersAmong'
+    | 'spaceOpeners'
     | 'communityModeratorIds'
     | 'countActiveSpaceMembers'
     | 'communityIdsOpenedFor'
@@ -65,6 +66,7 @@ export function communityMail(deps: CommunityMailDeps): {
       deps.entitlements.communityMembersAmong(orgId, communityId, ids),
     spaceOpenersAmong: (orgId, spaceId, ids) =>
       deps.entitlements.spaceOpenersAmong(orgId, spaceId, ids),
+    spaceOpeners: (orgId, spaceId) => deps.entitlements.spaceOpeners(orgId, spaceId),
     moderationAudience: (orgId, communityId) =>
       deps.entitlements.communityModeratorIds(orgId, communityId),
     staffIds: (orgId) => deps.organizations.staffOrgUserIds(orgId),

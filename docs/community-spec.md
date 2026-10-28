@@ -662,7 +662,7 @@ select * from posts
 
 ### Other contexts
 
-The progress, automations, reporting and assets contexts get no new tables. The `assets` table gains a `source` column, `library` or `member`, and its `kind` column becomes the media class alone: `image`, `video`, `audio` or `document`, derived by the server from the content type. Post covers, message attachments and profile photos are `member` images. `uploaded_by` holds the org user for every row. The `automations` table gains two columns, specified in the automations section. Reporting stores no data. Email preferences are not in this feature.
+The progress, automations, reporting and assets contexts get no new tables. The `assets` table gains a `source` column, `library` or `member`, and its `kind` column becomes the media class alone: `image`, `video`, `audio` or `document`, derived by the server from the content type. Post covers, message attachments and profile photos are `member` images. `uploaded_by` holds the org user for every row. The `automations` table gains two columns, specified in the automations section. Reporting stores no data. Identity gains the `notifications` and `notification_preferences` tables, specified in the notifications section.
 
 ### Migration
 
@@ -872,12 +872,12 @@ This section specifies the changes to the automations context and the automation
 
 A filter matches top-level fields of `data`. It cannot see `metadata`, and it cannot see whether a bundle contains a community. Where the condition is a transition, the derivation reads `metadata.previousStatus`. Welcome to the community and Membership ended are org-wide automations, seeded on `organization.created`; their derivation asks entitlements which published communities the grant opens and sends one email per community. Every derivation that sends an excerpt drops recipients who can no longer open the space or are no longer members of the community.
 
-New post in a space and the digest are listed here and are not sent until the deferred email-preference decision gives them an opt-out. The other rows do not wait on that decision.
+Each row except the digest is one `notify` action: it tells those people in the app and by email, each as they chose for that kind. The digest is listed here and is not sent.
 
 | Name | Trigger | Filter | Action |
 | --- | --- | --- | --- |
 | Membership ending soon | `entitlement.ending_soon` | `communityId` of this community | send the Membership ending soon email |
-| New post in a space | `discussion.post.published` | `communityId` | send the New post in a space email to the space's members who can open it. Waits on the email-preference opt-out |
+| New post in a space | `discussion.post.published` | `communityId` | send the New post in a space email to the space's members who can open it, except the author |
 | Your post was published | `discussion.post.published` | `communityId`; the derivation sends only when `metadata.previousStatus` is `pending` | send the Your post was published email to the author |
 | Your post was removed | `discussion.post.removed` by someone else | `communityId` | send the Your post was removed email to the author |
 | New comment on a post you follow | `discussion.comment.created` with `postId` and status `published` | `communityId` | send the New comment on a post you follow email to followers and the author |
@@ -893,7 +893,7 @@ New post in a space and the digest are listed here and are not sent until the de
 | Added to a group chat | `discussion.chat.participant.added` | `communityId` | send the Added to a group chat email to the person |
 | Something was flagged | `discussion.post.reported`, `discussion.comment.reported` | `communityId` | send the Something was flagged email to staff and the community's moderators |
 | A message was flagged | `discussion.message.reported` | `communityId` | send the A message was flagged email to staff |
-| Digest | `discussion.digest.due` | `communityId` | send the Digest email to members with unread activity. Waits on the email-preference opt-out |
+| Digest | `discussion.digest.due` | `communityId` | send the Digest email to members with unread activity. Not sent |
 
 You are now a moderator is org-wide rather than per community, because the role is. It triggers on `organization.user.updated` with role `moderator`, has no filter, and sends the You are now a moderator email to the person.
 
@@ -965,9 +965,13 @@ The set of templates is derived from the emails that Circle, Skool, Mighty Netwo
 - **Branding** is the one global `TemplateContext` the process has today (`brandName`, `baseUrl`, `studentPortalUrl`). Per-org branding is an existing gap, not a community one.
 - **Links** point into the student portal at the community, space, post, comment or DM; the portal resolves the route.
 
-### Deferred: email preferences
+### Notifications
 
-A per-member email preference, which emails a member receives and whether they receive them immediately or in the digest, is not decided. This spec does not say which context owns it and does not add a table. New post in a space and the digest need an opt-out before they go to every member, and they are not sent until that decision exists. Invites, join requests, approvals, declines, moderation, and message requests do not wait on it.
+A notification belongs to the person, so identity owns it. Automations decides who is told; the `notify` action stores one notification per person in `notifications`, with the kind, who caused it, and the community, space, post, comment, chat or message it is about. You are now a moderator carries no community, because the role is org-wide. A notification starts unread.
+
+`notification_preferences` holds one row per person per kind: in the app on or off, and email on or off. A kind with no row is on for both. `notify` works out the people once, emails those with email on, and stores a notification for those with in-app on.
+
+The member API lists the person's notifications newest first with their unread count, marks one read, marks all read, and reads and sets the preferences. The list names who caused each notification and the community and space; a post or chat the person can no longer see comes back without its title.
 
 ## Security and auth
 

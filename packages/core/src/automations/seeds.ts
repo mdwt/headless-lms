@@ -16,6 +16,13 @@ function email(template: string, communityId?: string): AutomationAction {
   };
 }
 
+function notify(kind: string, communityId?: string): AutomationAction {
+  return {
+    type: 'notify',
+    input: communityId === undefined ? { kind } : { kind, communityId },
+  };
+}
+
 export function orgSeeds(): SeedAutomation[] {
   return [
     {
@@ -34,9 +41,9 @@ export function orgSeeds(): SeedAutomation[] {
     },
     {
       name: 'You are now a moderator',
-      description: 'Email the person when they are given the moderator role.',
+      description: 'Notify the person when they are given the moderator role.',
       triggers: ['organization.user.updated'],
-      actions: [email('youAreNowAModerator')],
+      actions: [notify('youAreNowAModerator')],
       filter: null,
     },
     {
@@ -69,9 +76,9 @@ export function orgSeeds(): SeedAutomation[] {
     },
     {
       name: 'Welcome to the community',
-      description: 'Email a person when a grant opens a community.',
+      description: 'Notify a person when a grant opens a community.',
       triggers: ['entitlement.created'],
-      actions: [email('welcomeToCommunity')],
+      actions: [notify('welcomeToCommunity')],
       filter: null,
     },
     {
@@ -87,124 +94,125 @@ export function orgSeeds(): SeedAutomation[] {
 export function communitySeeds(communityId: string): SeedAutomation[] {
   const filter = { communityId };
   const scoped = (template: string): AutomationAction => email(template, communityId);
+  const told = (kind: string): AutomationAction => notify(kind, communityId);
   return [
     {
       name: 'Membership ending soon',
-      description: 'Email a member a week before this community grant ends.',
+      description: 'Notify a member a week before this community grant ends.',
       triggers: ['entitlement.ending_soon'],
-      actions: [scoped('membershipEndingSoon')],
+      actions: [told('membershipEndingSoon')],
       filter: { communityId },
     },
     {
       name: 'New post in a space',
-      description: 'Email members who can open the space. Not sent until email preferences exist.',
+      description: 'Notify members who can open the space.',
       triggers: ['discussion.post.published'],
-      actions: [scoped('newPostInSpace')],
+      actions: [told('newPostInSpace')],
       filter,
     },
     {
       name: 'Your post was published',
-      description: 'Email the author when a pending post is published.',
+      description: 'Notify the author when a pending post is published.',
       triggers: ['discussion.post.published'],
-      actions: [scoped('yourPostWasPublished')],
+      actions: [told('yourPostWasPublished')],
       filter,
     },
     {
       name: 'Your post was removed',
-      description: 'Email the author when someone else removes their post.',
+      description: 'Notify the author when someone else removes their post.',
       triggers: ['discussion.post.removed'],
-      actions: [scoped('yourPostWasRemoved')],
+      actions: [told('yourPostWasRemoved')],
       filter,
     },
     {
       name: 'New comment on a post you follow',
-      description: 'Email the author and followers when a comment is published.',
+      description: 'Notify the author and followers when a comment is published.',
       triggers: ['discussion.comment.created'],
-      actions: [scoped('newCommentOnPost')],
+      actions: [told('newCommentOnPost')],
       filter,
     },
     {
       name: 'Reply to your comment',
-      description: 'Email the parent author when a reply is published.',
+      description: 'Notify the parent author when a reply is published.',
       triggers: ['discussion.comment.created'],
-      actions: [scoped('replyToYourComment')],
+      actions: [told('replyToYourComment')],
       filter,
     },
     {
       name: 'Your comment was removed',
-      description: 'Email the author when someone else removes their comment.',
+      description: 'Notify the author when someone else removes their comment.',
       triggers: ['discussion.comment.removed'],
-      actions: [scoped('yourCommentWasRemoved')],
+      actions: [told('yourCommentWasRemoved')],
       filter,
     },
     {
       name: 'Post awaiting review',
-      description: 'Email staff and moderators when a post enters review.',
+      description: 'Notify staff and moderators when a post enters review.',
       triggers: ['discussion.post.created', 'discussion.post.updated'],
-      actions: [scoped('postAwaitingReview')],
+      actions: [told('postAwaitingReview')],
       filter,
     },
     {
       name: 'Join request',
-      description: 'Email staff and moderators when someone requests a space.',
+      description: 'Notify staff and moderators when someone requests a space.',
       triggers: ['entitlement.space_member.created'],
-      actions: [scoped('joinRequest')],
+      actions: [told('joinRequest')],
       filter,
     },
     {
       name: 'Request approved',
-      description: 'Email the member when their request is approved.',
+      description: 'Notify the member when their request is approved.',
       triggers: ['entitlement.space_member.updated'],
-      actions: [scoped('requestApproved')],
+      actions: [told('requestApproved')],
       filter,
     },
     {
       name: 'Request declined',
-      description: 'Email the person when their request is declined.',
+      description: 'Notify the person when their request is declined.',
       triggers: ['entitlement.space_member.deleted'],
-      actions: [scoped('requestDeclined')],
+      actions: [told('requestDeclined')],
       filter,
     },
     {
       name: 'Invited to a space',
-      description: 'Email the person when they are invited to a space.',
+      description: 'Notify the person when they are invited to a space.',
       triggers: ['entitlement.space_member.created'],
-      actions: [scoped('invitedToSpace')],
+      actions: [told('invitedToSpace')],
       filter,
     },
     {
       name: 'New message',
-      description: 'Email participants who are not muted, at most once per chat per 15 minutes.',
+      description: 'Notify participants who are not muted, at most once per chat per 15 minutes.',
       triggers: ['discussion.message.sent'],
-      actions: [scoped('newMessage')],
+      actions: [told('newMessage')],
       filter,
     },
     {
       name: 'Message request',
-      description: 'Email the recipient when a direct chat starts as a request.',
+      description: 'Notify the recipient when a direct chat starts as a request.',
       triggers: ['discussion.chat.created'],
-      actions: [scoped('messageRequest')],
+      actions: [told('messageRequest')],
       filter,
     },
     {
       name: 'Added to a group chat',
-      description: 'Email the person added to a group chat.',
+      description: 'Notify the person added to a group chat.',
       triggers: ['discussion.chat.participant.added'],
-      actions: [scoped('addedToGroupChat')],
+      actions: [told('addedToGroupChat')],
       filter,
     },
     {
       name: 'Something was flagged',
-      description: 'Email staff and moderators when a post or comment is flagged.',
+      description: 'Notify staff and moderators when a post or comment is flagged.',
       triggers: ['discussion.post.reported', 'discussion.comment.reported'],
-      actions: [scoped('somethingWasFlagged')],
+      actions: [told('somethingWasFlagged')],
       filter,
     },
     {
       name: 'A message was flagged',
-      description: 'Email staff when a message is flagged.',
+      description: 'Notify staff when a message is flagged.',
       triggers: ['discussion.message.reported'],
-      actions: [scoped('messageWasFlagged')],
+      actions: [told('messageWasFlagged')],
       filter,
     },
     {

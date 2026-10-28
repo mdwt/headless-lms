@@ -30,7 +30,12 @@ import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
-import { emptyCommunityMail, emptyScheduledWork, type ScheduledWork } from './community-mail.js';
+import {
+  emptyCommunityMail,
+  emptyNotificationDesk,
+  emptyScheduledWork,
+  type ScheduledWork,
+} from './community-mail.js';
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -217,7 +222,7 @@ function fakeUow(
 
 function fakeLookups(over?: Partial<MailerLookups>): MailerLookups {
   return {
-    orgUserEmail: vi.fn().mockResolvedValue('bob@example.com'),
+    orgUserPerson: vi.fn().mockResolvedValue({ userId: 'usr_bob', email: 'bob@example.com' }),
     contentInfo: vi.fn().mockResolvedValue({ id: 'c1', title: 'Intro', type: 'course' }),
     ...over,
   };
@@ -251,6 +256,7 @@ function build(
         throw new Error('grantAccess: no grant writer configured');
       },
     },
+    desk: emptyNotificationDesk,
     scheduledWork,
   });
   return {
@@ -828,6 +834,7 @@ describe('AutomationsService.availableActions', () => {
         inputSchema: expect.objectContaining({ type: 'object', required: ['template'] }),
         source: 'system',
       },
+      expect.objectContaining({ type: 'notify', source: 'system' }),
       expect.objectContaining({ type: 'grantAccess', source: 'system' }),
       expect.objectContaining({ type: 'publishDuePosts', source: 'system' }),
       expect.objectContaining({ type: 'expireDueGrants', source: 'system' }),
@@ -846,6 +853,7 @@ describe('AutomationsService.availableActions', () => {
     const { svc } = build();
     expect(svc.availableActions().map((a) => a.type)).toEqual([
       'sendEmail',
+      'notify',
       'grantAccess',
       'publishDuePosts',
       'expireDueGrants',

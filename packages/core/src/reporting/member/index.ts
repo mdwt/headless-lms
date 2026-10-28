@@ -10,4 +10,6 @@ export type {
   DirectoryRow,
   CommunityHome,
   CommunityHomeSpace,
+  NotificationView,
+  NotificationsView,
 } from './model.js';

@@ -127,6 +127,11 @@ function harness(options?: {
       const post = rows.find((row) => row.orgId === orgId && row.id === id);
       return post ? { ...post } : null;
     },
+    async findMany(orgId, ids) {
+      return rows
+        .filter((row) => row.orgId === orgId && ids.includes(row.id))
+        .map((row) => ({ ...row }));
+    },
     async listPublished(orgId, spaceIds, query) {
       const matching = rows
         .filter(
@@ -313,6 +318,9 @@ function harness(options?: {
     },
     async spaceOpenersAmong(_orgId, _spaceId, orgUserIds) {
       return orgUserIds.filter((id) => id !== outsider.id);
+    },
+    async spaceOpeners() {
+      return [];
     },
     async openSpaceIds(_orgId, actor) {
       if (actor.id === outsider.id) {

@@ -2,6 +2,8 @@ import { type ContentServicePort, type SpaceDetail } from '../../content/index.j
 import type { CommunityAccessReader, SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetUrlSigner } from '../../assets/index.js';
+import type { ChatService, PostService } from '../../discussion/index.js';
+import type { Notification, NotificationInbox } from '../../identity/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type {
   ActivityView,
@@ -14,8 +16,17 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationsView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
+
+function ref(
+  id: string | null,
+  names: ReadonlyMap<string, string>,
+): { id: string; name: string } | null {
+  const name = id ? names.get(id) : undefined;
+  return id && name !== undefined ? { id, name } : null;
+}
 
 function isActivityPublished(settings: unknown): boolean {
   return (settings as { published?: boolean } | null)?.published !== false;
@@ -27,6 +38,9 @@ export type MemberReportServiceParams = {
   progress: ProgressService;
   assetUrls: AssetUrlSigner;
   access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
+  notifications: Pick<NotificationInbox, 'listNotifications'>;
+  posts: Pick<PostService, 'visibleTitles'>;
+  chats: Pick<ChatService, 'titlesFor'>;
 };
 
 export class MemberReportServiceImpl implements MemberReportService {
@@ -35,6 +49,9 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly progress: ProgressService;
   private readonly assetUrls: AssetUrlSigner;
   private readonly access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
+  private readonly inbox: Pick<NotificationInbox, 'listNotifications'>;
+  private readonly posts: Pick<PostService, 'visibleTitles'>;
+  private readonly chats: Pick<ChatService, 'titlesFor'>;
 
   constructor(params: MemberReportServiceParams) {
     this.repo = params.repo;
@@ -42,6 +59,71 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.progress = params.progress;
     this.assetUrls = params.assetUrls;
     this.access = params.access;
+    this.inbox = params.notifications;
+    this.posts = params.posts;
+    this.chats = params.chats;
+  }
+
+  async notifications(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    query: { page: number; pageSize: number },
+  ): Promise<NotificationsView> {
+    const page = await this.inbox.listNotifications(orgId, userId, query);
+    const ids = (pick: (row: Notification) => string | null): string[] => [
+      ...new Set(page.rows.flatMap((row) => pick(row) ?? [])),
+    ];
+    const [people, postTitles, chatTitles, spaces, communities] = await Promise.all([
+      this.repo.people(orgId, ids((row) => row.actorOrgUserId)),
+      this.posts.visibleTitles(orgId, actor, ids((row) => row.postId)),
+      this.chats.titlesFor(orgId, actor, ids((row) => row.chatId)),
+      Promise.all(ids((row) => row.spaceId).map((id) => this.content.getSpace(orgId, id))),
+      Promise.all(ids((row) => row.communityId).map((id) => this.content.getCommunity(orgId, id))),
+    ]);
+    const urls = await this.assetUrls.urls(
+      orgId,
+      people.flatMap((person) => (person.imageAssetId ? [person.imageAssetId] : [])),
+    );
+    const personById = new Map(people.map((person) => [person.orgUserId, person]));
+    const spaceById = new Map(spaces.flatMap((space) => (space ? [[space.id, space.name]] : [])));
+    const communityById = new Map(
+      communities.flatMap((community) => (community ? [[community.id, community.title]] : [])),
+    );
+    const postById = new Map(Object.entries(postTitles));
+    const chatById = new Map(Object.entries(chatTitles));
+    return {
+      rows: page.rows.map((row) => {
+        const person = row.actorOrgUserId ? personById.get(row.actorOrgUserId) : undefined;
+        const community = ref(row.communityId, communityById);
+        const space = ref(row.spaceId, spaceById);
+        const post = ref(row.postId, postById);
+        const chat = ref(row.chatId, chatById);
+        return {
+          id: row.id,
+          kind: row.kind,
+          createdAt: row.createdAt,
+          readAt: row.readAt,
+          actor: person
+            ? {
+                orgUserId: person.orgUserId,
+                displayName: person.displayName,
+                imageUrl: person.imageAssetId ? (urls[person.imageAssetId] ?? null) : null,
+              }
+            : null,
+          community: community && { id: community.id, title: community.name },
+          space: space && { id: space.id, name: space.name },
+          post: post && { id: post.id, title: post.name },
+          commentId: row.commentId,
+          chat: chat && { id: chat.id, title: chat.name },
+          messageId: row.messageId,
+        };
+      }),
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
+      unreadCount: page.unreadCount,
+    };
   }
 
   async listCourses(orgId: string, orgUserId: string): Promise<CourseView[]> {

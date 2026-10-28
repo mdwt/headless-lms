@@ -9,7 +9,10 @@ const params = { communityTitle: 'Founders', communityId: 'cmy_1' };
 function deps(emails: Record<string, string | null>, warn = vi.fn()): ActionDeps {
   return {
     lookups: {
-      orgUserEmail: async (_orgId: string, orgUserId: string) => emails[orgUserId] ?? null,
+      orgUserPerson: async (_orgId: string, orgUserId: string) => {
+        const email = emails[orgUserId];
+        return email ? { userId: `usr_${orgUserId}`, email } : null;
+      },
     },
     logger: { ...noopLogger, warn },
   } as unknown as ActionDeps;
@@ -25,7 +28,7 @@ describe('address', () => {
       ['a', 'b'],
       params,
     );
-    expect(recipients).toEqual([{ to: 'a@example.com', orgUserId: 'a', params }]);
+    expect(recipients).toEqual([{ to: 'a@example.com', orgUserId: 'a', userId: 'usr_a', params }]);
     expect(warn).toHaveBeenCalledWith('email skipped: recipient has no address', {
       orgId: 'org-1',
       orgUserId: 'b',

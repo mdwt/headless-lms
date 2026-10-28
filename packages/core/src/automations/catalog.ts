@@ -3,6 +3,7 @@
 // event types automations may react to.
 import type { z } from 'zod';
 import type { EmailTemplateId } from '../types/index.js';
+import { notificationKindSchema } from '../types/schemas/index.js';
 import { assetEvents } from '../assets/index.js';
 import { contentEvents } from '../content/index.js';
 import { discussionEvents } from '../discussion/index.js';
@@ -48,6 +49,7 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
 };
 
 export const DELIVER_WEBHOOK_ACTION = 'deliverWebhook';
+export const NOTIFY_ACTION = 'notify';
 
 export function catalogActions(): AvailableActions {
   return [
@@ -59,6 +61,18 @@ export function catalogActions(): AvailableActions {
         required: ['template'],
         properties: {
           template: { enum: Object.keys(ALL_EMAIL_TEMPLATE_IDS) },
+        },
+      },
+      source: 'system',
+    },
+    {
+      type: NOTIFY_ACTION,
+      description: 'Tell each person concerned, in the app and by email, as they chose.',
+      inputSchema: {
+        type: 'object',
+        required: ['kind'],
+        properties: {
+          kind: { enum: [...notificationKindSchema.options] },
         },
       },
       source: 'system',

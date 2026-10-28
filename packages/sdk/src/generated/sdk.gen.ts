@@ -156,6 +156,8 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
+  GetMemberNotificationPreferencesErrors,
+  GetMemberNotificationPreferencesResponses,
   GetMemberOrgErrors,
   GetMemberOrgResponses,
   GetMemberProfileErrors,
@@ -245,6 +247,8 @@ import type {
   ListMemberDownloadsResponses,
   ListMemberModulesErrors,
   ListMemberModulesResponses,
+  ListMemberNotificationsErrors,
+  ListMemberNotificationsResponses,
   ListMembersErrors,
   ListMembersResponses,
   ListModulesErrors,
@@ -261,8 +265,12 @@ import type {
   ListWebhooksResponses,
   LockChatErrors,
   LockChatResponses,
+  MarkAllMemberNotificationsReadErrors,
+  MarkAllMemberNotificationsReadResponses,
   MarkChatReadErrors,
   MarkChatReadResponses,
+  MarkMemberNotificationReadErrors,
+  MarkMemberNotificationReadResponses,
   ModerateRemoveCommentErrors,
   ModerateRemoveCommentResponses,
   MuteChatErrors,
@@ -339,6 +347,8 @@ import type {
   SetCommentReactionResponses,
   SetEntitlementStatusErrors,
   SetEntitlementStatusResponses,
+  SetMemberNotificationPreferencesErrors,
+  SetMemberNotificationPreferencesResponses,
   SetMessageReactionErrors,
   SetMessageReactionResponses,
   SetPostReactionErrors,
@@ -5782,6 +5792,183 @@ export class Assets {
         ...params,
       },
     );
+  }
+}
+
+export class Notifications {
+  /**
+   * List your notifications, newest first, with your unread count
+   */
+  public static listMemberNotifications<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListMemberNotificationsResponses,
+    ListMemberNotificationsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListMemberNotificationsResponses,
+      ListMemberNotificationsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark one of your notifications read
+   */
+  public static markMemberNotificationRead<ThrowOnError extends boolean = false>(
+    parameters: {
+      notificationId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkMemberNotificationReadResponses,
+    MarkMemberNotificationReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "notificationId" }] }],
+    );
+    return (options?.client ?? client).post<
+      MarkMemberNotificationReadResponses,
+      MarkMemberNotificationReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/{notificationId}/read",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark all your notifications read
+   */
+  public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkAllMemberNotificationsReadResponses,
+    MarkAllMemberNotificationsReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).post<
+      MarkAllMemberNotificationsReadResponses,
+      MarkAllMemberNotificationsReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/read",
+      ...options,
+    });
+  }
+
+  /**
+   * Read how you are told about each kind of notification
+   */
+  public static getMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationPreferencesResponses,
+    GetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetMemberNotificationPreferencesResponses,
+      GetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
+      ...options,
+    });
+  }
+
+  /**
+   * Set how you are told about the given kinds of notification
+   */
+  public static setMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    parameters: {
+      preferences: Array<{
+        kind:
+          | "newPostInSpace"
+          | "newCommentOnPost"
+          | "replyToYourComment"
+          | "yourPostWasPublished"
+          | "yourPostWasRemoved"
+          | "yourCommentWasRemoved"
+          | "requestApproved"
+          | "requestDeclined"
+          | "invitedToSpace"
+          | "newMessage"
+          | "messageRequest"
+          | "addedToGroupChat"
+          | "youAreNowAModerator"
+          | "membershipEndingSoon"
+          | "welcomeToCommunity"
+          | "postAwaitingReview"
+          | "joinRequest"
+          | "somethingWasFlagged"
+          | "messageWasFlagged";
+        inApp: boolean;
+        email: boolean;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetMemberNotificationPreferencesResponses,
+    SetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "body", key: "preferences" }] }],
+    );
+    return (options?.client ?? client).put<
+      SetMemberNotificationPreferencesResponses,
+      SetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
   }
 }
 

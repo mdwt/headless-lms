@@ -144,7 +144,35 @@ export const COMMUNITY_DERIVATIONS: {
       return recipients;
     },
   },
-  newPostInSpace: silence(['discussion.post.published']),
+  newPostInSpace: {
+    triggers: ['discussion.post.published'],
+    derive: async (event, deps) => {
+      const parsed = discussionEvents.postPublished.safeParse(event);
+      if (!parsed.success) {
+        return undefined;
+      }
+      const post = parsed.data.data;
+      const space = await deps.mail.space(event.orgId, post.spaceId);
+      if (!space) {
+        return undefined;
+      }
+      const openers = await deps.mail.spaceOpeners(event.orgId, post.spaceId);
+      return address(
+        deps,
+        event,
+        event.orgId,
+        openers.filter((id) => id !== post.orgUserId),
+        {
+          spaceName: space.name,
+          postTitle: post.title,
+          authorName: await deps.mail.displayName(event.orgId, post.orgUserId),
+          excerpt: excerpt(post.body || post.title, POST_EXCERPT),
+          postId: post.id,
+          communityId: post.communityId,
+        },
+      );
+    },
+  },
   yourPostWasPublished: {
     triggers: ['discussion.post.published'],
     derive: async (event, deps) => {

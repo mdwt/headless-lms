@@ -70,6 +70,27 @@ export class PostServiceImpl implements PostService {
     this.logger = params.logger ?? noopLogger;
   }
 
+  async visibleTitles(
+    orgId: string,
+    actor: Actor,
+    postIds: string[],
+  ): Promise<Record<string, string>> {
+    const found = await this.repo.findMany(orgId, [...new Set(postIds)]);
+    const communityIds = [...new Set(found.map((post) => post.communityId))];
+    const open = new Set(
+      (
+        await Promise.all(
+          communityIds.map((communityId) => this.access.openSpaceIds(orgId, actor, communityId)),
+        )
+      ).flat(),
+    );
+    return Object.fromEntries(
+      found
+        .filter((post) => open.has(post.spaceId) && this.canSee(actor, post))
+        .map((post) => [post.id, post.title]),
+    );
+  }
+
   async create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView> {
     const space = await this.requireOpen(orgId, actor, input.spaceId, input.communityId);
     await this.requireOwnedImage(orgId, actor.id, input.coverAssetId);

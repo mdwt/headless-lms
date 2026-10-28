@@ -9,6 +9,7 @@ import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catal
 import { executeAction } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
+import type { NotificationDesk } from '../identity/index.js';
 import { communitySeeds, orgSeeds, type SeedAutomation } from './seeds.js';
 import { cronSupported } from './schedule.js';
 import {
@@ -158,6 +159,7 @@ export type AutomationsServiceParams = {
   webhooks: WebhookSender;
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
+  desk: NotificationDesk;
   scheduledWork: ScheduledWork;
   logger?: Logger;
 };
@@ -174,6 +176,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly webhooks: WebhookSender;
   private readonly mail: CommunityMailReads;
   private readonly grants: GrantWriter;
+  private readonly desk: NotificationDesk;
   private readonly scheduledWork: ScheduledWork;
   private readonly logger: Logger;
 
@@ -193,6 +196,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         this.runsRepo.recentRecipients(orgId, automationId, chatId, since),
     };
     this.grants = params.grants;
+    this.desk = params.desk;
     this.scheduledWork = params.scheduledWork;
     this.logger = params.logger ?? noopLogger;
   }
@@ -404,6 +408,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       webhooks: this.webhooks,
       mail: this.mail,
       grants: this.grants,
+      desk: this.desk,
       scheduledWork: this.scheduledWork,
       automationId: d.automationId,
       actionInput: action.input,
