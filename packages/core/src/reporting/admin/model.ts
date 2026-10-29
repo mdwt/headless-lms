@@ -1,5 +1,5 @@
 // reporting/admin — read models for the admin app. Framework-free.
-import type { OrgUserProfile, OrgUserStatus } from '../../types/index.js';
+import type { OrgUserProfile, OrgUserStatus, Role } from '../../types/index.js';
 
 export interface SpacePostCount {
   spaceId: string;
@@ -92,6 +92,16 @@ export interface StudentAnalytics {
   /** Mean of the per-course progress percentages (0–100). */
   avgProgress: number;
   courses: StudentCourseProgress[];
+}
+
+export interface CommunityMember extends OrgUserProfile {
+  role: Role;
+}
+
+export interface CommunityMembersQuery {
+  page: number;
+  pageSize: number;
+  search?: string | undefined;
 }
 
 export interface StudentsQuery {

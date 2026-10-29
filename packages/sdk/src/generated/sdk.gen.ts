@@ -20,12 +20,18 @@ import type {
   AddBundleItemResponses,
   AddChatParticipantErrors,
   AddChatParticipantResponses,
+  AddCommunitySpaceMemberErrors,
+  AddCommunitySpaceMemberResponses,
   AddDownloadAssetErrors,
   AddDownloadAssetResponses,
   AddSpaceLinkErrors,
   AddSpaceLinkResponses,
   AddSpaceMemberErrors,
   AddSpaceMemberResponses,
+  ApproveCommunityPostErrors,
+  ApproveCommunityPostResponses,
+  ApproveCommunitySpaceRequestErrors,
+  ApproveCommunitySpaceRequestResponses,
   ApprovePostErrors,
   ApprovePostResponses,
   ApproveSpaceRequestErrors,
@@ -70,6 +76,8 @@ import type {
   CreateSpaceResponses,
   CreateWebhookErrors,
   CreateWebhookResponses,
+  DeclineCommunitySpaceRequestErrors,
+  DeclineCommunitySpaceRequestResponses,
   DeclineSpaceRequestErrors,
   DeclineSpaceRequestResponses,
   DeleteActivityErrors,
@@ -130,6 +138,8 @@ import type {
   GetCommunityMessageQueueErrors,
   GetCommunityMessageQueueResponses,
   GetCommunityResponses,
+  GetCommunitySpaceQueueErrors,
+  GetCommunitySpaceQueueResponses,
   GetConnectionErrors,
   GetConnectionResponses,
   GetCourseAnalyticsErrors,
@@ -186,6 +196,8 @@ import type {
   GetWebhookSecretResponses,
   GrantEntitlementErrors,
   GrantEntitlementResponses,
+  InviteCommunitySpaceMemberErrors,
+  InviteCommunitySpaceMemberResponses,
   InviteSpaceMemberErrors,
   InviteSpaceMemberResponses,
   InvokeConnectionActionErrors,
@@ -225,6 +237,10 @@ import type {
   ListCommentsResponses,
   ListCommunitiesErrors,
   ListCommunitiesResponses,
+  ListCommunityMembersErrors,
+  ListCommunityMembersResponses,
+  ListCommunitySpaceMembersErrors,
+  ListCommunitySpaceMembersResponses,
   ListCommunitySpacesErrors,
   ListCommunitySpacesResponses,
   ListConnectionsErrors,
@@ -265,6 +281,8 @@ import type {
   ListWebhooksResponses,
   LockChatErrors,
   LockChatResponses,
+  LockCommunityChatErrors,
+  LockCommunityChatResponses,
   MarkAllMemberNotificationsReadErrors,
   MarkAllMemberNotificationsReadResponses,
   MarkChatReadErrors,
@@ -293,6 +311,12 @@ import type {
   RefuseSpaceInviteResponses,
   RemoveBundleItemErrors,
   RemoveBundleItemResponses,
+  RemoveCommunityCommentErrors,
+  RemoveCommunityCommentResponses,
+  RemoveCommunityPostErrors,
+  RemoveCommunityPostResponses,
+  RemoveCommunitySpaceMemberErrors,
+  RemoveCommunitySpaceMemberResponses,
   RemoveDownloadAssetErrors,
   RemoveDownloadAssetResponses,
   RemoveMemberErrors,
@@ -331,10 +355,20 @@ import type {
   RerunAutomationRunResponses,
   ResendStudentInviteErrors,
   ResendStudentInviteResponses,
+  ResolveCommunityCommentFlagsErrors,
+  ResolveCommunityCommentFlagsResponses,
+  ResolveCommunityMessageFlagsErrors,
+  ResolveCommunityMessageFlagsResponses,
+  ResolveCommunityPostFlagsErrors,
+  ResolveCommunityPostFlagsResponses,
   ResolveMessageFlagsErrors,
   ResolveMessageFlagsResponses,
   ResolvePostFlagsErrors,
   ResolvePostFlagsResponses,
+  RestoreCommunityCommentErrors,
+  RestoreCommunityCommentResponses,
+  RestoreCommunityPostErrors,
+  RestoreCommunityPostResponses,
   RestorePostErrors,
   RestorePostResponses,
   RotateWebhookSecretErrors,
@@ -371,6 +405,8 @@ import type {
   UnfollowPostResponses,
   UnlockChatErrors,
   UnlockChatResponses,
+  UnlockCommunityChatErrors,
+  UnlockCommunityChatResponses,
   UnmuteChatErrors,
   UnmuteChatResponses,
   UnpinPostErrors,
@@ -2978,6 +3014,746 @@ export class Communities {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * List the people who hold a community, directly or through a bundle
+   */
+  public static listCommunityMembers<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListCommunityMembersResponses,
+    ListCommunityMembersErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCommunityMembersResponses,
+      ListCommunityMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{id}/members",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the members, requests and invitations of a space
+   */
+  public static listCommunitySpaceMembers<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListCommunitySpaceMembersResponses,
+    ListCommunitySpaceMembersErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCommunitySpaceMembersResponses,
+      ListCommunitySpaceMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Add a person to a space
+   */
+  public static addCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    AddCommunitySpaceMemberResponses,
+    AddCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddCommunitySpaceMemberResponses,
+      AddCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Invite a person into a space
+   */
+  public static inviteCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    InviteCommunitySpaceMemberResponses,
+    InviteCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      InviteCommunitySpaceMemberResponses,
+      InviteCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/invites",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Approve a request to join a space
+   */
+  public static approveCommunitySpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ApproveCommunitySpaceRequestResponses,
+    ApproveCommunitySpaceRequestErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ApproveCommunitySpaceRequestResponses,
+      ApproveCommunitySpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/approvals",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Decline a request to join a space
+   */
+  public static declineCommunitySpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    DeclineCommunitySpaceRequestResponses,
+    DeclineCommunitySpaceRequestErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      DeclineCommunitySpaceRequestResponses,
+      DeclineCommunitySpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/declines",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a person from a space
+   */
+  public static removeCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveCommunitySpaceMemberResponses,
+    RemoveCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunitySpaceMemberResponses,
+      RemoveCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/removals",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Posts awaiting review and open post and comment flags in a space
+   */
+  public static getCommunitySpaceQueue<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetCommunitySpaceQueueResponses,
+    GetCommunitySpaceQueueErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetCommunitySpaceQueueResponses,
+      GetCommunitySpaceQueueErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/queue",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Publish a post that is awaiting review
+   */
+  public static approveCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ApproveCommunityPostResponses,
+    ApproveCommunityPostErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ApproveCommunityPostResponses,
+      ApproveCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a post
+   */
+  public static removeCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveCommunityPostResponses, RemoveCommunityPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunityPostResponses,
+      RemoveCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Restore a removed post
+   */
+  public static restoreCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RestoreCommunityPostResponses,
+    RestoreCommunityPostErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RestoreCommunityPostResponses,
+      RestoreCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a post
+   */
+  public static resolveCommunityPostFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityPostFlagsResponses,
+    ResolveCommunityPostFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityPostFlagsResponses,
+      ResolveCommunityPostFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a comment on a post
+   */
+  public static removeCommunityComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveCommunityCommentResponses,
+    RemoveCommunityCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunityCommentResponses,
+      RemoveCommunityCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Restore a removed comment on a post
+   */
+  public static restoreCommunityComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RestoreCommunityCommentResponses,
+    RestoreCommunityCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RestoreCommunityCommentResponses,
+      RestoreCommunityCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a comment
+   */
+  public static resolveCommunityCommentFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityCommentFlagsResponses,
+    ResolveCommunityCommentFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityCommentFlagsResponses,
+      ResolveCommunityCommentFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/flags/resolution",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a message
+   */
+  public static resolveCommunityMessageFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      messageId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityMessageFlagsResponses,
+    ResolveCommunityMessageFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "messageId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityMessageFlagsResponses,
+      ResolveCommunityMessageFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/messages/{messageId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Lock a chat
+   */
+  public static lockCommunityChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<LockCommunityChatResponses, LockCommunityChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "chatId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      LockCommunityChatResponses,
+      LockCommunityChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/chats/{chatId}/lock",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unlock a chat
+   */
+  public static unlockCommunityChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnlockCommunityChatResponses, UnlockCommunityChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "chatId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      UnlockCommunityChatResponses,
+      UnlockCommunityChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/chats/{chatId}/unlock",
+      ...options,
+      ...params,
     });
   }
 

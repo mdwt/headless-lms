@@ -548,11 +548,15 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     messageId: string,
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
+    communityId?: string,
   ): Promise<void> {
     if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
     const message = await this.mustMessage(this.repo, orgId, messageId);
+    if (communityId !== undefined && message.communityId !== communityId) {
+      throw new NotFoundError('Message', messageId);
+    }
     await this.requireActor(orgId, actor, message.communityId);
     await this.repo.resolveFlags(orgId, messageId, {
       resolvedAt: new Date(),
@@ -567,12 +571,12 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  async lock(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
-    return this.setLock(orgId, actor, chatId, true);
+  async lock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat> {
+    return this.setLock(orgId, actor, chatId, true, communityId);
   }
 
-  async unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
-    return this.setLock(orgId, actor, chatId, false);
+  async unlock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat> {
+    return this.setLock(orgId, actor, chatId, false, communityId);
   }
 
   async listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]> {
@@ -697,11 +701,15 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     chatId: string,
     locked: boolean,
+    communityId?: string,
   ): Promise<Chat> {
     if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot lock this chat');
     }
     const chat = await this.mustChat(this.repo, orgId, chatId);
+    if (communityId !== undefined && chat.communityId !== communityId) {
+      throw new NotFoundError('Chat', chatId);
+    }
     await this.requireActor(orgId, actor, chat.communityId);
     if (Boolean(chat.lockedAt) === locked) {
       return chat;

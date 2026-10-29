@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   communityStatusSchema,
+  roleSchema,
   communityViewSchema,
   createCommunityInputSchema,
   createSpaceInputSchema,
@@ -12,12 +13,15 @@ import {
   updateCommunityInputSchema,
   updateSpaceInputSchema,
 } from '@headless-lms/core/schemas';
-import type { CommunityAnalytics as DomainCommunityAnalytics } from '@headless-lms/core/reporting/admin';
+import type {
+  CommunityAnalytics as DomainCommunityAnalytics,
+  CommunityMember as DomainCommunityMember,
+} from '@headless-lms/core/reporting/admin';
 import type {
   CommunityHome as DomainCommunityHome,
   DirectoryEntry as DomainDirectoryEntry,
 } from '@headless-lms/core/reporting/member';
-import { ListQuery, paginated, type Matches } from './shared.js';
+import { ListQuery, OrgUserProfileSchema, PageQuery, paginated, type Matches } from './shared.js';
 
 export const Community = communityViewSchema;
 export const CommunitiesQuery = ListQuery.extend({
@@ -40,6 +44,16 @@ export const SpaceLinkBody = z.object({ contentId: z.string() }).strict();
 export const CommunityIdParam = z.object({ id: z.string() });
 export const CommunitySpaceParam = z.object({ communityId: z.string(), spaceId: z.string() });
 export const SpaceLinkParam = CommunitySpaceParam.extend({ linkId: z.string() });
+export const CommunityPostParam = z.object({ communityId: z.string(), postId: z.string() });
+export const CommunityCommentParam = z.object({ communityId: z.string(), commentId: z.string() });
+export const CommunityMessageParam = z.object({ communityId: z.string(), messageId: z.string() });
+export const CommunityChatParam = z.object({ communityId: z.string(), chatId: z.string() });
+
+export const CommunityMember = OrgUserProfileSchema.extend({ role: roleSchema });
+type _CommunityMemberMatches = Matches<DomainCommunityMember, z.infer<typeof CommunityMember>> &
+  Matches<z.infer<typeof CommunityMember>, DomainCommunityMember>;
+export const CommunityMembersQuery = PageQuery.extend({ search: z.string().trim().optional() });
+export const CommunityMembersPage = paginated(CommunityMember);
 
 export const DirectoryEntry = z.object({
   orgUserId: z.string(),

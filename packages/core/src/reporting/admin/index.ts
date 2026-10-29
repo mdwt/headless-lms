@@ -3,6 +3,8 @@ export { AdminReportServiceImpl } from './service.js';
 export type { AdminReportService, AdminReportRepository } from './ports.js';
 export type {
   CommunityAnalytics,
+  CommunityMember,
+  CommunityMembersQuery,
   CourseActivityEngagement,
   CourseAnalytics,
   CourseEnrollmentPoint,

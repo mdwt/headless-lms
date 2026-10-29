@@ -3239,6 +3239,1778 @@ export type ReorderSpaceLinksResponses = {
 export type ReorderSpaceLinksResponse =
   ReorderSpaceLinksResponses[keyof ReorderSpaceLinksResponses];
 
+export type ListCommunityMembersData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  };
+  url: "/api/communities/{id}/members";
+};
+
+export type ListCommunityMembersErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListCommunityMembersError =
+  ListCommunityMembersErrors[keyof ListCommunityMembersErrors];
+
+export type ListCommunityMembersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+      image: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListCommunityMembersResponse =
+  ListCommunityMembersResponses[keyof ListCommunityMembersResponses];
+
+export type ListCommunitySpaceMembersData = {
+  body?: never;
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members";
+};
+
+export type ListCommunitySpaceMembersErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListCommunitySpaceMembersError =
+  ListCommunitySpaceMembersErrors[keyof ListCommunitySpaceMembersErrors];
+
+export type ListCommunitySpaceMembersResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
+export type ListCommunitySpaceMembersResponse =
+  ListCommunitySpaceMembersResponses[keyof ListCommunitySpaceMembersResponses];
+
+export type AddCommunitySpaceMemberData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members";
+};
+
+export type AddCommunitySpaceMemberErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type AddCommunitySpaceMemberError =
+  AddCommunitySpaceMemberErrors[keyof AddCommunitySpaceMemberErrors];
+
+export type AddCommunitySpaceMemberResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type AddCommunitySpaceMemberResponse =
+  AddCommunitySpaceMemberResponses[keyof AddCommunitySpaceMemberResponses];
+
+export type InviteCommunitySpaceMemberData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/invites";
+};
+
+export type InviteCommunitySpaceMemberErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type InviteCommunitySpaceMemberError =
+  InviteCommunitySpaceMemberErrors[keyof InviteCommunitySpaceMemberErrors];
+
+export type InviteCommunitySpaceMemberResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type InviteCommunitySpaceMemberResponse =
+  InviteCommunitySpaceMemberResponses[keyof InviteCommunitySpaceMemberResponses];
+
+export type ApproveCommunitySpaceRequestData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/approvals";
+};
+
+export type ApproveCommunitySpaceRequestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ApproveCommunitySpaceRequestError =
+  ApproveCommunitySpaceRequestErrors[keyof ApproveCommunitySpaceRequestErrors];
+
+export type ApproveCommunitySpaceRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type ApproveCommunitySpaceRequestResponse =
+  ApproveCommunitySpaceRequestResponses[keyof ApproveCommunitySpaceRequestResponses];
+
+export type DeclineCommunitySpaceRequestData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/declines";
+};
+
+export type DeclineCommunitySpaceRequestErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeclineCommunitySpaceRequestError =
+  DeclineCommunitySpaceRequestErrors[keyof DeclineCommunitySpaceRequestErrors];
+
+export type DeclineCommunitySpaceRequestResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type DeclineCommunitySpaceRequestResponse =
+  DeclineCommunitySpaceRequestResponses[keyof DeclineCommunitySpaceRequestResponses];
+
+export type RemoveCommunitySpaceMemberData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/removals";
+};
+
+export type RemoveCommunitySpaceMemberErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveCommunitySpaceMemberError =
+  RemoveCommunitySpaceMemberErrors[keyof RemoveCommunitySpaceMemberErrors];
+
+export type RemoveCommunitySpaceMemberResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    status: "requested" | "invited" | "active" | "revoked";
+    source: "request" | "invite" | "manual";
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type RemoveCommunitySpaceMemberResponse =
+  RemoveCommunitySpaceMemberResponses[keyof RemoveCommunitySpaceMemberResponses];
+
+export type GetCommunitySpaceQueueData = {
+  body?: never;
+  path: {
+    communityId: string;
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/spaces/{spaceId}/queue";
+};
+
+export type GetCommunitySpaceQueueErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetCommunitySpaceQueueError =
+  GetCommunitySpaceQueueErrors[keyof GetCommunitySpaceQueueErrors];
+
+export type GetCommunitySpaceQueueResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    pending: Array<{
+      orgId: string;
+      id: string;
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+      topicId: string | null;
+      title: string;
+      body: string;
+      extra: JsonValue;
+      coverAssetId: string | null;
+      status: "draft" | "scheduled" | "pending" | "published" | "removed";
+      scheduledAt: string | null;
+      publishedAt: string | null;
+      removedBy: string | null;
+      pinned: boolean;
+      commentsClosed: boolean | null;
+      reactionsEnabled: boolean | null;
+      createdAt: string;
+      updatedAt: string;
+      coverUrl: string | null;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        imageUrl: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction: string | null;
+      commentCount: number;
+      following: boolean;
+      bookmarked: boolean;
+    }>;
+    flags: Array<{
+      orgId: string;
+      id: string;
+      postId: string;
+      orgUserId: string;
+      reason: string;
+      resolvedAt: string | null;
+      resolution: "dismissed" | "removed";
+      resolvedBy: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    commentFlags: Array<{
+      id: string;
+      orgId: string;
+      commentId: string;
+      orgUserId: string;
+      reason: string;
+      resolvedAt: string | null;
+      resolution: "dismissed" | "removed";
+      resolvedBy: string | null;
+      createdAt: string;
+      updatedAt: string;
+      comment: {
+        id: string;
+        postId: string;
+        body: string;
+        orgUserId: string;
+        status: "pending" | "published" | "removed";
+      };
+    }>;
+  };
+};
+
+export type GetCommunitySpaceQueueResponse =
+  GetCommunitySpaceQueueResponses[keyof GetCommunitySpaceQueueResponses];
+
+export type ApproveCommunityPostData = {
+  body?: never;
+  path: {
+    communityId: string;
+    postId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/posts/{postId}/approval";
+};
+
+export type ApproveCommunityPostErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ApproveCommunityPostError =
+  ApproveCommunityPostErrors[keyof ApproveCommunityPostErrors];
+
+export type ApproveCommunityPostResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    topicId: string | null;
+    title: string;
+    body: string;
+    extra: JsonValue;
+    coverAssetId: string | null;
+    status: "draft" | "scheduled" | "pending" | "published" | "removed";
+    scheduledAt: string | null;
+    publishedAt: string | null;
+    removedBy: string | null;
+    pinned: boolean;
+    commentsClosed: boolean | null;
+    reactionsEnabled: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
+  };
+};
+
+export type ApproveCommunityPostResponse =
+  ApproveCommunityPostResponses[keyof ApproveCommunityPostResponses];
+
+export type RemoveCommunityPostData = {
+  body?: never;
+  path: {
+    communityId: string;
+    postId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/posts/{postId}/removal";
+};
+
+export type RemoveCommunityPostErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveCommunityPostError = RemoveCommunityPostErrors[keyof RemoveCommunityPostErrors];
+
+export type RemoveCommunityPostResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    topicId: string | null;
+    title: string;
+    body: string;
+    extra: JsonValue;
+    coverAssetId: string | null;
+    status: "draft" | "scheduled" | "pending" | "published" | "removed";
+    scheduledAt: string | null;
+    publishedAt: string | null;
+    removedBy: string | null;
+    pinned: boolean;
+    commentsClosed: boolean | null;
+    reactionsEnabled: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
+  };
+};
+
+export type RemoveCommunityPostResponse =
+  RemoveCommunityPostResponses[keyof RemoveCommunityPostResponses];
+
+export type RestoreCommunityPostData = {
+  body?: never;
+  path: {
+    communityId: string;
+    postId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/posts/{postId}/restoration";
+};
+
+export type RestoreCommunityPostErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RestoreCommunityPostError =
+  RestoreCommunityPostErrors[keyof RestoreCommunityPostErrors];
+
+export type RestoreCommunityPostResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    spaceId: string;
+    orgUserId: string;
+    topicId: string | null;
+    title: string;
+    body: string;
+    extra: JsonValue;
+    coverAssetId: string | null;
+    status: "draft" | "scheduled" | "pending" | "published" | "removed";
+    scheduledAt: string | null;
+    publishedAt: string | null;
+    removedBy: string | null;
+    pinned: boolean;
+    commentsClosed: boolean | null;
+    reactionsEnabled: boolean | null;
+    createdAt: string;
+    updatedAt: string;
+    coverUrl: string | null;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction: string | null;
+    commentCount: number;
+    following: boolean;
+    bookmarked: boolean;
+  };
+};
+
+export type RestoreCommunityPostResponse =
+  RestoreCommunityPostResponses[keyof RestoreCommunityPostResponses];
+
+export type ResolveCommunityPostFlagsData = {
+  body: {
+    resolution: "dismissed";
+  };
+  path: {
+    communityId: string;
+    postId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/posts/{postId}/flags/resolution";
+};
+
+export type ResolveCommunityPostFlagsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResolveCommunityPostFlagsError =
+  ResolveCommunityPostFlagsErrors[keyof ResolveCommunityPostFlagsErrors];
+
+export type ResolveCommunityPostFlagsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type RemoveCommunityCommentData = {
+  body?: never;
+  path: {
+    communityId: string;
+    commentId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/comments/{commentId}/removal";
+};
+
+export type RemoveCommunityCommentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveCommunityCommentError =
+  RemoveCommunityCommentErrors[keyof RemoveCommunityCommentErrors];
+
+export type RemoveCommunityCommentResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    orgId: string;
+    activityId: string | null;
+    postId: string | null;
+    communityId: string | null;
+    parentId: string | null;
+    orgUserId: string;
+    body: string;
+    status: "pending" | "published" | "removed";
+    removedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type RemoveCommunityCommentResponse =
+  RemoveCommunityCommentResponses[keyof RemoveCommunityCommentResponses];
+
+export type RestoreCommunityCommentData = {
+  body?: never;
+  path: {
+    communityId: string;
+    commentId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/comments/{commentId}/restoration";
+};
+
+export type RestoreCommunityCommentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RestoreCommunityCommentError =
+  RestoreCommunityCommentErrors[keyof RestoreCommunityCommentErrors];
+
+export type RestoreCommunityCommentResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    orgId: string;
+    activityId: string | null;
+    postId: string | null;
+    communityId: string | null;
+    parentId: string | null;
+    orgUserId: string;
+    body: string;
+    status: "pending" | "published" | "removed";
+    removedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type RestoreCommunityCommentResponse =
+  RestoreCommunityCommentResponses[keyof RestoreCommunityCommentResponses];
+
+export type ResolveCommunityCommentFlagsData = {
+  body?: never;
+  path: {
+    communityId: string;
+    commentId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/comments/{commentId}/flags/resolution";
+};
+
+export type ResolveCommunityCommentFlagsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResolveCommunityCommentFlagsError =
+  ResolveCommunityCommentFlagsErrors[keyof ResolveCommunityCommentFlagsErrors];
+
+export type ResolveCommunityCommentFlagsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type ResolveCommunityMessageFlagsData = {
+  body: {
+    resolution: "dismissed";
+  };
+  path: {
+    communityId: string;
+    messageId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/messages/{messageId}/flags/resolution";
+};
+
+export type ResolveCommunityMessageFlagsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResolveCommunityMessageFlagsError =
+  ResolveCommunityMessageFlagsErrors[keyof ResolveCommunityMessageFlagsErrors];
+
+export type ResolveCommunityMessageFlagsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type LockCommunityChatData = {
+  body?: never;
+  path: {
+    communityId: string;
+    chatId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/chats/{chatId}/lock";
+};
+
+export type LockCommunityChatErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type LockCommunityChatError = LockCommunityChatErrors[keyof LockCommunityChatErrors];
+
+export type LockCommunityChatResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    kind: "direct" | "group";
+    status: "pending" | "open" | "closed";
+    createdBy: string;
+    lockedAt: string | null;
+    lockedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type LockCommunityChatResponse =
+  LockCommunityChatResponses[keyof LockCommunityChatResponses];
+
+export type UnlockCommunityChatData = {
+  body?: never;
+  path: {
+    communityId: string;
+    chatId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/chats/{chatId}/unlock";
+};
+
+export type UnlockCommunityChatErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UnlockCommunityChatError = UnlockCommunityChatErrors[keyof UnlockCommunityChatErrors];
+
+export type UnlockCommunityChatResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    communityId: string;
+    kind: "direct" | "group";
+    status: "pending" | "open" | "closed";
+    createdBy: string;
+    lockedAt: string | null;
+    lockedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type UnlockCommunityChatResponse =
+  UnlockCommunityChatResponses[keyof UnlockCommunityChatResponses];
+
 export type ListDownloadsData = {
   body?: never;
   path?: never;
