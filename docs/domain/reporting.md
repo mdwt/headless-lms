@@ -39,11 +39,12 @@ The person in the admin app. Owner, admin, and instructor call this service. The
 - **Learner record** — for one student, every course they're enrolled in, how far through each, and what they've completed. Read across their entitlements, their progress, and the course structure.
 - **Learner activity** — for one student, what they've started but not finished, and when they were last active.
 - **Roster** — the students list: each learner with their enrolment count and overall progress, filtered and paged.
+- **Community members** — the people who hold a community, directly or through a bundle, searched and paged.
 - **Community staff analytics** — member count, active members, posts per space, comments per post, messages sent, flags raised and resolved, grants lapsed and renewed.
 
 ## Build state
 
-`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the signed links of the files it shows. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, and community staff analytics.
+`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the signed links of the files it shows. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, community members, and community staff analytics.
 
 ## Boundaries
 

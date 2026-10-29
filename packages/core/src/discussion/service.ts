@@ -384,6 +384,10 @@ export class DiscussionServiceImpl implements DiscussionService {
     return canModerate(actor.role);
   }
 
+  private inCommunity(comment: Comment, communityId: string | undefined): boolean {
+    return communityId === undefined || comment.communityId === communityId;
+  }
+
   private commentsOpen(post: Post, space: SpaceDetail): boolean {
     return post.commentsClosed === null ? space.settings.comments : !post.commentsClosed;
   }
@@ -435,9 +439,14 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.renderOne(orgId, updated, actor);
   }
 
-  async remove(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
+  async remove(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<Comment> {
     const comment = await this.getComment(orgId, commentId);
-    if (!comment) {
+    if (!comment || !this.inCommunity(comment, communityId)) {
       throw new NotFoundError('Comment', commentId);
     }
 
@@ -488,12 +497,17 @@ export class DiscussionServiceImpl implements DiscussionService {
     });
   }
 
-  async restore(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
+  async restore(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<Comment> {
     if (!this.isStaff(actor)) {
       throw new ForbiddenError('You cannot restore this comment');
     }
     const comment = await this.getComment(orgId, commentId);
-    if (!comment) {
+    if (!comment || !this.inCommunity(comment, communityId)) {
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.status !== 'removed') {
@@ -612,9 +626,14 @@ export class DiscussionServiceImpl implements DiscussionService {
     return comment;
   }
 
-  async resolveReports(orgId: string, commentId: string, actor: Actor): Promise<void> {
+  async resolveReports(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<void> {
     const comment = await this.getComment(orgId, commentId);
-    if (!comment) {
+    if (!comment || !this.inCommunity(comment, communityId)) {
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.postId) {

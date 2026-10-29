@@ -1314,6 +1314,30 @@ describe('comments on a post', () => {
     });
   });
 
+  it('finds a comment to moderate only in the community it names', async () => {
+    const { service } = postService();
+    const admin: Actor = { id: 'ou_admin', role: 'admin' };
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'hi',
+    });
+    await service.reportComment('o1', view.id, other, 'spam');
+    await expect(service.resolveReports('o1', view.id, admin, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await service.resolveReports('o1', view.id, admin, 'cmy_1');
+    await expect(service.remove('o1', view.id, admin, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await service.remove('o1', view.id, admin, 'cmy_1')).status).toBe('removed');
+    await expect(service.restore('o1', view.id, admin, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await service.restore('o1', view.id, admin, 'cmy_1')).status).toBe('published');
+  });
+
   it('refuses a comment when the post has comments closed', async () => {
     const { service } = postService(true);
     await expect(

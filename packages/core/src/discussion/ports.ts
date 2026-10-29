@@ -84,9 +84,9 @@ export interface DiscussionService {
   /** Author-only. Throws ForbiddenError for anyone else, staff included. */
   edit(orgId: string, commentId: string, actor: Actor, body: string): Promise<CommentView>;
   /** The author, or anyone whose role is staff. */
-  remove(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
+  remove(orgId: string, commentId: string, actor: Actor, communityId?: string): Promise<Comment>;
   /** Staff only. Returns the comment to published. */
-  restore(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
+  restore(orgId: string, commentId: string, actor: Actor, communityId?: string): Promise<Comment>;
   /** Staff only. Publishes a pending comment. */
   approve(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
   /** Make a comment published, whichever state it is in. Staff only. */
@@ -114,7 +114,12 @@ export interface DiscussionService {
     emoji: ReactionEmoji | null,
   ): Promise<CommentReactions>;
 
-  resolveReports(orgId: string, commentId: string, actor: Actor): Promise<void>;
+  resolveReports(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<void>;
 
   /** Accepted even on locked comments — a locked activity can still hold
    *  something a moderator needs to see. */
@@ -267,9 +272,9 @@ export interface PostService {
   update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
   submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
   schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<PostView>;
-  approve(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  remove(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  restore(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  approve(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
+  remove(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
+  restore(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
   pin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
   unpin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
   closeComments(orgId: string, postId: string, actor: Actor): Promise<PostView>;
@@ -291,6 +296,7 @@ export interface PostService {
     postId: string,
     actor: Actor,
     resolution: Extract<PostFlagResolution, 'dismissed'>,
+    communityId?: string,
   ): Promise<void>;
   spaceFeed(
     orgId: string,
@@ -461,9 +467,10 @@ export interface ChatService {
     actor: Actor,
     messageId: string,
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
+    communityId?: string,
   ): Promise<void>;
-  lock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
-  unlock(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
+  lock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat>;
+  unlock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat>;
   listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]>;
   chatSummary(
     orgId: string,

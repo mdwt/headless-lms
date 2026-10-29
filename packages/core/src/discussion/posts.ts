@@ -221,8 +221,13 @@ export class PostServiceImpl implements PostService {
     return this.viewOf(orgId, actor,updated);
   }
 
-  async approve(orgId: string, postId: string, actor: Actor): Promise<PostView> {
-    const { post } = await this.loadVisible(orgId, actor, postId);
+  async approve(
+    orgId: string,
+    postId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<PostView> {
+    const { post } = await this.loadVisible(orgId, actor, postId, communityId);
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot review this post');
     }
@@ -250,8 +255,13 @@ export class PostServiceImpl implements PostService {
     return this.viewOf(orgId, actor,updated);
   }
 
-  async remove(orgId: string, postId: string, actor: Actor): Promise<PostView> {
-    const { post } = await this.loadVisible(orgId, actor, postId);
+  async remove(
+    orgId: string,
+    postId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<PostView> {
+    const { post } = await this.loadVisible(orgId, actor, postId, communityId);
     if (post.orgUserId !== actor.id && !this.canModerate(actor)) {
       throw new ForbiddenError('You cannot remove this post');
     }
@@ -286,8 +296,13 @@ export class PostServiceImpl implements PostService {
     return this.viewOf(orgId, actor,updated);
   }
 
-  async restore(orgId: string, postId: string, actor: Actor): Promise<PostView> {
-    const { post, space } = await this.loadVisible(orgId, actor, postId);
+  async restore(
+    orgId: string,
+    postId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<PostView> {
+    const { post, space } = await this.loadVisible(orgId, actor, postId, communityId);
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot moderate this post');
     }
@@ -457,8 +472,9 @@ export class PostServiceImpl implements PostService {
     postId: string,
     actor: Actor,
     resolution: Extract<PostFlagResolution, 'dismissed'>,
+    communityId?: string,
   ): Promise<void> {
-    await this.loadVisible(orgId, actor, postId);
+    await this.loadVisible(orgId, actor, postId, communityId);
     if (!this.canModerate(actor)) {
       throw new ForbiddenError('You cannot work this queue');
     }
@@ -859,9 +875,9 @@ export class PostServiceImpl implements PostService {
     return space;
   }
 
-  private async loadVisible(orgId: string, actor: Actor, postId: string) {
+  private async loadVisible(orgId: string, actor: Actor, postId: string, communityId?: string) {
     const post = await this.repo.find(orgId, postId);
-    if (!post) {
+    if (!post || (communityId !== undefined && post.communityId !== communityId)) {
       throw new NotFoundError('Post', postId);
     }
     const space = await this.requireOpen(orgId, actor, post.spaceId);

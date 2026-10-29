@@ -1,10 +1,12 @@
 // reporting/admin — Drizzle repository.
-import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   AdminReportRepository,
   CommunityAnalytics,
+  CommunityMember,
+  CommunityMembersQuery,
   CourseActivityEngagement,
   CourseAnalytics,
   CourseEnrollmentPoint,
@@ -658,5 +660,61 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     };
   }
 
+  async communityMembers(
+    orgId: string,
+    communityId: string,
+    query: CommunityMembersQuery,
+  ): Promise<Page<CommunityMember> | null> {
+    const [community] = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .where(and(eq(communities.orgId, orgId), eq(communities.id, communityId)))
+      .limit(1);
+    if (!community) {
+      return null;
+    }
+    const holds = exists(
+      this.db
+        .select({ id: entitlements.id })
+        .from(entitlements)
+        .where(
+          and(
+            eq(entitlements.orgId, orgUsers.orgId),
+            eq(entitlements.orgUserId, orgUsers.id),
+            grantIsActive(entitlements),
+            grantOpens(entitlements, sql`${communityId}`, "community"),
+          ),
+        ),
+    );
+    const filters: SQL[] = [eq(orgUsers.orgId, orgId), holds];
+    const q = query.search?.trim();
+    if (q) {
+      const like = `%${q}%`;
+      filters.push(
+        or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.email, like))!,
+      );
+    }
+    const where = and(...filters);
+    const [totals] = await this.db
+      .select({ total: sql<number>`count(*)` })
+      .from(orgUsers)
+      .innerJoin(users, eq(users.id, orgUsers.userId))
+      .where(where);
+    const rows = await this.db
+      .select({ ...orgUserProfileColumns, role: orgUsers.role })
+      .from(orgUsers)
+      .innerJoin(users, eq(users.id, orgUsers.userId))
+      .leftJoin(user, eq(user.id, users.externalId))
+      .where(where)
+      .orderBy(asc(users.firstName), asc(users.lastName), asc(orgUsers.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    return {
+      rows: rows.map((row) => ({ ...row, image: row.image ?? null })),
+      total: Number(totals?.total ?? 0),
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
 }
 translateDbErrors(DrizzleAdminRepository);

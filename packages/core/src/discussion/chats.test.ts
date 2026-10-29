@@ -802,6 +802,32 @@ describe('chats', () => {
     );
   });
 
+  it('finds a chat or message to moderate only in the community it names', async () => {
+    const { svc, calls, flags } = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'Hello',
+      assetIds: [],
+    });
+    const messageId = String(dataOf(calls[0]![1]!).id);
+    await svc.flagMessage(ORG, other, messageId, 'spam');
+    await expect(
+      svc.resolveMessageFlags(ORG, staff, messageId, 'dismissed', 'cmy_other'),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(flags[0]?.resolution).toBeNull();
+    await svc.resolveMessageFlags(ORG, staff, messageId, 'dismissed', COMMUNITY);
+    expect(flags[0]?.resolution).toBe('dismissed');
+    await expect(svc.lock(ORG, staff, chat.id, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await svc.lock(ORG, staff, chat.id, COMMUNITY)).lockedAt).toBeInstanceOf(Date);
+    await expect(svc.unlock(ORG, staff, chat.id, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await svc.unlock(ORG, staff, chat.id, COMMUNITY)).lockedAt).toBeNull();
+  });
+
   it('lets staff lock a chat and work the message queue', async () => {
     const { svc, calls, flags } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {

@@ -585,6 +585,28 @@ describe('posts', () => {
     ).rejects.toBeInstanceOf(ConflictError);
   });
 
+  it('finds a post to moderate only in the community it names', async () => {
+    const { svc, setSpaces } = harness();
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const created = await svc.create(ORG, member, draftInput());
+    await expect(svc.approve(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await svc.approve(ORG, created.id, staff, 'cmy_1')).status).toBe('published');
+    await svc.flag(ORG, created.id, other, 'spam');
+    await expect(
+      svc.resolveFlags(ORG, created.id, staff, 'dismissed', 'cmy_other'),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(svc.remove(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await svc.remove(ORG, created.id, staff, 'cmy_1')).status).toBe('removed');
+    await expect(svc.restore(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect((await svc.restore(ORG, created.id, staff, 'cmy_1')).status).toBe('pending');
+  });
+
   it('restores a removed post to published', async () => {
     const { svc } = harness();
     const created = await svc.create(ORG, member, draftInput());

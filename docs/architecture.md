@@ -72,7 +72,7 @@ It answers the courses, progress, and downloads they can open, the community dir
 `reporting/member`. The other routes under that prefix call the context that owns the operation.
 
 `reporting/admin` is the person in the admin app: owner, admin, and instructor. It answers the org overview, course
-analytics, the roster, a student's record, and the community staff analytics.
+analytics, the roster, a student's record, a community's members, and the community staff analytics.
 
 `reporting/member` and `reporting/admin` are the services in the code.
 
