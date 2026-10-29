@@ -53,4 +53,4 @@ export const SpaceQueue = z.object({
   commentFlags: z.array(flaggedCommentSchema),
 });
 
-export const PostComments = z.array(CommentView);
+export const PostCommentsPage = paginated(CommentView);

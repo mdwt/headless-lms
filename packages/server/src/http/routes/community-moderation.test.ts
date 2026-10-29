@@ -48,7 +48,12 @@ const container = {
   requestContext: { set: () => {} },
   reporting: { admin: { communityMembers: record('communityMembers', () => membersPage) } },
   entitlements: {
-    listSpaceMembers: record('listSpaceMembers', () => []),
+    listSpaceMembers: record('listSpaceMembers', () => ({
+      rows: [spaceMember],
+      total: 1,
+      page: 2,
+      pageSize: 10,
+    })),
     addSpaceMember: record('addSpaceMember', () => spaceMember),
     invite: record('invite', () => spaceMember),
     approve: record('approveSpaceRequest', () => spaceMember),
@@ -141,10 +146,17 @@ describe('community moderation routes', () => {
   it('manages space membership as the staff member', async () => {
     const list = await app.inject({
       method: 'GET',
-      url: '/api/communities/cmy_1/spaces/spc_1/members',
+      url: '/api/communities/cmy_1/spaces/spc_1/members?page=2&pageSize=10',
     });
     expect(list.statusCode).toBe(200);
-    expect(last('listSpaceMembers')).toEqual([ORG.id, STAFF, 'cmy_1', 'spc_1']);
+    expect(list.json()).toMatchObject({ total: 1, page: 2, pageSize: 10 });
+    expect(last('listSpaceMembers')).toEqual([
+      ORG.id,
+      STAFF,
+      'cmy_1',
+      'spc_1',
+      { page: 2, pageSize: 10 },
+    ]);
     for (const [path, method] of [
       ['members', 'addSpaceMember'],
       ['invites', 'invite'],

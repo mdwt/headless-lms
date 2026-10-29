@@ -23,6 +23,7 @@ export type {
   PostPatch,
   FeedQuery,
   PageQuery,
+  PostThreadsQuery,
   BookmarkQuery,
   PostReactions,
   MessageReactions,

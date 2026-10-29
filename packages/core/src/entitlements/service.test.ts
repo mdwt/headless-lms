@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EntitlementsServiceImpl } from './service.js';
-import type { EntitlementsRepository, EntitlementsUnitOfWork } from './ports.js';
+import type { EntitlementsRepository, EntitlementsUnitOfWork, SpaceMembersQuery } from './ports.js';
 import type { Entitlement, SpaceMember } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
@@ -88,7 +88,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     accessAmong: vi.fn(accessAmong),
     findSpaceMember,
     lockSpaceMember: findSpaceMember,
-    listSpaceMembers: vi.fn().mockResolvedValue([]),
+    listSpaceMembers: vi.fn().mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 }),
     insertSpaceMember: vi.fn(async (_orgId, input) => ({ ...MEMBER, ...input })),
     updateSpaceMemberStatus: vi.fn(async (_orgId, id, status) => ({ ...MEMBER, id, status })),
     deleteSpaceMember: vi.fn().mockResolvedValue(undefined),
@@ -388,16 +388,31 @@ describe('space members', () => {
       { ...MEMBER, id: 'spm_3', status: 'active' },
       { ...MEMBER, id: 'spm_4', status: 'revoked' },
     ];
-    const repo = fakeRepo({ listSpaceMembers: vi.fn().mockResolvedValue(rows) });
+    const listSpaceMembers = vi.fn(
+      async (_orgId: string, _spaceId: string, query: SpaceMembersQuery) => {
+        const kept = rows.filter((row) => !query.statuses || query.statuses.includes(row.status));
+        return { rows: kept, total: kept.length, page: query.page, pageSize: query.pageSize };
+      },
+    );
+    const repo = fakeRepo({ listSpaceMembers });
     const content = fakeContent({
       getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'all_members' }),
     });
     const { svc } = build(repo, content);
-    await expect(svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1')).resolves.toEqual([
-      expect.objectContaining({ id: 'spm_3', status: 'active' }),
-    ]);
-    await expect(svc.listSpaceMembers('org-1', moderator, 'cmy_1', 'spc_1')).resolves.toEqual(rows);
-    await expect(svc.listSpaceMembers('org-1', owner, 'cmy_1', 'spc_1')).resolves.toEqual(rows);
+    const page = { page: 1, pageSize: 20 };
+    const own = await svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', page);
+    expect(own.rows).toEqual([expect.objectContaining({ id: 'spm_3', status: 'active' })]);
+    expect(own.total).toBe(1);
+    expect(listSpaceMembers).toHaveBeenLastCalledWith('org-1', 'spc_1', {
+      ...page,
+      statuses: ['active'],
+    });
+    await expect(
+      svc.listSpaceMembers('org-1', moderator, 'cmy_1', 'spc_1', page),
+    ).resolves.toMatchObject({ rows, total: 4 });
+    await expect(
+      svc.listSpaceMembers('org-1', owner, 'cmy_1', 'spc_1', page),
+    ).resolves.toMatchObject({ rows, total: 4 });
   });
 
   it('rejects a space that belongs to another community', async () => {
@@ -472,7 +487,7 @@ describe('space members', () => {
       service.refuse('org-1', student, 'cmy_1', 'spc_1'),
       service.leave('org-1', student, 'cmy_1', 'spc_1'),
       service.invite('org-1', student, 'cmy_1', 'spc_1', 'ou_other'),
-      service.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1'),
+      service.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', { page: 1, pageSize: 20 }),
     ];
     const messages = async (service: typeof svc) =>
       Promise.all(
@@ -676,6 +691,8 @@ describe('expireDue', () => {
       'org-1',
       now,
       new Date('2026-06-08T00:00:00Z'),
+      100,
+      undefined,
     );
     expect(repo.claimNotice).toHaveBeenCalledWith(
       'org-1',
@@ -698,6 +715,24 @@ describe('expireDue', () => {
         }),
       }),
     ]);
+  });
+
+  it('works expired grants in bounded batches after the last grant of the previous one', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({
+      ...grant,
+      id: `ent_${String(i).padStart(3, '0')}`,
+    }));
+    const listGrantsExpiredBy = vi
+      .fn()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce([{ ...grant, id: 'ent_100' }]);
+    const repo = fakeRepo({ listGrantsExpiredBy });
+    const { svc, appended } = build(repo);
+    await svc.expireDue('org-1', now);
+    expect(listGrantsExpiredBy).toHaveBeenCalledTimes(2);
+    expect(listGrantsExpiredBy).toHaveBeenNthCalledWith(1, 'org-1', now, 100, undefined);
+    expect(listGrantsExpiredBy).toHaveBeenNthCalledWith(2, 'org-1', now, 100, 'ent_099');
+    expect(appended).toHaveLength(101);
   });
 
   it('appends nothing when every notice was already claimed', async () => {
@@ -795,7 +830,7 @@ describe('open spaces', () => {
       getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'all_members' }),
     });
     const { svc } = build(fakeRepo(), content);
-    await svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1');
+    await svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', { page: 1, pageSize: 20 });
     expect(content.getSpace).toHaveBeenCalledTimes(1);
   });
 });

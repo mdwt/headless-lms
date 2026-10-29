@@ -29,6 +29,7 @@ const dmSettings: DmSettings = {
 
 const ORG = 'org-1';
 const COMMUNITY = 'cmy_1';
+const PAGE = { page: 1, pageSize: 100 };
 
 const member: Actor = { id: 'ou_member', role: 'student' };
 const other: Actor = { id: 'ou_other', role: 'student' };
@@ -114,8 +115,8 @@ function harness(options?: {
       const chat = chats.find((row) => row.orgId === orgId && row.id === id);
       return chat ? { ...chat } : null;
     },
-    async listForUser(orgId, communityId, orgUserId) {
-      return chats
+    async listForUser(orgId, communityId, orgUserId, query) {
+      const all = chats
         .filter(
           (chat) =>
             chat.orgId === orgId &&
@@ -155,6 +156,13 @@ function harness(options?: {
               : null,
           };
         });
+      const from = (query.page - 1) * query.pageSize;
+      return {
+        rows: all.slice(from, from + query.pageSize),
+        total: all.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
     async participants(orgId, chatId) {
       return users
@@ -339,11 +347,12 @@ function harness(options?: {
       flags.push({ ...flag });
       return { ...flag };
     },
-    async listOpenFlags(orgId, communityId) {
+    async listOpenFlags(orgId, communityId, limit) {
       return flags
         .filter(
           (flag) => flag.orgId === orgId && flag.communityId === communityId && !flag.resolvedAt,
         )
+        .slice(0, limit)
         .map((flag) => ({ ...flag }));
     },
     async messagesByIds(orgId, ids) {
@@ -729,7 +738,7 @@ describe('chats', () => {
     const before = calls.length;
     await svc.block(ORG, member, COMMUNITY, other.id);
     expect(calls).toHaveLength(before);
-    const seen = (await svc.listChats(ORG, other, COMMUNITY)).find(
+    const seen = (await svc.listChats(ORG, other, COMMUNITY, { page: 1, pageSize: 20 })).rows.find(
       (item) => item.chat.id === chat.id,
     );
     expect(seen?.chat.status).toBe('open');
@@ -794,7 +803,7 @@ describe('chats', () => {
       orgUserIds: [other.id, third.id],
     });
     await svc.block(ORG, member, COMMUNITY, other.id);
-    const stored = await svc.listChats(ORG, third, COMMUNITY);
+    const stored = (await svc.listChats(ORG, third, COMMUNITY, PAGE)).rows;
     expect(stored[0]?.chat.status).toBe('open');
     await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
       'You cannot send in this chat',
@@ -1329,7 +1338,7 @@ describe('chats', () => {
     expect(mine()).toEqual([false, null]);
     await svc.mute(ORG, member, chat.id);
     expect(mine()).toEqual([true, null]);
-    const listed = (await svc.listChats(ORG, member, COMMUNITY))[0];
+    const listed = (await svc.listChats(ORG, member, COMMUNITY, PAGE)).rows[0];
     expect([listed?.muted, listed?.mutedUntil]).toEqual([true, null]);
     const until = new Date('2030-01-01T00:00:00Z');
     await svc.mute(ORG, member, chat.id, until);
@@ -1422,7 +1431,7 @@ describe('chats', () => {
     messages.find((row) => row.id === earlier.id)!.createdAt = new Date(0);
     messages.find((row) => row.id === latest.id)!.createdAt = new Date(60_000);
     const byId = (items: ChatListItem[]) => new Map(items.map((item) => [item.chat.id, item]));
-    const listed = byId(await svc.listChats(ORG, member, COMMUNITY));
+    const listed = byId((await svc.listChats(ORG, member, COMMUNITY, PAGE)).rows);
     expect(listed.get(empty.id)?.lastMessage).toBeNull();
     expect(listed.get(group.id)?.lastMessage).toEqual({
       id: latest.id,
@@ -1432,10 +1441,10 @@ describe('chats', () => {
       deletedAt: null,
     });
     await svc.deleteMessage(ORG, member, latest.id);
-    const afterDelete = byId(await svc.listChats(ORG, other, COMMUNITY)).get(group.id);
+    const afterDelete = byId((await svc.listChats(ORG, other, COMMUNITY, PAGE)).rows).get(group.id);
     expect(afterDelete?.lastMessage).toMatchObject({ id: latest.id, body: '' });
     expect(afterDelete?.lastMessage?.deletedAt).toBeInstanceOf(Date);
-    const staffSees = byId(await svc.listChats(ORG, staff, COMMUNITY)).get(group.id);
+    const staffSees = byId((await svc.listChats(ORG, staff, COMMUNITY, PAGE)).rows).get(group.id);
     expect(staffSees?.lastMessage).toMatchObject({ id: latest.id, body: 'Latest' });
   });
 

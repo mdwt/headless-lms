@@ -48,7 +48,7 @@ describe("community membership predicate", () => {
 
   it("drives the directory: staff, or a grant to the published community", async () => {
     const { db, queries } = capturingDb();
-    await new DrizzleMemberRepository(db).directory("org-1", "cmy_1");
+    await new DrizzleMemberRepository(db).directory("org-1", "cmy_1", { page: 1, pageSize: 20 });
     expect(queries[0]!.text).toContain("pc.status = 'published'");
     expect(queries[0]!.values).toEqual(expect.arrayContaining(["owner", "admin", "instructor"]));
   });

@@ -23,6 +23,12 @@ export interface DirectoryRow {
   imageAssetId: string | null;
 }
 
+export interface DirectoryQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+}
+
 export interface DirectoryEntry extends DirectoryRow {
   imageUrl: string | null;
 }

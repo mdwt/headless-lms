@@ -22,6 +22,7 @@ export const ChatListItem = z.object({
   unread: z.number().int(),
   lastMessage: chatLastMessageSchema.nullable(),
 });
+export const ChatsPage = paginated(ChatListItem);
 
 export const MessageQueueEntry = z.object({
   message: MessageView,

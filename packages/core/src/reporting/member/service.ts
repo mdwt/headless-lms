@@ -6,6 +6,7 @@ import { isStaffRole } from '../../organizations/index.js';
 import type { ChatService, PostService } from '../../discussion/index.js';
 import type { Notification, NotificationInbox } from '../../identity/index.js';
 import type { Actor } from '../../shared/actor.js';
+import type { Page } from '../../types/index.js';
 import type {
   ActivityView,
   CommunityHome,
@@ -14,6 +15,7 @@ import type {
   CourseProgressView,
   CourseView,
   DirectoryEntry,
+  DirectoryQuery,
   DownloadFile,
   DownloadView,
   Module,
@@ -308,7 +310,8 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgId: string,
     actor: Actor,
     communityId: string,
-  ): Promise<DirectoryEntry[] | null> {
+    query: DirectoryQuery,
+  ): Promise<Page<DirectoryEntry> | null> {
     if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
       return null;
     }
@@ -316,11 +319,14 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!community) {
       return null;
     }
-    const rows = await this.repo.directory(orgId, communityId);
-    return rows.map((row) => ({
-      ...row,
-      imageUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
-    }));
+    const page = await this.repo.directory(orgId, communityId, query);
+    return {
+      ...page,
+      rows: page.rows.map((row) => ({
+        ...row,
+        imageUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
+      })),
+    };
   }
 
   async communityHome(

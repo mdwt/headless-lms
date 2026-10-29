@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   BookmarkQuery,
@@ -220,23 +220,30 @@ export class DrizzlePostRepository implements PostRepository {
     };
   }
 
-  async listPending(orgId: string, spaceId: string): Promise<Post[]> {
+  async listPending(orgId: string, spaceId: string, limit: number): Promise<Post[]> {
     const rows = await this.db
       .select()
       .from(posts)
       .where(and(eq(posts.orgId, orgId), eq(posts.spaceId, spaceId), eq(posts.status, "pending")))
-      .orderBy(asc(posts.createdAt), asc(posts.id));
+      .orderBy(asc(posts.createdAt), asc(posts.id))
+      .limit(limit);
     return rows.map(toPost);
   }
 
-  async listDue(orgId: string, now: Date): Promise<Post[]> {
+  async listDue(orgId: string, now: Date, limit: number, afterId?: string): Promise<Post[]> {
     const rows = await this.db
       .select()
       .from(posts)
       .where(
-        and(eq(posts.orgId, orgId), eq(posts.status, "scheduled"), lte(posts.scheduledAt, now)),
+        and(
+          eq(posts.orgId, orgId),
+          eq(posts.status, "scheduled"),
+          lte(posts.scheduledAt, now),
+          afterId === undefined ? undefined : gt(posts.id, afterId),
+        ),
       )
-      .orderBy(asc(posts.scheduledAt), asc(posts.id));
+      .orderBy(asc(posts.id))
+      .limit(limit);
     return rows.map(toPost);
   }
 
@@ -417,7 +424,7 @@ export class DrizzlePostRepository implements PostRepository {
     return row ? toFlag(row) : null;
   }
 
-  async listOpenFlags(orgId: string, spaceId: string): Promise<PostFlag[]> {
+  async listOpenFlags(orgId: string, spaceId: string, limit: number): Promise<PostFlag[]> {
     const rows = await this.db
       .select({ flag: postFlags })
       .from(postFlags)
@@ -425,7 +432,8 @@ export class DrizzlePostRepository implements PostRepository {
       .where(
         and(eq(postFlags.orgId, orgId), eq(posts.spaceId, spaceId), isNull(postFlags.resolvedAt)),
       )
-      .orderBy(asc(postFlags.createdAt), asc(postFlags.id));
+      .orderBy(asc(postFlags.createdAt), asc(postFlags.id))
+      .limit(limit);
     return rows.map((row) => toFlag(row.flag));
   }
 

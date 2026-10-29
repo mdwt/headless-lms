@@ -20,8 +20,12 @@ const until = new Date("2026-06-08T00:00:00Z");
 describe("expiry notices", () => {
   it("selects only due grants with no expiry notice for their current term", async () => {
     const { repo, queries } = capturingDb();
-    await repo.listGrantsExpiredBy("org-1", now);
+    await repo.listGrantsExpiredBy("org-1", now, 100, "ent_9");
     const { text, values } = queries[0]!;
+    expect(text).toMatch(
+      /"entitlements"\."id" > \$\d+\) order by "entitlements"\."id" asc limit \$\d+$/,
+    );
+    expect(values).toEqual(expect.arrayContaining(["ent_9", 100]));
     expect(text).toContain('"entitlements"."expires_at" <= $');
     expect(text).toMatch(/not exists \(\s*select 1 from "entitlement_expiry_notices"/);
     expect(text).toContain(
@@ -32,8 +36,15 @@ describe("expiry notices", () => {
 
   it("selects ending grants per published community they open with no notice for that term", async () => {
     const { repo, queries } = capturingDb();
-    await repo.listGrantsEndingBetween("org-1", now, until);
+    await repo.listGrantsEndingBetween("org-1", now, until, 100, {
+      entitlementId: "ent_9",
+      communityId: "cmy_2",
+    });
     const { text, values } = queries[0]!;
+    expect(text).toMatch(
+      /\("entitlements"\."id", "communities"\."id"\) > \(\$\d+, \$\d+\)\) order by "entitlements"\."id" asc, "communities"\."id" asc limit \$\d+$/,
+    );
+    expect(values).toEqual(expect.arrayContaining(["ent_9", "cmy_2", 100]));
     expect(text).toContain('inner join "communities"');
     expect(text).toContain('"communities"."status" = $');
     expect(values).toContain("published");

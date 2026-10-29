@@ -1,4 +1,5 @@
 import type { Actor } from '../../shared/actor.js';
+import type { Page } from '../../types/index.js';
 import type {
   ActivityView,
   CommunityHome,
@@ -6,6 +7,7 @@ import type {
   CourseProgressView,
   CourseView,
   DirectoryEntry,
+  DirectoryQuery,
   DirectoryRow,
   DownloadFile,
   DownloadView,
@@ -56,7 +58,12 @@ export interface MemberReportService {
   ): Promise<string | null>;
   /** Signed URL of an org user's profile photo, when it belongs to this org. */
   personImage(orgId: string, orgUserId: string): Promise<string | null>;
-  directory(orgId: string, actor: Actor, communityId: string): Promise<DirectoryEntry[] | null>;
+  directory(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    query: DirectoryQuery,
+  ): Promise<Page<DirectoryEntry> | null>;
   communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
   communitySpace(
     orgId: string,
@@ -73,7 +80,7 @@ export interface MemberReportService {
 }
 
 export interface MemberReportRepository {
-  directory(orgId: string, communityId: string): Promise<DirectoryRow[]>;
+  directory(orgId: string, communityId: string, query: DirectoryQuery): Promise<Page<DirectoryRow>>;
   spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
   people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]>;
 }

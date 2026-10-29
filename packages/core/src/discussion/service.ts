@@ -24,6 +24,7 @@ import type {
   DiscussionRepository,
   DiscussionService,
   DiscussionUnitOfWork,
+  PageQuery,
   PostCommentInput,
   PostService,
 } from './ports.js';
@@ -318,18 +319,28 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.renderOne(orgId, saved, actor);
   }
 
-  async postComments(orgId: string, postId: string, actor: Actor): Promise<CommentView[]> {
+  async postComments(
+    orgId: string,
+    postId: string,
+    actor: Actor,
+    query: PageQuery,
+  ): Promise<Page<CommentView>> {
     const { post, space } = await this.visiblePost(orgId, actor, postId);
-    const rows = await this.repo.listByPost(orgId, postId);
+    const seesHeld = (person: Actor) => this.canModerate(person);
+    const page = await this.repo.listThreadsByPost(orgId, postId, {
+      ...query,
+      viewerId: actor.id,
+      seesHeld: seesHeld(actor),
+    });
     const comments = await this.thread(
       orgId,
-      rows,
+      page.rows,
       actor,
       post.reactionsEnabled ?? space.settings.reactions,
-      (person) => this.canModerate(person),
+      seesHeld,
     );
     this.logger.debug('post comments read', { orgId, postId, count: comments.length });
-    return comments;
+    return { ...page, rows: comments };
   }
 
   private async thread(

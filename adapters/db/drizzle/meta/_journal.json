@@ -64,6 +64,13 @@
       "when": 1793267692172,
       "tag": "0008_content_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793271619441,
+      "tag": "0009_community_indexes",
+      "breakpoints": true
     }
   ]
 }

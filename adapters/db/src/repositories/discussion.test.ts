@@ -39,7 +39,7 @@ describe("DrizzleDiscussionRepository.listOpenFlagsForSpace", () => {
         "published",
       ],
     ]);
-    const flags = await repo.listOpenFlagsForSpace("org1", "spc_1");
+    const flags = await repo.listOpenFlagsForSpace("org1", "spc_1", 100);
     expect(flags).toEqual([
       {
         id: "crp_1",
@@ -63,9 +63,9 @@ describe("DrizzleDiscussionRepository.listOpenFlagsForSpace", () => {
     ]);
     expect(statements).toHaveLength(1);
     expect(statements[0]?.text).toMatch(
-      /^select "comment_flags"\."org_id", "comment_flags"\."id", .*"comments"\."id", "posts"\."id", "comments"\."body", "comments"\."org_user_id", "comments"\."status" from "comment_flags" inner join "comments" on .* inner join "posts" on .* where \("comment_flags"\."org_id" = \$\d+ and "posts"\."space_id" = \$\d+ and "comment_flags"\."resolved_at" is null\) order by "comment_flags"\."created_at" asc, "comment_flags"\."id" asc$/,
+      /^select "comment_flags"\."org_id", "comment_flags"\."id", .*"comments"\."id", "posts"\."id", "comments"\."body", "comments"\."org_user_id", "comments"\."status" from "comment_flags" inner join "comments" on .* inner join "posts" on .* where \("comment_flags"\."org_id" = \$\d+ and "posts"\."space_id" = \$\d+ and "comment_flags"\."resolved_at" is null\) order by "comment_flags"\."created_at" asc, "comment_flags"\."id" asc limit \$\d+$/,
     );
-    expect(statements[0]?.params).toEqual(["org1", "spc_1"]);
+    expect(statements[0]?.params).toEqual(["org1", "spc_1", 100]);
   });
 });
 
@@ -89,5 +89,41 @@ describe("DrizzleDiscussionRepository.publishedCommentCounts", () => {
     const { repo, statements } = capture();
     await expect(repo.publishedCommentCounts("org1", [])).resolves.toEqual({});
     expect(statements).toHaveLength(0);
+  });
+});
+
+describe("DrizzleDiscussionRepository.listThreadsByPost", () => {
+  it("pages top-level comments the viewer can see and counts them", async () => {
+    const { repo, statements } = capture();
+    await expect(
+      repo.listThreadsByPost("org1", "pst_1", {
+        page: 2,
+        pageSize: 10,
+        viewerId: "ou_1",
+        seesHeld: false,
+      }),
+    ).resolves.toEqual({ rows: [], total: 0, page: 2, pageSize: 10 });
+    expect(statements).toHaveLength(2);
+    const [roots, count] = statements;
+    expect(roots?.text).toContain('"comments"."parent_id" is null');
+    expect(roots?.text).toContain('rep.parent_id = "comments"."id"');
+    expect(roots?.text).toContain("(rep.status = 'published' or rep.org_user_id = $");
+    expect(roots?.text).toMatch(
+      /order by "comments"\."created_at" asc, "comments"\."id" asc limit \$\d+ offset \$\d+$/,
+    );
+    expect(roots?.params).toEqual(expect.arrayContaining(["ou_1", 10, 10]));
+    expect(count?.text).toMatch(/^select cast\(count\(\*\) as int\) from "comments"/);
+  });
+
+  it("shows held comments to a moderator without a viewer filter", async () => {
+    const { repo, statements } = capture();
+    await repo.listThreadsByPost("org1", "pst_1", {
+      page: 1,
+      pageSize: 10,
+      viewerId: "ou_mod",
+      seesHeld: true,
+    });
+    expect(statements[0]?.text).not.toContain("rep.org_user_id");
+    expect(statements[0]?.params).not.toContain("ou_mod");
   });
 });

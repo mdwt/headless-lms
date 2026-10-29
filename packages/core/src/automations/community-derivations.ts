@@ -447,7 +447,9 @@ export const COMMUNITY_DERIVATIONS: {
       ]);
       const body = await deps.mail.latestMessageBody(event.orgId, chat.id);
       return address(deps, event, event.orgId, members, {
-        senderName: await deps.mail.displayName(event.orgId, chat.createdBy),
+        senderName: chat.createdBy
+          ? await deps.mail.displayName(event.orgId, chat.createdBy)
+          : 'A member',
         excerpt: excerpt(body ?? '', MESSAGE_EXCERPT),
         chatId: chat.id,
         communityId: chat.communityId,

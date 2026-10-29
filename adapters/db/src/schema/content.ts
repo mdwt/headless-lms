@@ -107,6 +107,7 @@ export const bundleItems = pgTable(
       columns: [t.orgId, t.bundleId],
       foreignColumns: [bundles.orgId, bundles.id],
     }).onDelete("cascade"),
+    contentIdx: index("bundle_items_content_idx").on(t.orgId, t.contentId),
   }),
 );
 
@@ -154,6 +155,7 @@ export const courses = pgTable(
       columns: [t.orgId, t.thumbnailAssetId],
       foreignColumns: [assets.orgId, assets.id],
     }),
+    thumbnailIdx: index("courses_thumbnail_idx").on(t.orgId, t.thumbnailAssetId),
   }),
 );
 
@@ -258,6 +260,7 @@ export const activityAssets = pgTable(
       foreignColumns: [assets.orgId, assets.id],
     }),
     activityAssetUq: unique().on(t.orgId, t.activityId, t.assetId),
+    assetIdx: index("activity_assets_asset_idx").on(t.orgId, t.assetId),
   }),
 );
 
@@ -304,6 +307,7 @@ export const downloads = pgTable(
       columns: [t.orgId, t.thumbnailAssetId],
       foreignColumns: [assets.orgId, assets.id],
     }),
+    thumbnailIdx: index("downloads_thumbnail_idx").on(t.orgId, t.thumbnailAssetId),
   }),
 );
 
@@ -343,6 +347,7 @@ export const downloadAssets = pgTable(
     }),
     // Lets delivery key on asset_id rather than the link row id.
     downloadAssetUq: unique().on(t.orgId, t.downloadId, t.assetId),
+    assetIdx: index("download_assets_asset_idx").on(t.orgId, t.assetId),
   }),
 );
 
@@ -383,6 +388,7 @@ export const communities = pgTable(
       columns: [t.orgId, t.thumbnailAssetId],
       foreignColumns: [assets.orgId, assets.id],
     }),
+    thumbnailIdx: index("communities_thumbnail_idx").on(t.orgId, t.thumbnailAssetId),
   }),
 );
 
@@ -486,6 +492,7 @@ export const spaceLinks = pgTable(
       columns: [t.orgId, t.contentId],
       foreignColumns: [contentItems.orgId, contentItems.id],
     }).onDelete("cascade"),
+    contentIdx: index("space_links_content_idx").on(t.orgId, t.contentId),
   }),
 );
 
@@ -498,7 +505,9 @@ type _ActivitiesDrift = Expect<NoDrift<typeof activities.$inferSelect, Activity>
 type _ActivityAssetsDrift = Expect<NoDrift<typeof activityAssets.$inferSelect, ActivityAsset>>;
 type _DownloadsDrift = Expect<NoDrift<typeof downloads.$inferSelect, Download>>;
 type _DownloadAssetsDrift = Expect<NoDrift<typeof downloadAssets.$inferSelect, DownloadAsset>>;
-type _CommunitiesDrift = Expect<NoDrift<typeof communities.$inferSelect, Omit<Community, "settings">>>;
+type _CommunitiesDrift = Expect<
+  NoDrift<typeof communities.$inferSelect, Omit<Community, "settings">>
+>;
 type _SpacesDrift = Expect<NoDrift<typeof spaces.$inferSelect, Space>>;
 type _SpaceTopicsDrift = Expect<NoDrift<typeof spaceTopics.$inferSelect, SpaceTopic>>;
 type _SpaceLinksDrift = Expect<NoDrift<typeof spaceLinks.$inferSelect, SpaceLink>>;

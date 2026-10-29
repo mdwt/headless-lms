@@ -12,7 +12,7 @@ import {
   FeedQuery,
   FlagReason,
   PageQuery,
-  PostComments,
+  PostCommentsPage,
   PostComment,
   PostFeedPage,
   PostFlag,
@@ -128,6 +128,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'getSpaceQueue',
       tags,
       summary: 'Posts awaiting review and open flags',
+      description:
+        'Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised. Working the queue brings in the next ones.',
       params: CommunitySpaceParam,
       response: { 200: SpaceQueue, ...errors },
     },
@@ -504,12 +506,15 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'listPostComments',
       tags,
       summary: "Read a post's comments",
+      description:
+        'Pages by top-level comment, oldest first. Each page carries its top-level comments and all of their replies; `total` counts top-level comments.',
       params: PostIdParam,
-      response: { 200: PostComments, ...errors },
+      querystring: PageQuery,
+      response: { 200: PostCommentsPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.discussion.postComments(req.orgId, req.params.postId, actor);
+      return container.discussion.postComments(req.orgId, req.params.postId, actor, req.query);
     },
   });
 

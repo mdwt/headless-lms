@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   AuthorRecord,
   CommentReactions,
   CommentWithContext,
   DiscussionRepository,
+  PostThreadsQuery,
 } from "@headless-lms/core/discussion";
 import type {
   Comment,
@@ -119,13 +120,65 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     return rows.map(toComment);
   }
 
-  async listByPost(orgId: string, postId: string): Promise<Comment[]> {
-    const rows = await this.db
+  async listThreadsByPost(
+    orgId: string,
+    postId: string,
+    query: PostThreadsQuery,
+  ): Promise<Page<Comment>> {
+    const rootReadable = query.seesHeld
+      ? undefined
+      : or(ne(comments.status, "pending"), eq(comments.orgUserId, query.viewerId));
+    const replyReadable = query.seesHeld
+      ? sql``
+      : sql` and (rep.status = 'published' or rep.org_user_id = ${query.viewerId})`;
+    const where = and(
+      eq(comments.orgId, orgId),
+      eq(comments.postId, postId),
+      isNull(comments.parentId),
+      rootReadable,
+      or(
+        ne(comments.status, "removed"),
+        sql`exists (
+          select 1 from comments rep
+          where rep.org_id = ${comments.orgId}
+            and rep.parent_id = ${comments.id}
+            and rep.status <> 'removed'${replyReadable}
+        )`,
+      ),
+    );
+    const roots = await this.db
       .select()
       .from(comments)
-      .where(and(eq(comments.orgId, orgId), eq(comments.postId, postId)))
-      .orderBy(comments.createdAt);
-    return rows.map(toComment);
+      .where(where)
+      .orderBy(asc(comments.createdAt), asc(comments.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(comments)
+      .where(where);
+    const replies =
+      roots.length === 0
+        ? []
+        : await this.db
+            .select()
+            .from(comments)
+            .where(
+              and(
+                eq(comments.orgId, orgId),
+                inArray(
+                  comments.parentId,
+                  roots.map((root) => root.id),
+                ),
+              ),
+            )
+            .orderBy(asc(comments.createdAt), asc(comments.id));
+    return {
+      rows: [...roots, ...replies].map(toComment),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   async reactionsOf(
@@ -236,7 +289,11 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     return row ?? null;
   }
 
-  async listOpenFlagsForSpace(orgId: string, spaceId: string): Promise<FlaggedComment[]> {
+  async listOpenFlagsForSpace(
+    orgId: string,
+    spaceId: string,
+    limit: number,
+  ): Promise<FlaggedComment[]> {
     const rows = await this.db
       .select({
         flag: commentFlags,
@@ -261,14 +318,12 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
           isNull(commentFlags.resolvedAt),
         ),
       )
-      .orderBy(asc(commentFlags.createdAt), asc(commentFlags.id));
+      .orderBy(asc(commentFlags.createdAt), asc(commentFlags.id))
+      .limit(limit);
     return rows.map((row) => ({ ...row.flag, comment: row.comment }));
   }
 
-  async publishedCommentCounts(
-    orgId: string,
-    postIds: string[],
-  ): Promise<Record<string, number>> {
+  async publishedCommentCounts(orgId: string, postIds: string[]): Promise<Record<string, number>> {
     if (postIds.length === 0) {
       return {};
     }

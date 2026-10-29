@@ -64,6 +64,7 @@ export const userProfiles = pgTable(
       "user_profiles_image_check",
       sql`(${t.imageAssetOrgId} is null) = (${t.imageAssetId} is null)`,
     ),
+    imageIdx: index("user_profiles_image_idx").on(t.imageAssetOrgId, t.imageAssetId),
   }),
 );
 
@@ -138,12 +139,14 @@ export const notifications = pgTable(
       columns: [t.orgId, t.messageId],
       foreignColumns: [messages.orgId, messages.id],
     }).onDelete("cascade"),
-    listIdx: index("notifications_list_idx").on(
-      t.orgId,
-      t.userId,
-      t.readAt,
-      desc(t.createdAt),
-    ),
+    listIdx: index("notifications_list_idx").on(t.orgId, t.userId, t.readAt, desc(t.createdAt)),
+    feedIdx: index("notifications_feed_idx").on(t.orgId, t.userId, desc(t.createdAt), desc(t.id)),
+    communityIdx: index("notifications_community_idx").on(t.orgId, t.communityId),
+    spaceIdx: index("notifications_space_idx").on(t.orgId, t.spaceId),
+    postIdx: index("notifications_post_idx").on(t.orgId, t.postId),
+    commentIdx: index("notifications_comment_idx").on(t.orgId, t.commentId),
+    chatIdx: index("notifications_chat_idx").on(t.orgId, t.chatId),
+    messageIdx: index("notifications_message_idx").on(t.orgId, t.messageId),
   }),
 );
 

@@ -178,20 +178,24 @@ function harness(options?: {
         pageSize: query.pageSize,
       };
     },
-    async listPending(orgId, spaceId) {
+    async listPending(orgId, spaceId, limit) {
       return rows
         .filter((row) => row.orgId === orgId && row.spaceId === spaceId && row.status === 'pending')
+        .slice(0, limit)
         .map((row) => ({ ...row }));
     },
-    async listDue(orgId, now) {
+    async listDue(orgId, now, limit, afterId) {
       return rows
         .filter(
           (row) =>
             row.orgId === orgId &&
             row.status === 'scheduled' &&
             row.scheduledAt !== null &&
-            row.scheduledAt <= now,
+            row.scheduledAt <= now &&
+            (afterId === undefined || row.id > afterId),
         )
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+        .slice(0, limit)
         .map((row) => ({ ...row }));
     },
     async hasDue(orgId, now) {
@@ -269,12 +273,13 @@ function harness(options?: {
       const flag = flags.find((row) => row.postId === postId && row.orgUserId === orgUserId);
       return flag ? { ...flag } : null;
     },
-    async listOpenFlags(orgId, spaceId) {
+    async listOpenFlags(orgId, spaceId, limit) {
       const postIds = new Set(
         rows.filter((row) => row.orgId === orgId && row.spaceId === spaceId).map((row) => row.id),
       );
       return flags
         .filter((flag) => flag.orgId === orgId && postIds.has(flag.postId) && !flag.resolvedAt)
+        .slice(0, limit)
         .map((flag) => ({ ...flag }));
     },
     async resolveFlags(orgId, postId, resolved) {
@@ -331,12 +336,13 @@ function harness(options?: {
   };
 
   const comments: PostCommentReader = {
-    async listOpenFlagsForSpace(orgId, spaceId) {
+    async listOpenFlagsForSpace(orgId, spaceId, limit) {
       return commentFlagRows
         .filter(
           (row) =>
             row.flag.orgId === orgId && row.spaceId === spaceId && row.flag.resolvedAt === null,
         )
+        .slice(0, limit)
         .map((row) => ({ ...row.flag, comment: { ...row.flag.comment } }));
     },
     async publishedCommentCounts(_orgId, postIds) {
@@ -717,6 +723,23 @@ describe('posts', () => {
     expect(listDue).not.toHaveBeenCalled();
   });
 
+  it('submits due posts in bounded batches, one transaction each', async () => {
+    const { svc, repo, calls } = harness({ roles: { ou_member: 'student' } });
+    const listDue = vi.spyOn(repo, 'listDue');
+    const when = new Date(Date.now() + 60 * 60_000);
+    for (let i = 0; i < 101; i++) {
+      await svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: when }));
+    }
+    calls.length = 0;
+    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
+    expect(listDue).toHaveBeenCalledTimes(2);
+    expect(listDue.mock.calls[0]?.[2]).toBe(100);
+    expect(listDue.mock.calls[0]?.[3]).toBeUndefined();
+    expect(listDue.mock.calls[1]?.[3]).toEqual(expect.any(String));
+    expect(calls.map((events) => events.length)).toEqual([100, 1]);
+    await expect(svc.hasDue(ORG, new Date(when.getTime() + 60_000))).resolves.toBe(false);
+  });
+
   it('submits a due post as its author, with no actor, and applies review to a member', async () => {
     const { svc, calls, setSpaces } = harness({
       roles: { ou_staff: 'owner', ou_member: 'student' },
@@ -804,6 +827,35 @@ describe('posts', () => {
     expect(queue.pending.map((post) => post.id)).toEqual([created.id]);
     expect(queue.flags).toHaveLength(1);
     expect(queue.commentFlags).toEqual([]);
+  });
+
+  it('caps each queue list at the oldest hundred', async () => {
+    const { svc, commentFlagRows } = harness();
+    const flag: FlaggedComment = {
+      id: 'crp_0',
+      orgId: ORG,
+      commentId: 'cmt_1',
+      orgUserId: other.id,
+      reason: 'spam',
+      resolvedAt: null,
+      resolution: null,
+      resolvedBy: null,
+      createdAt: AT,
+      updatedAt: AT,
+      comment: {
+        id: 'cmt_1',
+        postId: 'pst_1',
+        body: 'x',
+        orgUserId: member.id,
+        status: 'published',
+      },
+    };
+    for (let i = 0; i < 105; i++) {
+      commentFlagRows.push({ spaceId: 'spc_1', flag: { ...flag, id: `crp_${i}` } });
+    }
+    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    expect(queue.commentFlags).toHaveLength(100);
+    expect(queue.commentFlags[0]?.id).toBe('crp_0');
   });
 
   it('includes open comment flags on that space and leaves resolved and other spaces out', async () => {

@@ -6,6 +6,7 @@ export type {
   Module,
   CourseProgressView,
   DirectoryEntry,
+  DirectoryQuery,
   DirectoryRow,
   CommunityHome,
   CommunityHomeSpace,

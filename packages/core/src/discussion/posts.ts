@@ -32,6 +32,7 @@ import type {
   SpaceModerationQueue,
   UpdatePostInput,
 } from './ports.js';
+import { MODERATION_QUEUE_LIMIT } from './ports.js';
 import type { Page, ReactionEmoji } from './types.js';
 
 export type PostServiceParams = {
@@ -48,6 +49,7 @@ export type PostServiceParams = {
 };
 
 const PUBLISHED_ONLY: PostStatus[] = ['published'];
+const DUE_BATCH_SIZE = 100;
 const MODERATOR_VISIBLE: PostStatus[] = ['published', 'pending', 'removed'];
 
 export class PostServiceImpl implements PostService {
@@ -606,9 +608,9 @@ export class PostServiceImpl implements PostService {
       throw new ForbiddenError('You cannot work this queue');
     }
     const [pending, flags, openCommentFlags] = await Promise.all([
-      this.repo.listPending(orgId, spaceId),
-      this.repo.listOpenFlags(orgId, spaceId),
-      this.comments.listOpenFlagsForSpace(orgId, spaceId),
+      this.repo.listPending(orgId, spaceId, MODERATION_QUEUE_LIMIT),
+      this.repo.listOpenFlags(orgId, spaceId, MODERATION_QUEUE_LIMIT),
+      this.comments.listOpenFlagsForSpace(orgId, spaceId, MODERATION_QUEUE_LIMIT),
     ]);
     this.logger.debug('space queue read', {
       orgId,
@@ -645,11 +647,34 @@ export class PostServiceImpl implements PostService {
   }
 
   async publishDue(orgId: string, now: Date): Promise<void> {
-    const due = await this.repo.listDue(orgId, now);
-    if (due.length === 0) {
-      this.logger.debug('no posts due', { orgId });
-      return;
+    let afterId: string | undefined;
+    let count = 0;
+    let refused = 0;
+    for (;;) {
+      const due = await this.repo.listDue(orgId, now, DUE_BATCH_SIZE, afterId);
+      if (due.length === 0) {
+        break;
+      }
+      const batch = await this.submitDue(orgId, now, due);
+      count += batch.count;
+      refused += batch.refused;
+      if (due.length < DUE_BATCH_SIZE) {
+        break;
+      }
+      afterId = due[due.length - 1]!.id;
     }
+    if (count > 0) {
+      this.logger.info('due posts submitted', { orgId, count, refused });
+    } else {
+      this.logger.debug('no posts due', { orgId });
+    }
+  }
+
+  private async submitDue(
+    orgId: string,
+    now: Date,
+    due: Post[],
+  ): Promise<{ count: number; refused: number }> {
     const spaces = new Map<string, SpaceDetail | null>();
     const roles = new Map<string, Role | null>();
     const refused = new Set<string>();
@@ -713,9 +738,7 @@ export class PostServiceImpl implements PostService {
       }
       return events.length;
     });
-    if (count > 0) {
-      this.logger.info('due posts submitted', { orgId, count, refused: refused.size });
-    }
+    return { count, refused: refused.size };
   }
 
   private async submittable(

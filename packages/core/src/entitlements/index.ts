@@ -6,6 +6,7 @@ export type {
   AccessFacts,
   CommunityAccessReader,
   EndingGrant,
+  EndingGrantKey,
   EntitlementNotice,
   EntitlementsService,
   EntitlementsRepository,
@@ -14,6 +15,7 @@ export type {
   InsertSpaceMemberInput,
   OpenableSpace,
   SpaceAccessRule,
+  SpaceMembersQuery,
 } from './ports.js';
 export type {
   Entitlement,
