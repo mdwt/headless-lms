@@ -30,10 +30,12 @@ import type {
   ChatUnitOfWork,
   MessageQueue,
   MessageQueueEntry,
+  PageQuery,
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
 } from './ports.js';
+import { MODERATION_QUEUE_LIMIT } from './ports.js';
 
 export type ChatServiceParams = {
   repo: ChatRepository;
@@ -579,11 +581,17 @@ export class ChatServiceImpl implements ChatService {
     return this.setLock(orgId, actor, chatId, false, communityId);
   }
 
-  async listChats(orgId: string, actor: Actor, communityId: string): Promise<ChatListItem[]> {
+  async listChats(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    query: PageQuery,
+  ): Promise<Page<ChatListItem>> {
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
     const now = new Date();
-    const items = (await this.repo.listForUser(orgId, communityId, actor.id)).map((item) => ({
+    const page = await this.repo.listForUser(orgId, communityId, actor.id, query);
+    const items = page.rows.map((item) => ({
       ...item,
       ...(item.muted && item.mutedUntil !== null && item.mutedUntil <= now
         ? { muted: false, mutedUntil: null }
@@ -594,7 +602,7 @@ export class ChatServiceImpl implements ChatService {
           : item.lastMessage,
     }));
     this.logger.debug('chats listed', { orgId, communityId, count: items.length });
-    return items;
+    return { ...page, rows: items };
   }
 
   async messages(
@@ -653,7 +661,7 @@ export class ChatServiceImpl implements ChatService {
     }
     await this.requireActor(orgId, actor, communityId);
     await this.requireSettings(orgId, communityId);
-    const flags = await this.repo.listOpenFlags(orgId, communityId);
+    const flags = await this.repo.listOpenFlags(orgId, communityId, MODERATION_QUEUE_LIMIT);
     const messages = await this.repo.messagesByIds(orgId, [
       ...new Set(flags.map((flag) => flag.messageId)),
     ]);

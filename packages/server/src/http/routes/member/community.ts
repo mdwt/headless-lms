@@ -8,11 +8,13 @@ import {
   CommunityHomeSpace,
   CommunityParam,
   CommunitySpaceParam,
-  DirectoryEntry,
+  DirectoryPage,
+  DirectoryQuery,
   ErrorBody,
   OrgUserBody,
+  PageQuery,
   SpaceMember,
-  SpaceMembers,
+  SpaceMembersPage,
 } from '../../schemas/index.js';
 
 const errors = { 401: ErrorBody, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody };
@@ -45,7 +47,11 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const home = await container.reporting.member.communityHome(req.orgId, actor, req.params.communityId);
+      const home = await container.reporting.member.communityHome(
+        req.orgId,
+        actor,
+        req.params.communityId,
+      );
       if (!home) {
         throw new NotFoundError('Community', req.params.communityId);
       }
@@ -60,7 +66,8 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'getMemberSpace',
       tags,
-      summary: 'One space as a member sees it: its topics, links, settings and where the viewer stands',
+      summary:
+        'One space as a member sees it: its topics, links, settings and where the viewer stands',
       params: CommunitySpaceParam,
       response: { 200: CommunityHomeSpace, ...errors },
     },
@@ -88,15 +95,21 @@ export async function memberCommunityRoutes(
       tags,
       summary: 'People in a community',
       params: CommunityParam,
-      response: { 200: DirectoryEntry.array(), ...errors },
+      querystring: DirectoryQuery,
+      response: { 200: DirectoryPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const rows = await container.reporting.member.directory(req.orgId, actor, req.params.communityId);
-      if (!rows) {
+      const page = await container.reporting.member.directory(
+        req.orgId,
+        actor,
+        req.params.communityId,
+        req.query,
+      );
+      if (!page) {
         throw new NotFoundError('Community', req.params.communityId);
       }
-      return rows;
+      return page;
     },
   });
 
@@ -109,7 +122,8 @@ export async function memberCommunityRoutes(
       tags,
       summary: 'List space members',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMembers, ...errors },
+      querystring: PageQuery,
+      response: { 200: SpaceMembersPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -118,6 +132,7 @@ export async function memberCommunityRoutes(
         actor,
         req.params.communityId,
         req.params.spaceId,
+        req.query,
       );
     },
   });

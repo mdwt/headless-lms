@@ -36,16 +36,17 @@ function sequencedClient(answers: unknown[][][]) {
 }
 
 describe("DrizzleChatRepository.listForUser", () => {
-  it("loads the last message of every chat in the inbox with one distinct-on query", async () => {
+  it("reads each chat's last message through a lateral limit-1 join and pages the inbox", async () => {
     const chatRow = ["org1", "cht_1", "cmy_1", "direct", "open", "ou_1", null, null, at, at];
     const { repo, statements } = sequencedClient([
-      [[...chatRow, null, false, null, 2]],
+      [[...chatRow, null, false, null, 2, "msg_9", "ou_2", "Latest", at, null]],
+      [[1]],
       [chatUserRow(false, null)],
-      [["cht_1", "msg_9", "ou_2", "Latest", at, null]],
     ]);
-    const items = await repo.listForUser("org1", "cmy_1", "ou_1");
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({
+    const page = await repo.listForUser("org1", "cmy_1", "ou_1", { page: 1, pageSize: 20 });
+    expect(page).toMatchObject({ total: 1, page: 1, pageSize: 20 });
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]).toMatchObject({
       participantIds: ["ou_1"],
       unread: 2,
       lastMessage: {
@@ -57,17 +58,24 @@ describe("DrizzleChatRepository.listForUser", () => {
       },
     });
     expect(statements).toHaveLength(3);
-    expect(statements[2]?.text).toMatch(
-      /^select distinct on \("messages"\."chat_id"\) "chat_id", "id", "org_user_id", "body", "created_at", "deleted_at" from "messages" where \("messages"\."org_id" = \$\d+ and "messages"\."chat_id" in \(\$\d+\)\) order by "messages"\."chat_id" asc, "messages"\."created_at" desc, "messages"\."id" desc$/,
+    expect(statements[0]?.text).toMatch(
+      /left join lateral \(select "id", "org_user_id", "body", "created_at", "deleted_at" from "messages" where \("messages"\."org_id" = "chats"\."org_id" and "messages"\."chat_id" = "chats"\."id"\) order by "messages"\."created_at" desc, "messages"\."id" desc limit \$\d+\) "last_message" on true/,
     );
-    expect(statements[2]?.params).toEqual(["org1", "cht_1"]);
+    expect(statements[0]?.text).toMatch(
+      /order by "chats"."updated_at" desc, "chats"."id" desc limit \$\d+$/,
+    );
+    expect(statements[0]?.text).not.toMatch(/distinct on/);
   });
 
   it("serves a null last message for a chat with no messages", async () => {
     const chatRow = ["org1", "cht_1", "cmy_1", "direct", "open", "ou_1", null, null, at, at];
-    const { repo } = sequencedClient([[[...chatRow, null, false, null, 0]], [], []]);
-    const items = await repo.listForUser("org1", "cmy_1", "ou_1");
-    expect(items[0]?.lastMessage).toBeNull();
+    const { repo } = sequencedClient([
+      [[...chatRow, null, false, null, 0, null, null, null, null, null]],
+      [[1]],
+      [],
+    ]);
+    const page = await repo.listForUser("org1", "cmy_1", "ou_1", { page: 1, pageSize: 20 });
+    expect(page.rows[0]?.lastMessage).toBeNull();
   });
 });
 
@@ -100,7 +108,9 @@ describe("DrizzleChatRepository.reactionsOf", () => {
         ["msg_3", "👍", 1, false],
       ],
     ]);
-    await expect(repo.reactionsOf("org1", ["msg_1", "msg_2", "msg_3", "msg_1"], "ou_1")).resolves.toEqual({
+    await expect(
+      repo.reactionsOf("org1", ["msg_1", "msg_2", "msg_3", "msg_1"], "ou_1"),
+    ).resolves.toEqual({
       msg_1: { reactions: { "👍": 2, "🎉": 1 }, viewerReaction: "👍" },
       msg_3: { reactions: { "👍": 1 } },
     });

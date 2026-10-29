@@ -34,7 +34,7 @@ export const PatchDmSettings = patchDmSettingsInputSchema;
 export const DmSettings = dmSettingsSchema;
 export const SpaceDetail = spaceDetailSchema;
 export const SpaceMember = spaceMemberSchema;
-export const SpaceMembers = z.array(SpaceMember);
+export const SpaceMembersPage = paginated(SpaceMember);
 export const CreateSpace = createSpaceInputSchema;
 export const UpdateSpace = updateSpaceInputSchema;
 export const SetSpaceTopics = setSpaceTopicsInputSchema;
@@ -67,6 +67,10 @@ export const DirectoryEntry = z.object({
 });
 type _DirectoryMatches = Matches<DomainDirectoryEntry, z.infer<typeof DirectoryEntry>> &
   Matches<z.infer<typeof DirectoryEntry>, DomainDirectoryEntry>;
+export const DirectoryQuery = PageQuery.extend({
+  search: z.string().trim().optional().describe('Matches part of a display name'),
+});
+export const DirectoryPage = paginated(DirectoryEntry);
 
 export const CommunityHomeSpace = z.object({
   id: z.string(),

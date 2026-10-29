@@ -56,6 +56,11 @@ export interface EndingGrant {
   communityId: string;
 }
 
+export interface EndingGrantKey {
+  entitlementId: string;
+  communityId: string;
+}
+
 export interface AccessFacts {
   orgUserId: string;
   role: Role;
@@ -67,6 +72,12 @@ export interface GrantKey {
   orgUserId: string;
   contentId?: string | null;
   bundleId?: string | null;
+}
+
+export interface SpaceMembersQuery {
+  page: number;
+  pageSize: number;
+  statuses?: SpaceMemberStatus[];
 }
 
 export interface InsertSpaceMemberInput {
@@ -138,7 +149,8 @@ export interface EntitlementsService extends CommunityAccessReader {
     actor: Actor,
     communityId: string,
     spaceId: string,
-  ): Promise<SpaceMember[]>;
+    query: { page: number; pageSize: number },
+  ): Promise<Page<SpaceMember>>;
   expireDue(orgId: string, now: Date): Promise<void>;
   hasDueNotices(orgId: string, now: Date): Promise<boolean>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
@@ -166,9 +178,17 @@ export interface EntitlementsRepository {
     orgUserIds: string[],
   ): Promise<AccessFacts[]>;
   findSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
-  listSpaceMembersFor(orgId: string, orgUserId: string, communityId: string): Promise<SpaceMember[]>;
+  listSpaceMembersFor(
+    orgId: string,
+    orgUserId: string,
+    communityId: string,
+  ): Promise<SpaceMember[]>;
   lockSpaceMember(orgId: string, spaceId: string, orgUserId: string): Promise<SpaceMember | null>;
-  listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]>;
+  listSpaceMembers(
+    orgId: string,
+    spaceId: string,
+    query: SpaceMembersQuery,
+  ): Promise<Page<SpaceMember>>;
   insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember>;
   updateSpaceMemberStatus(
     orgId: string,
@@ -178,8 +198,21 @@ export interface EntitlementsRepository {
   deleteSpaceMember(orgId: string, id: string): Promise<void>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
   activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
-  listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]>;
-  listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<EndingGrant[]>;
+  /** Expired grants with no expiry notice, in id order, after `afterId` when given. */
+  listGrantsExpiredBy(
+    orgId: string,
+    now: Date,
+    limit: number,
+    afterId?: string,
+  ): Promise<Entitlement[]>;
+  /** Grants ending in the window with no notice, in (grant id, community id) order, after `afterKey`. */
+  listGrantsEndingBetween(
+    orgId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+    afterKey?: EndingGrantKey,
+  ): Promise<EndingGrant[]>;
   hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean>;
   claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;

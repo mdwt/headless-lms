@@ -111,11 +111,32 @@ export function fakeRepo() {
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((c) => ({ ...c }));
     },
-    async listByPost(orgId, postId) {
-      return comments
+    async listThreadsByPost(orgId, postId, query) {
+      const onPost = comments
         .filter((c) => c.orgId === orgId && c.postId === postId)
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .map((c) => ({ ...c }));
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      const replyReadable = (c: Comment) =>
+        c.status === 'published' ||
+        (c.status === 'pending' && (query.seesHeld || c.orgUserId === query.viewerId));
+      const roots = onPost.filter(
+        (c) =>
+          c.parentId === null &&
+          (query.seesHeld || c.status !== 'pending' || c.orgUserId === query.viewerId) &&
+          (c.status !== 'removed' ||
+            onPost.some((reply) => reply.parentId === c.id && replyReadable(reply))),
+      );
+      const from = (query.page - 1) * query.pageSize;
+      const pageRoots = roots.slice(from, from + query.pageSize);
+      const ids = new Set(pageRoots.map((c) => c.id));
+      return {
+        rows: [
+          ...pageRoots,
+          ...onPost.filter((c) => c.parentId !== null && ids.has(c.parentId)),
+        ].map((c) => ({ ...c })),
+        total: roots.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     },
     async reactionsOf(_orgId, commentIds, viewerId) {
       const out: Record<string, CommentReactions> = {};
@@ -1329,6 +1350,34 @@ describe('comments on a post', () => {
       NotFoundError,
     );
     expect((await service.restore('o1', view.id, admin, 'cmy_1')).status).toBe('published');
+  });
+
+  it('pages post comments by top-level thread and serves each page with its replies', async () => {
+    const { service, comments } = postService();
+    const say = async (actor: Actor, body: string, parentId: string | null = null) => {
+      const view = await service.postComment('o1', { actor, postId: 'pst_1', parentId, body });
+      const last = comments.length - 1;
+      comments[last] = { ...comments[last]!, createdAt: new Date(Date.UTC(2026, 9, 22, 12, last)) };
+      return view;
+    };
+    const first = await say(learner, 'first');
+    await say(other, 'reply to first', first.id);
+    const dropped = await say(other, 'removed, no replies');
+    await service.remove('o1', dropped.id, other);
+    await say(other, 'second');
+    const third = await say(learner, 'third');
+    await say(learner, 'reply to third', third.id);
+
+    const one = await service.postComments('o1', 'pst_1', learner, { page: 1, pageSize: 2 });
+    expect(one).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    expect(one.rows.map((c) => c.body)).toEqual(['first', 'reply to first', 'second']);
+
+    const two = await service.postComments('o1', 'pst_1', learner, { page: 2, pageSize: 2 });
+    expect(two.total).toBe(3);
+    expect(two.rows.map((c) => [c.body, c.parentId])).toEqual([
+      ['third', null],
+      ['reply to third', third.id],
+    ]);
   });
 
   it('refuses a comment when the post has comments closed', async () => {

@@ -7,7 +7,7 @@ import {
   BlockParam,
   Chat,
   ChatIdParam,
-  ChatListItem,
+  ChatsPage,
   CommunityParam,
   EditMessage,
   ErrorBody,
@@ -51,11 +51,12 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'List your chats in a community',
       params: CommunityParam,
-      response: { 200: z.array(ChatListItem), ...errors },
+      querystring: PageQuery,
+      response: { 200: ChatsPage, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.listChats(req.orgId, actor, req.params.communityId);
+      return chats.listChats(req.orgId, actor, req.params.communityId, req.query);
     },
   });
 

@@ -100,13 +100,14 @@ export const posts = pgTable(
       columns: [t.orgId, t.coverAssetId],
       foreignColumns: [assets.orgId, assets.id],
     }),
+    // SET NULL is narrowed to the nullable column in 0009_community_indexes.sql; drizzle cannot express it.
     removedByFk: foreignKey({
       columns: [t.orgId, t.removedBy],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("set null"),
     removedCk: check(
       "posts_removed_by_check",
-      sql`(${t.status} = 'removed') = (${t.removedBy} is not null)`,
+      sql`${t.removedBy} is null or ${t.status} = 'removed'`,
     ),
     scheduledCk: check(
       "posts_scheduled_check",
@@ -120,7 +121,8 @@ export const posts = pgTable(
       desc(t.publishedAt),
     ),
     dueIdx: index("posts_due_idx").on(t.orgId, t.status, t.scheduledAt),
-    authorIdx: index("posts_author_idx").on(t.orgId, t.orgUserId),
+    authorIdx: index("posts_author_idx").on(t.orgId, t.orgUserId, t.createdAt),
+    coverAssetIdx: index("posts_cover_asset_idx").on(t.orgId, t.coverAssetId),
   }),
 );
 
@@ -238,7 +240,7 @@ export const postFlags = pgTable(
     reporterFk: foreignKey({
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("cascade"),
     resolvedCk: check(
       "post_flags_resolved_check",
       sql`(${t.resolvedAt} is null) = (${t.resolution} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null)`,
@@ -290,17 +292,18 @@ export const comments = pgTable(
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
     }),
+    // SET NULL is narrowed to the nullable column in 0009_community_indexes.sql; drizzle cannot express it.
     removedByFk: foreignKey({
       columns: [t.orgId, t.removedBy],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("set null"),
     parentFk: foreignKey({
       columns: [t.orgId, t.parentId],
       foreignColumns: [t.orgId, t.id],
     }),
     removedCk: check(
       "comments_removed_by_check",
-      sql`(${t.status} = 'removed') = (${t.removedBy} is not null)`,
+      sql`${t.removedBy} is null or ${t.status} = 'removed'`,
     ),
     targetCk: check("comments_target_check", sql`num_nonnulls(${t.activityId}, ${t.postId}) = 1`),
     communityCk: check(
@@ -310,6 +313,8 @@ export const comments = pgTable(
     activityIdx: index("comments_activity_idx").on(t.orgId, t.activityId, t.status, t.createdAt),
     postIdx: index("comments_post_idx").on(t.orgId, t.postId, t.status, t.createdAt),
     queueIdx: index("comments_queue_idx").on(t.orgId, t.status, t.createdAt),
+    communityIdx: index("comments_community_idx").on(t.orgId, t.communityId),
+    parentIdx: index("comments_parent_idx").on(t.orgId, t.parentId, t.createdAt),
   }),
 );
 
@@ -337,7 +342,7 @@ export const commentReactions = pgTable(
     authorFk: foreignKey({
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("cascade"),
   }),
 );
 
@@ -372,7 +377,7 @@ export const commentFlags = pgTable(
     reporterFk: foreignKey({
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("cascade"),
     resolvedCk: check(
       "comment_flags_resolved_check",
       sql`(${t.resolvedAt} is null) = (${t.resolution} is null) and (${t.resolvedBy} is null or ${t.resolvedAt} is not null)`,
@@ -395,7 +400,7 @@ export const chats = pgTable(
     status: text("status", { enum: ["pending", "open", "closed"] })
       .notNull()
       .default("open"),
-    createdBy: text("created_by").notNull(),
+    createdBy: text("created_by"),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     lockedBy: text("locked_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -411,15 +416,16 @@ export const chats = pgTable(
       columns: [t.orgId, t.communityId],
       foreignColumns: [communities.orgId, communities.id],
     }).onDelete("cascade"),
+    // SET NULL is narrowed to the nullable column in 0009_community_indexes.sql; drizzle cannot express it.
     createdByFk: foreignKey({
       columns: [t.orgId, t.createdBy],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("set null"),
     lockedByFk: foreignKey({
       columns: [t.orgId, t.lockedBy],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
-    lockedCk: check("chats_locked_check", sql`(${t.lockedAt} is null) = (${t.lockedBy} is null)`),
+    }).onDelete("set null"),
+    lockedCk: check("chats_locked_check", sql`${t.lockedBy} is null or ${t.lockedAt} is not null`),
   }),
 );
 
@@ -495,6 +501,7 @@ export const messages = pgTable(
       foreignColumns: [t.orgId, t.id],
     }),
     chatIdx: index("messages_chat_idx").on(t.orgId, t.chatId, t.createdAt),
+    replyIdx: index("messages_reply_idx").on(t.orgId, t.replyToId),
   }),
 );
 
@@ -524,6 +531,7 @@ export const messageAttachments = pgTable(
       columns: [t.orgId, t.assetId],
       foreignColumns: [assets.orgId, assets.id],
     }),
+    assetIdx: index("message_attachments_asset_idx").on(t.orgId, t.assetId),
   }),
 );
 
@@ -588,7 +596,7 @@ export const messageFlags = pgTable(
     reporterFk: foreignKey({
       columns: [t.orgId, t.orgUserId],
       foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }),
+    }).onDelete("cascade"),
     resolvedCk: check(
       "message_flags_resolved_check",
       sql`(${t.resolvedAt} is null) = (${t.resolution} is null) and (${t.resolvedAt} is null) = (${t.resolvedBy} is null)`,

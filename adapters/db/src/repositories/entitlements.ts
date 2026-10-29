@@ -1,13 +1,15 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
   AccessFacts,
   EndingGrant,
+  EndingGrantKey,
   EntitlementNotice,
   EntitlementsRepository,
   GrantKey,
   GrantTarget,
   InsertSpaceMemberInput,
+  SpaceMembersQuery,
 } from "@headless-lms/core/entitlements";
 import type {
   ContentType,
@@ -409,7 +411,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .from(contentAccess)
       .innerJoin(
         contentItems,
-        and(eq(contentItems.orgId, contentAccess.orgId), eq(contentItems.id, contentAccess.contentId)),
+        and(
+          eq(contentItems.orgId, contentAccess.orgId),
+          eq(contentItems.id, contentAccess.contentId),
+        ),
       )
       .where(
         and(
@@ -546,13 +551,28 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return row ? toSpaceMember(row) : null;
   }
 
-  async listSpaceMembers(orgId: string, spaceId: string): Promise<SpaceMember[]> {
+  async listSpaceMembers(
+    orgId: string,
+    spaceId: string,
+    query: SpaceMembersQuery,
+  ): Promise<Page<SpaceMember>> {
+    const where = and(
+      eq(spaceMembers.orgId, orgId),
+      eq(spaceMembers.spaceId, spaceId),
+      query.statuses ? inArray(spaceMembers.status, query.statuses) : undefined,
+    );
     const rows = await this.db
       .select()
       .from(spaceMembers)
-      .where(and(eq(spaceMembers.orgId, orgId), eq(spaceMembers.spaceId, spaceId)))
-      .orderBy(asc(spaceMembers.createdAt), asc(spaceMembers.id));
-    return rows.map(toSpaceMember);
+      .where(where)
+      .orderBy(asc(spaceMembers.createdAt), asc(spaceMembers.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(spaceMembers)
+      .where(where);
+    return { rows: rows.map(toSpaceMember), total, page: query.page, pageSize: query.pageSize };
   }
 
   async insertSpaceMember(orgId: string, input: InsertSpaceMemberInput): Promise<SpaceMember> {
@@ -626,20 +646,47 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.map((row) => row.spaceId);
   }
 
-  async listGrantsExpiredBy(orgId: string, now: Date): Promise<Entitlement[]> {
+  async listGrantsExpiredBy(
+    orgId: string,
+    now: Date,
+    limit: number,
+    afterId?: string,
+  ): Promise<Entitlement[]> {
     const rows = await this.db
       .select(selection)
       .from(entitlements)
-      .where(this.expiredUnnoticed(orgId, now));
+      .where(
+        and(
+          this.expiredUnnoticed(orgId, now),
+          afterId === undefined ? undefined : gt(entitlements.id, afterId),
+        ),
+      )
+      .orderBy(asc(entitlements.id))
+      .limit(limit);
     return rows.map(toEntitlement);
   }
 
-  async listGrantsEndingBetween(orgId: string, after: Date, until: Date): Promise<EndingGrant[]> {
+  async listGrantsEndingBetween(
+    orgId: string,
+    after: Date,
+    until: Date,
+    limit: number,
+    afterKey?: EndingGrantKey,
+  ): Promise<EndingGrant[]> {
     const rows = await this.db
       .select({ ...selection, communityId: communities.id })
       .from(entitlements)
       .innerJoin(communities, opensPublishedCommunity)
-      .where(this.endingUnnoticed(orgId, after, until));
+      .where(
+        and(
+          this.endingUnnoticed(orgId, after, until),
+          afterKey
+            ? sql`(${entitlements.id}, ${communities.id}) > (${afterKey.entitlementId}, ${afterKey.communityId})`
+            : undefined,
+        ),
+      )
+      .orderBy(asc(entitlements.id), asc(communities.id))
+      .limit(limit);
     return rows.map(({ communityId, ...grant }) => ({
       grant: toEntitlement(grant),
       communityId,

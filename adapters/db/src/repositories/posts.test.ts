@@ -105,7 +105,14 @@ describe("DrizzlePostRepository.listBookmarked", () => {
     expect(statements[1]?.text).toMatch(
       /^select cast\(count\(\*\) as int\) .*from "post_bookmarks" inner join "posts" .* where /,
     );
-    expect(statements[1]?.params).toEqual(["org1", "ou_1", "spc_1", "ou_1", "published", "pending"]);
+    expect(statements[1]?.params).toEqual([
+      "org1",
+      "ou_1",
+      "spc_1",
+      "ou_1",
+      "published",
+      "pending",
+    ]);
   });
 });
 
@@ -181,5 +188,33 @@ describe("DrizzlePostRepository.hasDue", () => {
     expect(statements[0]?.params).toEqual(
       expect.arrayContaining(["org1", "scheduled", now.toISOString()]),
     );
+  });
+});
+
+describe("DrizzlePostRepository.listDue", () => {
+  it("reads one bounded batch of due posts after the last id", async () => {
+    const { repo, statements } = capture();
+    const now = new Date("2026-10-21T09:00:00.000Z");
+    await expect(repo.listDue("org1", now, 100, "pst_9")).resolves.toEqual([]);
+    expect(statements[0]?.text).toMatch(
+      /"posts"\."id" > \$\d+\) order by "posts"\."id" asc limit \$\d+$/,
+    );
+    expect(statements[0]?.params).toEqual(
+      expect.arrayContaining(["org1", "scheduled", now.toISOString(), "pst_9", 100]),
+    );
+  });
+});
+
+describe("DrizzlePostRepository queue lists", () => {
+  it("caps pending posts and open flags at the limit, oldest first", async () => {
+    const { repo, statements } = capture();
+    await repo.listPending("org1", "spc_1", 100);
+    await repo.listOpenFlags("org1", "spc_1", 100);
+    expect(statements.map((s) => s.text)).toEqual([
+      expect.stringMatching(/order by "posts"\."created_at" asc, "posts"\."id" asc limit \$\d+$/),
+      expect.stringMatching(
+        /order by "post_flags"\."created_at" asc, "post_flags"\."id" asc limit \$\d+$/,
+      ),
+    ]);
   });
 });

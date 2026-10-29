@@ -69,6 +69,8 @@ export const entitlements = pgTable(
       "entitlements_target_check",
       sql`num_nonnulls(${t.bundleId}, ${t.contentId}) = 1`,
     ),
+    contentIdx: index("entitlements_content_idx").on(t.orgId, t.contentId),
+    bundleIdx: index("entitlements_bundle_idx").on(t.orgId, t.bundleId),
   }),
 );
 

@@ -61,7 +61,7 @@ export interface CommunityMailReads {
     communityId: string;
     kind: 'direct' | 'group';
     status: ChatStatus;
-    createdBy: string;
+    createdBy: string | null;
     participants: {
       orgUserId: string;
       muted: boolean;

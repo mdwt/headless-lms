@@ -73,7 +73,7 @@ function activity(id: string, seq: number, settings: unknown = {}): Activity {
 
 function fakeRepo(): MemberReportRepository {
   return {
-    directory: async () => [],
+    directory: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     spaceMemberCounts: async () => ({}),
     people: async () => [],
   };
@@ -201,7 +201,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
 // Full-surface MemberReportRepository fake.
 function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): MemberReportRepository {
   return {
-    directory: async () => [],
+    directory: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     spaceMemberCounts: async () => ({}),
     people: async () => [],
     ...over,
@@ -452,10 +452,15 @@ describe('file URLs', () => {
     };
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader({
-        directory: async () => [
-          { ...row, imageAssetId: 'ast_photo' },
-          { ...row, orgUserId: 'ou_james', userId: 'usr_james', imageAssetId: null },
-        ],
+        directory: async (_orgId, _communityId, query) => ({
+          rows: [
+            { ...row, imageAssetId: 'ast_photo' },
+            { ...row, orgUserId: 'ou_james', userId: 'usr_james', imageAssetId: null },
+          ],
+          total: 2,
+          page: query.page,
+          pageSize: query.pageSize,
+        }),
       }),
       content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
@@ -470,9 +475,13 @@ describe('file URLs', () => {
       ...readers,
     });
 
-    const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1');
+    const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1', {
+      page: 1,
+      pageSize: 20,
+    });
 
-    expect(entries?.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
+    expect(entries).toMatchObject({ total: 2, page: 1, pageSize: 20 });
+    expect(entries?.rows.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
       ['ou_sarah', fileUrls.personImage('ou_sarah')],
       ['ou_james', null],
     ]);

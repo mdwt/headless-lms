@@ -17,11 +17,12 @@ import {
   CommunitySpaceParam,
   ErrorBody,
   OrgUserBody,
+  PageQuery,
   PostView,
   ResolveMessageFlags,
   ResolvePostFlags,
   SpaceMember,
-  SpaceMembers,
+  SpaceMembersPage,
   SpaceQueue,
 } from '../schemas/index.js';
 
@@ -67,7 +68,8 @@ export async function communityModerationRoutes(
       tags,
       summary: 'List the members, requests and invitations of a space',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMembers, ...errors },
+      querystring: PageQuery,
+      response: { 200: SpaceMembersPage, ...errors },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -76,6 +78,7 @@ export async function communityModerationRoutes(
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
+        req.query,
       );
     },
   });
@@ -202,6 +205,8 @@ export async function communityModerationRoutes(
       operationId: 'getCommunitySpaceQueue',
       tags,
       summary: 'Posts awaiting review and open post and comment flags in a space',
+      description:
+        'Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised. Working the queue brings in the next ones.',
       params: CommunitySpaceParam,
       response: { 200: SpaceQueue, ...errors },
     },

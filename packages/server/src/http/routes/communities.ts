@@ -214,12 +214,18 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
       operationId: 'getCommunityMessageQueue',
       tags,
       summary: 'Open message flags in a community',
+      description:
+        'Holds at most the 100 oldest open flags, grouped by message. Working the queue brings in the next ones.',
       params: CommunityIdParam,
       response: { 200: MessageQueue, ...errors },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return container.chats.messageQueue(scope.orgId, { id: scope.orgUserId, role: scope.role }, req.params.id);
+      return container.chats.messageQueue(
+        scope.orgId,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+      );
     },
   });
 

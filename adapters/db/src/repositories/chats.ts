@@ -5,6 +5,7 @@ import type {
   ChatRepository,
   FeedQuery,
   MessageReactions,
+  PageQuery,
 } from "@headless-lms/core/discussion";
 import type {
   Chat,
@@ -199,7 +200,8 @@ export class DrizzleChatRepository implements ChatRepository {
     orgId: string,
     communityId: string,
     orgUserId: string,
-  ): Promise<ChatListItem[]> {
+    query: PageQuery,
+  ): Promise<Page<ChatListItem>> {
     const unread = sql<number>`cast((
       select count(*)
       from messages m
@@ -216,6 +218,25 @@ export class DrizzleChatRepository implements ChatRepository {
           ), '-infinity'::timestamptz)
         )
     ) as int)`;
+    const latest = this.db
+      .select({
+        id: messages.id,
+        orgUserId: messages.orgUserId,
+        body: messages.body,
+        createdAt: messages.createdAt,
+        deletedAt: messages.deletedAt,
+      })
+      .from(messages)
+      .where(and(eq(messages.orgId, chats.orgId), eq(messages.chatId, chats.id)))
+      .orderBy(desc(messages.createdAt), desc(messages.id))
+      .limit(1)
+      .as("last_message");
+    const mine = and(
+      eq(chatUsers.orgId, orgId),
+      eq(chatUsers.communityId, communityId),
+      eq(chatUsers.orgUserId, orgUserId),
+      isNull(chatUsers.leftAt),
+    );
     const rows = await this.db
       .select({
         chat: chats,
@@ -223,64 +244,67 @@ export class DrizzleChatRepository implements ChatRepository {
         muted: chatUsers.muted,
         mutedUntil: chatUsers.mutedUntil,
         unread,
+        lastId: latest.id,
+        lastOrgUserId: latest.orgUserId,
+        lastBody: latest.body,
+        lastCreatedAt: latest.createdAt,
+        lastDeletedAt: latest.deletedAt,
       })
       .from(chatUsers)
       .innerJoin(chats, and(eq(chats.orgId, chatUsers.orgId), eq(chats.id, chatUsers.chatId)))
+      .leftJoinLateral(latest, sql`true`)
+      .where(mine)
+      .orderBy(desc(chats.updatedAt), desc(chats.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [{ total } = { total: 0 }] = await this.db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(chatUsers)
+      .where(mine);
+    const page = { total, page: query.page, pageSize: query.pageSize };
+    if (rows.length === 0) {
+      return { rows: [], ...page };
+    }
+    const people = await this.db
+      .select()
+      .from(chatUsers)
       .where(
         and(
           eq(chatUsers.orgId, orgId),
-          eq(chatUsers.communityId, communityId),
-          eq(chatUsers.orgUserId, orgUserId),
+          inArray(
+            chatUsers.chatId,
+            rows.map((row) => row.chat.id),
+          ),
           isNull(chatUsers.leftAt),
         ),
-      )
-      .orderBy(desc(chats.updatedAt), desc(chats.id));
-    if (rows.length === 0) {
-      return [];
-    }
-    const ids = rows.map((row) => row.chat.id);
-    const [people, latest] = await Promise.all([
-      this.db
-        .select()
-        .from(chatUsers)
-        .where(
-          and(
-            eq(chatUsers.orgId, orgId),
-            inArray(chatUsers.chatId, ids),
-            isNull(chatUsers.leftAt),
-          ),
-        ),
-      this.db
-        .selectDistinctOn([messages.chatId], {
-          chatId: messages.chatId,
-          id: messages.id,
-          orgUserId: messages.orgUserId,
-          body: messages.body,
-          createdAt: messages.createdAt,
-          deletedAt: messages.deletedAt,
-        })
-        .from(messages)
-        .where(and(eq(messages.orgId, orgId), inArray(messages.chatId, ids)))
-        .orderBy(asc(messages.chatId), desc(messages.createdAt), desc(messages.id)),
-    ]);
+      );
     const byChat = new Map<string, string[]>();
     for (const person of people) {
       const list = byChat.get(person.chatId) ?? [];
       list.push(person.orgUserId);
       byChat.set(person.chatId, list);
     }
-    const lastByChat = new Map(
-      latest.map(({ chatId, ...message }) => [chatId, message] as const),
-    );
-    return rows.map((row) => ({
-      chat: toChat(row.chat),
-      participantIds: (byChat.get(row.chat.id) ?? []).sort(),
-      lastReadMessageId: row.lastReadMessageId,
-      muted: row.muted,
-      mutedUntil: row.mutedUntil,
-      unread: row.unread,
-      lastMessage: lastByChat.get(row.chat.id) ?? null,
-    }));
+    return {
+      rows: rows.map((row) => ({
+        chat: toChat(row.chat),
+        participantIds: (byChat.get(row.chat.id) ?? []).sort(),
+        lastReadMessageId: row.lastReadMessageId,
+        muted: row.muted,
+        mutedUntil: row.mutedUntil,
+        unread: row.unread,
+        lastMessage:
+          row.lastId !== null && row.lastOrgUserId !== null && row.lastCreatedAt !== null
+            ? {
+                id: row.lastId,
+                orgUserId: row.lastOrgUserId,
+                body: row.lastBody ?? "",
+                createdAt: row.lastCreatedAt,
+                deletedAt: row.lastDeletedAt,
+              }
+            : null,
+      })),
+      ...page,
+    };
   }
 
   async participants(orgId: string, chatId: string): Promise<ChatUser[]> {
@@ -639,9 +663,7 @@ export class DrizzleChatRepository implements ChatRepository {
           ),
         ),
       );
-    return [
-      ...new Set(rows.map((row) => (row.blocker === orgUserId ? row.blocked : row.blocker))),
-    ];
+    return [...new Set(rows.map((row) => (row.blocker === orgUserId ? row.blocked : row.blocker)))];
   }
 
   async insertFlag(orgId: string, flag: MessageFlag): Promise<MessageFlag | null> {
@@ -680,8 +702,8 @@ export class DrizzleChatRepository implements ChatRepository {
     return row ? toFlag(row) : null;
   }
 
-  async listOpenFlags(orgId: string, communityId: string): Promise<MessageFlag[]> {
-    const rows = await this.db
+  async listOpenFlags(orgId: string, communityId: string, limit?: number): Promise<MessageFlag[]> {
+    const query = this.db
       .select()
       .from(messageFlags)
       .where(
@@ -692,6 +714,7 @@ export class DrizzleChatRepository implements ChatRepository {
         ),
       )
       .orderBy(asc(messageFlags.createdAt), asc(messageFlags.id));
+    const rows = limit === undefined ? await query : await query.limit(limit);
     return rows.map(toFlag);
   }
 

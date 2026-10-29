@@ -276,7 +276,7 @@ export const chatSchema = z
     communityId: idSchema,
     kind: chatKindSchema,
     status: chatStatusSchema,
-    createdBy: idSchema,
+    createdBy: idSchema.nullable(),
     lockedAt: z.coerce.date().nullable(),
     lockedBy: idSchema.nullable(),
     createdAt: z.coerce.date(),

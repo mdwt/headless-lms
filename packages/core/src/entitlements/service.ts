@@ -18,6 +18,7 @@ import type {
   EntitlementsRepository,
   EntitlementsService,
   EntitlementsUnitOfWork,
+  EndingGrantKey,
   GrantTarget,
   InsertSpaceMemberInput,
   OpenableSpace,
@@ -32,6 +33,7 @@ import { entitlementEvents } from './events.js';
 import { laterExpiry, opensSpace } from './rules.js';
 
 const ENDING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
+const NOTICE_BATCH_SIZE = 100;
 
 export type EntitlementsServiceParams = {
   /** Read-only access (list) — runs outside any transaction. */
@@ -454,16 +456,16 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     actor: Actor,
     communityId: string,
     spaceId: string,
-  ): Promise<SpaceMember[]> {
+    query: { page: number; pageSize: number },
+  ): Promise<Page<SpaceMember>> {
     const space = await this.requireSpaceIn(orgId, communityId, spaceId);
     if (!(await this.canOpen(orgId, actor, space))) {
       throw new ForbiddenError('You cannot open this space');
     }
-    const rows = await this.repo.listSpaceMembers(orgId, spaceId);
-    if (canModerate(actor.role)) {
-      return rows;
-    }
-    return rows.filter((row) => row.status === 'active');
+    return this.repo.listSpaceMembers(orgId, spaceId, {
+      ...query,
+      ...(canModerate(actor.role) ? {} : { statuses: ['active'] }),
+    });
   }
 
   hasDueNotices(orgId: string, now: Date): Promise<boolean> {
@@ -472,48 +474,91 @@ export class EntitlementsServiceImpl implements EntitlementsService {
 
   async expireDue(orgId: string, now: Date): Promise<void> {
     const until = new Date(now.getTime() + ENDING_SOON_MS);
-    const appended = await this.uow.run(async ({ entitlements, outbox }) => {
-      const events: NewDomainEvent[] = [];
-      for (const grant of await entitlements.listGrantsExpiredBy(orgId, now)) {
-        if (!grant.expiresAt) {
-          continue;
-        }
-        const claimed = await entitlements.claimNotice(
+    let appended = 0;
+    let afterId: string | undefined;
+    for (;;) {
+      const batch = await this.uow.run(async ({ entitlements, outbox }) => {
+        const events: NewDomainEvent[] = [];
+        const grants = await entitlements.listGrantsExpiredBy(
           orgId,
-          { kind: 'expired', entitlementId: grant.id, expiresAt: grant.expiresAt },
           now,
+          NOTICE_BATCH_SIZE,
+          afterId,
         );
-        if (claimed) {
-          events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
-        }
-      }
-      for (const { grant, communityId } of await entitlements.listGrantsEndingBetween(
-        orgId,
-        now,
-        until,
-      )) {
-        if (!grant.expiresAt) {
-          continue;
-        }
-        const claimed = await entitlements.claimNotice(
-          orgId,
-          { kind: 'ending_soon', entitlementId: grant.id, communityId, expiresAt: grant.expiresAt },
-          now,
-        );
-        if (claimed) {
-          events.push(
-            entitlementEvents.entitlementEndingSoon.make({
-              orgId,
-              data: { ...grant, communityId },
-            }),
+        for (const grant of grants) {
+          if (!grant.expiresAt) {
+            continue;
+          }
+          const claimed = await entitlements.claimNotice(
+            orgId,
+            { kind: 'expired', entitlementId: grant.id, expiresAt: grant.expiresAt },
+            now,
           );
+          if (claimed) {
+            events.push(entitlementEvents.entitlementExpired.make({ orgId, data: grant }));
+          }
         }
+        if (events.length > 0) {
+          await outbox.append(events);
+        }
+        return { events: events.length, last: grants.at(-1)?.id, size: grants.length };
+      });
+      appended += batch.events;
+      if (batch.size < NOTICE_BATCH_SIZE || batch.last === undefined) {
+        break;
       }
-      if (events.length > 0) {
-        await outbox.append(events);
+      afterId = batch.last;
+    }
+    let afterKey: EndingGrantKey | undefined;
+    for (;;) {
+      const batch = await this.uow.run(async ({ entitlements, outbox }) => {
+        const events: NewDomainEvent[] = [];
+        const ending = await entitlements.listGrantsEndingBetween(
+          orgId,
+          now,
+          until,
+          NOTICE_BATCH_SIZE,
+          afterKey,
+        );
+        for (const { grant, communityId } of ending) {
+          if (!grant.expiresAt) {
+            continue;
+          }
+          const claimed = await entitlements.claimNotice(
+            orgId,
+            {
+              kind: 'ending_soon',
+              entitlementId: grant.id,
+              communityId,
+              expiresAt: grant.expiresAt,
+            },
+            now,
+          );
+          if (claimed) {
+            events.push(
+              entitlementEvents.entitlementEndingSoon.make({
+                orgId,
+                data: { ...grant, communityId },
+              }),
+            );
+          }
+        }
+        if (events.length > 0) {
+          await outbox.append(events);
+        }
+        const last = ending.at(-1);
+        return {
+          events: events.length,
+          last: last && { entitlementId: last.grant.id, communityId: last.communityId },
+          size: ending.length,
+        };
+      });
+      appended += batch.events;
+      if (batch.size < NOTICE_BATCH_SIZE || batch.last === undefined) {
+        break;
       }
-      return events.length;
-    });
+      afterKey = batch.last;
+    }
     if (appended > 0) {
       this.logger.info('due grants expired', { orgId, events: appended });
     }
