@@ -48,7 +48,7 @@ import type {
 } from './types.js';
 import { contentEvents } from './events.js';
 import type { Actor } from '../shared/actor.js';
-import type { AssetUrlSigner, LibraryAssetReader } from '../assets/index.js';
+import type { AssetFiles, FileUrls, LibraryAssetReader } from '../assets/index.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
@@ -66,7 +66,8 @@ export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
   libraryAssets: LibraryAssetReader;
-  assetUrls: AssetUrlSigner;
+  files: Pick<AssetFiles, 'readyFiles'>;
+  fileUrls: FileUrls;
   logger?: Logger;
 };
 
@@ -80,7 +81,11 @@ function assertConfigurator(actor: Actor): void {
   }
 }
 
-type WithThumbnail = { thumbnailAssetId: string | null };
+type WithThumbnail = {
+  id: string;
+  type: 'course' | 'download' | 'community';
+  thumbnailAssetId: string | null;
+};
 
 function sameIdSet(current: string[], requested: string[]): boolean {
   if (current.length !== requested.length) {
@@ -96,64 +101,52 @@ export class ContentService
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: LibraryAssetReader;
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly files: Pick<AssetFiles, 'readyFiles'>;
+  private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
 
   constructor(params: ContentServiceParams) {
     this.repo = params.repo;
     this.uow = params.uow;
     this.libraryAssets = params.libraryAssets;
-    this.assetUrls = params.assetUrls;
+    this.files = params.files;
+    this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
-  private async withThumbnails<T extends WithThumbnail>(
-    orgId: string,
-    items: T[],
-  ): Promise<(T & { thumbnailUrl: string | null })[]> {
-    const urls = await this.assetUrls.urls(
-      orgId,
-      items.flatMap((item) => (item.thumbnailAssetId ? [item.thumbnailAssetId] : [])),
-    );
-    return items.map((item) => ({
+  private withThumbnail<T extends WithThumbnail>(item: T): T & { thumbnailUrl: string | null } {
+    return {
       ...item,
-      thumbnailUrl: item.thumbnailAssetId ? (urls[item.thumbnailAssetId] ?? null) : null,
-    }));
+      thumbnailUrl: item.thumbnailAssetId ? this.fileUrls.thumbnail(item.type, item.id) : null,
+    };
   }
 
-  private async withThumbnail<T extends WithThumbnail>(
-    orgId: string,
-    item: T,
-  ): Promise<T & { thumbnailUrl: string | null }> {
-    const [view] = await this.withThumbnails(orgId, [item]);
-    return view!;
-  }
-
-  private async pageWithThumbnails<T extends WithThumbnail>(
-    orgId: string,
+  private pageWithThumbnails<T extends WithThumbnail>(
     page: Page<T>,
-  ): Promise<Page<T & { thumbnailUrl: string | null }>> {
-    return { ...page, rows: await this.withThumbnails(orgId, page.rows) };
+  ): Page<T & { thumbnailUrl: string | null }> {
+    return { ...page, rows: page.rows.map((row) => this.withThumbnail(row)) };
   }
 
   private async downloadFiles(orgId: string, links: DownloadAsset[]): Promise<DownloadFile[]> {
-    const signed = await this.assetUrls.downloads(
+    const ready = await this.files.readyFiles(
       orgId,
-      links.map((link) => ({ assetId: link.assetId, saveAs: link.displayName })),
+      links.map((link) => link.assetId),
     );
     return links.flatMap((link) => {
-      const file = signed[link.assetId];
-      return file ? [{ ...link, ...file }] : [];
+      const file = ready[link.assetId];
+      return file
+        ? [{ ...link, ...file, url: this.fileUrls.downloadFile(link.downloadId, link.assetId) }]
+        : [];
     });
   }
 
   async listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<CourseView>> {
-    return this.pageWithThumbnails(orgId, await this.repo.listCourses(orgId, query));
+    return this.pageWithThumbnails(await this.repo.listCourses(orgId, query));
   }
 
   async getCourse(orgId: string, id: string): Promise<CourseView | null> {
     const course = await this.repo.findCourseById(orgId, id);
-    return course ? this.withThumbnail(orgId, course) : null;
+    return course ? this.withThumbnail(course) : null;
   }
 
   async createCourse(orgId: string, input: CreateCourseInput): Promise<CourseView> {
@@ -163,7 +156,7 @@ export class ContentService
       return created;
     });
     this.logger.info('course created', { orgId, courseId: course.id, title: course.title });
-    return this.withThumbnail(orgId, course);
+    return this.withThumbnail(course);
   }
 
   async updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView> {
@@ -178,7 +171,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('course updated', { orgId, courseId: id, fields: Object.keys(patch) });
-    return this.withThumbnail(orgId, course);
+    return this.withThumbnail(course);
   }
 
   async patchCourseSettings(
@@ -236,17 +229,12 @@ export class ContentService
       this.repo.listActivitiesForCourse(orgId, courseId),
       this.repo.listActivityAssetsForCourse(orgId, courseId),
     ]);
-    const urls = await this.assetUrls.urls(
-      orgId,
-      links.map((link) => link.assetId),
-    );
     return activities.map((activity) => ({
       ...activity,
       assetUrls: Object.fromEntries(
-        links.flatMap((link) => {
-          const url = urls[link.assetId];
-          return link.activityId === activity.id && url ? [[link.assetId, url]] : [];
-        }),
+        links
+          .filter((link) => link.activityId === activity.id)
+          .map((link) => [link.assetId, this.fileUrls.activityAsset(activity.id, link.assetId)]),
       ),
     }));
   }
@@ -459,12 +447,12 @@ export class ContentService
   // --- downloads ------------------------------------------------------------
 
   async listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<DownloadView>> {
-    return this.pageWithThumbnails(orgId, await this.repo.listDownloads(orgId, query));
+    return this.pageWithThumbnails(await this.repo.listDownloads(orgId, query));
   }
 
   async getDownload(orgId: string, id: string): Promise<DownloadView | null> {
     const download = await this.repo.getDownload(orgId, id);
-    return download ? this.withThumbnail(orgId, download) : null;
+    return download ? this.withThumbnail(download) : null;
   }
 
   async createDownload(orgId: string, input: CreateDownloadInput): Promise<DownloadView> {
@@ -474,7 +462,7 @@ export class ContentService
       return created;
     });
     this.logger.info('download created', { orgId, downloadId: download.id, title: download.title });
-    return this.withThumbnail(orgId, download);
+    return this.withThumbnail(download);
   }
 
   async updateDownload(
@@ -493,7 +481,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('download updated', { orgId, downloadId: id, fields: Object.keys(patch) });
-    return this.withThumbnail(orgId, download);
+    return this.withThumbnail(download);
   }
 
   async removeDownload(orgId: string, id: string, actor: Actor): Promise<void> {
@@ -752,12 +740,12 @@ export class ContentService
   }
 
   async listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>> {
-    return this.pageWithThumbnails(orgId, await this.repo.listCommunities(orgId, query));
+    return this.pageWithThumbnails(await this.repo.listCommunities(orgId, query));
   }
 
   async getCommunity(orgId: string, id: string): Promise<CommunityView | null> {
     const community = await this.repo.findCommunityById(orgId, id);
-    return community ? this.withThumbnail(orgId, community) : null;
+    return community ? this.withThumbnail(community) : null;
   }
 
   listPublishedCommunityIds(orgId: string): Promise<string[]> {
@@ -811,7 +799,7 @@ export class ContentService
       return created;
     });
     this.logger.info('community created', { orgId, communityId: community.id });
-    return this.withThumbnail(orgId, community);
+    return this.withThumbnail(community);
   }
 
   async updateCommunity(
@@ -837,7 +825,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('community updated', { orgId, communityId: id });
-    return this.withThumbnail(orgId, community);
+    return this.withThumbnail(community);
   }
 
   publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView> {
@@ -895,7 +883,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('community dm settings patched', { orgId, communityId: id });
-    return this.withThumbnail(orgId, community);
+    return this.withThumbnail(community);
   }
 
   async createSpace(

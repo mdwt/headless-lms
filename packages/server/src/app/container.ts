@@ -59,7 +59,7 @@ import {
   OrganizationServiceImpl,
   parseRole,
 } from '@headless-lms/core/organizations';
-import { AssetsServiceImpl } from '@headless-lms/core/assets';
+import { AssetsServiceImpl, createFileUrls } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
@@ -243,6 +243,7 @@ export async function buildContainer(
     studentPortalUrl: config.studentPortalUrl,
   });
 
+  const fileUrls = createFileUrls(config.authBaseURL);
   const assets = new AssetsServiceImpl({
     storage,
     repo: new DrizzleAssetsRepository(db, assetsLogger),
@@ -251,7 +252,8 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
-    urlExpirySeconds: config.deliveryExpirySeconds,
+    downloadLinkExpirySeconds: config.deliveryExpirySeconds,
+    fileUrls,
     logger: assetsLogger,
   });
 
@@ -268,7 +270,7 @@ export async function buildContainer(
     uow: identityUoW,
     mailer,
     images: assets,
-    assetUrls: assets,
+    fileUrls,
   });
   const notifications = new NotificationServiceImpl({
     repo: new DrizzleNotificationsRepository(db),
@@ -315,7 +317,8 @@ export async function buildContainer(
     repo: new DrizzleContentRepository(db, contentLogger),
     uow: contentUow,
     libraryAssets: assets,
-    assetUrls: assets,
+    files: assets,
+    fileUrls,
     logger: contentLogger,
   });
   // Entitlements: reads on the root db; writes + outbox append in one tx.
@@ -366,7 +369,7 @@ export async function buildContainer(
     profiles: discussionReads,
     comments: discussionReads,
     images: assets,
-    assetUrls: assets,
+    fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -380,7 +383,7 @@ export async function buildContainer(
     authors,
     profiles: discussionReads,
     images: assets,
-    assetUrls: assets,
+    fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       chats: new DrizzleChatRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -393,7 +396,7 @@ export async function buildContainer(
     content: content,
     posts,
     communities: { listIds: (orgId) => content.listPublishedCommunityIds(orgId) },
-    assetUrls: assets,
+    fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -410,7 +413,8 @@ export async function buildContainer(
       repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
-      assetUrls: assets,
+      files: assets,
+      fileUrls,
       access: entitlements,
       notifications,
       posts,

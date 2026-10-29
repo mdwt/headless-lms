@@ -1,7 +1,8 @@
 import { type ContentServicePort, type SpaceDetail } from '../../content/index.js';
 import type { EntitlementsService, SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
-import type { AssetUrlSigner } from '../../assets/index.js';
+import type { AssetFiles, FileUrls } from '../../assets/index.js';
+import { isStaffRole } from '../../organizations/index.js';
 import type { ChatService, PostService } from '../../discussion/index.js';
 import type { Notification, NotificationInbox } from '../../identity/index.js';
 import type { Actor } from '../../shared/actor.js';
@@ -41,7 +42,8 @@ export type MemberReportServiceParams = {
   repo: MemberReportRepository;
   content: ContentServicePort;
   progress: ProgressService;
-  assetUrls: AssetUrlSigner;
+  files: Pick<AssetFiles, 'signFile'>;
+  fileUrls: FileUrls;
   access: MemberAccess;
   notifications: Pick<NotificationInbox, 'listNotifications'>;
   posts: Pick<PostService, 'visibleTitles'>;
@@ -52,7 +54,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly repo: MemberReportRepository;
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly files: Pick<AssetFiles, 'signFile'>;
+  private readonly fileUrls: FileUrls;
   private readonly access: MemberAccess;
   private readonly inbox: Pick<NotificationInbox, 'listNotifications'>;
   private readonly posts: Pick<PostService, 'visibleTitles'>;
@@ -62,7 +65,8 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.repo = params.repo;
     this.content = params.content;
     this.progress = params.progress;
-    this.assetUrls = params.assetUrls;
+    this.files = params.files;
+    this.fileUrls = params.fileUrls;
     this.access = params.access;
     this.inbox = params.notifications;
     this.posts = params.posts;
@@ -80,16 +84,23 @@ export class MemberReportServiceImpl implements MemberReportService {
       ...new Set(page.rows.flatMap((row) => pick(row) ?? [])),
     ];
     const [people, postTitles, chatTitles, spaces, communities] = await Promise.all([
-      this.repo.people(orgId, ids((row) => row.actorOrgUserId)),
-      this.posts.visibleTitles(orgId, actor, ids((row) => row.postId)),
-      this.chats.titlesFor(orgId, actor, ids((row) => row.chatId)),
+      this.repo.people(
+        orgId,
+        ids((row) => row.actorOrgUserId),
+      ),
+      this.posts.visibleTitles(
+        orgId,
+        actor,
+        ids((row) => row.postId),
+      ),
+      this.chats.titlesFor(
+        orgId,
+        actor,
+        ids((row) => row.chatId),
+      ),
       Promise.all(ids((row) => row.spaceId).map((id) => this.content.getSpace(orgId, id))),
       Promise.all(ids((row) => row.communityId).map((id) => this.content.getCommunity(orgId, id))),
     ]);
-    const urls = await this.assetUrls.urls(
-      orgId,
-      people.flatMap((person) => (person.imageAssetId ? [person.imageAssetId] : [])),
-    );
     const personById = new Map(people.map((person) => [person.orgUserId, person]));
     const spaceById = new Map(spaces.flatMap((space) => (space ? [[space.id, space.name]] : [])));
     const communityById = new Map(
@@ -113,7 +124,7 @@ export class MemberReportServiceImpl implements MemberReportService {
             ? {
                 orgUserId: person.orgUserId,
                 displayName: person.displayName,
-                imageUrl: person.imageAssetId ? (urls[person.imageAssetId] ?? null) : null,
+                imageUrl: person.imageAssetId ? this.fileUrls.personImage(person.orgUserId) : null,
               }
             : null,
           community: community && { id: community.id, title: community.name },
@@ -137,11 +148,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     return courses.filter((c): c is CourseView => c !== null && c.status === 'published');
   }
 
-  async getCourse(
-    orgId: string,
-    orgUserId: string,
-    courseId: string,
-  ): Promise<CourseView | null> {
+  async getCourse(orgId: string, orgUserId: string, courseId: string): Promise<CourseView | null> {
     if (!(await this.access.hasAccess(orgId, orgUserId, courseId))) {
       return null;
     }
@@ -229,6 +236,74 @@ export class MemberReportServiceImpl implements MemberReportService {
     return { download, assets };
   }
 
+  async thumbnailFile(
+    orgId: string,
+    actor: Actor,
+    owner: 'course' | 'download' | 'community',
+    id: string,
+  ): Promise<string | null> {
+    const item =
+      owner === 'course'
+        ? await this.content.getCourse(orgId, id)
+        : owner === 'download'
+          ? await this.content.getDownload(orgId, id)
+          : await this.content.getCommunity(orgId, id);
+    if (!item?.thumbnailAssetId || (item.status !== 'published' && !isStaffRole(actor.role))) {
+      return null;
+    }
+    return this.files.signFile(orgId, item.thumbnailAssetId);
+  }
+
+  async activityFile(
+    orgId: string,
+    actor: Actor,
+    activityId: string,
+    assetId: string,
+  ): Promise<string | null> {
+    const activity = await this.content.getActivity(orgId, activityId);
+    if (!activity) {
+      return null;
+    }
+    if (!isStaffRole(actor.role)) {
+      if (
+        !isActivityPublished(activity.settings) ||
+        !(await this.getCourse(orgId, actor.id, activity.courseId))
+      ) {
+        return null;
+      }
+    }
+    const links = await this.content.listCourseActivityAssets(orgId, activity.courseId);
+    if (!links.some((link) => link.activityId === activityId && link.assetId === assetId)) {
+      return null;
+    }
+    return this.files.signFile(orgId, assetId);
+  }
+
+  async downloadFile(
+    orgId: string,
+    actor: Actor,
+    downloadId: string,
+    assetId: string,
+  ): Promise<string | null> {
+    if (!isStaffRole(actor.role) && !(await this.getDownload(orgId, actor.id, downloadId))) {
+      return null;
+    }
+    const files = await this.content.listDownloadAssets(orgId, downloadId);
+    const file = files.find((f) => f.assetId === assetId);
+    if (!file) {
+      return null;
+    }
+    return this.files.signFile(orgId, assetId, { saveAs: file.displayName ?? file.filename });
+  }
+
+  async personImage(orgId: string, orgUserId: string): Promise<string | null> {
+    const [person] = await this.repo.people(orgId, [orgUserId]);
+    if (!person?.imageAssetId) {
+      return null;
+    }
+    return this.files.signFile(orgId, person.imageAssetId);
+  }
+
   async directory(
     orgId: string,
     actor: Actor,
@@ -242,17 +317,17 @@ export class MemberReportServiceImpl implements MemberReportService {
       return null;
     }
     const rows = await this.repo.directory(orgId, communityId);
-    const urls = await this.assetUrls.urls(
-      orgId,
-      rows.flatMap((row) => (row.imageAssetId ? [row.imageAssetId] : [])),
-    );
     return rows.map((row) => ({
       ...row,
-      imageUrl: row.imageAssetId ? (urls[row.imageAssetId] ?? null) : null,
+      imageUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
     }));
   }
 
-  async communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null> {
+  async communityHome(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+  ): Promise<CommunityHome | null> {
     if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
       return null;
     }
@@ -332,7 +407,12 @@ export class MemberReportServiceImpl implements MemberReportService {
         }
         const download = await this.content.getDownload(orgId, link.contentId);
         if (download) {
-          return { id: link.id, contentId: link.contentId, type: 'download', title: download.title };
+          return {
+            id: link.id,
+            contentId: link.contentId,
+            type: 'download',
+            title: download.title,
+          };
         }
         const community = await this.content.getCommunity(orgId, link.contentId);
         if (community) {

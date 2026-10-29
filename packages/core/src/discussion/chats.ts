@@ -6,7 +6,7 @@ import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
+import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
 import type {
   Chat,
   ChatUser,
@@ -20,7 +20,7 @@ import type {
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
-import { authorImageIds, authorView } from './authors.js';
+import { authorView } from './authors.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -41,8 +41,8 @@ export type ChatServiceParams = {
   content: CommunityReader;
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
-  images: MemberImageReader;
-  assetUrls: AssetUrlSigner;
+  images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  fileUrls: FileUrls;
   uow: ChatUnitOfWork;
   logger?: Logger;
 };
@@ -53,8 +53,8 @@ export class ChatServiceImpl implements ChatService {
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
-  private readonly images: MemberImageReader;
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  private readonly fileUrls: FileUrls;
   private readonly uow: ChatUnitOfWork;
   private readonly logger: Logger;
 
@@ -65,7 +65,7 @@ export class ChatServiceImpl implements ChatService {
     this.authors = params.authors;
     this.profiles = params.profiles;
     this.images = params.images;
-    this.assetUrls = params.assetUrls;
+    this.fileUrls = params.fileUrls;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -614,6 +614,39 @@ export class ChatServiceImpl implements ChatService {
     };
   }
 
+  async attachmentFile(
+    orgId: string,
+    actor: Actor,
+    chatId: string,
+    messageId: string,
+    assetId: string,
+  ): Promise<string | null> {
+    const chat = await this.repo.findChat(orgId, chatId);
+    const message = await this.repo.findMessage(orgId, messageId);
+    if (!chat || !message || message.chatId !== chatId) {
+      return null;
+    }
+    const attached = (await this.repo.attachmentsOf(orgId, [messageId]))[messageId] ?? [];
+    if (!attached.includes(assetId)) {
+      return null;
+    }
+    if (!(await this.access.isCommunityMember(orgId, actor, chat.communityId))) {
+      return null;
+    }
+    const users = await this.repo.participants(orgId, chatId);
+    const inChat = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
+    const readable = inChat
+      ? message.deletedAt === null || isStaffRole(actor.role)
+      : canModerate(actor.role) &&
+        (await this.repo.listOpenFlags(orgId, chat.communityId)).some(
+          (flag) => flag.messageId === messageId,
+        );
+    if (!readable) {
+      return null;
+    }
+    return this.images.signFile(orgId, assetId);
+  }
+
   async messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue> {
     if (!canModerate(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
@@ -674,7 +707,7 @@ export class ChatServiceImpl implements ChatService {
     const records = others.length > 0 ? await this.profiles.authorsOf(orgId, others) : {};
     const nameOf = (id: string): string => {
       const record = records[id];
-      return (record && authorView(orgId, record, {}).displayName) || 'A member';
+      return (record && authorView(orgId, record, null).displayName) || 'A member';
     };
     return Object.fromEntries(
       summaries.flatMap((summary) => {
@@ -1080,10 +1113,6 @@ export class ChatServiceImpl implements ChatService {
     ]);
     const shown = (message: Message) =>
       message.deletedAt !== null && !isStaffRole(actor.role) ? [] : (attached[message.id] ?? []);
-    const urls = await this.assetUrls.urls(orgId, [
-      ...messages.flatMap(shown),
-      ...authorImageIds(orgId, Object.values(records)),
-    ]);
     return messages.map((message) => {
       const record = records[message.orgUserId];
       if (!record) {
@@ -1092,11 +1121,11 @@ export class ChatServiceImpl implements ChatService {
       const counts = reactions[message.id];
       return {
         ...this.present(message, actor),
-        sender: authorView(orgId, record, urls),
-        attachments: shown(message).flatMap((assetId) => {
-          const url = urls[assetId];
-          return url ? [{ assetId, url }] : [];
-        }),
+        sender: authorView(orgId, record, this.fileUrls),
+        attachments: shown(message).map((assetId) => ({
+          assetId,
+          url: this.fileUrls.messageAttachment(message.chatId, message.id, assetId),
+        })),
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
       };

@@ -10,7 +10,7 @@ import type {
   Module,
 } from '../../content/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
-import type { AssetUrlSigner } from '../../assets/index.js';
+import { createFileUrls } from '../../assets/index.js';
 
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
@@ -103,10 +103,8 @@ function fakeContent(
   } as unknown as ContentServicePort;
 }
 
-const assetUrls: AssetUrlSigner = {
-  urls: async (_orgId, ids) => Object.fromEntries(ids.map((id) => [id, `https://signed/${id}`])),
-  downloads: async () => ({}),
-};
+const fileUrls = createFileUrls('https://api.test');
+const files = { signFile: async (_orgId: string, assetId: string) => `https://signed/${assetId}` };
 
 const readers: Pick<MemberReportServiceParams, 'notifications' | 'posts' | 'chats'> = {
   notifications: {
@@ -124,9 +122,10 @@ const readers: Pick<MemberReportServiceParams, 'notifications' | 'posts' | 'chat
 
 const deps: Pick<
   MemberReportServiceParams,
-  'assetUrls' | 'access' | 'notifications' | 'posts' | 'chats'
+  'files' | 'fileUrls' | 'access' | 'notifications' | 'posts' | 'chats'
 > = {
-  assetUrls,
+  files,
+  fileUrls,
   access: {
     isCommunityMember: async () => false,
     openSpaceIds: async () => [],
@@ -368,7 +367,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
   });
 });
 
-describe('signed file URLs', () => {
+describe('file URLs', () => {
   it('serves the published activity views of an enrolled course', async () => {
     const views: ActivityView[] = [
       { ...activity('a1', 0), assetUrls: { ast_video: 'https://signed/ast_video' } },
@@ -460,7 +459,8 @@ describe('signed file URLs', () => {
       }),
       content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
-      assetUrls,
+      files,
+      fileUrls,
       access: {
         ...deps.access,
         isCommunityMember: async () => true,
@@ -473,7 +473,7 @@ describe('signed file URLs', () => {
     const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1');
 
     expect(entries?.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
-      ['ou_sarah', 'https://signed/ast_photo'],
+      ['ou_sarah', fileUrls.personImage('ou_sarah')],
       ['ou_james', null],
     ]);
   });
@@ -547,12 +547,160 @@ describe('signed file URLs', () => {
 
     expect(view.unreadCount).toBe(2);
     expect(view.rows[0]).toMatchObject({
-      actor: { orgUserId: 'ou_sarah', displayName: 'Sarah', imageUrl: 'https://signed/ast_photo' },
+      actor: {
+        orgUserId: 'ou_sarah',
+        displayName: 'Sarah',
+        imageUrl: fileUrls.personImage('ou_sarah'),
+      },
       community: { id: 'cmy_1', title: 'Founders' },
       space: { id: 'spc_1', name: 'Announcements' },
       post: { id: 'pst_seen', title: 'Launch week' },
       chat: null,
     });
     expect(view.rows[1]).toMatchObject({ post: null, chat: null, space: null });
+  });
+});
+
+describe('serving files', () => {
+  const student = { id: 'stu_1', role: 'student' as const };
+  const owner = { id: 'ou_owner', role: 'owner' as const };
+  const link = (activityId: string, assetId: string) => ({
+    orgId: 'o1',
+    id: `aa_${activityId}_${assetId}`,
+    activityId,
+    assetId,
+    seq: 0,
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const file = (assetId: string, displayName: string | null) => ({
+    orgId: 'o1',
+    id: `da_${assetId}`,
+    downloadId: 'd1',
+    assetId,
+    seq: 0,
+    displayName,
+    filename: `${assetId}.pdf`,
+    contentType: 'application/pdf',
+    size: 10,
+    url: fileUrls.downloadFile('d1', assetId),
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const build = (
+    over: {
+      grants?: { orgId: string; contentId: string }[];
+      content?: Partial<ContentServicePort>;
+      repo?: Partial<MemberReportRepository>;
+    } = {},
+  ) => {
+    const signed: { assetId: string; saveAs?: string }[] = [];
+    const svc = new MemberReportServiceImpl({
+      repo: { ...fakeRepo(), ...over.repo },
+      content: fakeContentService({
+        getCourse: async (_o, id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
+        getActivity: async (_o, id) => (id === 'a1' ? activity('a1', 0) : null),
+        listCourseActivityAssets: async () => [link('a1', 'ast_video')],
+        getDownload: async () =>
+          ({ id: 'd1', status: 'published', thumbnailAssetId: 'ast_thumb' }) as never,
+        listDownloadAssets: async () => [file('ast_pdf', 'Workbook.pdf'), file('ast_notes', null)],
+        ...over.content,
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      files: {
+        signFile: async (_o, assetId, opts) => {
+          signed.push({ assetId, ...(opts?.saveAs ? { saveAs: opts.saveAs } : {}) });
+          return `https://signed/${assetId}`;
+        },
+      },
+      access: grantedAccess(
+        over.grants ?? [
+          { orgId: 'o1', contentId: 'c1' },
+          { orgId: 'o1', contentId: 'd1' },
+        ],
+      ),
+    });
+    return { svc, signed };
+  };
+
+  it('serves a lesson file the activity links to a student who can open the course', async () => {
+    const { svc, signed } = build();
+    expect(await svc.activityFile('o1', student, 'a1', 'ast_video')).toBe(
+      'https://signed/ast_video',
+    );
+    expect(signed).toEqual([{ assetId: 'ast_video' }]);
+  });
+
+  it('refuses a lesson file without access, unlinked, in a draft lesson or course, but lets staff through', async () => {
+    expect(
+      await build({ grants: [] }).svc.activityFile('o1', student, 'a1', 'ast_video'),
+    ).toBeNull();
+    expect(await build().svc.activityFile('o1', student, 'a1', 'ast_other')).toBeNull();
+    const draftLesson = build({
+      content: { getActivity: async () => activity('a1', 0, { published: false }) },
+    });
+    expect(await draftLesson.svc.activityFile('o1', student, 'a1', 'ast_video')).toBeNull();
+    const draftCourse = build({
+      content: { getCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
+    });
+    expect(await draftCourse.svc.activityFile('o1', student, 'a1', 'ast_video')).toBeNull();
+    expect(await build({ grants: [] }).svc.activityFile('o1', owner, 'a1', 'ast_video')).toBe(
+      'https://signed/ast_video',
+    );
+    expect(await build({ grants: [] }).svc.activityFile('o1', owner, 'a1', 'ast_other')).toBeNull();
+  });
+
+  it('serves a download file saved under its display name, or its filename', async () => {
+    const { svc, signed } = build();
+    expect(await svc.downloadFile('o1', student, 'd1', 'ast_pdf')).toBe('https://signed/ast_pdf');
+    expect(await svc.downloadFile('o1', student, 'd1', 'ast_notes')).toBe(
+      'https://signed/ast_notes',
+    );
+    expect(await svc.downloadFile('o1', student, 'd1', 'ast_missing')).toBeNull();
+    expect(signed).toEqual([
+      { assetId: 'ast_pdf', saveAs: 'Workbook.pdf' },
+      { assetId: 'ast_notes', saveAs: 'ast_notes.pdf' },
+    ]);
+    expect(await build({ grants: [] }).svc.downloadFile('o1', student, 'd1', 'ast_pdf')).toBeNull();
+  });
+
+  it('serves the thumbnail of a published item to anyone, and of a draft only to staff', async () => {
+    const { svc } = build({ grants: [] });
+    expect(await svc.thumbnailFile('o1', student, 'download', 'd1')).toBe(
+      'https://signed/ast_thumb',
+    );
+    const draft = build({
+      content: {
+        getCourse: async () =>
+          ({
+            ...course('c1', 'draft'),
+            thumbnailAssetId: 'ast_cover',
+            thumbnailUrl: null,
+          }) as never,
+      },
+    });
+    expect(await draft.svc.thumbnailFile('o1', student, 'course', 'c1')).toBeNull();
+    expect(await draft.svc.thumbnailFile('o1', owner, 'course', 'c1')).toBe(
+      'https://signed/ast_cover',
+    );
+    expect(await svc.thumbnailFile('o1', student, 'course', 'c1')).toBeNull();
+  });
+
+  it("serves an org user's photo only when it belongs to this org", async () => {
+    const row = {
+      orgUserId: 'ou_sarah',
+      userId: 'usr_sarah',
+      role: 'student',
+      displayName: 'Sarah',
+      headline: null,
+      bio: null,
+    };
+    const withPhoto = build({
+      repo: { people: async () => [{ ...row, imageAssetId: 'ast_photo' }] },
+    });
+    expect(await withPhoto.svc.personImage('o1', 'ou_sarah')).toBe('https://signed/ast_photo');
+    const without = build({ repo: { people: async () => [{ ...row, imageAssetId: null }] } });
+    expect(await without.svc.personImage('o1', 'ou_sarah')).toBeNull();
   });
 });

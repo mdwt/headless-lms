@@ -11,6 +11,7 @@ import { memberCommentsRoutes } from './comments.js';
 import { memberCommunityRoutes } from './community.js';
 import { memberCoursesRoutes } from './courses.js';
 import { memberDownloadsRoutes } from './downloads.js';
+import { memberFileRoutes } from './files.js';
 import { memberNotificationRoutes } from './notifications.js';
 import { memberOrgRoutes } from './org.js';
 import { memberPostRoutes } from './posts.js';
@@ -28,5 +29,6 @@ export async function memberRoutes(app: FastifyInstance, container: Container): 
   await memberCommentsRoutes(app, container);
   await memberAssetsRoutes(app, container);
   await memberDownloadsRoutes(app, container);
+  await memberFileRoutes(app, container);
   await memberNotificationRoutes(app, container);
 }

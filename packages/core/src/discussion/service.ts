@@ -28,8 +28,8 @@ import type {
   PostService,
 } from './ports.js';
 import { discussionEvents } from './events.js';
-import { authorImageIds, authorView } from './authors.js';
-import type { AssetUrls, AssetUrlSigner } from '../assets/index.js';
+import { authorView } from './authors.js';
+import type { FileUrls } from '../assets/index.js';
 
 /** A course with no stored settings. Discussion is opt-in, so the common case
  *  persists no row at all and every existing course stays silent. */
@@ -50,7 +50,7 @@ export type DiscussionServiceParams = {
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
   communities: { listIds(orgId: string): Promise<string[]> };
-  assetUrls: AssetUrlSigner;
+  fileUrls: FileUrls;
   logger?: Logger;
 };
 
@@ -62,7 +62,7 @@ export class DiscussionServiceImpl implements DiscussionService {
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
   private readonly communities: { listIds(orgId: string): Promise<string[]> };
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
 
   constructor(params: DiscussionServiceParams) {
@@ -73,7 +73,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.uow = params.uow;
     this.settings = params.settings;
     this.communities = params.communities;
-    this.assetUrls = params.assetUrls;
+    this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -106,15 +106,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     return isStaffRole(actor.role);
   }
 
-  private authorUrls(orgId: string, authors: Record<string, AuthorRecord>) {
-    return this.assetUrls.urls(orgId, authorImageIds(orgId, Object.values(authors)));
-  }
-
   private toView(
     orgId: string,
     comment: Comment,
     authors: Record<string, AuthorRecord>,
-    urls: AssetUrls,
+    urls: FileUrls,
     reactions: CommentReactions,
   ): CommentView {
     const author = authors[comment.orgUserId];
@@ -160,7 +156,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         ? EMPTY_REACTIONS
         : ((await this.repo.reactionsOf(orgId, [comment.id], actor.id))[comment.id] ??
           EMPTY_REACTIONS);
-    return this.toView(orgId, comment, authors, await this.authorUrls(orgId, authors), stored);
+    return this.toView(orgId, comment, authors, this.fileUrls, stored);
   }
 
   private activityIdOf(comment: Comment): string {
@@ -178,7 +174,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     return activity ? this.access.hasAccess(orgId, actor.id, activity.courseId) : false;
   }
 
-  private async requireActivityOpen(orgId: string, activityId: string, actor: Actor): Promise<void> {
+  private async requireActivityOpen(
+    orgId: string,
+    activityId: string,
+    actor: Actor,
+  ): Promise<void> {
     const activity = await this.content.getActivity(orgId, activityId);
     if (!activity) {
       throw new NotFoundError('Activity', activityId);
@@ -366,7 +366,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           )
         : Promise.resolve<Record<string, CommentReactions>>({}),
     ]);
-    const urls = await this.authorUrls(orgId, authors);
+    const urls = this.fileUrls;
     return served.map((comment) =>
       this.toView(orgId, comment, authors, urls, reactions[comment.id] ?? EMPTY_REACTIONS),
     );
@@ -716,7 +716,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     const authors = await this.repo.authorsOf(orgId, [
       ...new Set([...this.peopleIn(rows), ...reports.map((r) => r.orgUserId)]),
     ]);
-    const urls = await this.authorUrls(orgId, authors);
+    const urls = this.fileUrls;
 
     const byComment = new Map<string, CommentReport[]>();
     for (const report of reports) {

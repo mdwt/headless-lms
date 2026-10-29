@@ -33,6 +33,29 @@ export interface MemberReportService {
     orgUserId: string,
     downloadId: string,
   ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null>;
+  /** Signed URL of a course, download or community thumbnail: published, or staff. */
+  thumbnailFile(
+    orgId: string,
+    actor: Actor,
+    owner: 'course' | 'download' | 'community',
+    id: string,
+  ): Promise<string | null>;
+  /** Signed URL of an asset the activity links, for a student who can open its course. */
+  activityFile(
+    orgId: string,
+    actor: Actor,
+    activityId: string,
+    assetId: string,
+  ): Promise<string | null>;
+  /** Signed download URL of a file in a download the student can open. */
+  downloadFile(
+    orgId: string,
+    actor: Actor,
+    downloadId: string,
+    assetId: string,
+  ): Promise<string | null>;
+  /** Signed URL of an org user's profile photo, when it belongs to this org. */
+  personImage(orgId: string, orgUserId: string): Promise<string | null>;
   directory(orgId: string, actor: Actor, communityId: string): Promise<DirectoryEntry[] | null>;
   communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
   communitySpace(

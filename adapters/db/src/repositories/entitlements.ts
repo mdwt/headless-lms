@@ -31,7 +31,6 @@ import {
   users,
 } from "../schema/index.js";
 import {
-  activeGrantCovers,
   grantExpired,
   grantIsActive,
   communityMember,

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createFileUrls } from './file-urls.js';
 import { AssetsServiceImpl, kindOf } from './service.js';
 import type { AssetsRepository, AssetsUnitOfWork } from './ports.js';
 import type { Asset } from './model.js';
@@ -101,7 +102,8 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     repo,
     uow,
     memberImageMaxBytes: 1000,
-    urlExpirySeconds: 600,
+    downloadLinkExpirySeconds: 600,
+    fileUrls: createFileUrls('https://api.test'),
     ...overrides,
     storage,
   });
@@ -232,7 +234,8 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
-      urlExpirySeconds: 600,
+      downloadLinkExpirySeconds: 600,
+      fileUrls: createFileUrls('https://api.test'),
     });
     const now = new Date();
     assets.push({
@@ -279,7 +282,8 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
-      urlExpirySeconds: 600,
+      downloadLinkExpirySeconds: 600,
+      fileUrls: createFileUrls('https://api.test'),
     });
     const now = new Date('2026-10-22T12:00:00Z');
     const old = new Date('2026-10-22T10:00:00Z');
@@ -324,7 +328,8 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
-      urlExpirySeconds: 600,
+      downloadLinkExpirySeconds: 600,
+      fileUrls: createFileUrls('https://api.test'),
     });
     const old = new Date('2026-10-01T00:00:00Z');
     assets.push({
@@ -388,11 +393,8 @@ describe('AssetsService', () => {
     expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: confirmed?.key });
     expect(storage.stat).toHaveBeenCalledWith(confirmed?.key);
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(confirmed?.url).toBe('https://storage/download');
-    expect(storage.presignDownload).toHaveBeenCalledWith({
-      key: confirmed?.key,
-      expiresInSeconds: 600,
-    });
+    expect(confirmed?.url).toMatch(/\/api\/member\/uploads\/ast_\w+\/file$/);
+    expect(storage.presignDownload).not.toHaveBeenCalled();
   });
 
   it('leaves a ready asset and its bytes alone when it is confirmed again', async () => {
@@ -448,7 +450,9 @@ describe('AssetsService', () => {
     await svc.confirm('org-1', library.asset.id);
     await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
     expect((await svc.get('org-1', member.asset.id))?.url).toBeNull();
-    expect((await svc.get('org-1', library.asset.id))?.url).toBe('https://storage/download');
+    expect((await svc.get('org-1', library.asset.id))?.url).toMatch(
+      /\/api\/assets\/ast_\w+\/file$/,
+    );
     expect(await svc.remove('org-1', member.asset.id)).toBe(true);
   });
 
@@ -504,9 +508,12 @@ describe('AssetsService', () => {
       ticket.asset.key,
       copied,
     ]);
-    expect(vi.mocked(storage.remove).mock.calls.map(([key]) => key).sort()).toEqual(
-      [copied, ticket.asset.key].sort(),
-    );
+    expect(
+      vi
+        .mocked(storage.remove)
+        .mock.calls.map(([key]) => key)
+        .sort(),
+    ).toEqual([copied, ticket.asset.key].sort());
     expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
   });
 
@@ -641,7 +648,7 @@ describe('AssetsService', () => {
   it('refuses a URL lifetime that is not a positive integer', () => {
     const { repo } = fakeRepo();
     const { uow } = fakeUow(repo);
-    for (const urlExpirySeconds of [0, -1, 1.5, Number.NaN]) {
+    for (const downloadLinkExpirySeconds of [0, -1, 1.5, Number.NaN]) {
       expect(
         () =>
           new AssetsServiceImpl({
@@ -649,9 +656,10 @@ describe('AssetsService', () => {
             repo,
             uow,
             memberImageMaxBytes: 1000,
-            urlExpirySeconds,
+            downloadLinkExpirySeconds,
+            fileUrls: createFileUrls('https://api.test'),
           }),
-      ).toThrow('invalid urlExpirySeconds');
+      ).toThrow('invalid downloadLinkExpirySeconds');
     }
   });
 
@@ -671,22 +679,14 @@ describe('AssetsService', () => {
 
     const confirmed = await svc.confirm('org-1', ticket.asset.id);
 
-    expect(confirmed?.url).toBe('https://storage/download');
-    expect((await svc.get('org-1', ticket.asset.id))?.url).toBe('https://storage/download');
-    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toBe(
-      'https://storage/download',
+    expect(confirmed?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
+    expect((await svc.get('org-1', ticket.asset.id))?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
+    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toMatch(
+      /\/api\/assets\/ast_\w+\/file$/,
     );
-    expect(confirmed?.downloadUrl).toBe('https://storage/download');
+    expect(confirmed?.downloadUrl).toMatch(/\/api\/assets\/ast_\w+\/download$/);
     expect(ticket.asset.downloadUrl).toBeNull();
-    expect(storage.presignDownload).toHaveBeenCalledWith({
-      key: confirmed?.key,
-      expiresInSeconds: 600,
-    });
-    expect(storage.presignDownload).toHaveBeenCalledWith({
-      key: confirmed?.key,
-      downloadFilename: 'a.png',
-      expiresInSeconds: 600,
-    });
+    expect(storage.presignDownload).not.toHaveBeenCalled();
   });
 
   it('lists member uploads to staff without a URL', async () => {
@@ -697,102 +697,119 @@ describe('AssetsService', () => {
     });
     const own = await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
 
-    expect(own?.url).toBe('https://storage/download');
+    expect(own?.url).toMatch(/\/api\/member\/uploads\/ast_\w+\/file$/);
     const listed = await svc.list('org-1', { page: 1, pageSize: 20, source: 'member' });
     expect(listed.rows.map((a) => [a.status, a.url, a.downloadUrl])).toEqual([
       ['ready', null, null],
     ]);
   });
 
-  it('signs display URLs only for the ready assets of the org, once per id', async () => {
-    const { svc, assets, storage } = service();
-    vi.mocked(storage.presignDownload).mockImplementation(
-      async ({ key }) => `https://signed/${key}`,
-    );
+  it('reports ready files of the org with their name, type and size', async () => {
+    const { svc, assets } = service();
     const now = new Date();
     const base = {
-      kind: 'image' as const,
-      source: 'library' as const,
-      filename: 'a.png',
-      contentType: 'image/png',
-      size: 10,
-      uploadedBy: 'ou_1',
-      createdAt: now,
-      updatedAt: now,
-    };
-    assets.push(
-      { ...base, orgId: 'org-1', id: 'ast_ready', key: 'k-ready', status: 'ready' },
-      { ...base, orgId: 'org-1', id: 'ast_pending', key: 'k-pending', status: 'pending' },
-      { ...base, orgId: 'org-2', id: 'ast_other', key: 'k-other', status: 'ready' },
-    );
-
-    const urls = await svc.urls('org-1', [
-      'ast_ready',
-      'ast_ready',
-      'ast_pending',
-      'ast_other',
-      'ast_missing',
-    ]);
-
-    expect(urls).toEqual({ ast_ready: 'https://signed/k-ready' });
-    expect(storage.presignDownload).toHaveBeenCalledTimes(1);
-    expect(storage.presignDownload).toHaveBeenCalledWith({ key: 'k-ready', expiresInSeconds: 600 });
-    expect(await svc.urls('org-1', [])).toEqual({});
-  });
-
-  it('signs downloads under the given name, or the asset filename', async () => {
-    const { svc, assets, storage } = service();
-    vi.mocked(storage.presignDownload).mockImplementation(
-      async ({ key, downloadFilename }) => `https://signed/${key}?as=${downloadFilename}`,
-    );
-    const now = new Date();
-    const base = {
-      orgId: 'org-1',
       kind: 'document' as const,
       source: 'library' as const,
       contentType: 'application/pdf',
-      status: 'ready' as const,
       uploadedBy: 'ou_1',
       createdAt: now,
       updatedAt: now,
     };
     assets.push(
-      { ...base, id: 'ast_guide', key: 'k-guide', filename: 'guide.pdf', size: 100 },
-      { ...base, id: 'ast_notes', key: 'k-notes', filename: 'notes.pdf', size: 200 },
       {
         ...base,
+        orgId: 'org-1',
+        id: 'ast_ready',
+        key: 'k1',
+        filename: 'a.pdf',
+        size: 10,
+        status: 'ready',
+      },
+      {
+        ...base,
+        orgId: 'org-1',
         id: 'ast_pending',
-        key: 'k-pending',
-        filename: 'x.pdf',
+        key: 'k2',
+        filename: 'b.pdf',
         size: 0,
         status: 'pending',
       },
+      {
+        ...base,
+        orgId: 'org-2',
+        id: 'ast_other',
+        key: 'k3',
+        filename: 'c.pdf',
+        size: 5,
+        status: 'ready',
+      },
     );
 
-    const files = await svc.downloads('org-1', [
-      { assetId: 'ast_guide', saveAs: 'Workbook.pdf' },
-      { assetId: 'ast_notes', saveAs: null },
-      { assetId: 'ast_pending', saveAs: null },
-    ]);
-
-    expect(files).toEqual({
-      ast_guide: {
-        filename: 'guide.pdf',
-        contentType: 'application/pdf',
-        size: 100,
-        url: 'https://signed/k-guide?as=Workbook.pdf',
-      },
-      ast_notes: {
-        filename: 'notes.pdf',
-        contentType: 'application/pdf',
-        size: 200,
-        url: 'https://signed/k-notes?as=notes.pdf',
-      },
+    expect(
+      await svc.readyFiles('org-1', ['ast_ready', 'ast_pending', 'ast_other', 'ast_missing']),
+    ).toEqual({
+      ast_ready: { filename: 'a.pdf', contentType: 'application/pdf', size: 10 },
     });
-    expect(storage.presignDownload).toHaveBeenCalledWith({
+    expect(await svc.readyFiles('org-1', [])).toEqual({});
+  });
+
+  it('signs a ready file inline with the storage lifetime, and a download with the short one', async () => {
+    const { svc, assets, storage } = service();
+    vi.mocked(storage.presignDownload).mockImplementation(
+      async ({ key, downloadFilename }) => `https://signed/${key}?as=${downloadFilename ?? ''}`,
+    );
+    const now = new Date();
+    assets.push({
+      orgId: 'org-1',
+      id: 'ast_guide',
+      key: 'k-guide',
+      kind: 'document',
+      source: 'library',
+      filename: 'guide.pdf',
+      contentType: 'application/pdf',
+      size: 100,
+      status: 'ready',
+      uploadedBy: 'ou_1',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(await svc.signFile('org-1', 'ast_guide')).toBe('https://signed/k-guide?as=');
+    expect(storage.presignDownload).toHaveBeenLastCalledWith({ key: 'k-guide' });
+    expect(await svc.signFile('org-1', 'ast_guide', { saveAs: 'Workbook.pdf' })).toBe(
+      'https://signed/k-guide?as=Workbook.pdf',
+    );
+    expect(storage.presignDownload).toHaveBeenLastCalledWith({
       key: 'k-guide',
       downloadFilename: 'Workbook.pdf',
       expiresInSeconds: 600,
     });
+    expect(await svc.signFile('org-2', 'ast_guide')).toBeNull();
+    expect(await svc.signFile('org-1', 'ast_missing')).toBeNull();
+  });
+
+  it('serves library files to staff only, and an upload only to its uploader', async () => {
+    const { svc, storage } = service();
+    vi.mocked(storage.presignDownload).mockResolvedValue('https://signed');
+    vi.mocked(storage.stat).mockResolvedValue({ key: 'k', size: 50, contentType: 'image/png' });
+    const library = await svc.requestUpload('org-1', {
+      filename: 'a.png',
+      contentType: 'image/png',
+      source: 'library',
+      uploadedBy: 'ou_1',
+    });
+    await svc.confirm('org-1', library.asset.id);
+    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
+      filename: 'me.png',
+      contentType: 'image/png',
+    });
+    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+
+    expect(await svc.libraryFile('org-1', library.asset.id, { download: false })).toBe(
+      'https://signed',
+    );
+    expect(await svc.libraryFile('org-1', member.asset.id, { download: false })).toBeNull();
+    expect(await svc.ownUploadFile('org-1', member.asset.id, 'ou_1')).toBe('https://signed');
+    expect(await svc.ownUploadFile('org-1', member.asset.id, 'ou_2')).toBeNull();
   });
 });

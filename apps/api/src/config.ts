@@ -72,7 +72,7 @@ function loadContainerConfig(): ContainerConfig {
     // Mirrors ServerConfig.deliveryExpirySeconds below — loadServerConfig
     // overrides this with the same value; kept here only so this object
     // satisfies Config on its own.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
     authBaseURL: apiOrigin,
@@ -108,9 +108,9 @@ export function loadServerConfig(): ServerConfig {
     // Fastify's per-request access log, one line per request with its id,
     // status and duration. On unless REQUEST_LOGGING=false.
     requestLogging: process.env.REQUEST_LOGGING !== "false",
-    // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
-    // default must never silently extend entitled/paywalled link lifetimes.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
+    // Download files only: their link is used once to start the download.
+    // Every other file streams or loads under STORAGE_DOWNLOAD_EXPIRY.
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     container,
   };

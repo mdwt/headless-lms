@@ -114,6 +114,7 @@ import type {
   DismissCommentReportsResponses,
   DismissMemberCommentReportsErrors,
   DismissMemberCommentReportsResponses,
+  DownloadLibraryFileErrors,
   EditChatMessageErrors,
   EditChatMessageResponses,
   EditCommentErrors,
@@ -126,6 +127,7 @@ import type {
   FlagPostResponses,
   FollowPostErrors,
   FollowPostResponses,
+  GetActivityFileErrors,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
@@ -140,6 +142,7 @@ import type {
   GetCommunityResponses,
   GetCommunitySpaceQueueErrors,
   GetCommunitySpaceQueueResponses,
+  GetCommunityThumbnailErrors,
   GetConnectionErrors,
   GetConnectionResponses,
   GetCourseAnalyticsErrors,
@@ -148,12 +151,16 @@ import type {
   GetCourseEnrollmentSeriesResponses,
   GetCourseErrors,
   GetCourseResponses,
+  GetCourseThumbnailErrors,
   GetDownloadErrors,
+  GetDownloadFileErrors,
   GetDownloadResponses,
+  GetDownloadThumbnailErrors,
   GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
   GetInviteErrors,
   GetInviteResponses,
+  GetLibraryFileErrors,
   GetMemberCommunityDirectoryErrors,
   GetMemberCommunityDirectoryResponses,
   GetMemberCommunityHomeErrors,
@@ -174,10 +181,14 @@ import type {
   GetMemberProfileResponses,
   GetMemberSpaceErrors,
   GetMemberSpaceResponses,
+  GetMemberUploadFileErrors,
   GetMemberViewerErrors,
   GetMemberViewerResponses,
+  GetMessageAttachmentErrors,
   GetOverviewErrors,
   GetOverviewResponses,
+  GetPersonImageErrors,
+  GetPostCoverErrors,
   GetPostErrors,
   GetPostResponses,
   GetSpaceErrors,
@@ -6568,6 +6579,293 @@ export class Assets {
         ...params,
       },
     );
+  }
+
+  /**
+   * Redirect to a library file to show it
+   *
+   * Staff only. Ready library files of the organization; member uploads and pending files answer 404.
+   */
+  public static getLibraryFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetLibraryFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<unknown, GetLibraryFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/assets/{id}/file",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a library file saved under its filename
+   *
+   * Staff only. Ready library files of the organization; member uploads and pending files answer 404.
+   */
+  public static downloadLibraryFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, DownloadLibraryFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      DownloadLibraryFileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets/{id}/download",
+      ...options,
+      ...params,
+    });
+  }
+}
+
+export class Files {
+  /**
+   * Redirect to a course's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published course; staff may fetch any. 404 when the course has no thumbnail.
+   */
+  public static getCourseThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetCourseThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
+    return (options?.client ?? client).get<unknown, GetCourseThumbnailErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/member/courses/{courseId}/thumbnail",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * Redirect to a download's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published download; staff may fetch any. 404 when the download has no thumbnail.
+   */
+  public static getDownloadThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      downloadId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetDownloadThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      GetDownloadThumbnailErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/downloads/{downloadId}/thumbnail",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a community's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published community; staff may fetch any. 404 when the community has no thumbnail.
+   */
+  public static getCommunityThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetCommunityThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      unknown,
+      GetCommunityThumbnailErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/thumbnail",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a file used in a lesson
+   *
+   * Served when the student can open the course, the course and the lesson are published, and the lesson lists the file. Staff may fetch any file a lesson lists. Use the URL as an img, video or audio src.
+   */
+  public static getActivityFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      activityId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetActivityFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "activityId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetActivityFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/activities/{activityId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a file in a download, saved under its display name
+   *
+   * Served when the student can open the download, it is published, and it lists the file. Staff may fetch any file a download lists. The storage link lives DELIVERY_URL_EXPIRY seconds.
+   */
+  public static getDownloadFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      downloadId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetDownloadFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "downloadId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetDownloadFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/downloads/{downloadId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a post's cover image
+   *
+   * Served to whoever can read the post. 404 when the post has no cover.
+   */
+  public static getPostCover<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetPostCoverErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).get<unknown, GetPostCoverErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/cover",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an image attached to a chat message
+   *
+   * Served to the chat's participants while the message stands (staff also after it is deleted), and to moderators while the message is flagged.
+   */
+  public static getMessageAttachment<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      messageId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetMessageAttachmentErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "path", key: "messageId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      unknown,
+      GetMessageAttachmentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/messages/{messageId}/attachments/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an org user's profile photo
+   *
+   * Served to org users of the same organization when the photo belongs to it. 404 when the person has no photo here.
+   */
+  public static getPersonImage<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetPersonImageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).get<unknown, GetPersonImageErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/people/{orgUserId}/image",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an image you uploaded
+   *
+   * Served only to the person who uploaded it, once it is finalized.
+   */
+  public static getMemberUploadFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetMemberUploadFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      GetMemberUploadFileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}/file",
+      ...options,
+      ...params,
+    });
   }
 }
 

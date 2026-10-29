@@ -1,6 +1,5 @@
 import type {
   Asset,
-  AssetUrls,
   AssetView,
   AssetsQuery,
   Page,
@@ -17,24 +16,18 @@ export interface LibraryAssetReader {
   libraryAssetsAmong(orgId: string, assetIds: string[]): Promise<string[]>;
 }
 
-export interface AssetDownload {
-  assetId: string;
-  saveAs: string | null;
-}
-
-export interface SignedDownload {
+export interface ReadyFile {
   filename: string;
   contentType: string;
   size: number;
-  url: string;
 }
 
-export interface AssetUrlSigner {
-  urls(orgId: string, assetIds: readonly string[]): Promise<AssetUrls>;
-  downloads(
-    orgId: string,
-    files: readonly AssetDownload[],
-  ): Promise<Record<string, SignedDownload>>;
+export interface AssetFiles {
+  /** Ready files of the org among these ids, with what a download shows of them. */
+  readyFiles(orgId: string, assetIds: readonly string[]): Promise<Record<string, ReadyFile>>;
+  /** A signed storage URL for a ready file of the org, after the caller has checked
+   *  access. `saveAs` makes it a short-lived download under that name. */
+  signFile(orgId: string, assetId: string, opts?: { saveAs?: string }): Promise<string | null>;
 }
 
 export interface MemberUploadInput {
@@ -42,7 +35,7 @@ export interface MemberUploadInput {
   contentType: string;
 }
 
-export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetUrlSigner {
+export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetFiles {
   requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
   requestMemberUpload(
     orgId: string,
@@ -53,6 +46,8 @@ export interface AssetsService extends MemberImageReader, LibraryAssetReader, As
   confirmOwn(orgId: string, id: string, orgUserId: string): Promise<AssetView | null>;
   list(orgId: string, query: AssetsQuery): Promise<Page<AssetView>>;
   get(orgId: string, id: string): Promise<AssetView | null>;
+  libraryFile(orgId: string, assetId: string, opts: { download: boolean }): Promise<string | null>;
+  ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null>;
   remove(orgId: string, id: string): Promise<boolean>;
   removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean>;
   hasUnattached(orgId: string, now: Date): Promise<boolean>;

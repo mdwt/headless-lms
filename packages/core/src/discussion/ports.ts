@@ -323,6 +323,8 @@ export interface PostService {
     communityId: string,
     query: PageQuery,
   ): Promise<Page<PostView>>;
+  /** Signed URL of the post's cover, for whoever can read the post. */
+  coverFile(orgId: string, actor: Actor, postId: string): Promise<string | null>;
   getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
   visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
@@ -485,6 +487,15 @@ export interface ChatService {
     chatId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<MessageView>>;
+  /** Signed URL of a message attachment: for the chat's participants while the
+   *  message stands (staff also after deletion), and for moderators while it is flagged. */
+  attachmentFile(
+    orgId: string,
+    actor: Actor,
+    chatId: string,
+    messageId: string,
+    assetId: string,
+  ): Promise<string | null>;
   messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue>;
 }
 

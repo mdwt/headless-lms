@@ -1,4 +1,4 @@
-import type { AssetUrls } from '../assets/index.js';
+import type { FileUrls } from '../assets/index.js';
 import type { CommentAuthor } from './model.js';
 import type { AuthorRecord } from './ports.js';
 
@@ -6,14 +6,11 @@ function imageOf(orgId: string, record: AuthorRecord): string | null {
   return record.imageAssetOrgId === orgId ? record.imageAssetId : null;
 }
 
-export function authorImageIds(orgId: string, records: Iterable<AuthorRecord>): string[] {
-  return [...records].flatMap((record) => {
-    const imageAssetId = imageOf(orgId, record);
-    return imageAssetId ? [imageAssetId] : [];
-  });
-}
-
-export function authorView(orgId: string, record: AuthorRecord, urls: AssetUrls): CommentAuthor {
+export function authorView(
+  orgId: string,
+  record: AuthorRecord,
+  fileUrls: FileUrls | null,
+): CommentAuthor {
   const fullName = [record.firstName, record.lastName].filter(Boolean).join(' ');
   const imageAssetId = imageOf(orgId, record);
   return {
@@ -24,7 +21,7 @@ export function authorView(orgId: string, record: AuthorRecord, urls: AssetUrls)
     headline: record.headline,
     image: record.image,
     imageAssetId,
-    imageUrl: imageAssetId ? (urls[imageAssetId] ?? null) : null,
+    imageUrl: imageAssetId && fileUrls ? fileUrls.personImage(record.id) : null,
     role: record.role,
   };
 }

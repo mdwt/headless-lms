@@ -1,15 +1,16 @@
 export { AssetsServiceImpl, kindOf } from './service.js';
 export { assetEvents } from './events.js';
 export type {
-  AssetDownload,
+  AssetFiles,
   AssetsService,
   AssetsRepository,
-  AssetUrlSigner,
   LibraryAssetReader,
   MemberImageReader,
   MemberUploadInput,
-  SignedDownload,
+  ReadyFile,
 } from './ports.js';
+export { createFileUrls } from './file-urls.js';
+export type { FileUrls, ThumbnailOwner } from './file-urls.js';
 export type { AssetCreated, AssetDeleted, AssetEvent, AssetReady } from './events.js';
 export type {
   Asset,

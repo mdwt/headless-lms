@@ -6,12 +6,12 @@ import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, SpaceDetail } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
+import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
 import type { Post, PostFlag, PostFlagResolution, PostStatus, PostView } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
-import { authorImageIds, authorView } from './authors.js';
+import { authorView } from './authors.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -36,8 +36,8 @@ export type PostServiceParams = {
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
   comments: PostCommentReader;
-  images: MemberImageReader;
-  assetUrls: AssetUrlSigner;
+  images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  fileUrls: FileUrls;
   uow: PostUnitOfWork;
   logger?: Logger;
 };
@@ -52,8 +52,8 @@ export class PostServiceImpl implements PostService {
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
   private readonly comments: PostCommentReader;
-  private readonly images: MemberImageReader;
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  private readonly fileUrls: FileUrls;
   private readonly uow: PostUnitOfWork;
   private readonly logger: Logger;
 
@@ -65,7 +65,7 @@ export class PostServiceImpl implements PostService {
     this.profiles = params.profiles;
     this.comments = params.comments;
     this.images = params.images;
-    this.assetUrls = params.assetUrls;
+    this.fileUrls = params.fileUrls;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -137,7 +137,7 @@ export class PostServiceImpl implements PostService {
       return created;
     });
     this.logger.info('post created', { orgId, postId: saved.id, status: saved.status });
-    return this.viewOf(orgId, actor,saved);
+    return this.viewOf(orgId, actor, saved);
   }
 
   async update(
@@ -158,7 +158,7 @@ export class PostServiceImpl implements PostService {
       await this.requireOwnedImage(orgId, actor.id, patch.coverAssetId);
     }
     if (!this.patchChanges(post, patch)) {
-      return this.viewOf(orgId, actor,post);
+      return this.viewOf(orgId, actor, post);
     }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, patch);
@@ -172,7 +172,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post updated', { orgId, postId, fields: Object.keys(patch) });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   async submit(orgId: string, postId: string, actor: Actor): Promise<PostView> {
@@ -184,7 +184,7 @@ export class PostServiceImpl implements PostService {
     this.assertTopic(space, post.topicId);
     const saved = await this.commitSubmission(orgId, post, space, actor.role, actor, new Date());
     this.logger.info('post submitted', { orgId, postId, status: saved.status });
-    return this.viewOf(orgId, actor,saved);
+    return this.viewOf(orgId, actor, saved);
   }
 
   async schedule(
@@ -218,7 +218,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post scheduled', { orgId, postId, scheduledAt: scheduledAt.toISOString() });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   async approve(
@@ -252,7 +252,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post approved', { orgId, postId });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   async remove(
@@ -293,7 +293,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post removed', { orgId, postId, removedBy: actor.id });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   async restore(
@@ -327,7 +327,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post restored', { orgId, postId, status: updated.status });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   pin(orgId: string, postId: string, actor: Actor): Promise<PostView> {
@@ -374,12 +374,7 @@ export class PostServiceImpl implements PostService {
     );
   }
 
-  setReactions(
-    orgId: string,
-    postId: string,
-    actor: Actor,
-    enabled: boolean,
-  ): Promise<PostView> {
+  setReactions(orgId: string, postId: string, actor: Actor, enabled: boolean): Promise<PostView> {
     return this.moderate(
       orgId,
       postId,
@@ -557,10 +552,22 @@ export class PostServiceImpl implements PostService {
     return { ...page, rows: await this.viewsOf(orgId, actor, page.rows) };
   }
 
+  async coverFile(orgId: string, actor: Actor, postId: string): Promise<string | null> {
+    const post = await this.repo.find(orgId, postId);
+    if (!post?.coverAssetId || !this.canSee(actor, post)) {
+      return null;
+    }
+    const space = await this.content.getSpace(orgId, post.spaceId);
+    if (!space || !(await this.access.canOpen(orgId, actor, space))) {
+      return null;
+    }
+    return this.images.signFile(orgId, post.coverAssetId);
+  }
+
   async getPost(orgId: string, actor: Actor, postId: string): Promise<PostView> {
     const { post } = await this.loadVisible(orgId, actor, postId);
     this.logger.debug('post read', { orgId, postId });
-    return this.viewOf(orgId, actor,post);
+    return this.viewOf(orgId, actor, post);
   }
 
   async moderationQueue(
@@ -592,7 +599,11 @@ export class PostServiceImpl implements PostService {
     };
   }
 
-  visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }> {
+  visible(
+    orgId: string,
+    actor: Actor,
+    postId: string,
+  ): Promise<{ post: Post; space: SpaceDetail }> {
     return this.loadVisible(orgId, actor, postId);
   }
 
@@ -721,10 +732,6 @@ export class PostServiceImpl implements PostService {
       this.repo.followedAmong(orgId, postIds, actor.id),
       this.repo.bookmarkedAmong(orgId, postIds, actor.id),
     ]);
-    const urls = await this.assetUrls.urls(orgId, [
-      ...posts.flatMap((post) => (post.coverAssetId ? [post.coverAssetId] : [])),
-      ...authorImageIds(orgId, Object.values(records)),
-    ]);
     const following = new Set(followed);
     const saved = new Set(bookmarked);
     return posts.map((post) => {
@@ -735,8 +742,8 @@ export class PostServiceImpl implements PostService {
       const counts = reactions[post.id];
       return {
         ...post,
-        coverUrl: post.coverAssetId ? (urls[post.coverAssetId] ?? null) : null,
-        author: authorView(orgId, record, urls),
+        coverUrl: post.coverAssetId ? this.fileUrls.postCover(post.id) : null,
+        author: authorView(orgId, record, this.fileUrls),
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
         commentCount: commentCounts[post.id] ?? 0,
@@ -787,7 +794,7 @@ export class PostServiceImpl implements PostService {
       throw new ConflictError('This post was removed');
     }
     if (unchanged(post)) {
-      return this.viewOf(orgId, actor,post);
+      return this.viewOf(orgId, actor, post);
     }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, patch);
@@ -801,7 +808,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info(log, { orgId, postId });
-    return this.viewOf(orgId, actor,updated);
+    return this.viewOf(orgId, actor, updated);
   }
 
   private async mustUpdate(

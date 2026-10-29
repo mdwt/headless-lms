@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IdentityServiceImpl } from './service.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
-import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
+import type { MemberImageReader } from '../assets/index.js';
+import { createFileUrls } from '../assets/index.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -48,12 +49,7 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
-const assetUrls: AssetUrlSigner = {
-  urls: vi.fn(async (orgId: string, ids: readonly string[]) =>
-    Object.fromEntries(ids.map((id) => [id, `https://signed/${orgId}/${id}`])),
-  ),
-  downloads: async () => ({}),
-};
+const fileUrls = createFileUrls('https://api.test');
 
 function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async () => true }) {
   const appended: NewDomainEvent[] = [];
@@ -69,7 +65,7 @@ function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async
       }),
   };
   const mailer = { send: vi.fn() } as unknown as Mailer;
-  const service = new IdentityServiceImpl({ repo, uow, mailer, images, assetUrls });
+  const service = new IdentityServiceImpl({ repo, uow, mailer, images, fileUrls });
   return { service, repo, appended, mailer, images };
 }
 
@@ -210,7 +206,7 @@ describe('updateProfile', () => {
     );
 
     expect(profile.imageAssetId).toBe('ast_1');
-    expect(profile.imageUrl).toBe('https://signed/org-1/ast_1');
+    expect(profile.imageUrl).toBe(fileUrls.memberUpload('ast_1'));
     expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
       ...photo,
       imageAssetOrgId: 'org-1',
@@ -264,7 +260,7 @@ describe('profileOf', () => {
 
     const profile = await build(repo).service.profileOf('org-1', 'usr_invited');
 
-    expect(profile).toEqual({ ...stored, imageUrl: 'https://signed/org-1/ast_1' });
+    expect(profile).toEqual({ ...stored, imageUrl: fileUrls.memberUpload('ast_1') });
   });
 
   it('serves no photo URL in another org', async () => {
@@ -297,6 +293,6 @@ describe('profileOf', () => {
       imageAssetId: 'ast_1',
       imageAssetOrgId: 'org-2',
     });
-    expect(profile.imageUrl).toBe('https://signed/org-2/ast_1');
+    expect(profile.imageUrl).toBe(fileUrls.memberUpload('ast_1'));
   });
 });

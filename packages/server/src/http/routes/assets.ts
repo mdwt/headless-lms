@@ -1,6 +1,6 @@
 // HTTP routes for the assets media library. All require a session with an
 // active organization; assets are stored under the org's private prefix and
-// served only through the short-lived signed URLs responses carry.
+// served through stable staff URLs that redirect to a signed storage URL.
 //
 // `req.orgId` is already the domain organization id these tables key on — the
 // session guard translates it from better-auth's id once per request.
@@ -160,4 +160,48 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       return reply.code(204).send();
     },
   });
+
+  for (const { suffix, download, operationId, summary } of [
+    {
+      suffix: 'file',
+      download: false,
+      operationId: 'getLibraryFile',
+      summary: 'Redirect to a library file to show it',
+    },
+    {
+      suffix: 'download',
+      download: true,
+      operationId: 'downloadLibraryFile',
+      summary: 'Redirect to a library file saved under its filename',
+    },
+  ]) {
+    r.route({
+      method: 'GET',
+      url: `/api/assets/:id/${suffix}`,
+      preHandler: staff,
+      schema: {
+        operationId,
+        tags,
+        summary,
+        description:
+          'Staff only. Ready library files of the organization; member uploads and pending files answer 404.',
+        params: AssetIdParam,
+        response: { 302: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      },
+      handler: async (req, reply) => {
+        const orgId = await resolveOrgId(req, reply);
+        if (!orgId) {
+          return;
+        }
+        const url = await assets.libraryFile(orgId, req.params.id, { download });
+        if (!url) {
+          throw new NotFoundError('Asset', req.params.id);
+        }
+        return reply
+          .header('cache-control', 'no-store')
+          .header('referrer-policy', 'no-referrer')
+          .redirect(url, 302);
+      },
+    });
+  }
 }

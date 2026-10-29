@@ -7,7 +7,7 @@ import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
-import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
+import type { FileUrls, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
 const UNNAMED = 'A member';
@@ -18,7 +18,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
   private readonly images: MemberImageReader;
-  private readonly assetUrls: AssetUrlSigner;
+  private readonly fileUrls: FileUrls;
 
   constructor(input: {
     repo: IdentityRepository;
@@ -26,14 +26,14 @@ export class IdentityServiceImpl implements IdentityService {
     mailer: Mailer;
     uow: IdentityUnitOfWork;
     images: MemberImageReader;
-    assetUrls: AssetUrlSigner;
+    fileUrls: FileUrls;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
     this.logger = input.logger ?? noopLogger;
     this.uow = input.uow;
     this.images = input.images;
-    this.assetUrls = input.assetUrls;
+    this.fileUrls = input.fileUrls;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -129,10 +129,9 @@ export class IdentityServiceImpl implements IdentityService {
     };
   }
 
-  private async view(orgId: string, profile: UserProfile): Promise<UserProfileView> {
+  private view(orgId: string, profile: UserProfile): UserProfileView {
     const imageAssetId = profile.imageAssetOrgId === orgId ? profile.imageAssetId : null;
-    const urls = imageAssetId ? await this.assetUrls.urls(orgId, [imageAssetId]) : {};
-    return { ...profile, imageUrl: imageAssetId ? (urls[imageAssetId] ?? null) : null };
+    return { ...profile, imageUrl: imageAssetId ? this.fileUrls.memberUpload(imageAssetId) : null };
   }
 
   async displayName(userId: string | null): Promise<string> {

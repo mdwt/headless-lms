@@ -5,7 +5,8 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
 import { isStaffRole } from '../organizations/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
-import type { AssetUrlSigner, MemberImageReader } from '../assets/index.js';
+import type { AssetFiles, MemberImageReader } from '../assets/index.js';
+import { createFileUrls } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
 import type {
   AuthorRoleReader,
@@ -61,24 +62,12 @@ function dataOf(event: NewDomainEvent): Record<string, unknown> {
   return {};
 }
 
-function signer(unsigned: string[] = []): AssetUrlSigner {
-  return {
-    async urls(_orgId, assetIds) {
-      return Object.fromEntries(
-        assetIds.filter((id) => !unsigned.includes(id)).map((id) => [id, `signed:${id}`]),
-      );
-    },
-    async downloads() {
-      return {};
-    },
-  };
-}
+const fileUrls = createFileUrls('https://api.test');
 
 function harness(options?: {
   settings?: Partial<DmSettings> | null;
   members?: string[];
-  images?: MemberImageReader;
-  unsigned?: string[];
+  images?: MemberImageReader & Partial<Pick<AssetFiles, 'signFile'>>;
 }) {
   const chats: Chat[] = [];
   const users: ChatUser[] = [];
@@ -272,8 +261,10 @@ function harness(options?: {
       }
     },
     async reactionsOf(_orgId, messageIds, viewerId) {
-      const byMessage: Record<string, { reactions: Record<string, number>; viewerReaction?: string }> =
-        {};
+      const byMessage: Record<
+        string,
+        { reactions: Record<string, number>; viewerReaction?: string }
+      > = {};
       for (const row of reactions) {
         if (!messageIds.includes(row.messageId)) {
           continue;
@@ -459,8 +450,11 @@ function harness(options?: {
         );
       },
     },
-    images: options?.images ?? { ownsImage: async () => true },
-    assetUrls: signer(options?.unsigned),
+    images: {
+      signFile: async () => 'https://signed',
+      ...(options?.images ?? { ownsImage: async () => true }),
+    },
+    fileUrls,
     uow,
   });
 
@@ -818,9 +812,7 @@ describe('chats', () => {
     expect(flags[0]?.resolution).toBeNull();
     await svc.resolveMessageFlags(ORG, staff, messageId, 'dismissed', COMMUNITY);
     expect(flags[0]?.resolution).toBe('dismissed');
-    await expect(svc.lock(ORG, staff, chat.id, 'cmy_other')).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(svc.lock(ORG, staff, chat.id, 'cmy_other')).rejects.toBeInstanceOf(NotFoundError);
     expect((await svc.lock(ORG, staff, chat.id, COMMUNITY)).lockedAt).toBeInstanceOf(Date);
     await expect(svc.unlock(ORG, staff, chat.id, 'cmy_other')).rejects.toBeInstanceOf(
       NotFoundError,
@@ -865,8 +857,8 @@ describe('chats', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('serves each message with its attachments in order, signed, to a participant', async () => {
-    const { svc } = harness({ unsigned: ['asset_gone'] });
+  it('serves each message with its attachments in order, by stable URL, to a participant', async () => {
+    const { svc } = harness();
     const chat = await svc.startGroup(ORG, member, {
       communityId: COMMUNITY,
       orgUserIds: [other.id, moderator.id],
@@ -877,17 +869,15 @@ describe('chats', () => {
       assetIds: ['asset_2', 'asset_gone', 'asset_1'],
     });
     expect(sent.attachments).toEqual([
-      { assetId: 'asset_2', url: 'signed:asset_2' },
-      { assetId: 'asset_1', url: 'signed:asset_1' },
+      { assetId: 'asset_2', url: fileUrls.messageAttachment(chat.id, sent.id, 'asset_2') },
+      { assetId: 'asset_gone', url: fileUrls.messageAttachment(chat.id, sent.id, 'asset_gone') },
+      { assetId: 'asset_1', url: fileUrls.messageAttachment(chat.id, sent.id, 'asset_1') },
     ]);
     const plain = await svc.send(ORG, other, chat.id, messageInput('Nice'));
     expect(plain.attachments).toEqual([]);
     const page = await svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 });
     const byId = new Map(page.rows.map((row) => [row.id, row.attachments]));
-    expect(byId.get(sent.id)).toEqual([
-      { assetId: 'asset_2', url: 'signed:asset_2' },
-      { assetId: 'asset_1', url: 'signed:asset_1' },
-    ]);
+    expect(byId.get(sent.id)).toEqual(sent.attachments);
     expect(byId.get(plain.id)).toEqual([]);
     await expect(svc.messages(ORG, staff, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
       'You are not in this chat',
@@ -912,11 +902,11 @@ describe('chats', () => {
     const sender = {
       id: other.id,
       imageAssetId: 'ast_other_photo',
-      imageUrl: 'signed:ast_other_photo',
+      imageUrl: fileUrls.personImage('ou_other'),
     };
     expect(sent).toMatchObject({
       sender,
-      attachments: [{ assetId: 'asset_1', url: 'signed:asset_1' }],
+      attachments: [{ assetId: 'asset_1', url: expect.stringMatching(/\/attachments\/asset_1$/) }],
     });
     const same = await svc.editMessage(ORG, other, sent.id, 'Look');
     expect(same).toMatchObject({ sender, attachments: [{ assetId: 'asset_1' }] });
@@ -936,7 +926,7 @@ describe('chats', () => {
     const removedByStaff = await svc.deleteMessage(ORG, staff, kept.id);
     expect(removedByStaff).toMatchObject({
       body: 'Again',
-      attachments: [{ assetId: 'asset_2', url: 'signed:asset_2' }],
+      attachments: [{ assetId: 'asset_2', url: expect.stringMatching(/\/attachments\/asset_2$/) }],
     });
   });
 
@@ -1133,12 +1123,12 @@ describe('chats', () => {
     expect(byId.get(sent.id)).toMatchObject({ body: '', attachments: [] });
     expect(byId.get(kept.id)).toMatchObject({
       body: 'Keep',
-      attachments: [{ assetId: 'asset_2', url: 'signed:asset_2' }],
+      attachments: [{ assetId: 'asset_2', url: expect.stringMatching(/\/attachments\/asset_2$/) }],
     });
     await svc.flagMessage(ORG, third, kept.id, 'rude');
     const queue = await svc.messageQueue(ORG, staff, COMMUNITY);
     expect(queue.entries.map((entry) => entry.message.attachments)).toEqual([
-      [{ assetId: 'asset_2', url: 'signed:asset_2' }],
+      [{ assetId: 'asset_2', url: expect.stringMatching(/\/attachments\/asset_2$/) }],
     ]);
     dropMember(other.id);
     await expect(svc.messages(ORG, other, chat.id, { page: 1, pageSize: 20 })).rejects.toThrow(
@@ -1307,7 +1297,9 @@ describe('chats', () => {
         id: sent.id,
         body: 'Rude',
         sender: { id: member.id },
-        attachments: [{ assetId: 'asset_1', url: 'signed:asset_1' }],
+        attachments: [
+          { assetId: 'asset_1', url: expect.stringMatching(/\/attachments\/asset_1$/) },
+        ],
       },
       chat: { id: chat.id, kind: 'group' },
       participantIds: [member.id, other.id, third.id].sort(),
@@ -1383,5 +1375,33 @@ describe('chats', () => {
     expect(afterDelete?.lastMessage?.deletedAt).toBeInstanceOf(Date);
     const staffSees = byId(await svc.listChats(ORG, staff, COMMUNITY)).get(group.id);
     expect(staffSees?.lastMessage).toMatchObject({ id: latest.id, body: 'Latest' });
+  });
+
+  it('serves an attachment to participants, to staff after deletion, and to moderators while flagged', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, staff.id],
+    });
+    const sent = await svc.send(ORG, member, chat.id, {
+      body: 'Look',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
+    const file = (actor: Actor, assetId = 'asset_1') =>
+      svc.attachmentFile(ORG, actor, chat.id, sent.id, assetId);
+
+    expect(await file(other)).toBe('https://signed');
+    expect(await file(other, 'asset_other')).toBeNull();
+    expect(await file(third)).toBeNull();
+    expect(await file(moderator)).toBeNull();
+    expect(await svc.attachmentFile(ORG, other, 'chat_missing', sent.id, 'asset_1')).toBeNull();
+
+    await svc.flagMessage(ORG, other, sent.id, 'spam');
+    expect(await file(moderator)).toBe('https://signed');
+
+    await svc.deleteMessage(ORG, member, sent.id);
+    expect(await file(other)).toBeNull();
+    expect(await file(staff)).toBe('https://signed');
   });
 });

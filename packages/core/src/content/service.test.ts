@@ -7,7 +7,8 @@ import { contentEvents } from './events.js';
 import type { ContentRepository, ContentUnitOfWork } from './ports.js';
 import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
-import type { AssetUrlSigner, LibraryAssetReader } from '../assets/index.js';
+import type { AssetFiles, LibraryAssetReader } from '../assets/index.js';
+import { createFileUrls } from '../assets/index.js';
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
 function makeCourse(over: Partial<Course> = {}): Course {
@@ -111,30 +112,20 @@ const libraryAssets: LibraryAssetReader = {
 
 const UNSIGNED = 'ast_unsigned';
 
-const assetUrls: AssetUrlSigner = {
-  urls: async (_orgId, ids) =>
+const files: Pick<AssetFiles, 'readyFiles'> = {
+  readyFiles: async (_orgId, ids) =>
     Object.fromEntries(
-      ids.filter((id) => id !== UNSIGNED).map((id) => [id, `https://signed/${id}`]),
-    ),
-  downloads: async (_orgId, files) =>
-    Object.fromEntries(
-      files
-        .filter((file) => file.assetId !== UNSIGNED)
-        .map((file) => [
-          file.assetId,
-          {
-            filename: `${file.assetId}.pdf`,
-            contentType: 'application/pdf',
-            size: 100,
-            url: `https://signed/${file.assetId}?as=${file.saveAs ?? `${file.assetId}.pdf`}`,
-          },
-        ]),
+      ids
+        .filter((id) => id !== UNSIGNED)
+        .map((id) => [id, { filename: `${id}.pdf`, contentType: 'application/pdf', size: 100 }]),
     ),
 };
 
+const fileUrls = createFileUrls('https://api.test');
+
 function build(repo = makeRepo(), assets: LibraryAssetReader = libraryAssets) {
   const { uow, append, appended } = fakeUow(repo);
-  const svc = new ContentService({ repo, uow, libraryAssets: assets, assetUrls });
+  const svc = new ContentService({ repo, uow, libraryAssets: assets, files, fileUrls });
   return { svc, repo, append, appended };
 }
 
@@ -667,7 +658,8 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
-      assetUrls,
+      files,
+      fileUrls,
       logger,
     });
 
@@ -697,7 +689,8 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
-      assetUrls,
+      files,
+      fileUrls,
       logger,
     });
 
@@ -727,7 +720,8 @@ describe('logging', () => {
       repo,
       uow,
       libraryAssets,
-      assetUrls,
+      files,
+      fileUrls,
       logger,
     });
 
@@ -832,7 +826,7 @@ function asFile(link: DownloadAsset) {
     filename: `${link.assetId}.pdf`,
     contentType: 'application/pdf',
     size: 100,
-    url: `https://signed/${link.assetId}?as=${link.displayName ?? `${link.assetId}.pdf`}`,
+    url: fileUrls.downloadFile(link.downloadId, link.assetId),
   };
 }
 
@@ -955,7 +949,7 @@ describe('download assets', () => {
     expect(repo.renameDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1', 'Workbook');
     expect(result).toEqual(list.map(asFile));
     expect(result[0]?.filename).toBe('a1.pdf');
-    expect(result[0]?.url).toBe('https://signed/a1?as=Workbook');
+    expect(result[0]?.url).toBe(fileUrls.downloadFile('d1', 'a1'));
     expect(appended).toEqual([
       {
         type: 'content.download.asset.renamed',
@@ -1153,7 +1147,7 @@ describe('spaces', () => {
       calls.push('write');
       return space;
     });
-    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets, assetUrls });
+    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets, files, fileUrls });
     const input = {
       topics: [
         { id: 'top_b', name: 'Wins' },
@@ -1269,7 +1263,7 @@ describe('spaces', () => {
   });
 });
 
-describe('signed file URLs', () => {
+describe('file URLs', () => {
   it('carries the thumbnail URL on course, download and community reads and writes', async () => {
     const repo = makeRepo();
     const course = makeCourse({ thumbnailAssetId: 'ast_cover' });
@@ -1289,26 +1283,32 @@ describe('signed file URLs', () => {
     vi.mocked(repo.updateCommunity).mockResolvedValue(community);
     const { svc } = build(repo);
 
-    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBe('https://signed/ast_cover');
+    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBe(
+      fileUrls.thumbnail('course', course.id),
+    );
     expect(
       (await svc.listCourses('org1', { page: 1, pageSize: 20 })).rows.map((c) => c.thumbnailUrl),
-    ).toEqual(['https://signed/ast_cover', null]);
+    ).toEqual([fileUrls.thumbnail('course', course.id), null]);
     expect((await svc.updateCourse('org1', 'c1', { title: 'x' })).thumbnailUrl).toBe(
-      'https://signed/ast_cover',
+      fileUrls.thumbnail('course', course.id),
     );
-    expect((await svc.getDownload('o1', 'd1'))?.thumbnailUrl).toBe('https://signed/ast_dl');
+    expect((await svc.getDownload('o1', 'd1'))?.thumbnailUrl).toBe(
+      fileUrls.thumbnail('download', download.id),
+    );
     expect((await svc.updateDownload('o1', 'd1', { title: 'x' })).thumbnailUrl).toBe(
-      'https://signed/ast_dl',
+      fileUrls.thumbnail('download', download.id),
     );
-    expect((await svc.getCommunity('org1', 'cmy_1'))?.thumbnailUrl).toBe('https://signed/ast_cmy');
+    expect((await svc.getCommunity('org1', 'cmy_1'))?.thumbnailUrl).toBe(
+      fileUrls.thumbnail('community', community.id),
+    );
     expect((await svc.updateCommunity('org1', 'cmy_1', { title: 'x' }, owner)).thumbnailUrl).toBe(
-      'https://signed/ast_cmy',
+      fileUrls.thumbnail('community', community.id),
     );
   });
 
-  it('leaves the thumbnail URL empty when the signer cannot sign the file', async () => {
+  it('leaves the thumbnail URL empty when there is no thumbnail', async () => {
     const repo = makeRepo();
-    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ thumbnailAssetId: UNSIGNED }));
+    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ thumbnailAssetId: null }));
     const { svc } = build(repo);
 
     expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBeNull();
@@ -1364,13 +1364,25 @@ describe('signed file URLs', () => {
     const views = await svc.listCourseActivityViews('org1', 'c1');
 
     expect(views.map((view) => [view.id, view.assetUrls])).toEqual([
-      ['act1', { ast_video: 'https://signed/ast_video', ast_image: 'https://signed/ast_image' }],
-      ['act2', { ast_pdf: 'https://signed/ast_pdf' }],
+      [
+        'act1',
+        {
+          ast_video: fileUrls.activityAsset('act1', 'ast_video'),
+          ast_image: fileUrls.activityAsset('act1', 'ast_image'),
+        },
+      ],
+      [
+        'act2',
+        {
+          ast_pdf: fileUrls.activityAsset('act2', 'ast_pdf'),
+          [UNSIGNED]: fileUrls.activityAsset('act2', UNSIGNED),
+        },
+      ],
       ['act3', {}],
     ]);
   });
 
-  it('signs download files to save under their display name and drops a file it cannot sign', async () => {
+  it('gives download files their stable URL and drops a file that is not ready', async () => {
     const repo = makeRepo();
     vi.mocked(repo.listDownloadAssets).mockResolvedValue([
       makeDownloadAsset({ id: 'da1', assetId: 'a1', displayName: 'Workbook.pdf' }),
@@ -1384,8 +1396,8 @@ describe('signed file URLs', () => {
     expect(
       files.map((file) => [file.id, file.filename, file.contentType, file.size, file.url]),
     ).toEqual([
-      ['da1', 'a1.pdf', 'application/pdf', 100, 'https://signed/a1?as=Workbook.pdf'],
-      ['da2', 'a2.pdf', 'application/pdf', 100, 'https://signed/a2?as=a2.pdf'],
+      ['da1', 'a1.pdf', 'application/pdf', 100, fileUrls.downloadFile('d1', 'a1')],
+      ['da2', 'a2.pdf', 'application/pdf', 100, fileUrls.downloadFile('d1', 'a2')],
     ]);
   });
 });

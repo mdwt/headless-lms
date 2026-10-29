@@ -4,7 +4,6 @@ import { ConflictError, ForbiddenError } from '../shared/errors.js';
 import type {
   Asset,
   AssetKind,
-  AssetUrls,
   AssetView,
   AssetsQuery,
   Page,
@@ -12,13 +11,13 @@ import type {
   UploadTicket,
 } from './model.js';
 import type {
-  AssetDownload,
   AssetsRepository,
   AssetsService,
   AssetsUnitOfWork,
   MemberUploadInput,
-  SignedDownload,
+  ReadyFile,
 } from './ports.js';
+import type { FileUrls } from './file-urls.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
 
@@ -64,7 +63,8 @@ export type AssetsServiceParams = {
   repo: AssetsRepository;
   uow: AssetsUnitOfWork;
   memberImageMaxBytes: number;
-  urlExpirySeconds: number;
+  downloadLinkExpirySeconds: number;
+  fileUrls: FileUrls;
   logger?: Logger;
 };
 
@@ -73,7 +73,8 @@ export class AssetsServiceImpl implements AssetsService {
   private readonly repo: AssetsRepository;
   private readonly uow: AssetsUnitOfWork;
   private readonly memberImageMaxBytes: number;
-  private readonly urlExpirySeconds: number;
+  private readonly downloadLinkExpirySeconds: number;
+  private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
 
   constructor(params: AssetsServiceParams) {
@@ -82,16 +83,20 @@ export class AssetsServiceImpl implements AssetsService {
         `invalid memberImageMaxBytes "${params.memberImageMaxBytes}" (expected a positive integer)`,
       );
     }
-    if (!Number.isSafeInteger(params.urlExpirySeconds) || params.urlExpirySeconds <= 0) {
+    if (
+      !Number.isSafeInteger(params.downloadLinkExpirySeconds) ||
+      params.downloadLinkExpirySeconds <= 0
+    ) {
       throw new Error(
-        `invalid urlExpirySeconds "${params.urlExpirySeconds}" (expected a positive integer)`,
+        `invalid downloadLinkExpirySeconds "${params.downloadLinkExpirySeconds}" (expected a positive integer)`,
       );
     }
     this.storage = params.storage;
     this.repo = params.repo;
     this.uow = params.uow;
     this.memberImageMaxBytes = params.memberImageMaxBytes;
-    this.urlExpirySeconds = params.urlExpirySeconds;
+    this.downloadLinkExpirySeconds = params.downloadLinkExpirySeconds;
+    this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -170,7 +175,20 @@ export class AssetsServiceImpl implements AssetsService {
       return null;
     }
     const confirmed = await this.finalize(orgId, asset);
-    return confirmed ? this.signed(confirmed, confirmed.status === 'ready') : null;
+    if (!confirmed) {
+      return null;
+    }
+    return confirmed.status === 'ready'
+      ? { ...confirmed, url: this.fileUrls.memberUpload(confirmed.id), downloadUrl: null }
+      : { ...confirmed, url: null, downloadUrl: null };
+  }
+
+  async ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null> {
+    if (!(await this.ownsImage(orgId, assetId, orgUserId))) {
+      this.logger.warn('upload file not served — not the uploader', { orgId, assetId, orgUserId });
+      return null;
+    }
+    return this.signFile(orgId, assetId);
   }
 
   async ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
@@ -205,49 +223,46 @@ export class AssetsServiceImpl implements AssetsService {
     return asset ? this.view(asset) : null;
   }
 
-  async urls(orgId: string, assetIds: readonly string[]): Promise<AssetUrls> {
+  async readyFiles(orgId: string, assetIds: readonly string[]): Promise<Record<string, ReadyFile>> {
     const ready = await this.readyAmong(orgId, assetIds);
-    const signed = await Promise.all(
-      ready.map(async (asset) => [asset.id, await this.displayUrl(asset)] as const),
+    return Object.fromEntries(
+      ready.map((asset) => [
+        asset.id,
+        { filename: asset.filename, contentType: asset.contentType, size: asset.size },
+      ]),
     );
-    return Object.fromEntries(signed);
   }
 
-  async downloads(
+  async signFile(
     orgId: string,
-    files: readonly AssetDownload[],
-  ): Promise<Record<string, SignedDownload>> {
-    const ready = new Map(
-      (
-        await this.readyAmong(
-          orgId,
-          files.map((file) => file.assetId),
-        )
-      ).map((asset) => [asset.id, asset]),
-    );
-    const signed = await Promise.all(
-      files.flatMap((file) => {
-        const asset = ready.get(file.assetId);
-        if (!asset) {
-          return [];
-        }
-        return [
-          this.saveUrl(asset, file.saveAs ?? asset.filename).then(
-            (url) =>
-              [
-                file.assetId,
-                {
-                  filename: asset.filename,
-                  contentType: asset.contentType,
-                  size: asset.size,
-                  url,
-                },
-              ] as const,
-          ),
-        ];
-      }),
-    );
-    return Object.fromEntries(signed);
+    assetId: string,
+    opts: { saveAs?: string } = {},
+  ): Promise<string | null> {
+    const [asset] = await this.readyAmong(orgId, [assetId]);
+    if (!asset) {
+      this.logger.warn('file not served — no ready asset', { orgId, assetId });
+      return null;
+    }
+    return opts.saveAs === undefined
+      ? this.storage.presignDownload({ key: asset.key })
+      : this.storage.presignDownload({
+          key: asset.key,
+          downloadFilename: opts.saveAs,
+          expiresInSeconds: this.downloadLinkExpirySeconds,
+        });
+  }
+
+  async libraryFile(
+    orgId: string,
+    assetId: string,
+    opts: { download: boolean },
+  ): Promise<string | null> {
+    const asset = await this.repo.findById(orgId, assetId);
+    if (!asset || asset.source !== 'library') {
+      this.logger.warn('library file not served — not a library asset', { orgId, assetId });
+      return null;
+    }
+    return this.signFile(orgId, assetId, opts.download ? { saveAs: asset.filename } : {});
   }
 
   async remove(orgId: string, id: string): Promise<boolean> {
@@ -403,34 +418,15 @@ export class AssetsServiceImpl implements AssetsService {
     return rows.filter((asset) => asset.orgId === orgId && asset.status === 'ready');
   }
 
-  private displayUrl(asset: Asset): Promise<string> {
-    return this.storage.presignDownload({
-      key: asset.key,
-      expiresInSeconds: this.urlExpirySeconds,
-    });
-  }
-
-  private saveUrl(asset: Asset, saveAs: string): Promise<string> {
-    return this.storage.presignDownload({
-      key: asset.key,
-      downloadFilename: saveAs,
-      expiresInSeconds: this.urlExpirySeconds,
-    });
-  }
-
-  private async signed(asset: Asset, signable: boolean): Promise<AssetView> {
-    if (!signable) {
+  private view(asset: Asset): AssetView {
+    if (asset.source !== 'library' || asset.status !== 'ready') {
       return { ...asset, url: null, downloadUrl: null };
     }
-    const [url, downloadUrl] = await Promise.all([
-      this.displayUrl(asset),
-      this.saveUrl(asset, asset.filename),
-    ]);
-    return { ...asset, url, downloadUrl };
-  }
-
-  private view(asset: Asset): Promise<AssetView> {
-    return this.signed(asset, asset.source === 'library' && asset.status === 'ready');
+    return {
+      ...asset,
+      url: this.fileUrls.libraryFile(asset.id),
+      downloadUrl: this.fileUrls.libraryDownload(asset.id),
+    };
   }
 
   private async discard(orgId: string, asset: Asset): Promise<boolean> {

@@ -14,7 +14,7 @@ import type { ActivityCommentsRule, Comment, CommentReport, CommentSettings } fr
 import type { NewDiscussionEvent } from './events.js';
 import type { ListCommentsQuery, ReactionEmoji } from './types.js';
 import type { CommunityReader } from '../content/index.js';
-import type { AssetUrlSigner } from '../assets/index.js';
+import { createFileUrls } from '../assets/index.js';
 import type { PostStatus } from '../types/index.js';
 import { ConflictError, NotFoundError, ForbiddenError } from '../shared/errors.js';
 import {
@@ -24,14 +24,7 @@ import {
   type SettingsRepository,
 } from '../shared/settings.js';
 
-const assetUrls: AssetUrlSigner = {
-  async urls(_orgId, assetIds) {
-    return Object.fromEntries(assetIds.map((id) => [id, `signed:${id}`]));
-  },
-  async downloads() {
-    return {};
-  },
-};
+const fileUrls = createFileUrls('https://api.test');
 
 function photo(id: string, imageAssetId: string): AuthorRecord {
   return {
@@ -312,7 +305,7 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
     uow,
     settings,
     communities: { listIds: async () => [] },
-    assetUrls,
+    fileUrls,
   });
   return {
     service,
@@ -622,7 +615,7 @@ describe('activityComments', () => {
       headline: 'Founder',
       image: 'https://avatar',
       imageAssetId: 'ast_photo',
-      imageUrl: 'signed:ast_photo',
+      imageUrl: fileUrls.personImage(learner.id),
       role: 'student',
     });
     expect(comments[1]?.author).toMatchObject({
@@ -692,9 +685,9 @@ describe('activityComments', () => {
       parentId: null,
       body: 'root',
     });
-    expect(root.author.imageUrl).toBe('signed:ast_learner');
+    expect(root.author.imageUrl).toBe(fileUrls.personImage(learner.id));
     const edited = await service.edit('o1', root.id, learner, 'root, edited');
-    expect(edited.author.imageUrl).toBe('signed:ast_learner');
+    expect(edited.author.imageUrl).toBe(fileUrls.personImage(learner.id));
     await service.postComment('o1', {
       actor: other,
       activityId: 'a1',
@@ -706,12 +699,12 @@ describe('activityComments', () => {
     const placeholder = comments.find((c) => c.id === root.id);
     expect(placeholder?.author).toMatchObject({
       imageAssetId: 'ast_learner',
-      imageUrl: 'signed:ast_learner',
+      imageUrl: fileUrls.personImage(learner.id),
     });
     expect(placeholder?.removedBy).toMatchObject({
       id: staff.id,
       imageAssetId: 'ast_staff',
-      imageUrl: 'signed:ast_staff',
+      imageUrl: fileUrls.personImage(staff.id),
     });
     expect(comments.find((c) => c.id !== root.id)?.author.imageUrl).toBeNull();
   });
@@ -1155,11 +1148,11 @@ describe('listComments', () => {
     const page = await service.listComments('o1', q({ activityId: 'a1' }));
     expect(page.rows[0]?.author).toMatchObject({
       imageAssetId: 'ast_learner',
-      imageUrl: 'signed:ast_learner',
+      imageUrl: fileUrls.personImage(learner.id),
     });
     expect(page.rows[0]?.reports[0]?.reporter).toMatchObject({
       imageAssetId: 'ast_other',
-      imageUrl: 'signed:ast_other',
+      imageUrl: fileUrls.personImage(other.id),
     });
   });
 
@@ -1258,7 +1251,7 @@ describe('comments on a post', () => {
       uow,
       settings,
       communities: { listIds: async () => [] },
-      assetUrls,
+      fileUrls,
     });
     return { service, appended, ...fake };
   }

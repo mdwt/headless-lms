@@ -14160,6 +14160,490 @@ export type GetMemberDownloadResponses = {
 export type GetMemberDownloadResponse =
   GetMemberDownloadResponses[keyof GetMemberDownloadResponses];
 
+export type GetCourseThumbnailData = {
+  body?: never;
+  path: {
+    courseId: string;
+  };
+  query?: never;
+  url: "/api/member/courses/{courseId}/thumbnail";
+};
+
+export type GetCourseThumbnailErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetCourseThumbnailError = GetCourseThumbnailErrors[keyof GetCourseThumbnailErrors];
+
+export type GetDownloadThumbnailData = {
+  body?: never;
+  path: {
+    downloadId: string;
+  };
+  query?: never;
+  url: "/api/member/downloads/{downloadId}/thumbnail";
+};
+
+export type GetDownloadThumbnailErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetDownloadThumbnailError =
+  GetDownloadThumbnailErrors[keyof GetDownloadThumbnailErrors];
+
+export type GetCommunityThumbnailData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/thumbnail";
+};
+
+export type GetCommunityThumbnailErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetCommunityThumbnailError =
+  GetCommunityThumbnailErrors[keyof GetCommunityThumbnailErrors];
+
+export type GetActivityFileData = {
+  body?: never;
+  path: {
+    activityId: string;
+    assetId: string;
+  };
+  query?: never;
+  url: "/api/member/activities/{activityId}/assets/{assetId}";
+};
+
+export type GetActivityFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetActivityFileError = GetActivityFileErrors[keyof GetActivityFileErrors];
+
+export type GetDownloadFileData = {
+  body?: never;
+  path: {
+    downloadId: string;
+    assetId: string;
+  };
+  query?: never;
+  url: "/api/member/downloads/{downloadId}/assets/{assetId}";
+};
+
+export type GetDownloadFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetDownloadFileError = GetDownloadFileErrors[keyof GetDownloadFileErrors];
+
+export type GetPostCoverData = {
+  body?: never;
+  path: {
+    postId: string;
+  };
+  query?: never;
+  url: "/api/member/posts/{postId}/cover";
+};
+
+export type GetPostCoverErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetPostCoverError = GetPostCoverErrors[keyof GetPostCoverErrors];
+
+export type GetMessageAttachmentData = {
+  body?: never;
+  path: {
+    chatId: string;
+    messageId: string;
+    assetId: string;
+  };
+  query?: never;
+  url: "/api/member/chats/{chatId}/messages/{messageId}/attachments/{assetId}";
+};
+
+export type GetMessageAttachmentErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMessageAttachmentError =
+  GetMessageAttachmentErrors[keyof GetMessageAttachmentErrors];
+
+export type GetPersonImageData = {
+  body?: never;
+  path: {
+    orgUserId: string;
+  };
+  query?: never;
+  url: "/api/member/people/{orgUserId}/image";
+};
+
+export type GetPersonImageErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetPersonImageError = GetPersonImageErrors[keyof GetPersonImageErrors];
+
+export type GetMemberUploadFileData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/member/uploads/{id}/file";
+};
+
+export type GetMemberUploadFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberUploadFileError = GetMemberUploadFileErrors[keyof GetMemberUploadFileErrors];
+
 export type ListMemberNotificationsData = {
   body?: never;
   path?: never;
@@ -18339,6 +18823,98 @@ export type GetAssetResponses = {
 };
 
 export type GetAssetResponse = GetAssetResponses[keyof GetAssetResponses];
+
+export type GetLibraryFileData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}/file";
+};
+
+export type GetLibraryFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetLibraryFileError = GetLibraryFileErrors[keyof GetLibraryFileErrors];
+
+export type DownloadLibraryFileData = {
+  body?: never;
+  path: {
+    id: string;
+  };
+  query?: never;
+  url: "/api/assets/{id}/download";
+};
+
+export type DownloadLibraryFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DownloadLibraryFileError = DownloadLibraryFileErrors[keyof DownloadLibraryFileErrors];
 
 export type ListAvailableIntegrationsData = {
   body?: never;
