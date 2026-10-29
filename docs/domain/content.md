@@ -45,7 +45,7 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 - **Course** — the root: title, status (draft/published), ordered modules, and its settings, including the discussion settings that discussion reads.
 - **Module** — title, `seq` (order within the course), parent course, an ordered list of activities.
 - **Activity** — the leaf, sitting directly in a module. It is a unit of content: a `seq` (order within the module), a **settings blob** holding whatever that content needs, a completion rule, and links to any assets it uses. An activity that is a video has a video asset linked; one that is an assessment carries its rules in the blob. The domain doesn't categorise it — it stores the content, and the learner-facing surface renders whatever is there.
-- **Activity–asset link** — the many-to-many relation between an activity and the assets it uses. Assets are linked here rather than held in the activity's blob, because they are owned by the assets domain and tracked for usage, which a blob can't express.
+- **Activity–asset link** — the many-to-many relation between an activity and the assets it uses. Assets are linked here rather than held in the activity's blob, because they are owned by the assets domain and tracked for usage, which a blob can't express. The links are rewritten from the activity's content every time it is saved, so they always match what the content shows. A learner is only ever served an asset through an activity that links it.
 
 ### Gating rules
 

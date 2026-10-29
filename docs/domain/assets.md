@@ -30,6 +30,7 @@ Owns the org's media library: tracked objects in storage — video, downloadable
 
 1. **assets → organizations** — every asset is scoped to an org; an operation resolves the caller's active org before touching anything, and one org cannot see another's assets.
 2. **assets ↔ courses** — a lesson (owned by courses) references the assets it uses; a lesson can reference many, and an asset can be used by many lessons. Assets owns the objects; courses owns the curriculum.
+3. **assets ↔ entitlements** — assets never decides who may fetch a file. A learner is handed a file's link only after entitlements has confirmed access to the content that uses it.
 
 ## Build state
 

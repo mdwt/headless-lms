@@ -7,10 +7,10 @@
     "content",
     "progress",
     "discussion",
-    "assets",
     "reporting",
     "entitlements",
     "automations",
+    "assets",
     "integrations"
   ]
 }

@@ -652,7 +652,7 @@ The database adapter gains the schema files specified in the data model section 
 
 ### Wiring
 
-The composition root in `packages/server/src/app/container.ts` wires the new services in the same way as discussion today: a repository on the root database for reads, a unit of work that builds the repository and the outbox appender on a transaction for writes, and readers passed as whole service instances. Entitlements is passed to discussion and reporting as the access reader, the same way it is passed as the course access reader today. Content is passed to entitlements and discussion as the community reader. The automation engine registers the schedule triggers of the enabled automations when it starts.
+The composition root in `packages/server/src/app/container.ts` wires the new services in the same way as discussion today: a repository on the root database for reads, a unit of work that builds the repository and the outbox appender on a transaction for writes, and readers passed as whole service instances. Entitlements is passed to discussion and reporting as the access reader, the same way it is passed to discussion and progress as the content access reader today. Content is passed to entitlements and discussion as the community reader. The automation engine registers the schedule triggers of the enabled automations when it starts.
 
 ### HTTP routes
 
@@ -870,6 +870,8 @@ This section specifies authentication and authorization for the community. Authe
 - **The tenant is the session.** `activeOrganizationId` on the session names the org; no header, no subdomain. A learner in exactly one org gets it stamped at login or on invite accept. A learner in two orgs gets none, which is an existing limit, not a community one.
 - **Two route guards.** `requireOrgSession` admits any org user of the active org. `resolveScope` additionally requires a staff role and is the staff gate for admin routes.
 - **Core authorizes on the actor.** The route guard loads the caller's org user row and hands it to core as the actor: `{ id: orgUserId, role }`. Core decides on `role` (anything but `student` is staff) and on entitlements. Core never looks a role up itself.
+- **One access check.** Whether an org user can open a piece of content is answered by entitlements' `hasAccess` and nowhere else; a grant to a bundle counts for every item in it. Discussion, progress and the learner surface call it, and reports read the `content_access` view.
+- **Files are served through proxy URLs.** A file is fetched from a stable URL that checks access on every request and redirects to a signed storage URL. Lesson media is served only when the lesson lists the file, recorded on every save from the editor's `assetIds(config)`.
 - **Staff are Better Auth members; learners are not.** Staff membership is mirrored from Better Auth into `org_users`. Learners exist only as `org_users` rows with role `student`. One role per person per org.
 
 ### What community adds
@@ -881,7 +883,7 @@ This section specifies authentication and authorization for the community. Authe
 - Member-facing community routes (`/api/learn/communities/*` and `/api/learn/chats/*`): `requireOrgSession`, load the org user, pass it as the actor. Staff may call them too; they pass as staff.
 - Staff-facing routes (set up a community, its spaces, DM settings, analytics): `resolveScope`, which is the staff gate. The three admin route files that skip it today (discussion, assets, integrations) are brought in line before community ships, since the community reuses discussion's routes.
 
-**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The learn reader that ignores bundles is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
+**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with `hasAccess`, the same check every course and download read uses. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
 
 **Who may do what.** Core enforces every row below; the route guards only authenticate.
 
@@ -918,8 +920,8 @@ Instructors count as staff for moderation and posting, as they do for course com
 
 **Moderator is a fifth org role, not a table.** `org_users.role` gains `moderator`. It is held org-wide like the other four roles, is not a staff role, and uses the member routes. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator; a moderator consumes content through a grant, as a student does. Giving and removing the role is the existing role reassignment under `manage_users` and emits `organization.user.updated`. No table records what a moderator moderates: it is every space of every community they hold a grant to.
 
+**Attachments go through a proxy URL.** A message attachment is served the way lesson media is: a stable URL per attachment that checks the reader can open the chat and that the message lists the file, then redirects to a signed storage URL. A file the message does not list is not served.
+
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 
 - `GET /api/comments` and the other staff comment routes run under `requireOrgSession` only; any org user reaches them. They get `resolveScope`.
-- `POST /api/learn/assets/:id/url` mints a presigned URL for any asset in the org without an access check. Community attachments need the check, so the route gains one.
-- The two access readers disagree: entitlements honours bundles and ignores publish state, the learn reader honours publish state and ignores bundles. Community uses entitlements for the grant and content for publish state, and the learn reader is corrected to honour bundles.

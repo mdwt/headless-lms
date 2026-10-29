@@ -37,10 +37,10 @@ Whether a student can open content is decided only by the entitlements context:
   It is the single definition of access: active grants, with bundle grants expanded to the bundle's current items.
 - Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
   access themselves.
-- Files are served through stable proxy URLs that check access on every request and redirect to a short-lived signed
-  URL: `/api/learn/activities/:activityId/assets/:assetId` for lesson media, `/api/learn/downloads/:downloadId/assets/:assetId`
-  for download files. A lesson's assets are recorded on save from the editor's `assetIds(config)`; an asset the lesson
-  doesn't list is not served.
+- Files are served through stable proxy URLs that check access on every request and redirect to a signed storage URL:
+  `/api/learn/activities/:activityId/assets/:assetId` for lesson media (`STORAGE_DOWNLOAD_EXPIRY`),
+  `/api/learn/downloads/:downloadId/assets/:assetId` for download files (`DELIVERY_URL_EXPIRY`). A lesson's assets are
+  recorded on save from the editor's `assetIds(config)`; an asset the lesson doesn't list is not served.
 
 ### Adapters, Plugins, Integrations
 

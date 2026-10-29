@@ -1,11 +1,11 @@
 ---
-description: "POST /api/learn/assets/{id}/url. Get a short-lived presigned URL to serve an asset to the student. Headless LMS Assets API reference."
-title: Get a short-lived presigned URL to serve an asset to the student
+description: "GET /api/learn/activities/{activityId}/assets/{assetId}. Redirect to a short-lived signed URL for an asset in a lesson. Headless LMS Content API reference."
+title: Redirect to a short-lived signed URL for an asset in a lesson
 full: true
 _openapi:
   preload:
     - ../../packages/sdk/openapi.json
-  method: POST
+  method: GET
   webhook: false
   toc: []
   structuredData:
@@ -24,7 +24,9 @@ export default function Layout(props) {
       {props.children}
       <Comp
         document="../../packages/sdk/openapi.json"
-        operations={[{ path: "/api/learn/assets/{id}/url", method: "post" }]}
+        operations={[
+          { path: "/api/learn/activities/{activityId}/assets/{assetId}", method: "get" },
+        ]}
         showDescription
       />
     </>

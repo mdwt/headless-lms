@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "API documentation for the Headless LMS platform",
     "license": {
       "name": "MIT",
@@ -5111,124 +5111,35 @@
         }
       }
     },
-    "/api/learn/assets/{id}/url": {
-      "post": {
-        "operationId": "getAssetDownloadUrl",
-        "summary": "Get a short-lived presigned URL to serve an asset to the student",
-        "tags": ["Assets"],
+    "/api/learn/activities/{activityId}/assets/{assetId}": {
+      "get": {
+        "operationId": "getLearnActivityAsset",
+        "summary": "Redirect to a short-lived signed URL for an asset in a lesson",
+        "tags": ["Content"],
         "parameters": [
           {
             "schema": {
               "type": "string"
             },
             "in": "path",
-            "name": "id",
+            "name": "activityId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "assetId",
             "required": true
           }
         ],
         "responses": {
-          "200": {
+          "302": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "asset": {
-                      "type": "object",
-                      "properties": {
-                        "orgId": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "key": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "kind": {
-                          "type": "string",
-                          "enum": ["video", "download", "content"]
-                        },
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "contentType": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "size": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": ["pending", "ready"]
-                        },
-                        "uploadedBy": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "orgId",
-                        "id",
-                        "key",
-                        "kind",
-                        "filename",
-                        "contentType",
-                        "size",
-                        "status",
-                        "uploadedBy",
-                        "createdAt",
-                        "updatedAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": ["url", "asset"],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"],
-                  "additionalProperties": false
-                }
+                "schema": {}
               }
             }
           },
@@ -5525,6 +5436,56 @@
             },
             "in": "path",
             "name": "assetId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learn/downloads/{downloadId}/thumbnail": {
+      "get": {
+        "operationId": "getLearnDownloadThumbnail",
+        "summary": "Redirect to a short-lived signed URL for a download's thumbnail",
+        "tags": ["Content"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "downloadId",
             "required": true
           }
         ],
