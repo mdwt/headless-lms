@@ -34,19 +34,29 @@ export interface CommunityHomeLink {
   title: string;
 }
 
-export interface CommunityHomeSpace {
+interface CommunityHomeSpaceBase {
   id: string;
   name: string;
-  description: string | null;
   memberCount: number;
-  capacity: number | null;
-  open: boolean;
   accessRule: 'all_members' | 'by_request' | 'by_invite';
   standing: 'open' | 'member' | 'requested' | 'invited' | 'full' | 'none';
+}
+
+/** A space the viewer can see but not open: enough to request, accept or ask. */
+export interface LockedCommunitySpace extends CommunityHomeSpaceBase {
+  locked: true;
+}
+
+export interface OpenCommunitySpace extends CommunityHomeSpaceBase {
+  locked: false;
+  description: string | null;
+  capacity: number | null;
   settings: { comments: boolean; reactions: boolean; requireReview: boolean };
   topics: { id: string; name: string }[];
   links: CommunityHomeLink[];
 }
+
+export type CommunityHomeSpace = LockedCommunitySpace | OpenCommunitySpace;
 
 export interface CommunityHome {
   communityId: string;

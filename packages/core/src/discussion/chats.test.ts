@@ -712,7 +712,7 @@ describe('chats', () => {
     await svc.send(ORG, member, chat.id, messageInput('Hi'));
   });
 
-  it('closes only this community direct chat when one person blocks the other', async () => {
+  it('blocks a direct chat in this community without telling the blocked person', async () => {
     const { svc, calls } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
@@ -726,19 +726,50 @@ describe('chats', () => {
       body: null,
       assetIds: [],
     });
+    const before = calls.length;
     await svc.block(ORG, member, COMMUNITY, other.id);
-    expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.chat.updated']);
-    expect(dataOf(calls.at(-1)![0]!).status).toBe('closed');
+    expect(calls).toHaveLength(before);
+    const seen = (await svc.listChats(ORG, other, COMMUNITY)).find(
+      (item) => item.chat.id === chat.id,
+    );
+    expect(seen?.chat.status).toBe('open');
+    await expect(svc.send(ORG, other, chat.id, messageInput('Hey'))).rejects.toThrow(
+      'You cannot send in this chat',
+    );
+    await expect(
+      svc.startDirect(ORG, other, {
+        communityId: COMMUNITY,
+        orgUserId: member.id,
+        body: 'Hey',
+        assetIds: [],
+      }),
+    ).rejects.toThrow('You cannot send in this chat');
     await expect(svc.send(ORG, member, chat.id, messageInput('Hey'))).rejects.toThrow(
       'You cannot send in this chat',
     );
     await svc.send(ORG, member, elsewhere.id, messageInput('Still here'));
     await svc.unblock(ORG, member, COMMUNITY, other.id);
-    expect(dataOf(calls.at(-1)![0]!).status).toBe('open');
+    expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.sent']);
     await svc.send(ORG, member, chat.id, messageInput('Back'));
   });
 
-  it('keeps a locked direct chat closed when the block is lifted', async () => {
+  it('refuses a blocked person a new chat with the ordinary refusal', async () => {
+    const { svc } = harness({ settings: { firstMessageIsRequest: false } });
+    await svc.block(ORG, member, COMMUNITY, other.id);
+    await expect(
+      svc.startDirect(ORG, other, {
+        communityId: COMMUNITY,
+        orgUserId: member.id,
+        body: 'Hello',
+        assetIds: [],
+      }),
+    ).rejects.toThrow('You cannot message this person');
+    await expect(
+      svc.startGroup(ORG, other, { communityId: COMMUNITY, orgUserIds: [member.id, third.id] }),
+    ).rejects.toThrow('You cannot message this person');
+  });
+
+  it('keeps a locked direct chat locked when the block is lifted', async () => {
     const { svc } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
@@ -753,9 +784,7 @@ describe('chats', () => {
       'This chat is locked',
     );
     await svc.unlock(ORG, staff, chat.id);
-    await expect(svc.send(ORG, member, chat.id, messageInput('No'))).rejects.toThrow(
-      'You cannot send in this chat',
-    );
+    await svc.send(ORG, member, chat.id, messageInput('Yes'));
   });
 
   it('stops only the blocked pair from sending in a group', async () => {
@@ -829,8 +858,10 @@ describe('chats', () => {
       assetIds: [],
     });
     await expect(svc.lock(ORG, member, chat.id)).rejects.toThrow('You cannot lock this chat');
-    await svc.lock(ORG, moderator, chat.id);
-    await svc.unlock(ORG, moderator, chat.id);
+    await expect(svc.lock(ORG, moderator, chat.id)).rejects.toThrow('You cannot lock this chat');
+    await svc.lock(ORG, staff, chat.id);
+    await expect(svc.unlock(ORG, moderator, chat.id)).rejects.toThrow('You cannot lock this chat');
+    await svc.unlock(ORG, staff, chat.id);
     await svc.lock(ORG, staff, chat.id);
     await expect(svc.send(ORG, member, chat.id, messageInput('Later'))).rejects.toThrow(
       'This chat is locked',
@@ -842,7 +873,10 @@ describe('chats', () => {
     await expect(svc.messageQueue(ORG, member, COMMUNITY)).rejects.toThrow(
       'You cannot work this queue',
     );
-    await expect(svc.messageQueue(ORG, moderator, COMMUNITY)).resolves.toBeDefined();
+    await expect(svc.messageQueue(ORG, moderator, COMMUNITY)).rejects.toThrow(
+      'You cannot work this queue',
+    );
+    await expect(svc.messageQueue(ORG, staff, COMMUNITY)).resolves.toBeDefined();
     const messageId = String(dataOf(calls[0]![1]!).id);
     await svc.flagMessage(ORG, other, messageId, 'spam');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.message.reported']);
@@ -852,9 +886,9 @@ describe('chats', () => {
     await expect(svc.resolveMessageFlags(ORG, member, messageId, 'dismissed')).rejects.toThrow(
       'You cannot work this queue',
     );
-    await expect(
-      svc.resolveMessageFlags(ORG, moderator, messageId, 'dismissed'),
-    ).resolves.toBeUndefined();
+    await expect(svc.resolveMessageFlags(ORG, moderator, messageId, 'dismissed')).rejects.toThrow(
+      'You cannot work this queue',
+    );
   });
 
   it('serves each message with its attachments in order, by stable URL, to a participant', async () => {
@@ -1048,6 +1082,34 @@ describe('chats', () => {
     );
   });
 
+  it('gives a moderator in a chat only what any participant has', async () => {
+    const { svc } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, moderator.id],
+    });
+    const sent = await svc.send(ORG, member, chat.id, {
+      body: 'Look',
+      replyToId: null,
+      assetIds: ['asset_1'],
+    });
+    await svc.flagMessage(ORG, other, sent.id, 'spam');
+    await expect(svc.deleteMessage(ORG, moderator, sent.id)).rejects.toThrow(
+      'You cannot delete this message',
+    );
+    await expect(svc.lock(ORG, moderator, chat.id)).rejects.toThrow('You cannot lock this chat');
+    await expect(svc.resolveMessageFlags(ORG, moderator, sent.id, 'dismissed')).rejects.toThrow(
+      'You cannot work this queue',
+    );
+    expect(await svc.attachmentFile(ORG, moderator, chat.id, sent.id, 'asset_1')).toBe(
+      'https://signed',
+    );
+    await svc.deleteMessage(ORG, member, sent.id);
+    expect(await svc.attachmentFile(ORG, moderator, chat.id, sent.id, 'asset_1')).toBeNull();
+    const own = await svc.send(ORG, moderator, chat.id, messageInput('Mine'));
+    expect((await svc.deleteMessage(ORG, moderator, own.id)).deletedAt).toBeInstanceOf(Date);
+  });
+
   it('lets staff delete a message in a locked chat they are not in', async () => {
     const { svc, flags } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
@@ -1170,11 +1232,11 @@ describe('chats', () => {
     await svc.leave(ORG, fourth, chat.id);
     block(COMMUNITY, fourth.id, third.id);
     await expect(svc.addParticipant(ORG, member, chat.id, fourth.id)).rejects.toThrow(
-      'You cannot add that person',
+      'You cannot message this person',
     );
     await expect(
       svc.startGroup(ORG, member, { communityId: COMMUNITY, orgUserIds: [other.id, fourth.id] }),
-    ).rejects.toThrow('You cannot add that person');
+    ).rejects.toThrow('You cannot message this person');
   });
 
   it('leaves a direct chat untouched when the send that would rejoin it is refused', async () => {
@@ -1377,8 +1439,9 @@ describe('chats', () => {
     expect(staffSees?.lastMessage).toMatchObject({ id: latest.id, body: 'Latest' });
   });
 
-  it('serves an attachment to participants, to staff after deletion, and to moderators while flagged', async () => {
+  it('serves an attachment to participants, to staff after deletion, and to staff while flagged', async () => {
     const { svc } = harness();
+    const admin: Actor = { id: 'ou_admin', role: 'admin' };
     const chat = await svc.startGroup(ORG, member, {
       communityId: COMMUNITY,
       orgUserIds: [other.id, staff.id],
@@ -1397,8 +1460,10 @@ describe('chats', () => {
     expect(await file(moderator)).toBeNull();
     expect(await svc.attachmentFile(ORG, other, 'chat_missing', sent.id, 'asset_1')).toBeNull();
 
+    expect(await file(admin)).toBeNull();
     await svc.flagMessage(ORG, other, sent.id, 'spam');
-    expect(await file(moderator)).toBe('https://signed');
+    expect(await file(moderator)).toBeNull();
+    expect(await file(admin)).toBe('https://signed');
 
     await svc.deleteMessage(ORG, member, sent.id);
     expect(await file(other)).toBeNull();

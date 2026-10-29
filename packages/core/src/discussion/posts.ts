@@ -866,18 +866,28 @@ export class PostServiceImpl implements PostService {
     }
   }
 
+  private async openSpace(
+    orgId: string,
+    actor: Actor,
+    spaceId: string,
+    communityId?: string,
+  ): Promise<SpaceDetail | null> {
+    const space = await this.content.getSpace(orgId, spaceId);
+    if (!space || (communityId !== undefined && space.communityId !== communityId)) {
+      return null;
+    }
+    return (await this.access.canOpen(orgId, actor, space)) ? space : null;
+  }
+
   private async requireOpen(
     orgId: string,
     actor: Actor,
     spaceId: string,
     communityId?: string,
   ): Promise<SpaceDetail> {
-    const space = await this.content.getSpace(orgId, spaceId);
-    if (!space || (communityId !== undefined && space.communityId !== communityId)) {
+    const space = await this.openSpace(orgId, actor, spaceId, communityId);
+    if (!space) {
       throw new NotFoundError('Space', spaceId);
-    }
-    if (!(await this.access.canOpen(orgId, actor, space))) {
-      throw new ForbiddenError('You cannot open this space');
     }
     return space;
   }
@@ -887,8 +897,8 @@ export class PostServiceImpl implements PostService {
     if (!post || (communityId !== undefined && post.communityId !== communityId)) {
       throw new NotFoundError('Post', postId);
     }
-    const space = await this.requireOpen(orgId, actor, post.spaceId);
-    if (!this.canSee(actor, post)) {
+    const space = await this.openSpace(orgId, actor, post.spaceId);
+    if (!space || !this.canSee(actor, post)) {
       throw new NotFoundError('Post', postId);
     }
     return { post, space };

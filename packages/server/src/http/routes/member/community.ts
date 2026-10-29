@@ -40,12 +40,18 @@ export async function memberCommunityRoutes(
       operationId: 'getMemberCommunityHome',
       tags,
       summary: 'The spaces a member can see in a community',
+      description:
+        "Spaces the viewer can open come back in full. Spaces they can see but not open come back locked, with only their name, count, rule and the viewer's standing. A by-invite space the viewer is not invited to or a member of is left out.",
       params: CommunityParam,
       response: { 200: CommunityHome, ...errors },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const home = await container.reporting.member.communityHome(req.orgId, actor, req.params.communityId);
+      const home = await container.reporting.member.communityHome(
+        req.orgId,
+        actor,
+        req.params.communityId,
+      );
       if (!home) {
         throw new NotFoundError('Community', req.params.communityId);
       }
@@ -60,7 +66,10 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'getMemberSpace',
       tags,
-      summary: 'One space as a member sees it: its topics, links, settings and where the viewer stands',
+      summary:
+        'One space as a member sees it: its topics, links, settings and where the viewer stands',
+      description:
+        'A space the viewer cannot open comes back locked, without its content. A by-invite space the viewer is not invited to or a member of answers 404.',
       params: CommunitySpaceParam,
       response: { 200: CommunityHomeSpace, ...errors },
     },
@@ -92,7 +101,11 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const rows = await container.reporting.member.directory(req.orgId, actor, req.params.communityId);
+      const rows = await container.reporting.member.directory(
+        req.orgId,
+        actor,
+        req.params.communityId,
+      );
       if (!rows) {
         throw new NotFoundError('Community', req.params.communityId);
       }

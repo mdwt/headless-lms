@@ -165,14 +165,40 @@ describe('AssetsService', () => {
     expect(member.rows.map((a) => a.source)).toEqual(['member']);
   });
 
-  it('refuses a member upload that is not an image', async () => {
+  it('refuses a member upload that is not a raster image', async () => {
     const { svc } = service();
-    await expect(
-      svc.requestMemberUpload('org-1', 'ou_1', {
-        filename: 'a.pdf',
-        contentType: 'application/pdf',
-      }),
-    ).rejects.toThrow('A member upload must be an image');
+    for (const contentType of ['application/pdf', 'image/svg+xml', 'image/tiff']) {
+      await expect(
+        svc.requestMemberUpload('org-1', 'ou_1', { filename: 'a', contentType }),
+      ).rejects.toThrow('A member upload must be a PNG, JPEG, GIF, WebP or AVIF image');
+    }
+    for (const contentType of [
+      'image/png',
+      'image/jpeg',
+      'image/gif',
+      'image/webp',
+      'image/avif',
+    ]) {
+      const ticket = await svc.requestMemberUpload('org-1', 'ou_1', { filename: 'a', contentType });
+      expect(ticket.asset.contentType).toBe(contentType);
+    }
+  });
+
+  it('discards a member upload recorded with an SVG type when it is finalized', async () => {
+    const { svc, storage } = service({
+      storage: fakeStorage({ size: 10, contentType: 'image/svg+xml' }),
+    });
+    const ticket = await svc.requestUpload('org-1', {
+      filename: 'me.svg',
+      contentType: 'image/svg+xml',
+      source: 'member',
+      uploadedBy: 'ou_1',
+    });
+    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+      'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image',
+    );
+    expect(storage.remove).toHaveBeenCalled();
+    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
   });
 
   it('owns only a ready member image uploaded by that org user', async () => {

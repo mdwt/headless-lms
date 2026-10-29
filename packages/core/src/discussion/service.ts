@@ -380,6 +380,22 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.posts.visible(orgId, actor, postId);
   }
 
+  private async postOfComment(
+    orgId: string,
+    actor: Actor,
+    commentId: string,
+    postId: string,
+  ): Promise<{ post: Post; space: SpaceDetail }> {
+    try {
+      return await this.visiblePost(orgId, actor, postId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw new NotFoundError('Comment', commentId);
+      }
+      throw error;
+    }
+  }
+
   private canModerate(actor: Actor): boolean {
     return canModerate(actor.role);
   }
@@ -451,7 +467,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
 
     if (comment.postId) {
-      await this.visiblePost(orgId, actor, comment.postId);
+      await this.postOfComment(orgId, actor, commentId, comment.postId);
       if (comment.orgUserId !== actor.id && !this.canModerate(actor)) {
         throw new ForbiddenError('You cannot remove this comment');
       }
@@ -539,7 +555,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.postId) {
-      const { post, space } = await this.visiblePost(orgId, actor, comment.postId);
+      const { post, space } = await this.postOfComment(orgId, actor, commentId, comment.postId);
       const config: CommentsConfig = {
         enabled: this.commentsOpen(post, space),
         threaded: true,
@@ -637,7 +653,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.postId) {
-      await this.visiblePost(orgId, actor, comment.postId);
+      await this.postOfComment(orgId, actor, commentId, comment.postId);
       if (!this.canModerate(actor)) {
         throw new ForbiddenError('You cannot work this queue');
       }

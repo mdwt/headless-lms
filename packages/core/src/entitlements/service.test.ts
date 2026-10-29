@@ -447,13 +447,43 @@ describe('space members', () => {
     await expect(all.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
       'An all-members space has no space members',
     );
-    const invited = build(
+    const hidden = build(
       fakeRepo(),
+      fakeContent({ getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) }),
+    );
+    await expect(hidden.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    const invited = build(
+      fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'invited' }) }),
       fakeContent({ getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) }),
     );
     await expect(invited.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
       'This space is by invitation',
     );
+  });
+
+  it('answers every space-member path on a hidden by-invite space as a missing space', async () => {
+    const { svc } = build(fakeRepo(), inviteContent());
+    const missing = build(fakeRepo(), fakeContent({ getSpace: vi.fn().mockResolvedValue(null) }));
+    const paths = (service: typeof svc) => [
+      service.requestJoin('org-1', student, 'cmy_1', 'spc_1'),
+      service.accept('org-1', student, 'cmy_1', 'spc_1'),
+      service.refuse('org-1', student, 'cmy_1', 'spc_1'),
+      service.leave('org-1', student, 'cmy_1', 'spc_1'),
+      service.invite('org-1', student, 'cmy_1', 'spc_1', 'ou_other'),
+      service.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1'),
+    ];
+    const messages = async (service: typeof svc) =>
+      Promise.all(
+        paths(service).map((run) =>
+          run.then(
+            () => null,
+            (error: unknown) => (error instanceof NotFoundError ? error.message : error),
+          ),
+        ),
+      );
+    expect(await messages(svc)).toEqual(await messages(missing.svc));
   });
 
   it('invites a community member and rejects a second row', async () => {
@@ -470,7 +500,10 @@ describe('space members', () => {
   });
 
   it('refuses an invite from a student or for someone who is not a member', async () => {
-    const { svc } = build(fakeRepo(), inviteContent());
+    const { svc } = build(
+      fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'active' }) }),
+      inviteContent(),
+    );
     await expect(svc.invite('org-1', student, 'cmy_1', 'spc_1', 'ou_other')).rejects.toBeInstanceOf(
       ForbiddenError,
     );

@@ -2,7 +2,7 @@ import { genId } from '../shared/id.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import { canModerate, isStaffRole } from '../organizations/index.js';
+import { isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
 import type { CommunityReader, DmSettings } from '../content/index.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
@@ -187,7 +187,7 @@ export class ChatServiceImpl implements ChatService {
     }
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       if (await chats.anyBlockedAmong(orgId, input.communityId, [actor.id, ...others])) {
-        throw new ForbiddenError('You cannot add that person');
+        throw new ForbiddenError('You cannot message this person');
       }
       const now = new Date();
       const chat = await chats.insertChat(orgId, {
@@ -259,7 +259,7 @@ export class ChatServiceImpl implements ChatService {
         active.map((user) => user.orgUserId),
       );
       if (blocked.length > 0) {
-        throw new ForbiddenError('You cannot add that person');
+        throw new ForbiddenError('You cannot message this person');
       }
       const now = new Date();
       await chats.join(
@@ -374,7 +374,7 @@ export class ChatServiceImpl implements ChatService {
   async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
-    if (!canModerate(actor.role)) {
+    if (!isStaffRole(actor.role)) {
       if (message.orgUserId !== actor.id) {
         throw new ForbiddenError('You cannot delete this message');
       }
@@ -455,19 +455,11 @@ export class ChatServiceImpl implements ChatService {
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
     await this.requirePerson(orgId, communityId, orgUserId);
-    const closed = await this.uow.run(async ({ chats, outbox }) => {
+    await this.uow.run(async ({ chats }) => {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.block(orgId, communityId, actor.id, orgUserId);
-      const direct = await chats.findDirect(orgId, communityId, actor.id, orgUserId);
-      if (!direct || direct.status === 'closed') {
-        return null;
-      }
-      const next = await this.mustUpdate(chats, orgId, direct.id, { status: 'closed' });
-      const users = await chats.participants(orgId, direct.id);
-      await outbox.append([this.updatedEvent(orgId, actor, next, users)]);
-      return next;
     });
-    this.logger.info('user blocked', { orgId, communityId, chatId: closed?.id ?? null });
+    this.logger.info('user blocked', { orgId, communityId });
   }
 
   async unblock(
@@ -481,22 +473,11 @@ export class ChatServiceImpl implements ChatService {
     }
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
-    const opened = await this.uow.run(async ({ chats, outbox }) => {
+    await this.uow.run(async ({ chats }) => {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.unblock(orgId, communityId, actor.id, orgUserId);
-      const direct = await chats.findDirect(orgId, communityId, actor.id, orgUserId);
-      if (!direct || direct.status !== 'closed' || direct.lockedAt) {
-        return null;
-      }
-      if (await chats.isBlocked(orgId, communityId, actor.id, orgUserId)) {
-        return null;
-      }
-      const next = await this.mustUpdate(chats, orgId, direct.id, { status: 'open' });
-      const users = await chats.participants(orgId, direct.id);
-      await outbox.append([this.updatedEvent(orgId, actor, next, users)]);
-      return next;
     });
-    this.logger.info('user unblocked', { orgId, communityId, chatId: opened?.id ?? null });
+    this.logger.info('user unblocked', { orgId, communityId });
   }
 
   async flagMessage(
@@ -550,7 +531,7 @@ export class ChatServiceImpl implements ChatService {
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
     communityId?: string,
   ): Promise<void> {
-    if (!canModerate(actor.role)) {
+    if (!isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
     const message = await this.mustMessage(this.repo, orgId, messageId);
@@ -637,7 +618,7 @@ export class ChatServiceImpl implements ChatService {
     const inChat = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
     const readable = inChat
       ? message.deletedAt === null || isStaffRole(actor.role)
-      : canModerate(actor.role) &&
+      : isStaffRole(actor.role) &&
         (await this.repo.listOpenFlags(orgId, chat.communityId)).some(
           (flag) => flag.messageId === messageId,
         );
@@ -648,7 +629,7 @@ export class ChatServiceImpl implements ChatService {
   }
 
   async messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue> {
-    if (!canModerate(actor.role)) {
+    if (!isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot work this queue');
     }
     await this.requireActor(orgId, actor, communityId);
@@ -736,7 +717,7 @@ export class ChatServiceImpl implements ChatService {
     locked: boolean,
     communityId?: string,
   ): Promise<Chat> {
-    if (!canModerate(actor.role)) {
+    if (!isStaffRole(actor.role)) {
       throw new ForbiddenError('You cannot lock this chat');
     }
     const chat = await this.mustChat(this.repo, orgId, chatId);

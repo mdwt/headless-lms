@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { Asset, AssetsPage, UploadTicket } from './assets.js';
+import { Asset, AssetsPage, RequestMemberUpload, UploadTicket } from './assets.js';
 
 const asset = {
   orgId: 'org_1',
@@ -40,5 +40,16 @@ describe('asset wire schemas', () => {
       url: null,
       downloadUrl: null,
     });
+  });
+
+  it('accept only raster image types for a member upload', () => {
+    const accepts = (contentType: string) =>
+      RequestMemberUpload.safeParse({ filename: 'me', contentType }).success;
+    for (const type of ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']) {
+      expect(accepts(type)).toBe(true);
+    }
+    for (const type of ['image/svg+xml', 'image/tiff', 'application/pdf', 'image/png; x=1']) {
+      expect(accepts(type)).toBe(false);
+    }
   });
 });
