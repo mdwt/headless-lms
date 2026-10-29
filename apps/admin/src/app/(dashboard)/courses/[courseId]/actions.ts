@@ -96,6 +96,7 @@ export async function updateActivitySettingsAction(
   moduleId: string,
   activityId: string,
   patch: Partial<ActivitySettings>,
+  contentAssetIds?: string[],
 ): Promise<void> {
   const headers = await authHeaders();
   const [activities, links] = await Promise.all([
@@ -109,7 +110,8 @@ export async function updateActivitySettingsAction(
     ...((activity.settings ?? {}) as ActivitySettings),
     ...patch,
   };
-  const assetIds = links.filter((l) => l.activityId === activityId).map((l) => l.assetId);
+  const assetIds =
+    contentAssetIds ?? links.filter((l) => l.activityId === activityId).map((l) => l.assetId);
   await Content.updateActivity(
     { courseId, moduleId, activityId, settings: settings as JsonValueInput, assetIds },
     headers,

@@ -432,3 +432,101 @@ describe('download delivery', () => {
     expect(captured.filename).toBe('ch1.pdf');
   });
 });
+
+describe('lesson asset delivery', () => {
+  const lesson = activity('l1', 0);
+  const linked = (activityId = 'l1', assetId = 'a1') => ({
+    orgId: 'o1',
+    id: `aa_${activityId}_${assetId}`,
+    activityId,
+    assetId,
+    seq: 0,
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const build = (
+    over: {
+      access?: { orgId: string; contentId: string }[];
+      lesson?: Activity;
+      course?: Course;
+      links?: ReturnType<typeof linked>[];
+    } = {},
+  ) => {
+    const captured: { expiry?: number; filename?: string } = {};
+    const svc = new LearnReportServiceImpl({
+      access: fakeAccess(over.access ?? [{ orgId: 'o1', contentId: 'c1' }]),
+      content: fakeContentService({
+        getActivity: async (_o, id) => {
+          const a = over.lesson ?? lesson;
+          return a.id === id ? a : null;
+        },
+        getCourse: async (_o, id) => (id === 'c1' ? (over.course ?? course('c1')) : null),
+        listCourseActivityAssets: async () => over.links ?? [linked()],
+      }),
+      progress: fakeProgress([]),
+      assets: fakeAssets(captured),
+      deliveryExpirySeconds: 300,
+    });
+    return { svc, captured };
+  };
+
+  it('signs an asset linked to a published lesson the student can open', async () => {
+    const { svc, captured } = build();
+    expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toEqual({
+      url: 'https://storage.example/signed',
+    });
+    expect(captured.expiry).toBe(300);
+  });
+
+  it('returns null without access to the course', async () => {
+    const { svc, captured } = build({ access: [] });
+    expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
+    expect(captured.expiry).toBeUndefined();
+  });
+
+  it('returns null for an asset not linked to the lesson', async () => {
+    const { svc, captured } = build({ links: [linked('l2', 'a1'), linked('l1', 'a_other')] });
+    expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
+    expect(captured.expiry).toBeUndefined();
+  });
+
+  it('returns null for a draft lesson or an unpublished course', async () => {
+    const draft = build({ lesson: activity('l1', 0, { published: false }) });
+    expect(await draft.svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
+    const unpublished = build({ course: course('c1', 'draft') });
+    expect(await unpublished.svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
+  });
+});
+
+describe('download thumbnail', () => {
+  const build = (download: unknown) =>
+    new LearnReportServiceImpl({
+      access: fakeAccess([]),
+      content: fakeContentService({ getDownload: async () => download as never }),
+      progress: fakeProgress([]),
+      assets: fakeAssets(),
+      deliveryExpirySeconds: 300,
+    });
+
+  it('signs the thumbnail of a published download without an access check', async () => {
+    const svc = build({ id: 'd1', status: 'published', thumbnailAssetId: 'a1' });
+    expect(await svc.downloadThumbnailUrl('o1', 'd1')).toEqual({
+      url: 'https://storage.example/signed',
+    });
+  });
+
+  it('returns null for an unpublished download or one without a thumbnail', async () => {
+    expect(
+      await build({ id: 'd1', status: 'draft', thumbnailAssetId: 'a1' }).downloadThumbnailUrl(
+        'o1',
+        'd1',
+      ),
+    ).toBeNull();
+    expect(
+      await build({ id: 'd1', status: 'published', thumbnailAssetId: null }).downloadThumbnailUrl(
+        'o1',
+        'd1',
+      ),
+    ).toBeNull();
+  });
+});

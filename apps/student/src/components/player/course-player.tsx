@@ -19,6 +19,7 @@ import {
 import { useApp } from "@/lib/store";
 import type { Completion, Course, LessonStatus } from "@/lib/types";
 import { ensureClientSdk } from "@/lib/api/client-sdk";
+import { activityAssetUrl } from "@/lib/api/learn-urls";
 import { progressReporter } from "@/lib/progress-reporter";
 import {
   createVideoTracker,
@@ -29,7 +30,6 @@ import {
 } from "@/lib/video-tracking";
 import editorMedia from "@/editor-media.config";
 import type { MediaTrackingEvent } from "@headless-lms/editor";
-import { Assets } from "@headless-lms/sdk";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";
@@ -167,15 +167,11 @@ export function CoursePlayer({
     [assetSeed, curLessonId],
   );
 
-  const refreshUrl = useCallback(async (assetId: string): Promise<string | null> => {
-    ensureClientSdk();
-    try {
-      const ticket = await Assets.getAssetDownloadUrl({ id: assetId });
-      return ticket.url;
-    } catch {
-      return null;
-    }
-  }, []);
+  const refreshUrl = useCallback(
+    async (assetId: string): Promise<string | null> =>
+      curLessonId ? `${activityAssetUrl(curLessonId, assetId)}?retry=${Date.now()}` : null,
+    [curLessonId],
+  );
 
   // Flush unsent watch state when the tab hides or the lesson unmounts.
   useEffect(() => {

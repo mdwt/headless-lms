@@ -182,4 +182,43 @@ export class LearnReportServiceImpl implements LearnReportService {
     this.logger.info('download asset signed', { orgId, downloadId, assetId });
     return { url: ticket.url, filename };
   }
+
+  async activityAssetUrl(
+    orgId: string,
+    orgUserId: string,
+    activityId: string,
+    assetId: string,
+  ): Promise<{ url: string } | null> {
+    const activity = await this.content.getActivity(orgId, activityId);
+    if (!activity || !isActivityPublished(activity.settings)) {
+      return null;
+    }
+    if (!(await this.getCourse(orgId, orgUserId, activity.courseId))) {
+      return null;
+    }
+    const links = await this.content.listCourseActivityAssets(orgId, activity.courseId);
+    if (!links.some((l) => l.activityId === activityId && l.assetId === assetId)) {
+      this.logger.warn('activity asset not linked', { orgId, activityId, assetId });
+      return null;
+    }
+    return this.sign(orgId, assetId);
+  }
+
+  async downloadThumbnailUrl(orgId: string, downloadId: string): Promise<{ url: string } | null> {
+    const download = await this.content.getDownload(orgId, downloadId);
+    if (!download || download.status !== 'published' || !download.thumbnailAssetId) {
+      return null;
+    }
+    return this.sign(orgId, download.thumbnailAssetId);
+  }
+
+  private async sign(orgId: string, assetId: string): Promise<{ url: string } | null> {
+    const ticket = await this.assets.requestDownload(
+      orgId,
+      assetId,
+      undefined,
+      this.deliveryExpirySeconds,
+    );
+    return ticket ? { url: ticket.url } : null;
+  }
 }

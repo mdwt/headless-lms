@@ -60,8 +60,6 @@ import type {
   DismissCommentReportsResponses,
   EditCommentErrors,
   EditCommentResponses,
-  GetAssetDownloadUrlErrors,
-  GetAssetDownloadUrlResponses,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
@@ -81,6 +79,7 @@ import type {
   GetEnrollmentSeriesResponses,
   GetInviteErrors,
   GetInviteResponses,
+  GetLearnActivityAssetErrors,
   GetLearnCourseErrors,
   GetLearnCourseProgressErrors,
   GetLearnCourseProgressResponses,
@@ -88,6 +87,7 @@ import type {
   GetLearnDownloadAssetErrors,
   GetLearnDownloadErrors,
   GetLearnDownloadResponses,
+  GetLearnDownloadThumbnailErrors,
   GetLearnOrgResponses,
   GetLearnViewerResponses,
   GetOverviewResponses,
@@ -1572,6 +1572,40 @@ export class Content {
   }
 
   /**
+   * Redirect to a short-lived signed URL for an asset in a lesson
+   */
+  public static getLearnActivityAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      activityId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetLearnActivityAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "activityId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      unknown,
+      GetLearnActivityAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/learn/activities/{activityId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Downloads the student is actively entitled to
    */
   public static listLearnDownloads<ThrowOnError extends boolean = false>(
@@ -1641,6 +1675,29 @@ export class Content {
     >({
       responseStyle: "data",
       url: "/api/learn/downloads/{downloadId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a short-lived signed URL for a download's thumbnail
+   */
+  public static getLearnDownloadThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      downloadId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetLearnDownloadThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      GetLearnDownloadThumbnailErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/learn/downloads/{downloadId}/thumbnail",
       ...options,
       ...params,
     });
@@ -2494,222 +2551,6 @@ export class Discussion {
   }
 }
 
-export class Assets {
-  /**
-   * Get a short-lived presigned URL to serve an asset to the student
-   */
-  public static getAssetDownloadUrl<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetAssetDownloadUrlResponses, GetAssetDownloadUrlErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).post<
-      GetAssetDownloadUrlResponses,
-      GetAssetDownloadUrlErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/learn/assets/{id}/url",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Register an asset and get a presigned upload URL
-   */
-  public static requestUpload<ThrowOnError extends boolean = false>(
-    parameters: {
-      filename: string;
-      contentType: string;
-      kind: "video" | "download" | "content";
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "body", key: "filename" },
-            { in: "body", key: "contentType" },
-            { in: "body", key: "kind" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      RequestUploadResponses,
-      RequestUploadErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/uploads",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
-   * Confirm an upload completed (captures size + content type)
-   */
-  public static confirmAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<ConfirmAssetResponses, ConfirmAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).post<
-      ConfirmAssetResponses,
-      ConfirmAssetErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets/{id}/confirm",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Browse the organization's media library
-   */
-  public static listAssets<ThrowOnError extends boolean = false>(
-    parameters?: {
-      page?: number;
-      pageSize?: number;
-      search?: string;
-      sort?: string;
-      kind?: "video" | "download" | "content";
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "page" },
-            { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
-            { in: "query", key: "kind" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      ListAssetsResponses,
-      ListAssetsErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Delete an asset (removes the object from storage)
-   */
-  public static deleteAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteAssetResponses, DeleteAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).delete<
-      DeleteAssetResponses,
-      DeleteAssetErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets/{id}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Get an asset's metadata
-   */
-  public static getAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetAssetResponses, GetAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).get<GetAssetResponses, GetAssetErrors, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/assets/{id}",
-        ...options,
-        ...params,
-      },
-    );
-  }
-
-  /**
-   * Get a short-lived presigned URL to download/serve an asset
-   */
-  public static requestAssetDownload<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-      filename?: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    RequestAssetDownloadResponses,
-    RequestAssetDownloadErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "filename" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      RequestAssetDownloadResponses,
-      RequestAssetDownloadErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets/{id}/download-url",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-}
-
 export class Reporting {
   /**
    * A student's learner record: per-course progress and completion
@@ -3441,6 +3282,199 @@ export class Automations {
       url: "/api/automations/webhooks/{id}/secret/rotate",
       ...options,
       ...params,
+    });
+  }
+}
+
+export class Assets {
+  /**
+   * Register an asset and get a presigned upload URL
+   */
+  public static requestUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      filename: string;
+      contentType: string;
+      kind: "video" | "download" | "content";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "filename" },
+            { in: "body", key: "contentType" },
+            { in: "body", key: "kind" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RequestUploadResponses,
+      RequestUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/uploads",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Confirm an upload completed (captures size + content type)
+   */
+  public static confirmAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ConfirmAssetResponses, ConfirmAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).post<
+      ConfirmAssetResponses,
+      ConfirmAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets/{id}/confirm",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Browse the organization's media library
+   */
+  public static listAssets<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: string;
+      kind?: "video" | "download" | "content";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
+            { in: "query", key: "kind" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListAssetsResponses,
+      ListAssetsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Delete an asset (removes the object from storage)
+   */
+  public static deleteAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteAssetResponses, DeleteAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteAssetResponses,
+      DeleteAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets/{id}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get an asset's metadata
+   */
+  public static getAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetAssetResponses, GetAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<GetAssetResponses, GetAssetErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/assets/{id}",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * Get a short-lived presigned URL to download/serve an asset
+   */
+  public static requestAssetDownload<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+      filename?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RequestAssetDownloadResponses,
+    RequestAssetDownloadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "body", key: "filename" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RequestAssetDownloadResponses,
+      RequestAssetDownloadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets/{id}/download-url",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 }

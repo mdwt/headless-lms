@@ -1986,24 +1986,17 @@ export type ReportCommentResponses = {
 
 export type ReportCommentResponse = ReportCommentResponses[keyof ReportCommentResponses];
 
-export type GetAssetDownloadUrlData = {
+export type GetLearnActivityAssetData = {
   body?: never;
   path: {
-    id: string;
+    activityId: string;
+    assetId: string;
   };
   query?: never;
-  url: "/api/learn/assets/{id}/url";
+  url: "/api/learn/activities/{activityId}/assets/{assetId}";
 };
 
-export type GetAssetDownloadUrlErrors = {
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
+export type GetLearnActivityAssetErrors = {
   /**
    * Default Response
    */
@@ -2014,32 +2007,8 @@ export type GetAssetDownloadUrlErrors = {
   };
 };
 
-export type GetAssetDownloadUrlError = GetAssetDownloadUrlErrors[keyof GetAssetDownloadUrlErrors];
-
-export type GetAssetDownloadUrlResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    url: string;
-    asset: {
-      orgId: string;
-      id: string;
-      key: string;
-      kind: "video" | "download" | "content";
-      filename: string;
-      contentType: string;
-      size: number;
-      status: "pending" | "ready";
-      uploadedBy: string;
-      createdAt: string;
-      updatedAt: string;
-    };
-  };
-};
-
-export type GetAssetDownloadUrlResponse =
-  GetAssetDownloadUrlResponses[keyof GetAssetDownloadUrlResponses];
+export type GetLearnActivityAssetError =
+  GetLearnActivityAssetErrors[keyof GetLearnActivityAssetErrors];
 
 export type ListLearnDownloadsData = {
   body?: never;
@@ -2148,6 +2117,29 @@ export type GetLearnDownloadAssetErrors = {
 
 export type GetLearnDownloadAssetError =
   GetLearnDownloadAssetErrors[keyof GetLearnDownloadAssetErrors];
+
+export type GetLearnDownloadThumbnailData = {
+  body?: never;
+  path: {
+    downloadId: string;
+  };
+  query?: never;
+  url: "/api/learn/downloads/{downloadId}/thumbnail";
+};
+
+export type GetLearnDownloadThumbnailErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetLearnDownloadThumbnailError =
+  GetLearnDownloadThumbnailErrors[keyof GetLearnDownloadThumbnailErrors];
 
 export type ListCommentsData = {
   body?: never;

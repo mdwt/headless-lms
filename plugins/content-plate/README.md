@@ -26,6 +26,7 @@ src/
   editor.tsx        # 'use client' contract Editor — Plate + EditorKit + Save
   renderer.tsx      # RSC-safe contract Renderer — PlateStatic + BaseEditorKit
   validate.ts       # shallow node-array check
+  asset-ids.ts      # host asset ids a config references
   editor/
     editor-kit.tsx        # assembled interactive plugin kit
     editor-base-kit.tsx   # assembled static (server) kit

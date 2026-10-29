@@ -11,7 +11,7 @@ import "server-only";
  * rejected session before handing over to /login.
  */
 import { unstable_rethrow } from "next/navigation";
-import { Assets, Content, Organizations, Progress } from "@headless-lms/sdk";
+import { Content, Organizations, Progress } from "@headless-lms/sdk";
 
 import { statusOf } from "./shared";
 import { authHeaders } from "./server-call";
@@ -87,11 +87,5 @@ export const learnApi = {
   async getDownload(downloadId: string): Promise<DownloadDetail | null> {
     const headers = await authHeaders();
     return orNullOn404(() => Content.getLearnDownload({ downloadId }, headers));
-  },
-  /** Sign a fresh short-lived URL for an org asset (e.g. a download thumbnail). */
-  async assetUrl(assetId: string): Promise<string | null> {
-    const headers = await authHeaders();
-    const ticket = await orNull(() => Assets.getAssetDownloadUrl({ id: assetId }, headers));
-    return ticket?.url ?? null;
   },
 };

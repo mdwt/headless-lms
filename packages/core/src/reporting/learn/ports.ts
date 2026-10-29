@@ -36,4 +36,11 @@ export interface LearnReportService {
     downloadId: string,
     assetId: string,
   ): Promise<{ url: string; filename: string } | null>;
+  activityAssetUrl(
+    orgId: string,
+    orgUserId: string,
+    activityId: string,
+    assetId: string,
+  ): Promise<{ url: string } | null>;
+  downloadThumbnailUrl(orgId: string, downloadId: string): Promise<{ url: string } | null>;
 }

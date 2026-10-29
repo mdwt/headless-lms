@@ -80,6 +80,7 @@ export interface EditorModule {
    *  render, so each node materializes with a currently-valid URL. */
   Renderer: ComponentType<{ config: unknown; resolveAssetUrl?: ResolveAssetUrl }>;
   validate?: (config: unknown) => { ok: true } | { ok: false; errors: string[] };
+  assetIds: (config: unknown) => string[];
   slots?: readonly EditorSlot[];
   meta: {
     /** Unique identifier for this editor's config format, stored with every

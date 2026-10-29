@@ -5,6 +5,7 @@ import { ArrowLeft, Download as DownloadIcon } from "lucide-react";
 import { requireAuth } from "@/lib/auth/server-session";
 import { learnApi } from "@/lib/api/server";
 import { API_URL } from "@/lib/api/server-call";
+import { downloadThumbnailUrl } from "@/lib/api/learn-urls";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +21,7 @@ export default async function DownloadDetailPage({
   if (!detail) notFound();
 
   const { download, assets } = detail;
-  const thumbnailUrl = download.thumbnailAssetId
-    ? await learnApi.assetUrl(download.thumbnailAssetId)
-    : null;
+  const thumbnailUrl = download.thumbnailAssetId ? downloadThumbnailUrl(download.id) : null;
 
   return (
     <div className="mx-auto max-w-[860px] px-7 pb-[70px] pt-[30px]">

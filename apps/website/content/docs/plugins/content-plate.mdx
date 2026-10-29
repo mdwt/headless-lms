@@ -14,6 +14,6 @@ description: Notion-style activity content editing with the content-plate plugin
 
 ## Swapping the editor
 
-The editor is behind `@headless-lms/editor`: an `EditorModule` bundles the client-side `Editor`, an RSC-safe `Renderer`, a `validate` function, and `meta: { type, version }` identifying the content format. Implement the contract and register your module in the frontend to replace Plate entirely — existing content keeps working as long as your module declares the format it can render.
+The editor is behind `@headless-lms/editor`: an `EditorModule` bundles the client-side `Editor`, an RSC-safe `Renderer`, a `validate` function, an `assetIds` function listing the host assets a config uses, and `meta: { type, version }` identifying the content format. Implement the contract and register your module in the frontend to replace Plate entirely — existing content keeps working as long as your module declares the format it can render.
 
 A host that lays out the editing screen itself passes `slots` to the `Editor`: DOM elements for the `toolbar` and the `blocks` library. An editor lists the slots it fills in `EditorModule.slots`, and the admin shows the matching toolbar and Blocks panel only for those.

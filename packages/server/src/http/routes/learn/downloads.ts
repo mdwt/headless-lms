@@ -98,4 +98,27 @@ export async function learnDownloadsRoutes(
         .redirect(signed.url, 302);
     },
   });
+
+  r.route({
+    method: 'GET',
+    url: '/api/learn/downloads/:downloadId/thumbnail',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getLearnDownloadThumbnail',
+      tags: ['Content'],
+      summary: "Redirect to a short-lived signed URL for a download's thumbnail",
+      params: DownloadIdParam,
+      response: { 302: z.void(), 404: ErrorBody },
+    },
+    handler: async (req, reply) => {
+      const signed = await learn.downloadThumbnailUrl(req.orgId, req.params.downloadId);
+      if (!signed) {
+        throw new NotFoundError('Download thumbnail', req.params.downloadId);
+      }
+      return reply
+        .header('cache-control', 'no-store')
+        .header('referrer-policy', 'no-referrer')
+        .redirect(signed.url, 302);
+    },
+  });
 }

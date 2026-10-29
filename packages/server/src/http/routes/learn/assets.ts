@@ -1,34 +1,44 @@
+import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { AssetIdParam, DownloadTicket, ErrorBody } from '../../schemas/index.js';
+import { ErrorBody, LearnActivityAssetParams } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import type { Container } from '@headless-lms/server';
+import type { Container } from '../../../app/container.js';
+import { UnauthorizedError } from '../../plugins/auth.js';
 
 export async function learnAssetsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
+  const learn = container.reporting.learn;
 
-  // Content embeds assets by stable `assetId`; the URL persisted at authoring
-  // time is a long-expired presign. The student surface mints a fresh
-  // short-lived ticket here, scoped to the session's portal org.
   r.route({
-    method: 'POST',
-    url: '/api/learn/assets/:id/url',
+    method: 'GET',
+    url: '/api/learn/activities/:activityId/assets/:assetId',
     preHandler: app.requireOrgSession,
     schema: {
-      operationId: 'getAssetDownloadUrl',
-      tags: ['Assets'],
-      summary: 'Get a short-lived presigned URL to serve an asset to the student',
-      params: AssetIdParam,
-      response: { 200: DownloadTicket, 401: ErrorBody, 404: ErrorBody },
+      operationId: 'getLearnActivityAsset',
+      tags: ['Content'],
+      summary: 'Redirect to a short-lived signed URL for an asset in a lesson',
+      params: LearnActivityAssetParams,
+      response: { 302: z.void(), 404: ErrorBody },
     },
-    handler: async (req) => {
-      // No body: the student surface never renames a download, so the asset's
-      // own filename stands.
-      const ticket = await container.assets.requestDownload(req.orgId, req.params.id);
-      if (!ticket) {
-        throw new NotFoundError('Asset', req.params.id);
+    handler: async (req, reply) => {
+      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
+      if (!orgUser) {
+        throw new UnauthorizedError();
       }
-      return ticket;
+      const signed = await learn.activityAssetUrl(
+        req.orgId,
+        orgUser.id,
+        req.params.activityId,
+        req.params.assetId,
+      );
+      if (!signed) {
+        throw new NotFoundError('Activity asset', req.params.assetId);
+      }
+      return reply
+        .header('cache-control', 'no-store')
+        .header('referrer-policy', 'no-referrer')
+        .redirect(signed.url, 302);
     },
   });
 }

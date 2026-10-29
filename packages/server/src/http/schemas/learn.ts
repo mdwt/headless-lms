@@ -19,6 +19,9 @@ export type LearnModules = z.infer<typeof LearnModules>;
 export const LearnCourseIdParam = z.object({ courseId: z.string() });
 export type LearnCourseIdParam = z.infer<typeof LearnCourseIdParam>;
 
+export const LearnActivityAssetParams = z.object({ activityId: z.string(), assetId: z.string() });
+export type LearnActivityAssetParams = z.infer<typeof LearnActivityAssetParams>;
+
 /** Downloads the authenticated student is actively entitled to (published only). */
 export const LearnDownloads = z.array(Download);
 export type LearnDownloads = z.infer<typeof LearnDownloads>;

@@ -32,12 +32,12 @@ export default async function CoursePlayerPage({
   const resumeLessonId = (lessons.find((l) => completion[l.id] !== "completed") ?? lessons[0])?.id;
   // Render each activity's Plate content on the server so the client player
   // receives ready-made nodes (no client re-execution → no hydration mismatch).
-  // Stored media URLs are save-time presigns (long expired) — each media node
-  // mints a fresh one for itself through the Renderer's `resolveAssetUrl`.
+  // Media nodes point at the lesson's asset URL; the API checks access and
+  // redirects to a fresh signed URL on every request.
   const renderedContent: Record<string, ReactNode> = {};
   for (const mod of adapted.modules) {
     for (const lesson of mod.lessons) {
-      renderedContent[lesson.id] = renderActivityContent(lesson.content ?? null);
+      renderedContent[lesson.id] = renderActivityContent(lesson.id, lesson.content ?? null);
     }
   }
 
