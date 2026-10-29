@@ -1572,7 +1572,7 @@ export class Content {
   }
 
   /**
-   * Redirect to a short-lived signed URL for an asset in a lesson
+   * Redirect to a signed URL for an asset in a lesson
    */
   public static getLearnActivityAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1681,7 +1681,7 @@ export class Content {
   }
 
   /**
-   * Redirect to a short-lived signed URL for a download's thumbnail
+   * Redirect to a signed URL for a download's thumbnail
    */
   public static getLearnDownloadThumbnail<ThrowOnError extends boolean = false>(
     parameters: {

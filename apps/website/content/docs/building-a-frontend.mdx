@@ -1,0 +1,65 @@
+---
+title: Building a frontend
+description: Read a signed-in student's courses and downloads, and serve their files.
+---
+
+The student app in `apps/student` is one frontend over the learner API. Any other frontend uses the same routes, under `/api/learn`.
+
+## Sessions and the organization
+
+- A student signs in with email and password through Better Auth (`/api/auth/*`). The session is a cookie.
+- The organization comes from the session, not from a header or subdomain.
+- Every `/api/learn` route answers `401` without a session.
+
+## Access
+
+The API decides what a student can open. A student can open a course or a download when they hold an active grant to it, or to a bundle that contains it. Grants to bundles are resolved on the server; a frontend never sees the difference.
+
+The learner routes return only what the student can open and answer `404` for everything else, never `403`, so a response never confirms that something exists. List with [`GET /api/learn/courses`](/docs/api/content/listLearnCourses) and [`GET /api/learn/downloads`](/docs/api/content/listLearnDownloads), and treat `404` as "not available to this student".
+
+## Serving files
+
+A file is never fetched by its asset id alone. Each file has a stable URL in the place it belongs to, and that URL goes straight into `src` or `href`:
+
+| File                                          | URL                                                   |
+| --------------------------------------------- | ----------------------------------------------------- |
+| Media in a lesson (image, video, audio, file) | `/api/learn/activities/{activityId}/assets/{assetId}` |
+| A download's file                             | `/api/learn/downloads/{downloadId}/assets/{assetId}`  |
+| A download's thumbnail                        | `/api/learn/downloads/{downloadId}/thumbnail`         |
+
+Every request is checked, then answered with a `302` redirect to a signed storage URL:
+
+- **Lesson media** — the student can open the course, the course and the lesson are published, and the lesson lists the asset.
+- **Download file** — the student can open the download, it is published, and the file belongs to it.
+- **Thumbnail** — the download is published. No grant is needed.
+
+Anything else is a `404`.
+
+```tsx
+const API = "https://api.example.com";
+
+<img src={`${API}/api/learn/activities/${activityId}/assets/${assetId}`} alt="" />
+<video src={`${API}/api/learn/activities/${activityId}/assets/${videoId}`} controls />
+<a href={`${API}/api/learn/downloads/${downloadId}/assets/${fileId}`} download>
+  Workbook
+</a>
+```
+
+### The session cookie has to reach the API
+
+An `<img>` or `<video>` request can't carry a token; it sends cookies. Serve the frontend and the API from the same site, as subdomains of one domain such as `learn.example.com` and `api.example.com`, and set `AUTH_COOKIE_DOMAIN` to the parent domain (`.example.com`). Locally everything runs on `localhost`, which already shares the cookie. Don't set `crossorigin="anonymous"` on media elements, since it stops the cookie being sent to another subdomain.
+
+### Link lifetimes
+
+The stable URL never expires; only the storage link it redirects to does. Requesting the stable URL again returns a fresh one.
+
+| URL                      | Storage link lifetime | Setting                   |
+| ------------------------ | --------------------- | ------------------------- |
+| Lesson media, thumbnails | 24 hours              | `STORAGE_DOWNLOAD_EXPIRY` |
+| Download files           | 5 minutes             | `DELIVERY_URL_EXPIRY`     |
+
+A download link is used once to start the download. Lesson video and audio keep fetching parts of the file while they play, so their links outlive a viewing. A player that hits an expired link recovers by loading the same URL with a changing query string, such as `?retry=1730185200000`; the API ignores the query.
+
+## Lesson content
+
+A lesson's content is in its activity's `settings.content`, as `{ type, version, config }`. `config` is in the editor's own format: render it with the editor's `Renderer` and give it a `resolveAssetUrl` that returns the lesson's file URL. See [Custom editor](/docs/editor).

@@ -106,7 +106,7 @@ export async function learnDownloadsRoutes(
     schema: {
       operationId: 'getLearnDownloadThumbnail',
       tags: ['Content'],
-      summary: "Redirect to a short-lived signed URL for a download's thumbnail",
+      summary: "Redirect to a signed URL for a download's thumbnail",
       params: DownloadIdParam,
       response: { 302: z.void(), 404: ErrorBody },
     },

@@ -97,8 +97,8 @@ export function loadServerConfig(): ServerConfig {
     requestLogging: process.env.REQUEST_LOGGING
       ? process.env.REQUEST_LOGGING !== "false"
       : process.env.NODE_ENV === "production",
-    // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
-    // default must never silently extend entitled/paywalled link lifetimes.
+    // Download files only: their link is used once to start the download.
+    // Lesson media streams for a whole viewing and uses STORAGE_DOWNLOAD_EXPIRY.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     container,
   };

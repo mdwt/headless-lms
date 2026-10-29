@@ -5694,7 +5694,7 @@
     "/api/learn/activities/{activityId}/assets/{assetId}": {
       "get": {
         "operationId": "getLearnActivityAsset",
-        "summary": "Redirect to a short-lived signed URL for an asset in a lesson",
+        "summary": "Redirect to a signed URL for an asset in a lesson",
         "tags": [
           "Content"
         ],
@@ -6084,7 +6084,7 @@
     "/api/learn/downloads/{downloadId}/thumbnail": {
       "get": {
         "operationId": "getLearnDownloadThumbnail",
-        "summary": "Redirect to a short-lived signed URL for a download's thumbnail",
+        "summary": "Redirect to a signed URL for a download's thumbnail",
         "tags": [
           "Content"
         ],

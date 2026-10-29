@@ -17,7 +17,7 @@ export async function learnAssetsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'getLearnActivityAsset',
       tags: ['Content'],
-      summary: 'Redirect to a short-lived signed URL for an asset in a lesson',
+      summary: 'Redirect to a signed URL for an asset in a lesson',
       params: LearnActivityAssetParams,
       response: { 302: z.void(), 404: ErrorBody },
     },

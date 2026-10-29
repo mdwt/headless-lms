@@ -112,7 +112,7 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Presigned URL lifetime for entitled download delivery, seconds. Mirrors
+  /** Presigned URL lifetime for download files, seconds. Mirrors
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
 }
