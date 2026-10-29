@@ -30,11 +30,11 @@ describe("expiry predicate", () => {
     expect(render(grantUnexpired(sql`x`))).toBe("(x is null or x > now())");
   });
 
-  it("is the only expiry boundary the admin overview uses", async () => {
+  it("counts the admin overview from content_access, the single access definition", async () => {
     const { db, queries } = capturingDb();
     await new DrizzleAdminRepository(db).overview("org-1");
     const text = queries.map((q) => q.text).join("\n");
-    expect(text).toContain('"entitlements"."expires_at" > now()');
+    expect(text).toContain('from "content_access"');
     expect(text).not.toMatch(/>= now\(\)|< now\(\)/);
   });
 });

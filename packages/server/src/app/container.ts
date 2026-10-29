@@ -350,6 +350,7 @@ export async function buildContainer(
   const progress = new ProgressServiceImpl({
     repo: new DrizzleProgressRepository(db, progressLogger),
     content,
+    access: entitlements,
     uow: progressUow,
     logger: progressLogger,
   });

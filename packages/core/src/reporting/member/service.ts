@@ -1,5 +1,5 @@
 import { type ContentServicePort, type SpaceDetail } from '../../content/index.js';
-import type { CommunityAccessReader, SpaceMember } from '../../entitlements/index.js';
+import type { EntitlementsService, SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetUrlSigner } from '../../assets/index.js';
 import type { ChatService, PostService } from '../../discussion/index.js';
@@ -32,12 +32,17 @@ function isActivityPublished(settings: unknown): boolean {
   return (settings as { published?: boolean } | null)?.published !== false;
 }
 
+type MemberAccess = Pick<
+  EntitlementsService,
+  'isCommunityMember' | 'openSpaceIds' | 'spaceStandings' | 'hasAccess' | 'listAccessibleContent'
+>;
+
 export type MemberReportServiceParams = {
   repo: MemberReportRepository;
   content: ContentServicePort;
   progress: ProgressService;
   assetUrls: AssetUrlSigner;
-  access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
+  access: MemberAccess;
   notifications: Pick<NotificationInbox, 'listNotifications'>;
   posts: Pick<PostService, 'visibleTitles'>;
   chats: Pick<ChatService, 'titlesFor'>;
@@ -48,7 +53,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
   private readonly assetUrls: AssetUrlSigner;
-  private readonly access: Pick<CommunityAccessReader, 'isCommunityMember' | 'openSpaceIds' | 'spaceStandings'>;
+  private readonly access: MemberAccess;
   private readonly inbox: Pick<NotificationInbox, 'listNotifications'>;
   private readonly posts: Pick<PostService, 'visibleTitles'>;
   private readonly chats: Pick<ChatService, 'titlesFor'>;
@@ -127,10 +132,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   }
 
   async listCourses(orgId: string, orgUserId: string): Promise<CourseView[]> {
-    const refs = await this.repo.activeRefs(orgId, orgUserId);
-    const courses = await Promise.all(
-      refs.map((ref) => this.content.getCourse(ref.orgId, ref.contentId)),
-    );
+    const ids = await this.access.listAccessibleContent(orgId, orgUserId, 'course');
+    const courses = await Promise.all(ids.map((id) => this.content.getCourse(orgId, id)));
     return courses.filter((c): c is CourseView => c !== null && c.status === 'published');
   }
 
@@ -139,20 +142,18 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgUserId: string,
     courseId: string,
   ): Promise<CourseView | null> {
-    const ref = await this.repo.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.access.hasAccess(orgId, orgUserId, courseId))) {
       return null;
     }
-    const course = await this.content.getCourse(ref.orgId, courseId);
+    const course = await this.content.getCourse(orgId, courseId);
     return course && course.status === 'published' ? course : null;
   }
 
   async listModules(orgId: string, orgUserId: string, courseId: string): Promise<Module[] | null> {
-    const ref = await this.repo.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
       return null;
     }
-    return this.content.listCourseModules(ref.orgId, courseId);
+    return this.content.listCourseModules(orgId, courseId);
   }
 
   async listActivities(
@@ -160,11 +161,10 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgUserId: string,
     courseId: string,
   ): Promise<ActivityView[] | null> {
-    const ref = await this.repo.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
       return null;
     }
-    const activities = await this.content.listCourseActivityViews(ref.orgId, courseId);
+    const activities = await this.content.listCourseActivityViews(orgId, courseId);
     return activities.filter((a) => isActivityPublished(a.settings));
   }
 
@@ -173,13 +173,12 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgUserId: string,
     courseId: string,
   ): Promise<CourseProgressView | null> {
-    const ref = await this.repo.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
       return null;
     }
-    const courseActivities = await this.content.listCourseActivities(ref.orgId, courseId);
+    const courseActivities = await this.content.listCourseActivities(orgId, courseId);
     const ids = courseActivities.filter((a) => isActivityPublished(a.settings)).map((a) => a.id);
-    const records = await this.progress.listByTargets(ref.orgId, orgUserId, ids);
+    const records = await this.progress.listByTargets(orgId, orgUserId, ids);
     const activities: CourseProgressView['activities'] = {};
     const positions: CourseProgressView['positions'] = {};
     let done = 0;
@@ -195,7 +194,7 @@ export class MemberReportServiceImpl implements MemberReportService {
         positions[r.targetId] = r.position;
       }
     }
-    const courseRecord = await this.progress.get(ref.orgId, {
+    const courseRecord = await this.progress.get(orgId, {
       orgUserId,
       targetType: 'course',
       targetId: courseId,
@@ -209,10 +208,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   }
 
   async listDownloads(orgId: string, orgUserId: string): Promise<DownloadView[]> {
-    const refs = await this.repo.activeDownloadRefs(orgId, orgUserId);
-    const rows = await Promise.all(
-      refs.map((ref) => this.content.getDownload(ref.orgId, ref.contentId)),
-    );
+    const ids = await this.access.listAccessibleContent(orgId, orgUserId, 'download');
+    const rows = await Promise.all(ids.map((id) => this.content.getDownload(orgId, id)));
     return rows.filter((d): d is DownloadView => d !== null && d.status === 'published');
   }
 
@@ -221,15 +218,14 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgUserId: string,
     downloadId: string,
   ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null> {
-    const ref = await this.repo.activeDownloadRef(orgId, orgUserId, downloadId);
-    if (!ref) {
+    if (!(await this.access.hasAccess(orgId, orgUserId, downloadId))) {
       return null;
     }
-    const download = await this.content.getDownload(ref.orgId, downloadId);
+    const download = await this.content.getDownload(orgId, downloadId);
     if (!download || download.status !== 'published') {
       return null;
     }
-    const assets = await this.content.listDownloadAssets(ref.orgId, downloadId);
+    const assets = await this.content.listDownloadAssets(orgId, downloadId);
     return { download, assets };
   }
 

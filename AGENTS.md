@@ -33,6 +33,8 @@ Read [this](docs/architecture.md)
   home and asset URL routes call `reporting/member`.
 - `@headless-lms/server` is `app/` (composition root) + `http/` only.
 
+- Access to content is decided only by entitlements — see "Access checks" in `docs/architecture.md`.
+
 These rules are not advisory — run `pnpm lint` after changing imports across layers.
 
 ## API contract, OpenAPI & the frontend SDK

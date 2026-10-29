@@ -20,7 +20,7 @@ import type {
   Actor,
   AuthorRecord,
   CommentReactions,
-  CourseAccessReader,
+  ContentAccessReader,
   DiscussionRepository,
   DiscussionService,
   DiscussionUnitOfWork,
@@ -44,7 +44,7 @@ const EMPTY_REACTIONS: CommentReactions = { reactions: {} };
 
 export type DiscussionServiceParams = {
   repo: DiscussionRepository;
-  access: CourseAccessReader;
+  access: ContentAccessReader;
   content: ActivityGetter;
   posts: Pick<PostService, 'visible'>;
   uow: DiscussionUnitOfWork;
@@ -56,7 +56,7 @@ export type DiscussionServiceParams = {
 
 export class DiscussionServiceImpl implements DiscussionService {
   private readonly repo: DiscussionRepository;
-  private readonly access: CourseAccessReader;
+  private readonly access: ContentAccessReader;
   private readonly content: ActivityGetter;
   private readonly posts: Pick<PostService, 'visible'>;
   private readonly uow: DiscussionUnitOfWork;
@@ -83,8 +83,8 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Activity', activityId);
     }
 
-    // The `content` namespace row is the whole CourseSettings; the `comments`
-    // key inside it is owned by this context (commentSettingsSchema).
+    // The `content` namespace row is the whole CourseSettings, owned and written
+    // by content; this context only reads its `comments` key.
     const stored = await this.settings.get<Partial<CourseSettings>>(
       orgId,
       SettingsNamespace.content,
@@ -175,7 +175,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       return true;
     }
     const activity = await this.content.getActivity(orgId, activityId);
-    return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
+    return activity ? this.access.hasAccess(orgId, actor.id, activity.courseId) : false;
   }
 
   private async requireActivityOpen(orgId: string, activityId: string, actor: Actor): Promise<void> {
@@ -185,7 +185,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
     if (
       !this.isStaff(actor) &&
-      !(await this.access.hasCourseAccess(orgId, actor.id, activity.courseId))
+      !(await this.access.hasAccess(orgId, actor.id, activity.courseId))
     ) {
       throw new ForbiddenError('You cannot open this activity');
     }

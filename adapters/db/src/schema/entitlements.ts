@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable,
+  pgView,
   text,
   timestamp,
   primaryKey,
@@ -155,6 +156,29 @@ export const entitlementEndingSoonNotices = pgTable(
     }).onDelete("cascade"),
   }),
 );
+
+// The single definition of access: who can open which content item right now.
+// A bundle grant expands to the bundle's current items.
+export const contentAccess = pgView("content_access", {
+  orgId: text("org_id").notNull(),
+  orgUserId: text("org_user_id").notNull(),
+  contentId: text("content_id").notNull(),
+  entitlementId: text("entitlement_id").notNull(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+}).as(sql`
+  select e.org_id, e.org_user_id, e.content_id, e.id as entitlement_id, e.granted_at, e.expires_at
+  from entitlements e
+  where e.content_id is not null
+    and e.status = 'active'
+    and (e.expires_at is null or e.expires_at > now())
+  union all
+  select e.org_id, e.org_user_id, bi.content_id, e.id as entitlement_id, e.granted_at, e.expires_at
+  from entitlements e
+  join bundle_items bi on bi.org_id = e.org_id and bi.bundle_id = e.bundle_id
+  where e.status = 'active'
+    and (e.expires_at is null or e.expires_at > now())
+`);
 
 type _EntitlementsDrift = Expect<NoDrift<typeof entitlements.$inferSelect, Entitlement>>;
 type _SpaceMembersDrift = Expect<NoDrift<typeof spaceMembers.$inferSelect, SpaceMember>>;

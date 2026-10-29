@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MemberReportServiceImpl, type MemberReportServiceParams } from './service.js';
-import type { MemberReportRepository, ContentRef } from './index.js';
+import type { MemberReportRepository } from './index.js';
 import type {
   Activity,
   ActivityView,
@@ -71,16 +71,21 @@ function activity(id: string, seq: number, settings: unknown = {}): Activity {
   };
 }
 
-function fakeRepo(refs: ContentRef[]): MemberReportRepository {
+function fakeRepo(): MemberReportRepository {
   return {
-    activeRefs: async (orgId) => refs.filter((r) => r.orgId === orgId),
-    activeRef: async (orgId, _s, courseId) =>
-      refs.find((r) => r.orgId === orgId && r.contentId === courseId) ?? null,
-    activeDownloadRefs: async () => [],
-    activeDownloadRef: async () => null,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
     people: async () => [],
+  };
+}
+
+function grantedAccess(grants: { orgId: string; contentId: string }[]) {
+  return {
+    ...deps.access,
+    hasAccess: async (orgId: string, _s: string, contentId: string) =>
+      grants.some((g) => g.orgId === orgId && g.contentId === contentId),
+    listAccessibleContent: async (orgId: string) =>
+      grants.filter((g) => g.orgId === orgId).map((g) => g.contentId),
   };
 }
 
@@ -126,6 +131,8 @@ const deps: Pick<
     isCommunityMember: async () => false,
     openSpaceIds: async () => [],
     spaceStandings: async () => ({}),
+    hasAccess: async () => false,
+    listAccessibleContent: async () => [],
   },
   ...readers,
 };
@@ -195,10 +202,6 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
 // Full-surface MemberReportRepository fake.
 function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): MemberReportRepository {
   return {
-    activeRefs: async () => [],
-    activeRef: async () => null,
-    activeDownloadRefs: async () => [],
-    activeDownloadRef: async () => null,
     directory: async () => [],
     spaceMemberCounts: async () => ({}),
     people: async () => [],
@@ -209,13 +212,14 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
 describe('MemberReportServiceImpl', () => {
   it('lists only published courses the student is enrolled in', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([
-        { orgId: 'o1', contentId: 'c1' },
-        { orgId: 'o1', contentId: 'c2' },
-      ]),
+      repo: fakeRepo(),
       content: fakeContent({ c1: course('c1', 'published'), c2: course('c2', 'draft') }, {}),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([
+        { orgId: 'o1', contentId: 'c1' },
+        { orgId: 'o1', contentId: 'c2' },
+      ]),
     });
     const rows = await svc.listCourses('o1', 'stu_1');
     expect(rows.map((c) => c.id)).toEqual(['c1']);
@@ -223,10 +227,11 @@ describe('MemberReportServiceImpl', () => {
 
   it('returns null for a course the student is not enrolled in', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([{ orgId: 'o1', contentId: 'c1' }]),
+      repo: fakeRepo(),
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
     expect(await svc.getCourse('o1', 'stu_1', 'cX')).toBeNull();
     expect(await svc.listModules('o1', 'stu_1', 'cX')).toBeNull();
@@ -234,10 +239,11 @@ describe('MemberReportServiceImpl', () => {
 
   it('does not return a course enrolled in another org', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([{ orgId: 'o2', contentId: 'c1' }]),
+      repo: fakeRepo(),
       content: fakeContent({ c1: course('c1') }, {}),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o2', contentId: 'c1' }]),
     });
     expect(await svc.listCourses('o1', 'stu_1')).toEqual([]);
     expect(await svc.getCourse('o1', 'stu_1', 'c1')).toBeNull();
@@ -257,7 +263,7 @@ const progressActivities: Activity[] = [
 describe('MemberReportServiceImpl.courseProgress', () => {
   it('returns null when the student is not enrolled', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([]),
+      repo: fakeRepo(),
       content: fakeContent(
         { c1: course('c1') },
         { c1: progressModules },
@@ -265,13 +271,14 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([]),
     });
     expect(await svc.courseProgress('o1', 'stu_1', 'c1')).toBeNull();
   });
 
   it('maps records to statuses and derives percent from published activities only', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([{ orgId: 'o1', contentId: 'c1' }]),
+      repo: fakeRepo(),
       content: fakeContent(
         { c1: course('c1') },
         { c1: progressModules },
@@ -291,6 +298,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         }),
       ]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     // a3 is a draft — absent from the map and the denominator
@@ -304,7 +312,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
 
   it('completed reflects the course target record', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([{ orgId: 'o1', contentId: 'c1' }]),
+      repo: fakeRepo(),
       content: fakeContent(
         { c1: course('c1') },
         { c1: progressModules },
@@ -328,6 +336,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         }),
       ]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     expect(view).toMatchObject({ percent: 100, completed: true });
@@ -335,7 +344,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
 
   it('includes stored positions keyed by activity, omitting recordless activities', async () => {
     const svc = new MemberReportServiceImpl({
-      repo: fakeRepo([{ orgId: 'o1', contentId: 'c1' }]),
+      repo: fakeRepo(),
       content: fakeContent(
         { c1: course('c1') },
         { c1: progressModules },
@@ -350,6 +359,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
         progressRecord({ targetType: 'activity', targetId: 'a2' }),
       ]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
     const view = await svc.courseProgress('o1', 'stu_1', 'c1');
     expect(view?.positions).toEqual({
@@ -365,10 +375,14 @@ describe('signed file URLs', () => {
       { ...activity('a2', 1, { published: false }), assetUrls: {} },
     ];
     const svc = new MemberReportServiceImpl({
-      repo: fakeEntitlementReader({ activeRef: async () => ({ orgId: 'o1', contentId: 'c1' }) }),
-      content: fakeContentService({ listCourseActivityViews: async () => views }),
+      repo: fakeEntitlementReader(),
+      content: fakeContentService({
+        getCourse: async () => ({ ...course('c1'), thumbnailUrl: null }),
+        listCourseActivityViews: async () => views,
+      }),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
 
     expect(await svc.listActivities('o1', 'stu_1', 'c1')).toEqual([views[0]]);
@@ -404,15 +418,14 @@ describe('signed file URLs', () => {
       },
     ];
     const svc = new MemberReportServiceImpl({
-      repo: fakeEntitlementReader({
-        activeDownloadRef: async () => ({ orgId: 'o1', contentId: 'd1' }),
-      }),
+      repo: fakeEntitlementReader(),
       content: fakeContentService({
         getDownload: async () => download,
         listDownloadAssets: async () => files,
       }),
       progress: fakeProgress([]),
       ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'd1' }]),
     });
 
     expect(await svc.getDownload('o1', 'stu_1', 'd1')).toEqual({ download, assets: files });
@@ -449,6 +462,7 @@ describe('signed file URLs', () => {
       progress: fakeProgress([]),
       assetUrls,
       access: {
+        ...deps.access,
         isCommunityMember: async () => true,
         openSpaceIds: async () => [],
         spaceStandings: async () => ({}),

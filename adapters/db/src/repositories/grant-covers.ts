@@ -53,11 +53,11 @@ export function activeGrantCovers(
   type: GrantedContentType,
 ): SQL {
   return sql`exists (
-    select 1 from ${entitlements}
-    where ${entitlements.orgId} = ${orgId}
-      and ${entitlements.orgUserId} = ${orgUserId}
-      and ${grantIsActive(entitlements)}
-      and ${grantOpens(entitlements, contentId, type)}
+    select 1 from content_access ca
+    join content_items ci on ci.org_id = ca.org_id and ci.id = ca.content_id and ci.type = ${type}
+    where ca.org_id = ${orgId}
+      and ca.org_user_id = ${orgUserId}
+      and ca.content_id = ${contentId}
   )`;
 }
 

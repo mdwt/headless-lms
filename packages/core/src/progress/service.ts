@@ -10,6 +10,7 @@ import { genId } from '../shared/id.js';
 import { NotFoundError } from '../shared/errors.js';
 import type { ProgressRecord } from './model.js';
 import type {
+  ContentAccessReader,
   ProgressRepository,
   ProgressService,
   ProgressUnitOfWork,
@@ -64,6 +65,7 @@ function completionSatisfied(settings: unknown, claimed: boolean): boolean {
 export type ProgressServiceParams = {
   repo: ProgressRepository;
   content: CourseManagementService;
+  access: ContentAccessReader;
   uow: ProgressUnitOfWork;
   logger?: Logger;
 };
@@ -71,12 +73,14 @@ export type ProgressServiceParams = {
 export class ProgressServiceImpl implements ProgressService {
   private readonly repo: ProgressRepository;
   private readonly content: CourseManagementService;
+  private readonly access: ContentAccessReader;
   private readonly uow: ProgressUnitOfWork;
   private readonly logger: Logger;
 
   constructor(params: ProgressServiceParams) {
     this.repo = params.repo;
     this.content = params.content;
+    this.access = params.access;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
@@ -87,6 +91,14 @@ export class ProgressServiceImpl implements ProgressService {
       throw new NotFoundError('Activity', input.activityId);
     }
     const courseId = activity.courseId;
+    const course = await this.content.getCourse(orgId, courseId);
+    if (
+      !course ||
+      course.status !== 'published' ||
+      !(await this.access.hasAccess(orgId, input.orgUserId, courseId))
+    ) {
+      throw new NotFoundError('Activity', input.activityId);
+    }
     const modules = await this.content.listCourseModules(orgId, courseId);
     const courseActivities = await this.content.listCourseActivities(orgId, courseId);
     return this.uow.run(async (scope) => {

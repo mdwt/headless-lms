@@ -10,6 +10,7 @@ import type {
   InsertSpaceMemberInput,
 } from "@headless-lms/core/entitlements";
 import type {
+  ContentType,
   Entitlement,
   EntitlementStatus,
   EntitlementsQuery,
@@ -21,6 +22,7 @@ import type {
   SpaceMemberStatus,
 } from "@headless-lms/core/types";
 import {
+  contentAccess,
   entitlementEndingSoonNotices,
   entitlementExpiryNotices,
   entitlements,
@@ -383,16 +385,41 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return toEntitlement(row);
   }
 
-  /** Existence check scoped to the course case: same status predicate as
-   *  `list` (revoked never counts; an elapsed expiry reads as expired, not
-   *  active). The course is reachable two ways — granted directly, or granted
-   *  through a bundle that holds it — and either way the row is joined to
-   *  content_items and constrained to type = 'course', so a grant on some other
-   *  content type can never be mistaken for course access. */
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    return this.holds(
-      activeGrantCovers(sql`${orgId}`, sql`${orgUserId}`, sql`${courseId}`, "course"),
-    );
+  async hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: contentAccess.entitlementId })
+      .from(contentAccess)
+      .where(
+        and(
+          eq(contentAccess.orgId, orgId),
+          eq(contentAccess.orgUserId, orgUserId),
+          eq(contentAccess.contentId, contentId),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async listAccessibleContent(
+    orgId: string,
+    orgUserId: string,
+    type?: ContentType,
+  ): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ contentId: contentAccess.contentId })
+      .from(contentAccess)
+      .innerJoin(
+        contentItems,
+        and(eq(contentItems.orgId, contentAccess.orgId), eq(contentItems.id, contentAccess.contentId)),
+      )
+      .where(
+        and(
+          eq(contentAccess.orgId, orgId),
+          eq(contentAccess.orgUserId, orgUserId),
+          type ? eq(contentItems.type, type) : undefined,
+        ),
+      );
+    return rows.map((r) => r.contentId);
   }
 
   hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean> {

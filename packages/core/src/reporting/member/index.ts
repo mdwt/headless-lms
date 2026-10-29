@@ -4,7 +4,6 @@ export type { MemberReportService, MemberReportRepository } from './ports.js';
 export type {
   CourseView,
   Module,
-  ContentRef,
   CourseProgressView,
   DirectoryEntry,
   DirectoryRow,

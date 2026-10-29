@@ -750,7 +750,7 @@ The database adapter gains the schema files specified in the data model section 
 
 ### Wiring
 
-The composition root in `packages/server/src/app/container.ts` wires the new services in the same way as discussion today: a repository on the root database for reads, a unit of work that builds the repository and the outbox appender on a transaction for writes, and readers passed as whole service instances. Entitlements is passed to discussion and reporting as the access reader, the same way it is passed as the course access reader today. Content is passed to entitlements and discussion as the community reader. The automation engine registers the schedule triggers of the enabled automations when it starts.
+The composition root in `packages/server/src/app/container.ts` wires the new services in the same way as discussion today: a repository on the root database for reads, a unit of work that builds the repository and the outbox appender on a transaction for writes, and readers passed as whole service instances. Entitlements is passed to discussion and reporting as the access reader, the same way it is passed to discussion and progress as the content access reader today. Content is passed to entitlements and discussion as the community reader. The automation engine registers the schedule triggers of the enabled automations when it starts.
 
 ### HTTP routes
 
@@ -983,6 +983,8 @@ This section specifies authentication and authorization for the community. Authe
 - **The tenant is the session.** `activeOrganizationId` on the session names the org; no header, no subdomain. A learner in exactly one org gets it stamped at login or on invite accept. A learner in two orgs gets none, which is an existing limit, not a community one.
 - **Two route guards.** `requireOrgSession` admits any org user of the active org. `resolveScope` additionally requires a staff role and is the staff gate for admin routes.
 - **Core authorizes on the actor.** The route guard loads the caller's org user row and hands it to core as the actor: `{ id: orgUserId, role }`. Core decides on `role` (anything but `student` is staff) and on entitlements. Core never looks a role up itself.
+- **One access check.** Whether an org user can open a piece of content is answered by entitlements' `hasAccess` and nowhere else; a grant to a bundle counts for every item in it. Discussion, progress and the learner surface call it, and reports read the `content_access` view.
+- **Files are served through proxy URLs.** A file is fetched from a stable URL that checks access on every request and redirects to a signed storage URL. Lesson media is served only when the lesson lists the file, recorded on every save from the editor's `assetIds(config)`. The serving files section lists every route.
 - **Staff and moderators are Better Auth members; students are not.** Staff membership is mirrored from Better Auth into `org_users`. A moderator is a Better Auth member with role `moderator`, mirrored the same way. Students exist only as `org_users` rows with role `student`, until they are given another role, which creates the membership. One role per person per org. The session cookie carries the user and `activeOrganizationId`. It does not carry the role. Each request reads the role from `org_users`.
 
 ### What community adds
@@ -996,24 +998,23 @@ This section specifies authentication and authorization for the community. Authe
 
 **Member images.** `POST /api/member/uploads`, `POST /api/member/uploads/:id/finalize` and `DELETE /api/member/uploads/:id` use `requireOrgSession`. The upload must declare an `image/*` content type; the finalize step reads the stored size and type and discards a file whose stored type is not the declared image type or that is over the configured limit. The asset has `source = member`, `kind = image`, and `uploadedBy` set to the caller's org user. A profile photo, a post cover, and a message attachment must be a ready member image that org user uploaded. The uploader may delete the file while nothing references it, and a system automation removes member uploads older than an hour that nothing references.
 
-**Serving files.** A response that returns something holding a file returns the file's signed URL with it, and no route serves a file by id. The context that answers the read has already decided the caller may see the thing, and it asks assets to sign that thing's files in one batch. Assets signs only ready files of the org.
+**Serving files.** Every file is fetched from a stable URL on the API that checks access on every request and answers with a `302` to a signed storage URL. No route serves a file by asset id alone. A response that holds a file carries that stable URL in its existing field, so a client puts it straight into `src` or `href`.
 
-| Response | Field |
-| --- | --- |
-| Course, download, community (staff and member) | `thumbnailUrl` |
-| Activity (staff and member lists) | `assetUrls`: the activity's linked files, keyed by asset id |
-| Download files (staff and member) | each file's stored `filename`, `contentType`, `size`, and a `url` that downloads it under its display name, or its filename when it has none |
-| Post, in every post response | `coverUrl`, and `author.imageUrl` |
-| Message, in every message response | `attachments`: `{ assetId, url }` in order, empty to a member for a deleted message; `sender.imageUrl` |
-| Comment | `author.imageUrl`, `removedBy.imageUrl`, and in the staff list `reporter.imageUrl` |
-| Profile, directory entry | `imageUrl`, only inside the org the photo belongs to |
-| Library asset (staff list, get, confirm), finalized member upload | `url` to show it and `downloadUrl` to save it under its filename; both `null` while pending, and for a member upload in the staff library |
+| File | Route | Who may fetch it | Field |
+| --- | --- | --- | --- |
+| Course, download or community thumbnail | `GET /api/member/courses/:courseId/thumbnail`, `GET /api/member/downloads/:downloadId/thumbnail`, `GET /api/member/communities/:communityId/thumbnail` | Any org user, when the item is published | `thumbnailUrl` in member responses |
+| Lesson media | `GET /api/member/activities/:activityId/assets/:assetId` | A grant covers the course, the course and the activity are published, and the activity links the asset. Staff pass | `assetUrls` in member activity lists, keyed by asset id |
+| Download file | `GET /api/member/downloads/:downloadId/assets/:assetId` | A grant covers the download, it is published, and it lists the file. Staff pass. Saved under its display name, or its filename when it has none | `url` on each member download file |
+| Post cover | `GET /api/member/posts/:postId/cover` | Whoever can open the post | `coverUrl` |
+| Message attachment | `GET /api/member/chats/:chatId/messages/:messageId/attachments/:assetId` | The chat's participants while the message is not deleted; staff when the message is flagged | `attachments[].url` |
+| Profile photo | `GET /api/member/people/:orgUserId/image` | Org users of the org the photo belongs to | `imageUrl` on authors, senders, reporters, directory entries and profiles |
+| Library asset | `GET /api/assets/:id/file` to show it, `GET /api/assets/:id/download` to save it under its filename | Staff | `url` and `downloadUrl` on library assets; `thumbnailUrl`, `assetUrls` and download file `url` in staff responses; `null` while pending and for member uploads |
 
-Every URL lives `DELIVERY_URL_EXPIRY` seconds, 24 hours by default. A client that outlives one reads the content again.
+A download file's storage link lives `DELIVERY_URL_EXPIRY` seconds, 300 by default, since it is used once to start the download. Every other file's storage link lives `STORAGE_DOWNLOAD_EXPIRY` seconds, 86400 by default, so streamed media outlives a viewing. The stable URL itself never expires.
 
-Because a response signs every file its content holds, the write decides which files those are. A course, download or community thumbnail, a file added to a download, and an activity's links must be ready files of the org's media library; anything else is refused with a 409 naming the ids. A post cover, a message attachment and a profile photo must be a ready member image the author uploaded.
+A file reference is checked when it is written. A course, download or community thumbnail, a file added to a download, and an activity's links must be ready files of the org's media library; anything else is refused with a 409 naming the ids. A post cover, a message attachment and a profile photo must be a ready member image the author uploaded.
 
-**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with the bundle-aware access check discussion already uses for courses, generalized to any content id. The course entitlement reader on the member service is not used for community. A removed or expired grant closes everything at once: spaces, feeds, chats, single messages and their files, directory, and the emails that carry excerpts. A community that is not published is closed the same way to everyone but staff.
+**Membership is a grant, read from entitlements.** Every member-facing operation starts with the same question: does this org user hold an active grant to this community, directly or through a bundle? Entitlements answers it with `hasAccess`, the same check every course and download read uses. A removed or expired grant closes everything at once: spaces, feeds, chats, directory.
 
 **Who may do what.** Core enforces every row below; the route guards only authenticate.
 
@@ -1050,8 +1051,8 @@ Instructors count as staff for moderation and posting, as they do for course com
 
 **Moderator is a fifth Better Auth role, not a table.** `org_users.role` gains `moderator` as the mirror of that membership. It is held org-wide like the other four roles, is not a staff role, and uses the member routes. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator; a moderator consumes content through a grant, as a student does. Giving and removing the role is the existing membership path under `manage_users`. The mirror hook emits `organization.user.updated`. No table records what a moderator moderates: it is every space of every community they hold a grant to.
 
+**Attachments go through a proxy URL.** A message attachment is served the way lesson media is: a stable URL per attachment that checks the reader can open the chat and that the message lists the file, then redirects to a signed storage URL. A file the message does not list is not served.
+
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 
 - `GET /api/comments` and the other staff comment routes run under `requireOrgSession` only; any org user reaches them. They get `resolveScope`.
-- `POST /api/member/assets/:id/url` mints a presigned URL for any asset in the org without an access check. The route is removed, along with the staff `POST /api/assets/:id/download-url` and the download file redirect: files are signed in the responses that carry them, as the serving files section specifies.
-- The two access readers disagree: entitlements honours bundles and ignores publish state, the course entitlement reader on `reporting/member` honours publish state and ignores bundles. Community uses entitlements for the grant and content for publish state, and that course reader is corrected to honour bundles.

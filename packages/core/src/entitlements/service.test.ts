@@ -81,7 +81,8 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     lockGrant: vi.fn().mockResolvedValue(SAMPLE),
     setExpiresAt: vi.fn(async (_orgId, id, expiresAt) => ({ ...SAMPLE, id, expiresAt })),
     setStatus: vi.fn().mockResolvedValue(SAMPLE),
-    hasCourseAccess: vi.fn().mockResolvedValue(true),
+    hasAccess: vi.fn().mockResolvedValue(true),
+    listAccessibleContent: vi.fn().mockResolvedValue(['c1']),
     hasCommunityAccess,
     communitiesOpenedBy: vi.fn().mockResolvedValue([]),
     accessAmong: vi.fn(accessAmong),
@@ -230,23 +231,22 @@ describe('EntitlementsService', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it('reports course access when the repository finds an active entitlement', async () => {
-    const { svc, repo } = build(fakeRepo({ hasCourseAccess: vi.fn().mockResolvedValue(true) }));
-    const allowed = await svc.hasCourseAccess('org-1', 's1', 'c1');
+  it('reports access when the repository resolves it', async () => {
+    const { svc, repo } = build(fakeRepo({ hasAccess: vi.fn().mockResolvedValue(true) }));
+    const allowed = await svc.hasAccess('org-1', 's1', 'c1');
     expect(allowed).toBe(true);
-    expect(repo.hasCourseAccess).toHaveBeenCalledWith('org-1', 's1', 'c1');
+    expect(repo.hasAccess).toHaveBeenCalledWith('org-1', 's1', 'c1');
   });
 
-  it('reports no course access when the entitlement is revoked', async () => {
-    const { svc } = build(fakeRepo({ hasCourseAccess: vi.fn().mockResolvedValue(false) }));
-    const allowed = await svc.hasCourseAccess('org-1', 's1', 'c1');
-    expect(allowed).toBe(false);
+  it('reports no access when the repository resolves none', async () => {
+    const { svc } = build(fakeRepo({ hasAccess: vi.fn().mockResolvedValue(false) }));
+    expect(await svc.hasAccess('org-1', 'nobody', 'c1')).toBe(false);
   });
 
-  it('reports no course access when there is no entitlement at all', async () => {
-    const { svc } = build(fakeRepo({ hasCourseAccess: vi.fn().mockResolvedValue(false) }));
-    const allowed = await svc.hasCourseAccess('org-1', 'nobody', 'c1');
-    expect(allowed).toBe(false);
+  it('lists accessible content through the repository, passing the type filter', async () => {
+    const { svc, repo } = build();
+    expect(await svc.listAccessibleContent('org-1', 's1', 'course')).toEqual(['c1']);
+    expect(repo.listAccessibleContent).toHaveBeenCalledWith('org-1', 's1', 'course');
   });
 });
 

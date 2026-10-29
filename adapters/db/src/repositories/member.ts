@@ -1,19 +1,11 @@
 // member — Drizzle read repo (implements the reporting/member outbound port).
-// Active means stored status active and expires_at still ahead. A course or
-// download is reachable directly or through a bundle, and only when published.
-import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { union } from "drizzle-orm/pg-core";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
-  ContentRef,
   DirectoryRow,
   MemberReportRepository,
 } from "@headless-lms/core/reporting/member";
 import {
-  bundleItems,
-  courses,
-  downloads,
-  entitlements,
   orgUsers,
   spaceMembers,
   spaces,
@@ -23,7 +15,7 @@ import {
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
-import { communityMember, grantUnexpired, holdsCommunity } from "./grant-covers.js";
+import { communityMember, holdsCommunity } from "./grant-covers.js";
 
 function personColumns(orgId: string) {
   return {
@@ -46,113 +38,6 @@ export class DrizzleMemberRepository implements MemberReportRepository {
     private readonly db: NodePgDatabase,
     private readonly logger: Logger = noopLogger,
   ) {}
-
-  private grantWhere(orgId: string, orgUserId: string): SQL {
-    return and(
-      eq(entitlements.orgId, orgId),
-      eq(entitlements.orgUserId, orgUserId),
-      eq(entitlements.status, "active"),
-      grantUnexpired(entitlements.expiresAt),
-    )!;
-  }
-
-  private courseRefs(orgId: string, orgUserId: string, courseId?: string) {
-    const where = this.grantWhere(orgId, orgUserId);
-    const direct = this.db
-      .select({ orgId: entitlements.orgId, contentId: courses.id })
-      .from(entitlements)
-      .innerJoin(
-        courses,
-        and(
-          eq(courses.orgId, entitlements.orgId),
-          eq(courses.id, entitlements.contentId),
-          eq(courses.status, "published"),
-          ...(courseId ? [eq(courses.id, courseId)] : []),
-        ),
-      )
-      .where(where);
-    const bundled = this.db
-      .select({ orgId: entitlements.orgId, contentId: courses.id })
-      .from(entitlements)
-      .innerJoin(
-        bundleItems,
-        and(
-          eq(bundleItems.orgId, entitlements.orgId),
-          eq(bundleItems.bundleId, entitlements.bundleId),
-          ...(courseId ? [eq(bundleItems.contentId, courseId)] : []),
-        ),
-      )
-      .innerJoin(
-        courses,
-        and(
-          eq(courses.orgId, bundleItems.orgId),
-          eq(courses.id, bundleItems.contentId),
-          eq(courses.status, "published"),
-        ),
-      )
-      .where(where);
-    return union(direct, bundled);
-  }
-
-  private downloadRefs(orgId: string, orgUserId: string, downloadId?: string) {
-    const where = this.grantWhere(orgId, orgUserId);
-    const direct = this.db
-      .select({ orgId: entitlements.orgId, contentId: downloads.id })
-      .from(entitlements)
-      .innerJoin(
-        downloads,
-        and(
-          eq(downloads.orgId, entitlements.orgId),
-          eq(downloads.id, entitlements.contentId),
-          eq(downloads.status, "published"),
-          ...(downloadId ? [eq(downloads.id, downloadId)] : []),
-        ),
-      )
-      .where(where);
-    const bundled = this.db
-      .select({ orgId: entitlements.orgId, contentId: downloads.id })
-      .from(entitlements)
-      .innerJoin(
-        bundleItems,
-        and(
-          eq(bundleItems.orgId, entitlements.orgId),
-          eq(bundleItems.bundleId, entitlements.bundleId),
-          ...(downloadId ? [eq(bundleItems.contentId, downloadId)] : []),
-        ),
-      )
-      .innerJoin(
-        downloads,
-        and(
-          eq(downloads.orgId, bundleItems.orgId),
-          eq(downloads.id, bundleItems.contentId),
-          eq(downloads.status, "published"),
-        ),
-      )
-      .where(where);
-    return union(direct, bundled);
-  }
-
-  async activeRefs(orgId: string, orgUserId: string): Promise<ContentRef[]> {
-    return this.courseRefs(orgId, orgUserId);
-  }
-
-  async activeRef(orgId: string, orgUserId: string, courseId: string): Promise<ContentRef | null> {
-    const rows = await this.courseRefs(orgId, orgUserId, courseId);
-    return rows[0] ?? null;
-  }
-
-  async activeDownloadRefs(orgId: string, orgUserId: string): Promise<ContentRef[]> {
-    return this.downloadRefs(orgId, orgUserId);
-  }
-
-  async activeDownloadRef(
-    orgId: string,
-    orgUserId: string,
-    downloadId: string,
-  ): Promise<ContentRef | null> {
-    const rows = await this.downloadRefs(orgId, orgUserId, downloadId);
-    return rows[0] ?? null;
-  }
 
   async directory(orgId: string, communityId: string): Promise<DirectoryRow[]> {
     const rows = await this.db

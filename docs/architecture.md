@@ -27,6 +27,21 @@ This means there are a lot of interfaces defined in the core service, which in t
 By default the repo ships with working adapters for everyting, so anyone can get going as-is or check the existing
 adapters as reference when creating new ones.
 
+### Access checks
+
+Whether a student can open content is decided only by the entitlements context:
+
+- Services and the learner surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
+  it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
+- SQL reports read the `content_access` view (`adapters/db/src/schema/entitlements.ts`) for cohorts and active counts.
+  It is the single definition of access: active grants, with bundle grants expanded to the bundle's current items.
+- Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
+  access themselves.
+- Files are served through stable proxy URLs that check access on every request and redirect to a signed storage URL:
+  `/api/learn/activities/:activityId/assets/:assetId` for lesson media (`STORAGE_DOWNLOAD_EXPIRY`),
+  `/api/learn/downloads/:downloadId/assets/:assetId` for download files (`DELIVERY_URL_EXPIRY`). A lesson's assets are
+  recorded on save from the editor's `assetIds(config)`; an asset the lesson doesn't list is not served.
+
 ### Adapters, Plugins, Integrations
 
 There are 3 ways to change or extend the core service.

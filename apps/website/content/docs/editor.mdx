@@ -1,0 +1,78 @@
+---
+title: Custom editor
+description: The contract a lesson content editor implements, and what the app hosting it does.
+---
+
+Lesson content is edited and rendered by a swappable editor. `@headless-lms/editor` defines the contract, and [Plate](/docs/plugins/content-plate) is the editor that ships. The backend stores a lesson's content without reading it, so everything that depends on the format goes through the contract.
+
+## The editor module
+
+An editor default-exports an `EditorModule`:
+
+| Member             | What it is                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `Editor`           | Client component that edits the content.                                                      |
+| `Renderer`         | Server-safe component that displays it: `{ config, resolveAssetUrl? }`.                       |
+| `assetIds(config)` | Required. The ids of the host assets the content uses, once each, in document order.          |
+| `validate(config)` | Optional structural check, run before a save.                                                 |
+| `slots`            | The host slots the editor fills: `toolbar`, `blocks`.                                         |
+| `meta`             | `{ type, version }` of the content format. Content in any other format is refused, not shown. |
+
+`assetIds` is how the API knows which files a lesson may serve. A lesson's file URL answers `404` for any asset its last save didn't list, so an editor whose `assetIds` misses a media node publishes a lesson with broken media.
+
+### Editor props
+
+| Prop                               | What it is                                                                    |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `initialConfig`                    | The stored content. `null` or invalid starts empty.                           |
+| `onSave(config)`                   | Persists the content.                                                         |
+| `onChange(config)`                 | Called on every edit, for host-owned save buttons and dirty state.            |
+| `uploadFile(file, { onProgress })` | Host upload. Resolves `{ id, name, size, type, url }`.                        |
+| `pickAsset({ kind })`              | Host media library picker. Resolves the same shape, or `null` when cancelled. |
+| `resolveAssetUrl(assetId)`         | A displayable URL for media while editing.                                    |
+| `slots`                            | DOM elements for the `toolbar` and `blocks` slots.                            |
+
+Store the `id` returned by `uploadFile` and `pickAsset` on the media node. It is what `assetIds` returns and what the renderer resolves. The returned `url` is only for display during the editing session.
+
+### Media playback
+
+`EditorMediaModule.MediaProvider` passes `MediaTracking` to the editor's media players: `onEvent` reports playback, `startPosition(assetId)` gives the resume point, and `refreshUrl(assetId)` gives a fresh URL after a playback error.
+
+## What the host does
+
+### Saving
+
+Send the content and `assetIds(config)` together:
+
+```ts
+import { Content } from "@headless-lms/sdk";
+import editor from "./editor.config";
+
+await Content.updateActivity({
+  courseId,
+  moduleId,
+  activityId,
+  settings: {
+    ...settings,
+    content: { type: editor.meta.type, version: editor.meta.version, config },
+  },
+  assetIds: editor.assetIds(config),
+});
+```
+
+A save without `assetIds` keeps the lesson's current list, so send it whenever the content changes. Every id must be an asset in the organization. While editing, staff resolve media with [`POST /api/assets/{id}/download-url`](/docs/api/assets/requestAssetDownload).
+
+### Rendering for students
+
+Give the `Renderer` a `resolveAssetUrl` that returns the lesson's file URL, and give the `MediaProvider` a `refreshUrl` that returns the same URL with a changing query string:
+
+```tsx
+const lessonFile = (assetId: string) =>
+  `${API}/api/learn/activities/${activityId}/assets/${assetId}`;
+
+<MediaProvider refreshUrl={async (assetId) => `${lessonFile(assetId)}?retry=${Date.now()}`}>
+  <Renderer config={content.config} resolveAssetUrl={async (assetId) => lessonFile(assetId)} />
+</MediaProvider>;
+```
+
+The API checks access on every request to that URL. See [Building a frontend](/docs/building-a-frontend#serving-files) for the rules and the cookie setup.

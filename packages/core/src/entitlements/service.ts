@@ -6,6 +6,7 @@
 // the EventBus at-least-once.
 import type { CommunityReader, Space, SpaceRowLock } from '../content/index.js';
 import type {
+  ContentType,
   Entitlement,
   EntitlementsQuery,
   GrantEntitlementInput,
@@ -145,8 +146,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return entitlement;
   }
 
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    return this.repo.hasCourseAccess(orgId, orgUserId, courseId);
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean> {
+    return this.repo.hasAccess(orgId, orgUserId, contentId);
+  }
+
+  listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]> {
+    return this.repo.listAccessibleContent(orgId, orgUserId, type);
   }
 
   async isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean> {

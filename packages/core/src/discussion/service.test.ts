@@ -6,7 +6,7 @@ import type {
   AuthorRecord,
   CommentReactions,
   CommentWithContext,
-  CourseAccessReader,
+  ContentAccessReader,
   DiscussionRepository,
   DiscussionUnitOfWork,
 } from './ports.js';
@@ -265,8 +265,8 @@ export function fakeUow(repo: DiscussionRepository) {
 
 export function fakeAccess() {
   const barred = new Set<string>();
-  const access: CourseAccessReader & { canOpenSpace: () => Promise<boolean> } = {
-    async hasCourseAccess(_orgId, orgUserId, courseId) {
+  const access: ContentAccessReader & { canOpenSpace: () => Promise<boolean> } = {
+    async hasAccess(_orgId, orgUserId, courseId) {
       return !barred.has(`${orgUserId}:${courseId}`);
     },
     async canOpenSpace() {

@@ -56,15 +56,12 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 ## Boundaries
 
 1. **assets → organizations** — every asset is scoped to an org and `uploaded_by` is an org user; an operation resolves the caller's active org before touching anything, and one org cannot see another's assets.
-2. **assets ↔ content** — an activity references the assets it uses; a download lists its files; a course and a community reference a thumbnail. Assets owns the objects; content owns the structure. Content signs those files when it returns the item, so a member gets them only with an item a grant covers.
-3. **assets ↔ discussion** — a post references its cover and a message references its attachments. Both must be member images the author uploaded. Discussion signs them when it returns the post or the message: to whoever can open the post, to the chat's participants, and to staff reading a flagged message.
-4. **assets ↔ identity** — a profile references its photo, which must be a member image the person uploaded. A profile is global and a photo belongs to an org, so the reference names the org as well as the asset. The photo is signed only inside that org, for its org users.
-5. **assets ↔ reporting** — `reporting/member` signs the files of what it composes: the courses, activities and downloads a member opens, and the photos in the community directory.
+2. **assets ↔ content** — an activity references the assets it uses; a download lists its files; a course and a community reference a thumbnail. Assets owns the objects; content owns the structure. A member fetches those files through a stable link per file, which checks on every request that a grant covers the item.
+3. **assets ↔ discussion** — a post references its cover and a message references its attachments. Both must be member images the author uploaded. They are fetched through a stable link per file, which checks on every request that the reader can open the post, takes part in the chat, or is staff reading a flagged message.
+4. **assets ↔ identity** — a profile references its photo, which must be a member image the person uploaded. A profile is global and a photo belongs to an org, so the reference names the org as well as the asset. The photo is served only inside that org, to its org users.
+5. **assets ↔ reporting** — `reporting/member` composes the courses, activities and downloads a member opens and the photos in the community directory; it hands out each file's stable link, never a signed one.
 6. **assets ↔ automations** — the hourly sweep is a system automation whose action calls assets.
-
-## Events
-
-- `asset.created`, `asset.ready`, `asset.deleted` — the asset row. The storage key is internal: no file, upload or download response carries it, and a webhook receives the event without it. The automation run record is the one place it appears: a run keeps the event that triggered it in full, key included, and staff can read run records through the API.
+7. **assets ↔ entitlements** — assets never decides who may fetch a file. A member is handed a file only after entitlements has confirmed access to the content that uses it.
 
 ## Build state
 

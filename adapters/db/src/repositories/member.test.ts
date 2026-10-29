@@ -35,16 +35,6 @@ function capture() {
   return { repo: new DrizzleMemberRepository(drizzle({ client: client as never })), statements };
 }
 
-describe("DrizzleMemberRepository.activeRefs", () => {
-  it("uses the shared expiry boundary", async () => {
-    const { repo, statements } = capture();
-    await repo.activeRefs("org1", "ou_1");
-    expect(statements[0]?.text).toContain(
-      '("entitlements"."expires_at" is null or "entitlements"."expires_at" > now())',
-    );
-  });
-});
-
 describe("DrizzleMemberRepository.spaceMemberCounts", () => {
   it("counts seated holders of the published community, and the community's holders for an all-members space", async () => {
     const { repo, statements } = capture();
@@ -57,8 +47,6 @@ describe("DrizzleMemberRepository.spaceMemberCounts", () => {
       'pc.id = "spaces"."community_id" and pc.status = \'published\'',
     );
     expect(statement?.text).toContain('"space_members"."status" = \'active\'');
-    expect(statement?.text).toContain(
-      '"entitlements"."org_user_id" = "space_members"."org_user_id"',
-    );
+    expect(statement?.text).toContain('ca.org_user_id = "space_members"."org_user_id"');
   });
 });

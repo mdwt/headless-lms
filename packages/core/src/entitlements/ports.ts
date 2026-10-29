@@ -1,5 +1,6 @@
 // entitlements context — ports.
 import type {
+  ContentType,
   Entitlement,
   EntitlementsQuery,
   GrantEntitlementInput,
@@ -82,10 +83,12 @@ export interface EntitlementsService extends CommunityAccessReader {
   grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
   ensureGrant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
-  /** Whether this org user currently holds active access to the course.
-   *  The authority for course access — a reporting read must never be used to
-   *  infer it. */
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
+  /** Whether this org user can open the content right now, through a grant to
+   *  it or to a bundle holding it. The only access check — nothing else may
+   *  derive access from grants. */
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
+  /** Ids of the content this org user can open right now, optionally of one type. */
+  listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]>;
   requestJoin(
     orgId: string,
     actor: Actor,
@@ -152,10 +155,8 @@ export interface EntitlementsRepository {
   lockGrant(orgId: string, key: GrantKey): Promise<Entitlement | null>;
   setExpiresAt(orgId: string, id: string, expiresAt: Date | null): Promise<Entitlement | null>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
-  /** Whether this org user currently holds active access to the course.
-   *  The authority for course access — a reporting read must never be used to
-   *  infer it. */
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
+  listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]>;
   hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
   accessAmong(

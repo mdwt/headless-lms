@@ -3,7 +3,6 @@ import type {
   ActivityView,
   CommunityHome,
   CommunityHomeSpace,
-  ContentRef,
   CourseProgressView,
   CourseView,
   DirectoryEntry,
@@ -51,14 +50,6 @@ export interface MemberReportService {
 }
 
 export interface MemberReportRepository {
-  activeRefs(orgId: string, orgUserId: string): Promise<ContentRef[]>;
-  activeRef(orgId: string, orgUserId: string, courseId: string): Promise<ContentRef | null>;
-  activeDownloadRefs(orgId: string, orgUserId: string): Promise<ContentRef[]>;
-  activeDownloadRef(
-    orgId: string,
-    orgUserId: string,
-    downloadId: string,
-  ): Promise<ContentRef | null>;
   directory(orgId: string, communityId: string): Promise<DirectoryRow[]>;
   spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
   people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]>;

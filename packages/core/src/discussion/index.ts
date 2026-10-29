@@ -15,7 +15,7 @@ export type {
   AuthorProfileReader,
   CommentReactions,
   CommentWithContext,
-  CourseAccessReader,
+  ContentAccessReader,
   PostCommentInput,
   AuthorRoleReader,
   CreatePostInput,

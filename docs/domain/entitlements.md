@@ -33,6 +33,17 @@ Entitlement semantics are uniform across all content types: same lifecycle, same
 
 ## Access resolution
 
+Entitlements is the only authority on whether a student can open a piece of content. Every other context, the learner surface and every report asks entitlements; none reads grants and decides for itself.
+
+A student can open a piece of content when they hold an active grant to it, or an active grant to a bundle that currently holds it. Active is one rule everywhere: not revoked and not past its expiry.
+
+A bundle grant is resolved against the bundle's current items each time access is asked, never copied into one grant per item:
+
+- A bundle's items change after it is granted. An item added reaches every holder at once, and an item removed leaves every holder at once, with nothing to backfill or clean up.
+- Revoking or expiring the bundle grant ends access to everything it opened in one step.
+- A student can hold a grant to a course and to a bundle containing it at the same time. Revoking one leaves the access the other gives.
+- The grant keeps recording what was granted, the bundle, rather than a list of items.
+
 Entitlements owns the grant and its access start. To resolve what a student can actually open right now, it composes its own grant state with the gating rules in **content** (drip relative to access start, unlock-on-completion) and the completion state in **progress**. The answer is composed by reading both; entitlements owns neither the rules nor the completion.
 
 ## Boundaries

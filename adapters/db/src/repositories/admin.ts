@@ -20,6 +20,7 @@ import {
   commentFlags,
   comments,
   communities,
+  contentAccess,
   courses,
   entitlements,
   messageFlags,
@@ -37,7 +38,7 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { orgUserProfileColumns } from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
-import { grantExpired, grantIsActive, grantOpens, grantUnexpired } from "./grant-covers.js";
+import { grantExpired, grantOpens } from "./grant-covers.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
@@ -95,15 +96,13 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       .from(courses)
       .where(eq(courses.orgId, orgId));
 
-    const effectiveActive = and(eq(entitlements.orgId, orgId), grantIsActive(entitlements));
-
     const [entitlementCounts] = await this.db
       .select({
-        activeStudents: sql<number>`count(distinct ${entitlements.orgUserId})`,
-        expiringSoon: sql<number>`count(*) filter (where ${grantExpired(entitlements.expiresAt, sql`now() + interval '14 days'`)})`,
+        activeStudents: sql<number>`count(distinct ${contentAccess.orgUserId})`,
+        expiringSoon: sql<number>`count(distinct ${contentAccess.entitlementId}) filter (where ${grantExpired(contentAccess.expiresAt, sql`now() + interval '14 days'`)})`,
       })
-      .from(entitlements)
-      .where(effectiveActive);
+      .from(contentAccess)
+      .where(eq(contentAccess.orgId, orgId));
 
     return {
       publishedCourses: Number(courseCounts?.published ?? 0),
@@ -150,11 +149,9 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     }
 
     const cohort = sql`
-      select org_user_id from entitlements
+      select distinct org_user_id from content_access
       where org_id = ${orgId}
         and content_id = ${courseId}
-        and status = 'active'
-        and ${grantUnexpired(sql`expires_at`)}
     `;
     const publishedActivities = sql`
       select a.id, a.settings, a.seq, a.module_id
@@ -393,13 +390,11 @@ export class DrizzleAdminRepository implements AdminReportRepository {
 
     const result = await this.db.execute(sql`
       with cohort_courses as (
-        select c.id, c.title
-        from entitlements e
-        join courses c on c.org_id = e.org_id and c.id = e.content_id
-        where e.org_id = ${orgId}
-          and e.org_user_id = ${id}
-          and e.status = 'active'
-          and ${grantUnexpired(sql`e.expires_at`)}
+        select distinct c.id, c.title
+        from content_access ca
+        join courses c on c.org_id = ca.org_id and c.id = ca.content_id
+        where ca.org_id = ${orgId}
+          and ca.org_user_id = ${id}
       ),
       acts as (
         select a.course_id, a.id
@@ -502,7 +497,6 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     }
 
     const opens = grantOpens(entitlements, sql`${communityId}`, "community");
-    const live = and(eq(entitlements.orgId, orgId), grantIsActive(entitlements), opens);
     const lapsed = and(
       eq(entitlements.orgId, orgId),
       eq(entitlements.status, "active"),
@@ -524,9 +518,9 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       lapsedHolders,
     ] = await Promise.all([
       this.db
-        .select({ count: sql<number>`cast(count(distinct ${entitlements.orgUserId}) as int)` })
-        .from(entitlements)
-        .where(live),
+        .select({ count: sql<number>`cast(count(distinct ${contentAccess.orgUserId}) as int)` })
+        .from(contentAccess)
+        .where(and(eq(contentAccess.orgId, orgId), eq(contentAccess.contentId, communityId))),
       this.db
         .select({ count: sql<number>`cast(count(*) as int)` })
         .from(entitlements)
@@ -632,9 +626,15 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       holderIds.length === 0
         ? [{ count: 0 }]
         : await this.db
-            .select({ count: sql<number>`cast(count(*) as int)` })
-            .from(entitlements)
-            .where(and(live, inArray(entitlements.orgUserId, holderIds)));
+            .select({ count: sql<number>`cast(count(distinct ${contentAccess.orgUserId}) as int)` })
+            .from(contentAccess)
+            .where(
+              and(
+                eq(contentAccess.orgId, orgId),
+                eq(contentAccess.contentId, communityId),
+                inArray(contentAccess.orgUserId, holderIds),
+              ),
+            );
 
     const raised =
       Number(postFlagRow?.raised ?? 0) +

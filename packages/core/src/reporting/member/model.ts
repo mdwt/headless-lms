@@ -11,12 +11,6 @@ export type {
   Module,
 } from '../../content/index.js';
 
-/** An active-entitlement pointer: the org + content item a student may consume. */
-export interface ContentRef {
-  orgId: string;
-  contentId: string;
-}
-
 /** Per-course progress for the student surface. Derived on read against the
  *  current published structure — never stored. */
 export interface DirectoryRow {

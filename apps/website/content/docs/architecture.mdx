@@ -31,8 +31,8 @@ The core is split into nine self-contained contexts. Each exposes one public sur
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **identity**      | Everyone in the system: the staff **User** and the learner **Student**, two separate identity models other contexts reference by id |
 | **organizations** | The tenant root: the organization, its staff memberships and roles, and invitations                                                 |
-| **content**       | Authored content — courses, modules, activities, drip rules                                                                         |
-| **entitlements**  | Access grants: who can access what, and why                                                                                         |
+| **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                         |
+| **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it          |
 | **progress**      | Per-student completion and derived progress                                                                                         |
 | **assets**        | The org media library; files reach clients as signed URLs in the responses that carry them                                          |
 | **integrations**  | Which third-party integrations an org has connected                                                                                 |
