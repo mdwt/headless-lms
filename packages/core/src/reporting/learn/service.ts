@@ -213,12 +213,7 @@ export class LearnReportServiceImpl implements LearnReportService {
   }
 
   private async sign(orgId: string, assetId: string): Promise<{ url: string } | null> {
-    const ticket = await this.assets.requestDownload(
-      orgId,
-      assetId,
-      undefined,
-      this.deliveryExpirySeconds,
-    );
+    const ticket = await this.assets.requestDownload(orgId, assetId);
     return ticket ? { url: ticket.url } : null;
   }
 }

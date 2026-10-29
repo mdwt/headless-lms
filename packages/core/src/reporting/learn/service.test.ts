@@ -103,7 +103,9 @@ const SIGNED_ASSET: Asset = {
 
 // Neutral AssetsService fake for tests that don't exercise download delivery —
 // the constructor now requires one, but only the "download delivery" suite below cares.
-function fakeAssets(captured: { expiry?: number; filename?: string } = {}): AssetsService {
+function fakeAssets(
+  captured: { expiry?: number; filename?: string; signed?: boolean } = {},
+): AssetsService {
   return {
     requestUpload: async () => {
       throw new Error('not used');
@@ -112,6 +114,7 @@ function fakeAssets(captured: { expiry?: number; filename?: string } = {}): Asse
     list: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     get: async () => SIGNED_ASSET,
     requestDownload: async (_orgId, _id, filename, expiresInSeconds) => {
+      captured.signed = true;
       captured.expiry = expiresInSeconds;
       captured.filename = filename;
       return { url: 'https://storage.example/signed', asset: {} as never };
@@ -452,7 +455,7 @@ describe('lesson asset delivery', () => {
       links?: ReturnType<typeof linked>[];
     } = {},
   ) => {
-    const captured: { expiry?: number; filename?: string } = {};
+    const captured: { expiry?: number; filename?: string; signed?: boolean } = {};
     const svc = new LearnReportServiceImpl({
       access: fakeAccess(over.access ?? [{ orgId: 'o1', contentId: 'c1' }]),
       content: fakeContentService({
@@ -475,19 +478,20 @@ describe('lesson asset delivery', () => {
     expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toEqual({
       url: 'https://storage.example/signed',
     });
-    expect(captured.expiry).toBe(300);
+    expect(captured.signed).toBe(true);
+    expect(captured.expiry).toBeUndefined();
   });
 
   it('returns null without access to the course', async () => {
     const { svc, captured } = build({ access: [] });
     expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
-    expect(captured.expiry).toBeUndefined();
+    expect(captured.signed).toBeUndefined();
   });
 
   it('returns null for an asset not linked to the lesson', async () => {
     const { svc, captured } = build({ links: [linked('l2', 'a1'), linked('l1', 'a_other')] });
     expect(await svc.activityAssetUrl('o1', 'stu_1', 'l1', 'a1')).toBeNull();
-    expect(captured.expiry).toBeUndefined();
+    expect(captured.signed).toBeUndefined();
   });
 
   it('returns null for a draft lesson or an unpublished course', async () => {
