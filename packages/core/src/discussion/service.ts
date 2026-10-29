@@ -252,7 +252,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     const saved = await this.uow.run(async (scope) => {
       const row = await scope.discussion.insertComment(orgId, comment);
       await scope.outbox.append([discussionEvents.commentCreated.make({ orgId, data: row })]);
-      this.logger.info('comment created', { orgId, commentId: row.id, status });
+      this.logger.info('comment created', { orgId, commentId: row.id, status, actorId: actor.id });
       return row;
     });
     return this.renderOne(orgId, saved, actor);
@@ -311,6 +311,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         commentId: row.id,
         postId,
         status: 'published',
+        actorId: actor.id,
       });
       return row;
     });
@@ -447,6 +448,11 @@ export class DiscussionServiceImpl implements DiscussionService {
   ): Promise<Comment> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {
+      this.logger.warn('comment remove rejected — not found', {
+        orgId,
+        commentId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Comment', commentId);
     }
 
@@ -492,7 +498,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           metadata: updated.postId ? { actorOrgUserId: actor.id } : undefined,
         }),
       ]);
-      this.logger.info('comment removed', { orgId, commentId, by: actor.id });
+      this.logger.info('comment removed', { orgId, commentId, actorId: actor.id });
       return updated;
     });
   }
@@ -508,6 +514,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {
+      this.logger.warn('comment restore rejected — not found', {
+        orgId,
+        commentId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.status !== 'removed') {
@@ -523,6 +534,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       // handing back the removed row.
       throw new NotFoundError('Comment', commentId);
     }
+    this.logger.info('comment restored', { orgId, commentId, actorId: actor.id });
     return updated;
   }
 
@@ -585,6 +597,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
+      this.logger.warn('comment approve rejected — not found', {
+        orgId,
+        commentId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.status !== 'pending') {
@@ -600,7 +617,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         throw new NotFoundError('Comment', commentId);
       }
       await scope.outbox.append([discussionEvents.commentPublished.make({ orgId, data: updated })]);
-      this.logger.info('comment published', { orgId, commentId });
+      this.logger.info('comment published', { orgId, commentId, actorId: actor.id });
       return updated;
     });
   }
@@ -615,6 +632,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
+      this.logger.warn('comment publish rejected — not found', {
+        orgId,
+        commentId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.status === 'pending') {
@@ -634,6 +656,11 @@ export class DiscussionServiceImpl implements DiscussionService {
   ): Promise<void> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {
+      this.logger.warn('comment reports resolve rejected — not found', {
+        orgId,
+        commentId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Comment', commentId);
     }
     if (comment.postId) {
@@ -649,7 +676,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       resolvedBy: actor.id,
       resolution: 'dismissed',
     });
-    this.logger.info('comment reports resolved', { orgId, commentId });
+    this.logger.info('comment reports resolved', { orgId, commentId, actorId: actor.id });
   }
 
   async reportComment(
@@ -698,7 +725,7 @@ export class DiscussionServiceImpl implements DiscussionService {
           metadata: comment.postId ? { actorOrgUserId: actor.id } : undefined,
         }),
       ]);
-      this.logger.info('comment reported', { orgId, commentId });
+      this.logger.info('comment reported', { orgId, commentId, actorId: actor.id });
       return saved;
     });
   }

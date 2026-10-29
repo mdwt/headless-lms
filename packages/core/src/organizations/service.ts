@@ -298,7 +298,8 @@ export class OrganizationServiceImpl implements OrganizationService {
         // A failed email must not abort invite creation: the token is already
         // minted and recorded, so the admin can fix transport and resend.
         this.logger.error('failed to send invite email', {
-          email: invite.email,
+          orgId,
+          inviteId: invite.id,
           role: invite.role,
           err: err instanceof Error ? err : new Error(String(err)),
         });

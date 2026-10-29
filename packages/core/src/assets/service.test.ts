@@ -5,7 +5,7 @@ import type { AssetsRepository, AssetsUnitOfWork } from './ports.js';
 import type { Asset } from './model.js';
 import type { NewDomainEvent, ObjectStorage, OutboxAppender } from '../shared/ports.js';
 import { createCapturingLogger } from '../shared/logger.js';
-import { ConflictError } from '../shared/errors.js';
+import { ConflictError, InvalidInputError } from '../shared/errors.js';
 
 function fakeStorage(
   stat: { size: number; contentType: string } = { size: 42, contentType: 'video/mp4' },
@@ -172,7 +172,7 @@ describe('AssetsService', () => {
         filename: 'a.pdf',
         contentType: 'application/pdf',
       }),
-    ).rejects.toThrow('A member upload must be an image');
+    ).rejects.toThrow(InvalidInputError);
   });
 
   it('owns only a ready member image uploaded by that org user', async () => {
@@ -208,7 +208,7 @@ describe('AssetsService', () => {
       contentType: 'image/png',
     });
     await expect(big.svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
-      'This image is too large',
+      new InvalidInputError('This image is too large'),
     );
     expect(big.storage.remove).toHaveBeenCalledWith(ticket.asset.key);
     expect(await big.svc.get('org-1', ticket.asset.id)).toBeNull();
@@ -352,6 +352,56 @@ describe('AssetsService', () => {
 
     expect(await svc.removeUnattached('org-1', new Date('2026-10-22T00:00:00Z'))).toBe(0);
     expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('keeps sweeping past an upload that fails to delete and logs it', async () => {
+    const { repo, assets } = fakeRepo();
+    const { uow } = fakeUow(repo);
+    const { logger, entries } = createCapturingLogger();
+    const svc = new AssetsServiceImpl({
+      storage: fakeStorage(),
+      repo,
+      uow,
+      memberImageMaxBytes: 1000,
+      downloadLinkExpirySeconds: 600,
+      fileUrls: createFileUrls('https://api.test'),
+      logger,
+    });
+    const old = new Date('2026-10-01T00:00:00Z');
+    const base = {
+      orgId: 'org-1',
+      kind: 'image' as const,
+      source: 'member' as const,
+      filename: 'me.png',
+      contentType: 'image/png',
+      size: 10,
+      status: 'ready' as const,
+      uploadedBy: 'ou_1',
+      createdAt: old,
+      updatedAt: old,
+    };
+    assets.push({ ...base, id: 'asset_broken', key: 'k1' }, { ...base, id: 'asset_ok', key: 'k2' });
+    const del = repo.delete.bind(repo);
+    repo.delete = async (orgId, id) => {
+      if (id === 'asset_broken') {
+        throw new Error('db down');
+      }
+      return del(orgId, id);
+    };
+
+    expect(await svc.removeUnattached('org-1', new Date('2026-10-22T00:00:00Z'))).toBe(1);
+    expect(assets.map((a) => a.id)).toEqual(['asset_broken']);
+    expect(entries).toContainEqual({
+      level: 'error',
+      msg: 'unattached upload not removed',
+      meta: { orgId: 'org-1', assetId: 'asset_broken', err: new Error('db down') },
+    });
+    expect(entries).toContainEqual(
+      expect.objectContaining({
+        msg: 'unattached uploads removed',
+        meta: { orgId: 'org-1', count: 1, stray: 0, failed: 1 },
+      }),
+    );
   });
 
   it('deletes the registry row before the stored object', async () => {

@@ -29,6 +29,7 @@ export class ActionInvocationError extends Error {
       `action "${integrationId}.${actionId}" failed: ${
         cause instanceof Error ? cause.message : String(cause)
       }`,
+      { cause },
     );
     this.name = 'ActionInvocationError';
   }

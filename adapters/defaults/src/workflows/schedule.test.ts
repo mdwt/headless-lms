@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AutomationExecutor } from "@headless-lms/core/types";
+import { createCapturingLogger } from "@headless-lms/core/shared/logger";
 import { fireDueSchedules } from "./schedule.js";
 
 describe("fireDueSchedules", () => {
@@ -75,5 +76,51 @@ describe("fireDueSchedules", () => {
     await fireDueSchedules(executor(fireSchedule), at, lastFired);
 
     expect(fireSchedule).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs a failed fire with its schedule and the error", async () => {
+    const { logger, entries } = createCapturingLogger();
+    const err = new Error("down");
+    const fireSchedule = vi.fn().mockRejectedValue(err);
+
+    await fireDueSchedules(
+      executor(fireSchedule),
+      new Date("2026-10-21T07:00:00.000Z"),
+      new Map(),
+      logger,
+    );
+
+    expect(entries).toEqual([
+      {
+        level: "error",
+        msg: "automation schedule not fired",
+        meta: {
+          orgId: "org-1",
+          automationId: "atm_1",
+          cron: "0 7 * * *",
+          at: "2026-10-21T07:00:00.000Z",
+          err,
+        },
+      },
+    ]);
+  });
+
+  it("logs a failed listing and fires nothing", async () => {
+    const { logger, entries } = createCapturingLogger();
+    const err = new Error("db down");
+    const fireSchedule = vi.fn();
+
+    const ran = await fireDueSchedules(
+      { ...executor(fireSchedule), listSchedules: vi.fn().mockRejectedValue(err) },
+      new Date("2026-10-21T07:00:00.000Z"),
+      new Map(),
+      logger,
+    );
+
+    expect(ran).toBe(false);
+    expect(fireSchedule).not.toHaveBeenCalled();
+    expect(entries).toEqual([
+      { level: "error", msg: "automation schedules not listed", meta: { err } },
+    ]);
   });
 });

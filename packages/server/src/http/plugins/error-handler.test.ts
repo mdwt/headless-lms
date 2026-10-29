@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { NotFoundError, ConflictError } from '@headless-lms/core/shared/errors';
+import { NotFoundError, ConflictError, InvalidInputError } from '@headless-lms/core/shared/errors';
 import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
+  ActionInvocationError,
   AlreadyConnectedError,
   InvalidConfigError,
   UnknownIntegrationError,
@@ -45,6 +46,12 @@ beforeAll(async () => {
     },
     'invalid-config': () => {
       throw new InvalidConfigError('slack', ['channel is required']);
+    },
+    'invalid-input': () => {
+      throw new InvalidInputError('This image is too large');
+    },
+    'action-failed': () => {
+      throw new ActionInvocationError('slack', 'postMessage', new Error('token xoxb-123 revoked'));
     },
     conflict: () => {
       throw new ConflictError('A student with this email already exists');
@@ -100,6 +107,21 @@ describe('central error handler', () => {
     expect(res.json()).toEqual({
       error: 'conflict',
       message: 'A student with this email already exists',
+    });
+  });
+
+  it('maps InvalidInputError to 400 invalid_input', async () => {
+    const res = await app.inject({ method: 'GET', url: '/invalid-input' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'invalid_input', message: 'This image is too large' });
+  });
+
+  it('maps ActionInvocationError to 502 without the integration message', async () => {
+    const res = await app.inject({ method: 'GET', url: '/action-failed' });
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({
+      error: 'action_failed',
+      message: 'The integration did not respond as expected',
     });
   });
 

@@ -6,7 +6,7 @@
 // hands it to the injected AutomationEngine, which calls back into
 // `runAction`/`finalize`.
 import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catalog.js';
-import { executeAction } from './actions.js';
+import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
 import type { NotificationDesk } from '../identity/index.js';
@@ -281,10 +281,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     try {
       await this.engine.syncSchedules?.();
     } catch (err) {
-      this.logger.error('automation schedules not reconciled', {
-        orgId,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.error('automation schedules not reconciled', { orgId, err });
     }
   }
 
@@ -295,7 +292,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       this.logger.error('automations: failed to load trigger matches', {
         orgId: event.orgId,
         trigger: event.type,
-        error: err instanceof Error ? err.message : String(err),
+        err,
       });
       return [];
     }
@@ -311,15 +308,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       }
       await this.engine.dispatch(this.dispatchFor(automation, run, event));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       this.logger.error('automation run failed', {
         orgId: event.orgId,
         automationId: automation.id,
         runId: run?.id,
-        error: message,
+        trigger: event.type,
+        eventId: event.id,
+        err,
       });
       if (run) {
-        await this.recordFailure(run, message);
+        await this.recordFailure(run, err instanceof Error ? err.message : String(err));
       }
     }
   }
@@ -388,8 +386,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     } catch (err) {
       this.logger.error('failed to record automation run failure', {
         orgId: run.orgId,
+        automationId: run.automationId,
         runId: run.id,
-        error: err instanceof Error ? err.message : String(err),
+        err,
         originalError: error,
       });
       return null;
@@ -401,31 +400,50 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (!action) {
       throw new Error(`automation ${d.automationId} run ${d.runId}: no action at index ${index}`);
     }
-    const recipients = await executeAction(action, d.event, {
-      mailer: this.mailer,
-      lookups: this.lookups,
-      credentials: this.credentials,
-      webhooks: this.webhooks,
-      mail: this.mail,
-      grants: this.grants,
-      desk: this.desk,
-      scheduledWork: this.scheduledWork,
-      automationId: d.automationId,
-      actionInput: action.input,
-      logger: this.logger,
-    });
+    let outcome: ActionOutcome;
+    try {
+      outcome = await executeAction(action, d.event, {
+        mailer: this.mailer,
+        lookups: this.lookups,
+        credentials: this.credentials,
+        webhooks: this.webhooks,
+        mail: this.mail,
+        grants: this.grants,
+        desk: this.desk,
+        scheduledWork: this.scheduledWork,
+        automationId: d.automationId,
+        actionInput: action.input,
+        logger: this.logger,
+      });
+    } catch (err) {
+      this.logger.error('automation action failed', {
+        orgId: d.orgId,
+        automationId: d.automationId,
+        runId: d.runId,
+        trigger: d.event.type,
+        index,
+        type: action.type,
+        err,
+      });
+      throw err;
+    }
+    const { recipients, failed } = outcome;
     this.logger.info('automation action completed', {
       orgId: d.orgId,
       automationId: d.automationId,
       runId: d.runId,
       type: action.type,
       recipients: recipients.length,
+      failed: failed.length,
     });
     return {
       index,
       type: action.type,
       status: 'completed',
       ...(recipients.length > 0 ? { recipients } : {}),
+      ...(failed.length > 0
+        ? { error: `delivery failed for ${failed.length} recipients: ${failed.join(', ')}` }
+        : {}),
     };
   }
 
@@ -514,6 +532,39 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         }));
       await outbox.append([runEvent, ...actionFailedEvents]);
     });
+    this.logOutcome(d, status, results);
+  }
+
+  private logOutcome(
+    d: AutomationDispatch,
+    status: 'completed' | 'failed',
+    results: AutomationActionResult[],
+  ): void {
+    const run = {
+      orgId: d.orgId,
+      automationId: d.automationId,
+      runId: d.runId,
+      trigger: d.event.type,
+      eventId: d.event.id,
+    };
+    if (status === 'failed') {
+      const failed = results.find((r) => r.status === 'failed');
+      const index = failed?.index ?? results.length;
+      this.logger.error('automation run failed', {
+        ...run,
+        index,
+        action: failed?.type ?? d.actions[index]?.type,
+        error: failed?.error ?? 'not every action ran',
+      });
+      return;
+    }
+    const partial = results.filter((r) => r.error !== undefined);
+    if (partial.length > 0) {
+      this.logger.warn('automation run completed with failed deliveries', {
+        ...run,
+        actions: partial.map(({ index, type, error }) => ({ index, type, error })),
+      });
+    }
   }
 
   async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
@@ -633,14 +684,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     try {
       await this.engine.dispatch(this.dispatchFor(automation, run, run.event));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       this.logger.error('automation rerun failed', {
         orgId,
         automationId,
         runId: run.id,
-        error: message,
+        trigger: run.trigger,
+        err,
       });
-      return (await this.recordFailure(run, message)) ?? run;
+      return (
+        (await this.recordFailure(run, err instanceof Error ? err.message : String(err))) ?? run
+      );
     }
     this.logger.info('automation rerun started', { orgId, automationId, runId: run.id });
     return run;

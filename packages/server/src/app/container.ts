@@ -237,7 +237,7 @@ export async function buildContainer(
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
   const automationEngine: AutomationEngine =
-    options?.adapters?.workflows ?? new InlineAutomationEngine();
+    options?.adapters?.workflows ?? new InlineAutomationEngine(automationsLogger);
   const mailer = new Mailer(templates, email, {
     ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
     studentPortalUrl: config.studentPortalUrl,

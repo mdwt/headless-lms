@@ -22,9 +22,11 @@ import type {
 import type {
   CredentialStore,
   DomainEvent,
+  Logger,
   NewDomainEvent,
   OutboxAppender,
 } from '../shared/ports.js';
+import { createCapturingLogger, noopLogger } from '../shared/logger.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
@@ -238,6 +240,7 @@ function build(
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
   scheduledWork: ScheduledWork = emptyScheduledWork,
+  logger: Logger = noopLogger,
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
   const svc = new AutomationsServiceImpl({
@@ -258,6 +261,7 @@ function build(
     },
     desk: emptyNotificationDesk,
     scheduledWork,
+    logger,
   });
   return {
     svc,
@@ -523,9 +527,21 @@ describe('AutomationsService.runAction', () => {
     });
   });
 
-  it('throws when the mailer fails — the engine owns retry', async () => {
+  it('throws when every email fails — the engine owns retry — and logs the error', async () => {
     const mailer = fakeMailer({ send: vi.fn().mockRejectedValue(new Error('smtp down')) });
-    const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
+    const { logger, entries } = createCapturingLogger();
+    const { svc } = build(
+      fakeRepo(),
+      fakeRunsRepo(),
+      fakeEngine(),
+      mailer,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger,
+    );
     await expect(
       svc.runAction(
         dispatch(
@@ -534,7 +550,20 @@ describe('AutomationsService.runAction', () => {
         ),
         0,
       ),
-    ).rejects.toThrow('smtp down');
+    ).rejects.toThrow('sendEmail: delivery failed for all 1 recipients');
+    expect(entries.find((entry) => entry.level === 'error')).toEqual({
+      level: 'error',
+      msg: 'automation action failed',
+      meta: {
+        orgId: 'org-1',
+        automationId: 'atm_1',
+        runId: 'run_1',
+        trigger: 'entitlement.created',
+        index: 0,
+        type: 'sendEmail',
+        err: expect.any(Error),
+      },
+    });
   });
 
   it('throws a clear, named error for an underivable trigger/template pairing', async () => {
@@ -637,6 +666,73 @@ describe('AutomationsService.finalize', () => {
         data: results[0],
       }),
     ]);
+  });
+
+  it('logs a failed run at error with the failing action', async () => {
+    const { logger, entries } = createCapturingLogger();
+    const { svc } = build(
+      fakeRepo(),
+      fakeRunsRepo(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger,
+    );
+    await svc.finalize(dispatch, [
+      { index: 0, type: 'sendEmail', status: 'failed', error: 'smtp down' },
+    ]);
+    expect(entries).toContainEqual({
+      level: 'error',
+      msg: 'automation run failed',
+      meta: {
+        orgId: 'org-1',
+        automationId: 'atm_1',
+        runId: 'run_1',
+        trigger: 'entitlement.created',
+        eventId: 'evt_1',
+        index: 0,
+        action: 'sendEmail',
+        error: 'smtp down',
+      },
+    });
+  });
+
+  it('logs a run whose deliveries partly failed at warn', async () => {
+    const { logger, entries } = createCapturingLogger();
+    const { svc } = build(
+      fakeRepo(),
+      fakeRunsRepo(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger,
+    );
+    await svc.finalize(dispatch, [
+      {
+        index: 0,
+        type: 'sendEmail',
+        status: 'completed',
+        recipients: ['s1'],
+        error: 'delivery failed for 1 recipients: s2',
+      },
+    ]);
+    expect(entries.filter((entry) => entry.level === 'error')).toEqual([]);
+    expect(entries).toContainEqual({
+      level: 'warn',
+      msg: 'automation run completed with failed deliveries',
+      meta: expect.objectContaining({
+        runId: 'run_1',
+        actions: [{ index: 0, type: 'sendEmail', error: 'delivery failed for 1 recipients: s2' }],
+      }),
+    });
   });
 
   it('treats a partial run (fewer results than actions) as failed', async () => {

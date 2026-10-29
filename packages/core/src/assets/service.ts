@@ -1,6 +1,6 @@
 import { genId } from '../shared/id.js';
 import type { Logger, ObjectStorage } from '../shared/ports.js';
-import { ConflictError, ForbiddenError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, InvalidInputError } from '../shared/errors.js';
 import type {
   Asset,
   AssetKind,
@@ -146,7 +146,7 @@ export class AssetsServiceImpl implements AssetsService {
     input: MemberUploadInput,
   ): Promise<UploadTicket> {
     if (kindOf(input.contentType) !== 'image') {
-      throw new ConflictError('A member upload must be an image');
+      throw new InvalidInputError('A member upload must be an image');
     }
     return this.requestUpload(orgId, {
       filename: input.filename,
@@ -295,14 +295,16 @@ export class AssetsServiceImpl implements AssetsService {
   async removeUnattached(orgId: string, now: Date): Promise<number> {
     const stale = await this.repo.listUnreferencedMemberUploads(orgId, graceCutoff(now));
     let removed = 0;
+    let failed = 0;
     for (const asset of stale) {
       try {
         if (await this.discard(orgId, asset)) {
           removed += 1;
         }
-      } catch (error) {
-        if (!(error instanceof ConflictError)) {
-          throw error;
+      } catch (err) {
+        if (!(err instanceof ConflictError)) {
+          failed += 1;
+          this.logger.error('unattached upload not removed', { orgId, assetId: asset.id, err });
         }
       }
     }
@@ -311,12 +313,13 @@ export class AssetsServiceImpl implements AssetsService {
       try {
         await this.storage.remove(key);
         stray += 1;
-      } catch (error) {
-        this.logger.warn('stray upload not removed', { orgId, error: (error as Error).message });
+      } catch (err) {
+        failed += 1;
+        this.logger.warn('stray upload not removed', { orgId, err });
       }
     }
-    if (removed > 0 || stray > 0) {
-      this.logger.info('unattached uploads removed', { orgId, count: removed, stray });
+    if (removed > 0 || stray > 0 || failed > 0) {
+      this.logger.info('unattached uploads removed', { orgId, count: removed, stray, failed });
     }
     return removed + stray;
   }
@@ -381,7 +384,7 @@ export class AssetsServiceImpl implements AssetsService {
       await this.removeObject(orgId, asset.id, key);
       await this.discard(orgId, asset);
       this.logger.info('member upload refused', { orgId, assetId: asset.id, reason });
-      throw new ConflictError(reason);
+      throw new InvalidInputError(reason);
     }
     const ready = await this.markReady(orgId, asset, { key, kind, size: stat.size, contentType });
     if (!ready) {
@@ -447,11 +450,7 @@ export class AssetsServiceImpl implements AssetsService {
     try {
       await this.storage.remove(key);
     } catch (error) {
-      this.logger.warn('stored object not removed', {
-        orgId,
-        assetId,
-        error: (error as Error).message,
-      });
+      this.logger.warn('stored object not removed', { orgId, assetId, err: error });
     }
   }
 }

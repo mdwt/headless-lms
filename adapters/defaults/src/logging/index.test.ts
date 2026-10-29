@@ -50,4 +50,27 @@ describe("createRootLogger / PinoLogger", () => {
     expect(err.message).toBe("kapow");
     expect(err.stack).toContain("kapow");
   });
+
+  it("logs a request by its route pattern, never the raw path", () => {
+    const out = collector();
+    const { instance } = createRootLogger("info", out.stream);
+    instance.info(
+      {
+        req: {
+          method: "GET",
+          url: "/api/organizations/invites/secret-token?x=1",
+          ip: "127.0.0.1",
+          routeOptions: { url: "/api/organizations/invites/:token" },
+        },
+      },
+      "incoming request",
+    );
+    const [line] = out.lines();
+    expect(JSON.stringify(line)).not.toContain("secret-token");
+    expect(line?.req).toEqual({
+      method: "GET",
+      route: "/api/organizations/invites/:token",
+      remoteAddress: "127.0.0.1",
+    });
+  });
 });

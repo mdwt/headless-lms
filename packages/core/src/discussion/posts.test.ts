@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -480,7 +485,7 @@ describe('posts', () => {
       updatedAt: AT,
     };
     setSpaces([space({ topics: [topic] })]);
-    await expect(svc.create(ORG, member, draftInput())).rejects.toBeInstanceOf(ConflictError);
+    await expect(svc.create(ORG, member, draftInput())).rejects.toBeInstanceOf(InvalidInputError);
     await expect(
       svc.create(ORG, member, draftInput({ topicId: 'top_missing' })),
     ).rejects.toBeInstanceOf(NotFoundError);
@@ -872,7 +877,7 @@ describe('posts', () => {
     const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
     setSpaces([space({ topics: [topic('top_1')] })]);
     calls.length = 0;
-    await expect(svc.submit(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
+    await expect(svc.submit(ORG, draft.id, member)).rejects.toBeInstanceOf(InvalidInputError);
     expect(calls).toHaveLength(0);
   });
 

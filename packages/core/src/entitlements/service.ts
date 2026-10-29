@@ -273,6 +273,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       spaceId,
       orgUserId: actor.id,
       status: created.status,
+      actorId: actor.id,
     });
     return created;
   }
@@ -289,7 +290,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertHolds(orgId, actor, orgUserId, space.communityId);
     const created = await this.createMember(orgId, actor, space, orgUserId, 'invited', 'invite');
-    this.logger.info('space member created', { orgId, spaceId, orgUserId, status: created.status });
+    this.logger.info('space member created', {
+      orgId,
+      spaceId,
+      orgUserId,
+      status: created.status,
+      actorId: actor.id,
+    });
     return created;
   }
 
@@ -322,7 +329,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         locked,
       );
     });
-    this.logger.info('space member created', { orgId, spaceId, orgUserId, status: created.status });
+    this.logger.info('space member created', {
+      orgId,
+      spaceId,
+      orgUserId,
+      status: created.status,
+      actorId: actor.id,
+    });
     return created;
   }
 
@@ -426,6 +439,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         this.assertHasMembers(locked.accessRule);
         const row = await entitlements.lockSpaceMember(orgId, spaceId, orgUserId);
         if (!row) {
+          this.logger.warn('space member remove rejected — not found', {
+            orgId,
+            spaceId,
+            orgUserId,
+            actorId: actor.id,
+          });
           throw new NotFoundError('Space member', orgUserId);
         }
         if (row.status === 'revoked') {
@@ -445,7 +464,13 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         return { updated: next, previousStatus: row.status };
       },
     );
-    this.logger.info('space member removed', { orgId, spaceId, orgUserId, previousStatus });
+    this.logger.info('space member removed', {
+      orgId,
+      spaceId,
+      orgUserId,
+      previousStatus,
+      actorId: actor.id,
+    });
     return updated;
   }
 
@@ -522,6 +547,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private async requireSpaceIn(orgId: string, communityId: string, spaceId: string) {
     const space = await this.content.getSpace(orgId, spaceId);
     if (!space || space.communityId !== communityId) {
+      this.logger.warn('space members rejected — space not found', {
+        orgId,
+        communityId,
+        spaceId,
+      });
       throw new NotFoundError('Space', spaceId);
     }
     return space;
@@ -664,6 +694,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         throw alreadyPlaced(actor, orgUserId);
       }
       if (!row || row.status !== from) {
+        this.logger.warn('space member activate rejected — not found', {
+          orgId,
+          spaceId,
+          orgUserId,
+          actorId: actor.id,
+        });
         throw missing();
       }
       await this.assertRoom(entitlements, orgId, locked);
@@ -680,7 +716,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       ]);
       return next;
     });
-    this.logger.info('space member activated', { orgId, spaceId, orgUserId });
+    this.logger.info('space member activated', { orgId, spaceId, orgUserId, actorId: actor.id });
     return updated;
   }
 
@@ -698,6 +734,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         throw alreadyPlaced(actor, orgUserId);
       }
       if (!current || current.status !== from) {
+        this.logger.warn('space member delete rejected — not found', {
+          orgId,
+          spaceId,
+          orgUserId,
+          actorId: actor.id,
+        });
         throw missing();
       }
       await entitlements.deleteSpaceMember(orgId, current.id);
@@ -715,6 +757,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       spaceId,
       orgUserId,
       previousStatus: from,
+      actorId: actor.id,
     });
     return row;
   }

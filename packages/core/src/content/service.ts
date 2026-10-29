@@ -50,7 +50,12 @@ import { contentEvents } from './events.js';
 import type { Actor } from '../shared/actor.js';
 import type { AssetFiles, FileUrls, LibraryAssetReader } from '../assets/index.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { spaceSettingsDefaults } from '../types/schemas/content.js';
 
@@ -728,7 +733,7 @@ export class ContentService
     let capacity = input.capacity !== undefined ? input.capacity : (current?.capacity ?? null);
     if (accessRule === 'all_members') {
       if (input.capacity != null) {
-        throw new ConflictError('An all-members space has no capacity');
+        throw new InvalidInputError('An all-members space has no capacity');
       }
       capacity = null;
     }
@@ -798,7 +803,11 @@ export class ContentService
       ]);
       return created;
     });
-    this.logger.info('community created', { orgId, communityId: community.id });
+    this.logger.info('community created', {
+      orgId,
+      communityId: community.id,
+      actorId: actor.id,
+    });
     return this.withThumbnail(community);
   }
 
@@ -813,6 +822,11 @@ export class ContentService
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCommunity(orgId, id, patch);
       if (!updated) {
+        this.logger.warn('community update rejected — not found', {
+          orgId,
+          communityId: id,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Community', id);
       }
       await outbox.append([
@@ -824,7 +838,7 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('community updated', { orgId, communityId: id });
+    this.logger.info('community updated', { orgId, communityId: id, actorId: actor.id });
     return this.withThumbnail(community);
   }
 
@@ -841,6 +855,11 @@ export class ContentService
     await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, id);
       if (!community) {
+        this.logger.warn('community delete rejected — not found', {
+          orgId,
+          communityId: id,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Community', id);
       }
       const linked = await content.spacesLinkingContent(orgId, id);
@@ -858,7 +877,7 @@ export class ContentService
         ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
-    this.logger.info('community deleted', { orgId, communityId: id });
+    this.logger.info('community deleted', { orgId, communityId: id, actorId: actor.id });
   }
 
   async patchDmSettings(
@@ -871,6 +890,11 @@ export class ContentService
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.patchDmSettings(orgId, id, patch);
       if (!updated) {
+        this.logger.warn('community dm settings patch rejected — not found', {
+          orgId,
+          communityId: id,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Community', id);
       }
       await outbox.append([
@@ -882,7 +906,11 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('community dm settings patched', { orgId, communityId: id });
+    this.logger.info('community dm settings patched', {
+      orgId,
+      communityId: id,
+      actorId: actor.id,
+    });
     return this.withThumbnail(community);
   }
 
@@ -897,6 +925,11 @@ export class ContentService
     const space = await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, communityId);
       if (!community) {
+        this.logger.warn('space create rejected — community not found', {
+          orgId,
+          communityId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Community', communityId);
       }
       const created = await content.createSpace(orgId, communityId, {
@@ -914,7 +947,12 @@ export class ContentService
       ]);
       return created;
     });
-    this.logger.info('space created', { orgId, communityId, spaceId: space.id });
+    this.logger.info('space created', {
+      orgId,
+      communityId,
+      spaceId: space.id,
+      actorId: actor.id,
+    });
     return space;
   }
 
@@ -929,6 +967,12 @@ export class ContentService
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
+        this.logger.warn('space update rejected — not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       const resolved = this.resolvedSpace(patch, current);
@@ -950,7 +994,7 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('space updated', { orgId, communityId, spaceId });
+    this.logger.info('space updated', { orgId, communityId, spaceId, actorId: actor.id });
     return space;
   }
 
@@ -964,6 +1008,12 @@ export class ContentService
     await this.uow.run(async ({ content, outbox }) => {
       const space = await content.findSpace(orgId, spaceId);
       if (!space || space.communityId !== communityId) {
+        this.logger.warn('space delete rejected — not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       const ok = await content.deleteSpace(orgId, communityId, spaceId);
@@ -978,7 +1028,7 @@ export class ContentService
         }),
       ]);
     });
-    this.logger.info('space deleted', { orgId, communityId, spaceId });
+    this.logger.info('space deleted', { orgId, communityId, spaceId, actorId: actor.id });
   }
 
   async reorderSpaces(
@@ -991,6 +1041,11 @@ export class ContentService
     const spaces = await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, communityId);
       if (!community) {
+        this.logger.warn('spaces reorder rejected — community not found', {
+          orgId,
+          communityId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Community', communityId);
       }
       const current = await content.listSpaces(orgId, communityId);
@@ -1012,7 +1067,7 @@ export class ContentService
       ]);
       return reordered;
     });
-    this.logger.info('spaces reordered', { orgId, communityId });
+    this.logger.info('spaces reordered', { orgId, communityId, actorId: actor.id });
     return spaces;
   }
 
@@ -1026,11 +1081,17 @@ export class ContentService
     assertConfigurator(actor);
     const names = input.topics.map((topic) => topic.name);
     if (new Set(names).size !== names.length) {
-      throw new ConflictError('A space topic name is already used');
+      throw new InvalidInputError('A space topic name is already used');
     }
     const space = await this.uow.run(async ({ content, outbox }) => {
       const locked = await content.lockSpace(orgId, spaceId);
       if (!locked || locked.communityId !== communityId) {
+        this.logger.warn('space topics rejected — space not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       const current = await content.findSpace(orgId, spaceId);
@@ -1054,7 +1115,7 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('space topics set', { orgId, communityId, spaceId });
+    this.logger.info('space topics set', { orgId, communityId, spaceId, actorId: actor.id });
     return space;
   }
 
@@ -1069,6 +1130,12 @@ export class ContentService
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
+        this.logger.warn('space link add rejected — space not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       if (current.links.some((link) => link.contentId === contentId)) {
@@ -1084,7 +1151,13 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('space link added', { orgId, communityId, spaceId, contentId });
+    this.logger.info('space link added', {
+      orgId,
+      communityId,
+      spaceId,
+      contentId,
+      actorId: actor.id,
+    });
     return space;
   }
 
@@ -1099,6 +1172,12 @@ export class ContentService
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
+        this.logger.warn('space link remove rejected — space not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       const updated = await content.removeSpaceLink(orgId, spaceId, linkId);
@@ -1111,7 +1190,13 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('space link removed', { orgId, communityId, spaceId, linkId });
+    this.logger.info('space link removed', {
+      orgId,
+      communityId,
+      spaceId,
+      linkId,
+      actorId: actor.id,
+    });
     return space;
   }
 
@@ -1126,6 +1211,12 @@ export class ContentService
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
+        this.logger.warn('space links reorder rejected — space not found', {
+          orgId,
+          communityId,
+          spaceId,
+          actorId: actor.id,
+        });
         throw new NotFoundError('Space', spaceId);
       }
       if (
@@ -1146,7 +1237,12 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('space links reordered', { orgId, communityId, spaceId });
+    this.logger.info('space links reordered', {
+      orgId,
+      communityId,
+      spaceId,
+      actorId: actor.id,
+    });
     return space;
   }
 }

@@ -1,4 +1,9 @@
-import { ConflictError, ForbiddenError, NotFoundError } from '@headless-lms/core/shared/errors';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '@headless-lms/core/shared/errors';
 import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
   ActionInvocationError,
@@ -113,6 +118,9 @@ function refusalFor(error: unknown): Refusal | undefined {
   if (error instanceof NotFoundError) {
     return { status: 404, error: 'not_found', message: error.message };
   }
+  if (error instanceof InvalidInputError) {
+    return { status: 400, error: 'invalid_input', message: error.message };
+  }
   if (error instanceof ConflictError || error instanceof OrganizationRuleError) {
     return { status: 409, error: 'conflict', message: error.message };
   }
@@ -133,9 +141,6 @@ function refusalFor(error: unknown): Refusal | undefined {
   }
   if (error instanceof InvalidConfigError) {
     return { status: 400, error: 'invalid_config', message: error.message };
-  }
-  if (error instanceof ActionInvocationError) {
-    return { status: 400, error: 'action_failed', message: error.message };
   }
   if (error instanceof InvalidTriggerError) {
     return { status: 400, error: 'invalid_trigger', message: error.message };
@@ -178,7 +183,21 @@ function refusalFor(error: unknown): Refusal | undefined {
   return undefined;
 }
 
+function routeOf(request: FastifyRequest): string {
+  return `${request.method} ${request.routeOptions.url ?? 'unmatched route'}`;
+}
+
 export function errorHandler(error: unknown, request: FastifyRequest, reply: FastifyReply) {
+  if (error instanceof ActionInvocationError) {
+    request.log.error(
+      { err: error, integrationId: error.integrationId, actionId: error.actionId },
+      `integration action failed in ${routeOf(request)}`,
+    );
+    return reply.status(502).send({
+      error: 'action_failed',
+      message: 'The integration did not respond as expected',
+    });
+  }
   const refusal = refusalFor(error);
   if (refusal) {
     request.log.info(
@@ -189,7 +208,7 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
         ...(refusal.issues && { issues: refusal.issues }),
         ...(refusal.error === 'bad_request' && { cause: (error as Error).message }),
       },
-      `${request.method} ${request.url} refused`,
+      `${routeOf(request)} refused`,
     );
     return reply.status(refusal.status).send({
       error: refusal.error,
@@ -200,10 +219,10 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
   if (isResponseSerializationError(error)) {
     request.log.error(
       { err: error, issues: error.cause.issues },
-      `response of ${request.method} ${request.url} does not match its schema`,
+      `response of ${routeOf(request)} does not match its schema`,
     );
   } else {
-    request.log.error({ err: error }, `unhandled error in ${request.method} ${request.url}`);
+    request.log.error({ err: error }, `unhandled error in ${routeOf(request)}`);
   }
   return reply.status(500).send({
     error: 'internal_error',
@@ -213,7 +232,10 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
 }
 
 export function notFoundHandler(request: FastifyRequest, reply: FastifyReply) {
-  request.log.info({ status: 404, error: 'not_found' }, `${request.method} ${request.url} refused`);
+  request.log.info(
+    { status: 404, error: 'not_found' },
+    `${request.method} unmatched route refused`,
+  );
   return reply
     .status(404)
     .send({ error: 'not_found', message: `No route for ${request.method} ${request.url}` });

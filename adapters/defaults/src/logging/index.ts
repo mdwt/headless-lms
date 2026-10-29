@@ -30,6 +30,17 @@ export class PinoLogger implements Logger {
   }
 }
 
+interface LoggedRequest {
+  method?: string;
+  ip?: string;
+  routeOptions?: { url?: string };
+}
+
+/** The HTTP access-log shape: the route pattern, never the raw path or query (tokens live there). */
+function requestSerializer(req: LoggedRequest): Record<string, unknown> {
+  return { method: req.method, route: req.routeOptions?.url, remoteAddress: req.ip };
+}
+
 /** The process-wide root: JSON lines, Error serialization under `err`.
  *  `destination` exists for tests; omitted → stdout. */
 export function createRootLogger(
@@ -39,7 +50,7 @@ export function createRootLogger(
   const instance = pino(
     {
       level,
-      serializers: { err: stdSerializers.err },
+      serializers: { err: stdSerializers.err, req: requestSerializer },
       // Ambient request correlation (reqId/orgId); call-site meta wins on clash.
       mixin: () => requestLogContext.current(),
     },
