@@ -9,6 +9,8 @@
     "confirmAsset",
     "listAssets",
     "getAsset",
-    "deleteAsset"
+    "deleteAsset",
+    "getLibraryFile",
+    "downloadLibraryFile"
   ]
 }

@@ -76,6 +76,10 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
         { name: 'Chats', description: 'Direct and group chats inside one community' },
         { name: 'Profile', description: 'The signed-in member profile' },
         { name: 'Assets', description: 'The org media library: uploads, serving and lifecycle' },
+        {
+          name: 'Files',
+          description: 'Stable file URLs that check access and redirect to a signed storage URL',
+        },
         { name: 'Automations', description: 'Workflows and webhooks that react to system events' },
         { name: 'Integrations', description: 'Connections to external services' },
         { name: 'Reporting', description: 'Reporting and analytics' },

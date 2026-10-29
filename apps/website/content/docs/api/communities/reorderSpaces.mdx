@@ -20,7 +20,11 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{id}/spaces/order","method":"put"}]} showDescription />
+      <OpenAPIPage
+        document="../../packages/sdk/openapi.json"
+        operations={[{ path: "/api/communities/{id}/spaces/order", method: "put" }]}
+        showDescription
+      />
     </>
   );
 }

@@ -34,7 +34,7 @@ The core is split into nine self-contained contexts. Each exposes one public sur
 | **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                         |
 | **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it          |
 | **progress**      | Per-student completion and derived progress                                                                                         |
-| **assets**        | The org media library; files reach clients as signed URLs in the responses that carry them                                          |
+| **assets**        | The org media library; every file is served through a stable URL that checks access on each request                                 |
 | **integrations**  | Which third-party integrations an org has connected                                                                                 |
 | **automations**   | Workflows and webhooks that react to domain events                                                                                  |
 | **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                            |

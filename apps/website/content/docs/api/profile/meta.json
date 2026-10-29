@@ -1,8 +1,5 @@
 {
   "title": "Profile",
   "description": "The signed-in member profile",
-  "pages": [
-    "getMemberProfile",
-    "updateMemberProfile"
-  ]
+  "pages": ["getMemberProfile", "updateMemberProfile"]
 }

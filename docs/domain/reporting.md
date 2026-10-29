@@ -26,7 +26,7 @@ The person in the member product. A student in a course, a member in a community
 - **Directory** — the people in one community: members from their grants, each person's role, and their profile. No write-context owns this join.
 - **Community home** — every space of the community with its topics, links, post defaults, member count and where the person stands with it, plus the community's description and direct-message settings. One space can be read on its own in the same shape.
 
-The `/api/member` prefix is the member HTTP API. Its course, download, progress, directory, community-home, and asset URL routes call `reporting/member`. The asset URL is a composed read: the request names what the asset is being served as, the owning context says whether the member may see that thing, and assets signs. Comments and the org under that prefix call the context that owns the operation.
+The `/api/member` prefix is the member HTTP API. Its course, download, progress, directory and community-home routes call `reporting/member`, as do the file links for thumbnails, lesson files, download files and profile photos: entitlements says whether the member may open the item, content says whether the file belongs to it, and assets signs the storage link. Comments and the org under that prefix call the context that owns the operation.
 
 ### `reporting/admin`
 
@@ -44,7 +44,7 @@ The person in the admin app. Owner, admin, and instructor call this service. The
 
 ## Build state
 
-`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the signed links of the files it shows. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, community members, and community staff analytics.
+`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the stable links of the files it shows. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, community members, and community staff analytics.
 
 ## Boundaries
 

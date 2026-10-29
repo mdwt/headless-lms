@@ -12,31 +12,33 @@ An editor default-exports an `EditorModule`:
 | Member             | What it is                                                                                    |
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | `Editor`           | Client component that edits the content.                                                      |
-| `Renderer`         | Server-safe component that displays it: `{ config, resolveAssetUrl? }`.                       |
+| `Renderer`         | Server-safe component that displays it: `{ config, assetUrls }`.                              |
 | `assetIds(config)` | Required. The ids of the host assets the content uses, once each, in document order.          |
 | `validate(config)` | Optional structural check, run before a save.                                                 |
 | `slots`            | The host slots the editor fills: `toolbar`, `blocks`.                                         |
 | `meta`             | `{ type, version }` of the content format. Content in any other format is refused, not shown. |
 
-`assetIds` is how the API knows which files a lesson may serve. A lesson's file URL answers `404` for any asset its last save didn't list, so an editor whose `assetIds` misses a media node publishes a lesson with broken media.
+A config stores the asset id of each media node, never a URL. The URL comes from `assetUrls`, the map the API returns on each activity, keyed by asset id.
+
+`assetIds` is how the API knows which files a lesson may serve. A lesson's `assetUrls` holds only the files its last save listed, and the file URL answers `404` for anything else, so an editor whose `assetIds` misses a media node publishes a lesson with broken media.
 
 ### Editor props
 
 | Prop                               | What it is                                                                    |
 | ---------------------------------- | ----------------------------------------------------------------------------- |
 | `initialConfig`                    | The stored content. `null` or invalid starts empty.                           |
-| `onSave(config)`                   | Persists the content.                                                         |
+| `assetUrls`                        | URLs for the assets the initial content uses.                                 |
+| `onSave(config)`                   | Persists the content. The config carries asset ids, not URLs.                 |
 | `onChange(config)`                 | Called on every edit, for host-owned save buttons and dirty state.            |
 | `uploadFile(file, { onProgress })` | Host upload. Resolves `{ id, name, size, type, url }`.                        |
 | `pickAsset({ kind })`              | Host media library picker. Resolves the same shape, or `null` when cancelled. |
-| `resolveAssetUrl(assetId)`         | A displayable URL for media while editing.                                    |
 | `slots`                            | DOM elements for the `toolbar` and `blocks` slots.                            |
 
-Store the `id` returned by `uploadFile` and `pickAsset` on the media node. It is what `assetIds` returns and what the renderer resolves. The returned `url` is only for display during the editing session.
+Store the `id` returned by `uploadFile` and `pickAsset` on the media node. It is what `assetIds` returns and what `assetUrls` is keyed by. The returned `url` shows the file during the editing session.
 
 ### Media playback
 
-`EditorMediaModule.MediaProvider` passes `MediaTracking` to the editor's media players: `onEvent` reports playback, `startPosition(assetId)` gives the resume point, and `refreshUrl(assetId)` gives a fresh URL after a playback error.
+`EditorMediaModule.MediaProvider` passes `MediaTracking` to the editor's media players: `onEvent` reports playback and `startPosition(assetId)` gives the resume point.
 
 ## What the host does
 
@@ -60,19 +62,14 @@ await Content.updateActivity({
 });
 ```
 
-A save without `assetIds` keeps the lesson's current list, so send it whenever the content changes. Every id must be an asset in the organization. While editing, staff resolve media with [`POST /api/assets/{id}/download-url`](/docs/api/assets/requestAssetDownload).
+A save without `assetIds` keeps the lesson's current list, so send it whenever the content changes. Every id must be a ready file in the organization's media library; anything else is refused with a `409` naming the ids.
 
-### Rendering for students
+### Rendering
 
-Give the `Renderer` a `resolveAssetUrl` that returns the lesson's file URL, and give the `MediaProvider` a `refreshUrl` that returns the same URL with a changing query string:
+Pass the activity's `assetUrls` to the `Renderer`, for students and for staff previews alike:
 
 ```tsx
-const lessonFile = (assetId: string) =>
-  `${API}/api/learn/activities/${activityId}/assets/${assetId}`;
-
-<MediaProvider refreshUrl={async (assetId) => `${lessonFile(assetId)}?retry=${Date.now()}`}>
-  <Renderer config={content.config} resolveAssetUrl={async (assetId) => lessonFile(assetId)} />
-</MediaProvider>;
+<Renderer config={activity.settings.content.config} assetUrls={activity.assetUrls} />
 ```
 
-The API checks access on every request to that URL. See [Building a frontend](/docs/building-a-frontend#serving-files) for the rules and the cookie setup.
+Each URL is stable and checks access on every request. See [Building a frontend](/docs/building-a-frontend#files) for the rules and the cookie setup.

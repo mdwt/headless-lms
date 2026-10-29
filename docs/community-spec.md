@@ -1051,7 +1051,7 @@ Instructors count as staff for moderation and posting, as they do for course com
 
 **Moderator is a fifth Better Auth role, not a table.** `org_users.role` gains `moderator` as the mirror of that membership. It is held org-wide like the other four roles, is not a staff role, and uses the member routes. Organizations' authorization matrix gains a moderation permission, held by owner, admin, instructor and moderator; a moderator consumes content through a grant, as a student does. Giving and removing the role is the existing membership path under `manage_users`. The mirror hook emits `organization.user.updated`. No table records what a moderator moderates: it is every space of every community they hold a grant to.
 
-**Attachments go through a proxy URL.** A message attachment is served the way lesson media is: a stable URL per attachment that checks the reader can open the chat and that the message lists the file, then redirects to a signed storage URL. A file the message does not list is not served.
+**Attachments go through a proxy URL.** A message attachment is served the way lesson media is: a stable URL per attachment that checks the reader takes part in the chat, or moderates a flag on the message, and that the message lists the file, then redirects to a signed storage URL. A file the message does not list is not served.
 
 **Gaps found in the current code that community depends on.** These are fixed as part of this work, not after:
 

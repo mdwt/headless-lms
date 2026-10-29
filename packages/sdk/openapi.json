@@ -59734,6 +59734,10 @@
       "description": "The org media library: uploads, serving and lifecycle"
     },
     {
+      "name": "Files",
+      "description": "Stable file URLs that check access and redirect to a signed storage URL"
+    },
+    {
       "name": "Automations",
       "description": "Workflows and webhooks that react to system events"
     },

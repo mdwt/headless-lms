@@ -23,17 +23,17 @@ const student = await Organizations.getStudent({ id: studentId });
 
 Every response that is not a success carries the same envelope: an `error` code a client can branch on and a `message` a person can read. The message is written for the screen, never a stack trace or an internal code.
 
-| Status | `error`                  | When                                                                                    |
-| ------ | ------------------------ | --------------------------------------------------------------------------------------- |
-| 400    | `validation`             | The body, query or path failed its schema. `issues` lists each problem with its `path`, such as `body.topics[1].name`. |
-| 400    | `invalid_body`           | The body is not valid JSON.                                                             |
-| 400    | `invalid_invite`         | The invitation token is unknown or expired.                                             |
-| 401    | `unauthorized`           | No session, or a session with no active organization.                                   |
-| 403    | `forbidden`              | Signed in, but not allowed to do this.                                                  |
-| 404    | `not_found`              | The route or the record does not exist in this organization.                           |
-| 409    | `conflict`               | The request breaks a rule of the current state, such as a duplicate name.               |
-| 413    | `payload_too_large`      | The body is over the size limit.                                                        |
-| 500    | `internal_error`         | Something failed on the server. `requestId` matches the server log line.                |
+| Status | `error`             | When                                                                                                                   |
+| ------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 400    | `validation`        | The body, query or path failed its schema. `issues` lists each problem with its `path`, such as `body.topics[1].name`. |
+| 400    | `invalid_body`      | The body is not valid JSON.                                                                                            |
+| 400    | `invalid_invite`    | The invitation token is unknown or expired.                                                                            |
+| 401    | `unauthorized`      | No session, or a session with no active organization.                                                                  |
+| 403    | `forbidden`         | Signed in, but not allowed to do this.                                                                                 |
+| 404    | `not_found`         | The route or the record does not exist in this organization.                                                           |
+| 409    | `conflict`          | The request breaks a rule of the current state, such as a duplicate name.                                              |
+| 413    | `payload_too_large` | The body is over the size limit.                                                                                       |
+| 500    | `internal_error`    | Something failed on the server. `requestId` matches the server log line.                                               |
 
 ```json title="400 validation"
 {

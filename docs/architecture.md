@@ -29,18 +29,24 @@ adapters as reference when creating new ones.
 
 ### Access checks
 
-Whether a student can open content is decided only by the entitlements context:
+Whether a member can open content is decided only by the entitlements context:
 
-- Services and the learner surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
+- Services and the member surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
   it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
-- SQL reports read the `content_access` view (`adapters/db/src/schema/entitlements.ts`) for cohorts and active counts.
-  It is the single definition of access: active grants, with bundle grants expanded to the bundle's current items.
+- SQL reads the `content_access` view (`adapters/db/src/schema/entitlements.ts`) for cohorts, counts and community
+  membership; `activeGrantCovers` in `grant-covers.ts` reads it too. It is the single definition of access: active
+  grants, with bundle grants expanded to the bundle's current items.
 - Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
   access themselves.
-- Files are served through stable proxy URLs that check access on every request and redirect to a signed storage URL:
-  `/api/learn/activities/:activityId/assets/:assetId` for lesson media (`STORAGE_DOWNLOAD_EXPIRY`),
-  `/api/learn/downloads/:downloadId/assets/:assetId` for download files (`DELIVERY_URL_EXPIRY`). A lesson's assets are
-  recorded on save from the editor's `assetIds(config)`; an asset the lesson doesn't list is not served.
+
+### Serving files
+
+Every file is fetched from a stable API URL that checks access on every request and redirects to a signed storage URL.
+`FileUrls` (`@headless-lms/core/assets`) builds those URLs, and responses carry them in their file fields
+(`thumbnailUrl`, `assetUrls`, `url`, `coverUrl`, `imageUrl`). The context that owns the file decides who may fetch it,
+then calls `AssetFiles.signFile`. No response carries a signed storage URL, and no route serves a file by asset id
+alone. A lesson's files are recorded on save from the editor's `assetIds(config)`; a file the lesson doesn't list is
+not served. Download files use `DELIVERY_URL_EXPIRY`; every other file uses `STORAGE_DOWNLOAD_EXPIRY`.
 
 ### Adapters, Plugins, Integrations
 

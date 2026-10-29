@@ -1,7 +1,7 @@
 ---
 description: "GET /api/member/communities/{communityId}/spaces/{spaceId}. One space as a member sees it: its topics, links, settings and where the viewer stands. Headless LMS Communities API reference."
-title: 'One space as a member sees it: its topics, links, settings and where the
-  viewer stands'
+title: "One space as a member sees it: its topics, links, settings and where the
+  viewer stands"
 full: true
 _openapi:
   preload:
@@ -21,7 +21,13 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/communities/{communityId}/spaces/{spaceId}","method":"get"}]} showDescription />
+      <OpenAPIPage
+        document="../../packages/sdk/openapi.json"
+        operations={[
+          { path: "/api/member/communities/{communityId}/spaces/{spaceId}", method: "get" },
+        ]}
+        showDescription
+      />
     </>
   );
 }

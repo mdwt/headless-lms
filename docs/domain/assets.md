@@ -17,16 +17,16 @@ A file enters the registry from one of two places, and the `source` of an asset 
 
 **Member.** A person uploads a file of their own: a profile photo, a post cover, a message attachment. The file belongs to that person. Only they can finalize it or attach it. While nothing references it, they or staff may delete it. Who may see it follows the thing it is attached to.
 
-Both sources share the registry row, the storage key, the presigned upload, the signed links, the pending-to-ready lifecycle, and the deletion rule. They differ in who may upload, what is allowed, who owns the file, where it is listed, how it is served, and how it dies.
+Both sources share the registry row, the storage key, the presigned upload, the file links, the pending-to-ready lifecycle, and the deletion rule. They differ in who may upload, what is allowed, who owns the file, where it is listed, how it is served, and how it dies.
 
-| | Library | Member |
-|---|---|---|
-| Who uploads | staff | any org user |
-| What is allowed | any content type | images only, size-capped when finalized |
-| Who owns it | the org; `uploaded_by` records the staff org user | the uploading org user |
-| Where it is listed | the media library | `source=member` in the library, never by default |
-| How it is served | with the library to staff; with the content a grant covers to a member | with the profile, post or message it is attached to |
-| Who deletes it | staff, when nothing references it | the uploader or staff, when nothing references it; the hourly sweep |
+|                    | Library                                                                | Member                                                              |
+| ------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Who uploads        | staff                                                                  | any org user                                                        |
+| What is allowed    | any content type                                                       | images only, size-capped when finalized                             |
+| Who owns it        | the org; `uploaded_by` records the staff org user                      | the uploading org user                                              |
+| Where it is listed | the media library                                                      | `source=member` in the library, never by default                    |
+| How it is served   | with the library to staff; with the content a grant covers to a member | with the profile, post or message it is attached to                 |
+| Who deletes it     | staff, when nothing references it                                      | the uploader or staff, when nothing references it; the hourly sweep |
 
 ## Model
 
@@ -41,13 +41,13 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 ### Not persisted
 
 - **Upload ticket** — a short-lived link handed to the client for a single upload. Generated on demand, never stored.
-- **Signed link** — a short-lived link to a ready file. Every read that returns something holding a file returns the file's signed link with it: a course, download or community with its thumbnail, an activity with the files it links, a download with its files, a post with its cover, a message with its attachments, a profile, author or directory entry with the person's photo, the library with its files. Generated on each read, never stored. There is no request for a file by itself.
+- **File link** — a stable link to a file in the place it belongs: a course, download or community thumbnail, a file an activity links, a file in a download, a post cover, a message attachment, a person's photo, a person's own upload, a library file. Every read that returns something holding a file carries the file's link. Each request to the link checks, with the domain that owns the thing, that the caller may see it, then redirects to a short-lived signed storage link. There is no request for a file by its asset id alone.
 
 ## Capabilities
 
 - **Request an upload** — register a pending asset and hand back a short-lived upload link. Staff register library files. Any org user registers a member file, which must be an image.
 - **Confirm an upload** — once the client has uploaded, read the stored object's size and content type from storage and mark the asset ready. The content type is the one stored with the object; the bytes are not inspected. The media class is derived again from it. A member file is first copied to a location its upload link does not reach, and its size and content type are read from that copy, so the upload cannot be replaced between the check and the move. A member file whose stored content type is not an image, or whose size is over the configured limit, is discarded instead, the upload and the copy both, and the caller is told why. Only the uploader confirms a member file; staff confirm library files. Only a pending asset is confirmed; confirming a ready one changes nothing, and two confirms of the same upload at once leave one ready file.
-- **Sign** — turn the ready files among a set of assets of one org into short-lived links: plain links for display, or download links that save under a given name. The domain answering a read signs the files of what it returns, after it has decided the caller may see that thing. Staff browsing the library get links for its files and none for member files.
+- **Serve a file** — once the domain that owns the thing has decided the caller may see it, hand back a short-lived signed storage link to the ready file: a plain link to display it, or a download link that saves under a given name. A download file's link lives a few minutes; every other link outlives a viewing. Staff fetch library files directly; a member file is fetched through what it is attached to, or by its uploader.
 - **Browse the library** — list and read assets, scoped to the org. The list is the library unless `source=member` is asked for.
 - **Remove an asset** — delete the registry entry, then the stored object. An asset still referenced by content, a post, a message or a profile cannot be removed: the references refuse the delete, and storage is not touched. Nothing that removes the referencing record removes the asset.
 - **Remove own upload** — the uploader removes their own member file while nothing references it. Staff may remove it too, under the same rule.
@@ -65,4 +65,4 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 
 ## Build state
 
-Built and **persisted**, including both sources, the member upload path, signed links on every read that returns a file, the deletion rule and the sweep.
+Built and **persisted**, including both sources, the member upload path, file links on every read that returns a file, the deletion rule and the sweep.
