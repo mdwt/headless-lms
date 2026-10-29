@@ -12,6 +12,7 @@
     "sendChatMessage",
     "editChatMessage",
     "deleteChatMessage",
+    "clearMessageReaction",
     "setMessageReaction",
     "flagMessage",
     "resolveMessageFlags",

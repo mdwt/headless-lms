@@ -8,31 +8,42 @@ description: Connections to external services
 <Cards>
   <Card
     href="/docs/api/integrations/listAvailableIntegrations"
-    title="List the integrations this deployment supports, with their config schemas"
+    title="List the integrations this deployment supports (staff)"
+    description="Staff only (owner, admin, instructor). Each with the JSON Schemas of its config, its secrets and its actions."
   />
   <Card
     href="/docs/api/integrations/listConnections"
-    title="List the organization's integration connections"
+    title="List the organization's integration connections (staff)"
+    description="Staff only (owner, admin, instructor). Secrets are never returned."
   />
   <Card
     href="/docs/api/integrations/connectIntegration"
-    title="Connect an integration (stores its secrets encrypted)"
+    title="Connect an integration (staff)"
+    description="Staff only (owner, admin, instructor). Stores the secrets encrypted; they are never returned. 400 when the integration is unknown or the config is invalid; 409 when the organization already has a connection to it."
   />
-  <Card href="/docs/api/integrations/getConnection" title="Get a connection" />
+  <Card
+    href="/docs/api/integrations/getConnection"
+    title="Get a connection (staff)"
+    description="Staff only (owner, admin, instructor). Secrets are never returned."
+  />
   <Card
     href="/docs/api/integrations/configureConnection"
-    title="Change a connection's configuration or active flag"
+    title="Change a connection's configuration or active flag (staff)"
+    description="Staff only (owner, admin, instructor). 400 when the config is invalid for the integration."
   />
   <Card
     href="/docs/api/integrations/disconnectIntegration"
-    title="Disconnect an integration (destroys its stored secrets)"
+    title="Disconnect an integration (staff)"
+    description="Staff only (owner, admin, instructor). Destroys its stored secrets."
   />
   <Card
     href="/docs/api/integrations/reconnectIntegration"
-    title="Replace a connection's secrets (re-authenticate)"
+    title="Replace a connection's secrets (staff)"
+    description="Staff only (owner, admin, instructor). The new secrets replace the stored ones."
   />
   <Card
     href="/docs/api/integrations/invokeConnectionAction"
-    title="Invoke one of a connection's actions (e.g. a listing that feeds a picker)"
+    title="Invoke one of a connection's actions (staff)"
+    description="Staff only (owner, admin, instructor). Runs the action, such as a listing that feeds a picker, with `input` checked against its input schema. 400 when the action fails or rejects the input; 404 when the connection or action does not exist; 409 when the connection is inactive."
   />
 </Cards>

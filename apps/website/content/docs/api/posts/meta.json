@@ -20,6 +20,7 @@
     "closePostComments",
     "openPostComments",
     "setPostReactionPolicy",
+    "clearPostReaction",
     "setPostReaction",
     "followPost",
     "unfollowPost",

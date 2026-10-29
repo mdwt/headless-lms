@@ -8,35 +8,142 @@ description: Posts in a space, reactions, and the moderation queue
 <Cards>
   <Card
     href="/docs/api/posts/getMemberFeed"
-    title="Published posts across the spaces a member can open"
+    title="Published posts across the spaces you can open"
+    description="For a member of the community. Pinned posts first, then newest first. 404 when you are not a member."
   />
-  <Card href="/docs/api/posts/listOwnPosts" title="Your own posts in a community, newest first" />
+  <Card
+    href="/docs/api/posts/listOwnPosts"
+    title="Your own posts in a community, newest first"
+    description="For a member of the community. Your posts in any status, drafts included, in the spaces you can open. 404 when you are not a member."
+  />
   <Card
     href="/docs/api/posts/listBookmarkedPosts"
     title="The posts you bookmarked in a community, newest bookmark first"
+    description="For a member of the community. Only posts you can still read. 404 when you are not a member."
   />
-  <Card href="/docs/api/posts/getSpaceFeed" title="Published posts in a space" />
-  <Card href="/docs/api/posts/getSpaceQueue" title="Posts awaiting review and open flags" />
-  <Card href="/docs/api/posts/createPost" title="Create a post" />
-  <Card href="/docs/api/posts/getPost" title="Read a post" />
-  <Card href="/docs/api/posts/updatePost" title="Edit your own post" />
-  <Card href="/docs/api/posts/submitPost" title="Submit a draft or scheduled post" />
-  <Card href="/docs/api/posts/schedulePost" title="Schedule a post" />
-  <Card href="/docs/api/posts/approvePost" title="Publish a post that is awaiting review" />
-  <Card href="/docs/api/posts/removePost" title="Remove a post" />
-  <Card href="/docs/api/posts/restorePost" title="Restore a removed post" />
-  <Card href="/docs/api/posts/pinPost" title="Pin a post" />
-  <Card href="/docs/api/posts/unpinPost" title="Unpin a post" />
-  <Card href="/docs/api/posts/closePostComments" title="Close comments on a post" />
-  <Card href="/docs/api/posts/openPostComments" title="Open comments on a post" />
-  <Card href="/docs/api/posts/setPostReactionPolicy" title="Turn reactions on or off for a post" />
-  <Card href="/docs/api/posts/setPostReaction" title="Set your reaction on a post" />
-  <Card href="/docs/api/posts/followPost" title="Follow a post" />
-  <Card href="/docs/api/posts/unfollowPost" title="Stop following a post" />
-  <Card href="/docs/api/posts/bookmarkPost" title="Bookmark a post" />
-  <Card href="/docs/api/posts/unbookmarkPost" title="Remove a bookmark" />
-  <Card href="/docs/api/posts/flagPost" title="Flag a post" />
-  <Card href="/docs/api/posts/resolvePostFlags" title="Resolve the open flags on a post" />
-  <Card href="/docs/api/posts/listPostComments" title="Read a post's comments" />
-  <Card href="/docs/api/posts/createPostComment" title="Comment on a post" />
+  <Card
+    href="/docs/api/posts/getSpaceFeed"
+    title="Published posts in a space"
+    description="For anyone who can open the space (403 otherwise). Filter by `topicId`; an unknown topic is a 404."
+  />
+  <Card
+    href="/docs/api/posts/getSpaceQueue"
+    title="The moderation queue of a space you moderate"
+    description="For a moderator who can open the space. Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones."
+  />
+  <Card
+    href="/docs/api/posts/createPost"
+    title="Create a post"
+    description="For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past."
+  />
+  <Card
+    href="/docs/api/posts/getPost"
+    title="Read a post"
+    description="For anyone who can open the space while the post is published; for its author in any status; for moderators also while it is pending or removed. Any other post is a 404."
+  />
+  <Card
+    href="/docs/api/posts/updatePost"
+    title="Edit your own post"
+    description="Author only. Changes only the fields sent. 409 when the post is removed, or the topic rules of the space are not met."
+  />
+  <Card
+    href="/docs/api/posts/submitPost"
+    title="Submit your draft or scheduled post"
+    description="Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled."
+  />
+  <Card
+    href="/docs/api/posts/schedulePost"
+    title="Schedule your post"
+    description="Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future."
+  />
+  <Card
+    href="/docs/api/posts/approvePost"
+    title="Publish a post that awaits review in a space you moderate"
+    description="For a moderator who can open the space. 409 when the post is not awaiting review."
+  />
+  <Card
+    href="/docs/api/posts/removePost"
+    title="Remove your post, or one in a space you moderate"
+    description="For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted."
+  />
+  <Card
+    href="/docs/api/posts/restorePost"
+    title="Restore a removed post in a space you moderate"
+    description="For a moderator who can open the space. 409 when the post is not removed."
+  />
+  <Card
+    href="/docs/api/posts/pinPost"
+    title="Pin a post in a space you moderate"
+    description="For a moderator. Pinned posts lead the feeds. 409 when the post is removed."
+  />
+  <Card
+    href="/docs/api/posts/unpinPost"
+    title="Unpin a post in a space you moderate"
+    description="For a moderator. 409 when the post is removed."
+  />
+  <Card
+    href="/docs/api/posts/closePostComments"
+    title="Close comments on a post in a space you moderate"
+    description="For a moderator. Nobody can comment until they are opened again. 409 when the post is removed."
+  />
+  <Card
+    href="/docs/api/posts/openPostComments"
+    title="Open comments on a post in a space you moderate"
+    description="For a moderator. 409 when the post is removed."
+  />
+  <Card
+    href="/docs/api/posts/setPostReactionPolicy"
+    title="Turn reactions on or off for a post in a space you moderate"
+    description="For a moderator. Overrides the space's reactions setting for this post. 409 when the post is removed."
+  />
+  <Card
+    href="/docs/api/posts/clearPostReaction"
+    title="Withdraw your reaction from a post"
+    description="For anyone who can read the post, while reactions are on for it (403 otherwise). Returns the new counts."
+  />
+  <Card
+    href="/docs/api/posts/setPostReaction"
+    title="Set your reaction on a post"
+    description="For anyone who can read the post, while reactions are on for it (403 otherwise). Replaces any reaction you already had and returns the new counts."
+  />
+  <Card
+    href="/docs/api/posts/followPost"
+    title="Follow a post"
+    description="For anyone who can read the post. You are notified of new comments on it. Following twice is harmless."
+  />
+  <Card
+    href="/docs/api/posts/unfollowPost"
+    title="Stop following a post"
+    description="For anyone who can read the post. Harmless when you do not follow it."
+  />
+  <Card
+    href="/docs/api/posts/bookmarkPost"
+    title="Bookmark a post"
+    description="For anyone who can read the post. Bookmarking twice is harmless."
+  />
+  <Card
+    href="/docs/api/posts/unbookmarkPost"
+    title="Remove a bookmark"
+    description="For anyone who can read the post. Harmless when you have not bookmarked it."
+  />
+  <Card
+    href="/docs/api/posts/flagPost"
+    title="Flag a post for the moderators"
+    description="For anyone who can read the post. Flagging it again while your flag is open returns that flag."
+  />
+  <Card
+    href="/docs/api/posts/resolvePostFlags"
+    title="Dismiss the open flags on a post in a space you moderate"
+    description="For a moderator who can open the space. Closes every open flag and leaves the post up."
+  />
+  <Card
+    href="/docs/api/posts/listPostComments"
+    title="Read a post's comments"
+    description="For anyone who can read the post. Pages by top-level comment, oldest first. Each page carries its top-level comments and all of their replies; `total` counts top-level comments."
+  />
+  <Card
+    href="/docs/api/posts/createPostComment"
+    title="Comment on a post"
+    description="For anyone who can read the post, while its comments are open (403 otherwise). Replies nest one level. 409 when the post is not published."
+  />
 </Cards>

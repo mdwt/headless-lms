@@ -9,7 +9,7 @@
     "clearCommentReaction",
     "setCommentReaction",
     "reportComment",
-    "dismissMemberCommentReports",
+    "resolveCommentFlags",
     "listComments",
     "publishComment",
     "moderateRemoveComment",

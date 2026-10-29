@@ -1,0 +1,11 @@
+{
+  "title": "Notifications",
+  "description": "What happened to the signed-in member, and how they want to be told",
+  "pages": [
+    "listMemberNotifications",
+    "markMemberNotificationRead",
+    "markAllMemberNotificationsRead",
+    "getMemberNotificationPreferences",
+    "setMemberNotificationPreferences"
+  ]
+}

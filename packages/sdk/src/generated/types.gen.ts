@@ -61,6 +61,14 @@ export type UpdateOrganizationErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   409: {
     error: string;
     message?: string;
@@ -188,6 +196,14 @@ export type ListMembersErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -550,11 +566,26 @@ export type AcceptInviteErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
     error: string;
     message?: string;
     requestId?: string;
@@ -616,6 +647,14 @@ export type ListCoursesErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -706,6 +745,22 @@ export type CreateCourseErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -782,6 +837,14 @@ export type DeleteCourseErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -835,6 +898,14 @@ export type GetCourseErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -925,6 +996,14 @@ export type UpdateCourseErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -1032,6 +1111,14 @@ export type UpdateCourseSettingsErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -1109,22 +1196,6 @@ export type ListCommunitiesErrors = {
    * Default Response
    */
   403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -1223,14 +1294,6 @@ export type CreateCommunityErrors = {
   /**
    * Default Response
    */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   409: {
     error: string;
     message?: string;
@@ -1283,10 +1346,10 @@ export type CreateCommunityResponse = CreateCommunityResponses[keyof CreateCommu
 export type DeleteCommunityData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}";
+  url: "/api/communities/{communityId}";
 };
 
 export type DeleteCommunityErrors = {
@@ -1332,14 +1395,6 @@ export type DeleteCommunityErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -1359,10 +1414,10 @@ export type DeleteCommunityResponses = {
 export type GetCommunityData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}";
+  url: "/api/communities/{communityId}";
 };
 
 export type GetCommunityErrors = {
@@ -1401,14 +1456,6 @@ export type GetCommunityErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -1465,10 +1512,10 @@ export type UpdateCommunityData = {
     thumbnailAssetId?: string | null;
   };
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}";
+  url: "/api/communities/{communityId}";
 };
 
 export type UpdateCommunityErrors = {
@@ -1571,13 +1618,16 @@ export type PatchCommunityDmSettingsData = {
     staffToAnyone?: boolean;
     firstMessageIsRequest?: boolean;
     groupChats?: boolean;
+    /**
+     * The most people a group chat may hold, its creator included
+     */
     groupSize?: number;
   };
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/settings";
+  url: "/api/communities/{communityId}/settings";
 };
 
 export type PatchCommunityDmSettingsErrors = {
@@ -1616,14 +1666,6 @@ export type PatchCommunityDmSettingsErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -1677,10 +1719,10 @@ export type PatchCommunityDmSettingsResponse =
 export type PublishCommunityData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/publish";
+  url: "/api/communities/{communityId}/publish";
 };
 
 export type PublishCommunityErrors = {
@@ -1778,10 +1820,10 @@ export type PublishCommunityResponse = PublishCommunityResponses[keyof PublishCo
 export type UnpublishCommunityData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/unpublish";
+  url: "/api/communities/{communityId}/unpublish";
 };
 
 export type UnpublishCommunityErrors = {
@@ -1880,10 +1922,10 @@ export type UnpublishCommunityResponse =
 export type GetCommunityAnalyticsData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/analytics";
+  url: "/api/communities/{communityId}/analytics";
 };
 
 export type GetCommunityAnalyticsErrors = {
@@ -1922,14 +1964,6 @@ export type GetCommunityAnalyticsErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -1976,10 +2010,10 @@ export type GetCommunityAnalyticsResponse =
 export type GetCommunityMessageQueueData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/message-queue";
+  url: "/api/communities/{communityId}/message-queue";
 };
 
 export type GetCommunityMessageQueueErrors = {
@@ -2018,14 +2052,6 @@ export type GetCommunityMessageQueueErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -2100,7 +2126,7 @@ export type GetCommunityMessageQueueResponses = {
         communityId: string;
         kind: "direct" | "group";
         status: "pending" | "open" | "closed";
-        createdBy: string;
+        createdBy: string | null;
         lockedAt: string | null;
         lockedBy: string | null;
         createdAt: string;
@@ -2117,10 +2143,10 @@ export type GetCommunityMessageQueueResponse =
 export type ListCommunitySpacesData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/spaces";
+  url: "/api/communities/{communityId}/spaces";
 };
 
 export type ListCommunitySpacesErrors = {
@@ -2159,14 +2185,6 @@ export type ListCommunitySpacesErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -2240,10 +2258,10 @@ export type CreateSpaceData = {
     };
   };
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/spaces";
+  url: "/api/communities/{communityId}/spaces";
 };
 
 export type CreateSpaceErrors = {
@@ -2351,13 +2369,16 @@ export type CreateSpaceResponse = CreateSpaceResponses[keyof CreateSpaceResponse
 
 export type ReorderSpacesData = {
   body: {
+    /**
+     * Every id in the collection, once each, in the new order
+     */
     ids: Array<string>;
   };
   path: {
-    id: string;
+    communityId: string;
   };
   query?: never;
-  url: "/api/communities/{id}/spaces/order";
+  url: "/api/communities/{communityId}/spaces/order";
 };
 
 export type ReorderSpacesErrors = {
@@ -2516,14 +2537,6 @@ export type DeleteSpaceErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -2586,14 +2599,6 @@ export type GetSpaceErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -2778,7 +2783,13 @@ export type UpdateSpaceResponse = UpdateSpaceResponses[keyof UpdateSpaceResponse
 
 export type SetSpaceTopicsData = {
   body: {
+    /**
+     * The complete list, in order. A topic left out is deleted
+     */
     topics: Array<{
+      /**
+       * Keep an existing topic; omit to add a new one
+       */
       id?: string;
       name: string;
     }>;
@@ -2896,6 +2907,9 @@ export type SetSpaceTopicsResponse = SetSpaceTopicsResponses[keyof SetSpaceTopic
 
 export type AddSpaceLinkData = {
   body: {
+    /**
+     * The course, download or community to link
+     */
     contentId: string;
   };
   path: {
@@ -3063,14 +3077,6 @@ export type RemoveSpaceLinkErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -3125,6 +3131,9 @@ export type RemoveSpaceLinkResponse = RemoveSpaceLinkResponses[keyof RemoveSpace
 
 export type ReorderSpaceLinksData = {
   body: {
+    /**
+     * Every id in the collection, once each, in the new order
+     */
     ids: Array<string>;
   };
   path: {
@@ -3242,14 +3251,14 @@ export type ReorderSpaceLinksResponse =
 export type ListCommunityMembersData = {
   body?: never;
   path: {
-    id: string;
+    communityId: string;
   };
   query?: {
     page?: number;
     pageSize?: number;
     search?: string;
   };
-  url: "/api/communities/{id}/members";
+  url: "/api/communities/{communityId}/members";
 };
 
 export type ListCommunityMembersErrors = {
@@ -3295,14 +3304,6 @@ export type ListCommunityMembersErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -3341,7 +3342,10 @@ export type ListCommunitySpaceMembersData = {
     communityId: string;
     spaceId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/communities/{communityId}/spaces/{spaceId}/members";
 };
 
@@ -3388,14 +3392,6 @@ export type ListCommunitySpaceMembersErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -3410,17 +3406,22 @@ export type ListCommunitySpaceMembersResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    orgId: string;
-    id: string;
-    communityId: string;
-    spaceId: string;
-    orgUserId: string;
-    status: "requested" | "invited" | "active" | "revoked";
-    source: "request" | "invite" | "manual";
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  200: {
+    rows: Array<{
+      orgId: string;
+      id: string;
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+      status: "requested" | "invited" | "active" | "revoked";
+      source: "request" | "invite" | "manual";
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListCommunitySpaceMembersResponse =
@@ -3503,7 +3504,7 @@ export type AddCommunitySpaceMemberResponses = {
   /**
    * Default Response
    */
-  200: {
+  201: {
     orgId: string;
     id: string;
     communityId: string;
@@ -3596,7 +3597,7 @@ export type InviteCommunitySpaceMemberResponses = {
   /**
    * Default Response
    */
-  200: {
+  201: {
     orgId: string;
     id: string;
     communityId: string;
@@ -3613,15 +3614,14 @@ export type InviteCommunitySpaceMemberResponse =
   InviteCommunitySpaceMemberResponses[keyof InviteCommunitySpaceMemberResponses];
 
 export type ApproveCommunitySpaceRequestData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/spaces/{spaceId}/approvals";
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval";
 };
 
 export type ApproveCommunitySpaceRequestErrors = {
@@ -3706,15 +3706,14 @@ export type ApproveCommunitySpaceRequestResponse =
   ApproveCommunitySpaceRequestResponses[keyof ApproveCommunitySpaceRequestResponses];
 
 export type DeclineCommunitySpaceRequestData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/spaces/{spaceId}/declines";
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/decline";
 };
 
 export type DeclineCommunitySpaceRequestErrors = {
@@ -3799,15 +3798,14 @@ export type DeclineCommunitySpaceRequestResponse =
   DeclineCommunitySpaceRequestResponses[keyof DeclineCommunitySpaceRequestResponses];
 
 export type RemoveCommunitySpaceMemberData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/spaces/{spaceId}/removals";
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal";
 };
 
 export type RemoveCommunitySpaceMemberErrors = {
@@ -3937,14 +3935,6 @@ export type GetCommunitySpaceQueueErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -4405,6 +4395,9 @@ export type RestoreCommunityPostResponse =
 
 export type ResolveCommunityPostFlagsData = {
   body: {
+    /**
+     * `dismissed` closes the open flags and leaves the post up. Removing the post resolves its flags as `removed` instead.
+     */
     resolution: "dismissed";
   };
   path: {
@@ -4451,14 +4444,6 @@ export type ResolveCommunityPostFlagsErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -4536,14 +4521,6 @@ export type RemoveCommunityCommentErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -4560,15 +4537,38 @@ export type RemoveCommunityCommentResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     activityId: string | null;
     postId: string | null;
     communityId: string | null;
     parentId: string | null;
-    orgUserId: string;
-    body: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    body: string | null;
     status: "pending" | "published" | "removed";
-    removedBy: string | null;
+    removedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    } | null;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction?: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -4630,14 +4630,6 @@ export type RestoreCommunityCommentErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -4654,15 +4646,38 @@ export type RestoreCommunityCommentResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     activityId: string | null;
     postId: string | null;
     communityId: string | null;
     parentId: string | null;
-    orgUserId: string;
-    body: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    body: string | null;
     status: "pending" | "published" | "removed";
-    removedBy: string | null;
+    removedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    } | null;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction?: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -4672,7 +4687,12 @@ export type RestoreCommunityCommentResponse =
   RestoreCommunityCommentResponses[keyof RestoreCommunityCommentResponses];
 
 export type ResolveCommunityCommentFlagsData = {
-  body?: never;
+  body: {
+    /**
+     * `dismissed` closes the open flags and leaves the comment up. Removing the comment resolves its flags as `removed` instead.
+     */
+    resolution: "dismissed";
+  };
   path: {
     communityId: string;
     commentId: string;
@@ -4724,14 +4744,6 @@ export type ResolveCommunityCommentFlagsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -4751,6 +4763,9 @@ export type ResolveCommunityCommentFlagsResponses = {
 
 export type ResolveCommunityMessageFlagsData = {
   body: {
+    /**
+     * `dismissed` closes the open flags and leaves the message up. Deleting the message or locking the chat resolves its flags as `deleted` or `locked` instead.
+     */
     resolution: "dismissed";
   };
   path: {
@@ -4797,14 +4812,6 @@ export type ResolveCommunityMessageFlagsErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -4882,14 +4889,6 @@ export type LockCommunityChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -4909,7 +4908,7 @@ export type LockCommunityChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -4973,14 +4972,6 @@ export type UnlockCommunityChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -5000,7 +4991,7 @@ export type UnlockCommunityChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -5045,6 +5036,14 @@ export type ListDownloadsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5126,6 +5125,22 @@ export type CreateDownloadErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -5193,6 +5208,14 @@ export type DeleteDownloadErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -5246,6 +5269,14 @@ export type GetDownloadErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5327,6 +5358,14 @@ export type UpdateDownloadErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5417,7 +5456,7 @@ export type ListDownloadAssetsErrors = {
   /**
    * Default Response
    */
-  404: {
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5489,6 +5528,14 @@ export type AddDownloadAssetErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5574,6 +5621,14 @@ export type ReorderDownloadAssetsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5667,6 +5722,14 @@ export type RemoveDownloadAssetErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -5739,6 +5802,14 @@ export type RenameDownloadAssetErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5825,6 +5896,14 @@ export type ListBundlesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -5884,6 +5963,14 @@ export type CreateBundleErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -5959,6 +6046,14 @@ export type DeleteBundleErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -6012,6 +6107,14 @@ export type GetBundleErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -6089,6 +6192,14 @@ export type UpdateBundleErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -6157,7 +6268,7 @@ export type ListBundleItemsErrors = {
   /**
    * Default Response
    */
-  404: {
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -6227,6 +6338,14 @@ export type AddBundleItemErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -6289,6 +6408,14 @@ export type RemoveBundleItemErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -6388,6 +6515,14 @@ export type GetMemberViewerErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -6428,30 +6563,6 @@ export type GetMemberProfileErrors = {
   /**
    * Default Response
    */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6470,7 +6581,6 @@ export type GetMemberProfileResponses = {
     displayName: string | null;
     headline: string | null;
     bio: string | null;
-    imageAssetOrgId: string | null;
     imageAssetId: string | null;
     extra: JsonValue;
     createdAt: string;
@@ -6486,6 +6596,9 @@ export type UpdateMemberProfileData = {
     displayName?: string | null;
     headline?: string | null;
     bio?: string | null;
+    /**
+     * A finalized image you uploaded through `requestMemberUpload`; null clears it
+     */
     imageAssetId?: string | null;
     extra?: JsonValueInput;
   };
@@ -6537,14 +6650,6 @@ export type UpdateMemberProfileErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6563,7 +6668,6 @@ export type UpdateMemberProfileResponses = {
     displayName: string | null;
     headline: string | null;
     bio: string | null;
-    imageAssetOrgId: string | null;
     imageAssetId: string | null;
     extra: JsonValue;
     createdAt: string;
@@ -6627,14 +6731,6 @@ export type GetMemberCommunityHomeErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6663,34 +6759,65 @@ export type GetMemberCommunityHomeResponses = {
       groupChats: boolean;
       groupSize: number;
     };
-    spaces: Array<{
-      id: string;
-      name: string;
-      description: string | null;
-      memberCount: number;
-      capacity: number | null;
-      open: boolean;
-      accessRule: "all_members" | "by_request" | "by_invite";
-      /**
-       * Where the viewer stands with this space, and so which action it offers
-       */
-      standing: "open" | "member" | "requested" | "invited" | "full" | "none";
-      settings: {
-        comments: boolean;
-        reactions: boolean;
-        requireReview: boolean;
-      };
-      topics: Array<{
-        id: string;
-        name: string;
-      }>;
-      links: Array<{
-        id: string;
-        contentId: string;
-        type: "course" | "download" | "community";
-        title: string;
-      }>;
-    }>;
+    /**
+     * A space as the viewer sees it. A by-invite space the viewer is not invited to or a member of is never served
+     */
+    spaces: Array<
+      | {
+          id: string;
+          name: string;
+          /**
+           * Active space members
+           */
+          memberCount: number;
+          accessRule: "all_members" | "by_request" | "by_invite";
+          /**
+           * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
+           */
+          standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+          /**
+           * The viewer cannot open this space. Only enough to request a place, accept an invite or contact staff is served; never its description, topics, links or settings
+           */
+          locked: true;
+        }
+      | {
+          id: string;
+          name: string;
+          /**
+           * Active space members
+           */
+          memberCount: number;
+          accessRule: "all_members" | "by_request" | "by_invite";
+          /**
+           * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
+           */
+          standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+          /**
+           * The viewer can open this space and read its feed
+           */
+          locked: false;
+          description: string | null;
+          capacity: number | null;
+          settings: {
+            comments: boolean;
+            reactions: boolean;
+            requireReview: boolean;
+          };
+          topics: Array<{
+            id: string;
+            name: string;
+          }>;
+          /**
+           * Linked content that is published; staff also see unpublished targets
+           */
+          links: Array<{
+            id: string;
+            contentId: string;
+            type: "course" | "download" | "community";
+            title: string;
+          }>;
+        }
+    >;
   };
 };
 
@@ -6750,14 +6877,6 @@ export type GetMemberSpaceErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6769,36 +6888,63 @@ export type GetMemberSpaceError = GetMemberSpaceErrors[keyof GetMemberSpaceError
 
 export type GetMemberSpaceResponses = {
   /**
-   * Default Response
+   * A space as the viewer sees it. A by-invite space the viewer is not invited to or a member of is never served
    */
-  200: {
-    id: string;
-    name: string;
-    description: string | null;
-    memberCount: number;
-    capacity: number | null;
-    open: boolean;
-    accessRule: "all_members" | "by_request" | "by_invite";
-    /**
-     * Where the viewer stands with this space, and so which action it offers
-     */
-    standing: "open" | "member" | "requested" | "invited" | "full" | "none";
-    settings: {
-      comments: boolean;
-      reactions: boolean;
-      requireReview: boolean;
-    };
-    topics: Array<{
-      id: string;
-      name: string;
-    }>;
-    links: Array<{
-      id: string;
-      contentId: string;
-      type: "course" | "download" | "community";
-      title: string;
-    }>;
-  };
+  200:
+    | {
+        id: string;
+        name: string;
+        /**
+         * Active space members
+         */
+        memberCount: number;
+        accessRule: "all_members" | "by_request" | "by_invite";
+        /**
+         * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
+         */
+        standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+        /**
+         * The viewer cannot open this space. Only enough to request a place, accept an invite or contact staff is served; never its description, topics, links or settings
+         */
+        locked: true;
+      }
+    | {
+        id: string;
+        name: string;
+        /**
+         * Active space members
+         */
+        memberCount: number;
+        accessRule: "all_members" | "by_request" | "by_invite";
+        /**
+         * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
+         */
+        standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+        /**
+         * The viewer can open this space and read its feed
+         */
+        locked: false;
+        description: string | null;
+        capacity: number | null;
+        settings: {
+          comments: boolean;
+          reactions: boolean;
+          requireReview: boolean;
+        };
+        topics: Array<{
+          id: string;
+          name: string;
+        }>;
+        /**
+         * Linked content that is published; staff also see unpublished targets
+         */
+        links: Array<{
+          id: string;
+          contentId: string;
+          type: "course" | "download" | "community";
+          title: string;
+        }>;
+      };
 };
 
 export type GetMemberSpaceResponse = GetMemberSpaceResponses[keyof GetMemberSpaceResponses];
@@ -6808,7 +6954,14 @@ export type GetMemberCommunityDirectoryData = {
   path: {
     communityId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+    /**
+     * Matches part of a display name
+     */
+    search?: string;
+  };
   url: "/api/member/communities/{communityId}/directory";
 };
 
@@ -6855,14 +7008,6 @@ export type GetMemberCommunityDirectoryErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6877,16 +7022,20 @@ export type GetMemberCommunityDirectoryResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    orgUserId: string;
-    userId: string;
-    role: string;
-    displayName: string | null;
-    headline: string | null;
-    bio: string | null;
-    imageAssetId: string | null;
-    imageUrl: string | null;
-  }>;
+  200: {
+    rows: Array<{
+      orgUserId: string;
+      role: string;
+      displayName: string | null;
+      headline: string | null;
+      bio: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type GetMemberCommunityDirectoryResponse =
@@ -6898,7 +7047,10 @@ export type ListSpaceMembersData = {
     communityId: string;
     spaceId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/member/communities/{communityId}/spaces/{spaceId}/members";
 };
 
@@ -6945,14 +7097,6 @@ export type ListSpaceMembersErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -6966,17 +7110,22 @@ export type ListSpaceMembersResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    orgId: string;
-    id: string;
-    communityId: string;
-    spaceId: string;
-    orgUserId: string;
-    status: "requested" | "invited" | "active" | "revoked";
-    source: "request" | "invite" | "manual";
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  200: {
+    rows: Array<{
+      orgId: string;
+      id: string;
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+      status: "requested" | "invited" | "active" | "revoked";
+      source: "request" | "invite" | "manual";
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListSpaceMembersResponse = ListSpaceMembersResponses[keyof ListSpaceMembersResponses];
@@ -7057,7 +7206,7 @@ export type AddSpaceMemberResponses = {
   /**
    * Default Response
    */
-  200: {
+  201: {
     orgId: string;
     id: string;
     communityId: string;
@@ -7147,7 +7296,7 @@ export type RequestSpaceMembershipResponses = {
   /**
    * Default Response
    */
-  200: {
+  201: {
     orgId: string;
     id: string;
     communityId: string;
@@ -7239,7 +7388,7 @@ export type InviteSpaceMemberResponses = {
   /**
    * Default Response
    */
-  200: {
+  201: {
     orgId: string;
     id: string;
     communityId: string;
@@ -7346,15 +7495,14 @@ export type AcceptSpaceInviteResponse =
   AcceptSpaceInviteResponses[keyof AcceptSpaceInviteResponses];
 
 export type ApproveSpaceRequestData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/approvals";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval";
 };
 
 export type ApproveSpaceRequestErrors = {
@@ -7438,15 +7586,14 @@ export type ApproveSpaceRequestResponse =
   ApproveSpaceRequestResponses[keyof ApproveSpaceRequestResponses];
 
 export type DeclineSpaceRequestData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/declines";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/decline";
 };
 
 export type DeclineSpaceRequestErrors = {
@@ -7709,15 +7856,14 @@ export type LeaveSpaceResponses = {
 export type LeaveSpaceResponse = LeaveSpaceResponses[keyof LeaveSpaceResponses];
 
 export type RemoveSpaceMemberData = {
-  body: {
-    orgUserId: string;
-  };
+  body?: never;
   path: {
     communityId: string;
     spaceId: string;
+    orgUserId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/removals";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal";
 };
 
 export type RemoveSpaceMemberErrors = {
@@ -7855,14 +8001,6 @@ export type GetMemberFeedErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -7973,14 +8111,6 @@ export type ListOwnPostsErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -8105,14 +8235,6 @@ export type ListBookmarkedPostsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -8185,6 +8307,9 @@ export type GetSpaceFeedData = {
   query?: {
     page?: number;
     pageSize?: number;
+    /**
+     * Only posts under this topic
+     */
     topicId?: string;
   };
   url: "/api/member/communities/{communityId}/spaces/{spaceId}/feed";
@@ -8226,14 +8351,6 @@ export type GetSpaceFeedErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -8356,14 +8473,6 @@ export type GetSpaceQueueErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -8458,11 +8567,23 @@ export type CreatePostData = {
   body: {
     title: string;
     body: string;
+    /**
+     * One of the space's topics. Required when the space has topics, else null
+     */
     topicId: string | null;
     extra?: JsonValueInput;
+    /**
+     * A finalized image you uploaded through `requestMemberUpload`
+     */
     coverAssetId: string | null;
+    /**
+     * `draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you are not staff. `schedule` submits it at `scheduledAt`.
+     */
     mode: "draft" | "submit" | "schedule";
-    scheduledAt: unknown;
+    /**
+     * When a scheduled post is submitted. Required, and in the future, when `mode` is `schedule`; ignored otherwise.
+     */
+    scheduledAt: string | null;
   };
   path: {
     communityId: string;
@@ -8625,14 +8746,6 @@ export type GetPostErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -8939,7 +9052,10 @@ export type SubmitPostResponse = SubmitPostResponses[keyof SubmitPostResponses];
 
 export type SchedulePostData = {
   body: {
-    scheduledAt: unknown;
+    /**
+     * When the post is submitted; must be in the future
+     */
+    scheduledAt: string;
   };
   path: {
     postId: string;
@@ -9878,6 +9994,9 @@ export type OpenPostCommentsResponse = OpenPostCommentsResponses[keyof OpenPostC
 
 export type SetPostReactionPolicyData = {
   body: {
+    /**
+     * Whether readers may react to this post
+     */
     enabled: boolean;
   };
   path: {
@@ -9997,9 +10116,91 @@ export type SetPostReactionPolicyResponses = {
 export type SetPostReactionPolicyResponse =
   SetPostReactionPolicyResponses[keyof SetPostReactionPolicyResponses];
 
+export type ClearPostReactionData = {
+  body?: never;
+  path: {
+    postId: string;
+  };
+  query?: never;
+  url: "/api/member/posts/{postId}/reaction";
+};
+
+export type ClearPostReactionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ClearPostReactionError = ClearPostReactionErrors[keyof ClearPostReactionErrors];
+
+export type ClearPostReactionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    reactions: {
+      [key: string]: number;
+    };
+    /**
+     * Absent when you have no reaction
+     */
+    viewerReaction?: string;
+  };
+};
+
+export type ClearPostReactionResponse =
+  ClearPostReactionResponses[keyof ClearPostReactionResponses];
+
 export type SetPostReactionData = {
   body: {
-    emoji: string | null;
+    /**
+     * Replaces any reaction you already had
+     */
+    emoji: string;
   };
   path: {
     postId: string;
@@ -10051,14 +10252,6 @@ export type SetPostReactionErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10076,6 +10269,9 @@ export type SetPostReactionResponses = {
     reactions: {
       [key: string]: number;
     };
+    /**
+     * Absent when you have no reaction
+     */
     viewerReaction?: string;
   };
 };
@@ -10127,14 +10323,6 @@ export type UnfollowPostErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -10210,14 +10398,6 @@ export type FollowPostErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10286,14 +10466,6 @@ export type UnbookmarkPostErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10355,14 +10527,6 @@ export type BookmarkPostErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -10440,14 +10604,6 @@ export type FlagPostErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10479,6 +10635,9 @@ export type FlagPostResponse = FlagPostResponses[keyof FlagPostResponses];
 
 export type ResolvePostFlagsData = {
   body: {
+    /**
+     * `dismissed` closes the open flags and leaves the post up. Removing the post resolves its flags as `removed` instead.
+     */
     resolution: "dismissed";
   };
   path: {
@@ -10531,14 +10690,6 @@ export type ResolvePostFlagsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10560,7 +10711,10 @@ export type ListPostCommentsData = {
   path: {
     postId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/member/posts/{postId}/comments";
 };
 
@@ -10607,14 +10761,6 @@ export type ListPostCommentsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10628,43 +10774,48 @@ export type ListPostCommentsResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    id: string;
-    activityId: string | null;
-    postId: string | null;
-    communityId: string | null;
-    parentId: string | null;
-    author: {
+  200: {
+    rows: Array<{
       id: string;
-      firstName: string | null;
-      lastName: string | null;
-      displayName: string | null;
-      headline: string | null;
-      image: string | null;
-      imageAssetId: string | null;
-      imageUrl: string | null;
-      role: "owner" | "admin" | "instructor" | "moderator" | "student";
-    };
-    body: string | null;
-    status: "pending" | "published" | "removed";
-    removedBy: {
-      id: string;
-      firstName: string | null;
-      lastName: string | null;
-      displayName: string | null;
-      headline: string | null;
-      image: string | null;
-      imageAssetId: string | null;
-      imageUrl: string | null;
-      role: "owner" | "admin" | "instructor" | "moderator" | "student";
-    } | null;
-    reactions: {
-      [key: string]: number;
-    };
-    viewerReaction?: string;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+      activityId: string | null;
+      postId: string | null;
+      communityId: string | null;
+      parentId: string | null;
+      author: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        imageUrl: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      };
+      body: string | null;
+      status: "pending" | "published" | "removed";
+      removedBy: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        displayName: string | null;
+        headline: string | null;
+        image: string | null;
+        imageAssetId: string | null;
+        imageUrl: string | null;
+        role: "owner" | "admin" | "instructor" | "moderator" | "student";
+      } | null;
+      reactions: {
+        [key: string]: number;
+      };
+      viewerReaction?: string;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListPostCommentsResponse = ListPostCommentsResponses[keyof ListPostCommentsResponses];
@@ -10672,6 +10823,9 @@ export type ListPostCommentsResponse = ListPostCommentsResponses[keyof ListPostC
 export type CreatePostCommentData = {
   body: {
     body: string;
+    /**
+     * The comment this replies to. Replies nest one level, under a root comment
+     */
     parentId?: string | null;
   };
   path: {
@@ -10792,7 +10946,10 @@ export type ListMemberChatsData = {
   path: {
     communityId: string;
   };
-  query?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
   url: "/api/member/communities/{communityId}/chats";
 };
 
@@ -10839,14 +10996,6 @@ export type ListMemberChatsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -10860,32 +11009,37 @@ export type ListMemberChatsResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    chat: {
-      orgId: string;
-      id: string;
-      communityId: string;
-      kind: "direct" | "group";
-      status: "pending" | "open" | "closed";
-      createdBy: string;
-      lockedAt: string | null;
-      lockedBy: string | null;
-      createdAt: string;
-      updatedAt: string;
-    };
-    participantIds: Array<string>;
-    lastReadMessageId: string | null;
-    muted: boolean;
-    mutedUntil: string | null;
-    unread: number;
-    lastMessage: {
-      id: string;
-      orgUserId: string;
-      body: string;
-      createdAt: string;
-      deletedAt: string | null;
-    } | null;
-  }>;
+  200: {
+    rows: Array<{
+      chat: {
+        orgId: string;
+        id: string;
+        communityId: string;
+        kind: "direct" | "group";
+        status: "pending" | "open" | "closed";
+        createdBy: string | null;
+        lockedAt: string | null;
+        lockedBy: string | null;
+        createdAt: string;
+        updatedAt: string;
+      };
+      participantIds: Array<string>;
+      lastReadMessageId: string | null;
+      muted: boolean;
+      mutedUntil: string | null;
+      unread: number;
+      lastMessage: {
+        id: string;
+        orgUserId: string;
+        body: string;
+        createdAt: string;
+        deletedAt: string | null;
+      } | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type ListMemberChatsResponse = ListMemberChatsResponses[keyof ListMemberChatsResponses];
@@ -10893,8 +11047,17 @@ export type ListMemberChatsResponse = ListMemberChatsResponses[keyof ListMemberC
 export type StartDirectChatData = {
   body: {
     communityId: string;
+    /**
+     * The person to talk to
+     */
     orgUserId: string;
+    /**
+     * The first message. Null opens the chat without one; a new chat that starts as a message request needs one, and attachments need one.
+     */
     body: string | null;
+    /**
+     * Up to 10 finalized images you uploaded through `requestMemberUpload`
+     */
     assetIds?: Array<string>;
   };
   path?: never;
@@ -10972,7 +11135,7 @@ export type StartDirectChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -10985,6 +11148,9 @@ export type StartDirectChatResponse = StartDirectChatResponses[keyof StartDirect
 export type StartGroupChatData = {
   body: {
     communityId: string;
+    /**
+     * The people to add besides you. The chat may not exceed the community's group size.
+     */
     orgUserIds: Array<string>;
   };
   path?: never;
@@ -11062,7 +11228,7 @@ export type StartGroupChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -11153,7 +11319,7 @@ export type AddChatParticipantResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -11216,14 +11382,6 @@ export type LeaveChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -11243,7 +11401,7 @@ export type LeaveChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -11332,7 +11490,7 @@ export type AcceptChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -11397,14 +11555,6 @@ export type ListChatMessagesErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -11462,7 +11612,13 @@ export type ListChatMessagesResponse = ListChatMessagesResponses[keyof ListChatM
 export type SendChatMessageData = {
   body: {
     body: string;
+    /**
+     * A message in the same chat this one answers
+     */
     replyToId?: string | null;
+    /**
+     * Up to 10 finalized images you uploaded through `requestMemberUpload`
+     */
     assetIds?: Array<string>;
   };
   path: {
@@ -11508,14 +11664,6 @@ export type SendChatMessageErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -11793,9 +11941,92 @@ export type EditChatMessageResponses = {
 
 export type EditChatMessageResponse = EditChatMessageResponses[keyof EditChatMessageResponses];
 
+export type ClearMessageReactionData = {
+  body?: never;
+  path: {
+    messageId: string;
+  };
+  query?: never;
+  url: "/api/member/messages/{messageId}/reaction";
+};
+
+export type ClearMessageReactionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ClearMessageReactionError =
+  ClearMessageReactionErrors[keyof ClearMessageReactionErrors];
+
+export type ClearMessageReactionResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    reactions: {
+      [key: string]: number;
+    };
+    /**
+     * Absent when you have no reaction
+     */
+    viewerReaction?: string;
+  };
+};
+
+export type ClearMessageReactionResponse =
+  ClearMessageReactionResponses[keyof ClearMessageReactionResponses];
+
 export type SetMessageReactionData = {
   body: {
-    emoji: string | null;
+    /**
+     * Replaces any reaction you already had
+     */
+    emoji: string;
   };
   path: {
     messageId: string;
@@ -11847,14 +12078,6 @@ export type SetMessageReactionErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -11868,8 +12091,19 @@ export type SetMessageReactionResponses = {
   /**
    * Default Response
    */
-  204: unknown;
+  200: {
+    reactions: {
+      [key: string]: number;
+    };
+    /**
+     * Absent when you have no reaction
+     */
+    viewerReaction?: string;
+  };
 };
+
+export type SetMessageReactionResponse =
+  SetMessageReactionResponses[keyof SetMessageReactionResponses];
 
 export type FlagMessageData = {
   body: {
@@ -11925,14 +12159,6 @@ export type FlagMessageErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -11965,6 +12191,9 @@ export type FlagMessageResponse = FlagMessageResponses[keyof FlagMessageResponse
 
 export type ResolveMessageFlagsData = {
   body: {
+    /**
+     * `dismissed` closes the open flags and leaves the message up. Deleting the message or locking the chat resolves its flags as `deleted` or `locked` instead.
+     */
     resolution: "dismissed";
   };
   path: {
@@ -12017,14 +12246,6 @@ export type ResolveMessageFlagsErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -12043,6 +12264,9 @@ export type ResolveMessageFlagsResponses = {
 
 export type MarkChatReadData = {
   body: {
+    /**
+     * The newest message you have read in this chat
+     */
     messageId: string;
   };
   path: {
@@ -12095,14 +12319,6 @@ export type MarkChatReadErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -12121,6 +12337,9 @@ export type MarkChatReadResponses = {
 
 export type MuteChatData = {
   body: {
+    /**
+     * When the mute ends. Omit to mute until you unmute
+     */
     until?: string;
   };
   path: {
@@ -12166,14 +12385,6 @@ export type MuteChatErrors = {
    * Default Response
    */
   404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -12249,14 +12460,6 @@ export type UnmuteChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -12325,14 +12528,6 @@ export type LockChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -12352,7 +12547,7 @@ export type LockChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -12414,14 +12609,6 @@ export type UnlockChatErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -12441,7 +12628,7 @@ export type UnlockChatResponses = {
     communityId: string;
     kind: "direct" | "group";
     status: "pending" | "open" | "closed";
-    createdBy: string;
+    createdBy: string | null;
     lockedAt: string | null;
     lockedBy: string | null;
     createdAt: string;
@@ -12624,6 +12811,14 @@ export type ListMemberCoursesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -12694,6 +12889,14 @@ export type GetMemberCourseErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -12785,6 +12988,14 @@ export type ListMemberModulesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -12849,6 +13060,14 @@ export type ListMemberActivitiesErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -12937,6 +13156,14 @@ export type ReportProgressErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -12994,6 +13221,14 @@ export type GetMemberCourseProgressErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -13157,6 +13392,9 @@ export type ListActivityCommentsResponse =
 export type PostCommentData = {
   body: {
     body: string;
+    /**
+     * The comment this replies to. Replies nest one level, under a root comment
+     */
     parentId?: string | null;
   };
   path: {
@@ -13330,15 +13568,38 @@ export type DeleteCommentResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     activityId: string | null;
     postId: string | null;
     communityId: string | null;
     parentId: string | null;
-    orgUserId: string;
-    body: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    body: string | null;
     status: "pending" | "published" | "removed";
-    removedBy: string | null;
+    removedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    } | null;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction?: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -13524,6 +13785,9 @@ export type ClearCommentReactionResponses = {
     reactions: {
       [key: string]: number;
     };
+    /**
+     * Absent when you have no reaction
+     */
     viewerReaction?: string;
   };
 };
@@ -13533,6 +13797,9 @@ export type ClearCommentReactionResponse =
 
 export type SetCommentReactionData = {
   body: {
+    /**
+     * Replaces any reaction you already had
+     */
     emoji: string;
   };
   path: {
@@ -13602,81 +13869,15 @@ export type SetCommentReactionResponses = {
     reactions: {
       [key: string]: number;
     };
+    /**
+     * Absent when you have no reaction
+     */
     viewerReaction?: string;
   };
 };
 
 export type SetCommentReactionResponse =
   SetCommentReactionResponses[keyof SetCommentReactionResponses];
-
-export type DismissMemberCommentReportsData = {
-  body?: never;
-  path: {
-    commentId: string;
-  };
-  query?: never;
-  url: "/api/member/comments/{commentId}/reports";
-};
-
-export type DismissMemberCommentReportsErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type DismissMemberCommentReportsError =
-  DismissMemberCommentReportsErrors[keyof DismissMemberCommentReportsErrors];
-
-export type DismissMemberCommentReportsResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
 
 export type ReportCommentData = {
   body: {
@@ -13757,11 +13958,84 @@ export type ReportCommentResponses = {
 
 export type ReportCommentResponse = ReportCommentResponses[keyof ReportCommentResponses];
 
+export type ResolveCommentFlagsData = {
+  body: {
+    /**
+     * `dismissed` closes the open flags and leaves the comment up. Removing the comment resolves its flags as `removed` instead.
+     */
+    resolution: "dismissed";
+  };
+  path: {
+    commentId: string;
+  };
+  query?: never;
+  url: "/api/member/comments/{commentId}/flags/resolution";
+};
+
+export type ResolveCommentFlagsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResolveCommentFlagsError = ResolveCommentFlagsErrors[keyof ResolveCommentFlagsErrors];
+
+export type ResolveCommentFlagsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
 export type RequestMemberUploadData = {
   body: {
     filename: string;
     /**
-     * Must be an `image*` type. The size is checked when the upload is finalized.
+     * One of `image/png`, `image/jpeg`, `image/gif`, `image/webp` or `image/avif`. The stored type and size are checked when the upload is finalized.
      */
     contentType: string;
   };
@@ -13778,11 +14052,26 @@ export type RequestMemberUploadErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -13880,6 +14169,14 @@ export type FinalizeMemberUploadErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -13985,6 +14282,14 @@ export type DeleteMemberUploadErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14029,6 +14334,14 @@ export type ListMemberDownloadsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14097,6 +14410,14 @@ export type GetMemberDownloadErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14196,6 +14517,14 @@ export type GetCourseThumbnailErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14242,6 +14571,14 @@ export type GetDownloadThumbnailErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14296,6 +14633,14 @@ export type GetCommunityThumbnailErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14358,6 +14703,14 @@ export type GetActivityFileErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14412,6 +14765,14 @@ export type GetDownloadFileErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14458,6 +14819,14 @@ export type GetPostCoverErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14520,6 +14889,14 @@ export type GetMessageAttachmentErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14574,6 +14951,14 @@ export type GetPersonImageErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -14620,6 +15005,14 @@ export type GetMemberUploadFileErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14682,22 +15075,6 @@ export type ListMemberNotificationsErrors = {
    * Default Response
    */
   403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14836,14 +15213,6 @@ export type MarkMemberNotificationReadErrors = {
   /**
    * Default Response
    */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   500: {
     error: string;
     message?: string;
@@ -14859,9 +15228,7 @@ export type MarkMemberNotificationReadResponses = {
    * Default Response
    */
   200: {
-    orgId: string;
     id: string;
-    userId: string;
     kind:
       | "newPostInSpace"
       | "newCommentOnPost"
@@ -14882,15 +15249,37 @@ export type MarkMemberNotificationReadResponses = {
       | "joinRequest"
       | "somethingWasFlagged"
       | "messageWasFlagged";
-    actorOrgUserId: string | null;
-    communityId: string | null;
-    spaceId: string | null;
-    postId: string | null;
-    commentId: string | null;
-    chatId: string | null;
-    messageId: string | null;
     createdAt: string;
     readAt: string | null;
+    actor: {
+      orgUserId: string;
+      displayName: string | null;
+      imageUrl: string | null;
+    } | null;
+    community: {
+      id: string;
+      title: string;
+    } | null;
+    space: {
+      id: string;
+      name: string;
+    } | null;
+    /**
+     * Null when the viewer can no longer see the post
+     */
+    post: {
+      id: string;
+      title: string;
+    } | null;
+    commentId: string | null;
+    /**
+     * Null when the viewer is not in the chat
+     */
+    chat: {
+      id: string;
+      title: string;
+    } | null;
+    messageId: string | null;
   };
 };
 
@@ -14909,30 +15298,6 @@ export type MarkAllMemberNotificationsReadErrors = {
    * Default Response
    */
   401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -14974,30 +15339,6 @@ export type GetMemberNotificationPreferencesErrors = {
    * Default Response
    */
   401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -15050,6 +15391,9 @@ export type GetMemberNotificationPreferencesResponse =
 
 export type SetMemberNotificationPreferencesData = {
   body: {
+    /**
+     * One entry per kind to change, each kind at most once; kinds left out keep theirs
+     */
     preferences: Array<{
       kind:
         | "newPostInSpace"
@@ -15100,30 +15444,6 @@ export type SetMemberNotificationPreferencesErrors = {
    * Default Response
    */
   401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -15211,6 +15531,14 @@ export type ListCommentsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -15347,15 +15675,38 @@ export type ModerateRemoveCommentResponses = {
    */
   200: {
     id: string;
-    orgId: string;
     activityId: string | null;
     postId: string | null;
     communityId: string | null;
     parentId: string | null;
-    orgUserId: string;
-    body: string;
+    author: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    };
+    body: string | null;
     status: "pending" | "published" | "removed";
-    removedBy: string | null;
+    removedBy: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      displayName: string | null;
+      headline: string | null;
+      image: string | null;
+      imageAssetId: string | null;
+      imageUrl: string | null;
+      role: "owner" | "admin" | "instructor" | "moderator" | "student";
+    } | null;
+    reactions: {
+      [key: string]: number;
+    };
+    viewerReaction?: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -15662,6 +16013,14 @@ export type ListModulesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -15726,6 +16085,14 @@ export type CreateModuleErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -15781,6 +16148,14 @@ export type ListActivitiesErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -15854,6 +16229,14 @@ export type ListActivityAssetsErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -15883,6 +16266,9 @@ export type ListActivityAssetsResponse =
 
 export type ReorderModulesData = {
   body: {
+    /**
+     * Every id in the collection, in the new order
+     */
     orderedIds: Array<string>;
   };
   path: {
@@ -15912,6 +16298,14 @@ export type ReorderModulesErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -15975,6 +16369,22 @@ export type DeleteModuleErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16047,6 +16457,22 @@ export type UpdateModuleErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -16075,6 +16501,9 @@ export type UpdateModuleResponse = UpdateModuleResponses[keyof UpdateModuleRespo
 
 export type ReorderActivitiesData = {
   body: {
+    /**
+     * Every id in the collection, in the new order
+     */
     orderedIds: Array<string>;
   };
   path: {
@@ -16105,6 +16534,30 @@ export type ReorderActivitiesErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16172,6 +16625,22 @@ export type CreateActivityErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16251,6 +16720,22 @@ export type DeleteActivityErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -16311,6 +16796,22 @@ export type UpdateActivityErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16384,6 +16885,14 @@ export type ListStudentsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16537,6 +17046,14 @@ export type GetStudentErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -16607,6 +17124,14 @@ export type UpdateStudentErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16688,6 +17213,14 @@ export type GetStudentAnalyticsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16857,6 +17390,14 @@ export type ListEntitlementsErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -16897,7 +17438,10 @@ export type GrantEntitlementData = {
     orgUserId: string;
     contentId?: string | null;
     bundleId?: string | null;
-    expiresAt: unknown;
+    /**
+     * When access ends; null never expires
+     */
+    expiresAt: string | null;
   };
   path?: never;
   query?: never;
@@ -16924,6 +17468,22 @@ export type GrantEntitlementErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -16992,6 +17552,14 @@ export type SetEntitlementStatusErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17068,6 +17636,14 @@ export type ListAutomationsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17160,6 +17736,14 @@ export type CreateAutomationErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -17217,6 +17801,14 @@ export type ListAutomationActionsErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -17256,6 +17848,14 @@ export type ListAutomationTriggersErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17326,6 +17926,14 @@ export type DeleteAutomationErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -17387,6 +17995,14 @@ export type GetAutomationErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17490,6 +18106,14 @@ export type UpdateAutomationErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -17579,6 +18203,14 @@ export type ListAutomationRunsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17676,6 +18308,14 @@ export type RerunAutomationRunErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -17759,6 +18399,14 @@ export type ListWebhooksErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -17805,11 +18453,26 @@ export type CreateWebhookErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17881,6 +18544,14 @@ export type DeleteWebhookErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -17934,6 +18605,14 @@ export type GetWebhookErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -17998,11 +18677,26 @@ export type UpdateWebhookErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18081,6 +18775,14 @@ export type GetWebhookSecretErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -18145,6 +18847,14 @@ export type RotateWebhookSecretErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -18186,6 +18896,14 @@ export type GetOverviewErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18252,6 +18970,14 @@ export type GetEnrollmentSeriesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -18303,6 +19029,14 @@ export type GetCourseAnalyticsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18388,6 +19122,14 @@ export type GetCourseEnrollmentSeriesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -18440,11 +19182,26 @@ export type RequestUploadErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18521,6 +19278,13 @@ export type ConfirmAssetErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
@@ -18621,11 +19385,26 @@ export type ListAssetsErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18699,11 +19478,26 @@ export type DeleteAssetErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18760,11 +19554,26 @@ export type GetAssetErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18841,11 +19650,26 @@ export type GetLibraryFileErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18887,11 +19711,26 @@ export type DownloadLibraryFileErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18928,6 +19767,14 @@ export type ListAvailableIntegrationsErrors = {
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18984,7 +19831,7 @@ export type ListConnectionsErrors = {
   /**
    * Default Response
    */
-  400: {
+  401: {
     error: string;
     message?: string;
     requestId?: string;
@@ -18992,7 +19839,7 @@ export type ListConnectionsErrors = {
   /**
    * Default Response
    */
-  401: {
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19051,11 +19898,26 @@ export type ConnectIntegrationErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19117,11 +19979,26 @@ export type DisconnectIntegrationErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19171,11 +20048,26 @@ export type GetConnectionErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19241,11 +20133,26 @@ export type ConfigureConnectionErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19311,11 +20218,26 @@ export type ReconnectIntegrationErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19383,11 +20305,26 @@ export type InvokeConnectionActionErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
   };
   /**
    * Default Response
    */
   401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
     error: string;
     message?: string;
     requestId?: string;
@@ -19412,14 +20349,6 @@ export type InvokeConnectionActionErrors = {
    * Default Response
    */
   500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  502: {
     error: string;
     message?: string;
     requestId?: string;

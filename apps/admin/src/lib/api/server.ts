@@ -76,7 +76,7 @@ async function contentTitleOf(
 ): Promise<string> {
   if (type === "course") return (await Content.getCourse({ id }, headers)).title;
   if (type === "download") return (await Content.getDownload({ downloadId: id }, headers)).title;
-  return (await Communities.getCommunity({ id }, headers)).title;
+  return (await Communities.getCommunity({ communityId: id }, headers)).title;
 }
 
 /** Resolve a granted content id to its type + display title. The grant row
