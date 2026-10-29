@@ -6,9 +6,9 @@ import {
   EntitlementIdParam,
   EntitlementsPage,
   EntitlementsQuery,
-  ErrorBody,
   GrantEntitlement,
   SetEntitlementStatus,
+  refusals,
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
@@ -28,9 +28,10 @@ export async function entitlementsRoutes(
     schema: {
       operationId: 'listEntitlements',
       tags: ['Entitlements'],
-      summary: 'List entitlements',
+      summary: 'List entitlements (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       querystring: EntitlementsQuery,
-      response: { 200: EntitlementsPage },
+      response: { 200: EntitlementsPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -45,9 +46,11 @@ export async function entitlementsRoutes(
     schema: {
       operationId: 'grantEntitlement',
       tags: ['Entitlements'],
-      summary: 'Grant a student access to a piece of content',
+      summary: 'Grant a person access to content or a bundle (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.',
       body: GrantEntitlement,
-      response: { 201: Entitlement },
+      response: { 201: Entitlement, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -63,10 +66,11 @@ export async function entitlementsRoutes(
     schema: {
       operationId: 'setEntitlementStatus',
       tags: ['Entitlements'],
-      summary: 'Revoke or reinstate an entitlement',
+      summary: 'Revoke or reinstate an entitlement (staff)',
+      description: 'Staff only (owner, admin, instructor). Access follows the status at once.',
       params: EntitlementIdParam,
       body: SetEntitlementStatus,
-      response: { 200: Entitlement, 404: ErrorBody },
+      response: { 200: Entitlement, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

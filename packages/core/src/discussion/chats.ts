@@ -30,6 +30,7 @@ import type {
   ChatUnitOfWork,
   MessageQueue,
   MessageQueueEntry,
+  MessageReactions,
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
@@ -412,12 +413,14 @@ export class ChatServiceImpl implements ChatService {
     actor: Actor,
     messageId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void> {
+  ): Promise<MessageReactions> {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     await this.repo.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
     this.logger.debug('message reaction set', { orgId, messageId });
+    const counts = await this.repo.reactionsOf(orgId, [messageId], actor.id);
+    return counts[messageId] ?? { reactions: {} };
   }
 
   async markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void> {

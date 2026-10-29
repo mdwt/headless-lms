@@ -10,8 +10,10 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationView,
   NotificationsView,
 } from './model.js';
+import type { Notification } from '../../identity/index.js';
 
 export interface MemberReportService {
   listCourses(orgId: string, orgUserId: string): Promise<CourseView[]>;
@@ -70,6 +72,12 @@ export interface MemberReportService {
     userId: string,
     query: { page: number; pageSize: number },
   ): Promise<NotificationsView>;
+  /** One notification the way `notifications` lists it. */
+  notificationView(
+    orgId: string,
+    actor: Actor,
+    notification: Notification,
+  ): Promise<NotificationView>;
 }
 
 export interface MemberReportRepository {

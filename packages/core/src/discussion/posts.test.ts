@@ -1011,7 +1011,9 @@ describe('posts', () => {
       following: false,
       bookmarked: false,
     });
-    expect((await svc.listOwn(ORG, member, 'cmy_1', feed)).rows[0]).toMatchObject(state);
+    expect(
+      (await svc.listOwn(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
+    ).toMatchObject(state);
     expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject({
       ...state,
       bookmarked: true,

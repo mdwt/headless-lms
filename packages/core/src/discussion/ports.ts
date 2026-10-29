@@ -84,9 +84,19 @@ export interface DiscussionService {
   /** Author-only. Throws ForbiddenError for anyone else, staff included. */
   edit(orgId: string, commentId: string, actor: Actor, body: string): Promise<CommentView>;
   /** The author, or anyone whose role is staff. */
-  remove(orgId: string, commentId: string, actor: Actor, communityId?: string): Promise<Comment>;
+  remove(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<CommentView>;
   /** Staff only. Returns the comment to published. */
-  restore(orgId: string, commentId: string, actor: Actor, communityId?: string): Promise<Comment>;
+  restore(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<CommentView>;
   /** Staff only. Publishes a pending comment. */
   approve(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
   /** Make a comment published, whichever state it is in. Staff only. */
@@ -457,7 +467,7 @@ export interface ChatService {
     actor: Actor,
     messageId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void>;
+  ): Promise<MessageReactions>;
   markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void>;
   mute(orgId: string, actor: Actor, chatId: string, until?: Date): Promise<void>;
   unmute(orgId: string, actor: Actor, chatId: string): Promise<void>;

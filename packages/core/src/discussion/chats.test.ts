@@ -1335,7 +1335,9 @@ describe('chats', () => {
     expect(
       (await svc.messages(ORG, third, chat.id, { page: 1, pageSize: 20 })).rows[1],
     ).toMatchObject({ viewerReaction: '🎉' });
-    await svc.setReaction(ORG, member, second.id, null);
+    expect(await svc.setReaction(ORG, member, second.id, null)).toMatchObject({
+      reactions: { '👍': 1, '🎉': 1 },
+    });
     const edited = await svc.editMessage(ORG, other, second.id, 'Second again');
     expect(edited).toMatchObject({ reactions: { '👍': 1, '🎉': 1 }, viewerReaction: '👍' });
     expect(

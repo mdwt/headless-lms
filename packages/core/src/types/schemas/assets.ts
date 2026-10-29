@@ -40,8 +40,8 @@ export type AssetUrls = z.infer<typeof assetUrlsSchema>;
 export const requestUploadInputSchema = z
   .object({
     uploadedBy: idSchema,
-    filename: z.string().trim().min(1),
-    contentType: z.string().trim().min(1),
+    filename: z.string().trim().min(1).max(255),
+    contentType: z.string().trim().min(1).max(255),
     source: assetSourceSchema,
   })
   .strict();

@@ -9,6 +9,7 @@ import {
   downloadStatusSchema,
   downloadViewSchema,
   reorderDownloadAssetsInputSchema,
+  idSchema,
 } from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
 
@@ -30,7 +31,7 @@ export type CreateDownload = z.infer<typeof CreateDownload>;
 
 export const UpdateDownload = CreateDownload.partial().extend({
   status: DownloadStatus.optional(),
-  thumbnailAssetId: z.string().nullable().optional(),
+  thumbnailAssetId: idSchema.nullable().optional(),
 });
 export type UpdateDownload = z.infer<typeof UpdateDownload>;
 

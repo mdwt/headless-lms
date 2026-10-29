@@ -15,8 +15,8 @@ import {
   AvailableAction,
   AvailableTriggers,
   CreateAutomationBody,
-  ErrorBody,
   UpdateAutomationBody,
+  refusals,
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
@@ -34,9 +34,11 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomations',
       tags,
-      summary: 'List automations, optionally only workflows or only webhooks',
+      summary: 'List automations (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Optionally only workflows or only webhooks.',
       querystring: AutomationsQuery,
-      response: { 200: z.array(Automation) },
+      response: { 200: z.array(Automation), ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -52,8 +54,9 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomationActions',
       tags,
-      summary: 'List the actions automations can use',
-      response: { 200: z.array(AvailableAction) },
+      summary: 'List the actions automations can use (staff)',
+      description: 'Staff only (owner, admin, instructor).',
+      response: { 200: z.array(AvailableAction), ...refusals(403) },
     },
     handler: async (req) => {
       await resolveScope(container, req);
@@ -68,8 +71,9 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomationTriggers',
       tags,
-      summary: 'List the domain events automations can react to',
-      response: { 200: AvailableTriggers },
+      summary: 'List the domain events automations can react to (staff)',
+      description: 'Staff only (owner, admin, instructor).',
+      response: { 200: AvailableTriggers, ...refusals(403) },
     },
     handler: async (req) => {
       await resolveScope(container, req);
@@ -84,9 +88,11 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'createAutomation',
       tags,
-      summary: 'Create a workflow automation',
+      summary: 'Create a workflow automation (staff)',
+      description:
+        'Staff only (owner, admin, instructor). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.',
       body: CreateAutomationBody,
-      response: { 201: Automation },
+      response: { 201: Automation, ...refusals(400, 403) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -102,9 +108,10 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'getAutomation',
       tags,
-      summary: 'Get an automation by id',
+      summary: 'Get an automation (staff)',
+      description: 'Staff only (owner, admin, instructor). Workflows and webhooks alike.',
       params: AutomationIdParam,
-      response: { 200: Automation, 404: ErrorBody },
+      response: { 200: Automation, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -123,10 +130,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'updateAutomation',
       tags,
-      summary: 'Update a workflow automation (webhooks change through the webhook endpoints)',
+      summary: 'Update a workflow automation (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.',
       params: AutomationIdParam,
       body: UpdateAutomationBody,
-      response: { 200: Automation, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: Automation, ...refusals(400, 403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -145,9 +154,11 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'deleteAutomation',
       tags,
-      summary: 'Delete a workflow automation (webhooks are deleted through the webhook endpoints)',
+      summary: 'Delete a workflow automation (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints, and system automations cannot be deleted (409). Its runs stay readable.',
       params: AutomationIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -166,11 +177,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'listAutomationRuns',
       tags,
-      summary:
-        "List an automation's runs — a deleted automation's runs remain reachable (audit trail)",
+      summary: "List an automation's runs (staff)",
+      description:
+        "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404.",
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
-      response: { 200: AutomationRunsPage },
+      response: { 200: AutomationRunsPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -186,11 +198,11 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'rerunAutomationRun',
       tags,
-      summary: 'Run a finished run again',
+      summary: 'Run a finished run again (staff)',
       description:
-        "Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).",
+        "Staff only (owner, admin, instructor). Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).",
       params: AutomationRunParams,
-      response: { 200: AutomationRun, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: AutomationRun, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

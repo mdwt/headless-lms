@@ -10,9 +10,9 @@ import {
   CoursesPage,
   CoursesQuery,
   CreateCourse,
-  ErrorBody,
   PatchCourseSettings,
   UpdateCourse,
+  refusals,
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
@@ -30,9 +30,11 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'listCourses',
       tags: ['Content'],
-      summary: 'List courses',
+      summary: 'List courses (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Every course in the organization, drafts included, filtered by status and category and searched by title.',
       querystring: CoursesQuery,
-      response: { 200: CoursesPage },
+      response: { 200: CoursesPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -47,9 +49,10 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'getCourse',
       tags: ['Content'],
-      summary: 'Get a course by id',
+      summary: 'Get a course (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: CourseIdParam,
-      response: { 200: Course, 404: ErrorBody },
+      response: { 200: Course, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -68,9 +71,11 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'createCourse',
       tags: ['Content'],
-      summary: 'Create a course',
+      summary: 'Create a course (staff)',
+      description:
+        'Staff only (owner, admin, instructor). The course starts as a draft. 409 when its slug is taken.',
       body: CreateCourse,
-      response: { 201: Course },
+      response: { 201: Course, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -86,10 +91,12 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'updateCourse',
       tags: ['Content'],
-      summary: 'Update a course',
+      summary: 'Update a course (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.',
       params: CourseIdParam,
       body: UpdateCourse,
-      response: { 200: Course, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: Course, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -104,10 +111,12 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'updateCourseSettings',
       tags: ['Content'],
-      summary: 'Update a course settings',
+      summary: "Update a course's settings (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Merges the settings sent into the current ones.',
       params: CourseIdParam,
       body: PatchCourseSettings,
-      response: { 200: CourseSettings, 404: ErrorBody },
+      response: { 200: CourseSettings, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -123,9 +132,10 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'deleteCourse',
       tags: ['Content'],
-      summary: 'Delete a course',
+      summary: 'Delete a course (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: CourseIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);

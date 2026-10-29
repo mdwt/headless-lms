@@ -444,6 +444,19 @@ export class DiscussionServiceImpl implements DiscussionService {
     commentId: string,
     actor: Actor,
     communityId?: string,
+  ): Promise<CommentView> {
+    return this.renderOne(
+      orgId,
+      await this.removeComment(orgId, commentId, actor, communityId),
+      actor,
+    );
+  }
+
+  private async removeComment(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
   ): Promise<Comment> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {
@@ -498,6 +511,19 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   async restore(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string,
+  ): Promise<CommentView> {
+    return this.renderOne(
+      orgId,
+      await this.restoreComment(orgId, commentId, actor, communityId),
+      actor,
+    );
+  }
+
+  private async restoreComment(
     orgId: string,
     commentId: string,
     actor: Actor,
@@ -621,7 +647,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       return this.approve(orgId, commentId, actor);
     }
     if (comment.status === 'removed') {
-      return this.restore(orgId, commentId, actor);
+      return this.restoreComment(orgId, commentId, actor);
     }
     return comment;
   }

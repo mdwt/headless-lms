@@ -7,6 +7,7 @@ import {
   activityViewSchema,
   moduleSchema,
   saveActivityInputSchema,
+  idSchema,
 } from '@headless-lms/core/schemas';
 
 export const Activity = activityViewSchema;
@@ -49,7 +50,9 @@ export type CreateModule = z.infer<typeof CreateModule>;
 export const UpdateModule = z.object({ title: z.string().min(1) });
 export type UpdateModule = z.infer<typeof UpdateModule>;
 
-export const ReorderInput = z.object({ orderedIds: z.array(z.string()) });
+export const ReorderInput = z.object({
+  orderedIds: z.array(idSchema).max(500).describe('Every id in the collection, in the new order'),
+});
 export type ReorderInput = z.infer<typeof ReorderInput>;
 
 export const SaveActivity = saveActivityInputSchema;

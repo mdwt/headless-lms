@@ -291,7 +291,7 @@ export type AddDownloadAssetInput = z.infer<typeof addDownloadAssetInputSchema>;
 
 export const reorderDownloadAssetsInputSchema = z
   .object({
-    assetIds: z.array(idSchema),
+    assetIds: z.array(idSchema).max(500),
   })
   .strict();
 export type ReorderDownloadAssetsInput = z.infer<typeof reorderDownloadAssetsInputSchema>;
@@ -433,29 +433,38 @@ export type ListCommunitiesQuery = z.infer<typeof listCommunitiesQuerySchema>;
 
 export const createCommunityInputSchema = z
   .object({
-    title: z.string().trim().min(1),
-    description: z.string().optional(),
+    title: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(5_000).optional(),
   })
   .strict();
 export type CreateCommunityInput = z.infer<typeof createCommunityInputSchema>;
 
 export const updateCommunityInputSchema = z
   .object({
-    title: z.string().trim().min(1).optional(),
-    description: z.string().optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(5_000).optional(),
     status: communityStatusSchema.optional(),
     thumbnailAssetId: idSchema.nullable().optional(),
   })
   .strict();
 export type UpdateCommunityInput = z.infer<typeof updateCommunityInputSchema>;
 
-export const patchDmSettingsInputSchema = dmSettingsSchema.partial();
+export const patchDmSettingsInputSchema = dmSettingsSchema
+  .extend({
+    groupSize: z
+      .number()
+      .int()
+      .min(3)
+      .max(100)
+      .describe('The most people a group chat may hold, its creator included'),
+  })
+  .partial();
 export type PatchDmSettingsInput = z.infer<typeof patchDmSettingsInputSchema>;
 
 export const createSpaceInputSchema = z
   .object({
-    name: z.string().trim().min(1),
-    description: z.string().optional(),
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(2_000).optional(),
     accessRule: spaceAccessRuleSchema.optional(),
     capacity: z.number().int().min(0).nullable().optional(),
     settings: spaceSettingsSchema.partial().optional(),
@@ -465,8 +474,8 @@ export type CreateSpaceInput = z.infer<typeof createSpaceInputSchema>;
 
 export const updateSpaceInputSchema = z
   .object({
-    name: z.string().trim().min(1).optional(),
-    description: z.string().optional(),
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(2_000).optional(),
     accessRule: spaceAccessRuleSchema.optional(),
     capacity: z.number().int().min(0).nullable().optional(),
     settings: spaceSettingsSchema.partial().optional(),
@@ -476,14 +485,17 @@ export type UpdateSpaceInput = z.infer<typeof updateSpaceInputSchema>;
 
 export const setSpaceTopicsInputSchema = z
   .object({
-    topics: z.array(
-      z
-        .object({
-          id: idSchema.optional(),
-          name: z.string().min(1),
-        })
-        .strict(),
-    ),
+    topics: z
+      .array(
+        z
+          .object({
+            id: idSchema.optional().describe('Keep an existing topic; omit to add a new one'),
+            name: z.string().trim().min(1).max(60),
+          })
+          .strict(),
+      )
+      .max(50)
+      .describe('The complete list, in order. A topic left out is deleted'),
   })
   .strict();
 export type SetSpaceTopicsInput = z.infer<typeof setSpaceTopicsInputSchema>;

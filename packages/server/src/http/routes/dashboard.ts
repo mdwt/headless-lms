@@ -1,7 +1,12 @@
 // HTTP routes for the dashboard (overview) context.
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { EnrollmentSeries, EnrollmentSeriesQuery, OverviewStats } from '../schemas/index.js';
+import {
+  EnrollmentSeries,
+  EnrollmentSeriesQuery,
+  OverviewStats,
+  refusals,
+} from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
 
@@ -15,8 +20,9 @@ export async function dashboardRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'getOverview',
       tags: ['Reporting'],
-      summary: 'Back-office overview stats',
-      response: { 200: OverviewStats },
+      summary: 'Back-office overview stats (staff)',
+      description: 'Staff only (owner, admin, instructor).',
+      response: { 200: OverviewStats, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -31,9 +37,10 @@ export async function dashboardRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'getEnrollmentSeries',
       tags: ['Reporting'],
-      summary: 'Enrollments granted per day over a trailing window',
+      summary: 'Enrollments granted per day over a trailing window (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       querystring: EnrollmentSeriesQuery,
-      response: { 200: EnrollmentSeries },
+      response: { 200: EnrollmentSeries, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

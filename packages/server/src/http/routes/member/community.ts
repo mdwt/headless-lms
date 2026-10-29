@@ -2,28 +2,19 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { Container } from '../../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import { UnauthorizedError } from '../../plugins/auth.js';
+import { actorOf } from './actor.js';
 import {
   CommunityHome,
   CommunityHomeSpace,
   CommunityParam,
   CommunitySpaceParam,
   DirectoryEntry,
-  ErrorBody,
   OrgUserBody,
   SpaceMember,
+  SpaceMemberParam,
   SpaceMembers,
+  refusals,
 } from '../../schemas/index.js';
-
-const errors = { 401: ErrorBody, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody };
-
-async function actorOf(container: Container, orgId: string, userId: string) {
-  const orgUser = await container.organizations.getOrgUser(orgId, userId);
-  if (!orgUser) {
-    throw new UnauthorizedError();
-  }
-  return orgUser;
-}
 
 export async function memberCommunityRoutes(
   app: FastifyInstance,
@@ -40,12 +31,18 @@ export async function memberCommunityRoutes(
       operationId: 'getMemberCommunityHome',
       tags,
       summary: 'The spaces a member can see in a community',
+      description:
+        'For a member of the community. Lists its spaces in order, each with where the viewer stands. 404 when the viewer is not a member.',
       params: CommunityParam,
-      response: { 200: CommunityHome, ...errors },
+      response: { 200: CommunityHome, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const home = await container.reporting.member.communityHome(req.orgId, actor, req.params.communityId);
+      const home = await container.reporting.member.communityHome(
+        req.orgId,
+        actor,
+        req.params.communityId,
+      );
       if (!home) {
         throw new NotFoundError('Community', req.params.communityId);
       }
@@ -60,9 +57,11 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'getMemberSpace',
       tags,
-      summary: 'One space as a member sees it: its topics, links, settings and where the viewer stands',
+      summary: 'One space as a member sees it',
+      description:
+        'For a member of the community: the space with its topics, links, settings and where the viewer stands. 404 when the viewer is not a member or the space is not in the community.',
       params: CommunitySpaceParam,
-      response: { 200: CommunityHomeSpace, ...errors },
+      response: { 200: CommunityHomeSpace, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -87,12 +86,18 @@ export async function memberCommunityRoutes(
       operationId: 'getMemberCommunityDirectory',
       tags,
       summary: 'People in a community',
+      description:
+        'For a member of the community: everyone who holds it, with their public profile. 404 when the viewer is not a member.',
       params: CommunityParam,
-      response: { 200: DirectoryEntry.array(), ...errors },
+      response: { 200: DirectoryEntry.array(), ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      const rows = await container.reporting.member.directory(req.orgId, actor, req.params.communityId);
+      const rows = await container.reporting.member.directory(
+        req.orgId,
+        actor,
+        req.params.communityId,
+      );
       if (!rows) {
         throw new NotFoundError('Community', req.params.communityId);
       }
@@ -107,9 +112,11 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'listSpaceMembers',
       tags,
-      summary: 'List space members',
+      summary: 'List the members of a space',
+      description:
+        'For anyone who can open the space. Members see the active members; moderators also see open requests and invitations.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMembers, ...errors },
+      response: { 200: SpaceMembers, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -130,17 +137,20 @@ export async function memberCommunityRoutes(
       operationId: 'requestSpaceMembership',
       tags,
       summary: 'Ask to join a space',
+      description:
+        'For a member of the community who is not staff. Opens a request on a `by_request` space for a moderator to approve. 409 when the space is not `by_request` or you are already placed in it.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMember, ...errors },
+      response: { 201: SpaceMember, ...refusals(403, 404, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.requestJoin(
+      const member = await container.entitlements.requestJoin(
         req.orgId,
         actor,
         req.params.communityId,
         req.params.spaceId,
       );
+      return reply.code(201).send(member);
     },
   });
 
@@ -151,20 +161,23 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'inviteSpaceMember',
       tags,
-      summary: 'Invite a person into a space',
+      summary: 'Invite a person into a space you moderate',
+      description:
+        'For a moderator who is a member of the community. Invites another member into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.',
       params: CommunitySpaceParam,
       body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      response: { 201: SpaceMember, ...refusals(403, 404, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.invite(
+      const member = await container.entitlements.invite(
         req.orgId,
         actor,
         req.params.communityId,
         req.params.spaceId,
         req.body.orgUserId,
       );
+      return reply.code(201).send(member);
     },
   });
 
@@ -175,20 +188,23 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'addSpaceMember',
       tags,
-      summary: 'Add a person to a space',
+      summary: 'Add a person to a space you moderate',
+      description:
+        'For a moderator who is a member of the community. Places another member straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.',
       params: CommunitySpaceParam,
       body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      response: { 201: SpaceMember, ...refusals(403, 404, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.entitlements.addSpaceMember(
+      const member = await container.entitlements.addSpaceMember(
         req.orgId,
         actor,
         req.params.communityId,
         req.params.spaceId,
         req.body.orgUserId,
       );
+      return reply.code(201).send(member);
     },
   });
 
@@ -199,9 +215,11 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'acceptSpaceInvite',
       tags,
-      summary: 'Accept an invitation to a space',
+      summary: 'Accept your invitation to a space',
+      description:
+        'For a member of the community who is not staff. Makes you an active member. 409 when you have no open invitation, are already a member, or the space is full.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMember, ...errors },
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -216,15 +234,16 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/approvals',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'approveSpaceRequest',
       tags,
-      summary: 'Approve a request to join a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: "Approve a person's request to join a space you moderate",
+      description:
+        'For a moderator who is a member of the community. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -233,22 +252,23 @@ export async function memberCommunityRoutes(
         actor,
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/declines',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/decline',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'declineSpaceRequest',
       tags,
-      summary: 'Decline a request to join a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: "Decline a person's request to join a space you moderate",
+      description:
+        'For a moderator who is a member of the community. Closes the open request. 404 when the person has no open request; 409 when they are already a member.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -257,7 +277,7 @@ export async function memberCommunityRoutes(
         actor,
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });
@@ -269,9 +289,11 @@ export async function memberCommunityRoutes(
     schema: {
       operationId: 'refuseSpaceInvite',
       tags,
-      summary: 'Refuse an invitation to a space',
+      summary: 'Refuse your invitation to a space',
+      description:
+        'For a member of the community who is not staff. 409 when you have no open invitation or are already a member.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMember, ...errors },
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -292,8 +314,10 @@ export async function memberCommunityRoutes(
       operationId: 'leaveSpace',
       tags,
       summary: 'Leave a space',
+      description:
+        'For a member of the community who is not staff. 409 when you are not a member of the space.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceMember, ...errors },
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -308,15 +332,16 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/removals',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeSpaceMember',
       tags,
-      summary: 'Remove a person from a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: 'Remove a person from a space you moderate',
+      description:
+        'For a moderator who is a member of the community. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -325,7 +350,7 @@ export async function memberCommunityRoutes(
         actor,
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });

@@ -2,13 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { UnauthorizedError } from '../../plugins/auth.js';
+import { actorOf } from './actor.js';
 import {
   CommentView,
   CommunityParam,
   CommunitySpaceParam,
   CreatePost,
-  ErrorBody,
   FeedQuery,
   FlagReason,
   PageQuery,
@@ -17,25 +16,16 @@ import {
   PostFeedPage,
   PostFlag,
   PostIdParam,
-  PostReactions,
   PostView,
+  Reactions,
   ResolvePostFlags,
   SchedulePost,
   SetPostReactions,
   SetReaction,
   SpaceQueue,
   UpdatePost,
+  refusals,
 } from '../../schemas/index.js';
-
-const errors = { 401: ErrorBody, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody };
-
-async function actorOf(container: Container, orgId: string, userId: string) {
-  const orgUser = await container.organizations.getOrgUser(orgId, userId);
-  if (!orgUser) {
-    throw new UnauthorizedError();
-  }
-  return orgUser;
-}
 
 export async function memberPostRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -49,10 +39,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'getMemberFeed',
       tags,
-      summary: 'Published posts across the spaces a member can open',
+      summary: 'Published posts across the spaces you can open',
+      description:
+        'For a member of the community. Pinned posts first, then newest first. 404 when you are not a member.',
       params: CommunityParam,
       querystring: PageQuery,
-      response: { 200: PostFeedPage, ...errors },
+      response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -68,9 +60,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'listOwnPosts',
       tags,
       summary: 'Your own posts in a community, newest first',
+      description:
+        'For a member of the community. Your posts in any status, drafts included, in the spaces you can open. 404 when you are not a member.',
       params: CommunityParam,
       querystring: PageQuery,
-      response: { 200: PostFeedPage, ...errors },
+      response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -86,9 +80,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'listBookmarkedPosts',
       tags,
       summary: 'The posts you bookmarked in a community, newest bookmark first',
+      description:
+        'For a member of the community. Only posts you can still read. 404 when you are not a member.',
       params: CommunityParam,
       querystring: PageQuery,
-      response: { 200: PostFeedPage, ...errors },
+      response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -104,9 +100,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'getSpaceFeed',
       tags,
       summary: 'Published posts in a space',
+      description:
+        'For anyone who can open the space (403 otherwise). Filter by `topicId`; an unknown topic is a 404.',
       params: CommunitySpaceParam,
       querystring: FeedQuery,
-      response: { 200: PostFeedPage, ...errors },
+      response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -127,9 +125,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'getSpaceQueue',
       tags,
-      summary: 'Posts awaiting review and open flags',
+      summary: 'The moderation queue of a space you moderate',
+      description:
+        'For a moderator who can open the space. Posts awaiting review, and the open flags on posts and on comments in the space.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceQueue, ...errors },
+      response: { 200: SpaceQueue, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -145,9 +145,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'createPost',
       tags,
       summary: 'Create a post',
+      description:
+        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past.',
       params: CommunitySpaceParam,
       body: CreatePost,
-      response: { 201: PostView, ...errors },
+      response: { 201: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -169,8 +171,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'getPost',
       tags,
       summary: 'Read a post',
+      description:
+        'For anyone who can open the space while the post is published; for its author in any status; for moderators also while it is pending or removed. Any other post is a 404.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -186,9 +190,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'updatePost',
       tags,
       summary: 'Edit your own post',
+      description:
+        'Author only. Changes only the fields sent. 409 when the post is removed, or the topic rules of the space are not met.',
       params: PostIdParam,
       body: UpdatePost,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -203,9 +209,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'submitPost',
       tags,
-      summary: 'Submit a draft or scheduled post',
+      summary: 'Submit your draft or scheduled post',
+      description:
+        'Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -220,10 +228,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'schedulePost',
       tags,
-      summary: 'Schedule a post',
+      summary: 'Schedule your post',
+      description:
+        'Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future.',
       params: PostIdParam,
       body: SchedulePost,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -238,9 +248,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'approvePost',
       tags,
-      summary: 'Publish a post that is awaiting review',
+      summary: 'Publish a post that awaits review in a space you moderate',
+      description:
+        'For a moderator who can open the space. 409 when the post is not awaiting review.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -255,9 +267,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'removePost',
       tags,
-      summary: 'Remove a post',
+      summary: 'Remove your post, or one in a space you moderate',
+      description:
+        "For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -272,9 +286,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'restorePost',
       tags,
-      summary: 'Restore a removed post',
+      summary: 'Restore a removed post in a space you moderate',
+      description: 'For a moderator who can open the space. 409 when the post is not removed.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -289,9 +304,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'pinPost',
       tags,
-      summary: 'Pin a post',
+      summary: 'Pin a post in a space you moderate',
+      description: 'For a moderator. Pinned posts lead the feeds. 409 when the post is removed.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -306,9 +322,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'unpinPost',
       tags,
-      summary: 'Unpin a post',
+      summary: 'Unpin a post in a space you moderate',
+      description: 'For a moderator. 409 when the post is removed.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -323,9 +340,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'closePostComments',
       tags,
-      summary: 'Close comments on a post',
+      summary: 'Close comments on a post in a space you moderate',
+      description:
+        'For a moderator. Nobody can comment until they are opened again. 409 when the post is removed.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -340,9 +359,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'openPostComments',
       tags,
-      summary: 'Open comments on a post',
+      summary: 'Open comments on a post in a space you moderate',
+      description: 'For a moderator. 409 when the post is removed.',
       params: PostIdParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -357,10 +377,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'setPostReactionPolicy',
       tags,
-      summary: 'Turn reactions on or off for a post',
+      summary: 'Turn reactions on or off for a post in a space you moderate',
+      description:
+        "For a moderator. Overrides the space's reactions setting for this post. 409 when the post is removed.",
       params: PostIdParam,
       body: SetPostReactions,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -376,13 +398,34 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'setPostReaction',
       tags,
       summary: 'Set your reaction on a post',
+      description:
+        'For anyone who can read the post, while reactions are on for it (403 otherwise). Replaces any reaction you already had and returns the new counts.',
       params: PostIdParam,
       body: SetReaction,
-      response: { 200: PostReactions, ...errors },
+      response: { 200: Reactions, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
       return posts.setReaction(req.orgId, req.params.postId, actor, req.body.emoji);
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/member/posts/:postId/reaction',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'clearPostReaction',
+      tags,
+      summary: 'Withdraw your reaction from a post',
+      description:
+        'For anyone who can read the post, while reactions are on for it (403 otherwise). Returns the new counts.',
+      params: PostIdParam,
+      response: { 200: Reactions, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      return posts.setReaction(req.orgId, req.params.postId, actor, null);
     },
   });
 
@@ -394,8 +437,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'followPost',
       tags,
       summary: 'Follow a post',
+      description:
+        'For anyone who can read the post. You are notified of new comments on it. Following twice is harmless.',
       params: PostIdParam,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -412,8 +457,9 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'unfollowPost',
       tags,
       summary: 'Stop following a post',
+      description: 'For anyone who can read the post. Harmless when you do not follow it.',
       params: PostIdParam,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -430,8 +476,9 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'bookmarkPost',
       tags,
       summary: 'Bookmark a post',
+      description: 'For anyone who can read the post. Bookmarking twice is harmless.',
       params: PostIdParam,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -448,8 +495,9 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'unbookmarkPost',
       tags,
       summary: 'Remove a bookmark',
+      description: 'For anyone who can read the post. Harmless when you have not bookmarked it.',
       params: PostIdParam,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -465,10 +513,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'flagPost',
       tags,
-      summary: 'Flag a post',
+      summary: 'Flag a post for the moderators',
+      description:
+        'For anyone who can read the post. Flagging it again while your flag is open returns that flag.',
       params: PostIdParam,
       body: FlagReason,
-      response: { 201: PostFlag, ...errors },
+      response: { 201: PostFlag, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -484,10 +534,12 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'resolvePostFlags',
       tags,
-      summary: 'Resolve the open flags on a post',
+      summary: 'Dismiss the open flags on a post in a space you moderate',
+      description:
+        'For a moderator who can open the space. Closes every open flag and leaves the post up.',
       params: PostIdParam,
       body: ResolvePostFlags,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -504,8 +556,9 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'listPostComments',
       tags,
       summary: "Read a post's comments",
+      description: 'For anyone who can read the post.',
       params: PostIdParam,
-      response: { 200: PostComments, ...errors },
+      response: { 200: PostComments, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -521,9 +574,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       operationId: 'createPostComment',
       tags,
       summary: 'Comment on a post',
+      description:
+        'For anyone who can read the post, while its comments are open (403 otherwise). Replies nest one level. 409 when the post is not published.',
       params: PostIdParam,
       body: PostComment,
-      response: { 201: CommentView, ...errors },
+      response: { 201: CommentView, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
