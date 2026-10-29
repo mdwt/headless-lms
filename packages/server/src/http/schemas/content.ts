@@ -6,6 +6,7 @@ import {
   courseSettingsSchema,
   courseStatusSchema,
   courseViewSchema,
+  idSchema,
 } from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
 
@@ -31,7 +32,7 @@ export type CreateCourse = z.infer<typeof CreateCourse>;
 export const UpdateCourse = CreateCourse.partial().extend({
   status: CourseStatus.optional(),
   /** null clears the cover. */
-  thumbnailAssetId: z.string().nullable().optional(),
+  thumbnailAssetId: idSchema.nullable().optional(),
 });
 export type UpdateCourse = z.infer<typeof UpdateCourse>;
 

@@ -6,6 +6,7 @@ import {
   createCommunityInputSchema,
   createSpaceInputSchema,
   dmSettingsSchema,
+  idSchema,
   patchDmSettingsInputSchema,
   setSpaceTopicsInputSchema,
   spaceDetailSchema,
@@ -39,12 +40,23 @@ export const SpaceMembersPage = paginated(SpaceMember);
 export const CreateSpace = createSpaceInputSchema;
 export const UpdateSpace = updateSpaceInputSchema;
 export const SetSpaceTopics = setSpaceTopicsInputSchema;
-export const OrderedIds = z.object({ ids: z.array(z.string()).min(1) }).strict();
-export const SpaceLinkBody = z.object({ contentId: z.string() }).strict();
+export const OrderedIds = z
+  .object({
+    ids: z
+      .array(idSchema)
+      .min(1)
+      .max(200)
+      .describe('Every id in the collection, once each, in the new order'),
+  })
+  .strict();
+export const SpaceLinkBody = z
+  .object({ contentId: idSchema.describe('The course, download or community to link') })
+  .strict();
 
-export const CommunityIdParam = z.object({ id: z.string() });
+export const CommunityIdParam = z.object({ communityId: z.string() });
 export const CommunitySpaceParam = z.object({ communityId: z.string(), spaceId: z.string() });
 export const SpaceLinkParam = CommunitySpaceParam.extend({ linkId: z.string() });
+export const SpaceMemberParam = CommunitySpaceParam.extend({ orgUserId: z.string() });
 export const CommunityPostParam = z.object({ communityId: z.string(), postId: z.string() });
 export const CommunityCommentParam = z.object({ communityId: z.string(), commentId: z.string() });
 export const CommunityMessageParam = z.object({ communityId: z.string(), messageId: z.string() });
@@ -58,7 +70,6 @@ export const CommunityMembersPage = paginated(CommunityMember);
 
 export const DirectoryEntry = z.object({
   orgUserId: z.string(),
-  userId: z.string(),
   role: z.string(),
   displayName: z.string().nullable(),
   headline: z.string().nullable(),
@@ -66,10 +77,13 @@ export const DirectoryEntry = z.object({
   imageAssetId: z.string().nullable(),
   imageUrl: z.string().nullable(),
 });
-type _DirectoryMatches = Matches<DomainDirectoryEntry, z.infer<typeof DirectoryEntry>> &
-  Matches<z.infer<typeof DirectoryEntry>, DomainDirectoryEntry>;
+type _DirectoryMatches = Matches<
+  Omit<DomainDirectoryEntry, 'userId'>,
+  z.infer<typeof DirectoryEntry>
+> &
+  Matches<z.infer<typeof DirectoryEntry>, Omit<DomainDirectoryEntry, 'userId'>>;
 export const DirectoryQuery = PageQuery.extend({
-  search: z.string().trim().optional().describe('Matches part of a display name'),
+  search: z.string().trim().max(100).optional().describe('Matches part of a display name'),
 });
 export const DirectoryPage = paginated(DirectoryEntry);
 
@@ -80,7 +94,9 @@ const CommunityHomeSpaceBase = z.object({
   accessRule: z.enum(['all_members', 'by_request', 'by_invite']),
   standing: z
     .enum(['open', 'member', 'requested', 'invited', 'full', 'none'])
-    .describe('Where the viewer stands with this space, and so which action it offers'),
+    .describe(
+      'Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.',
+    ),
 });
 
 export const LockedCommunitySpace = CommunityHomeSpaceBase.extend({

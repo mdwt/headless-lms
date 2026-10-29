@@ -6,7 +6,7 @@ import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveScope } from '../scope.js';
 import {
   Chat,
-  Comment,
+  CommentView,
   CommunityChatParam,
   CommunityCommentParam,
   CommunityIdParam,
@@ -15,18 +15,18 @@ import {
   CommunityMessageParam,
   CommunityPostParam,
   CommunitySpaceParam,
-  ErrorBody,
   OrgUserBody,
   PageQuery,
   PostView,
+  ResolveCommentFlags,
   ResolveMessageFlags,
   ResolvePostFlags,
   SpaceMember,
+  SpaceMemberParam,
   SpaceMembersPage,
   SpaceQueue,
+  refusals,
 } from '../schemas/index.js';
-
-const errors = { 401: ErrorBody, 403: ErrorBody, 404: ErrorBody, 409: ErrorBody };
 
 export async function communityModerationRoutes(
   app: FastifyInstance,
@@ -37,24 +37,26 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'GET',
-    url: '/api/communities/:id/members',
+    url: '/api/communities/:communityId/members',
     schema: {
       operationId: 'listCommunityMembers',
       tags,
-      summary: 'List the people who hold a community, directly or through a bundle',
+      summary: 'List the people who hold a community (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.',
       params: CommunityIdParam,
       querystring: CommunityMembersQuery,
-      response: { 200: CommunityMembersPage, ...errors },
+      response: { 200: CommunityMembersPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
       const page = await container.reporting.admin.communityMembers(
         scope.orgId,
-        req.params.id,
+        req.params.communityId,
         req.query,
       );
       if (!page) {
-        throw new NotFoundError('Community', req.params.id);
+        throw new NotFoundError('Community', req.params.communityId);
       }
       return page;
     },
@@ -66,10 +68,12 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'listCommunitySpaceMembers',
       tags,
-      summary: 'List the members, requests and invitations of a space',
+      summary: 'List the members, requests and invitations of a space (staff)',
+      description:
+        "Staff only (owner, admin, instructor). The space's members, its open requests to join and its open invitations.",
       params: CommunitySpaceParam,
       querystring: PageQuery,
-      response: { 200: SpaceMembersPage, ...errors },
+      response: { 200: SpaceMembersPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -89,20 +93,23 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'addCommunitySpaceMember',
       tags,
-      summary: 'Add a person to a space',
+      summary: 'Add a person to a space (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.',
       params: CommunitySpaceParam,
       body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      response: { 201: SpaceMember, ...refusals(403, 404, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      return container.entitlements.addSpaceMember(
+      const member = await container.entitlements.addSpaceMember(
         scope.orgId,
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
         req.body.orgUserId,
       );
+      return reply.code(201).send(member);
     },
   });
 
@@ -112,33 +119,37 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'inviteCommunitySpaceMember',
       tags,
-      summary: 'Invite a person into a space',
+      summary: 'Invite a person into a space (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Invites a member of the community into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.',
       params: CommunitySpaceParam,
       body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      response: { 201: SpaceMember, ...refusals(403, 404, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      return container.entitlements.invite(
+      const member = await container.entitlements.invite(
         scope.orgId,
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
         req.body.orgUserId,
       );
+      return reply.code(201).send(member);
     },
   });
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/spaces/:spaceId/approvals',
+    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
     schema: {
       operationId: 'approveCommunitySpaceRequest',
       tags,
-      summary: 'Approve a request to join a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: "Approve a person's request to join a space (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -147,21 +158,22 @@ export async function communityModerationRoutes(
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/spaces/:spaceId/declines',
+    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/decline',
     schema: {
       operationId: 'declineCommunitySpaceRequest',
       tags,
-      summary: 'Decline a request to join a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: "Decline a person's request to join a space (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Closes the open request. 404 when the person has no open request; 409 when they are already a member.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -170,21 +182,22 @@ export async function communityModerationRoutes(
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/spaces/:spaceId/removals',
+    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
     schema: {
       operationId: 'removeCommunitySpaceMember',
       tags,
-      summary: 'Remove a person from a space',
-      params: CommunitySpaceParam,
-      body: OrgUserBody,
-      response: { 200: SpaceMember, ...errors },
+      summary: 'Remove a person from a space (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.',
+      params: SpaceMemberParam,
+      response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -193,7 +206,7 @@ export async function communityModerationRoutes(
         { id: scope.orgUserId, role: scope.role },
         req.params.communityId,
         req.params.spaceId,
-        req.body.orgUserId,
+        req.params.orgUserId,
       );
     },
   });
@@ -204,11 +217,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'getCommunitySpaceQueue',
       tags,
-      summary: 'Posts awaiting review and open post and comment flags in a space',
+      summary: 'The moderation queue of a space (staff)',
       description:
-        'Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised. Working the queue brings in the next ones.',
+        'Staff only (owner, admin, instructor). Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.',
       params: CommunitySpaceParam,
-      response: { 200: SpaceQueue, ...errors },
+      response: { 200: SpaceQueue, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -227,9 +240,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'approveCommunityPost',
       tags,
-      summary: 'Publish a post that is awaiting review',
+      summary: 'Publish a post that is awaiting review (staff)',
+      description:
+        'Staff only (owner, admin, instructor). 409 when the post is not awaiting review.',
       params: CommunityPostParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -248,9 +263,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'removeCommunityPost',
       tags,
-      summary: 'Remove a post',
+      summary: 'Remove a post (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.',
       params: CommunityPostParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -269,9 +286,10 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'restoreCommunityPost',
       tags,
-      summary: 'Restore a removed post',
+      summary: 'Restore a removed post (staff)',
+      description: 'Staff only (owner, admin, instructor). 409 when the post is not removed.',
       params: CommunityPostParam,
-      response: { 200: PostView, ...errors },
+      response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -290,10 +308,12 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'resolveCommunityPostFlags',
       tags,
-      summary: 'Dismiss the open flags on a post',
+      summary: 'Dismiss the open flags on a post (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Closes every open flag on the post and leaves it up.',
       params: CommunityPostParam,
       body: ResolvePostFlags,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -314,9 +334,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'removeCommunityComment',
       tags,
-      summary: 'Remove a comment on a post',
+      summary: 'Remove a comment on a post (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.',
       params: CommunityCommentParam,
-      response: { 200: Comment, ...errors },
+      response: { 200: CommentView, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -335,9 +357,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'restoreCommunityComment',
       tags,
-      summary: 'Restore a removed comment on a post',
+      summary: 'Restore a removed comment on a post (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Publishes the comment again. Restoring a comment that is not removed returns it unchanged.',
       params: CommunityCommentParam,
-      response: { 200: Comment, ...errors },
+      response: { 200: CommentView, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -356,9 +380,12 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'resolveCommunityCommentFlags',
       tags,
-      summary: 'Dismiss the open flags on a comment',
+      summary: 'Dismiss the open flags on a comment (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Closes every open flag on the comment and leaves it up.',
       params: CommunityCommentParam,
-      response: { 204: z.void(), ...errors },
+      body: ResolveCommentFlags,
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -378,10 +405,12 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'resolveCommunityMessageFlags',
       tags,
-      summary: 'Dismiss the open flags on a message',
+      summary: 'Dismiss the open flags on a message (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Closes every open flag on the message and leaves it up.',
       params: CommunityMessageParam,
       body: ResolveMessageFlags,
-      response: { 204: z.void(), ...errors },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -402,9 +431,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'lockCommunityChat',
       tags,
-      summary: 'Lock a chat',
+      summary: 'Lock a chat (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged.',
       params: CommunityChatParam,
-      response: { 200: Chat, ...errors },
+      response: { 200: Chat, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -423,9 +454,11 @@ export async function communityModerationRoutes(
     schema: {
       operationId: 'unlockCommunityChat',
       tags,
-      summary: 'Unlock a chat',
+      summary: 'Unlock a chat (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.',
       params: CommunityChatParam,
-      response: { 200: Chat, ...errors },
+      response: { 200: Chat, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

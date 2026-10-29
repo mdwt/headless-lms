@@ -1,14 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import {
-  DownloadIdParam,
-  ErrorBody,
-  MemberDownload,
-  MemberDownloads,
-} from '../../schemas/index.js';
+import { DownloadIdParam, MemberDownload, MemberDownloads, refusals } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
-import { UnauthorizedError } from '../../plugins/auth.js';
+import { actorOf } from './actor.js';
 
 export async function memberDownloadsRoutes(
   app: FastifyInstance,
@@ -24,14 +19,13 @@ export async function memberDownloadsRoutes(
     schema: {
       operationId: 'listMemberDownloads',
       tags: ['Content'],
-      summary: 'Downloads the student is actively entitled to',
-      response: { 200: MemberDownloads },
+      summary: 'List the downloads you can open',
+      description:
+        'For a member of the organization. Published downloads you hold, directly or through a bundle.',
+      response: { 200: MemberDownloads, ...refusals(403) },
     },
     handler: async (req) => {
-      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      if (!orgUser) {
-        throw new UnauthorizedError();
-      }
+      const orgUser = await actorOf(container, req.orgId, req.userId);
       return member.listDownloads(req.orgId, orgUser.id);
     },
   });
@@ -43,15 +37,14 @@ export async function memberDownloadsRoutes(
     schema: {
       operationId: 'getMemberDownload',
       tags: ['Content'],
-      summary: 'One entitled download and its ordered assets',
+      summary: 'One download you can open, with its files in order',
+      description:
+        'For a member of the organization. 404 when the download is not published or you do not hold it.',
       params: DownloadIdParam,
-      response: { 200: MemberDownload, 404: ErrorBody },
+      response: { 200: MemberDownload, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      if (!orgUser) {
-        throw new UnauthorizedError();
-      }
+      const orgUser = await actorOf(container, req.orgId, req.userId);
       const result = await member.getDownload(req.orgId, orgUser.id, req.params.downloadId);
       if (!result) {
         throw new NotFoundError('Download', req.params.downloadId);

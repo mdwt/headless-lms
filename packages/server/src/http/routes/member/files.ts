@@ -1,6 +1,7 @@
 // Member file proxies. Each route checks access with the context that owns the
 // file, then redirects to a short-lived signed storage URL. Every refusal is a
-// 404, never a 403, so a response never confirms that a file exists.
+// 404, so a response never confirms that a file exists. A 403 only means the
+// caller is not a member of the organization.
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -11,17 +12,17 @@ import {
   CourseThumbnailParams,
   DownloadFileParams,
   DownloadThumbnailParams,
-  ErrorBody,
   MessageAttachmentParams,
   PersonImageParams,
   PostCoverParams,
   UploadFileParams,
+  refusals,
 } from '../../schemas/index.js';
-import { UnauthorizedError } from '../../plugins/auth.js';
+import { actorOf as memberOf } from './actor.js';
 import type { Container } from '../../../app/container.js';
 
 const tags = ['Files'];
-const responses = { 302: z.void(), 401: ErrorBody, 404: ErrorBody };
+const responses = { 302: z.void(), ...refusals(403, 404) };
 
 function redirect(reply: FastifyReply, url: string | null, what: string, id: string) {
   if (!url) {
@@ -38,10 +39,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   const member = container.reporting.member;
 
   async function actorOf(orgId: string, userId: string) {
-    const orgUser = await container.organizations.getOrgUser(orgId, userId);
-    if (!orgUser) {
-      throw new UnauthorizedError();
-    }
+    const orgUser = await memberOf(container, orgId, userId);
     return { id: orgUser.id, role: orgUser.role };
   }
 

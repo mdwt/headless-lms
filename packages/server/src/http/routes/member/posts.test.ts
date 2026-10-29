@@ -9,6 +9,7 @@ import { memberPostRoutes } from './posts.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const ORG_USER = { id: 'ou_mod', role: 'moderator' };
+let orgUser: typeof ORG_USER | null = ORG_USER;
 const calls: { method: string; args: unknown[] }[] = [];
 
 function record(method: string, result: unknown) {
@@ -28,7 +29,7 @@ const container = {
   },
   organizations: {
     getByExternalId: async () => ORG,
-    getOrgUser: async () => ORG_USER,
+    getOrgUser: async () => orgUser,
   },
   discussion: { resolveReports: record('resolveReports', undefined) },
   posts: {
@@ -36,6 +37,7 @@ const container = {
     moderationQueue: record('moderationQueue', { pending: [], flags: [], commentFlags: [] }),
     listOwn: record('listOwn', { rows: [], total: 0, page: 2, pageSize: 5 }),
     listBookmarked: record('listBookmarked', { rows: [], total: 0, page: 1, pageSize: 20 }),
+    setReaction: record('setPostReaction', { reactions: {} }),
   },
 } as unknown as Container;
 
@@ -62,7 +64,11 @@ function last(method: string) {
 
 describe('member post and comment routes', () => {
   it('lets a member route dismiss the flags on a comment', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/api/member/comments/cmt_1/reports' });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/member/comments/cmt_1/flags/resolution',
+      payload: { resolution: 'dismissed' },
+    });
     expect(res.statusCode).toBe(204);
     expect(last('resolveReports')).toEqual([ORG.id, 'cmt_1', ORG_USER]);
   });
@@ -112,5 +118,22 @@ describe('member post and comment routes', () => {
       payload: { resolution: 'removed' },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('clears a post reaction with DELETE and answers the counts', async () => {
+    const res = await app.inject({ method: 'DELETE', url: '/api/member/posts/pst_1/reaction' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ reactions: {} });
+    expect(last('setPostReaction')).toEqual([ORG.id, 'pst_1', ORG_USER, null]);
+  });
+
+  it('answers 403 to a signed-in person who is not in the organization', async () => {
+    orgUser = null;
+    try {
+      const res = await app.inject({ method: 'GET', url: '/api/member/communities/cmy_1/feed' });
+      expect(res.statusCode).toBe(403);
+    } finally {
+      orgUser = ORG_USER;
+    }
   });
 });

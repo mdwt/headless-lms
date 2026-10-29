@@ -569,6 +569,21 @@ describe('file URLs', () => {
       chat: null,
     });
     expect(view.rows[1]).toMatchObject({ post: null, chat: null, space: null });
+    const one = await svc.notificationView(
+      'o1',
+      { id: 'ou_james', role: 'student' },
+      {
+        ...row,
+        id: 'ntf_1',
+        kind: 'newPostInSpace',
+        actorOrgUserId: 'ou_sarah',
+        communityId: 'cmy_1',
+        spaceId: 'spc_1',
+        postId: 'pst_seen',
+        chatId: null,
+      },
+    );
+    expect(one).toEqual(view.rows[0]);
   });
 });
 

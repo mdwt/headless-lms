@@ -11,8 +11,10 @@ import {
   commentListItemSchema,
   commentReportSummarySchema,
   commentSchema,
+  commentFlagResolutionSchema,
   commentStatusSchema,
   commentViewSchema,
+  idSchema,
 } from '@headless-lms/core/schemas';
 import { z } from 'zod';
 import { ListQuery, type Matches, paginated } from './shared.js';
@@ -34,12 +36,12 @@ export type ReactionCounts = z.infer<typeof ReactionCounts>;
 export const CommentView = commentViewSchema;
 export type CommentView = z.infer<typeof CommentView>;
 
-/** What the reaction write returns, so the client never recomputes a count. */
-export const CommentReactions = z.object({
+/** What a reaction write on a post, message or comment returns, so the client never recomputes a count. */
+export const Reactions = z.object({
   reactions: ReactionCounts,
-  viewerReaction: ReactionEmoji.optional(),
+  viewerReaction: ReactionEmoji.optional().describe('Absent when you have no reaction'),
 });
-export type CommentReactions = z.infer<typeof CommentReactions>;
+export type Reactions = z.infer<typeof Reactions>;
 
 /** A course's comment settings. Stored under the course, carried on the course
  *  payload as `settings.comments`. */
@@ -67,7 +69,10 @@ export type ActivityComments = z.infer<typeof ActivityComments>;
 export const PostComment = z
   .object({
     body: z.string().min(1).max(10_000),
-    parentId: z.string().nullable().default(null),
+    parentId: idSchema
+      .nullable()
+      .default(null)
+      .describe('The comment this replies to. Replies nest one level, under a root comment'),
   })
   .strict();
 export type PostComment = z.infer<typeof PostComment>;
@@ -84,8 +89,21 @@ export const PatchComment = z.object({
 export type PatchComment = z.infer<typeof PatchComment>;
 
 /** Replaces whatever the reader had. Clearing is DELETE, which carries no body. */
-export const SetCommentReaction = z.object({ emoji: ReactionEmoji }).strict();
-export type SetCommentReaction = z.infer<typeof SetCommentReaction>;
+export const SetReaction = z
+  .object({ emoji: ReactionEmoji.describe('Replaces any reaction you already had') })
+  .strict();
+export type SetReaction = z.infer<typeof SetReaction>;
+
+export const ResolveCommentFlags = z
+  .object({
+    resolution: commentFlagResolutionSchema
+      .extract(['dismissed'])
+      .describe(
+        '`dismissed` closes the open flags and leaves the comment up. Removing the comment resolves its flags as `removed` instead.',
+      ),
+  })
+  .strict();
+export type ResolveCommentFlags = z.infer<typeof ResolveCommentFlags>;
 
 /** A moderator's reply, posted from the queue against the comment it answers. */
 export const ReplyToComment = z.object({

@@ -900,6 +900,10 @@ describe('edit, remove, restore, approve', () => {
     });
     expect((await service.remove('o1', mine.id, learner)).status).toBe('removed');
     expect((await service.remove('o1', theirs.id, staff)).status).toBe('removed');
+    expect(await service.remove('o1', theirs.id, staff)).toMatchObject({
+      body: null,
+      removedBy: { id: staff.id },
+    });
 
     const third = await service.postComment('o1', {
       actor: other,

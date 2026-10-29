@@ -19,6 +19,7 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationView,
   NotificationsView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
@@ -82,8 +83,31 @@ export class MemberReportServiceImpl implements MemberReportService {
     query: { page: number; pageSize: number },
   ): Promise<NotificationsView> {
     const page = await this.inbox.listNotifications(orgId, userId, query);
+    return {
+      rows: await this.describeNotifications(orgId, actor, page.rows),
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
+      unreadCount: page.unreadCount,
+    };
+  }
+
+  async notificationView(
+    orgId: string,
+    actor: Actor,
+    notification: Notification,
+  ): Promise<NotificationView> {
+    const [view] = await this.describeNotifications(orgId, actor, [notification]);
+    return view!;
+  }
+
+  private async describeNotifications(
+    orgId: string,
+    actor: Actor,
+    rows: Notification[],
+  ): Promise<NotificationView[]> {
     const ids = (pick: (row: Notification) => string | null): string[] => [
-      ...new Set(page.rows.flatMap((row) => pick(row) ?? [])),
+      ...new Set(rows.flatMap((row) => pick(row) ?? [])),
     ];
     const [people, postTitles, chatTitles, spaces, communities] = await Promise.all([
       this.repo.people(
@@ -110,38 +134,32 @@ export class MemberReportServiceImpl implements MemberReportService {
     );
     const postById = new Map(Object.entries(postTitles));
     const chatById = new Map(Object.entries(chatTitles));
-    return {
-      rows: page.rows.map((row) => {
-        const person = row.actorOrgUserId ? personById.get(row.actorOrgUserId) : undefined;
-        const community = ref(row.communityId, communityById);
-        const space = ref(row.spaceId, spaceById);
-        const post = ref(row.postId, postById);
-        const chat = ref(row.chatId, chatById);
-        return {
-          id: row.id,
-          kind: row.kind,
-          createdAt: row.createdAt,
-          readAt: row.readAt,
-          actor: person
-            ? {
-                orgUserId: person.orgUserId,
-                displayName: person.displayName,
-                imageUrl: person.imageAssetId ? this.fileUrls.personImage(person.orgUserId) : null,
-              }
-            : null,
-          community: community && { id: community.id, title: community.name },
-          space: space && { id: space.id, name: space.name },
-          post: post && { id: post.id, title: post.name },
-          commentId: row.commentId,
-          chat: chat && { id: chat.id, title: chat.name },
-          messageId: row.messageId,
-        };
-      }),
-      total: page.total,
-      page: page.page,
-      pageSize: page.pageSize,
-      unreadCount: page.unreadCount,
-    };
+    return rows.map((row) => {
+      const person = row.actorOrgUserId ? personById.get(row.actorOrgUserId) : undefined;
+      const community = ref(row.communityId, communityById);
+      const space = ref(row.spaceId, spaceById);
+      const post = ref(row.postId, postById);
+      const chat = ref(row.chatId, chatById);
+      return {
+        id: row.id,
+        kind: row.kind,
+        createdAt: row.createdAt,
+        readAt: row.readAt,
+        actor: person
+          ? {
+              orgUserId: person.orgUserId,
+              displayName: person.displayName,
+              imageUrl: person.imageAssetId ? this.fileUrls.personImage(person.orgUserId) : null,
+            }
+          : null,
+        community: community && { id: community.id, title: community.name },
+        space: space && { id: space.id, name: space.name },
+        post: post && { id: post.id, title: post.name },
+        commentId: row.commentId,
+        chat: chat && { id: chat.id, title: chat.name },
+        messageId: row.messageId,
+      };
+    });
   }
 
   async listCourses(orgId: string, orgUserId: string): Promise<CourseView[]> {

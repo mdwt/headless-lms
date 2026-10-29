@@ -2,8 +2,8 @@
 // a piece of content — generic over content types (course today) — its
 // validity + source. Distinct from payment and from completion.
 import { z } from 'zod';
-import { entitlementSchema } from '@headless-lms/core/schemas';
-import { ListQuery, paginated } from './shared.js';
+import { entitlementSchema, idSchema } from '@headless-lms/core/schemas';
+import { DateTimeInput, ListQuery, paginated } from './shared.js';
 
 export const EntitlementStatus = z.enum(['active', 'expired', 'revoked']);
 export type EntitlementStatus = z.infer<typeof EntitlementStatus>;
@@ -41,10 +41,10 @@ export type EntitlementsPage = z.infer<typeof EntitlementsPage>;
 /** A grant targets exactly one of: a single content item or a bundle. */
 export const GrantEntitlement = z
   .object({
-    orgUserId: z.string(),
-    contentId: z.string().nullish(),
-    bundleId: z.string().nullish(),
-    expiresAt: z.coerce.date().nullable(),
+    orgUserId: idSchema,
+    contentId: idSchema.nullish(),
+    bundleId: idSchema.nullish(),
+    expiresAt: DateTimeInput.nullable().describe('When access ends; null never expires'),
   })
   .refine((v) => (v.contentId != null) !== (v.bundleId != null), {
     message: 'Provide exactly one of contentId or bundleId',

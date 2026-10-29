@@ -2,7 +2,7 @@
 // routes validate requests/responses against these, the OpenAPI spec is built
 // from them, and the frontend SDK is generated off that spec.
 import { z } from 'zod';
-import { bundleItemSchema, bundleSchema } from '@headless-lms/core/schemas';
+import { bundleItemSchema, bundleSchema, idSchema } from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
 
 export const Bundle = bundleSchema;
@@ -13,7 +13,7 @@ export type BundleItem = z.infer<typeof BundleItem>;
 
 export const CreateBundle = z.object({
   name: z.string().min(1),
-  contentIds: z.array(z.string()).optional(),
+  contentIds: z.array(idSchema).max(500).optional(),
 });
 export type CreateBundle = z.infer<typeof CreateBundle>;
 
@@ -29,7 +29,7 @@ export const BundlesPage = paginated(Bundle);
 export type BundlesPage = z.infer<typeof BundlesPage>;
 
 export const AddBundleItem = z.object({
-  contentId: z.string(),
+  contentId: idSchema,
 });
 export type AddBundleItem = z.infer<typeof AddBundleItem>;
 
@@ -38,6 +38,6 @@ export type BundleIdParam = z.infer<typeof BundleIdParam>;
 
 export const BundleItemParams = z.object({
   bundleId: z.string(),
-  contentId: z.string(),
+  contentId: idSchema,
 });
 export type BundleItemParams = z.infer<typeof BundleItemParams>;

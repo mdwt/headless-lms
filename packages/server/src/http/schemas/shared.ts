@@ -26,6 +26,21 @@ export const ValidationErrorBody = ErrorBody.extend({
 });
 export type ValidationErrorBody = z.infer<typeof ValidationErrorBody>;
 
+type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 502;
+type RefusalBodies<S extends RefusalStatus> = {
+  [K in S]: K extends 400 ? typeof ValidationErrorBody : typeof ErrorBody;
+};
+
+/** Response schemas for the refusals a route can answer. A 400 keeps the validation `issues`. */
+export function refusals<S extends RefusalStatus>(...statuses: S[]): RefusalBodies<S> {
+  return Object.fromEntries(
+    statuses.map((status) => [status, status === 400 ? ValidationErrorBody : ErrorBody]),
+  ) as RefusalBodies<S>;
+}
+
+/** An RFC 3339 date-time in a request, such as `2026-10-29T12:00:00Z`, read as a Date. */
+export const DateTimeInput = z.iso.datetime({ offset: true }).pipe(z.coerce.date());
+
 /** Page position only, for lists that take no search or sort. */
 export const PageQuery = z
   .object({

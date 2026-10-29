@@ -30,6 +30,15 @@ z.globalRegistry.add(jsonValueSchema, { id: 'JsonValue' });
 
 export const jsonRecordSchema = z.record(z.string(), jsonValueSchema);
 
+/** Free-form JSON whose serialized form fits in `maxBytes` of UTF-8. */
+export function boundedJsonSchema(maxBytes: number) {
+  return jsonValueSchema
+    .refine((value) => new TextEncoder().encode(JSON.stringify(value)).length <= maxBytes, {
+      message: `must be at most ${Math.floor(maxBytes / 1024)} KB once serialized`,
+    })
+    .describe(`Free-form JSON, at most ${Math.floor(maxBytes / 1024)} KB once serialized`);
+}
+
 export const eventMetadataSchema: z.ZodType<EventMetadata> = z.record(z.string(), jsonValueSchema);
 
 export const domainEventSchema: z.ZodType<DomainEvent> = z

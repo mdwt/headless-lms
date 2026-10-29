@@ -47,5 +47,15 @@ export const MarkedRead = z.object({ updated: z.number().int() });
 export const NotificationPreference = notificationPreferenceSchema;
 export const NotificationPreferences = z.array(NotificationPreference);
 export const SetNotificationPreferences = z
-  .object({ preferences: z.array(NotificationPreference).min(1) })
+  .object({
+    preferences: z
+      .array(NotificationPreference)
+      .min(1)
+      .max(notificationKindSchema.options.length)
+      .refine(
+        (preferences) => new Set(preferences.map((p) => p.kind)).size === preferences.length,
+        { message: 'must name each kind at most once' },
+      )
+      .describe('One entry per kind to change, each kind at most once; kinds left out keep theirs'),
+  })
   .strict();

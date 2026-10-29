@@ -12,9 +12,9 @@ import {
   AssetIdParam,
   AssetsPage,
   AssetsQuery,
-  ErrorBody,
   RequestUpload,
   UploadTicket,
+  refusals,
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
@@ -46,9 +46,11 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'requestUpload',
       tags,
-      summary: 'Register an asset and get a presigned upload URL',
+      summary: 'Register a library asset and get a presigned upload URL (staff)',
+      description:
+        'Staff only (owner, admin, instructor). The asset stays pending until you upload the file and confirm it.',
       body: RequestUpload,
-      response: { 201: UploadTicket, 400: ErrorBody, 401: ErrorBody },
+      response: { 201: UploadTicket, ...refusals(403) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -68,11 +70,11 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'confirmAsset',
       tags,
-      summary: 'Confirm an upload completed (captures size + content type)',
+      summary: 'Confirm a library upload completed (staff)',
       description:
-        'A pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.',
+        'Staff only (owner, admin, instructor). Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.',
       params: AssetIdParam,
-      response: { 200: Asset, 400: ErrorBody, 401: ErrorBody, 403: ErrorBody, 404: ErrorBody },
+      response: { 200: Asset, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -94,9 +96,11 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'listAssets',
       tags,
-      summary: "Browse the organization's media library",
+      summary: "Browse the organization's media library (staff)",
+      description:
+        "Staff only (owner, admin, instructor). Library files by default; `source: member` lists members' uploads.",
       querystring: AssetsQuery,
-      response: { 200: AssetsPage, 400: ErrorBody, 401: ErrorBody },
+      response: { 200: AssetsPage, ...refusals(403) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -114,9 +118,10 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'getAsset',
       tags,
-      summary: "Get an asset's metadata",
+      summary: "Get an asset's metadata (staff)",
+      description: 'Staff only (owner, admin, instructor).',
       params: AssetIdParam,
-      response: { 200: Asset, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Asset, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -138,15 +143,11 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     schema: {
       operationId: 'deleteAsset',
       tags,
-      summary: 'Delete an asset nothing references (removes the object from storage)',
+      summary: 'Delete an asset nothing references (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Removes the row and the stored file. 409 while content still uses it.',
       params: AssetIdParam,
-      response: {
-        204: z.void(),
-        400: ErrorBody,
-        401: ErrorBody,
-        404: ErrorBody,
-        409: ErrorBody,
-      },
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -166,13 +167,13 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       suffix: 'file',
       download: false,
       operationId: 'getLibraryFile',
-      summary: 'Redirect to a library file to show it',
+      summary: 'Redirect to a library file to show it (staff)',
     },
     {
       suffix: 'download',
       download: true,
       operationId: 'downloadLibraryFile',
-      summary: 'Redirect to a library file saved under its filename',
+      summary: 'Redirect to a library file saved under its filename (staff)',
     },
   ]) {
     r.route({
@@ -184,9 +185,9 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
         tags,
         summary,
         description:
-          'Staff only. Ready library files of the organization; member uploads and pending files answer 404.',
+          'Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.',
         params: AssetIdParam,
-        response: { 302: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+        response: { 302: z.void(), ...refusals(403, 404) },
       },
       handler: async (req, reply) => {
         const orgId = await resolveOrgId(req, reply);

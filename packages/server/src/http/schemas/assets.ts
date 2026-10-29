@@ -53,14 +53,16 @@ export type AssetsPage = z.infer<typeof AssetsPage>;
 export const AssetIdParam = z.object({ id: z.string() });
 export type AssetIdParam = z.infer<typeof AssetIdParam>;
 
+const Filename = z.string().trim().min(1).max(255);
+
 export const RequestUpload = z.object({
-  filename: z.string().min(1),
-  contentType: z.string().min(1).describe('The media class is derived from this.'),
+  filename: Filename,
+  contentType: z.string().min(1).max(255).describe('The media class is derived from this.'),
 });
 export type RequestUpload = z.infer<typeof RequestUpload>;
 
 export const RequestMemberUpload = z.object({
-  filename: z.string().min(1),
+  filename: Filename,
   contentType: z
     .string()
     .regex(MEMBER_IMAGE_TYPE, 'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image')
