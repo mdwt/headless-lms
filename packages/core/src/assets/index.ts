@@ -1,4 +1,4 @@
-export { AssetsServiceImpl, kindOf } from './service.js';
+export { AssetsServiceImpl, MEMBER_IMAGE_TYPE, isMemberImageType, kindOf } from './service.js';
 export { assetEvents } from './events.js';
 export type {
   AssetFiles,

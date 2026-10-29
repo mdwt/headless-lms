@@ -23,6 +23,13 @@ import { assetEvents } from './events.js';
 
 const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
+export const MEMBER_IMAGE_TYPE = /^image\/(png|jpeg|gif|webp|avif)$/i;
+const MEMBER_IMAGE_REFUSAL = 'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image';
+
+export function isMemberImageType(contentType: string): boolean {
+  return MEMBER_IMAGE_TYPE.test(contentType.trim());
+}
+
 export function kindOf(contentType: string): AssetKind {
   const type = contentType.trim().toLowerCase();
   if (type.startsWith('image/')) {
@@ -145,8 +152,8 @@ export class AssetsServiceImpl implements AssetsService {
     orgUserId: string,
     input: MemberUploadInput,
   ): Promise<UploadTicket> {
-    if (kindOf(input.contentType) !== 'image') {
-      throw new ConflictError('A member upload must be an image');
+    if (!isMemberImageType(input.contentType)) {
+      throw new ConflictError(MEMBER_IMAGE_REFUSAL);
     }
     return this.requestUpload(orgId, {
       filename: input.filename,
@@ -369,14 +376,13 @@ export class AssetsServiceImpl implements AssetsService {
     }
     const contentType = asset.contentType;
     const kind = kindOf(contentType);
-    const reason =
-      kind !== 'image'
-        ? 'A member upload must be an image'
-        : stat.contentType !== undefined && stat.contentType !== contentType
-          ? 'The uploaded file is not the declared type'
-          : stat.size > this.memberImageMaxBytes
-            ? 'This image is too large'
-            : null;
+    const reason = !isMemberImageType(contentType)
+      ? MEMBER_IMAGE_REFUSAL
+      : stat.contentType !== undefined && stat.contentType !== contentType
+        ? 'The uploaded file is not the declared type'
+        : stat.size > this.memberImageMaxBytes
+          ? 'This image is too large'
+          : null;
     if (reason) {
       await this.removeObject(orgId, asset.id, key);
       await this.discard(orgId, asset);

@@ -488,10 +488,43 @@ describe('posts', () => {
     expect(post.topicId).toBe('top_1');
   });
 
-  it('refuses a post in a space the person cannot open', async () => {
+  it('refuses a post in a space the person cannot open as if the space did not exist', async () => {
     const { svc, calls } = harness();
-    await expect(svc.create(ORG, outsider, draftInput())).rejects.toBeInstanceOf(ForbiddenError);
+    const missing = await svc
+      .create(ORG, member, draftInput({ spaceId: 'spc_missing' }))
+      .catch((error: unknown) => error);
+    const closed = await svc.create(ORG, outsider, draftInput()).catch((error: unknown) => error);
+    expect(missing).toBeInstanceOf(NotFoundError);
+    expect(closed).toBeInstanceOf(NotFoundError);
+    expect((closed as Error).message.replace('spc_1', 'ID')).toBe(
+      (missing as Error).message.replace('spc_missing', 'ID'),
+    );
+    await expect(svc.spaceFeed(ORG, outsider, 'cmy_1', 'spc_1', feed)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
     expect(calls).toHaveLength(0);
+  });
+
+  it('answers a post in a space the person cannot open exactly like a missing post', async () => {
+    const { svc } = harness();
+    const created = await svc.create(ORG, member, draftInput());
+    const message = async (run: Promise<unknown>) => {
+      const error = await run.catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(NotFoundError);
+      return (error as Error).message.replace(created.id, 'ID').replace('pst_missing', 'ID');
+    };
+    const expected = await message(svc.getPost(ORG, member, 'pst_missing'));
+    for (const run of [
+      svc.getPost(ORG, outsider, created.id),
+      svc.setReaction(ORG, created.id, outsider, '👍'),
+      svc.follow(ORG, created.id, outsider),
+      svc.bookmark(ORG, created.id, outsider),
+      svc.flag(ORG, created.id, outsider, 'spam'),
+      svc.remove(ORG, created.id, outsider),
+    ]) {
+      expect(await message(run)).toBe(expected);
+    }
+    expect(await svc.coverFile(ORG, outsider, created.id)).toBeNull();
   });
 
   it('lets only the author edit, and a pending edit says it was already pending', async () => {
@@ -1011,7 +1044,9 @@ describe('posts', () => {
       following: false,
       bookmarked: false,
     });
-    expect((await svc.listOwn(ORG, member, 'cmy_1', feed)).rows[0]).toMatchObject(state);
+    expect(
+      (await svc.listOwn(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
+    ).toMatchObject(state);
     expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject({
       ...state,
       bookmarked: true,

@@ -19,6 +19,7 @@ import type {
 } from '@headless-lms/core/reporting/admin';
 import type {
   CommunityHome as DomainCommunityHome,
+  CommunityHomeSpace as DomainCommunityHomeSpace,
   DirectoryEntry as DomainDirectoryEntry,
 } from '@headless-lms/core/reporting/member';
 import { ListQuery, OrgUserProfileSchema, PageQuery, paginated, type Matches } from './shared.js';
@@ -68,32 +69,53 @@ export const DirectoryEntry = z.object({
 type _DirectoryMatches = Matches<DomainDirectoryEntry, z.infer<typeof DirectoryEntry>> &
   Matches<z.infer<typeof DirectoryEntry>, DomainDirectoryEntry>;
 
-export const CommunityHomeSpace = z.object({
+const CommunityHomeSpaceBase = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().nullable(),
-  memberCount: z.number().int(),
-  capacity: z.number().int().nullable(),
-  open: z.boolean(),
+  memberCount: z.number().int().describe('Active space members'),
   accessRule: z.enum(['all_members', 'by_request', 'by_invite']),
   standing: z
     .enum(['open', 'member', 'requested', 'invited', 'full', 'none'])
     .describe('Where the viewer stands with this space, and so which action it offers'),
+});
+
+export const LockedCommunitySpace = CommunityHomeSpaceBase.extend({
+  locked: z
+    .literal(true)
+    .describe(
+      'The viewer cannot open this space. Only enough to request a place, accept an invite or contact staff is served; never its description, topics, links or settings',
+    ),
+});
+
+export const OpenCommunitySpace = CommunityHomeSpaceBase.extend({
+  locked: z.literal(false).describe('The viewer can open this space and read its feed'),
+  description: z.string().nullable(),
+  capacity: z.number().int().nullable(),
   settings: z.object({
     comments: z.boolean(),
     reactions: z.boolean(),
     requireReview: z.boolean(),
   }),
   topics: z.array(z.object({ id: z.string(), name: z.string() })),
-  links: z.array(
-    z.object({
-      id: z.string(),
-      contentId: z.string(),
-      type: z.enum(['course', 'download', 'community']),
-      title: z.string(),
-    }),
-  ),
+  links: z
+    .array(
+      z.object({
+        id: z.string(),
+        contentId: z.string(),
+        type: z.enum(['course', 'download', 'community']),
+        title: z.string(),
+      }),
+    )
+    .describe('Linked content that is published; staff also see unpublished targets'),
 });
+
+export const CommunityHomeSpace = z
+  .discriminatedUnion('locked', [LockedCommunitySpace, OpenCommunitySpace])
+  .describe(
+    'A space as the viewer sees it. A by-invite space the viewer is not invited to or a member of is never served',
+  );
+type _HomeSpaceMatches = Matches<DomainCommunityHomeSpace, z.infer<typeof CommunityHomeSpace>> &
+  Matches<z.infer<typeof CommunityHomeSpace>, DomainCommunityHomeSpace>;
 
 export const CommunityHome = z.object({
   communityId: z.string(),

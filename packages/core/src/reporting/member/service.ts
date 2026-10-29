@@ -1,5 +1,5 @@
 import { type ContentServicePort, type SpaceDetail } from '../../content/index.js';
-import type { EntitlementsService, SpaceMember } from '../../entitlements/index.js';
+import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetFiles, FileUrls } from '../../assets/index.js';
 import { isStaffRole } from '../../organizations/index.js';
@@ -375,21 +375,30 @@ export class MemberReportServiceImpl implements MemberReportService {
       this.access.spaceStandings(orgId, actor, communityId),
     ]);
     const open = new Set(openIds);
+    const seen = spaces.filter((space) =>
+      seesSpace(actor.role, space.accessRule, standings[space.id]),
+    );
     return Promise.all(
-      spaces.map(async (space) => {
+      seen.map(async (space): Promise<CommunityHomeSpace> => {
         const memberCount = counts[space.id] ?? 0;
-        return {
+        const base = {
           id: space.id,
           name: space.name,
-          description: space.description,
           memberCount,
-          capacity: space.capacity,
-          open: open.has(space.id),
           accessRule: space.accessRule,
           standing: standingOf(space, open.has(space.id), memberCount, standings[space.id]),
+        };
+        if (!open.has(space.id)) {
+          return { ...base, locked: true };
+        }
+        return {
+          ...base,
+          locked: false,
+          description: space.description,
+          capacity: space.capacity,
           settings: space.settings,
           topics: space.topics.map((topic) => ({ id: topic.id, name: topic.name })),
-          links: await this.linkViews(orgId, space.links),
+          links: await this.linkViews(orgId, actor, space.links),
         };
       }),
     );
@@ -397,31 +406,29 @@ export class MemberReportServiceImpl implements MemberReportService {
 
   private async linkViews(
     orgId: string,
+    actor: Actor,
     links: SpaceDetail['links'],
   ): Promise<CommunityHomeLink[]> {
+    const shown = (status: string) => status === 'published' || isStaffRole(actor.role);
     const views = await Promise.all(
       links.map(async (link): Promise<CommunityHomeLink | null> => {
         const course = await this.content.getCourse(orgId, link.contentId);
         if (course) {
-          return { id: link.id, contentId: link.contentId, type: 'course', title: course.title };
+          return shown(course.status)
+            ? { id: link.id, contentId: link.contentId, type: 'course', title: course.title }
+            : null;
         }
         const download = await this.content.getDownload(orgId, link.contentId);
         if (download) {
-          return {
-            id: link.id,
-            contentId: link.contentId,
-            type: 'download',
-            title: download.title,
-          };
+          return shown(download.status)
+            ? { id: link.id, contentId: link.contentId, type: 'download', title: download.title }
+            : null;
         }
         const community = await this.content.getCommunity(orgId, link.contentId);
         if (community) {
-          return {
-            id: link.id,
-            contentId: link.contentId,
-            type: 'community',
-            title: community.title,
-          };
+          return shown(community.status)
+            ? { id: link.id, contentId: link.contentId, type: 'community', title: community.title }
+            : null;
         }
         return null;
       }),

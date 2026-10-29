@@ -6,6 +6,7 @@ import {
   assetViewSchema,
   uploadTicketSchema,
 } from '@headless-lms/core/schemas';
+import { MEMBER_IMAGE_TYPE } from '@headless-lms/core/assets';
 import { ListQuery, paginated } from './shared.js';
 
 export const AssetKind = assetKindSchema.describe(
@@ -62,8 +63,10 @@ export const RequestMemberUpload = z.object({
   filename: z.string().min(1),
   contentType: z
     .string()
-    .regex(/^image\/[a-z0-9.+-]+$/i, 'A member upload must be an image')
-    .describe('Must be an `image/*` type. The size is checked when the upload is finalized.'),
+    .regex(MEMBER_IMAGE_TYPE, 'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image')
+    .describe(
+      'One of `image/png`, `image/jpeg`, `image/gif`, `image/webp` or `image/avif`. The stored type and size are checked when the upload is finalized.',
+    ),
 });
 export type RequestMemberUpload = z.infer<typeof RequestMemberUpload>;
 

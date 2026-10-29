@@ -9,6 +9,8 @@ export type {
   DirectoryRow,
   CommunityHome,
   CommunityHomeSpace,
+  LockedCommunitySpace,
+  OpenCommunitySpace,
   NotificationView,
   NotificationsView,
 } from './model.js';

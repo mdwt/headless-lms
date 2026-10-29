@@ -488,7 +488,7 @@ export interface ChatService {
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
   ): Promise<Page<MessageView>>;
   /** Signed URL of a message attachment: for the chat's participants while the
-   *  message stands (staff also after deletion), and for moderators while it is flagged. */
+   *  message stands (staff also after deletion), and for staff while it is flagged. */
   attachmentFile(
     orgId: string,
     actor: Actor,

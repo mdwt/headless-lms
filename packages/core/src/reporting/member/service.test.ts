@@ -8,7 +8,9 @@ import type {
   Course,
   DownloadFile,
   Module,
+  SpaceDetail,
 } from '../../content/index.js';
+import type { SpaceMember } from '../../entitlements/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
 import { createFileUrls } from '../../assets/index.js';
 
@@ -702,5 +704,168 @@ describe('serving files', () => {
     expect(await withPhoto.svc.personImage('o1', 'ou_sarah')).toBe('https://signed/ast_photo');
     const without = build({ repo: { people: async () => [{ ...row, imageAssetId: null }] } });
     expect(await without.svc.personImage('o1', 'ou_sarah')).toBeNull();
+  });
+});
+
+describe('community home', () => {
+  const student = { id: 'stu_1', role: 'student' as const };
+  const moderator = { id: 'ou_mod', role: 'moderator' as const };
+  const owner = { id: 'ou_owner', role: 'owner' as const };
+  const settings = { comments: true, reactions: true, requireReview: false };
+  const topic = (spaceId: string) => ({
+    orgId: 'o1',
+    id: `top_${spaceId}`,
+    spaceId,
+    name: 'Wins',
+    seq: 0,
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const space = (
+    id: string,
+    accessRule: SpaceDetail['accessRule'],
+    over: Partial<SpaceDetail> = {},
+  ): SpaceDetail => ({
+    orgId: 'o1',
+    id,
+    communityId: 'cmy_1',
+    name: `Space ${id}`,
+    description: `About ${id}`,
+    seq: 0,
+    accessRule,
+    capacity: null,
+    settings,
+    topics: [topic(id)],
+    links: [],
+    createdAt: AT,
+    updatedAt: AT,
+    ...over,
+  });
+  const link = (spaceId: string, contentId: string) => ({
+    orgId: 'o1',
+    id: `lnk_${contentId}`,
+    spaceId,
+    contentId,
+    seq: 0,
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const spaces = [
+    space('spc_all', 'all_members', {
+      links: [link('spc_all', 'c1'), link('spc_all', 'c_draft'), link('spc_all', 'd_draft')],
+    }),
+    space('spc_request', 'by_request'),
+    space('spc_secret', 'by_invite'),
+    space('spc_invited', 'by_invite'),
+    space('spc_joined', 'by_invite'),
+  ];
+  const build = (standings: Record<string, SpaceMember['status']> = {}) =>
+    new MemberReportServiceImpl({
+      repo: fakeEntitlementReader({ spaceMemberCounts: async () => ({ spc_request: 4 }) }),
+      content: fakeContentService({
+        getCommunity: async (_o, id) =>
+          id === 'cmy_1'
+            ? ({
+                id,
+                title: 'Founders',
+                description: '',
+                thumbnailUrl: null,
+                status: 'published',
+                settings: { dm: {} },
+              } as never)
+            : null,
+        listSpaces: async () => spaces,
+        getSpace: async (_o, id) => spaces.find((row) => row.id === id) ?? null,
+        getCourse: async (_o, id) =>
+          id === 'c1' || id === 'c_draft'
+            ? { ...course(id, id === 'c1' ? 'published' : 'draft'), thumbnailUrl: null }
+            : null,
+        getDownload: async (_o, id) =>
+          id === 'd_draft' ? ({ id, title: 'Draft pack', status: 'draft' } as never) : null,
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      access: {
+        ...deps.access,
+        isCommunityMember: async () => true,
+        openSpaceIds: async (_o, actor) =>
+          actor.role === 'student'
+            ? spaces
+                .filter((row) => row.accessRule === 'all_members' || standings[row.id] === 'active')
+                .map((row) => row.id)
+            : spaces.map((row) => row.id),
+        spaceStandings: async (_o, actor) => (actor.role === 'student' ? standings : {}),
+      },
+    });
+
+  it('hides an uninvited by-invite space and locks a space the member cannot open', async () => {
+    const svc = build({ spc_invited: 'invited', spc_joined: 'active' });
+    const home = await svc.communityHome('o1', student, 'cmy_1');
+    expect(home?.spaces.map((row) => row.id)).toEqual([
+      'spc_all',
+      'spc_request',
+      'spc_invited',
+      'spc_joined',
+    ]);
+    const byId = new Map(home!.spaces.map((row) => [row.id, row]));
+    expect(byId.get('spc_request')).toEqual({
+      id: 'spc_request',
+      name: 'Space spc_request',
+      memberCount: 4,
+      accessRule: 'by_request',
+      standing: 'none',
+      locked: true,
+    });
+    expect(byId.get('spc_invited')).toEqual({
+      id: 'spc_invited',
+      name: 'Space spc_invited',
+      memberCount: 0,
+      accessRule: 'by_invite',
+      standing: 'invited',
+      locked: true,
+    });
+    expect(byId.get('spc_joined')).toMatchObject({
+      locked: false,
+      standing: 'member',
+      description: 'About spc_joined',
+      topics: [{ id: 'top_spc_joined', name: 'Wins' }],
+    });
+  });
+
+  it('serves a locked space by id as its landing view and a hidden one as missing', async () => {
+    const svc = build({ spc_invited: 'invited', spc_secret: 'revoked' });
+    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_secret')).toBeNull();
+    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_missing')).toBeNull();
+    const locked = await svc.communitySpace('o1', student, 'cmy_1', 'spc_request');
+    expect(locked).toMatchObject({ locked: true });
+    expect(locked).not.toHaveProperty('description');
+    expect(locked).not.toHaveProperty('topics');
+    expect(locked).not.toHaveProperty('links');
+    expect(locked).not.toHaveProperty('settings');
+    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_invited')).toMatchObject({
+      locked: true,
+      standing: 'invited',
+    });
+  });
+
+  it('shows every space unlocked to a moderator and to staff', async () => {
+    const svc = build();
+    for (const actor of [moderator, owner]) {
+      const home = await svc.communityHome('o1', actor, 'cmy_1');
+      expect(home?.spaces.map((row) => [row.id, row.locked])).toEqual(
+        spaces.map((row) => [row.id, false]),
+      );
+    }
+  });
+
+  it('leaves out links to unpublished content for members, but not for staff', async () => {
+    const svc = build();
+    const linked = async (actor: { id: string; role: 'student' | 'moderator' | 'owner' }) => {
+      const view = await svc.communitySpace('o1', actor, 'cmy_1', 'spc_all');
+      return view && !view.locked ? view.links.map((row) => row.contentId) : null;
+    };
+    expect(await linked(student)).toEqual(['c1']);
+    expect(await linked(moderator)).toEqual(['c1']);
+    expect(await linked(owner)).toEqual(['c1', 'c_draft', 'd_draft']);
   });
 });

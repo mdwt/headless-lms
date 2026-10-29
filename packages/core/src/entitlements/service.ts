@@ -29,7 +29,7 @@ import { noopLogger } from '../shared/logger.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { canModerate, isStaffRole } from '../organizations/index.js';
 import { entitlementEvents } from './events.js';
-import { laterExpiry, opensSpace } from './rules.js';
+import { laterExpiry, opensSpace, seesSpace } from './rules.js';
 
 const ENDING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -261,7 +261,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_request');
     if (canModerate(actor.role)) {
       throw new ForbiddenError('Staff do not request a place in a space');
@@ -284,7 +284,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_invite');
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertHolds(orgId, actor, orgUserId, space.communityId);
@@ -300,7 +300,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertHolds(orgId, actor, orgUserId, space.communityId);
@@ -333,7 +333,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
   ): Promise<SpaceMember> {
     this.assertHolder(actor);
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_invite');
     await this.assertGrant(orgId, actor, actor.id, space.communityId);
     return this.activate(orgId, actor, spaceId, actor.id, 'by_invite', 'invited', () =>
@@ -348,7 +348,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertRule(space.accessRule, 'by_request');
     await this.assertCanManage(orgId, actor, space.communityId);
     await this.assertGrant(orgId, actor, orgUserId, space.communityId);
@@ -370,7 +370,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     await this.assertCanManage(orgId, actor, space.communityId);
     return this.deleteMember(
       orgId,
@@ -388,7 +388,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertHolder(actor);
     await this.assertGrant(orgId, actor, actor.id, space.communityId);
     return this.deleteMember(orgId, actor, spaceId, actor.id, 'invited', () =>
@@ -402,7 +402,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertHolder(actor);
     await this.assertGrant(orgId, actor, actor.id, space.communityId);
     return this.deleteMember(orgId, actor, spaceId, actor.id, 'active', () =>
@@ -417,7 +417,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     spaceId: string,
     orgUserId: string,
   ): Promise<SpaceMember> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     this.assertHasMembers(space.accessRule);
     await this.assertCanManage(orgId, actor, space.communityId);
     const { updated, previousStatus } = await this.uow.run(
@@ -455,9 +455,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceMember[]> {
-    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    const space = await this.requireVisibleSpaceIn(orgId, actor, communityId, spaceId);
     if (!(await this.canOpen(orgId, actor, space))) {
-      throw new ForbiddenError('You cannot open this space');
+      throw new NotFoundError('Space', spaceId);
     }
     const rows = await this.repo.listSpaceMembers(orgId, spaceId);
     if (canModerate(actor.role)) {
@@ -522,6 +522,23 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private async requireSpaceIn(orgId: string, communityId: string, spaceId: string) {
     const space = await this.content.getSpace(orgId, spaceId);
     if (!space || space.communityId !== communityId) {
+      throw new NotFoundError('Space', spaceId);
+    }
+    return space;
+  }
+
+  private async requireVisibleSpaceIn(
+    orgId: string,
+    actor: Actor,
+    communityId: string,
+    spaceId: string,
+  ) {
+    const space = await this.requireSpaceIn(orgId, communityId, spaceId);
+    if (seesSpace(actor.role, space.accessRule, undefined)) {
+      return space;
+    }
+    const row = await this.repo.findSpaceMember(orgId, spaceId, actor.id);
+    if (!seesSpace(actor.role, space.accessRule, row?.status)) {
       throw new NotFoundError('Space', spaceId);
     }
     return space;

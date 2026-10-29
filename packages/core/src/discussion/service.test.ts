@@ -1238,7 +1238,11 @@ describe('comments on a post', () => {
     updatedAt: post.updatedAt,
   };
 
-  function postService(commentsClosed: boolean | null = null, status: PostStatus = 'published') {
+  function postService(
+    commentsClosed: boolean | null = null,
+    status: PostStatus = 'published',
+    hiddenFrom?: string,
+  ) {
     const fake = fakeRepo();
     const { uow, appended } = fakeUow(fake.repo);
     const { settings } = fakeSettings();
@@ -1247,7 +1251,14 @@ describe('comments on a post', () => {
       repo: fake.repo,
       access: gate.access,
       content: fakeContent(fake.activityCourse, new Map()),
-      posts: { visible: async () => ({ post: { ...post, commentsClosed, status }, space }) },
+      posts: {
+        visible: async (_orgId, actor, postId) => {
+          if (actor.id === hiddenFrom) {
+            throw new NotFoundError('Post', postId);
+          }
+          return { post: { ...post, commentsClosed, status }, space };
+        },
+      },
       uow,
       settings,
       communities: { listIds: async () => [] },
@@ -1329,6 +1340,35 @@ describe('comments on a post', () => {
       NotFoundError,
     );
     expect((await service.restore('o1', view.id, admin, 'cmy_1')).status).toBe('published');
+  });
+
+  it('answers a comment on a post the person cannot open exactly like a missing comment', async () => {
+    const { service } = postService(null, 'published', 'ou_out');
+    const outsider: Actor = { id: 'ou_out', role: 'student' };
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'hi',
+    });
+    const message = async (run: Promise<unknown>) => {
+      const error = await run.catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(NotFoundError);
+      return (error as Error).message;
+    };
+    const expected = await message(service.edit('o1', 'cmt_missing', learner, 'x'));
+    for (const run of [
+      service.edit('o1', view.id, outsider, 'x'),
+      service.remove('o1', view.id, outsider),
+      service.setReaction('o1', view.id, outsider, '👍'),
+      service.reportComment('o1', view.id, outsider, 'spam'),
+      service.resolveReports('o1', view.id, outsider),
+    ]) {
+      expect(await message(run)).toBe(expected);
+    }
+    await expect(service.postComments('o1', 'pst_1', outsider)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('refuses a comment when the post has comments closed', async () => {
