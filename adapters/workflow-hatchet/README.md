@@ -18,7 +18,7 @@ one action delivers the event, so a failed delivery is retried like any other ac
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
 
 const container = await createContainer(config, {
-  adapters: { automationEngine: new HatchetAutomationEngine() },
+  adapters: { workflows: (logger) => new HatchetAutomationEngine(undefined, logger) },
 });
 ```
 

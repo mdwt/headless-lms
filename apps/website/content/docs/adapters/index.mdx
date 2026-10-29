@@ -23,7 +23,7 @@ const container = await createContainer(config, {
     email: new ResendEmailAdapter({ apiKey, from }),
     storage: new MinioStorageAdapter(storageConfig),
     templates: new ReactEmailTemplateRenderer(),
-    workflows: new HatchetAutomationEngine(),
+    workflows: (logger) => new HatchetAutomationEngine(undefined, logger),
   },
 });
 ```

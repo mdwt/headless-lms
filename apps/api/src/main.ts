@@ -15,7 +15,7 @@ const container = await createContainer(config, {
     email: emailConfig && new ResendEmailAdapter(emailConfig),
     storage: new MinioStorageAdapter(loadStorageConfig()),
     templates: new ReactEmailTemplateRenderer(),
-    workflows: new HatchetAutomationEngine(),
+    workflows: (logger) => new HatchetAutomationEngine(undefined, logger),
   },
 });
 const app = await buildServer(config, container);

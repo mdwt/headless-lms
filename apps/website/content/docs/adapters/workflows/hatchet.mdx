@@ -24,7 +24,9 @@ import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet"
 
 const container = await createContainer(config, {
   adapters: {
-    workflows: process.env.HATCHET_CLIENT_TOKEN ? new HatchetAutomationEngine() : undefined, // falls back to the inline engine
+    workflows: process.env.HATCHET_CLIENT_TOKEN
+      ? (logger) => new HatchetAutomationEngine(undefined, logger)
+      : undefined, // falls back to the inline engine
   },
 });
 ```

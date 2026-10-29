@@ -86,8 +86,8 @@ export interface AdapterOverrides {
   storage?: ObjectStorage;
   /** Resolves email templates to rendered content. Absent → fail-loudly stub. */
   templates?: TemplateRenderer;
-  /** Durable automation engine. Absent → InlineAutomationEngine (in-process, one attempt per action). */
-  workflows?: AutomationEngine;
+  /** Durable automation engine, or a factory given the automations logger. Absent → InlineAutomationEngine (in-process, one attempt per action). */
+  workflows?: AutomationEngine | ((logger: Logger) => AutomationEngine);
   /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (fetch, 10s timeout). */
   webhooks?: WebhookSender;
 }
@@ -236,8 +236,11 @@ export async function buildContainer(
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
+  const workflows = options?.adapters?.workflows;
   const automationEngine: AutomationEngine =
-    options?.adapters?.workflows ?? new InlineAutomationEngine(automationsLogger);
+    typeof workflows === 'function'
+      ? workflows(automationsLogger)
+      : (workflows ?? new InlineAutomationEngine(automationsLogger));
   const mailer = new Mailer(templates, email, {
     ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
     studentPortalUrl: config.studentPortalUrl,
