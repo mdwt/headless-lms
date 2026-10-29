@@ -70,8 +70,8 @@ export class DiscussionServiceImpl implements DiscussionService {
       throw new NotFoundError('Activity', activityId);
     }
 
-    // The `content` namespace row is the whole CourseSettings; the `comments`
-    // key inside it is owned by this context (commentSettingsSchema).
+    // The `content` namespace row is the whole CourseSettings, owned and written
+    // by content; this context only reads its `comments` key.
     const stored = await this.settings.get<Partial<CourseSettings>>(
       orgId,
       SettingsNamespace.content,
