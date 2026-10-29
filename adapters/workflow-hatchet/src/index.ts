@@ -133,7 +133,7 @@ export class HatchetAutomationEngine implements AutomationEngine {
       workflows: [this.actionTask, this.automationRunTask, this.scheduleTask],
     });
     void this.worker.start().catch((err: unknown) => {
-      this.logger?.error("hatchet worker stopped unexpectedly", { error: String(err) });
+      this.logger?.error("hatchet worker stopped unexpectedly", { err });
     });
     if (this.reconcileTimer) {
       clearInterval(this.reconcileTimer);
@@ -156,7 +156,7 @@ export class HatchetAutomationEngine implements AutomationEngine {
     try {
       await this.syncSchedules();
     } catch (err) {
-      this.logger?.error("hatchet schedules not reconciled", { error: String(err) });
+      this.logger?.error("hatchet schedules not reconciled", { err });
     }
   }
 

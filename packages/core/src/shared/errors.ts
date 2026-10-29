@@ -32,3 +32,13 @@ export class ForbiddenError extends Error {
     this.name = 'ForbiddenError';
   }
 }
+
+/** The caller's own input breaks a rule, independent of existing state
+ *  (wrong file type, too large, talking to yourself, …). The HTTP layer maps
+ *  this to 400. */
+export class InvalidInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidInputError';
+  }
+}

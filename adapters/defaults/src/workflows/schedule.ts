@@ -1,5 +1,6 @@
-import type { AutomationExecutor, ScheduledAutomation } from "@headless-lms/core/types";
+import type { AutomationExecutor, Logger, ScheduledAutomation } from "@headless-lms/core/types";
 import { cronMatches } from "@headless-lms/core/automations";
+import { noopLogger } from "@headless-lms/core/shared/logger";
 
 const MINUTE_MS = 60_000;
 
@@ -17,6 +18,7 @@ export async function fireDueSchedules(
   executor: AutomationExecutor,
   now: Date,
   lastFired: Map<string, number>,
+  logger: Logger = noopLogger,
 ): Promise<boolean> {
   if (!executor.listSchedules || !executor.fireSchedule) {
     return false;
@@ -25,7 +27,8 @@ export async function fireDueSchedules(
   let schedules: ScheduledAutomation[] = [];
   try {
     schedules = await executor.listSchedules();
-  } catch {
+  } catch (err) {
+    logger.error("automation schedules not listed", { err });
     return false;
   }
   const seen = new Set<string>();
@@ -35,10 +38,25 @@ export async function fireDueSchedules(
     const previous = lastFired.get(key);
     const start = previous == null ? nowMs : previous + MINUTE_MS;
     for (let minute = start; minute <= nowMs; minute += MINUTE_MS) {
-      if (cronMatches(schedule.cron, new Date(minute))) {
+      const at = new Date(minute);
+      const context = {
+        orgId: schedule.orgId,
+        automationId: schedule.automationId,
+        cron: schedule.cron,
+        at: at.toISOString(),
+      };
+      let due: boolean;
+      try {
+        due = cronMatches(schedule.cron, at);
+      } catch (err) {
+        logger.error("automation schedule not checked", { ...context, err });
+        break;
+      }
+      if (due) {
         try {
-          await executor.fireSchedule(schedule.orgId, schedule.automationId, new Date(minute));
-        } catch {
+          await executor.fireSchedule(schedule.orgId, schedule.automationId, at);
+        } catch (err) {
+          logger.error("automation schedule not fired", { ...context, err });
           if (!lastFired.has(key)) {
             lastFired.set(key, minute - MINUTE_MS);
           }
@@ -56,7 +74,10 @@ export async function fireDueSchedules(
   return true;
 }
 
-export function startScheduleLoop(getExecutor: () => AutomationExecutor | undefined): {
+export function startScheduleLoop(
+  getExecutor: () => AutomationExecutor | undefined,
+  logger: Logger = noopLogger,
+): {
   stop(): void;
 } {
   const lastFired = new Map<string, number>();
@@ -71,9 +92,13 @@ export function startScheduleLoop(getExecutor: () => AutomationExecutor | undefi
       return;
     }
     running = true;
-    void fireDueSchedules(executor, new Date(), lastFired).finally(() => {
-      running = false;
-    });
+    void fireDueSchedules(executor, new Date(), lastFired, logger)
+      .catch((err: unknown) => {
+        logger.error("automation schedule tick failed", { err });
+      })
+      .finally(() => {
+        running = false;
+      });
   };
   tick();
   timer = setInterval(tick, MINUTE_MS);

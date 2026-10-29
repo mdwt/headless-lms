@@ -42,6 +42,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
       const org = await appServer.organizations.getByExternalId(authOrgId);
       if (org) {
         request.orgId = org.id;
+        appServer.requestContext.set({ orgId: org.id });
       }
     }
   });
@@ -64,6 +65,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     request.authUser = session.user;
     request.userId = session.user.id;
     request.orgId = org.id;
+    appServer.requestContext.set({ orgId: org.id });
     // resolveScope requires the auth-provider id too — routes that write back
     // through better-auth key on it.
     request.authOrgId = authOrgId;

@@ -1,5 +1,10 @@
 import { genId } from '../shared/id.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { isStaffRole } from '../organizations/index.js';
@@ -72,10 +77,10 @@ export class ChatServiceImpl implements ChatService {
 
   async startDirect(orgId: string, actor: Actor, input: StartDirectInput): Promise<Chat> {
     if (actor.id === input.orgUserId) {
-      throw new ConflictError('You cannot message yourself');
+      throw new InvalidInputError('You cannot message yourself');
     }
     if (input.body === null && input.assetIds.length > 0) {
-      throw new ConflictError('An attachment needs a message');
+      throw new InvalidInputError('An attachment needs a message');
     }
     const settings = await this.requireSettings(orgId, input.communityId);
     await this.requireActor(orgId, actor, input.communityId);
@@ -124,7 +129,7 @@ export class ChatServiceImpl implements ChatService {
       const request =
         settings.firstMessageIsRequest && !isStaffRole(actor.role) && !isStaffRole(role);
       if (request && !first) {
-        throw new ConflictError('A message request needs a message');
+        throw new InvalidInputError('A message request needs a message');
       }
       const now = new Date();
       const chat = await chats.insertChat(orgId, {
@@ -159,6 +164,7 @@ export class ChatServiceImpl implements ChatService {
         communityId: input.communityId,
         chatId: saved.chat.id,
         status: saved.chat.status,
+        actorId: actor.id,
       });
     } else {
       this.logger.debug('direct chat already exists', {
@@ -176,7 +182,7 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(orgId, actor, input.communityId);
     const others = [...new Set(input.orgUserIds.filter((id) => id !== actor.id))].sort();
     if (others.length < 2) {
-      throw new ConflictError('A group chat needs three people');
+      throw new InvalidInputError('A group chat needs three people');
     }
     if (others.length + 1 > settings.groupSize) {
       throw new ConflictError('This group is full');
@@ -220,6 +226,7 @@ export class ChatServiceImpl implements ChatService {
       orgId,
       communityId: input.communityId,
       chatId: saved.id,
+      actorId: actor.id,
     });
     return saved;
   }
@@ -269,7 +276,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([this.addedEvent(orgId, actor, current, orgUserId)]);
       return current;
     });
-    this.logger.info('chat participant added', { orgId, chatId, orgUserId });
+    this.logger.info('chat participant added', { orgId, chatId, orgUserId, actorId: actor.id });
     return saved;
   }
 
@@ -289,7 +296,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([this.updatedEvent(orgId, actor, current, remaining)]);
       return current;
     });
-    this.logger.info('chat left', { orgId, chatId });
+    this.logger.info('chat left', { orgId, chatId, actorId: actor.id });
     return saved;
   }
 
@@ -313,7 +320,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([this.updatedEvent(orgId, actor, next, users)]);
       return next;
     });
-    this.logger.info('chat accepted', { orgId, chatId });
+    this.logger.info('chat accepted', { orgId, chatId, actorId: actor.id });
     return saved;
   }
 
@@ -342,7 +349,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append(events);
       return written.message;
     });
-    this.logger.info('message sent', { orgId, chatId, messageId: saved.id });
+    this.logger.info('message sent', { orgId, chatId, messageId: saved.id, actorId: actor.id });
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -367,7 +374,7 @@ export class ChatServiceImpl implements ChatService {
     if (!saved) {
       throw new NotFoundError('Message', messageId);
     }
-    this.logger.info('message edited', { orgId, messageId });
+    this.logger.info('message edited', { orgId, messageId, actorId: actor.id });
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -403,7 +410,7 @@ export class ChatServiceImpl implements ChatService {
       ]);
       return next;
     });
-    this.logger.info('message deleted', { orgId, messageId });
+    this.logger.info('message deleted', { orgId, messageId, actorId: actor.id });
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -450,7 +457,7 @@ export class ChatServiceImpl implements ChatService {
 
   async block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void> {
     if (actor.id === orgUserId) {
-      throw new ConflictError('You cannot block yourself');
+      throw new InvalidInputError('You cannot block yourself');
     }
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
@@ -459,7 +466,7 @@ export class ChatServiceImpl implements ChatService {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.block(orgId, communityId, actor.id, orgUserId);
     });
-    this.logger.info('user blocked', { orgId, communityId });
+    this.logger.info('user blocked', { orgId, communityId, actorId: actor.id });
   }
 
   async unblock(
@@ -469,7 +476,7 @@ export class ChatServiceImpl implements ChatService {
     orgUserId: string,
   ): Promise<void> {
     if (actor.id === orgUserId) {
-      throw new ConflictError('You cannot block yourself');
+      throw new InvalidInputError('You cannot block yourself');
     }
     await this.requireSettings(orgId, communityId);
     await this.requireActor(orgId, actor, communityId);
@@ -477,7 +484,7 @@ export class ChatServiceImpl implements ChatService {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.unblock(orgId, communityId, actor.id, orgUserId);
     });
-    this.logger.info('user unblocked', { orgId, communityId });
+    this.logger.info('user unblocked', { orgId, communityId, actorId: actor.id });
   }
 
   async flagMessage(
@@ -520,7 +527,7 @@ export class ChatServiceImpl implements ChatService {
       ]);
       return flag;
     });
-    this.logger.info('message flagged', { orgId, messageId });
+    this.logger.info('message flagged', { orgId, messageId, actorId: actor.id });
     return saved;
   }
 
@@ -549,6 +556,7 @@ export class ChatServiceImpl implements ChatService {
       communityId: message.communityId,
       messageId,
       resolution,
+      actorId: actor.id,
     });
   }
 
@@ -745,7 +753,11 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([this.updatedEvent(orgId, actor, next, users)]);
       return next;
     });
-    this.logger.info(locked ? 'chat locked' : 'chat unlocked', { orgId, chatId });
+    this.logger.info(locked ? 'chat locked' : 'chat unlocked', {
+      orgId,
+      chatId,
+      actorId: actor.id,
+    });
     return saved;
   }
 

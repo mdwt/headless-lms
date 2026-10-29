@@ -1,5 +1,10 @@
 import { genId } from '../shared/id.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { canModerate, isStaffRole } from '../organizations/index.js';
@@ -136,7 +141,12 @@ export class PostServiceImpl implements PostService {
       await outbox.append(events);
       return created;
     });
-    this.logger.info('post created', { orgId, postId: saved.id, status: saved.status });
+    this.logger.info('post created', {
+      orgId,
+      postId: saved.id,
+      status: saved.status,
+      actorId: actor.id,
+    });
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -171,7 +181,12 @@ export class PostServiceImpl implements PostService {
       ]);
       return next;
     });
-    this.logger.info('post updated', { orgId, postId, fields: Object.keys(patch) });
+    this.logger.info('post updated', {
+      orgId,
+      postId,
+      fields: Object.keys(patch),
+      actorId: actor.id,
+    });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -183,7 +198,7 @@ export class PostServiceImpl implements PostService {
     }
     this.assertTopic(space, post.topicId);
     const saved = await this.commitSubmission(orgId, post, space, actor.role, actor, new Date());
-    this.logger.info('post submitted', { orgId, postId, status: saved.status });
+    this.logger.info('post submitted', { orgId, postId, status: saved.status, actorId: actor.id });
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -199,7 +214,7 @@ export class PostServiceImpl implements PostService {
       throw new ConflictError('This post cannot be scheduled');
     }
     if (scheduledAt <= new Date()) {
-      throw new ConflictError('A scheduled time must be in the future');
+      throw new InvalidInputError('A scheduled time must be in the future');
     }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, {
@@ -217,7 +232,12 @@ export class PostServiceImpl implements PostService {
       ]);
       return next;
     });
-    this.logger.info('post scheduled', { orgId, postId, scheduledAt: scheduledAt.toISOString() });
+    this.logger.info('post scheduled', {
+      orgId,
+      postId,
+      scheduledAt: scheduledAt.toISOString(),
+      actorId: actor.id,
+    });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -251,7 +271,7 @@ export class PostServiceImpl implements PostService {
       ]);
       return next;
     });
-    this.logger.info('post approved', { orgId, postId });
+    this.logger.info('post approved', { orgId, postId, actorId: actor.id });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -292,7 +312,7 @@ export class PostServiceImpl implements PostService {
       ]);
       return next;
     });
-    this.logger.info('post removed', { orgId, postId, removedBy: actor.id });
+    this.logger.info('post removed', { orgId, postId, actorId: actor.id });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -326,7 +346,12 @@ export class PostServiceImpl implements PostService {
       await outbox.append([event]);
       return next;
     });
-    this.logger.info('post restored', { orgId, postId, status: updated.status });
+    this.logger.info('post restored', {
+      orgId,
+      postId,
+      status: updated.status,
+      actorId: actor.id,
+    });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -458,7 +483,7 @@ export class PostServiceImpl implements PostService {
       ]);
       return created;
     });
-    this.logger.info('post flagged', { orgId, postId, flagId: saved.id });
+    this.logger.info('post flagged', { orgId, postId, flagId: saved.id, actorId: actor.id });
     return saved;
   }
 
@@ -478,7 +503,7 @@ export class PostServiceImpl implements PostService {
       resolvedBy: actor.id,
       resolution,
     });
-    this.logger.info('post flags resolved', { orgId, postId, resolution });
+    this.logger.info('post flags resolved', { orgId, postId, resolution, actorId: actor.id });
   }
 
   async spaceFeed(
@@ -807,7 +832,7 @@ export class PostServiceImpl implements PostService {
       ]);
       return next;
     });
-    this.logger.info(log, { orgId, postId });
+    this.logger.info(log, { orgId, postId, actorId: actor.id });
     return this.viewOf(orgId, actor, updated);
   }
 
@@ -830,10 +855,10 @@ export class PostServiceImpl implements PostService {
     }
     if (input.mode === 'schedule') {
       if (!input.scheduledAt) {
-        throw new ConflictError('A scheduled post needs a time');
+        throw new InvalidInputError('A scheduled post needs a time');
       }
       if (input.scheduledAt <= now) {
-        throw new ConflictError('A scheduled time must be in the future');
+        throw new InvalidInputError('A scheduled time must be in the future');
       }
       return {
         status: 'scheduled' as const,
@@ -934,7 +959,7 @@ export class PostServiceImpl implements PostService {
       return;
     }
     if (topicId === null) {
-      throw new ConflictError('This space requires a topic');
+      throw new InvalidInputError('This space requires a topic');
     }
     throw new NotFoundError('Topic', topicId);
   }

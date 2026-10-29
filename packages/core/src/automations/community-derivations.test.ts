@@ -11,6 +11,7 @@ import {
   type ActionDeps,
 } from './community-mail.js';
 import type { DomainEvent } from '../shared/ports.js';
+import { createCapturingLogger } from '../shared/logger.js';
 
 function ready(event: {
   type: string;
@@ -485,7 +486,7 @@ describe('executeAction grant and schedule', () => {
       actionDeps,
     );
     vi.useRealTimers();
-    expect(recipients).toEqual([]);
+    expect(recipients).toEqual({ recipients: [], failed: [] });
     expect(grant).toHaveBeenCalledWith('org-1', {
       orgUserId: 'ou_1',
       contentId: 'cmy_1',
@@ -512,6 +513,88 @@ describe('executeAction grant and schedule', () => {
   });
 });
 
+describe('executeAction fan-out', () => {
+  const published = () =>
+    ready(
+      discussionEvents.postPublished.make({
+        orgId: 'org-1',
+        data: {
+          orgId: 'org-1',
+          id: 'pst_1',
+          communityId: 'cmy_1',
+          spaceId: 'spc_1',
+          orgUserId: 'ou_9',
+          topicId: null,
+          title: 'Hello',
+          body: 'Body',
+          extra: null,
+          coverAssetId: null,
+          status: 'published',
+          scheduledAt: null,
+          publishedAt: new Date('2026-01-02T00:00:00Z'),
+          removedBy: null,
+          pinned: false,
+          commentsClosed: null,
+          reactionsEnabled: null,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-02T00:00:00Z'),
+        },
+        metadata: { previousStatus: 'draft' },
+      }),
+    );
+  const openers = (over: Partial<ActionDeps> = {}) =>
+    deps({
+      mail: { ...deps().mail, spaceOpeners: vi.fn(async () => ['ou_1', 'ou_2', 'ou_3']) },
+      ...over,
+    });
+
+  it('emails everyone after a rejected address and records who failed', async () => {
+    const send = vi.fn(async (to: string) => {
+      if (to === 'ou_2@example.com') {
+        throw new Error('address rejected');
+      }
+    });
+    const outcome = await executeAction(
+      { type: 'sendEmail', input: { template: 'newPostInSpace' } },
+      published(),
+      openers({ mailer: { send } }),
+    );
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(outcome).toEqual({ recipients: ['ou_1', 'ou_3'], failed: ['ou_2'] });
+  });
+
+  it('throws only when every delivery failed', async () => {
+    const send = vi.fn(async () => {
+      throw new Error('smtp down');
+    });
+    await expect(
+      executeAction(
+        { type: 'sendEmail', input: { template: 'newPostInSpace' } },
+        published(),
+        openers({ mailer: { send } }),
+      ),
+    ).rejects.toThrow('sendEmail: delivery failed for all 3 recipients');
+  });
+
+  it('still adds every in-app notification when some emails fail', async () => {
+    const send = vi.fn(async (to: string) => {
+      if (to === 'ou_1@example.com') {
+        throw new Error('address rejected');
+      }
+    });
+    const notify = vi.fn(async (_orgId: string, _notifications: unknown[]) => {});
+    const outcome = await executeAction(
+      { type: 'notify', input: { kind: 'newPostInSpace' } },
+      published(),
+      openers({ mailer: { send }, desk: { ...emptyNotificationDesk, notify } }),
+    );
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]?.[1]).toHaveLength(3);
+    expect(outcome).toEqual({ recipients: ['ou_1', 'ou_2', 'ou_3'], failed: ['ou_1'] });
+  });
+});
+
 describe('executeAction notifications', () => {
   const granted = () =>
     ready(entitlementEvents.entitlementCreated.make({ orgId: 'org-1', data: ENTITLEMENT }));
@@ -524,7 +607,7 @@ describe('executeAction notifications', () => {
       granted(),
       deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify } }),
     );
-    expect(recipients).toEqual(['ou_1']);
+    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
     expect(send).toHaveBeenCalledWith('ou_1@example.com', 'welcomeToCommunity', expect.anything());
     expect(notify).toHaveBeenCalledWith('org-1', [
       {
@@ -552,7 +635,7 @@ describe('executeAction notifications', () => {
       granted(),
       deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
     );
-    expect(recipients).toEqual(['ou_1']);
+    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
     expect(send).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith('org-1', [
       expect.objectContaining({ userId: 'usr_ou_1', kind: 'welcomeToCommunity' }),
@@ -571,7 +654,7 @@ describe('executeAction notifications', () => {
       granted(),
       deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
     );
-    expect(recipients).toEqual(['ou_1']);
+    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
     expect(send).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith('org-1', []);
   });
@@ -586,8 +669,33 @@ describe('executeAction notifications', () => {
       granted(),
       deps({ mailer: { send }, desk: { ...emptyNotificationDesk, preferencesFor } }),
     );
-    expect(recipients).toEqual([]);
+    expect(recipients).toEqual({ recipients: [], failed: [] });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('keeps the in-app notification when the email to that person fails', async () => {
+    const send = vi.fn(async () => {
+      throw new Error('address rejected');
+    });
+    const notify = vi.fn(async () => {});
+    const { logger, entries } = createCapturingLogger();
+    const outcome = await executeAction(
+      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
+      granted(),
+      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify }, logger }),
+    );
+    expect(outcome).toEqual({ recipients: ['ou_1'], failed: ['ou_1'] });
+    expect(notify).toHaveBeenCalledWith('org-1', [
+      expect.objectContaining({ userId: 'usr_ou_1', kind: 'welcomeToCommunity' }),
+    ]);
+    expect(entries).toEqual([
+      expect.objectContaining({
+        level: 'warn',
+        msg: 'automation email not delivered',
+        meta: expect.objectContaining({ orgId: 'org-1', orgUserId: 'ou_1' }),
+      }),
+    ]);
+    expect(JSON.stringify(entries[0]?.meta)).not.toContain('ou_1@example.com');
   });
 
   it('refuses a kind that is not a notification', async () => {

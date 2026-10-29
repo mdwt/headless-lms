@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { ForbiddenError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
@@ -593,7 +593,7 @@ describe('chats', () => {
         body: null,
         assetIds: [],
       }),
-    ).rejects.toBeInstanceOf(ConflictError);
+    ).rejects.toBeInstanceOf(InvalidInputError);
     await expect(
       svc.startDirect(ORG, outsider, {
         communityId: COMMUNITY,

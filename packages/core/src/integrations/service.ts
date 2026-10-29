@@ -244,7 +244,7 @@ export class IntegrationsServiceImpl implements IntegrationsService {
         connectionId,
         integrationId: connection.integrationId,
         actionId,
-        error: err instanceof Error ? err.message : String(err),
+        err,
       });
       throw new ActionInvocationError(connection.integrationId, actionId, err);
     }

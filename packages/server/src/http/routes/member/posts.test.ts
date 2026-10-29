@@ -19,6 +19,7 @@ function record(method: string, result: unknown) {
 }
 
 const container = {
+  requestContext: { set: () => {} },
   auth: {
     verify: async () => ({
       user: { id: 'usr_1', email: 'a@b.c' },

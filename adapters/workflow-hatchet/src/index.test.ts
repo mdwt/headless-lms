@@ -334,7 +334,7 @@ describe("HatchetAutomationEngine", () => {
 
     await expect(engine.start()).resolves.toBeUndefined();
     expect(error).toHaveBeenCalledWith("hatchet schedules not reconciled", {
-      error: "Error: hatchet down",
+      err: expect.objectContaining({ message: "hatchet down" }),
     });
     expect(fake.client.crons.create).not.toHaveBeenCalled();
 

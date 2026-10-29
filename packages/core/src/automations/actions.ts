@@ -10,6 +10,7 @@ import { deliverWebhookInputSchema, notificationKindSchema } from '../types/sche
 import { entitlementEvents } from '../entitlements/index.js';
 import type { NewNotification } from '../identity/index.js';
 import type { DomainEvent } from '../shared/ports.js';
+import { noopLogger } from '../shared/logger.js';
 import type { AutomationAction } from './model.js';
 import {
   ALL_EMAIL_TEMPLATE_IDS,
@@ -72,16 +73,33 @@ export const SEND_EMAIL_DERIVATIONS: SendEmailDerivations = {
 
 export type { ActionDeps, EmailRecipient };
 
+/** Who an action reached, and who a delivery to failed for (a partial failure does not throw). */
+export interface ActionOutcome {
+  recipients: string[];
+  failed: string[];
+}
+
+function reachedNoOne(): ActionOutcome {
+  return { recipients: [], failed: [] };
+}
+
+function assertSomeDelivered(action: string, outcome: ActionOutcome): ActionOutcome {
+  if (outcome.recipients.length === 0 && outcome.failed.length > 0) {
+    throw new Error(`${action}: delivery failed for all ${outcome.failed.length} recipients`);
+  }
+  return outcome;
+}
+
 function isEmailTemplateId(value: unknown): value is EmailTemplateId {
   return typeof value === 'string' && value in ALL_EMAIL_TEMPLATE_IDS;
 }
 
-/** Throws on any failure — the engine owns retry policy and failure bookkeeping. */
+/** Throws on any failure but a partial fan-out — the engine owns retry policy and failure bookkeeping. */
 export async function executeAction(
   action: AutomationAction,
   event: DomainEvent,
   deps: ActionDeps,
-): Promise<string[]> {
+): Promise<ActionOutcome> {
   switch (action.type) {
     case 'sendEmail': {
       const template = action.input['template'];
@@ -100,10 +118,14 @@ export async function executeAction(
           `sendEmail: event "${event.type}" is missing the data required to derive template "${template}"`,
         );
       }
+      const outcome = reachedNoOne();
       for (const recipient of derived) {
-        await send(template, recipient, deps);
+        const list = (await send(template, recipient, event, deps))
+          ? outcome.recipients
+          : outcome.failed;
+        list.push(recipient.orgUserId);
       }
-      return derived.map((recipient) => recipient.orgUserId);
+      return assertSomeDelivered('sendEmail', outcome);
     }
     case NOTIFY_ACTION: {
       const kind = notificationKindSchema.safeParse(action.input['kind']);
@@ -114,27 +136,27 @@ export async function executeAction(
     }
     case 'grantAccess': {
       await grantAccess(action, event, deps);
-      return [];
+      return reachedNoOne();
     }
     case 'publishDuePosts': {
       await deps.scheduledWork.publishDuePosts(event.orgId, firedAtOf(event));
-      return [];
+      return reachedNoOne();
     }
     case 'expireDueGrants': {
       await deps.scheduledWork.expireDueGrants(event.orgId, firedAtOf(event));
-      return [];
+      return reachedNoOne();
     }
     case 'sendDigest': {
       await deps.scheduledWork.sendDigest(event.orgId, firedAtOf(event));
-      return [];
+      return reachedNoOne();
     }
     case 'removeUnattachedUploads': {
       await deps.scheduledWork.removeUnattachedUploads(event.orgId, firedAtOf(event));
-      return [];
+      return reachedNoOne();
     }
     case DELIVER_WEBHOOK_ACTION: {
       await deliverWebhook(action, event, deps);
-      return [];
+      return reachedNoOne();
     }
     default: {
       throw new Error(`unknown automation action type "${action.type}"`);
@@ -145,16 +167,30 @@ export async function executeAction(
 async function send<K extends EmailTemplateId>(
   template: K,
   recipient: EmailRecipient<K>,
+  event: DomainEvent,
   deps: ActionDeps,
-): Promise<void> {
-  await deps.mailer.send(recipient.to, template, recipient.params);
+): Promise<boolean> {
+  try {
+    await deps.mailer.send(recipient.to, template, recipient.params);
+    return true;
+  } catch (err) {
+    (deps.logger ?? noopLogger).warn('automation email not delivered', {
+      orgId: event.orgId,
+      automationId: deps.automationId,
+      trigger: event.type,
+      template,
+      orgUserId: recipient.orgUserId,
+      err,
+    });
+    return false;
+  }
 }
 
 async function notify<K extends NotificationKind>(
   kind: K,
   event: DomainEvent,
   deps: ActionDeps,
-): Promise<string[]> {
+): Promise<ActionOutcome> {
   const derivation = SEND_EMAIL_DERIVATIONS[kind] as EmailDerivation<K> | undefined;
   if (!derivation || !derivation.triggers.includes(event.type)) {
     throw new Error(
@@ -174,26 +210,40 @@ async function notify<K extends NotificationKind>(
   );
   const placement = NOTIFICATION_PLACEMENTS[kind];
   const notifications: NewNotification[] = [];
-  const reached: string[] = [];
+  const outcome = reachedNoOne();
   for (const recipient of recipients) {
     const preference = preferences[recipient.userId];
     const email = preference?.email !== false;
     const inApp = preference?.inApp !== false;
-    if (email) {
-      await send(kind, recipient, deps);
-    }
+    const emailed = email && (await send(kind, recipient, event, deps));
+    let placed = false;
     if (inApp) {
-      const placements = await placement.place(event, recipient, deps);
-      notifications.push(
-        ...placements.map((placed) => ({ ...placed, userId: recipient.userId, kind })),
-      );
+      try {
+        const placements = await placement.place(event, recipient, deps);
+        notifications.push(
+          ...placements.map((spot) => ({ ...spot, userId: recipient.userId, kind })),
+        );
+        placed = true;
+      } catch (err) {
+        (deps.logger ?? noopLogger).warn('automation notification not placed', {
+          orgId: event.orgId,
+          automationId: deps.automationId,
+          trigger: event.type,
+          kind,
+          orgUserId: recipient.orgUserId,
+          err,
+        });
+      }
     }
-    if (email || inApp) {
-      reached.push(recipient.orgUserId);
+    if (emailed || placed) {
+      outcome.recipients.push(recipient.orgUserId);
+    }
+    if ((email && !emailed) || (inApp && !placed)) {
+      outcome.failed.push(recipient.orgUserId);
     }
   }
   await deps.desk.notify(event.orgId, notifications);
-  return reached;
+  return assertSomeDelivered(NOTIFY_ACTION, outcome);
 }
 
 function grantRecipient(event: DomainEvent): string | undefined {
