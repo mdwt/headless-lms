@@ -41,7 +41,7 @@ export function AssetPreviewDialog({
   async function copyLink() {
     if (!url) return;
     await navigator.clipboard.writeText(url);
-    toast.success("Link copied", { description: "Short-lived presigned URL." });
+    toast.success("Link copied", { description: "Opens only for signed-in staff." });
   }
 
   return (

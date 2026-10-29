@@ -4,7 +4,7 @@
  * presigned PUT ticket) → PUT the bytes to storage (XHR, real progress) →
  * POST /api/assets/:id/confirm.
  *
- * The returned URL is the short-lived one the confirm response carries, for
+ * The returned URL is the staff library URL the confirm response carries, for
  * display in the editing session. The durable reference is the returned asset
  * `id`, which the editor persists on the media node; later reads of the
  * activity serve its URL in `assetUrls`.

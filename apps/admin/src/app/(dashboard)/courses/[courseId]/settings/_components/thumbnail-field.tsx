@@ -3,8 +3,9 @@
 /**
  * Settings → Thumbnail: pick the course's cover, either by uploading a new
  * image or by linking one already in the media library. Nothing is copied —
- * the course stores the asset id and every read of the course carries a fresh
- * URL, so the preview URL held here is only good for this session.
+ * the course stores the asset id. The course's thumbnail URL stays the same
+ * when the image changes, so a newly picked image previews through its own
+ * library URL.
  */
 
 import { useRef, useState } from "react";
@@ -96,8 +97,8 @@ export function ThumbnailField({
       <div className="flex flex-col gap-4">
         <div className="relative grid aspect-video w-56 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-well">
           {preview ? (
-            // Presigned URLs are short-lived and host-varying — next/image would
-            // need every storage host allowlisted, so this stays a plain img.
+            // The API redirects to a signed storage URL — next/image would need
+            // every storage host allowlisted, so this stays a plain img.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview.url} alt="" className="size-full object-cover" />
           ) : (

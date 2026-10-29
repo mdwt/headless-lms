@@ -121,7 +121,11 @@ function ThumbnailField({
 }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  // The download's thumbnail URL is stable across replacements, so a fresh
+  // upload previews through its own asset URL instead.
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrl = uploadedUrl ?? url;
 
   async function onFileSelected(file: File) {
     setUploading(true);
@@ -131,10 +135,11 @@ function ThumbnailField({
         contentType: file.type || "application/octet-stream",
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
-      await confirmAssetAction(ticket.asset.id);
+      const asset = await confirmAssetAction(ticket.asset.id);
       // Thumbnail-only patch: omit every other field so a concurrent edit to
       // the title/category/description elsewhere isn't clobbered.
       await updateDownloadAction(downloadId, { thumbnailAssetId: ticket.asset.id });
+      setUploadedUrl(asset.url);
       toast.success("Thumbnail updated");
       router.refresh();
     } catch (e) {
@@ -150,9 +155,9 @@ function ThumbnailField({
     <Field id="thumbnail" label="Thumbnail" hint="Shown on the download card.">
       <div className="flex items-center gap-4">
         <div className="flex size-20 items-center justify-center overflow-hidden rounded-lg bg-surface-2 outline-1 -outline-offset-1 outline-ink/5">
-          {url ? (
+          {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="" className="size-full object-cover" />
+            <img src={previewUrl} alt="" className="size-full object-cover" />
           ) : (
             <ImageIcon className="size-5 text-ink-4" />
           )}

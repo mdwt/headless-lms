@@ -16,7 +16,9 @@ import {
   Content as ContentGen,
   Discussion as DiscussionGen,
   Entitlements as EntitlementsGen,
+  Files as FilesGen,
   Integrations as IntegrationsGen,
+  Notifications as NotificationsGen,
   Organizations as OrganizationsGen,
   Posts as PostsGen,
   Profile as ProfileGen,
@@ -44,7 +46,9 @@ export const Communities = CommunitiesGen as Throwing<typeof CommunitiesGen>;
 export const Content = ContentGen as Throwing<typeof ContentGen>;
 export const Discussion = DiscussionGen as Throwing<typeof DiscussionGen>;
 export const Entitlements = EntitlementsGen as Throwing<typeof EntitlementsGen>;
+export const Files = FilesGen as Throwing<typeof FilesGen>;
 export const Integrations = IntegrationsGen as Throwing<typeof IntegrationsGen>;
+export const Notifications = NotificationsGen as Throwing<typeof NotificationsGen>;
 export const Organizations = OrganizationsGen as Throwing<typeof OrganizationsGen>;
 export const Posts = PostsGen as Throwing<typeof PostsGen>;
 export const Profile = ProfileGen as Throwing<typeof ProfileGen>;

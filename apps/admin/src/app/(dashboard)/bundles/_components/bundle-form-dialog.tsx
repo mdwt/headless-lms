@@ -110,7 +110,7 @@ export function BundleFormDialog({
             <Field
               id="contentIds"
               label="Content"
-              hint="Courses and downloads included in this bundle."
+              hint="Courses, downloads and communities included in this bundle."
               error={errors.contentIds?.message}
             >
               <ContentMultiSelect

@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type { ContentType } from "@/lib/api/types";
+
 import { grantEntitlementAction } from "../../entitlements/actions";
 
 const FORM_ID = "student-grant-access-form";
@@ -25,7 +27,7 @@ const FORM_ID = "student-grant-access-form";
 export type LiteContent = {
   id: string;
   title: string;
-  type: "course" | "download" | "bundle";
+  type: ContentType | "bundle";
   /** For bundles: titles of the content items it contains. */
   itemTitles?: string[];
 };
@@ -33,12 +35,13 @@ export type LiteContent = {
 const GROUP_LABEL: Record<LiteContent["type"], string> = {
   course: "Courses",
   download: "Downloads",
+  community: "Communities",
   bundle: "Bundles",
 };
 
 const schema = z
   .object({
-    contentId: z.string().min(1, "Select a course, download or bundle"),
+    contentId: z.string().min(1, "Select a course, download, community or bundle"),
     expiryMode: z.enum(["never", "date"]),
     expiresAt: z.string().optional(),
   })
@@ -117,7 +120,7 @@ export function GrantAccessDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Grant access"
-      description="Grant this student access to a course, download or bundle. They'll get immediate access."
+      description="Grant this student access to a course, download, community or bundle. They'll get immediate access."
       formId={FORM_ID}
       submitLabel="Grant access"
       pending={pending}
@@ -133,8 +136,8 @@ export function GrantAccessDialog({
                 value={field.value}
                 onValueChange={field.onChange}
                 options={contentOptions}
-                placeholder="Select a course, download or bundle"
-                searchPlaceholder="Search courses, downloads and bundles…"
+                placeholder="Select a course, download, community or bundle"
+                searchPlaceholder="Search courses, downloads, communities and bundles…"
                 emptyText="No content matches"
                 aria-invalid={!!errors.contentId}
               />

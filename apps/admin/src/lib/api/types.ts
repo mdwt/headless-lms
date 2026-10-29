@@ -124,6 +124,9 @@ export type EntitlementGrant = ListEntitlementsResponse["rows"][number];
 /** active|expired|revoked — `expired` is derived client-side from `expiresAt`. */
 export type EntitlementStatus = EntitlementGrant["status"] | "expired";
 
+/** The type of a single grantable, bundleable content item. */
+export type ContentType = "course" | "download" | "community";
+
 /**
  * A grant row joined client-side with the student's identity and the granted
  * target's title (each its own resource on the API), plus the derived status.
@@ -135,7 +138,7 @@ export type Entitlement = Omit<EntitlementGrant, "status"> & {
   firstName: string | null;
   lastName: string | null;
   email: string;
-  content: { id: string; type: "course" | "download" | "bundle"; title: string };
+  content: { id: string; type: ContentType | "bundle"; title: string };
 };
 
 export type Member = ListMembersResponse["rows"][number];

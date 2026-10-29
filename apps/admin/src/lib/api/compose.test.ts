@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { entitlementStatusOf } from "./compose";
+import { contentTypeOf, entitlementStatusOf } from "./compose";
 import type { EntitlementGrant } from "./types";
 
 const NOW = new Date("2026-06-01T00:00:00.000Z");
@@ -22,5 +22,15 @@ describe("entitlementStatusOf", () => {
       entitlementStatusOf(grant({ expiresAt: new Date(NOW.getTime() + 1).toISOString() })),
     ).toBe("active");
     expect(entitlementStatusOf(grant({ status: "revoked", expiresAt: null }))).toBe("revoked");
+  });
+});
+
+describe("contentTypeOf", () => {
+  it("reads a content id's type off its prefix", () => {
+    expect(contentTypeOf("crs_2QZ4mK")).toBe("course");
+    expect(contentTypeOf("dwn_2QZ4mK")).toBe("download");
+    expect(contentTypeOf("cmy_2QZ4mK")).toBe("community");
+    expect(contentTypeOf("bun_2QZ4mK")).toBeNull();
+    expect(contentTypeOf("crs")).toBeNull();
   });
 });

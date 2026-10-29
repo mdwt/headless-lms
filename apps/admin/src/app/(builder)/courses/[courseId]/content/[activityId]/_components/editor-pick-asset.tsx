@@ -7,9 +7,9 @@
  * parks its `resolve` in state, the dialog renders, and selecting (or closing)
  * settles the promise.
  *
- * The returned `url` is a short-lived presigned URL for the editing session;
- * the durable reference is `id`, which the editor persists on the media node
- * (see `editor-upload.ts`).
+ * The returned `url` is the staff library URL, for display in the editing
+ * session; the durable reference is `id`, which the editor persists on the
+ * media node (see `editor-upload.ts`).
  */
 
 import { useCallback, useState, type ReactNode } from "react";
