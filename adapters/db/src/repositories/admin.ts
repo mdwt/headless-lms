@@ -675,14 +675,13 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     }
     const holds = exists(
       this.db
-        .select({ id: entitlements.id })
-        .from(entitlements)
+        .select({ id: contentAccess.entitlementId })
+        .from(contentAccess)
         .where(
           and(
-            eq(entitlements.orgId, orgUsers.orgId),
-            eq(entitlements.orgUserId, orgUsers.id),
-            grantIsActive(entitlements),
-            grantOpens(entitlements, sql`${communityId}`, "community"),
+            eq(contentAccess.orgId, orgUsers.orgId),
+            eq(contentAccess.orgUserId, orgUsers.id),
+            eq(contentAccess.contentId, communityId),
           ),
         ),
     );
