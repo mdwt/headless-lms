@@ -28,6 +28,8 @@ Read [this](docs/architecture.md)
   composed cross-context reads, no domain authority; contexts may not import it.
 - `@headless-lms/server` is `app/` (composition root) + `http/` only.
 
+- Access to content is decided only by entitlements — see "Access checks" in `docs/architecture.md`.
+
 These rules are not advisory — run `pnpm lint` after changing imports across layers.
 
 ## API contract, OpenAPI & the frontend SDK

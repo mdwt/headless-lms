@@ -3,7 +3,6 @@ import type {
   Activity,
   Course,
   Module,
-  ContentRef,
   CourseProgressView,
   Download,
   DownloadAsset,
@@ -37,24 +36,4 @@ export interface LearnReportService {
     downloadId: string,
     assetId: string,
   ): Promise<{ url: string; filename: string } | null>;
-}
-
-/**
- * Outbound: the student's active, non-expired course entitlements in PUBLISHED
- * courses, scoped to the portal org. Implemented by a Drizzle read repo; the
- * service resolves each ref against the content service for the full
- * Course/Module payload.
- */
-export interface LearnEntitlementReader {
-  activeRefs(orgId: string, orgUserId: string): Promise<ContentRef[]>;
-  activeRef(orgId: string, orgUserId: string, courseId: string): Promise<ContentRef | null>;
-  /** Active, non-expired grants to PUBLISHED downloads, scoped to the org. */
-  activeDownloadRefs(orgId: string, orgUserId: string): Promise<ContentRef[]>;
-  activeDownloadRef(
-    orgId: string,
-    orgUserId: string,
-    downloadId: string,
-  ): Promise<ContentRef | null>;
-  /** Whether this asset is linked to this download. The paywall's second gate. */
-  downloadHasAsset(orgId: string, downloadId: string, assetId: string): Promise<boolean>;
 }

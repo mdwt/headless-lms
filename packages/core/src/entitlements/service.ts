@@ -4,7 +4,13 @@
 // outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay republishes committed events to
 // the EventBus at-least-once.
-import type { Entitlement, EntitlementsQuery, GrantEntitlementInput, Page } from './model.js';
+import type {
+  ContentType,
+  Entitlement,
+  EntitlementsQuery,
+  GrantEntitlementInput,
+  Page,
+} from './model.js';
 import type {
   EntitlementsRepository,
   EntitlementsService,
@@ -87,7 +93,11 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return entitlement;
   }
 
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    return this.repo.hasCourseAccess(orgId, orgUserId, courseId);
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean> {
+    return this.repo.hasAccess(orgId, orgUserId, contentId);
+  }
+
+  listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]> {
+    return this.repo.listAccessibleContent(orgId, orgUserId, type);
   }
 }

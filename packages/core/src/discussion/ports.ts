@@ -106,8 +106,8 @@ export interface DiscussionService {
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
 }
 
-export interface CourseAccessReader {
-  hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean>;
+export interface ContentAccessReader {
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
 }
 
 export interface ActivityGetter {

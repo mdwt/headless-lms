@@ -11,7 +11,6 @@ export * from "./repositories/discussion.js";
 export * from "./repositories/entitlements.js";
 export * from "./repositories/identity.js";
 export * from "./repositories/integrations.js";
-export * from "./repositories/learn.js";
 export * from "./repositories/members.js";
 export * from "./repositories/org-user-profile.js";
 export * from "./repositories/organizations.js";

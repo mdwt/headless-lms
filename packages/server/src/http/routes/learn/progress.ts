@@ -34,16 +34,6 @@ export async function learnProgressRoutes(
       if (!orgUser) {
         throw new UnauthorizedError();
       }
-      // The activity carries its course, then the same enrollment gate as every
-      // Learn read.
-      const activity = await container.content.getActivity(req.orgId, req.body.activity);
-      if (!activity) {
-        throw new NotFoundError('Activity', req.body.activity);
-      }
-      const course = await learn.getCourse(req.orgId, orgUser.id, activity.courseId);
-      if (!course) {
-        throw new NotFoundError('Activity', req.body.activity);
-      }
       const record = await container.progress.report(req.orgId, {
         orgUserId: orgUser.id,
         activityId: req.body.activity,

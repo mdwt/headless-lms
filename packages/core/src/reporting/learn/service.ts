@@ -1,4 +1,5 @@
 import { type ContentServicePort } from '../../content/index.js';
+import type { EntitlementsService } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetsService } from '../../assets/index.js';
 import type {
@@ -9,7 +10,7 @@ import type {
   DownloadAsset,
   Module,
 } from './model.js';
-import type { LearnEntitlementReader, LearnReportService } from './ports.js';
+import type { LearnReportService } from './ports.js';
 import type { Logger } from '../../shared/ports.js';
 import { noopLogger } from '../../shared/logger.js';
 
@@ -18,7 +19,7 @@ function isActivityPublished(settings: unknown): boolean {
 }
 
 export type LearnReportServiceParams = {
-  reader: LearnEntitlementReader;
+  access: Pick<EntitlementsService, 'hasAccess' | 'listAccessibleContent'>;
   content: ContentServicePort;
   progress: ProgressService;
   assets: AssetsService;
@@ -27,7 +28,7 @@ export type LearnReportServiceParams = {
 };
 
 export class LearnReportServiceImpl implements LearnReportService {
-  private readonly reader: LearnEntitlementReader;
+  private readonly access: Pick<EntitlementsService, 'hasAccess' | 'listAccessibleContent'>;
   private readonly content: ContentServicePort;
   private readonly progress: ProgressService;
   private readonly assets: AssetsService;
@@ -35,7 +36,7 @@ export class LearnReportServiceImpl implements LearnReportService {
   private readonly logger: Logger;
 
   constructor(params: LearnReportServiceParams) {
-    this.reader = params.reader;
+    this.access = params.access;
     this.content = params.content;
     this.progress = params.progress;
     this.assets = params.assets;
@@ -44,28 +45,36 @@ export class LearnReportServiceImpl implements LearnReportService {
   }
 
   async listCourses(orgId: string, orgUserId: string): Promise<Course[]> {
-    const refs = await this.reader.activeRefs(orgId, orgUserId);
-    const courses = await Promise.all(
-      refs.map((ref) => this.content.getCourse(ref.orgId, ref.contentId)),
-    );
+    const ids = await this.access.listAccessibleContent(orgId, orgUserId, 'course');
+    const courses = await Promise.all(ids.map((id) => this.content.getCourse(orgId, id)));
     return courses.filter((c): c is Course => c !== null && c.status === 'published');
   }
 
   async getCourse(orgId: string, orgUserId: string, courseId: string): Promise<Course | null> {
-    const ref = await this.reader.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.access.hasAccess(orgId, orgUserId, courseId))) {
       return null;
     }
-    const course = await this.content.getCourse(ref.orgId, courseId);
+    const course = await this.content.getCourse(orgId, courseId);
     return course && course.status === 'published' ? course : null;
   }
 
-  async listModules(orgId: string, orgUserId: string, courseId: string): Promise<Module[] | null> {
-    const ref = await this.reader.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+  private async getOpenDownload(
+    orgId: string,
+    orgUserId: string,
+    downloadId: string,
+  ): Promise<Download | null> {
+    if (!(await this.access.hasAccess(orgId, orgUserId, downloadId))) {
       return null;
     }
-    return this.content.listCourseModules(ref.orgId, courseId);
+    const download = await this.content.getDownload(orgId, downloadId);
+    return download && download.status === 'published' ? download : null;
+  }
+
+  async listModules(orgId: string, orgUserId: string, courseId: string): Promise<Module[] | null> {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
+      return null;
+    }
+    return this.content.listCourseModules(orgId, courseId);
   }
 
   async listActivities(
@@ -73,11 +82,10 @@ export class LearnReportServiceImpl implements LearnReportService {
     orgUserId: string,
     courseId: string,
   ): Promise<Activity[] | null> {
-    const ref = await this.reader.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
       return null;
     }
-    const activities = await this.content.listCourseActivities(ref.orgId, courseId);
+    const activities = await this.content.listCourseActivities(orgId, courseId);
     return activities.filter((a) => isActivityPublished(a.settings));
   }
 
@@ -86,13 +94,12 @@ export class LearnReportServiceImpl implements LearnReportService {
     orgUserId: string,
     courseId: string,
   ): Promise<CourseProgressView | null> {
-    const ref = await this.reader.activeRef(orgId, orgUserId, courseId);
-    if (!ref) {
+    if (!(await this.getCourse(orgId, orgUserId, courseId))) {
       return null;
     }
-    const courseActivities = await this.content.listCourseActivities(ref.orgId, courseId);
+    const courseActivities = await this.content.listCourseActivities(orgId, courseId);
     const ids = courseActivities.filter((a) => isActivityPublished(a.settings)).map((a) => a.id);
-    const records = await this.progress.listByTargets(ref.orgId, orgUserId, ids);
+    const records = await this.progress.listByTargets(orgId, orgUserId, ids);
     const activities: CourseProgressView['activities'] = {};
     const positions: CourseProgressView['positions'] = {};
     let done = 0;
@@ -108,7 +115,7 @@ export class LearnReportServiceImpl implements LearnReportService {
         positions[r.targetId] = r.position;
       }
     }
-    const courseRecord = await this.progress.get(ref.orgId, {
+    const courseRecord = await this.progress.get(orgId, {
       orgUserId,
       targetType: 'course',
       targetId: courseId,
@@ -122,10 +129,8 @@ export class LearnReportServiceImpl implements LearnReportService {
   }
 
   async listDownloads(orgId: string, orgUserId: string): Promise<Download[]> {
-    const refs = await this.reader.activeDownloadRefs(orgId, orgUserId);
-    const rows = await Promise.all(
-      refs.map((ref) => this.content.getDownload(ref.orgId, ref.contentId)),
-    );
+    const ids = await this.access.listAccessibleContent(orgId, orgUserId, 'download');
+    const rows = await Promise.all(ids.map((id) => this.content.getDownload(orgId, id)));
     return rows.filter((d): d is Download => d !== null && d.status === 'published');
   }
 
@@ -134,20 +139,15 @@ export class LearnReportServiceImpl implements LearnReportService {
     orgUserId: string,
     downloadId: string,
   ): Promise<{ download: Download; assets: DownloadAsset[] } | null> {
-    const ref = await this.reader.activeDownloadRef(orgId, orgUserId, downloadId);
-    if (!ref) {
+    const download = await this.getOpenDownload(orgId, orgUserId, downloadId);
+    if (!download) {
       return null;
     }
-    const download = await this.content.getDownload(ref.orgId, downloadId);
-    if (!download || download.status !== 'published') {
-      return null;
-    }
-    const assets = await this.content.listDownloadAssets(ref.orgId, downloadId);
+    const assets = await this.content.listDownloadAssets(orgId, downloadId);
     return { download, assets };
   }
 
-  /** The paywall. Two gates, in order: an active entitlement to a published
-   *  download, then the asset actually belonging to that download — so a
+  /** The paywall. Two gates, in order: access to a published download, then the asset actually belonging to that download — so a
    *  student entitled to X cannot reach an asset of Y by swapping the id. */
   async downloadAssetUrl(
     orgId: string,
@@ -155,27 +155,22 @@ export class LearnReportServiceImpl implements LearnReportService {
     downloadId: string,
     assetId: string,
   ): Promise<{ url: string; filename: string } | null> {
-    const ref = await this.reader.activeDownloadRef(orgId, orgUserId, downloadId);
-    if (!ref) {
+    if (!(await this.getOpenDownload(orgId, orgUserId, downloadId))) {
       return null;
     }
-    const linked = await this.reader.downloadHasAsset(ref.orgId, downloadId, assetId);
-    if (!linked) {
+    const links = await this.content.listDownloadAssets(orgId, downloadId);
+    const link = links.find((l) => l.assetId === assetId);
+    if (!link) {
       this.logger.warn('download asset not linked', { orgId, downloadId, assetId });
       return null;
     }
-    const links = await this.content.listDownloadAssets(ref.orgId, downloadId);
-    const link = links.find((l) => l.assetId === assetId);
-    if (!link) {
-      return null;
-    }
-    const asset = await this.assets.get(ref.orgId, assetId);
+    const asset = await this.assets.get(orgId, assetId);
     if (!asset) {
       return null;
     }
     const filename = link.displayName ?? asset.filename;
     const ticket = await this.assets.requestDownload(
-      ref.orgId,
+      orgId,
       assetId,
       filename,
       this.deliveryExpirySeconds,

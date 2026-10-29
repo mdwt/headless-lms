@@ -11,7 +11,7 @@ export type {
   AuthorRecord,
   CommentReactions,
   CommentWithContext,
-  CourseAccessReader,
+  ContentAccessReader,
   PostCommentInput,
 } from './ports.js';
 export type {

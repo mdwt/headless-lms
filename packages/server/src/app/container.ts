@@ -12,7 +12,6 @@ import {
   DrizzleDiscussionRepository,
   DrizzleEntitlementsRepository,
   DrizzleIdentityRepository,
-  DrizzleLearnRepository,
   DrizzleMembersRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
@@ -307,6 +306,7 @@ export async function buildContainer(
   const progress = new ProgressServiceImpl({
     repo: new DrizzleProgressRepository(db, progressLogger),
     content,
+    access: entitlements,
     uow: progressUow,
     logger: progressLogger,
   });
@@ -346,7 +346,7 @@ export async function buildContainer(
       logger: reportingLogger,
     }),
     learn: new LearnReportServiceImpl({
-      reader: new DrizzleLearnRepository(db, reportingLogger),
+      access: entitlements,
       content,
       progress,
       assets,

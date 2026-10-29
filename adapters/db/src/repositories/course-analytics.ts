@@ -1,8 +1,8 @@
 // reporting/courses — Drizzle repository (implements the core outbound port).
-// Per-course engagement figures. The cohort is every org user holding an
-// effective-active entitlement to the course (status='active' and not expired);
-// completions by revoked/expired students are deliberately excluded so the
-// numbers describe the current roster. An activity counts toward the
+// Per-course engagement figures. The cohort is every org user who can open the
+// course right now (content_access: direct or through a bundle); completions by
+// students who lost access are deliberately excluded so the numbers describe
+// the current roster. An activity counts toward the
 // denominator when its settings blob does not say published=false (missing ⇒
 // published), mirroring reporting/learn.
 import { and, eq, sql } from "drizzle-orm";
@@ -38,11 +38,9 @@ export class DrizzleCourseAnalyticsRepository implements CoursesReportRepository
     }
 
     const cohort = sql`
-      select org_user_id from entitlements
+      select distinct org_user_id from content_access
       where org_id = ${orgId}
         and content_id = ${courseId}
-        and status = 'active'
-        and (expires_at is null or expires_at >= now())
     `;
     const publishedActivities = sql`
       select a.id, a.settings, a.seq, a.module_id

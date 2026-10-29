@@ -38,6 +38,12 @@ export interface ProgressRepository {
   ): Promise<ProgressRecord | null>;
 }
 
+/** Access is resolved by entitlements — a report is only taken from a student
+ *  who can open the course. */
+export interface ContentAccessReader {
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
+}
+
 /** Writes that emit events run through this scope so row + outbox entry commit
  *  in one transaction. */
 export interface ProgressWriteScope {

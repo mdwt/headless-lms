@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 import type { DbExecutor } from "../client.js";
 import type { EntitlementsRepository } from "@headless-lms/core/entitlements";
 import type {
+  ContentType,
   Entitlement,
   EntitlementStatus,
   EntitlementsQuery,
@@ -10,8 +10,8 @@ import type {
   Logger,
   Page,
 } from "@headless-lms/core/types";
-import { entitlements, orgUsers, users } from "../schema/index.js";
-import { bundleItems, bundles, contentItems, courses, downloads } from "../schema/content.js";
+import { contentAccess, entitlements, orgUsers, users } from "../schema/index.js";
+import { bundles, contentItems, courses, downloads } from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 
@@ -268,48 +268,44 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return toEntitlement(row);
   }
 
-  /** Existence check scoped to the course case: same status predicate as
-   *  `list` (revoked never counts; an elapsed expiry reads as expired, not
-   *  active). The course is reachable two ways — granted directly, or granted
-   *  through a bundle that holds it — and either way the row is joined to
-   *  content_items and constrained to type = 'course', so a grant on some other
-   *  content type can never be mistaken for course access. */
-  async hasCourseAccess(orgId: string, orgUserId: string, courseId: string): Promise<boolean> {
-    const bundledItems = alias(contentItems, "bundled_content_items");
+  async hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean> {
     const rows = await this.db
-      .select({ id: entitlements.id })
-      .from(entitlements)
-      .leftJoin(
-        contentItems,
-        and(
-          eq(contentItems.orgId, entitlements.orgId),
-          eq(contentItems.id, entitlements.contentId),
-        ),
-      )
-      .leftJoin(
-        bundleItems,
-        and(
-          eq(bundleItems.orgId, entitlements.orgId),
-          eq(bundleItems.bundleId, entitlements.bundleId),
-        ),
-      )
-      .leftJoin(
-        bundledItems,
-        and(eq(bundledItems.orgId, bundleItems.orgId), eq(bundledItems.id, bundleItems.contentId)),
-      )
+      .select({ id: contentAccess.entitlementId })
+      .from(contentAccess)
       .where(
         and(
-          eq(entitlements.orgId, orgId),
-          eq(entitlements.orgUserId, orgUserId),
-          or(
-            and(eq(entitlements.contentId, courseId), eq(contentItems.type, "course")),
-            and(eq(bundleItems.contentId, courseId), eq(bundledItems.type, "course")),
-          ),
-          sql`${derivedStatus} = 'active'`,
+          eq(contentAccess.orgId, orgId),
+          eq(contentAccess.orgUserId, orgUserId),
+          eq(contentAccess.contentId, contentId),
         ),
       )
       .limit(1);
     return rows.length > 0;
+  }
+
+  async listAccessibleContent(
+    orgId: string,
+    orgUserId: string,
+    type?: ContentType,
+  ): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ contentId: contentAccess.contentId })
+      .from(contentAccess)
+      .innerJoin(
+        contentItems,
+        and(
+          eq(contentItems.orgId, contentAccess.orgId),
+          eq(contentItems.id, contentAccess.contentId),
+        ),
+      )
+      .where(
+        and(
+          eq(contentAccess.orgId, orgId),
+          eq(contentAccess.orgUserId, orgUserId),
+          type ? eq(contentItems.type, type) : undefined,
+        ),
+      );
+    return rows.map((r) => r.contentId);
   }
 }
 translateDbErrors(DrizzleEntitlementsRepository);

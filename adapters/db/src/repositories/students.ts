@@ -160,8 +160,8 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
     return row ? toStudent(row) : null;
   }
 
-  // Learner record: one row per course the student holds an effective-active
-  // entitlement to (mirroring the course-analytics cohort rule), with progress
+  // Learner record: one row per course the student can open right now
+  // (content_access, the same rule as the course-analytics cohort), with progress
   // computed over published activities the same way reporting/courses does.
   async analytics(orgId: string, id: string): Promise<StudentAnalytics | null> {
     const [exists] = await this.db
@@ -174,13 +174,11 @@ export class DrizzleStudentsRepository implements StudentsReportRepository {
 
     const result = await this.db.execute(sql`
       with cohort_courses as (
-        select c.id, c.title
-        from entitlements e
-        join courses c on c.org_id = e.org_id and c.id = e.content_id
-        where e.org_id = ${orgId}
-          and e.org_user_id = ${id}
-          and e.status = 'active'
-          and (e.expires_at is null or e.expires_at >= now())
+        select distinct c.id, c.title
+        from content_access ca
+        join courses c on c.org_id = ca.org_id and c.id = ca.content_id
+        where ca.org_id = ${orgId}
+          and ca.org_user_id = ${id}
       ),
       acts as (
         select a.course_id, a.id

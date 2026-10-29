@@ -19,7 +19,7 @@ import type {
   Actor,
   AuthorRecord,
   CommentReactions,
-  CourseAccessReader,
+  ContentAccessReader,
   DiscussionRepository,
   DiscussionService,
   DiscussionUnitOfWork,
@@ -40,7 +40,7 @@ const EMPTY_REACTIONS: CommentReactions = { reactions: {} };
 
 export type DiscussionServiceParams = {
   repo: DiscussionRepository;
-  access: CourseAccessReader;
+  access: ContentAccessReader;
   content: ActivityGetter;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
@@ -49,7 +49,7 @@ export type DiscussionServiceParams = {
 
 export class DiscussionServiceImpl implements DiscussionService {
   private readonly repo: DiscussionRepository;
-  private readonly access: CourseAccessReader;
+  private readonly access: ContentAccessReader;
   private readonly content: ActivityGetter;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
@@ -159,7 +159,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       return true;
     }
     const activity = await this.content.getActivity(orgId, activityId);
-    return activity ? this.access.hasCourseAccess(orgId, actor.id, activity.courseId) : false;
+    return activity ? this.access.hasAccess(orgId, actor.id, activity.courseId) : false;
   }
 
   async postComment(

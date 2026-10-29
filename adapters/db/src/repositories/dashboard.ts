@@ -1,15 +1,15 @@
 // dashboard — Drizzle repository (implements the core outbound port).
-// Back-office overview counts, every figure scoped to the active org. An
-// entitlement is "effective-active" when status='active' and it has not expired
-// (expires_at null or in the future) — expiry is derived at read time.
-import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
+// Back-office overview counts, every figure scoped to the active org. Active
+// students and expiring grants are read from content_access, the entitlements
+// context's single definition of access.
+import { eq, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   DashboardReportRepository,
   EnrollmentPoint,
   OverviewStats,
 } from "@headless-lms/core/reporting/dashboard";
-import { courses, entitlements } from "../schema/index.js";
+import { contentAccess, courses, entitlements } from "../schema/index.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
@@ -29,19 +29,13 @@ export class DrizzleDashboardRepository implements DashboardReportRepository {
       .from(courses)
       .where(eq(courses.orgId, orgId));
 
-    const effectiveActive = and(
-      eq(entitlements.orgId, orgId),
-      eq(entitlements.status, "active"),
-      or(isNull(entitlements.expiresAt), gte(entitlements.expiresAt, sql`now()`)),
-    );
-
     const [entitlementCounts] = await this.db
       .select({
-        activeStudents: sql<number>`count(distinct ${entitlements.orgUserId})`,
-        expiringSoon: sql<number>`count(*) filter (where ${entitlements.expiresAt} is not null and ${entitlements.expiresAt} < now() + interval '14 days')`,
+        activeStudents: sql<number>`count(distinct ${contentAccess.orgUserId})`,
+        expiringSoon: sql<number>`count(distinct ${contentAccess.entitlementId}) filter (where ${contentAccess.expiresAt} is not null and ${contentAccess.expiresAt} < now() + interval '14 days')`,
       })
-      .from(entitlements)
-      .where(effectiveActive);
+      .from(contentAccess)
+      .where(eq(contentAccess.orgId, orgId));
 
     return {
       publishedCourses: Number(courseCounts?.published ?? 0),
