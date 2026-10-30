@@ -146,10 +146,11 @@ Clients find the authorization server from these documents, served at the domain
 
 ## When something goes wrong
 
-| What you see                               | What it means                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| The assistant can't find a tool you expect | The connection lacks its scope, or your role can't hold it. Connect again and tick it.           |
-| `401` on every call                        | The token expired and could not refresh, the app was disconnected, or you left the organization. |
-| The sign-in link has expired               | The sign-in took too long. Start connecting again from the assistant.                            |
-| A tool answers "Not found"                 | The id doesn't exist in this organization, or it's something your role can't see.                |
-| Internal error with a request id           | Something failed on the server. Quote the request id; it's in the API's logs.                    |
+| What you see                               | What it means                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| The assistant can't find a tool you expect | The connection lacks its scope, or your role can't hold it. Connect again and tick it. |
+| `401` on every call                        | The token expired and could not refresh, or the app was disconnected.                  |
+| `403` on every call                        | Your role can't use the server, or you're no longer a member of the organization.      |
+| The sign-in link has expired               | The sign-in took too long. Start connecting again from the assistant.                  |
+| A tool answers "Not found"                 | The id doesn't exist in this organization, or it's something your role can't see.      |
+| Internal error with a request id           | Something failed on the server. Quote the request id; it's in the API's logs.          |

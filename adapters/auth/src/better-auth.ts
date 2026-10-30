@@ -39,6 +39,7 @@ import { eq } from "drizzle-orm";
 import { ac, roles } from "./access.js";
 import {
   accessTokenAuthorization,
+  consentOrgId,
   grantFromClaims,
   isCompactJws,
   needsOrgChoice,
@@ -63,6 +64,14 @@ import {
   ORG_CLAIM,
   type SessionAdmin,
 } from "@headless-lms/core/identity";
+
+const JWT_ALG = "EdDSA";
+
+const UNMIRRORED_ORG_ENDPOINTS = new Set([
+  "/organization/leave",
+  "/organization/invite-member",
+  "/organization/accept-invitation",
+]);
 
 function activeOrgOf(session: unknown): string | null {
   const value = (session as { activeOrganizationId?: string | null } | null)?.activeOrganizationId;
@@ -92,7 +101,17 @@ function mcpOAuthPlugins(opts: CreateAuthOptions): BetterAuthPlugin[] {
         page: opts.mcp.orgPickerPage,
         shouldRedirect: ({ session, user }) =>
           needsOrgChoice(activeOrgOf(session), () => memberOrgIds(opts.db, user.id)),
-        consentReferenceId: ({ session }) => activeOrgOf(session) ?? undefined,
+        consentReferenceId: async ({ session, user }) => {
+          const orgId = await consentOrgId(activeOrgOf(session), () =>
+            memberOrgIds(opts.db, user.id),
+          );
+          if (!orgId) {
+            throw new APIError("FORBIDDEN", {
+              message: "Choose an organization you are a member of",
+            });
+          }
+          return orgId;
+        },
       },
       customAccessTokenClaims: ({ referenceId }) =>
         referenceId ? { [ORG_CLAIM]: referenceId } : {},
@@ -175,7 +194,10 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         creatorRole: "owner",
         organizationHooks: opts.hooks,
       }),
-      jwt({ disableSettingJwtHeader: true }) as BetterAuthPlugin,
+      jwt({
+        disableSettingJwtHeader: true,
+        jwks: { keyPairConfig: { alg: JWT_ALG } },
+      }) as BetterAuthPlugin,
       ...(opts.mcp.oauthEnabled ? mcpOAuthPlugins(opts) : []),
       apiKey({ enableMetadata: true, rateLimit: { enabled: false } }) as BetterAuthPlugin,
       // Enrich get-session with the caller's memberships (role + org) so BFFs
@@ -214,6 +236,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/api-key/create" && (ctx.request || ctx.headers)) {
           throw new APIError("FORBIDDEN", { message: "API keys are created through the LMS" });
+        }
+        if (UNMIRRORED_ORG_ENDPOINTS.has(ctx.path)) {
+          throw new APIError("FORBIDDEN", { message: "Membership changes go through the LMS" });
         }
         if (ctx.path === "/api-key/update" && ctx.body?.metadata !== undefined) {
           throw new APIError("FORBIDDEN", {
@@ -285,6 +310,7 @@ export class BetterAuth
   protected logger: Logger;
   protected mcp: CreateAuthOptions["mcp"];
   protected issuer: string;
+  protected jwksCacheKey = {};
 
   constructor(opts: CreateAuthOptions, auth?: Auth) {
     this.auth = auth ?? createAuth(opts);
@@ -330,7 +356,12 @@ export class BetterAuth
     try {
       claims = await verifyJwsAccessToken(authorization.token, {
         jwksFetch: async () => this.pluginApi.getJwks(),
-        verifyOptions: { audience: this.mcp.resource, issuer: this.issuer },
+        jwksCacheKey: this.jwksCacheKey,
+        verifyOptions: {
+          audience: this.mcp.resource,
+          issuer: this.issuer,
+          algorithms: [JWT_ALG],
+        },
       });
     } catch {
       return null;

@@ -4,7 +4,7 @@ import { toWebRequest } from '@modelcontextprotocol/node';
 import { roleHoldsScope } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { NoActiveOrgError, resolveScopeFor, type OrgScope } from '../scope.js';
-import { unauthorized } from './challenge.js';
+import { forbidden, unauthorized } from './challenge.js';
 import { createToolServer } from './server.js';
 import type { Tool, ToolContext } from './tool.js';
 import { TOOLS } from './tools/index.js';
@@ -54,7 +54,7 @@ export function registerMcp(
       scope = await resolveScopeFor(container, grant.userId, grant.orgId);
     } catch (error) {
       if (error instanceof NoActiveOrgError) {
-        return reply.send(unauthorized(container.mcp));
+        return reply.send(forbidden());
       }
       throw error;
     }
