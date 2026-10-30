@@ -7,7 +7,6 @@ import { redirect } from "next/navigation";
 import { Content } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
-import { composeDownloadAssets } from "@/lib/api/server";
 import type { Download, DownloadAsset } from "@/lib/api/types";
 
 /** Download-level writes surface on both the list and that download's page. */
@@ -96,12 +95,12 @@ export async function addDownloadAssetAction(
   assetId: string,
   displayName?: string,
 ): Promise<DownloadAsset[]> {
-  const links = await Content.addDownloadAsset(
+  const files = await Content.addDownloadAsset(
     { downloadId, assetId, displayName },
     await authHeaders(),
   );
   revalidateDownload();
-  return composeDownloadAssets(links);
+  return files;
 }
 
 export async function renameDownloadAssetAction(
@@ -109,28 +108,28 @@ export async function renameDownloadAssetAction(
   assetId: string,
   displayName: string | null,
 ): Promise<DownloadAsset[]> {
-  const links = await Content.renameDownloadAsset(
+  const files = await Content.renameDownloadAsset(
     { downloadId, assetId, displayName },
     await authHeaders(),
   );
   revalidateDownload();
-  return composeDownloadAssets(links);
+  return files;
 }
 
 export async function removeDownloadAssetAction(
   downloadId: string,
   assetId: string,
 ): Promise<DownloadAsset[]> {
-  const links = await Content.removeDownloadAsset({ downloadId, assetId }, await authHeaders());
+  const files = await Content.removeDownloadAsset({ downloadId, assetId }, await authHeaders());
   revalidateDownload();
-  return composeDownloadAssets(links);
+  return files;
 }
 
 export async function reorderDownloadAssetsAction(
   downloadId: string,
   assetIds: string[],
 ): Promise<DownloadAsset[]> {
-  const links = await Content.reorderDownloadAssets({ downloadId, assetIds }, await authHeaders());
+  const files = await Content.reorderDownloadAssets({ downloadId, assetIds }, await authHeaders());
   revalidateDownload();
-  return composeDownloadAssets(links);
+  return files;
 }

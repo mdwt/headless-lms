@@ -5,10 +5,17 @@ import type {
   AutomationDispatch,
   AutomationEngine,
   AutomationExecutor,
+  Logger,
 } from "@headless-lms/core/types";
+import { startScheduleLoop } from "./schedule.js";
+
+export { startScheduleLoop };
 
 export class InlineAutomationEngine implements AutomationEngine {
   private executor: AutomationExecutor | undefined;
+  private schedule: { stop(): void } | undefined;
+
+  constructor(private readonly logger?: Logger) {}
 
   register(executor: AutomationExecutor): void {
     this.executor = executor;
@@ -39,7 +46,13 @@ export class InlineAutomationEngine implements AutomationEngine {
     await executor.finalize(d, results);
   }
 
-  async start(): Promise<void> {}
+  async start(): Promise<void> {
+    this.schedule?.stop();
+    this.schedule = startScheduleLoop(() => this.executor, this.logger);
+  }
 
-  async stop(): Promise<void> {}
+  async stop(): Promise<void> {
+    this.schedule?.stop();
+    this.schedule = undefined;
+  }
 }

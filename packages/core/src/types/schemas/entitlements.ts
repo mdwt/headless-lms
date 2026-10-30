@@ -51,3 +51,24 @@ export const grantEntitlementInputSchema = z
     message: 'Provide exactly one of contentId or bundleId',
   });
 export type GrantEntitlementInput = z.output<typeof grantEntitlementInputSchema>;
+
+export const spaceMemberStatusSchema = z.enum(['requested', 'invited', 'active', 'revoked']);
+export type SpaceMemberStatus = z.infer<typeof spaceMemberStatusSchema>;
+
+export const spaceMemberSourceSchema = z.enum(['request', 'invite', 'manual']);
+export type SpaceMemberSource = z.infer<typeof spaceMemberSourceSchema>;
+
+export const spaceMemberSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    communityId: idSchema,
+    spaceId: idSchema,
+    orgUserId: idSchema,
+    status: spaceMemberStatusSchema,
+    source: spaceMemberSourceSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type SpaceMember = z.output<typeof spaceMemberSchema>;

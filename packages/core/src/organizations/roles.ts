@@ -6,16 +6,18 @@
 import type { Role } from '../types/index.js';
 
 export type { Role };
-export const ROLES = ['owner', 'admin', 'instructor', 'student'] as const satisfies readonly Role[];
+export const ROLES = [
+  'owner',
+  'admin',
+  'instructor',
+  'moderator',
+  'student',
+] as const satisfies readonly Role[];
 
-/**
- * The roles that operate the back office. `student` belongs to the org but
- * never appears on a staff surface, so the member-management types are typed
- * with this narrower union — the exclusion is a compiler guarantee, not a
- * convention a query has to remember.
- */
-export type StaffRole = Exclude<Role, 'student'>;
+export type StaffRole = 'owner' | 'admin' | 'instructor';
 export const STAFF_ROLES = ['owner', 'admin', 'instructor'] as const satisfies readonly StaffRole[];
+
+export type TeamRole = Exclude<Role, 'student'>;
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);
@@ -39,6 +41,7 @@ export type Permission =
   | 'create_course'
   | 'edit_assigned_course'
   | 'view_student_progress'
+  | 'moderate'
   | 'consume_content';
 
 // Unconditional (true), course-scoped ("assigned"), or enrollment-scoped
@@ -58,6 +61,7 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     create_course: true,
     edit_assigned_course: true,
     view_student_progress: true,
+    moderate: true,
   },
   admin: {
     manage_org_settings: true,
@@ -65,13 +69,17 @@ const MATRIX: Record<Role, Partial<Record<Permission, Capability>>> = {
     create_course: true,
     edit_assigned_course: true,
     view_student_progress: true,
+    moderate: true,
   },
   instructor: {
     edit_assigned_course: 'assigned',
     view_student_progress: 'assigned',
+    moderate: true,
   },
-  // A learner belongs to the org to consume content they hold an
-  // entitlement for. No management capability of any kind.
+  moderator: {
+    moderate: true,
+    consume_content: 'enrolled',
+  },
   student: {
     consume_content: 'enrolled',
   },
@@ -81,11 +89,15 @@ export function capability(role: Role, permission: Permission): Capability | fal
   return MATRIX[role][permission] ?? false;
 }
 
+export function canModerate(role: Role): boolean {
+  return capability(role, 'moderate') === true;
+}
+
 // Better Auth's role model is broader than ours: it keeps a built-in `member`
 // role and allows comma-joined multi-role strings. Normalize any incoming role
 // string to a single domain Role before persisting: `member` -> `instructor`, a
 // multi-role string -> its highest-privilege known role, unknown -> `instructor`.
-const RANK: Record<Role, number> = { owner: 3, admin: 2, instructor: 1, student: 0 };
+const RANK: Record<Role, number> = { owner: 4, admin: 3, instructor: 2, moderator: 1, student: 0 };
 
 export function normalizeRole(raw: string): Role {
   let best: Role = 'instructor';

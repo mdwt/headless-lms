@@ -6,16 +6,16 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   AddDownloadAsset,
   Download,
-  DownloadAsset,
+  DownloadFile,
   DownloadAssetParams,
   DownloadIdParam,
   DownloadsPage,
   DownloadsQuery,
   CreateDownload,
-  ErrorBody,
   RenameDownloadAsset,
   ReorderDownloadAssets,
   UpdateDownload,
+  refusals,
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
@@ -33,9 +33,11 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'listDownloads',
       tags: ['Content'],
-      summary: 'List downloads',
+      summary: 'List downloads (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Every download, drafts included, filtered by status and category and searched by title.',
       querystring: DownloadsQuery,
-      response: { 200: DownloadsPage },
+      response: { 200: DownloadsPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -50,9 +52,10 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'getDownload',
       tags: ['Content'],
-      summary: 'Get a download by id',
+      summary: 'Get a download (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: DownloadIdParam,
-      response: { 200: Download, 404: ErrorBody },
+      response: { 200: Download, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -71,9 +74,11 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'createDownload',
       tags: ['Content'],
-      summary: 'Create a download',
+      summary: 'Create a download (staff)',
+      description:
+        'Staff only (owner, admin, instructor). The download starts as a draft. 409 when its slug is taken.',
       body: CreateDownload,
-      response: { 201: Download },
+      response: { 201: Download, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -89,10 +94,12 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'updateDownload',
       tags: ['Content'],
-      summary: 'Update a download',
+      summary: 'Update a download (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.',
       params: DownloadIdParam,
       body: UpdateDownload,
-      response: { 200: Download, 404: ErrorBody },
+      response: { 200: Download, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -107,13 +114,17 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'deleteDownload',
       tags: ['Content'],
-      summary: 'Delete a download',
+      summary: 'Delete a download (staff)',
+      description: 'Staff only (owner, admin, instructor). Its library files survive.',
       params: DownloadIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await content.removeDownload(scope.orgId, req.params.downloadId);
+      await content.removeDownload(scope.orgId, req.params.downloadId, {
+        id: scope.orgUserId,
+        role: scope.role,
+      });
       return reply.code(204).send();
     },
   });
@@ -125,9 +136,10 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'listDownloadAssets',
       tags: ['Content'],
-      summary: "List a download's assets in order",
+      summary: "List a download's files in order (staff)",
+      description: 'Staff only (owner, admin, instructor).',
       params: DownloadIdParam,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -142,10 +154,12 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'addDownloadAsset',
       tags: ['Content'],
-      summary: 'Link a media-library asset to a download',
+      summary: 'Add a library file to a download (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Added last. 409 when the file is not a ready library file or is already in the download. Returns the download's files.",
       params: DownloadIdParam,
       body: AddDownloadAsset,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -162,10 +176,12 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'reorderDownloadAssets',
       tags: ['Content'],
-      summary: "Reorder a download's assets (send the complete set)",
+      summary: "Reorder a download's files (staff)",
+      description:
+        "Staff only (owner, admin, instructor). Send every file id of the download exactly once (409 otherwise). Returns the download's files.",
       params: DownloadIdParam,
       body: ReorderDownloadAssets,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody, 409: ErrorBody },
+      response: { 200: z.array(DownloadFile), ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -180,10 +196,12 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'renameDownloadAsset',
       tags: ['Content'],
-      summary: "Set an asset's display name within a download",
+      summary: "Set a file's display name within a download (staff)",
+      description:
+        "Staff only (owner, admin, instructor). Null falls back to the filename. Returns the download's files.",
       params: DownloadAssetParams,
       body: RenameDownloadAsset,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -203,9 +221,11 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     schema: {
       operationId: 'removeDownloadAsset',
       tags: ['Content'],
-      summary: 'Unlink an asset from a download (the asset itself survives)',
+      summary: 'Remove a file from a download (staff)',
+      description:
+        "Staff only (owner, admin, instructor). The library file itself survives. Returns the download's files.",
       params: DownloadAssetParams,
-      response: { 200: z.array(DownloadAsset), 404: ErrorBody },
+      response: { 200: z.array(DownloadFile), ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

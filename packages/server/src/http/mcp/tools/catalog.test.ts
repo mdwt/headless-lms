@@ -62,7 +62,7 @@ const cases: ToolCase[] = [
     tool: 'delete_download',
     args: { downloadId: 'dl_1' },
     service: 'content.removeDownload',
-    expected: ['org_1', 'dl_1'],
+    expected: ['org_1', 'dl_1', { id: 'ou_1', role: 'owner' }],
     returns: undefined,
   },
   {

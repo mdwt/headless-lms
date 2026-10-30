@@ -1,43 +1,73 @@
-// assets context — ports.
 import type {
   Asset,
+  AssetView,
   AssetsQuery,
-  DownloadTicket,
   Page,
   RequestUploadInput,
   UploadTicket,
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 
-export interface AssetsService {
-  /** Register an asset and return a presigned URL to upload its bytes. */
+export interface MemberImageReader {
+  ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
+}
+
+export interface LibraryAssetReader {
+  libraryAssetsAmong(orgId: string, assetIds: string[]): Promise<string[]>;
+}
+
+export interface ReadyFile {
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+export interface AssetFiles {
+  /** Ready files of the org among these ids, with what a download shows of them. */
+  readyFiles(orgId: string, assetIds: readonly string[]): Promise<Record<string, ReadyFile>>;
+  /** A signed storage URL for a ready file of the org, after the caller has checked
+   *  access. `saveAs` makes it a short-lived download under that name. */
+  signFile(orgId: string, assetId: string, opts?: { saveAs?: string }): Promise<string | null>;
+}
+
+export interface MemberUploadInput {
+  filename: string;
+  contentType: string;
+}
+
+export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetFiles {
   requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
-  /** After upload, capture size/content-type from storage and mark ready. */
-  confirm(orgId: string, id: string): Promise<Asset | null>;
-  list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
-  get(orgId: string, id: string): Promise<Asset | null>;
-  /** Short-lived presigned URL to download/serve the asset. `expiresInSeconds`
-   *  overrides the adapter default — entitled delivery passes its own. */
-  requestDownload(
+  requestMemberUpload(
     orgId: string,
-    id: string,
-    filename?: string,
-    expiresInSeconds?: number,
-  ): Promise<DownloadTicket | null>;
-  /** Remove the object from storage and the registry. */
+    orgUserId: string,
+    input: MemberUploadInput,
+  ): Promise<UploadTicket>;
+  confirm(orgId: string, id: string): Promise<AssetView | null>;
+  confirmOwn(orgId: string, id: string, orgUserId: string): Promise<AssetView | null>;
+  list(orgId: string, query: AssetsQuery): Promise<Page<AssetView>>;
+  get(orgId: string, id: string): Promise<AssetView | null>;
+  libraryFile(orgId: string, assetId: string, opts: { download: boolean }): Promise<string | null>;
+  ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null>;
   remove(orgId: string, id: string): Promise<boolean>;
+  removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean>;
+  hasUnattached(orgId: string, now: Date): Promise<boolean>;
+  removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 
 export interface AssetsRepository {
   insert(orgId: string, asset: Asset): Promise<Asset>;
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;
-  /** Scoped to the org — returns null if the asset belongs to another org. */
   findById(orgId: string, id: string): Promise<Asset | null>;
-  update(
+  findByIds(orgId: string, ids: string[]): Promise<Asset[]>;
+  markReady(
+    orgId: string,
     id: string,
-    patch: Partial<Pick<Asset, 'size' | 'contentType' | 'status'>>,
+    patch: Pick<Asset, 'key' | 'kind' | 'size' | 'contentType'>,
   ): Promise<Asset | null>;
-  delete(id: string): Promise<boolean>;
+  delete(orgId: string, id: string): Promise<boolean>;
+  hasUnreferencedMemberUploads(orgId: string, before: Date): Promise<boolean>;
+  listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]>;
+  heldKeys(orgId: string, keys: string[]): Promise<string[]>;
 }
 
 export interface AssetsWriteScope {

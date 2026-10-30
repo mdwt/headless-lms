@@ -15,6 +15,7 @@ import {
   ReorderInput,
   SaveActivity,
   UpdateModule,
+  refusals,
 } from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
@@ -32,9 +33,11 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'listModules',
       tags,
-      summary: "List a course's modules",
+      summary: "List a course's modules (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Modules in order, each with its activities.',
       params: CourseIdPathParam,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -49,13 +52,14 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'listActivities',
       tags,
-      summary: "List a course's activities",
+      summary: "List a course's activities (staff)",
+      description: 'Staff only (owner, admin, instructor). Every activity, published or not.',
       params: CourseIdPathParam,
-      response: { 200: ActivityList },
+      response: { 200: ActivityList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return content.listCourseActivities(scope.orgId, req.params.courseId);
+      return content.listCourseActivityViews(scope.orgId, req.params.courseId);
     },
   });
 
@@ -66,9 +70,11 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'listActivityAssets',
       tags,
-      summary: "List a course's activity→asset links",
+      summary: 'List the library files each activity of a course uses (staff)',
+      description:
+        'Staff only (owner, admin, instructor). One row per activity and file, as recorded when the activity was saved.',
       params: CourseIdPathParam,
-      response: { 200: ActivityAssetList },
+      response: { 200: ActivityAssetList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -83,10 +89,12 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'createModule',
       tags,
-      summary: 'Add a module',
+      summary: 'Add a module (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Added last. Returns the course's modules.",
       params: CourseIdPathParam,
       body: CreateModule,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -101,10 +109,12 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'reorderModules',
       tags,
-      summary: 'Reorder modules',
+      summary: "Reorder a course's modules (staff)",
+      description:
+        "Staff only (owner, admin, instructor). Ids that are not modules of the course are ignored. Returns the course's modules.",
       params: CourseIdPathParam,
       body: ReorderInput,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -119,10 +129,11 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'updateModule',
       tags,
-      summary: 'Rename a module',
+      summary: 'Rename a module (staff)',
+      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
       params: ModulePathParam,
       body: UpdateModule,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -142,9 +153,10 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'deleteModule',
       tags,
-      summary: 'Delete a module',
+      summary: 'Delete a module (staff)',
+      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
       params: ModulePathParam,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -159,10 +171,12 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'reorderActivities',
       tags,
-      summary: 'Reorder activities in a module',
+      summary: 'Reorder the activities in a module (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Send every activity id of the module once (409 otherwise). Returns the course's modules.",
       params: ModulePathParam,
       body: ReorderInput,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -182,10 +196,12 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'createActivity',
       tags,
-      summary: 'Add an activity',
+      summary: 'Add an activity (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Records the library files the activity uses; each must be a ready library file (409 otherwise). Returns the course's modules.",
       params: ModulePathParam,
       body: SaveActivity,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -200,10 +216,12 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'updateActivity',
       tags,
-      summary: 'Update an activity',
+      summary: 'Update an activity (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). Returns the course's modules.",
       params: ActivityPathParam,
       body: SaveActivity,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -224,9 +242,10 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
     schema: {
       operationId: 'deleteActivity',
       tags,
-      summary: 'Delete an activity',
+      summary: 'Delete an activity (staff)',
+      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
       params: ActivityPathParam,
-      response: { 200: ModuleList },
+      response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

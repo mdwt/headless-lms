@@ -23,6 +23,13 @@ export const ACCESS_SCOPES = [
   'automations:delete',
   'comments:read',
   'comments:moderate',
+  'communities:read',
+  'communities:write',
+  'communities:delete',
+  'community_members:read',
+  'community_members:write',
+  'community_moderation:read',
+  'community_moderation:write',
 ] as const;
 
 export type AccessScope = (typeof ACCESS_SCOPES)[number];
@@ -49,6 +56,13 @@ export const SCOPE_PERMISSION: Record<AccessScope, Permission | null> = {
   'automations:delete': 'manage_org_settings',
   'comments:read': null,
   'comments:moderate': 'edit_assigned_course',
+  'communities:read': null,
+  'communities:write': 'create_course',
+  'communities:delete': 'create_course',
+  'community_members:read': null,
+  'community_members:write': 'moderate',
+  'community_moderation:read': null,
+  'community_moderation:write': 'moderate',
 };
 
 export type ScopeOption = { scope: AccessScope; allowed: boolean };

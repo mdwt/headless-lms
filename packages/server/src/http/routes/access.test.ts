@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
-import { OrganizationRuleError } from '@headless-lms/core/organizations';
+import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { NewApiKey } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
@@ -117,7 +117,7 @@ describe('access routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/access/scopes', headers: H });
     expect(res.statusCode).toBe(200);
     const options: Array<{ scope: string; allowed: boolean }> = res.json();
-    expect(options).toHaveLength(21);
+    expect(options).toHaveLength(28);
     expect(options.filter((option) => option.allowed).map((option) => option.scope)).toEqual([
       'courses:read',
       'downloads:read',
@@ -125,6 +125,11 @@ describe('access routes', () => {
       'media:read',
       'automations:read',
       'comments:read',
+      'communities:read',
+      'community_members:read',
+      'community_members:write',
+      'community_moderation:read',
+      'community_moderation:write',
     ]);
   });
 
@@ -217,14 +222,14 @@ describe('access routes', () => {
     expect(calls).toEqual([['deleteApiKey', '1', 'org_auth', 'key_1']]);
   });
 
-  it("answers 409 when the key is not the caller's", async () => {
-    deleteError = new OrganizationRuleError('That API key does not exist');
+  it("answers 404 when the key is not the caller's", async () => {
+    deleteError = new NotFoundError('API key', 'key_9');
     const res = await app.inject({
       method: 'DELETE',
       url: '/api/access/api-keys/key_9',
       headers: H,
     });
-    expect(res.statusCode).toBe(409);
+    expect(res.statusCode).toBe(404);
   });
 
   it('requires a session', async () => {

@@ -21,13 +21,15 @@ export type {
 export class InvalidTriggerError extends Error {
   constructor(
     readonly trigger: string,
-    readonly reason: 'reserved' | 'unknown' = 'reserved',
+    readonly reason: 'reserved' | 'unknown' | 'schedule' = 'reserved',
   ) {
-    super(
+    const message =
       reason === 'reserved'
         ? `trigger "${trigger}" is reserved: automations cannot trigger on automation.* events`
-        : `trigger "${trigger}" is not an event the system emits`,
-    );
+        : reason === 'unknown'
+          ? `trigger "${trigger}" is not an event the system emits`
+          : `trigger "${trigger}" uses a schedule this system cannot match`;
+    super(message);
     this.name = 'InvalidTriggerError';
   }
 }

@@ -1,9 +1,9 @@
-// assets — Drizzle repository (implements the core outbound port).
-import { and, eq, ilike, sql, asc, desc, type SQL } from "drizzle-orm";
+import { and, eq, ilike, inArray, lt, sql, asc, desc, type SQL } from "drizzle-orm";
 import type { AssetsRepository } from "@headless-lms/core/assets";
 import type {
   Asset,
   AssetKind,
+  AssetSource,
   AssetStatus,
   AssetsQuery,
   Logger,
@@ -12,7 +12,8 @@ import type {
 import { assets } from "../schema/assets.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import type { DbExecutor } from "../client.js";
-import { translateDbErrors } from "./pg-errors.js";
+import { ConflictError } from "@headless-lms/core/shared/errors";
+import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
 type Row = typeof assets.$inferSelect;
 
@@ -22,6 +23,7 @@ function toAsset(row: Row): Asset {
     id: row.id,
     key: row.key,
     kind: row.kind as AssetKind,
+    source: row.source as AssetSource,
     filename: row.filename,
     contentType: row.contentType,
     size: row.size,
@@ -32,12 +34,33 @@ function toAsset(row: Row): Asset {
   };
 }
 
-// Whitelisted sort columns; anything else falls back to newest-first.
 const SORT_COLUMNS = {
   filename: assets.filename,
   size: assets.size,
   createdAt: assets.createdAt,
 } as const;
+
+function referenced(orgId: SQL, assetId: SQL): SQL {
+  return sql`(
+    exists (select 1 from user_profiles p where p.image_asset_org_id = ${orgId} and p.image_asset_id = ${assetId})
+    or exists (select 1 from posts p where p.org_id = ${orgId} and p.cover_asset_id = ${assetId})
+    or exists (select 1 from message_attachments ma where ma.org_id = ${orgId} and ma.asset_id = ${assetId})
+    or exists (select 1 from activity_assets aa where aa.org_id = ${orgId} and aa.asset_id = ${assetId})
+    or exists (select 1 from download_assets da where da.org_id = ${orgId} and da.asset_id = ${assetId})
+    or exists (select 1 from courses c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
+    or exists (select 1 from downloads d where d.org_id = ${orgId} and d.thumbnail_asset_id = ${assetId})
+    or exists (select 1 from communities c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
+  )`;
+}
+
+function unreferencedMemberUploads(orgId: string, before: Date): SQL | undefined {
+  return and(
+    eq(assets.orgId, orgId),
+    eq(assets.source, "member"),
+    lt(assets.createdAt, before),
+    sql`not ${referenced(sql`${assets.orgId}`, sql`${assets.id}`)}`,
+  );
+}
 
 export class DrizzleAssetsRepository implements AssetsRepository {
   constructor(
@@ -56,6 +79,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
         orgId: asset.orgId,
         key: asset.key,
         kind: asset.kind,
+        source: asset.source,
         filename: asset.filename,
         contentType: asset.contentType,
         size: asset.size,
@@ -74,6 +98,9 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     const filters: (SQL | undefined)[] = [eq(assets.orgId, orgId)];
     if (query.kind) {
       filters.push(eq(assets.kind, query.kind));
+    }
+    if (query.source) {
+      filters.push(eq(assets.source, query.source));
     }
     const q = query.search?.trim();
     if (q) {
@@ -122,28 +149,78 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     return row ? toAsset(row) : null;
   }
 
-  async update(
+  async findByIds(orgId: string, ids: string[]): Promise<Asset[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.orgId, orgId), inArray(assets.id, ids)));
+    return rows.map(toAsset);
+  }
+
+  async markReady(
+    orgId: string,
     id: string,
-    patch: Partial<Pick<Asset, "size" | "contentType" | "status">>,
+    patch: Pick<Asset, "key" | "kind" | "size" | "contentType">,
   ): Promise<Asset | null> {
     const [row] = await this.db
       .update(assets)
       .set({
-        ...(patch.size !== undefined ? { size: patch.size } : {}),
-        ...(patch.contentType !== undefined ? { contentType: patch.contentType } : {}),
-        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        key: patch.key,
+        kind: patch.kind,
+        size: patch.size,
+        contentType: patch.contentType,
+        status: "ready",
       })
-      .where(eq(assets.id, id))
+      .where(and(eq(assets.orgId, orgId), eq(assets.id, id), eq(assets.status, "pending")))
       .returning();
     return row ? toAsset(row) : null;
   }
 
-  async delete(id: string): Promise<boolean> {
-    const deleted = await this.db
-      .delete(assets)
-      .where(eq(assets.id, id))
-      .returning({ id: assets.id });
-    return deleted.length > 0;
+  async delete(orgId: string, id: string): Promise<boolean> {
+    try {
+      const deleted = await this.db
+        .delete(assets)
+        .where(and(eq(assets.orgId, orgId), eq(assets.id, id)))
+        .returning({ id: assets.id });
+      return deleted.length > 0;
+    } catch (err) {
+      if (pgErrorFields(err)?.code === "23503") {
+        throw Object.assign(new ConflictError("This file is still in use"), { cause: err });
+      }
+      throw err;
+    }
+  }
+
+  async hasUnreferencedMemberUploads(orgId: string, before: Date): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(unreferencedMemberUploads(orgId, before))
+      .limit(1);
+    return row !== undefined;
+  }
+
+  async listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]> {
+    const rows = await this.db
+      .select()
+      .from(assets)
+      .where(unreferencedMemberUploads(orgId, before))
+      .orderBy(asc(assets.createdAt));
+    return rows.map(toAsset);
+  }
+
+  async heldKeys(orgId: string, keys: string[]): Promise<string[]> {
+    if (keys.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ key: assets.key })
+      .from(assets)
+      .where(and(eq(assets.orgId, orgId), inArray(assets.key, keys)));
+    return rows.map((r) => r.key);
   }
 }
 translateDbErrors(DrizzleAssetsRepository);

@@ -52,6 +52,12 @@ export async function resendStudentInviteAction(id: string): Promise<void> {
   revalidatePath(`/students/${id}`);
 }
 
+export async function makeModeratorAction(id: string): Promise<void> {
+  await Organizations.updateMemberRole({ id, role: "moderator" }, await authHeaders());
+  revalidatePath("/students");
+  revalidatePath("/settings/team");
+}
+
 export async function deleteStudentAction(id: string): Promise<void> {
   await Organizations.deleteStudent({ id }, await authHeaders());
   revalidatePath("/students");

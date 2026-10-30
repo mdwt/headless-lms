@@ -9,6 +9,9 @@ export const automationTriggersSchema = z.array(automationTriggerSchema).min(1);
 export const automationKindSchema = z.enum(['workflow', 'webhook']);
 export type AutomationKind = z.infer<typeof automationKindSchema>;
 
+export const automationSourceSchema = z.enum(['system', 'user']);
+export type AutomationSource = z.infer<typeof automationSourceSchema>;
+
 export const automationActionSchema = z
   .object({
     type: z.string().trim().min(1),
@@ -27,6 +30,8 @@ export const automationSchema = z
     triggers: z.array(automationTriggerSchema),
     actions: z.array(automationActionSchema),
     enabled: z.boolean(),
+    filter: jsonRecordSchema.nullable(),
+    source: automationSourceSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
@@ -40,6 +45,7 @@ export const createAutomationInputSchema = z
     description: z.string().optional(),
     triggers: automationTriggersSchema,
     actions: z.array(automationActionSchema),
+    filter: jsonRecordSchema.nullable().optional(),
   })
   .strict();
 export type CreateAutomationInput = z.infer<typeof createAutomationInputSchema>;
@@ -75,6 +81,7 @@ export const automationActionResultSchema = z
     type: z.string().trim().min(1),
     status: z.enum(['completed', 'failed']),
     error: z.string().optional(),
+    recipients: z.array(z.string()).optional(),
   })
   .strict();
 export type AutomationActionResult = z.infer<typeof automationActionResultSchema>;

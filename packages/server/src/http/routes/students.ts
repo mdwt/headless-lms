@@ -6,13 +6,13 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
-  ErrorBody,
   Student,
   StudentAnalytics,
   StudentIdParam,
   StudentsPage,
   StudentsQuery,
   UpdateStudentBody,
+  refusals,
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
@@ -20,7 +20,7 @@ import { resolveScope } from '../scope.js';
 
 export async function studentsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const students = container.reporting.students;
+  const students = container.reporting.admin;
 
   r.route({
     method: 'GET',
@@ -29,13 +29,14 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'listStudents',
       tags: ['Organizations'],
-      summary: 'List students',
+      summary: 'List students (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       querystring: StudentsQuery,
-      response: { 200: StudentsPage },
+      response: { 200: StudentsPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return students.list(scope.orgId, req.query);
+      return students.listStudents(scope.orgId, req.query);
     },
   });
 
@@ -46,13 +47,14 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'getStudent',
       tags: ['Organizations'],
-      summary: 'Get a student by id',
+      summary: 'Get a student (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: StudentIdParam,
-      response: { 200: Student, 404: ErrorBody },
+      response: { 200: Student, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const student = await students.get(scope.orgId, req.params.id);
+      const student = await students.getStudent(scope.orgId, req.params.id);
       if (!student) {
         throw new NotFoundError('Student', req.params.id);
       }
@@ -67,13 +69,14 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'getStudentAnalytics',
       tags: ['Reporting'],
-      summary: "A student's learner record: per-course progress and completion",
+      summary: "A student's learner record (staff)",
+      description: 'Staff only (owner, admin, instructor). Per-course progress and completion.',
       params: StudentIdParam,
-      response: { 200: StudentAnalytics, 404: ErrorBody },
+      response: { 200: StudentAnalytics, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      const analytics = await students.analytics(scope.orgId, req.params.id);
+      const analytics = await students.studentAnalytics(scope.orgId, req.params.id);
       if (!analytics) {
         throw new NotFoundError('Student', req.params.id);
       }
@@ -91,10 +94,12 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'updateStudent',
       tags: ['Organizations'],
-      summary: "Update a student's profile",
+      summary: "Update a student's profile (staff)",
+      description:
+        "Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.",
       params: StudentIdParam,
       body: UpdateStudentBody,
-      response: { 200: Student, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: Student, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -105,7 +110,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       });
       // Re-read through the report so the response is the same shape the list
       // and detail GETs return, aggregates included.
-      const student = await students.get(scope.orgId, req.params.id);
+      const student = await students.getStudent(scope.orgId, req.params.id);
       if (!student) {
         throw new NotFoundError('Student', req.params.id);
       }
@@ -123,17 +128,22 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'resendStudentInvite',
       tags: ['Organizations'],
-      summary: "Re-send a pending student's invite email",
+      summary: "Re-send a pending student's invite email (staff)",
+      description:
+        'Owner or admin only. Issues a new token, so the previous link stops working. 404 when the student has no pending invite; 409 when it was already accepted.',
       params: StudentIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await container.organizations.resendStudentInvite({
-        orgId: scope.orgId,
-        orgUserId: req.params.id,
-        inviterUserId: scope.userId,
-      });
+      await container.organizations.resendStudentInvite(
+        { id: scope.orgUserId, role: scope.role },
+        {
+          orgId: scope.orgId,
+          orgUserId: req.params.id,
+          inviterUserId: scope.userId,
+        },
+      );
       return reply.code(204).send();
     },
   });
@@ -145,13 +155,19 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'deleteStudent',
       tags: ['Organizations'],
-      summary: 'Delete a student',
+      summary: 'Delete a student (staff)',
+      description:
+        'Owner or admin only. 409 when the person has written posts, comments or messages.',
       params: StudentIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
-      await container.organizations.deleteOrgUser(scope.orgId, req.params.id);
+      await container.organizations.deleteOrgUser(
+        scope.orgId,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+      );
       return reply.code(204).send();
     },
   });

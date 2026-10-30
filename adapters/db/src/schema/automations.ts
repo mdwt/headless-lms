@@ -12,6 +12,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations } from "./organizations.js";
 import type {
@@ -40,6 +41,10 @@ export const automations = pgTable(
     triggers: text("triggers").array().notNull(),
     actions: jsonb("actions").$type<AutomationAction[]>().notNull(),
     enabled: boolean("enabled").notNull().default(true),
+    filter: jsonb("filter").$type<Automation["filter"]>(),
+    source: text("source", { enum: ["system", "user"] })
+      .notNull()
+      .default("user"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -49,6 +54,9 @@ export const automations = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.id] }),
     triggersIdx: index("automations_triggers_idx").using("gin", t.triggers),
+    systemSeedIdx: uniqueIndex("automations_system_seed_idx")
+      .on(t.orgId, t.name, sql`coalesce(${t.filter}->>'communityId', '')`)
+      .where(sql`${t.source} = 'system'`),
   }),
 );
 

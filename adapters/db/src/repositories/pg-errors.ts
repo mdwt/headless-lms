@@ -135,8 +135,12 @@ export function translateConstraintViolation(err: unknown): ConflictError | unde
     return undefined;
   }
   const key = pg.detail?.match(KEY_DETAIL);
+  const column = key?.[1];
+  const value = key?.[2];
   const conflict = new ConflictError(
-    key ? `${key[1]} "${key[2]}" is already in use` : "This value is already in use",
+    column && value && !column.includes(",")
+      ? `${column} "${value}" is already in use`
+      : "This already exists",
   );
   return Object.assign(conflict, { cause: err });
 }

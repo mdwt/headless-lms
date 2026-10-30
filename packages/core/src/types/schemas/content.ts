@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { assetUrlsSchema } from './assets.js';
 import { activityCommentsRuleSchema, commentSettingsSchema } from './discussion.js';
 import { idSchema, jsonValueSchema } from './shared.js';
 
-export const contentTypeSchema = z.enum(['course', 'download']);
+export const contentTypeSchema = z.enum(['course', 'download', 'community']);
 export type ContentType = z.infer<typeof contentTypeSchema>;
 
 export const courseStatusSchema = z.enum(['draft', 'published']);
@@ -106,6 +107,11 @@ export const courseSchema = z
   .strict();
 export type Course = z.output<typeof courseSchema>;
 
+export const courseViewSchema = courseSchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type CourseView = z.output<typeof courseViewSchema>;
+
 export const activitySchema = z
   .object({
     orgId: idSchema,
@@ -120,6 +126,9 @@ export const activitySchema = z
   .strict();
 export type Activity = z.output<typeof activitySchema>;
 export type ActivityInput = z.input<typeof activitySchema>;
+
+export const activityViewSchema = activitySchema.extend({ assetUrls: assetUrlsSchema }).strict();
+export type ActivityView = z.output<typeof activityViewSchema>;
 
 export const moduleSchema = z
   .object({
@@ -210,6 +219,11 @@ export const downloadSchema = z
 export type Download = z.output<typeof downloadSchema>;
 export type DownloadInput = z.input<typeof downloadSchema>;
 
+export const downloadViewSchema = downloadSchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type DownloadView = z.output<typeof downloadViewSchema>;
+
 export const downloadAssetSchema = z
   .object({
     orgId: idSchema,
@@ -224,6 +238,16 @@ export const downloadAssetSchema = z
   .strict();
 export type DownloadAsset = z.output<typeof downloadAssetSchema>;
 export type DownloadAssetInput = z.input<typeof downloadAssetSchema>;
+
+export const downloadFileSchema = downloadAssetSchema
+  .extend({
+    filename: z.string(),
+    contentType: z.string(),
+    size: z.number().int().min(0),
+    url: z.string(),
+  })
+  .strict();
+export type DownloadFile = z.output<typeof downloadFileSchema>;
 
 export const listDownloadsQuerySchema = z
   .object({
@@ -267,7 +291,218 @@ export type AddDownloadAssetInput = z.infer<typeof addDownloadAssetInputSchema>;
 
 export const reorderDownloadAssetsInputSchema = z
   .object({
-    assetIds: z.array(idSchema),
+    assetIds: z.array(idSchema).max(500),
   })
   .strict();
 export type ReorderDownloadAssetsInput = z.infer<typeof reorderDownloadAssetsInputSchema>;
+
+export const communityStatusSchema = z.enum(['draft', 'published']);
+export type CommunityStatus = z.infer<typeof communityStatusSchema>;
+
+export const dmSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    memberToMember: z.boolean(),
+    memberToStaff: z.boolean(),
+    staffToAnyone: z.boolean(),
+    firstMessageIsRequest: z.boolean(),
+    groupChats: z.boolean(),
+    groupSize: z.number().int().min(1),
+  })
+  .strict();
+export type DmSettings = z.infer<typeof dmSettingsSchema>;
+
+export const dmSettingsDefaults: DmSettings = {
+  enabled: true,
+  memberToMember: true,
+  memberToStaff: true,
+  staffToAnyone: true,
+  firstMessageIsRequest: true,
+  groupChats: true,
+  groupSize: 8,
+};
+
+export const communitySettingsSchema = z
+  .object({
+    dm: dmSettingsSchema,
+  })
+  .strict();
+export type CommunitySettings = z.infer<typeof communitySettingsSchema>;
+
+export const communitySettingsDefaults: CommunitySettings = { dm: dmSettingsDefaults };
+
+export const communitySchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    type: z.literal('community'),
+    title: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    status: communityStatusSchema,
+    thumbnailAssetId: idSchema.nullable(),
+    settings: communitySettingsSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type Community = z.output<typeof communitySchema>;
+
+export const communityViewSchema = communitySchema
+  .extend({ thumbnailUrl: z.string().nullable() })
+  .strict();
+export type CommunityView = z.output<typeof communityViewSchema>;
+
+export const spaceAccessRuleSchema = z.enum(['all_members', 'by_request', 'by_invite']);
+export type SpaceAccessRule = z.infer<typeof spaceAccessRuleSchema>;
+
+export const spaceSettingsSchema = z
+  .object({
+    comments: z.boolean(),
+    reactions: z.boolean(),
+    requireReview: z.boolean(),
+  })
+  .strict();
+export type SpaceSettings = z.infer<typeof spaceSettingsSchema>;
+
+export const spaceSettingsDefaults: SpaceSettings = {
+  comments: true,
+  reactions: true,
+  requireReview: false,
+};
+
+export const spaceSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    communityId: idSchema,
+    name: z.string(),
+    description: z.string(),
+    seq: z.number().int(),
+    accessRule: spaceAccessRuleSchema,
+    capacity: z.number().int().nullable(),
+    settings: spaceSettingsSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type Space = z.output<typeof spaceSchema>;
+
+export const spaceTopicSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    spaceId: idSchema,
+    name: z.string(),
+    seq: z.number().int(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type SpaceTopic = z.output<typeof spaceTopicSchema>;
+
+export const spaceLinkSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    spaceId: idSchema,
+    contentId: idSchema,
+    seq: z.number().int(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type SpaceLink = z.output<typeof spaceLinkSchema>;
+
+export const spaceDetailSchema = spaceSchema.extend({
+  topics: z.array(spaceTopicSchema),
+  links: z.array(spaceLinkSchema),
+});
+export type SpaceDetail = z.output<typeof spaceDetailSchema>;
+
+export const listCommunitiesQuerySchema = z
+  .object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    search: z.string().optional(),
+    sort: z.string().optional(),
+    status: communityStatusSchema.optional(),
+  })
+  .strict();
+export type ListCommunitiesQuery = z.infer<typeof listCommunitiesQuerySchema>;
+
+export const createCommunityInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(5_000).optional(),
+  })
+  .strict();
+export type CreateCommunityInput = z.infer<typeof createCommunityInputSchema>;
+
+export const updateCommunityInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(5_000).optional(),
+    status: communityStatusSchema.optional(),
+    thumbnailAssetId: idSchema.nullable().optional(),
+  })
+  .strict();
+export type UpdateCommunityInput = z.infer<typeof updateCommunityInputSchema>;
+
+export const patchDmSettingsInputSchema = dmSettingsSchema
+  .extend({
+    groupSize: z
+      .number()
+      .int()
+      .min(3)
+      .max(100)
+      .describe('The most people a group chat may hold, its creator included'),
+  })
+  .partial();
+export type PatchDmSettingsInput = z.infer<typeof patchDmSettingsInputSchema>;
+
+export const createSpaceInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(2_000).optional(),
+    accessRule: spaceAccessRuleSchema.optional(),
+    capacity: z.number().int().min(0).nullable().optional(),
+    settings: spaceSettingsSchema.partial().optional(),
+  })
+  .strict();
+export type CreateSpaceInput = z.infer<typeof createSpaceInputSchema>;
+
+export const updateSpaceInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().max(2_000).optional(),
+    accessRule: spaceAccessRuleSchema.optional(),
+    capacity: z.number().int().min(0).nullable().optional(),
+    settings: spaceSettingsSchema.partial().optional(),
+  })
+  .strict();
+export type UpdateSpaceInput = z.infer<typeof updateSpaceInputSchema>;
+
+export const setSpaceTopicsInputSchema = z
+  .object({
+    topics: z
+      .array(
+        z
+          .object({
+            id: idSchema.optional().describe('Keep an existing topic; omit to add a new one'),
+            name: z.string().trim().min(1).max(60),
+          })
+          .strict(),
+      )
+      .max(50)
+      .describe('The complete list, in order. A topic left out is deleted'),
+  })
+  .strict();
+export type SetSpaceTopicsInput = z.infer<typeof setSpaceTopicsInputSchema>;
+
+export const addSpaceLinkInputSchema = z
+  .object({
+    contentId: idSchema,
+  })
+  .strict();
+export type AddSpaceLinkInput = z.infer<typeof addSpaceLinkInputSchema>;

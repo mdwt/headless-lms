@@ -1,5 +1,5 @@
 // View-model the presentational components are driven by. Adapted from the
-// Learn wire types in `adapt.ts`.
+// member wire types in `adapt.ts`.
 import type { ActivityContent } from "./api/types";
 
 export type LessonStatus = "not-started" | "in-progress" | "completed";
@@ -11,6 +11,8 @@ export interface Lesson {
   order: number;
   /** The activity's `settings.content` Plate value, or null when unset. */
   content: ActivityContent | null;
+  /** URLs for the files the activity links, keyed by asset id. */
+  assetUrls: Record<string, string>;
 }
 
 export interface Module {

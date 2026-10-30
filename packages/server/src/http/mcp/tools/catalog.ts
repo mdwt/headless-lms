@@ -15,7 +15,7 @@ import {
   UpdateBundle,
   UpdateDownload,
 } from '../../schemas/index.js';
-import { defineTool, type Tool } from '../tool.js';
+import { actor, defineTool, type Tool } from '../tool.js';
 
 export const catalogTools: Tool[] = [
   defineTool({
@@ -126,12 +126,12 @@ export const catalogTools: Tool[] = [
     openWorld: false,
     input: DownloadIdParam,
     call: ({ downloadId }, { container, scope }) =>
-      container.content.removeDownload(scope.orgId, downloadId),
+      container.content.removeDownload(scope.orgId, downloadId, actor(scope)),
   }),
   defineTool({
     name: 'list_bundles',
     title: 'List bundles',
-    description: 'Search and page through bundles: sets of courses and downloads granted together.',
+    description: 'Search and page through bundles: sets of courses, downloads and communities granted together.',
     scope: 'bundles:read',
     kind: 'read',
     idempotent: true,
@@ -142,7 +142,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'list_bundle_items',
     title: 'List bundle items',
-    description: 'The courses and downloads in a bundle.',
+    description: 'The courses, downloads and communities in a bundle.',
     scope: 'bundles:read',
     kind: 'read',
     idempotent: true,
@@ -154,7 +154,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'create_bundle',
     title: 'Create bundle',
-    description: 'Create a bundle, optionally with the course and download ids it starts with.',
+    description: 'Create a bundle, optionally with the course, download and community ids it starts with.',
     scope: 'bundles:write',
     kind: 'write',
     idempotent: false,
@@ -177,7 +177,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'add_bundle_item',
     title: 'Add to bundle',
-    description: 'Add a course or download to a bundle. Returns the bundle items.',
+    description: 'Add a course, download or community to a bundle. Returns the bundle items.',
     scope: 'bundles:write',
     kind: 'write',
     idempotent: false,
@@ -189,7 +189,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'remove_bundle_item',
     title: 'Remove from bundle',
-    description: 'Take a course or download out of a bundle. Returns the remaining items.',
+    description: 'Take a course, download or community out of a bundle. Returns the remaining items.',
     scope: 'bundles:write',
     kind: 'destructive',
     idempotent: true,
@@ -201,7 +201,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'delete_bundle',
     title: 'Delete bundle',
-    description: 'Permanently delete a bundle. Its courses and downloads are kept.',
+    description: 'Permanently delete a bundle. Its courses, downloads and communities are kept.',
     scope: 'bundles:delete',
     kind: 'destructive',
     idempotent: true,
@@ -214,7 +214,7 @@ export const catalogTools: Tool[] = [
     name: 'list_media',
     title: 'List media',
     description:
-      'Search and page through uploaded files, to use in downloads or as cover images. Uploading is done in the admin app.',
+      'Search and page through uploaded files, to use in downloads or as cover images of courses, downloads and communities. Uploading is done in the admin app.',
     scope: 'media:read',
     kind: 'read',
     idempotent: true,

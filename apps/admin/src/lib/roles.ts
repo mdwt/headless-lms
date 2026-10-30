@@ -12,12 +12,14 @@ export const ROLE_LABEL: Record<Role, string> = {
   owner: "Owner",
   admin: "Admin",
   instructor: "Instructor",
+  moderator: "Moderator",
 };
 
 export const ROLE_RANK: Record<Role, number> = {
   owner: 3,
   admin: 2,
   instructor: 1,
+  moderator: 0,
 };
 
 /**

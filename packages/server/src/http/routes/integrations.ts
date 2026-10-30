@@ -14,13 +14,14 @@ import {
   ConnectionActionParams,
   ConnectionIdParam,
   ConnectionsList,
-  ErrorBody,
   InvokeActionRequest,
   ReconnectRequest,
+  refusals,
 } from '../schemas/index.js';
 import type { Connection as DomainConnection } from '@headless-lms/core/integrations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
+import { resolveScope } from '../scope.js';
 
 function toApi(connection: DomainConnection): Connection {
   const { credentialRef: _credentialRef, ...rest } = connection;
@@ -43,16 +44,21 @@ export async function integrationsRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const integrations = container.integrations;
   const tags = ['Integrations'];
+  const staff = async (req: FastifyRequest) => {
+    await resolveScope(container, req);
+  };
 
   r.route({
     method: 'GET',
     url: '/api/integrations/available',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listAvailableIntegrations',
       tags,
-      summary: 'List the integrations this deployment supports, with their config schemas',
-      response: { 200: AvailableIntegrationsList, 401: ErrorBody },
+      summary: 'List the integrations this deployment supports (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Each with the JSON Schemas of its config, its secrets and its actions.',
+      response: { 200: AvailableIntegrationsList, ...refusals(403) },
     },
     handler: async () => integrations.available(),
   });
@@ -60,12 +66,13 @@ export async function integrationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/integrations',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'listConnections',
       tags,
-      summary: "List the organization's integration connections",
-      response: { 200: ConnectionsList, 400: ErrorBody, 401: ErrorBody },
+      summary: "List the organization's integration connections (staff)",
+      description: 'Staff only (owner, admin, instructor). Secrets are never returned.',
+      response: { 200: ConnectionsList, ...refusals(403) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -79,13 +86,15 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'connectIntegration',
       tags,
-      summary: 'Connect an integration (stores its secrets encrypted)',
+      summary: 'Connect an integration (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Stores the secrets encrypted; they are never returned. 400 when the integration is unknown or the config is invalid; 409 when the organization already has a connection to it.',
       body: ConnectRequest,
-      response: { 201: Connection, 400: ErrorBody, 401: ErrorBody, 409: ErrorBody },
+      response: { 201: Connection, ...refusals(400, 403, 409) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -100,13 +109,14 @@ export async function integrationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'getConnection',
       tags,
-      summary: 'Get a connection',
+      summary: 'Get a connection (staff)',
+      description: 'Staff only (owner, admin, instructor). Secrets are never returned.',
       params: ConnectionIdParam,
-      response: { 200: Connection, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Connection, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -124,14 +134,16 @@ export async function integrationsRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'configureConnection',
       tags,
-      summary: "Change a connection's configuration or active flag",
+      summary: "Change a connection's configuration or active flag (staff)",
+      description:
+        'Staff only (owner, admin, instructor). 400 when the config is invalid for the integration.',
       params: ConnectionIdParam,
       body: ConfigureRequest,
-      response: { 200: Connection, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Connection, ...refusals(400, 403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -149,14 +161,16 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations/:id/reconnect',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'reconnectIntegration',
       tags,
-      summary: "Replace a connection's secrets (re-authenticate)",
+      summary: "Replace a connection's secrets (staff)",
+      description:
+        'Staff only (owner, admin, instructor). The new secrets replace the stored ones.',
       params: ConnectionIdParam,
       body: ReconnectRequest,
-      response: { 200: Connection, 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 200: Connection, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -174,21 +188,16 @@ export async function integrationsRoutes(
   r.route({
     method: 'POST',
     url: '/api/integrations/:id/actions/:actionId',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'invokeConnectionAction',
       tags,
-      summary: "Invoke one of a connection's actions (e.g. a listing that feeds a picker)",
+      summary: "Invoke one of a connection's actions (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Runs the action, such as a listing that feeds a picker, with `input` checked against its input schema. 400 when the action fails or rejects the input; 404 when the connection or action does not exist; 409 when the connection is inactive.',
       params: ConnectionActionParams,
       body: InvokeActionRequest,
-      response: {
-        200: ActionInvocationResult,
-        400: ErrorBody,
-        401: ErrorBody,
-        404: ErrorBody,
-        409: ErrorBody,
-        502: ErrorBody,
-      },
+      response: { 200: ActionInvocationResult, ...refusals(400, 403, 404, 409) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);
@@ -208,13 +217,14 @@ export async function integrationsRoutes(
   r.route({
     method: 'DELETE',
     url: '/api/integrations/:id',
-    preHandler: app.requireOrgSession,
+    preHandler: staff,
     schema: {
       operationId: 'disconnectIntegration',
       tags,
-      summary: 'Disconnect an integration (destroys its stored secrets)',
+      summary: 'Disconnect an integration (staff)',
+      description: 'Staff only (owner, admin, instructor). Destroys its stored secrets.',
       params: ConnectionIdParam,
-      response: { 204: z.void(), 400: ErrorBody, 401: ErrorBody, 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const orgId = await resolveOrgId(req, reply);

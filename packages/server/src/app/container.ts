@@ -7,19 +7,20 @@ import {
   DrizzleConnectionsRepository,
   DrizzleContentRepository,
   DrizzleCredentialStore,
-  DrizzleCourseAnalyticsRepository,
-  DrizzleDashboardRepository,
+  DrizzleAdminRepository,
   DrizzleDiscussionRepository,
+  DrizzlePostRepository,
+  DrizzleChatRepository,
   DrizzleEntitlementsRepository,
   DrizzleIdentityRepository,
-  DrizzleLearnRepository,
+  DrizzleMemberRepository,
   DrizzleMembersRepository,
+  DrizzleNotificationsRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
-  DrizzleStudentsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
 import { InMemoryEventBus } from '@headless-lms/adapter-defaults/events';
@@ -43,23 +44,29 @@ import { BetterAuth } from '@headless-lms/adapter-auth';
 import { ContentService } from '@headless-lms/core/content';
 import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
-import { DiscussionServiceImpl } from '@headless-lms/core/discussion';
-import { IdentityServiceImpl, type SessionAdmin } from '@headless-lms/core/identity';
+import {
+  ChatServiceImpl,
+  DiscussionServiceImpl,
+  PostServiceImpl,
+} from '@headless-lms/core/discussion';
+import {
+  IdentityServiceImpl,
+  NotificationServiceImpl,
+  type SessionAdmin,
+} from '@headless-lms/core/identity';
 import {
   type OrgAdmin,
   OrganizationServiceImpl,
   parseRole,
 } from '@headless-lms/core/organizations';
-import { AssetsServiceImpl } from '@headless-lms/core/assets';
+import { AssetsServiceImpl, createFileUrls } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
-import { registerNotificationSubscribers } from './notifications.js';
-import { StudentsReportServiceImpl } from '@headless-lms/core/reporting/students';
-import { DashboardReportServiceImpl } from '@headless-lms/core/reporting/dashboard';
-import { CoursesReportServiceImpl } from '@headless-lms/core/reporting/courses';
-import { LearnReportServiceImpl } from '@headless-lms/core/reporting/learn';
+import { communityMail } from './community-mail.js';
+import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
+import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 
@@ -80,8 +87,8 @@ export interface AdapterOverrides {
   storage?: ObjectStorage;
   /** Resolves email templates to rendered content. Absent → fail-loudly stub. */
   templates?: TemplateRenderer;
-  /** Durable automation engine. Absent → InlineAutomationEngine (in-process, one attempt per action). */
-  workflows?: AutomationEngine;
+  /** Durable automation engine, or a factory given the automations logger. Absent → InlineAutomationEngine (in-process, one attempt per action). */
+  workflows?: AutomationEngine | ((logger: Logger) => AutomationEngine);
   /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (fetch, 10s timeout). */
   webhooks?: WebhookSender;
 }
@@ -114,9 +121,10 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Presigned URL lifetime for entitled download delivery, seconds. Mirrors
+  /** Lifetime of every signed file URL a response carries, seconds. Mirrors
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
+  memberImageMaxBytes: number;
 }
 
 /** Tuning for the transactional-outbox relay. Every field is optional; the
@@ -163,11 +171,14 @@ export interface Container {
 
   // Domains
   identity: IdentityServiceImpl;
+  notifications: NotificationServiceImpl;
   organizations: OrganizationServiceImpl;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
   discussion: DiscussionServiceImpl;
+  posts: PostServiceImpl;
+  chats: ChatServiceImpl;
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
   automations: AutomationsServiceImpl;
@@ -176,10 +187,8 @@ export interface Container {
   settings: SettingsService;
   // Reporting read layer (composed cross-context reads; owns no domain rules).
   reporting: {
-    students: StudentsReportServiceImpl;
-    dashboard: DashboardReportServiceImpl;
-    courses: CoursesReportServiceImpl;
-    learn: LearnReportServiceImpl;
+    admin: AdminReportServiceImpl;
+    member: MemberReportServiceImpl;
   };
   storage: ObjectStorage;
   mailer: Mailer;
@@ -229,11 +238,28 @@ export async function buildContainer(
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
+  const workflows = options?.adapters?.workflows;
   const automationEngine: AutomationEngine =
-    options?.adapters?.workflows ?? new InlineAutomationEngine();
+    typeof workflows === 'function'
+      ? workflows(automationsLogger)
+      : (workflows ?? new InlineAutomationEngine(automationsLogger));
   const mailer = new Mailer(templates, email, {
     ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
     studentPortalUrl: config.studentPortalUrl,
+  });
+
+  const fileUrls = createFileUrls(config.authBaseURL);
+  const assets = new AssetsServiceImpl({
+    storage,
+    repo: new DrizzleAssetsRepository(db, assetsLogger),
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      assets: new DrizzleAssetsRepository(tx, assetsLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    memberImageMaxBytes: config.memberImageMaxBytes,
+    downloadLinkExpirySeconds: config.deliveryExpirySeconds,
+    fileUrls,
+    logger: assetsLogger,
   });
 
   /*
@@ -248,18 +274,25 @@ export async function buildContainer(
     logger: logger.child({ name: 'identity' }),
     uow: identityUoW,
     mailer,
+    images: assets,
+    fileUrls,
+  });
+  const notifications = new NotificationServiceImpl({
+    repo: new DrizzleNotificationsRepository(db),
+    logger: logger.child({ name: 'notifications' }),
   });
 
   /*
    * Organization
    */
+  const organizationsRepo = new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' }));
   const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const organizations = new OrganizationServiceImpl({
-    repo: new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' })),
+    repo: organizationsRepo,
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
     uow: organizationsUow,
@@ -288,15 +321,31 @@ export async function buildContainer(
   const content = new ContentService({
     repo: new DrizzleContentRepository(db, contentLogger),
     uow: contentUow,
+    libraryAssets: assets,
+    files: assets,
+    fileUrls,
     logger: contentLogger,
   });
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
     entitlements: new DrizzleEntitlementsRepository(tx, entitlementsLogger),
+    spaces: new DrizzleContentRepository(tx, contentLogger),
     outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
+  const authors = {
+    roleOf: async (orgId: string, orgUserId: string) => {
+      const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+      return row?.role ?? null;
+    },
+    rolesOf: async (orgId: string, orgUserIds: string[]) => {
+      const rows = await organizationsRepo.findOrgUsersByIds(orgId, orgUserIds);
+      return Object.fromEntries(rows.map((row) => [row.id, row.role]));
+    },
+  };
+  const entitlementsRepo = new DrizzleEntitlementsRepository(db, entitlementsLogger);
   const entitlements = new EntitlementsServiceImpl({
-    repo: new DrizzleEntitlementsRepository(db, entitlementsLogger),
+    repo: entitlementsRepo,
+    content,
     uow: entitlementsUow,
     logger: entitlementsLogger,
   });
@@ -309,14 +358,50 @@ export async function buildContainer(
   const progress = new ProgressServiceImpl({
     repo: new DrizzleProgressRepository(db, progressLogger),
     content,
+    access: entitlements,
     uow: progressUow,
     logger: progressLogger,
   });
 
+  const postReads = new DrizzlePostRepository(db, discussionLogger);
+  const discussionReads = new DrizzleDiscussionRepository(db, discussionLogger);
+  const chatReads = new DrizzleChatRepository(db, discussionLogger);
+  const posts = new PostServiceImpl({
+    repo: postReads,
+    access: entitlements,
+    content,
+    authors,
+    profiles: discussionReads,
+    comments: discussionReads,
+    images: assets,
+    fileUrls,
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      posts: new DrizzlePostRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    logger: discussionLogger,
+  });
+  const chats = new ChatServiceImpl({
+    repo: chatReads,
+    access: entitlements,
+    content,
+    authors,
+    profiles: discussionReads,
+    images: assets,
+    fileUrls,
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      chats: new DrizzleChatRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
+    logger: discussionLogger,
+  });
   const discussion = new DiscussionServiceImpl({
-    repo: new DrizzleDiscussionRepository(db, discussionLogger),
+    repo: discussionReads,
     access: entitlements,
     content: content,
+    posts,
+    communities: { listIds: (orgId) => content.listPublishedCommunityIds(orgId) },
+    fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -324,36 +409,21 @@ export async function buildContainer(
     settings,
     logger: discussionLogger,
   });
-  const assets = new AssetsServiceImpl({
-    storage,
-    repo: new DrizzleAssetsRepository(db, assetsLogger),
-    uow: new DrizzleUnitOfWork(db, (tx) => ({
-      assets: new DrizzleAssetsRepository(tx, assetsLogger),
-      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
-    })),
-    logger: assetsLogger,
-  });
 
   const reporting = {
-    students: new StudentsReportServiceImpl({
-      repo: new DrizzleStudentsRepository(db, reportingLogger),
-      logger: reportingLogger,
+    admin: new AdminReportServiceImpl({
+      repo: new DrizzleAdminRepository(db, reportingLogger),
     }),
-    dashboard: new DashboardReportServiceImpl({
-      repo: new DrizzleDashboardRepository(db, reportingLogger),
-      logger: reportingLogger,
-    }),
-    courses: new CoursesReportServiceImpl({
-      repo: new DrizzleCourseAnalyticsRepository(db, reportingLogger),
-      logger: reportingLogger,
-    }),
-    learn: new LearnReportServiceImpl({
-      reader: new DrizzleLearnRepository(db, reportingLogger),
+    member: new MemberReportServiceImpl({
+      repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
-      assets,
-      deliveryExpirySeconds: config.deliveryExpirySeconds,
-      logger: reportingLogger,
+      files: assets,
+      fileUrls,
+      access: entitlements,
+      notifications,
+      posts,
+      chats,
     }),
   };
 
@@ -394,21 +464,39 @@ export async function buildContainer(
   // Emails triggered by row-shaped events resolve their recipient and content
   // details at send time — the event carries ids only.
   const mailerLookups: MailerLookups = {
-    orgUserEmail: async (orgId, orgUserId) =>
-      (await reporting.students.get(orgId, orgUserId))?.email ?? null,
+    orgUserPerson: async (orgId, orgUserId) => {
+      const orgUser = await organizationsRepo.findOrgUserById(orgId, orgUserId);
+      const user = orgUser ? await identity.getUserById(orgUser.userId) : null;
+      return user ? { userId: user.id, email: user.email } : null;
+    },
     contentInfo: async (orgId, contentId) => {
       const course = await content.getCourse(orgId, contentId);
       if (course) {
         return { id: course.id, title: course.title, type: course.type };
       }
       const download = await content.getDownload(orgId, contentId);
-      return download ? { id: download.id, title: download.title, type: download.type } : null;
+      if (download) {
+        return { id: download.id, title: download.title, type: download.type };
+      }
+      const community = await content.getCommunity(orgId, contentId);
+      return community ? { id: community.id, title: community.title, type: community.type } : null;
     },
   };
 
+  const runsRepo = new DrizzleAutomationRunsRepository(db, automationsLogger);
+  const wired = communityMail({
+    content,
+    entitlements,
+    organizations,
+    identity,
+    posts,
+    discussion,
+    chats,
+    assets,
+  });
   const automations = new AutomationsServiceImpl({
     repo: new DrizzleAutomationsRepository(db, automationsLogger),
-    runsRepo: new DrizzleAutomationRunsRepository(db, automationsLogger),
+    runsRepo,
     uow: automationsUow,
     engine: automationEngine,
     mailer,
@@ -416,14 +504,15 @@ export async function buildContainer(
     integrations,
     credentials: credentialStore,
     webhooks: options?.adapters?.webhooks ?? new FetchWebhookSender(),
+    mail: wired.mail,
+    grants: wired.grants,
+    desk: notifications,
+    scheduledWork: wired.scheduledWork,
     logger: automationsLogger,
   });
   automationEngine.register(automations);
 
   const eventBus = new InMemoryEventBus();
-  registerNotificationSubscribers(eventBus, mailer, mailerLookups);
-  // handle() never throws — the EventBus fans out to every subscriber
-  // sequentially, and a rejection here would break sibling subscribers.
   eventBus.subscribeAll((event) => automations.handle(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
@@ -562,6 +651,7 @@ export async function buildContainer(
     auth,
     mcp,
     identity,
+    notifications,
     organizations,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.
     orgProvider: auth,
@@ -569,6 +659,8 @@ export async function buildContainer(
     entitlements,
     progress,
     discussion,
+    posts,
+    chats,
     assets,
     integrations,
     automations,

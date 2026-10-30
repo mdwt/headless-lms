@@ -23,6 +23,18 @@ export function loadStorageConfig(): MinioStorageConfig | undefined {
   };
 }
 
+export function parseMemberImageMaxBytes(): number {
+  const raw = process.env.MEMBER_IMAGE_MAX_BYTES;
+  if (raw === undefined || raw === "") {
+    return 10 * 1024 * 1024;
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`invalid MEMBER_IMAGE_MAX_BYTES "${raw}" (expected a positive integer)`);
+  }
+  return value;
+}
+
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
@@ -59,7 +71,8 @@ export function loadServerConfig(): ServerConfig {
     clientOrigins: parseClientOrigins(),
     // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
     // default must never silently extend entitled/paywalled link lifetimes.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
+    memberImageMaxBytes: parseMemberImageMaxBytes(),
     container,
   };
 }

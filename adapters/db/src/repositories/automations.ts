@@ -4,7 +4,7 @@
 // column of their own in the domain type (mirrors the `Entitlement` shape) —
 // `AutomationRun` is the one exception, since it's the run's own `orgId`
 // field the service reads back off `handle`'s event.
-import { and, arrayContains, asc, desc, eq, ne, sql, type SQL } from "drizzle-orm";
+import { and, arrayContains, asc, desc, eq, gte, ne, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../client.js";
 import type {
   Automation,
@@ -18,6 +18,7 @@ import type {
   Page,
   UpdateAutomationInput,
 } from "@headless-lms/core/automations";
+import type { ScheduledAutomation } from "@headless-lms/core/types";
 import { automations, automationRuns } from "../schema/index.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
@@ -32,6 +33,8 @@ const automationSelection = {
   triggers: automations.triggers,
   actions: automations.actions,
   enabled: automations.enabled,
+  filter: automations.filter,
+  source: automations.source,
   createdAt: automations.createdAt,
   updatedAt: automations.updatedAt,
 };
@@ -45,6 +48,8 @@ interface AutomationRow {
   triggers: string[];
   actions: Automation["actions"];
   enabled: boolean;
+  filter: Automation["filter"];
+  source: Automation["source"];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +64,8 @@ function toAutomation(row: AutomationRow): Automation {
     triggers: row.triggers,
     actions: row.actions,
     enabled: row.enabled,
+    filter: row.filter,
+    source: row.source,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -80,6 +87,8 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
         description: input.description,
         triggers: input.triggers,
         actions: input.actions,
+        filter: input.filter ?? null,
+        source: input.source ?? "user",
       })
       .returning({ id: automations.id });
     if (!inserted) {
@@ -90,6 +99,24 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
       throw new Error("failed to load created automation");
     }
     return created;
+  }
+
+  async insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null> {
+    const [inserted] = await this.db
+      .insert(automations)
+      .values({
+        orgId,
+        name: input.name,
+        kind: input.kind,
+        description: input.description,
+        triggers: input.triggers,
+        actions: input.actions,
+        filter: input.filter ?? null,
+        source: "system",
+      })
+      .onConflictDoNothing()
+      .returning({ id: automations.id });
+    return inserted ? this.findById(orgId, inserted.id) : null;
   }
 
   async update(
@@ -112,6 +139,9 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
     }
     if (patch.enabled !== undefined) {
       set.enabled = patch.enabled;
+    }
+    if (patch.filter !== undefined) {
+      set.filter = patch.filter;
     }
 
     const [updated] = await this.db
@@ -162,6 +192,36 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
       .where(and(eq(automations.orgId, orgId), arrayContains(automations.triggers, [trigger])))
       .orderBy(desc(automations.createdAt));
     return rows.map(toAutomation);
+  }
+
+  async listSchedules(): Promise<ScheduledAutomation[]> {
+    const rows = await this.db
+      .select({
+        orgId: automations.orgId,
+        id: automations.id,
+        triggers: automations.triggers,
+      })
+      .from(automations)
+      .where(
+        and(
+          eq(automations.enabled, true),
+          sql`exists (select 1 from unnest(${automations.triggers}) as t(trigger) where t.trigger like 'schedule:%')`,
+        ),
+      );
+    const schedules: ScheduledAutomation[] = [];
+    for (const row of rows) {
+      for (const trigger of row.triggers) {
+        if (!trigger.startsWith("schedule:")) {
+          continue;
+        }
+        schedules.push({
+          orgId: row.orgId,
+          automationId: row.id,
+          cron: trigger.slice("schedule:".length),
+        });
+      }
+    }
+    return schedules;
   }
 }
 
@@ -338,6 +398,37 @@ export class DrizzleAutomationRunsRepository implements AutomationRunsRepository
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  async recentRecipients(
+    orgId: string,
+    automationId: string,
+    chatId: string,
+    since: Date,
+  ): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        actionResults: automationRuns.actionResults,
+      })
+      .from(automationRuns)
+      .where(
+        and(
+          eq(automationRuns.orgId, orgId),
+          eq(automationRuns.automationId, automationId),
+          eq(automationRuns.status, "completed"),
+          gte(automationRuns.finishedAt, since),
+          sql`${automationRuns.event}->'data'->>'chatId' = ${chatId}`,
+        ),
+      );
+    const ids: string[] = [];
+    for (const row of rows) {
+      for (const result of row.actionResults) {
+        if (result.recipients) {
+          ids.push(...result.recipients);
+        }
+      }
+    }
+    return [...new Set(ids)];
   }
 }
 translateDbErrors(DrizzleAutomationsRepository);

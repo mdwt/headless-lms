@@ -9,7 +9,7 @@ import {
   UpdateCourse,
   UpdateModule,
 } from '../../schemas/index.js';
-import { defineTool, type Tool } from '../tool.js';
+import { actor, defineTool, type Tool } from '../tool.js';
 
 export const courseTools: Tool[] = [
   defineTool({
@@ -120,7 +120,7 @@ export const courseTools: Tool[] = [
     openWorld: false,
     input: CourseIdPathParam,
     call: ({ courseId }, { container, scope }) =>
-      container.content.deleteCourse(scope.orgId, courseId),
+      container.content.deleteCourse(scope.orgId, courseId, actor(scope)),
   }),
   defineTool({
     name: 'delete_module',

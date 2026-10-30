@@ -16,10 +16,11 @@ export interface ServerConfig {
    *  Unset → on. Turn off for a quiet dev console; app-level logs are
    *  unaffected either way. */
   requestLogging?: boolean;
-  /** Presigned URL lifetime for entitled download delivery, seconds. Separate
+  /** Lifetime of every signed file URL a response carries, seconds. Separate
    *  from the storage adapter's general download expiry so raising that one
    *  can't silently extend paywalled link lifetimes. */
   deliveryExpirySeconds: number;
+  memberImageMaxBytes: number;
   /** Everything the composition container needs to wire adapters + services. */
   container: Config;
 }

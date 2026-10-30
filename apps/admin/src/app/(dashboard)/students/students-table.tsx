@@ -18,7 +18,7 @@ import { fullName } from "@/lib/format";
 
 import { studentColumns } from "./_components/student-columns";
 import { AddStudentDialog } from "./_components/add-student-dialog";
-import { deleteStudentAction } from "./actions";
+import { deleteStudentAction, makeModeratorAction } from "./actions";
 
 // Students table (client): rows come in as props.
 function StudentsTableInner({
@@ -62,7 +62,21 @@ function StudentsTableInner({
     });
   }, [toDelete]);
 
-  const columns = useMemo(() => studentColumns(goToStudent, setToDelete), [goToStudent]);
+  const makeModerator = useCallback((student: Student) => {
+    startTransition(async () => {
+      try {
+        await makeModeratorAction(student.id);
+        toast.success(`${fullName(student)} is now a moderator`);
+      } catch (e) {
+        toast.error("Couldn't give the moderator role", { description: (e as Error).message });
+      }
+    });
+  }, []);
+
+  const columns = useMemo(
+    () => studentColumns(goToStudent, makeModerator, setToDelete),
+    [goToStudent, makeModerator],
+  );
 
   // Defense-in-depth: the Server Component already 404s non-managers.
   if (!isManager(user.role)) return <ForbiddenView />;

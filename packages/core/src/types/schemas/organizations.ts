@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { idSchema, emailSchema } from './shared.js';
 
-export const roleSchema = z.enum(['owner', 'admin', 'instructor', 'student']);
+export const roleSchema = z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']);
 export type Role = z.infer<typeof roleSchema>;
 
 export const orgUserStatusSchema = z.enum(['invited', 'active']);
 export type OrgUserStatus = z.infer<typeof orgUserStatusSchema>;
 
-export const inviteRoleSchema = z.enum(['admin', 'instructor', 'student']);
+export const inviteRoleSchema = z.enum(['admin', 'instructor', 'moderator', 'student']);
 export type InviteRole = z.infer<typeof inviteRoleSchema>;
 
 export const organizationSchema = z

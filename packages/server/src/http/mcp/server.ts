@@ -3,7 +3,7 @@ import { toolInputSchema } from './input-schema.js';
 import { runTool, type Tool, type ToolContext } from './tool.js';
 
 export const MCP_INSTRUCTIONS =
-  'Manage one organization of a headless LMS: courses and their modules, downloads, bundles, media, students and their access, analytics, workflows and webhooks, and comment moderation. You only see the tools this connection was granted. Lists that take page and pageSize are paginated. Activity content cannot be written here.';
+  'Manage one organization of a headless LMS: courses and their modules, downloads, bundles, media, students and their access, analytics, workflows and webhooks, comment moderation, and communities with their spaces, members and moderation. You only see the tools this connection was granted. Lists that take page and pageSize are paginated. Activity content cannot be written here.';
 
 export function createToolServer(ctx: ToolContext, tools: readonly Tool[]): McpServer {
   const server = new McpServer(

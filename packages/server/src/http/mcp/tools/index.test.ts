@@ -58,10 +58,44 @@ const NAMES = [
   'dismiss_comment_reports',
   'reply_to_comment',
   'remove_comment',
+  'list_communities',
+  'list_spaces',
+  'create_community',
+  'update_community',
+  'update_community_messaging',
+  'create_space',
+  'update_space',
+  'reorder_spaces',
+  'set_space_topics',
+  'add_space_link',
+  'reorder_space_links',
+  'remove_space_link',
+  'delete_space',
+  'delete_community',
+  'get_community_analytics',
+  'list_community_members',
+  'list_space_members',
+  'add_space_member',
+  'invite_space_member',
+  'approve_space_request',
+  'decline_space_request',
+  'remove_space_member',
+  'get_space_moderation_queue',
+  'get_message_moderation_queue',
+  'approve_post',
+  'dismiss_post_flags',
+  'remove_post',
+  'restore_post',
+  'dismiss_post_comment_flags',
+  'remove_post_comment',
+  'restore_post_comment',
+  'dismiss_message_flags',
+  'lock_chat',
+  'unlock_chat',
 ];
 
 describe('tool registry', () => {
-  it('is exactly the 54 designed tools, in order', () => {
+  it('is exactly the 88 designed tools, in order', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual(NAMES);
   });
 

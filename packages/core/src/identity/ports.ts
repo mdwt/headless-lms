@@ -1,6 +1,26 @@
-import type { User } from './model.js';
+import type {
+  Notification,
+  NotificationKind,
+  NotificationPreference,
+  User,
+  UserProfile,
+  UserProfileView,
+} from './model.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
+import type { JsonValue } from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+
+export interface UpdateProfileInput {
+  displayName?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  imageAssetId?: string | null;
+  extra?: JsonValue;
+}
+
+export interface ProfilePatch extends UpdateProfileInput {
+  imageAssetOrgId?: string | null;
+}
 
 export interface UserProvisioner {
   createUser(input: CreateUserInput): Promise<User>;
@@ -38,8 +58,76 @@ export interface SessionAdmin {
   stampActiveOrganization(headers: AuthHeaders, orgId: string): Promise<boolean>;
 }
 
+export interface NewNotification {
+  userId: string;
+  kind: NotificationKind;
+  actorOrgUserId: string | null;
+  communityId: string | null;
+  spaceId: string | null;
+  postId: string | null;
+  commentId: string | null;
+  chatId: string | null;
+  messageId: string | null;
+}
+
+export interface NotificationsQuery {
+  page: number;
+  pageSize: number;
+}
+
+export interface NotificationPage {
+  rows: Notification[];
+  total: number;
+  page: number;
+  pageSize: number;
+  unreadCount: number;
+}
+
+/** What automations calls to tell people. */
+export interface NotificationDesk {
+  notify(orgId: string, notifications: NewNotification[]): Promise<void>;
+  preferencesFor(
+    orgId: string,
+    userIds: string[],
+    kind: NotificationKind,
+  ): Promise<Record<string, NotificationPreference>>;
+}
+
+/** A person's own notifications and preferences. */
+export interface NotificationInbox {
+  listNotifications(
+    orgId: string,
+    userId: string,
+    query: NotificationsQuery,
+  ): Promise<NotificationPage>;
+  markNotificationRead(
+    orgId: string,
+    userId: string,
+    notificationId: string,
+  ): Promise<Notification>;
+  markAllNotificationsRead(orgId: string, userId: string): Promise<{ updated: number }>;
+  notificationPreferences(orgId: string, userId: string): Promise<NotificationPreference[]>;
+  setNotificationPreferences(
+    orgId: string,
+    userId: string,
+    preferences: NotificationPreference[],
+  ): Promise<NotificationPreference[]>;
+}
+
+export interface NotificationService extends NotificationDesk, NotificationInbox {}
+
 // Inbound port (use cases the service exposes).
-export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {}
+export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
+  profileOf(orgId: string, userId: string): Promise<UserProfileView>;
+  displayName(userId: string | null): Promise<string>;
+  updateProfile(
+    orgId: string,
+    userId: string,
+    actorUserId: string,
+    orgUserId: string,
+    patch: UpdateProfileInput,
+  ): Promise<UserProfileView>;
+}
 
 // Outbound port (persistence contract the repository fulfils).
 export interface IdentityRepository {
@@ -48,6 +136,33 @@ export interface IdentityRepository {
   findUserById(id: string): Promise<User | null>;
   findUserByExternalId(externalId: string): Promise<User | null>;
   findUserByEmail(email: string): Promise<User | null>;
+  findProfile(userId: string): Promise<UserProfile | null>;
+  upsertProfile(userId: string, patch: ProfilePatch): Promise<UserProfile>;
+}
+
+export interface NotificationsRepository {
+  insert(orgId: string, rows: Notification[]): Promise<void>;
+  page(
+    orgId: string,
+    userId: string,
+    query: NotificationsQuery,
+  ): Promise<{ rows: Notification[]; total: number; unreadCount: number }>;
+  markRead(
+    orgId: string,
+    userId: string,
+    notificationId: string,
+    at: Date,
+  ): Promise<Notification | null>;
+  markAllRead(orgId: string, userId: string, at: Date): Promise<number>;
+  preferences(
+    orgId: string,
+    userIds: string[],
+  ): Promise<(NotificationPreference & { userId: string })[]>;
+  upsertPreferences(
+    orgId: string,
+    userId: string,
+    preferences: NotificationPreference[],
+  ): Promise<void>;
 }
 
 export interface IdentityTxScope {

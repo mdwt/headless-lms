@@ -17,6 +17,29 @@ import EmailVerification, { subject as emailVerification } from "./emails/email-
 import AccessGranted, { subject as accessGranted } from "./emails/access-granted.js";
 import AccessRevoked, { subject as accessRevoked } from "./emails/access-revoked.js";
 import CourseCompleted, { subject as courseCompleted } from "./emails/course-completed.js";
+import {
+  addedToGroupChat,
+  digest,
+  invitedToSpace,
+  joinRequest,
+  membershipEnded,
+  membershipEndingSoon,
+  messageRequest,
+  messageWasFlagged,
+  newCommentOnPost,
+  newMessage,
+  newPostInSpace,
+  postAwaitingReview,
+  replyToYourComment,
+  requestApproved,
+  requestDeclined,
+  somethingWasFlagged,
+  welcomeToCommunity,
+  youAreNowAModerator,
+  yourCommentWasRemoved,
+  yourPostWasPublished,
+  yourPostWasRemoved,
+} from "./emails/community.js";
 
 interface Entry<K extends EmailTemplateId> {
   subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;
@@ -34,6 +57,57 @@ const registry: { [K in EmailTemplateId]: Entry<K> } = {
   accessGranted: { subject: accessGranted, Component: AccessGranted },
   accessRevoked: { subject: accessRevoked, Component: AccessRevoked },
   courseCompleted: { subject: courseCompleted, Component: CourseCompleted },
+  welcomeToCommunity: {
+    subject: welcomeToCommunity.subject,
+    Component: welcomeToCommunity.Component,
+  },
+  membershipEndingSoon: {
+    subject: membershipEndingSoon.subject,
+    Component: membershipEndingSoon.Component,
+  },
+  membershipEnded: { subject: membershipEnded.subject, Component: membershipEnded.Component },
+  newPostInSpace: { subject: newPostInSpace.subject, Component: newPostInSpace.Component },
+  yourPostWasPublished: {
+    subject: yourPostWasPublished.subject,
+    Component: yourPostWasPublished.Component,
+  },
+  yourPostWasRemoved: {
+    subject: yourPostWasRemoved.subject,
+    Component: yourPostWasRemoved.Component,
+  },
+  newCommentOnPost: { subject: newCommentOnPost.subject, Component: newCommentOnPost.Component },
+  replyToYourComment: {
+    subject: replyToYourComment.subject,
+    Component: replyToYourComment.Component,
+  },
+  yourCommentWasRemoved: {
+    subject: yourCommentWasRemoved.subject,
+    Component: yourCommentWasRemoved.Component,
+  },
+  requestApproved: { subject: requestApproved.subject, Component: requestApproved.Component },
+  requestDeclined: { subject: requestDeclined.subject, Component: requestDeclined.Component },
+  invitedToSpace: { subject: invitedToSpace.subject, Component: invitedToSpace.Component },
+  messageRequest: { subject: messageRequest.subject, Component: messageRequest.Component },
+  newMessage: { subject: newMessage.subject, Component: newMessage.Component },
+  addedToGroupChat: { subject: addedToGroupChat.subject, Component: addedToGroupChat.Component },
+  youAreNowAModerator: {
+    subject: youAreNowAModerator.subject,
+    Component: youAreNowAModerator.Component,
+  },
+  digest: { subject: digest.subject, Component: digest.Component },
+  postAwaitingReview: {
+    subject: postAwaitingReview.subject,
+    Component: postAwaitingReview.Component,
+  },
+  joinRequest: { subject: joinRequest.subject, Component: joinRequest.Component },
+  somethingWasFlagged: {
+    subject: somethingWasFlagged.subject,
+    Component: somethingWasFlagged.Component,
+  },
+  messageWasFlagged: {
+    subject: messageWasFlagged.subject,
+    Component: messageWasFlagged.Component,
+  },
 };
 
 export class ReactEmailTemplateRenderer implements TemplateRenderer {

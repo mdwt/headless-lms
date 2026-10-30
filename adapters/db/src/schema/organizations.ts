@@ -37,7 +37,9 @@ export const orgUsers = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
-    role: text("role", { enum: ["owner", "admin", "instructor", "student"] }).notNull(),
+    role: text("role", {
+      enum: ["owner", "admin", "instructor", "moderator", "student"],
+    }).notNull(),
     // 'invited' from the moment an admin adds a student until they accept.
     // Staff rows are mirrored from an auth member record that only exists once
     // they have joined, so they are created 'active'.
@@ -67,7 +69,7 @@ export const invites = pgTable(
       .notNull()
       .$defaultFn(() => genId("invite")),
     email: text("email").notNull(),
-    role: text("role", { enum: ["admin", "instructor", "student"] }).notNull(),
+    role: text("role", { enum: ["admin", "instructor", "moderator", "student"] }).notNull(),
     status: text("status", {
       enum: ["pending", "accepted", "rejected", "canceled"],
     }).notNull(),

@@ -6,20 +6,20 @@ describe('classifyError', () => {
   it('maps domain errors to status, code and message', () => {
     expect(classifyError(new NotFoundError('Course', 'crs_1'))).toMatchObject({
       status: 404,
-      code: 'not_found',
+      error: 'not_found',
     });
     expect(classifyError(new ConflictError('taken'))).toEqual({
       status: 409,
-      code: 'conflict',
+      error: 'conflict',
       message: 'taken',
     });
   });
-  it('passes through 4xx errors that carry a status code', () => {
+  it('answers other 4xx errors without echoing their message', () => {
     expect(
       classifyError(Object.assign(new Error('bad'), { statusCode: 400, code: 'FST_ERR' })),
-    ).toEqual({ status: 400, code: 'FST_ERR', message: 'bad' });
+    ).toEqual({ status: 400, error: 'bad_request', message: 'The request could not be processed' });
   });
-  it('returns null for unknown errors', () => {
-    expect(classifyError(new Error('boom'))).toBeNull();
+  it('returns nothing for unknown errors', () => {
+    expect(classifyError(new Error('boom'))).toBeUndefined();
   });
 });

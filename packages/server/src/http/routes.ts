@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { Container } from '../app/container.js';
+import { communitiesRoutes } from './routes/communities.js';
+import { communityModerationRoutes } from './routes/community-moderation.js';
 import { coursesRoutes } from './routes/courses.js';
 import { downloadsRoutes } from './routes/downloads.js';
 import { bundlesRoutes } from './routes/bundles.js';
-import { learnRoutes } from './routes/learn/index.js';
+import { memberRoutes } from './routes/member/index.js';
 import { discussionRoutes } from './routes/discussion.js';
 import { activitiesRoutes } from './routes/activities.js';
 import { studentsRoutes } from './routes/students.js';
@@ -28,9 +30,11 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
   app.register(async (instance) => {
     instance.addHook('onRequest', instance.requireOrgSession);
     await coursesRoutes(instance, container);
+    await communitiesRoutes(instance, container);
+    await communityModerationRoutes(instance, container);
     await downloadsRoutes(instance, container);
     await bundlesRoutes(instance, container);
-    await learnRoutes(instance, container);
+    await memberRoutes(instance, container);
     await discussionRoutes(instance, container);
     await activitiesRoutes(instance, container);
     await studentsRoutes(instance, container);

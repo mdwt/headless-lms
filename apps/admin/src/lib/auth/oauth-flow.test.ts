@@ -147,6 +147,9 @@ describe("scope presentation", () => {
       "bundles:write",
       "access:write",
       "comments:moderate",
+      "communities:write",
+      "community_members:write",
+      "community_moderation:write",
     ]);
   });
   it("orders the resources as the catalogue does", () => {
@@ -160,6 +163,9 @@ describe("scope presentation", () => {
       "analytics=Analytics",
       "automations=Workflows and webhooks",
       "comments=Comments",
+      "communities=Communities",
+      "community_members=Community members",
+      "community_moderation=Community moderation",
     ]);
   });
 });

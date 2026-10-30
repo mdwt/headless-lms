@@ -4,14 +4,14 @@
 import { and, eq, ne } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
-  isStaffRole,
+  isRole,
   STUDENT_ROLE,
   type Member,
   type MemberRecord,
   type MembersQuery,
   type MembersRepository,
   type Page,
-  type StaffRole,
+  type TeamRole,
 } from "@headless-lms/core/organizations";
 import { orgUsers, invites } from "../schema/organizations.js";
 import { users } from "../schema/identity.js";
@@ -21,10 +21,7 @@ import { noopLogger } from "@headless-lms/core/shared/logger";
 import { orgUserProfileColumns } from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
 
-// The member surface is staff-only; a student org user never reaches here
-// (the queries below exclude it), so an unrecognized role falls back to the
-// least-privileged staff role rather than widening to the full Role union.
-const roleOf = (t: string): StaffRole => (isStaffRole(t) ? t : "instructor");
+const roleOf = (t: string): TeamRole => (isRole(t) && t !== STUDENT_ROLE ? t : "instructor");
 
 function toMember(r: MemberRecord): Member {
   return {

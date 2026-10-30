@@ -1,9 +1,11 @@
 export type {
   Asset,
   AssetKind,
+  AssetSource,
   AssetStatus,
+  AssetUrls,
+  AssetView,
   AssetsQuery,
-  DownloadTicket,
   RequestUploadInput,
   UploadTicket,
 } from './schemas/assets.js';

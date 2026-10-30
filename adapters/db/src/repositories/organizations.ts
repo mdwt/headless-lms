@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   parseRole,
@@ -10,6 +10,7 @@ import {
   type Organization,
   type OrganizationsRepository,
   type OrgUser,
+  type Role,
   type UpdateOrganizationInput,
   type UpdateOrgUserInput,
 } from "@headless-lms/core/organizations";
@@ -17,7 +18,7 @@ import { invites, organizations, orgUsers } from "../schema/organizations.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { ConflictError } from "@headless-lms/core/shared/errors";
-import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
+import { isUniqueViolation, pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
 const INVITE_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InviteStatus = (typeof INVITE_STATUSES)[number];
@@ -206,6 +207,35 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return row ? { ...row, role: parseRole(row.role) } : null;
   }
 
+  async findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select()
+      .from(orgUsers)
+      .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, ids)));
+    return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
+  }
+
+  async findOrgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]> {
+    if (roles.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({ id: orgUsers.id })
+      .from(orgUsers)
+      .where(
+        and(
+          eq(orgUsers.orgId, orgId),
+          eq(orgUsers.status, "active"),
+          inArray(orgUsers.role, roles),
+        ),
+      )
+      .orderBy(orgUsers.id);
+    return rows.map((row) => row.id);
+  }
+
   async createOrgUser(input: CreateOrgUserInput): Promise<OrgUser> {
     try {
       const [row] = await this.db
@@ -270,12 +300,23 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   }
 
   async deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null> {
-    const [row] = await this.db
-      .delete(orgUsers)
-      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
-      .returning();
-
-    return row ?? null;
+    try {
+      const [row] = await this.db
+        .delete(orgUsers)
+        .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
+        .returning();
+      return row ?? null;
+    } catch (err) {
+      if (pgErrorFields(err)?.code === "23503") {
+        throw Object.assign(
+          new ConflictError(
+            "This person has written posts, comments or messages and cannot be deleted",
+          ),
+          { cause: err },
+        );
+      }
+      throw err;
+    }
   }
 }
 translateDbErrors(DrizzleOrganizationsRepository);

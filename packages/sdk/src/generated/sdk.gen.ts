@@ -10,34 +10,83 @@ import {
 } from "./client";
 import { client } from "./client.gen";
 import type {
+  AcceptChatErrors,
+  AcceptChatResponses,
   AcceptInviteErrors,
   AcceptInviteResponses,
+  AcceptSpaceInviteErrors,
+  AcceptSpaceInviteResponses,
   AddBundleItemErrors,
   AddBundleItemResponses,
+  AddChatParticipantErrors,
+  AddChatParticipantResponses,
+  AddCommunitySpaceMemberErrors,
+  AddCommunitySpaceMemberResponses,
   AddDownloadAssetErrors,
   AddDownloadAssetResponses,
+  AddSpaceLinkErrors,
+  AddSpaceLinkResponses,
+  AddSpaceMemberErrors,
+  AddSpaceMemberResponses,
+  ApproveCommunityPostErrors,
+  ApproveCommunityPostResponses,
+  ApproveCommunitySpaceRequestErrors,
+  ApproveCommunitySpaceRequestResponses,
+  ApprovePostErrors,
+  ApprovePostResponses,
+  ApproveSpaceRequestErrors,
+  ApproveSpaceRequestResponses,
+  BlockMemberErrors,
+  BlockMemberResponses,
+  BookmarkPostErrors,
+  BookmarkPostResponses,
   ClearCommentReactionErrors,
   ClearCommentReactionResponses,
+  ClearMessageReactionErrors,
+  ClearMessageReactionResponses,
+  ClearPostReactionErrors,
+  ClearPostReactionResponses,
+  ClosePostCommentsErrors,
+  ClosePostCommentsResponses,
   ConfigureConnectionErrors,
   ConfigureConnectionResponses,
   ConfirmAssetErrors,
   ConfirmAssetResponses,
   ConnectIntegrationErrors,
   ConnectIntegrationResponses,
+  CreateActivityErrors,
   CreateActivityResponses,
   CreateApiKeyErrors,
   CreateApiKeyResponses,
+  CreateAutomationErrors,
   CreateAutomationResponses,
   CreateBundleErrors,
   CreateBundleResponses,
+  CreateCommunityErrors,
+  CreateCommunityResponses,
+  CreateCourseErrors,
   CreateCourseResponses,
+  CreateDownloadErrors,
   CreateDownloadResponses,
   CreateInviteErrors,
   CreateInviteResponses,
+  CreateModuleErrors,
   CreateModuleResponses,
+  CreateOrganizationErrors,
   CreateOrganizationResponses,
+  CreatePostCommentErrors,
+  CreatePostCommentResponses,
+  CreatePostErrors,
+  CreatePostResponses,
+  CreateSpaceErrors,
+  CreateSpaceResponses,
   CreateWebhookErrors,
   CreateWebhookResponses,
+  DeclineCommunitySpaceRequestErrors,
+  DeclineCommunitySpaceRequestResponses,
+  DeclineSpaceRequestErrors,
+  DeclineSpaceRequestResponses,
+  DeleteActivityErrors,
   DeleteActivityResponses,
   DeleteApiKeyErrors,
   DeleteApiKeyResponses,
@@ -47,13 +96,22 @@ import type {
   DeleteAutomationResponses,
   DeleteBundleErrors,
   DeleteBundleResponses,
+  DeleteChatMessageErrors,
+  DeleteChatMessageResponses,
   DeleteCommentErrors,
   DeleteCommentResponses,
+  DeleteCommunityErrors,
+  DeleteCommunityResponses,
   DeleteCourseErrors,
   DeleteCourseResponses,
   DeleteDownloadErrors,
   DeleteDownloadResponses,
+  DeleteMemberUploadErrors,
+  DeleteMemberUploadResponses,
+  DeleteModuleErrors,
   DeleteModuleResponses,
+  DeleteSpaceErrors,
+  DeleteSpaceResponses,
   DeleteStudentErrors,
   DeleteStudentResponses,
   DeleteWebhookErrors,
@@ -62,16 +120,35 @@ import type {
   DisconnectIntegrationResponses,
   DismissCommentReportsErrors,
   DismissCommentReportsResponses,
+  DownloadLibraryFileErrors,
+  EditChatMessageErrors,
+  EditChatMessageResponses,
   EditCommentErrors,
   EditCommentResponses,
-  GetAssetDownloadUrlErrors,
-  GetAssetDownloadUrlResponses,
+  FinalizeMemberUploadErrors,
+  FinalizeMemberUploadResponses,
+  FlagMessageErrors,
+  FlagMessageResponses,
+  FlagPostErrors,
+  FlagPostResponses,
+  FollowPostErrors,
+  FollowPostResponses,
+  GetActivityFileErrors,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
   GetAutomationResponses,
   GetBundleErrors,
   GetBundleResponses,
+  GetCommunityAnalyticsErrors,
+  GetCommunityAnalyticsResponses,
+  GetCommunityErrors,
+  GetCommunityMessageQueueErrors,
+  GetCommunityMessageQueueResponses,
+  GetCommunityResponses,
+  GetCommunitySpaceQueueErrors,
+  GetCommunitySpaceQueueResponses,
+  GetCommunityThumbnailErrors,
   GetConnectionErrors,
   GetConnectionResponses,
   GetCourseAnalyticsErrors,
@@ -80,21 +157,52 @@ import type {
   GetCourseEnrollmentSeriesResponses,
   GetCourseErrors,
   GetCourseResponses,
+  GetCourseThumbnailErrors,
   GetDownloadErrors,
+  GetDownloadFileErrors,
   GetDownloadResponses,
+  GetDownloadThumbnailErrors,
+  GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
   GetInviteErrors,
   GetInviteResponses,
-  GetLearnCourseErrors,
-  GetLearnCourseProgressErrors,
-  GetLearnCourseProgressResponses,
-  GetLearnCourseResponses,
-  GetLearnDownloadAssetErrors,
-  GetLearnDownloadErrors,
-  GetLearnDownloadResponses,
-  GetLearnOrgResponses,
-  GetLearnViewerResponses,
+  GetLibraryFileErrors,
+  GetMemberCommunityDirectoryErrors,
+  GetMemberCommunityDirectoryResponses,
+  GetMemberCommunityHomeErrors,
+  GetMemberCommunityHomeResponses,
+  GetMemberCourseErrors,
+  GetMemberCourseProgressErrors,
+  GetMemberCourseProgressResponses,
+  GetMemberCourseResponses,
+  GetMemberDownloadErrors,
+  GetMemberDownloadResponses,
+  GetMemberFeedErrors,
+  GetMemberFeedResponses,
+  GetMemberNotificationPreferencesErrors,
+  GetMemberNotificationPreferencesResponses,
+  GetMemberOrgErrors,
+  GetMemberOrgResponses,
+  GetMemberProfileErrors,
+  GetMemberProfileResponses,
+  GetMemberSpaceErrors,
+  GetMemberSpaceResponses,
+  GetMemberUploadFileErrors,
+  GetMemberViewerErrors,
+  GetMemberViewerResponses,
+  GetMessageAttachmentErrors,
+  GetOverviewErrors,
   GetOverviewResponses,
+  GetPersonImageErrors,
+  GetPostCoverErrors,
+  GetPostErrors,
+  GetPostResponses,
+  GetSpaceErrors,
+  GetSpaceFeedErrors,
+  GetSpaceFeedResponses,
+  GetSpaceQueueErrors,
+  GetSpaceQueueResponses,
+  GetSpaceResponses,
   GetStudentAnalyticsErrors,
   GetStudentAnalyticsResponses,
   GetStudentErrors,
@@ -103,103 +211,261 @@ import type {
   GetWebhookResponses,
   GetWebhookSecretErrors,
   GetWebhookSecretResponses,
+  GrantEntitlementErrors,
   GrantEntitlementResponses,
+  InviteCommunitySpaceMemberErrors,
+  InviteCommunitySpaceMemberResponses,
+  InviteSpaceMemberErrors,
+  InviteSpaceMemberResponses,
   InvokeConnectionActionErrors,
   InvokeConnectionActionResponses,
   JsonValueInput,
+  LeaveChatErrors,
+  LeaveChatResponses,
+  LeaveSpaceErrors,
+  LeaveSpaceResponses,
+  ListAccessScopesErrors,
   ListAccessScopesResponses,
+  ListActivitiesErrors,
   ListActivitiesResponses,
+  ListActivityAssetsErrors,
   ListActivityAssetsResponses,
   ListActivityCommentsErrors,
   ListActivityCommentsResponses,
+  ListApiKeysErrors,
   ListApiKeysResponses,
   ListAssetsErrors,
   ListAssetsResponses,
+  ListAutomationActionsErrors,
   ListAutomationActionsResponses,
+  ListAutomationRunsErrors,
   ListAutomationRunsResponses,
+  ListAutomationsErrors,
   ListAutomationsResponses,
+  ListAutomationTriggersErrors,
   ListAutomationTriggersResponses,
   ListAvailableIntegrationsErrors,
   ListAvailableIntegrationsResponses,
+  ListBookmarkedPostsErrors,
+  ListBookmarkedPostsResponses,
   ListBundleItemsErrors,
   ListBundleItemsResponses,
+  ListBundlesErrors,
   ListBundlesResponses,
+  ListChatMessagesErrors,
+  ListChatMessagesResponses,
+  ListCommentsErrors,
   ListCommentsResponses,
+  ListCommunitiesErrors,
+  ListCommunitiesResponses,
+  ListCommunityMembersErrors,
+  ListCommunityMembersResponses,
+  ListCommunitySpaceMembersErrors,
+  ListCommunitySpaceMembersResponses,
+  ListCommunitySpacesErrors,
+  ListCommunitySpacesResponses,
+  ListConnectedAppsErrors,
   ListConnectedAppsResponses,
   ListConnectionsErrors,
   ListConnectionsResponses,
+  ListCoursesErrors,
   ListCoursesResponses,
   ListDownloadAssetsErrors,
   ListDownloadAssetsResponses,
+  ListDownloadsErrors,
   ListDownloadsResponses,
+  ListEntitlementsErrors,
   ListEntitlementsResponses,
-  ListLearnActivitiesErrors,
-  ListLearnActivitiesResponses,
-  ListLearnCoursesResponses,
-  ListLearnDownloadsResponses,
-  ListLearnModulesErrors,
-  ListLearnModulesResponses,
+  ListMemberActivitiesErrors,
+  ListMemberActivitiesResponses,
+  ListMemberChatsErrors,
+  ListMemberChatsResponses,
+  ListMemberCoursesErrors,
+  ListMemberCoursesResponses,
+  ListMemberDownloadsErrors,
+  ListMemberDownloadsResponses,
+  ListMemberModulesErrors,
+  ListMemberModulesResponses,
+  ListMemberNotificationsErrors,
+  ListMemberNotificationsResponses,
+  ListMembersErrors,
   ListMembersResponses,
+  ListModulesErrors,
   ListModulesResponses,
+  ListOwnPostsErrors,
+  ListOwnPostsResponses,
+  ListPostCommentsErrors,
+  ListPostCommentsResponses,
+  ListSpaceMembersErrors,
+  ListSpaceMembersResponses,
+  ListStudentsErrors,
   ListStudentsResponses,
+  ListWebhooksErrors,
   ListWebhooksResponses,
+  LockChatErrors,
+  LockChatResponses,
+  LockCommunityChatErrors,
+  LockCommunityChatResponses,
+  MarkAllMemberNotificationsReadErrors,
+  MarkAllMemberNotificationsReadResponses,
+  MarkChatReadErrors,
+  MarkChatReadResponses,
+  MarkMemberNotificationReadErrors,
+  MarkMemberNotificationReadResponses,
   ModerateRemoveCommentErrors,
   ModerateRemoveCommentResponses,
+  MuteChatErrors,
+  MuteChatResponses,
+  OpenPostCommentsErrors,
+  OpenPostCommentsResponses,
+  PatchCommunityDmSettingsErrors,
+  PatchCommunityDmSettingsResponses,
+  PinPostErrors,
+  PinPostResponses,
   PostCommentErrors,
   PostCommentResponses,
   PublishCommentErrors,
   PublishCommentResponses,
+  PublishCommunityErrors,
+  PublishCommunityResponses,
   ReconnectIntegrationErrors,
   ReconnectIntegrationResponses,
+  RefuseSpaceInviteErrors,
+  RefuseSpaceInviteResponses,
   RemoveBundleItemErrors,
   RemoveBundleItemResponses,
+  RemoveCommunityCommentErrors,
+  RemoveCommunityCommentResponses,
+  RemoveCommunityPostErrors,
+  RemoveCommunityPostResponses,
+  RemoveCommunitySpaceMemberErrors,
+  RemoveCommunitySpaceMemberResponses,
   RemoveDownloadAssetErrors,
   RemoveDownloadAssetResponses,
   RemoveMemberErrors,
   RemoveMemberResponses,
+  RemovePostErrors,
+  RemovePostResponses,
+  RemoveSpaceLinkErrors,
+  RemoveSpaceLinkResponses,
+  RemoveSpaceMemberErrors,
+  RemoveSpaceMemberResponses,
   RenameDownloadAssetErrors,
   RenameDownloadAssetResponses,
+  ReorderActivitiesErrors,
   ReorderActivitiesResponses,
   ReorderDownloadAssetsErrors,
   ReorderDownloadAssetsResponses,
+  ReorderModulesErrors,
   ReorderModulesResponses,
+  ReorderSpaceLinksErrors,
+  ReorderSpaceLinksResponses,
+  ReorderSpacesErrors,
+  ReorderSpacesResponses,
   ReplyToCommentErrors,
   ReplyToCommentResponses,
   ReportCommentErrors,
   ReportCommentResponses,
   ReportProgressErrors,
   ReportProgressResponses,
-  RequestAssetDownloadErrors,
-  RequestAssetDownloadResponses,
+  RequestMemberUploadErrors,
+  RequestMemberUploadResponses,
+  RequestSpaceMembershipErrors,
+  RequestSpaceMembershipResponses,
   RequestUploadErrors,
   RequestUploadResponses,
   RerunAutomationRunErrors,
   RerunAutomationRunResponses,
   ResendStudentInviteErrors,
   ResendStudentInviteResponses,
+  ResolveCommentFlagsErrors,
+  ResolveCommentFlagsResponses,
+  ResolveCommunityCommentFlagsErrors,
+  ResolveCommunityCommentFlagsResponses,
+  ResolveCommunityMessageFlagsErrors,
+  ResolveCommunityMessageFlagsResponses,
+  ResolveCommunityPostFlagsErrors,
+  ResolveCommunityPostFlagsResponses,
+  ResolveMessageFlagsErrors,
+  ResolveMessageFlagsResponses,
+  ResolvePostFlagsErrors,
+  ResolvePostFlagsResponses,
+  RestoreCommunityCommentErrors,
+  RestoreCommunityCommentResponses,
+  RestoreCommunityPostErrors,
+  RestoreCommunityPostResponses,
+  RestorePostErrors,
+  RestorePostResponses,
+  RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
   RotateWebhookSecretErrors,
   RotateWebhookSecretResponses,
+  SchedulePostErrors,
+  SchedulePostResponses,
+  SendChatMessageErrors,
+  SendChatMessageResponses,
   SetCommentReactionErrors,
   SetCommentReactionResponses,
   SetEntitlementStatusErrors,
   SetEntitlementStatusResponses,
+  SetMemberNotificationPreferencesErrors,
+  SetMemberNotificationPreferencesResponses,
+  SetMessageReactionErrors,
+  SetMessageReactionResponses,
+  SetPostReactionErrors,
+  SetPostReactionPolicyErrors,
+  SetPostReactionPolicyResponses,
+  SetPostReactionResponses,
+  SetSpaceTopicsErrors,
+  SetSpaceTopicsResponses,
+  StartDirectChatErrors,
+  StartDirectChatResponses,
+  StartGroupChatErrors,
+  StartGroupChatResponses,
+  SubmitPostErrors,
+  SubmitPostResponses,
+  UnblockMemberErrors,
+  UnblockMemberResponses,
+  UnbookmarkPostErrors,
+  UnbookmarkPostResponses,
+  UnfollowPostErrors,
+  UnfollowPostResponses,
+  UnlockChatErrors,
+  UnlockChatResponses,
+  UnlockCommunityChatErrors,
+  UnlockCommunityChatResponses,
+  UnmuteChatErrors,
+  UnmuteChatResponses,
+  UnpinPostErrors,
+  UnpinPostResponses,
+  UnpublishCommunityErrors,
+  UnpublishCommunityResponses,
+  UpdateActivityErrors,
   UpdateActivityResponses,
   UpdateAutomationErrors,
   UpdateAutomationResponses,
   UpdateBundleErrors,
   UpdateBundleResponses,
+  UpdateCommunityErrors,
+  UpdateCommunityResponses,
   UpdateCourseErrors,
   UpdateCourseResponses,
   UpdateCourseSettingsErrors,
   UpdateCourseSettingsResponses,
   UpdateDownloadErrors,
   UpdateDownloadResponses,
+  UpdateMemberProfileErrors,
+  UpdateMemberProfileResponses,
   UpdateMemberRoleErrors,
   UpdateMemberRoleResponses,
+  UpdateModuleErrors,
   UpdateModuleResponses,
   UpdateOrganizationErrors,
   UpdateOrganizationResponses,
+  UpdatePostErrors,
+  UpdatePostResponses,
+  UpdateSpaceErrors,
+  UpdateSpaceResponses,
   UpdateStudentErrors,
   UpdateStudentResponses,
   UpdateWebhookErrors,
@@ -226,7 +492,9 @@ export type Options<
 
 export class Organizations {
   /**
-   * Update the active organization
+   * Update the active organization (staff)
+   *
+   * Owner or admin. Changes its name or slug; 409 when the slug is taken.
    */
   public static updateOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -266,6 +534,8 @@ export class Organizations {
 
   /**
    * Create an organization and make it active
+   *
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -273,7 +543,7 @@ export class Organizations {
       slug: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateOrganizationResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateOrganizationResponses, CreateOrganizationErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -287,7 +557,7 @@ export class Organizations {
     );
     return (options?.client ?? client).post<
       CreateOrganizationResponses,
-      unknown,
+      CreateOrganizationErrors,
       ThrowOnError,
       "data"
     >({
@@ -304,7 +574,9 @@ export class Organizations {
   }
 
   /**
-   * List organization members
+   * List the organization's team members (staff)
+   *
+   * Staff only (owner, admin, instructor). The team: everyone in the organization who is not a student.
    */
   public static listMembers<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -312,11 +584,11 @@ export class Organizations {
       pageSize?: number;
       search?: string;
       sort?: string;
-      role?: "owner" | "admin" | "instructor";
+      role?: "owner" | "admin" | "instructor" | "moderator";
       status?: "active" | "invited";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -332,7 +604,12 @@ export class Organizations {
         },
       ],
     );
-    return (options?.client ?? client).get<ListMembersResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListMembersResponses,
+      ListMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/organizations/members",
       ...options,
@@ -341,12 +618,14 @@ export class Organizations {
   }
 
   /**
-   * Change a member's role
+   * Change a member's role (staff)
+   *
+   * Owner or admin only. The owner role can be neither granted nor changed (409), and only a moderator can become a student.
    */
   public static updateMemberRole<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
-      role: "owner" | "admin" | "instructor";
+      role: "admin" | "instructor" | "moderator" | "student";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError, "data"> {
@@ -380,7 +659,9 @@ export class Organizations {
   }
 
   /**
-   * Remove an organization member
+   * Remove an organization member (staff)
+   *
+   * Owner or admin only. Removing a pending member cancels their invite. The owner cannot be removed (409).
    */
   public static removeMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -403,12 +684,14 @@ export class Organizations {
   }
 
   /**
-   * Invite a member or student into the active organization
+   * Invite a member or student into the active organization (staff)
+   *
+   * Owner or admin only. A student is created by this call, so their access can be granted before they accept. 409 when a student with that email is already in the organization.
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
       email: string;
-      role: "admin" | "instructor" | "student";
+      role: "admin" | "instructor" | "moderator" | "student";
       firstName?: string;
       lastName?: string;
       sendEmail?: boolean;
@@ -449,6 +732,8 @@ export class Organizations {
 
   /**
    * Read an invite by its token
+   *
+   * Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.
    */
   public static getInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -471,7 +756,9 @@ export class Organizations {
   }
 
   /**
-   * Accept an invite with the logged-in account
+   * Accept an invite with the signed-in account
+   *
+   * For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, or the email does not match.
    */
   public static acceptInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -500,32 +787,48 @@ export class Organizations {
 
   /**
    * Get the portal org's public identity (branding)
+   *
+   * For any signed-in person whose session has this organization active. Name and slug only.
    */
-  public static getLearnOrg<ThrowOnError extends boolean = false>(
+  public static getMemberOrg<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnOrgResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetLearnOrgResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetMemberOrgResponses, GetMemberOrgErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberOrgResponses,
+      GetMemberOrgErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
-      url: "/api/learn/org",
+      url: "/api/member/org",
       ...options,
     });
   }
 
   /**
    * Get the caller's identity within the session's org
+   *
+   * For a member of the organization: your org user id, which the member API keys on, and your role here.
    */
-  public static getLearnViewer<ThrowOnError extends boolean = false>(
+  public static getMemberViewer<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnViewerResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetLearnViewerResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetMemberViewerResponses, GetMemberViewerErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberViewerResponses,
+      GetMemberViewerErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
-      url: "/api/learn/viewer",
+      url: "/api/member/viewer",
       ...options,
     });
   }
 
   /**
-   * List students
+   * List students (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listStudents<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -535,7 +838,7 @@ export class Organizations {
       sort?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListStudentsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListStudentsResponses, ListStudentsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -549,7 +852,12 @@ export class Organizations {
         },
       ],
     );
-    return (options?.client ?? client).get<ListStudentsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListStudentsResponses,
+      ListStudentsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/students",
       ...options,
@@ -558,7 +866,9 @@ export class Organizations {
   }
 
   /**
-   * Delete a student
+   * Delete a student (staff)
+   *
+   * Owner or admin only. 409 when the person has written posts, comments or messages.
    */
   public static deleteStudent<ThrowOnError extends boolean = false>(
     parameters: {
@@ -581,7 +891,9 @@ export class Organizations {
   }
 
   /**
-   * Get a student by id
+   * Get a student (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getStudent<ThrowOnError extends boolean = false>(
     parameters: {
@@ -604,7 +916,9 @@ export class Organizations {
   }
 
   /**
-   * Update a student's profile
+   * Update a student's profile (staff)
+   *
+   * Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.
    */
   public static updateStudent<ThrowOnError extends boolean = false>(
     parameters: {
@@ -647,7 +961,9 @@ export class Organizations {
   }
 
   /**
-   * Re-send a pending student's invite email
+   * Re-send a pending student's invite email (staff)
+   *
+   * Owner or admin only. Issues a new token, so the previous link stops working. 404 when the student has no pending invite; 409 when it was already accepted.
    */
   public static resendStudentInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -672,7 +988,9 @@ export class Organizations {
 
 export class Content {
   /**
-   * List courses
+   * List courses (staff)
+   *
+   * Staff only (owner, admin, instructor). Every course in the organization, drafts included, filtered by status and category and searched by title.
    */
   public static listCourses<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -684,7 +1002,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListCoursesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListCoursesResponses, ListCoursesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -700,7 +1018,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListCoursesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListCoursesResponses,
+      ListCoursesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses",
       ...options,
@@ -709,7 +1032,9 @@ export class Content {
   }
 
   /**
-   * Create a course
+   * Create a course (staff)
+   *
+   * Staff only (owner, admin, instructor). The course starts as a draft. 409 when its slug is taken.
    */
   public static createCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -718,7 +1043,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateCourseResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateCourseResponses, CreateCourseErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -731,7 +1056,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateCourseResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).post<
+      CreateCourseResponses,
+      CreateCourseErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses",
       ...options,
@@ -745,7 +1075,9 @@ export class Content {
   }
 
   /**
-   * Delete a course
+   * Delete a course (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static deleteCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -768,7 +1100,9 @@ export class Content {
   }
 
   /**
-   * Get a course by id
+   * Get a course (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -791,7 +1125,9 @@ export class Content {
   }
 
   /**
-   * Update a course
+   * Update a course (staff)
+   *
+   * Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
    */
   public static updateCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -838,7 +1174,9 @@ export class Content {
   }
 
   /**
-   * Update a course settings
+   * Update a course's settings (staff)
+   *
+   * Staff only (owner, admin, instructor). Merges the settings sent into the current ones.
    */
   public static updateCourseSettings<ThrowOnError extends boolean = false>(
     parameters: {
@@ -889,7 +1227,9 @@ export class Content {
   }
 
   /**
-   * List downloads
+   * List downloads (staff)
+   *
+   * Staff only (owner, admin, instructor). Every download, drafts included, filtered by status and category and searched by title.
    */
   public static listDownloads<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -901,7 +1241,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListDownloadsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListDownloadsResponses, ListDownloadsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -917,7 +1257,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListDownloadsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListDownloadsResponses,
+      ListDownloadsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/downloads",
       ...options,
@@ -926,7 +1271,9 @@ export class Content {
   }
 
   /**
-   * Create a download
+   * Create a download (staff)
+   *
+   * Staff only (owner, admin, instructor). The download starts as a draft. 409 when its slug is taken.
    */
   public static createDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -935,7 +1282,7 @@ export class Content {
       category?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateDownloadResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateDownloadResponses, CreateDownloadErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -948,23 +1295,28 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateDownloadResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/downloads",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      CreateDownloadResponses,
+      CreateDownloadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/downloads",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
-   * Delete a download
+   * Delete a download (staff)
+   *
+   * Staff only (owner, admin, instructor). Its library files survive.
    */
   public static deleteDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -987,7 +1339,9 @@ export class Content {
   }
 
   /**
-   * Get a download by id
+   * Get a download (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1010,7 +1364,9 @@ export class Content {
   }
 
   /**
-   * Update a download
+   * Update a download (staff)
+   *
+   * Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
    */
   public static updateDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1057,7 +1413,9 @@ export class Content {
   }
 
   /**
-   * List a download's assets in order
+   * List a download's files in order (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listDownloadAssets<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1080,7 +1438,9 @@ export class Content {
   }
 
   /**
-   * Link a media-library asset to a download
+   * Add a library file to a download (staff)
+   *
+   * Staff only (owner, admin, instructor). Added last. 409 when the file is not a ready library file or is already in the download. Returns the download's files.
    */
   public static addDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1121,7 +1481,9 @@ export class Content {
   }
 
   /**
-   * Reorder a download's assets (send the complete set)
+   * Reorder a download's files (staff)
+   *
+   * Staff only (owner, admin, instructor). Send every file id of the download exactly once (409 otherwise). Returns the download's files.
    */
   public static reorderDownloadAssets<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1165,7 +1527,9 @@ export class Content {
   }
 
   /**
-   * Unlink an asset from a download (the asset itself survives)
+   * Remove a file from a download (staff)
+   *
+   * Staff only (owner, admin, instructor). The library file itself survives. Returns the download's files.
    */
   public static removeDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1199,7 +1563,9 @@ export class Content {
   }
 
   /**
-   * Set an asset's display name within a download
+   * Set a file's display name within a download (staff)
+   *
+   * Staff only (owner, admin, instructor). Null falls back to the filename. Returns the download's files.
    */
   public static renameDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1240,7 +1606,9 @@ export class Content {
   }
 
   /**
-   * List bundles
+   * List bundles (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listBundles<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1250,7 +1618,7 @@ export class Content {
       sort?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListBundlesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListBundlesResponses, ListBundlesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1264,7 +1632,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).get<ListBundlesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListBundlesResponses,
+      ListBundlesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/bundles",
       ...options,
@@ -1273,7 +1646,9 @@ export class Content {
   }
 
   /**
-   * Create a bundle, optionally with initial content
+   * Create a bundle, optionally with initial content (staff)
+   *
+   * Staff only (owner, admin, instructor). 404 when an initial content id is unknown.
    */
   public static createBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1312,7 +1687,9 @@ export class Content {
   }
 
   /**
-   * Delete a bundle (its content survives)
+   * Delete a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor). Its content survives; access granted through the bundle ends.
    */
   public static deleteBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1335,7 +1712,9 @@ export class Content {
   }
 
   /**
-   * Get a bundle by id
+   * Get a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1358,7 +1737,9 @@ export class Content {
   }
 
   /**
-   * Update a bundle
+   * Rename a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static updateBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1397,7 +1778,9 @@ export class Content {
   }
 
   /**
-   * List a bundle's content items
+   * List a bundle's content (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listBundleItems<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1420,7 +1803,9 @@ export class Content {
   }
 
   /**
-   * Add a content item to a bundle
+   * Add content to a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor). Everyone who holds the bundle can open the content from then on. Returns the bundle's content.
    */
   public static addBundleItem<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1459,7 +1844,9 @@ export class Content {
   }
 
   /**
-   * Remove a content item from a bundle (the content survives)
+   * Remove content from a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor). The content survives; access to it through the bundle ends. Returns the bundle's content.
    */
   public static removeBundleItem<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1493,178 +1880,168 @@ export class Content {
   }
 
   /**
-   * List the student's enrolled courses
+   * List the courses you can open
+   *
+   * For a member of the organization. Published courses you hold, directly or through a bundle.
    */
-  public static listLearnCourses<ThrowOnError extends boolean = false>(
+  public static listMemberCourses<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnCoursesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberCoursesResponses, ListMemberCoursesErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
-      ListLearnCoursesResponses,
-      unknown,
+      ListMemberCoursesResponses,
+      ListMemberCoursesErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses",
+      url: "/api/member/courses",
       ...options,
     });
   }
 
   /**
-   * Get one enrolled course
+   * Get one course you can open
+   *
+   * For a member of the organization. 404 when the course is not published or you do not hold it.
    */
-  public static getLearnCourse<ThrowOnError extends boolean = false>(
+  public static getMemberCourse<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnCourseResponses, GetLearnCourseErrors, ThrowOnError, "data"> {
+  ): RequestResult<GetMemberCourseResponses, GetMemberCourseErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnCourseResponses,
-      GetLearnCourseErrors,
+      GetMemberCourseResponses,
+      GetMemberCourseErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}",
+      url: "/api/member/courses/{courseId}",
       ...options,
       ...params,
     });
   }
 
   /**
-   * List an enrolled course's module/activity tree
+   * List the modules and activities of a course you can open
+   *
+   * For a member of the organization. Published activities only. 404 when the course is not published or you do not hold it.
    */
-  public static listLearnModules<ThrowOnError extends boolean = false>(
+  public static listMemberModules<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnModulesResponses, ListLearnModulesErrors, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberModulesResponses, ListMemberModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      ListLearnModulesResponses,
-      ListLearnModulesErrors,
+      ListMemberModulesResponses,
+      ListMemberModulesErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/modules",
+      url: "/api/member/courses/{courseId}/modules",
       ...options,
       ...params,
     });
   }
 
   /**
-   * List an enrolled course's published activities
+   * List the published activities of a course you can open
+   *
+   * For a member of the organization. 404 when the course is not published or you do not hold it.
    */
-  public static listLearnActivities<ThrowOnError extends boolean = false>(
+  public static listMemberActivities<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnActivitiesResponses, ListLearnActivitiesErrors, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListMemberActivitiesResponses,
+    ListMemberActivitiesErrors,
+    ThrowOnError,
+    "data"
+  > {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      ListLearnActivitiesResponses,
-      ListLearnActivitiesErrors,
+      ListMemberActivitiesResponses,
+      ListMemberActivitiesErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/activities",
+      url: "/api/member/courses/{courseId}/activities",
       ...options,
       ...params,
     });
   }
 
   /**
-   * Downloads the student is actively entitled to
+   * List the downloads you can open
+   *
+   * For a member of the organization. Published downloads you hold, directly or through a bundle.
    */
-  public static listLearnDownloads<ThrowOnError extends boolean = false>(
+  public static listMemberDownloads<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListLearnDownloadsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListMemberDownloadsResponses, ListMemberDownloadsErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
-      ListLearnDownloadsResponses,
-      unknown,
+      ListMemberDownloadsResponses,
+      ListMemberDownloadsErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/downloads",
+      url: "/api/member/downloads",
       ...options,
     });
   }
 
   /**
-   * One entitled download and its ordered assets
+   * One download you can open, with its files in order
+   *
+   * For a member of the organization. 404 when the download is not published or you do not hold it.
    */
-  public static getLearnDownload<ThrowOnError extends boolean = false>(
+  public static getMemberDownload<ThrowOnError extends boolean = false>(
     parameters: {
       downloadId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetLearnDownloadResponses, GetLearnDownloadErrors, ThrowOnError, "data"> {
+  ): RequestResult<GetMemberDownloadResponses, GetMemberDownloadErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnDownloadResponses,
-      GetLearnDownloadErrors,
+      GetMemberDownloadResponses,
+      GetMemberDownloadErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/downloads/{downloadId}",
+      url: "/api/member/downloads/{downloadId}",
       ...options,
       ...params,
     });
   }
 
   /**
-   * Redirect to a short-lived signed URL for an entitled asset
-   */
-  public static getLearnDownloadAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      downloadId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetLearnDownloadAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "downloadId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      unknown,
-      GetLearnDownloadAssetErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/learn/downloads/{downloadId}/assets/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * List a course's modules
+   * List a course's modules (staff)
+   *
+   * Staff only (owner, admin, instructor). Modules in order, each with its activities.
    */
   public static listModules<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListModulesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListModulesResponses, ListModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
-    return (options?.client ?? client).get<ListModulesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListModulesResponses,
+      ListModulesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules",
       ...options,
@@ -1673,7 +2050,9 @@ export class Content {
   }
 
   /**
-   * Add a module
+   * Add a module (staff)
+   *
+   * Staff only (owner, admin, instructor). Added last. Returns the course's modules.
    */
   public static createModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1681,7 +2060,7 @@ export class Content {
       title: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateModuleResponses, CreateModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1693,7 +2072,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateModuleResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).post<
+      CreateModuleResponses,
+      CreateModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules",
       ...options,
@@ -1707,16 +2091,23 @@ export class Content {
   }
 
   /**
-   * List a course's activities
+   * List a course's activities (staff)
+   *
+   * Staff only (owner, admin, instructor). Every activity, published or not.
    */
   public static listActivities<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListActivitiesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListActivitiesResponses, ListActivitiesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
-    return (options?.client ?? client).get<ListActivitiesResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListActivitiesResponses,
+      ListActivitiesErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/activities",
       ...options,
@@ -1725,18 +2116,20 @@ export class Content {
   }
 
   /**
-   * List a course's activity→asset links
+   * List the library files each activity of a course uses (staff)
+   *
+   * Staff only (owner, admin, instructor). One row per activity and file, as recorded when the activity was saved.
    */
   public static listActivityAssets<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListActivityAssetsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListActivityAssetsResponses, ListActivityAssetsErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
       ListActivityAssetsResponses,
-      unknown,
+      ListActivityAssetsErrors,
       ThrowOnError,
       "data"
     >({
@@ -1748,7 +2141,9 @@ export class Content {
   }
 
   /**
-   * Reorder modules
+   * Reorder a course's modules (staff)
+   *
+   * Staff only (owner, admin, instructor). Ids that are not modules of the course are ignored. Returns the course's modules.
    */
   public static reorderModules<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1756,7 +2151,7 @@ export class Content {
       orderedIds: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ReorderModulesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ReorderModulesResponses, ReorderModulesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1768,23 +2163,28 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<ReorderModulesResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/reorder",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      ReorderModulesResponses,
+      ReorderModulesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/reorder",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
-   * Delete a module
+   * Delete a module (staff)
+   *
+   * Staff only (owner, admin, instructor). Returns the course's modules.
    */
   public static deleteModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1792,7 +2192,7 @@ export class Content {
       moduleId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<DeleteModuleResponses, DeleteModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1804,18 +2204,23 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).delete<DeleteModuleResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/{moduleId}",
-        ...options,
-        ...params,
-      },
-    );
+    return (options?.client ?? client).delete<
+      DeleteModuleResponses,
+      DeleteModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/{moduleId}",
+      ...options,
+      ...params,
+    });
   }
 
   /**
-   * Rename a module
+   * Rename a module (staff)
+   *
+   * Staff only (owner, admin, instructor). Returns the course's modules.
    */
   public static updateModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1824,7 +2229,7 @@ export class Content {
       title: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateModuleResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<UpdateModuleResponses, UpdateModuleErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1837,7 +2242,12 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).patch<UpdateModuleResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).patch<
+      UpdateModuleResponses,
+      UpdateModuleErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/courses/{courseId}/modules/{moduleId}",
       ...options,
@@ -1851,7 +2261,9 @@ export class Content {
   }
 
   /**
-   * Reorder activities in a module
+   * Reorder the activities in a module (staff)
+   *
+   * Staff only (owner, admin, instructor). Send every activity id of the module once (409 otherwise). Returns the course's modules.
    */
   public static reorderActivities<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1860,7 +2272,7 @@ export class Content {
       orderedIds: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ReorderActivitiesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ReorderActivitiesResponses, ReorderActivitiesErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1875,7 +2287,7 @@ export class Content {
     );
     return (options?.client ?? client).post<
       ReorderActivitiesResponses,
-      unknown,
+      ReorderActivitiesErrors,
       ThrowOnError,
       "data"
     >({
@@ -1892,7 +2304,9 @@ export class Content {
   }
 
   /**
-   * Add an activity
+   * Add an activity (staff)
+   *
+   * Staff only (owner, admin, instructor). Records the library files the activity uses; each must be a ready library file (409 otherwise). Returns the course's modules.
    */
   public static createActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1902,7 +2316,7 @@ export class Content {
       assetIds?: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateActivityResponses, CreateActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1916,23 +2330,28 @@ export class Content {
         },
       ],
     );
-    return (options?.client ?? client).post<CreateActivityResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/courses/{courseId}/modules/{moduleId}/activities",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
+    return (options?.client ?? client).post<
+      CreateActivityResponses,
+      CreateActivityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/modules/{moduleId}/activities",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
       },
-    );
+    });
   }
 
   /**
-   * Delete an activity
+   * Delete an activity (staff)
+   *
+   * Staff only (owner, admin, instructor). Returns the course's modules.
    */
   public static deleteActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1941,7 +2360,7 @@ export class Content {
       activityId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<DeleteActivityResponses, DeleteActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1956,7 +2375,7 @@ export class Content {
     );
     return (options?.client ?? client).delete<
       DeleteActivityResponses,
-      unknown,
+      DeleteActivityErrors,
       ThrowOnError,
       "data"
     >({
@@ -1968,7 +2387,9 @@ export class Content {
   }
 
   /**
-   * Update an activity
+   * Update an activity (staff)
+   *
+   * Staff only (owner, admin, instructor). Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). Returns the course's modules.
    */
   public static updateActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1979,7 +2400,7 @@ export class Content {
       assetIds?: Array<string>;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateActivityResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<UpdateActivityResponses, UpdateActivityErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -1996,7 +2417,7 @@ export class Content {
     );
     return (options?.client ?? client).patch<
       UpdateActivityResponses,
-      unknown,
+      UpdateActivityErrors,
       ThrowOnError,
       "data"
     >({
@@ -2013,9 +2434,3819 @@ export class Content {
   }
 }
 
+export class Communities {
+  /**
+   * List communities (staff)
+   *
+   * Staff only (owner, admin, instructor). Pages every community in the organization, drafts included, filtered by `status` and searched by title.
+   */
+  public static listCommunities<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: string;
+      status?: "draft" | "published";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListCommunitiesResponses, ListCommunitiesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
+            { in: "query", key: "status" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCommunitiesResponses,
+      ListCommunitiesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Create a community (staff)
+   *
+   * Owner or admin only. The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.
+   */
+  public static createCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      title: string;
+      description?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateCommunityResponses, CreateCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateCommunityResponses,
+      CreateCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete a community (staff)
+   *
+   * Owner or admin only. Links to the community from other spaces are removed with it.
+   */
+  public static deleteCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteCommunityResponses, DeleteCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).delete<
+      DeleteCommunityResponses,
+      DeleteCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get a community (staff)
+   *
+   * Staff only (owner, admin, instructor). Any community of the organization, drafts included.
+   */
+  public static getCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetCommunityResponses, GetCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetCommunityResponses,
+      GetCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Update a community (staff)
+   *
+   * Owner or admin only. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
+   */
+  public static updateCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      title?: string;
+      description?: string;
+      status?: "draft" | "published";
+      thumbnailAssetId?: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateCommunityResponses, UpdateCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+            { in: "body", key: "status" },
+            { in: "body", key: "thumbnailAssetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateCommunityResponses,
+      UpdateCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Change direct-message settings for a community (staff)
+   *
+   * Owner or admin only. Changes only the settings sent; the rest keep their values. They decide who may message whom from then on.
+   */
+  public static patchCommunityDmSettings<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      enabled?: boolean;
+      memberToMember?: boolean;
+      memberToStaff?: boolean;
+      staffToAnyone?: boolean;
+      firstMessageIsRequest?: boolean;
+      groupChats?: boolean;
+      groupSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    PatchCommunityDmSettingsResponses,
+    PatchCommunityDmSettingsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "memberToMember" },
+            { in: "body", key: "memberToStaff" },
+            { in: "body", key: "staffToAnyone" },
+            { in: "body", key: "firstMessageIsRequest" },
+            { in: "body", key: "groupChats" },
+            { in: "body", key: "groupSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      PatchCommunityDmSettingsResponses,
+      PatchCommunityDmSettingsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/settings",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Publish a community (staff)
+   *
+   * Owner or admin only. Makes the community visible to the people who hold it.
+   */
+  public static publishCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<PublishCommunityResponses, PublishCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).post<
+      PublishCommunityResponses,
+      PublishCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/publish",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unpublish a community (staff)
+   *
+   * Owner or admin only. Hides the community from members again; nothing in it is deleted.
+   */
+  public static unpublishCommunity<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnpublishCommunityResponses, UnpublishCommunityErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).post<
+      UnpublishCommunityResponses,
+      UnpublishCommunityErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/unpublish",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Staff analytics for a community
+   *
+   * Staff only (owner, admin, instructor). Membership, activity and moderation counts for one community.
+   */
+  public static getCommunityAnalytics<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetCommunityAnalyticsResponses,
+    GetCommunityAnalyticsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetCommunityAnalyticsResponses,
+      GetCommunityAnalyticsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/analytics",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Open message flags in a community (staff)
+   *
+   * Staff only (owner, admin, instructor). The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.
+   */
+  public static getCommunityMessageQueue<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetCommunityMessageQueueResponses,
+    GetCommunityMessageQueueErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetCommunityMessageQueueResponses,
+      GetCommunityMessageQueueErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/message-queue",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the spaces in a community (staff)
+   *
+   * Staff only (owner, admin, instructor). Every space in order, with its topics and links.
+   */
+  public static listCommunitySpaces<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListCommunitySpacesResponses, ListCommunitySpacesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      ListCommunitySpacesResponses,
+      ListCommunitySpacesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Create a space (staff)
+   *
+   * Owner or admin only. The space is added last. An `all_members` space cannot have a capacity (409).
+   */
+  public static createSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      name: string;
+      description?: string;
+      accessRule?: "all_members" | "by_request" | "by_invite";
+      capacity?: number | null;
+      settings?: {
+        comments?: boolean;
+        reactions?: boolean;
+        requireReview?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateSpaceResponses, CreateSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "name" },
+            { in: "body", key: "description" },
+            { in: "body", key: "accessRule" },
+            { in: "body", key: "capacity" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateSpaceResponses,
+      CreateSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Reorder the spaces in a community (staff)
+   *
+   * Owner or admin only. Send every space id of the community exactly once (409 otherwise).
+   */
+  public static reorderSpaces<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      ids: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ReorderSpacesResponses, ReorderSpacesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "ids" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReorderSpacesResponses,
+      ReorderSpacesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/order",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete a space (staff)
+   *
+   * Owner or admin only. The space and everything in it go.
+   */
+  public static deleteSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteSpaceResponses, DeleteSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      DeleteSpaceResponses,
+      DeleteSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get a space (staff)
+   *
+   * Staff only (owner, admin, instructor). The space with its topics and links.
+   */
+  public static getSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetSpaceResponses, GetSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<GetSpaceResponses, GetSpaceErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/communities/{communityId}/spaces/{spaceId}",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * Update a space (staff)
+   *
+   * Owner or admin only. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409).
+   */
+  public static updateSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      name?: string;
+      description?: string;
+      accessRule?: "all_members" | "by_request" | "by_invite";
+      capacity?: number | null;
+      settings?: {
+        comments?: boolean;
+        reactions?: boolean;
+        requireReview?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateSpaceResponses, UpdateSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "name" },
+            { in: "body", key: "description" },
+            { in: "body", key: "accessRule" },
+            { in: "body", key: "capacity" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateSpaceResponses,
+      UpdateSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Replace the topics on a space (staff)
+   *
+   * Owner or admin only. The list replaces the current topics: an entry with an `id` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).
+   */
+  public static setSpaceTopics<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      topics: Array<{
+        /**
+         * Keep an existing topic; omit to add a new one
+         */
+        id?: string;
+        name: string;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SetSpaceTopicsResponses, SetSpaceTopicsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "topics" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetSpaceTopicsResponses,
+      SetSpaceTopicsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/topics",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Link a course, download, or community into a space (staff)
+   *
+   * Owner or admin only. The link is added last. Linking the same content twice is a 409.
+   */
+  public static addSpaceLink<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      contentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddSpaceLinkResponses, AddSpaceLinkErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "contentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddSpaceLinkResponses,
+      AddSpaceLinkErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/links",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a link from a space (staff)
+   *
+   * Owner or admin only. The linked content itself is untouched.
+   */
+  public static removeSpaceLink<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      linkId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveSpaceLinkResponses, RemoveSpaceLinkErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "linkId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      RemoveSpaceLinkResponses,
+      RemoveSpaceLinkErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/links/{linkId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Reorder the links in a space (staff)
+   *
+   * Owner or admin only. Send every link id of the space exactly once (409 otherwise).
+   */
+  public static reorderSpaceLinks<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      ids: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ReorderSpaceLinksResponses, ReorderSpaceLinksErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "ids" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReorderSpaceLinksResponses,
+      ReorderSpaceLinksErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/links/order",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * List the people who hold a community (staff)
+   *
+   * Staff only (owner, admin, instructor). Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.
+   */
+  public static listCommunityMembers<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListCommunityMembersResponses,
+    ListCommunityMembersErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCommunityMembersResponses,
+      ListCommunityMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/members",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the members, requests and invitations of a space (staff)
+   *
+   * Staff only (owner, admin, instructor). The space's members, its open requests to join and its open invitations.
+   */
+  public static listCommunitySpaceMembers<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListCommunitySpaceMembersResponses,
+    ListCommunitySpaceMembersErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCommunitySpaceMembersResponses,
+      ListCommunitySpaceMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Add a person to a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.
+   */
+  public static addCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    AddCommunitySpaceMemberResponses,
+    AddCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddCommunitySpaceMemberResponses,
+      AddCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Invite a person into a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Invites a member of the community into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.
+   */
+  public static inviteCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    InviteCommunitySpaceMemberResponses,
+    InviteCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      InviteCommunitySpaceMemberResponses,
+      InviteCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/invites",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Approve a person's request to join a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
+   */
+  public static approveCommunitySpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ApproveCommunitySpaceRequestResponses,
+    ApproveCommunitySpaceRequestErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ApproveCommunitySpaceRequestResponses,
+      ApproveCommunitySpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Decline a person's request to join a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Closes the open request. 404 when the person has no open request; 409 when they are already a member.
+   */
+  public static declineCommunitySpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    DeclineCommunitySpaceRequestResponses,
+    DeclineCommunitySpaceRequestErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      DeclineCommunitySpaceRequestResponses,
+      DeclineCommunitySpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/decline",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a person from a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
+   */
+  public static removeCommunitySpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveCommunitySpaceMemberResponses,
+    RemoveCommunitySpaceMemberErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunitySpaceMemberResponses,
+      RemoveCommunitySpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * The moderation queue of a space (staff)
+   *
+   * Staff only (owner, admin, instructor). Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.
+   */
+  public static getCommunitySpaceQueue<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetCommunitySpaceQueueResponses,
+    GetCommunitySpaceQueueErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetCommunitySpaceQueueResponses,
+      GetCommunitySpaceQueueErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/queue",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Publish a post that is awaiting review (staff)
+   *
+   * Staff only (owner, admin, instructor). 409 when the post is not awaiting review.
+   */
+  public static approveCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ApproveCommunityPostResponses,
+    ApproveCommunityPostErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ApproveCommunityPostResponses,
+      ApproveCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a post (staff)
+   *
+   * Staff only (owner, admin, instructor). Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   */
+  public static removeCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveCommunityPostResponses, RemoveCommunityPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunityPostResponses,
+      RemoveCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Restore a removed post (staff)
+   *
+   * Staff only (owner, admin, instructor). 409 when the post is not removed.
+   */
+  public static restoreCommunityPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RestoreCommunityPostResponses,
+    RestoreCommunityPostErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RestoreCommunityPostResponses,
+      RestoreCommunityPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a post (staff)
+   *
+   * Staff only (owner, admin, instructor). Closes every open flag on the post and leaves it up.
+   */
+  public static resolveCommunityPostFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      postId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityPostFlagsResponses,
+    ResolveCommunityPostFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "postId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityPostFlagsResponses,
+      ResolveCommunityPostFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/posts/{postId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a comment on a post (staff)
+   *
+   * Staff only (owner, admin, instructor). Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
+   */
+  public static removeCommunityComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveCommunityCommentResponses,
+    RemoveCommunityCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveCommunityCommentResponses,
+      RemoveCommunityCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Restore a removed comment on a post (staff)
+   *
+   * Staff only (owner, admin, instructor). Publishes the comment again. Restoring a comment that is not removed returns it unchanged.
+   */
+  public static restoreCommunityComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RestoreCommunityCommentResponses,
+    RestoreCommunityCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RestoreCommunityCommentResponses,
+      RestoreCommunityCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a comment (staff)
+   *
+   * Staff only (owner, admin, instructor). Closes every open flag on the comment and leaves it up.
+   */
+  public static resolveCommunityCommentFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      commentId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityCommentFlagsResponses,
+    ResolveCommunityCommentFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "commentId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityCommentFlagsResponses,
+      ResolveCommunityCommentFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/comments/{commentId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a message (staff)
+   *
+   * Staff only (owner, admin, instructor). Closes every open flag on the message and leaves it up.
+   */
+  public static resolveCommunityMessageFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      messageId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResolveCommunityMessageFlagsResponses,
+    ResolveCommunityMessageFlagsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "messageId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommunityMessageFlagsResponses,
+      ResolveCommunityMessageFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/messages/{messageId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Lock a chat (staff)
+   *
+   * Staff only (owner, admin, instructor). Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged.
+   */
+  public static lockCommunityChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<LockCommunityChatResponses, LockCommunityChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "chatId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      LockCommunityChatResponses,
+      LockCommunityChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/chats/{chatId}/lock",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unlock a chat (staff)
+   *
+   * Staff only (owner, admin, instructor). Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.
+   */
+  public static unlockCommunityChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnlockCommunityChatResponses, UnlockCommunityChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "chatId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      UnlockCommunityChatResponses,
+      UnlockCommunityChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/chats/{chatId}/unlock",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * The spaces a member can see in a community
+   *
+   * For a member of the community. Lists its spaces in order. Spaces the viewer can open come back in full; spaces they can see but not open come back locked, with only their name, count, rule and the viewer's standing. A by-invite space the viewer is not invited to or a member of is left out. 404 when the viewer is not a member.
+   */
+  public static getMemberCommunityHome<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberCommunityHomeResponses,
+    GetMemberCommunityHomeErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetMemberCommunityHomeResponses,
+      GetMemberCommunityHomeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/home",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * One space as a member sees it
+   *
+   * For a member of the community: the space with its topics, links, settings and where the viewer stands. A space the viewer cannot open comes back locked, without its content. 404 when the viewer is not a member, the space is not in the community, or it is a by-invite space the viewer is not invited to or a member of.
+   */
+  public static getMemberSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberSpaceResponses, GetMemberSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetMemberSpaceResponses,
+      GetMemberSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * People in a community
+   *
+   * For a member of the community: everyone who holds it, with their public profile. 404 when the viewer is not a member.
+   */
+  public static getMemberCommunityDirectory<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberCommunityDirectoryResponses,
+    GetMemberCommunityDirectoryErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetMemberCommunityDirectoryResponses,
+      GetMemberCommunityDirectoryErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/directory",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the members of a space
+   *
+   * For anyone who can open the space. Members see the active members; moderators also see open requests and invitations.
+   */
+  public static listSpaceMembers<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListSpaceMembersResponses, ListSpaceMembersErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListSpaceMembersResponses,
+      ListSpaceMembersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Add a person to a space you moderate
+   *
+   * For a moderator who is a member of the community. Places another member straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.
+   */
+  public static addSpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddSpaceMemberResponses, AddSpaceMemberErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddSpaceMemberResponses,
+      AddSpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Ask to join a space
+   *
+   * For a member of the community who is not staff. Opens a request on a `by_request` space for a moderator to approve. 409 when the space is not `by_request` or you are already placed in it.
+   */
+  public static requestSpaceMembership<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RequestSpaceMembershipResponses,
+    RequestSpaceMembershipErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RequestSpaceMembershipResponses,
+      RequestSpaceMembershipErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/requests",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Invite a person into a space you moderate
+   *
+   * For a moderator who is a member of the community. Invites another member into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.
+   */
+  public static inviteSpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<InviteSpaceMemberResponses, InviteSpaceMemberErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      InviteSpaceMemberResponses,
+      InviteSpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/invites",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Accept your invitation to a space
+   *
+   * For a member of the community who is not staff. Makes you an active member. 409 when you have no open invitation, are already a member, or the space is full.
+   */
+  public static acceptSpaceInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AcceptSpaceInviteResponses, AcceptSpaceInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AcceptSpaceInviteResponses,
+      AcceptSpaceInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/acceptance",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Approve a person's request to join a space you moderate
+   *
+   * For a moderator who is a member of the community. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
+   */
+  public static approveSpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ApproveSpaceRequestResponses, ApproveSpaceRequestErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ApproveSpaceRequestResponses,
+      ApproveSpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Decline a person's request to join a space you moderate
+   *
+   * For a moderator who is a member of the community. Closes the open request. 404 when the person has no open request; 409 when they are already a member.
+   */
+  public static declineSpaceRequest<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeclineSpaceRequestResponses, DeclineSpaceRequestErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      DeclineSpaceRequestResponses,
+      DeclineSpaceRequestErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/decline",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Refuse your invitation to a space
+   *
+   * For a member of the community who is not staff. 409 when you have no open invitation or are already a member.
+   */
+  public static refuseSpaceInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RefuseSpaceInviteResponses, RefuseSpaceInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RefuseSpaceInviteResponses,
+      RefuseSpaceInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/refusal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Leave a space
+   *
+   * For a member of the community who is not staff. 409 when you are not a member of the space.
+   */
+  public static leaveSpace<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<LeaveSpaceResponses, LeaveSpaceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      LeaveSpaceResponses,
+      LeaveSpaceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/departure",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a person from a space you moderate
+   *
+   * For a moderator who is a member of the community. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
+   */
+  public static removeSpaceMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveSpaceMemberResponses, RemoveSpaceMemberErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RemoveSpaceMemberResponses,
+      RemoveSpaceMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+}
+
+export class Profile {
+  /**
+   * Read your profile
+   *
+   * For any signed-in person. The profile is yours across organizations; `imageUrl` is set only when the photo was uploaded in this organization. Before you save one, every field is empty.
+   */
+  public static getMemberProfile<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberProfileResponses, GetMemberProfileErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberProfileResponses,
+      GetMemberProfileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/profile",
+      ...options,
+    });
+  }
+
+  /**
+   * Update your profile
+   *
+   * For a member of the organization. Changes only the fields sent; null clears one. 404 when `imageAssetId` is not a finalized image you uploaded here.
+   */
+  public static updateMemberProfile<ThrowOnError extends boolean = false>(
+    parameters?: {
+      displayName?: string | null;
+      headline?: string | null;
+      bio?: string | null;
+      imageAssetId?: string | null;
+      extra?: JsonValueInput;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateMemberProfileResponses, UpdateMemberProfileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "displayName" },
+            { in: "body", key: "headline" },
+            { in: "body", key: "bio" },
+            { in: "body", key: "imageAssetId" },
+            { in: "body", key: "extra" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateMemberProfileResponses,
+      UpdateMemberProfileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/profile",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+}
+
+export class Posts {
+  /**
+   * Published posts across the spaces you can open
+   *
+   * For a member of the community. Pinned posts first, then newest first. 404 when you are not a member.
+   */
+  public static getMemberFeed<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberFeedResponses, GetMemberFeedErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetMemberFeedResponses,
+      GetMemberFeedErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/feed",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Your own posts in a community, newest first
+   *
+   * For a member of the community. Your posts in any status, drafts included, in the spaces you can open. 404 when you are not a member.
+   */
+  public static listOwnPosts<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListOwnPostsResponses, ListOwnPostsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListOwnPostsResponses,
+      ListOwnPostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/own-posts",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * The posts you bookmarked in a community, newest bookmark first
+   *
+   * For a member of the community. Only posts you can still read. 404 when you are not a member.
+   */
+  public static listBookmarkedPosts<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListBookmarkedPostsResponses, ListBookmarkedPostsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListBookmarkedPostsResponses,
+      ListBookmarkedPostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/bookmarks",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Published posts in a space
+   *
+   * For anyone who can open the space (403 otherwise). Filter by `topicId`; an unknown topic is a 404.
+   */
+  public static getSpaceFeed<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      page?: number;
+      pageSize?: number;
+      topicId?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetSpaceFeedResponses, GetSpaceFeedErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "topicId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetSpaceFeedResponses,
+      GetSpaceFeedErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/feed",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * The moderation queue of a space you moderate
+   *
+   * For a moderator who can open the space. Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.
+   */
+  public static getSpaceQueue<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetSpaceQueueResponses, GetSpaceQueueErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetSpaceQueueResponses,
+      GetSpaceQueueErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/queue",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Create a post
+   *
+   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past.
+   */
+  public static createPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      spaceId: string;
+      title: string;
+      body: string;
+      topicId: string | null;
+      extra?: JsonValueInput;
+      coverAssetId: string | null;
+      mode: "draft" | "submit" | "schedule";
+      scheduledAt: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreatePostResponses, CreatePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "spaceId" },
+            { in: "body", key: "title" },
+            { in: "body", key: "body" },
+            { in: "body", key: "topicId" },
+            { in: "body", key: "extra" },
+            { in: "body", key: "coverAssetId" },
+            { in: "body", key: "mode" },
+            { in: "body", key: "scheduledAt" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreatePostResponses,
+      CreatePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/posts",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Read a post
+   *
+   * For anyone who can open the space while the post is published; for its author in any status; for moderators also while it is pending or removed. Any other post is a 404.
+   */
+  public static getPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetPostResponses, GetPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).get<GetPostResponses, GetPostErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Edit your own post
+   *
+   * Author only. Changes only the fields sent. 409 when the post is removed, or the topic rules of the space are not met.
+   */
+  public static updatePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      title?: string;
+      body?: string;
+      topicId?: string | null;
+      extra?: JsonValueInput;
+      coverAssetId?: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdatePostResponses, UpdatePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "title" },
+            { in: "body", key: "body" },
+            { in: "body", key: "topicId" },
+            { in: "body", key: "extra" },
+            { in: "body", key: "coverAssetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdatePostResponses,
+      UpdatePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Submit your draft or scheduled post
+   *
+   * Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled.
+   */
+  public static submitPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SubmitPostResponses, SubmitPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      SubmitPostResponses,
+      SubmitPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/submission",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Schedule your post
+   *
+   * Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future.
+   */
+  public static schedulePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      scheduledAt: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SchedulePostResponses, SchedulePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "scheduledAt" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      SchedulePostResponses,
+      SchedulePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/schedule",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Publish a post that awaits review in a space you moderate
+   *
+   * For a moderator who can open the space. 409 when the post is not awaiting review.
+   */
+  public static approvePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ApprovePostResponses, ApprovePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      ApprovePostResponses,
+      ApprovePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove your post, or one in a space you moderate
+   *
+   * For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   */
+  public static removePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemovePostResponses, RemovePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      RemovePostResponses,
+      RemovePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/removal",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Restore a removed post in a space you moderate
+   *
+   * For a moderator who can open the space. 409 when the post is not removed.
+   */
+  public static restorePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RestorePostResponses, RestorePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      RestorePostResponses,
+      RestorePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Pin a post in a space you moderate
+   *
+   * For a moderator. Pinned posts lead the feeds. 409 when the post is removed.
+   */
+  public static pinPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<PinPostResponses, PinPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<PinPostResponses, PinPostErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/pin",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unpin a post in a space you moderate
+   *
+   * For a moderator. 409 when the post is removed.
+   */
+  public static unpinPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnpinPostResponses, UnpinPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      UnpinPostResponses,
+      UnpinPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/unpin",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Close comments on a post in a space you moderate
+   *
+   * For a moderator. Nobody can comment until they are opened again. 409 when the post is removed.
+   */
+  public static closePostComments<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ClosePostCommentsResponses, ClosePostCommentsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      ClosePostCommentsResponses,
+      ClosePostCommentsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/comments/close",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Open comments on a post in a space you moderate
+   *
+   * For a moderator. 409 when the post is removed.
+   */
+  public static openPostComments<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<OpenPostCommentsResponses, OpenPostCommentsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      OpenPostCommentsResponses,
+      OpenPostCommentsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/comments/open",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Turn reactions on or off for a post in a space you moderate
+   *
+   * For a moderator. Overrides the space's reactions setting for this post. 409 when the post is removed.
+   */
+  public static setPostReactionPolicy<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      enabled: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetPostReactionPolicyResponses,
+    SetPostReactionPolicyErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "enabled" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetPostReactionPolicyResponses,
+      SetPostReactionPolicyErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/reactions",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Withdraw your reaction from a post
+   *
+   * For anyone who can read the post, while reactions are on for it (403 otherwise). Returns the new counts.
+   */
+  public static clearPostReaction<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ClearPostReactionResponses, ClearPostReactionErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).delete<
+      ClearPostReactionResponses,
+      ClearPostReactionErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/reaction",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Set your reaction on a post
+   *
+   * For anyone who can read the post, while reactions are on for it (403 otherwise). Replaces any reaction you already had and returns the new counts.
+   */
+  public static setPostReaction<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      emoji: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SetPostReactionResponses, SetPostReactionErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "emoji" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetPostReactionResponses,
+      SetPostReactionErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/reaction",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Stop following a post
+   *
+   * For anyone who can read the post. Harmless when you do not follow it.
+   */
+  public static unfollowPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnfollowPostResponses, UnfollowPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).delete<
+      UnfollowPostResponses,
+      UnfollowPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/follow",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Follow a post
+   *
+   * For anyone who can read the post. You are notified of new comments on it. Following twice is harmless.
+   */
+  public static followPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<FollowPostResponses, FollowPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      FollowPostResponses,
+      FollowPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/follow",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a bookmark
+   *
+   * For anyone who can read the post. Harmless when you have not bookmarked it.
+   */
+  public static unbookmarkPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnbookmarkPostResponses, UnbookmarkPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).delete<
+      UnbookmarkPostResponses,
+      UnbookmarkPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/bookmark",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Bookmark a post
+   *
+   * For anyone who can read the post. Bookmarking twice is harmless.
+   */
+  public static bookmarkPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<BookmarkPostResponses, BookmarkPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      BookmarkPostResponses,
+      BookmarkPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/bookmark",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Flag a post for the moderators
+   *
+   * For anyone who can read the post. Flagging it again while your flag is open returns that flag.
+   */
+  public static flagPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      reason: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<FlagPostResponses, FlagPostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      FlagPostResponses,
+      FlagPostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/flags",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a post in a space you moderate
+   *
+   * For a moderator who can open the space. Closes every open flag and leaves the post up.
+   */
+  public static resolvePostFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ResolvePostFlagsResponses, ResolvePostFlagsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolvePostFlagsResponses,
+      ResolvePostFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Read a post's comments
+   *
+   * For anyone who can read the post. Pages by top-level comment, oldest first. Each page carries its top-level comments and all of their replies; `total` counts top-level comments.
+   */
+  public static listPostComments<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListPostCommentsResponses, ListPostCommentsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListPostCommentsResponses,
+      ListPostCommentsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/comments",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Comment on a post
+   *
+   * For anyone who can read the post, while its comments are open (403 otherwise). Replies nest one level. 409 when the post is not published.
+   */
+  public static createPostComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      body: string;
+      parentId?: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreatePostCommentResponses, CreatePostCommentErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "body", key: "body" },
+            { in: "body", key: "parentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreatePostCommentResponses,
+      CreatePostCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/comments",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+}
+
+export class Chats {
+  /**
+   * List your chats in a community
+   *
+   * For a member of the community. Every chat you are in, with your unread count and its last message.
+   */
+  public static listMemberChats<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListMemberChatsResponses, ListMemberChatsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListMemberChatsResponses,
+      ListMemberChatsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/chats",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Start a direct chat, or return the one that already exists
+   *
+   * For a member of the community, within its direct-message settings (403 otherwise). With the community set so a first message is a request, a new chat starts `pending` until the other person accepts it. 409 when you message yourself, send attachments without a body, or start a request without a message.
+   */
+  public static startDirectChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      orgUserId: string;
+      body: string | null;
+      assetIds?: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<StartDirectChatResponses, StartDirectChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "communityId" },
+            { in: "body", key: "orgUserId" },
+            { in: "body", key: "body" },
+            { in: "body", key: "assetIds" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      StartDirectChatResponses,
+      StartDirectChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/direct",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Start a group chat
+   *
+   * For a member of the community while group chats are on (403 otherwise). Everyone named must hold the community and be someone you may message. 409 when fewer than two others are named or the group would exceed the community's group size.
+   */
+  public static startGroupChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      orgUserIds: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<StartGroupChatResponses, StartGroupChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "communityId" },
+            { in: "body", key: "orgUserIds" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      StartGroupChatResponses,
+      StartGroupChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/group",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Add a person to a group chat you are in
+   *
+   * For a participant of a group chat. 409 when the chat is direct, the person is already in it, or it is full.
+   */
+  public static addChatParticipant<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddChatParticipantResponses, AddChatParticipantErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddChatParticipantResponses,
+      AddChatParticipantErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/participants",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Leave a chat
+   *
+   * For a participant. The chat stays for the others.
+   */
+  public static leaveChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<LeaveChatResponses, LeaveChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      LeaveChatResponses,
+      LeaveChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/leave",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Accept a message request
+   *
+   * For the person the request was sent to. The chat opens for both sides. 409 when the chat is not a pending request.
+   */
+  public static acceptChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AcceptChatResponses, AcceptChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      AcceptChatResponses,
+      AcceptChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/acceptance",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Read the messages in a chat, newest first
+   *
+   * For a participant of the chat.
+   */
+  public static listChatMessages<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListChatMessagesResponses, ListChatMessagesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListChatMessagesResponses,
+      ListChatMessagesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/messages",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Send a message
+   *
+   * For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted.
+   */
+  public static sendChatMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      body: string;
+      replyToId?: string | null;
+      assetIds?: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SendChatMessageResponses, SendChatMessageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "body", key: "body" },
+            { in: "body", key: "replyToId" },
+            { in: "body", key: "assetIds" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      SendChatMessageResponses,
+      SendChatMessageErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/messages",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete your message, or one in a community you moderate
+   *
+   * For the sender, or a moderator of the community. The message stays in the history, marked deleted. 409 when it is already deleted.
+   */
+  public static deleteChatMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteChatMessageResponses, DeleteChatMessageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "messageId" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteChatMessageResponses,
+      DeleteChatMessageErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Edit your own message
+   *
+   * Sender only, while the chat is open and not locked. 409 when the message is deleted.
+   */
+  public static editChatMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+      body: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<EditChatMessageResponses, EditChatMessageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "messageId" },
+            { in: "body", key: "body" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      EditChatMessageResponses,
+      EditChatMessageErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Withdraw your reaction from a message
+   *
+   * For a participant of the chat. Returns the new counts.
+   */
+  public static clearMessageReaction<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ClearMessageReactionResponses,
+    ClearMessageReactionErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "messageId" }] }]);
+    return (options?.client ?? client).delete<
+      ClearMessageReactionResponses,
+      ClearMessageReactionErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}/reaction",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Set your reaction on a message
+   *
+   * For a participant of the chat. Replaces any reaction you already had and returns the new counts.
+   */
+  public static setMessageReaction<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+      emoji: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SetMessageReactionResponses, SetMessageReactionErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "messageId" },
+            { in: "body", key: "emoji" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetMessageReactionResponses,
+      SetMessageReactionErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}/reaction",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Flag a message for the moderators
+   *
+   * For a participant of the chat. Flagging it again while your flag is open returns that flag.
+   */
+  public static flagMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+      reason: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<FlagMessageResponses, FlagMessageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "messageId" },
+            { in: "body", key: "reason" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      FlagMessageResponses,
+      FlagMessageErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}/flags",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Dismiss the open flags on a message in a community you moderate
+   *
+   * For a moderator who is a member of the community. Closes every open flag and leaves the message up.
+   */
+  public static resolveMessageFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      messageId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ResolveMessageFlagsResponses, ResolveMessageFlagsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "messageId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveMessageFlagsResponses,
+      ResolveMessageFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/messages/{messageId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Mark a chat read up to a message
+   *
+   * For a participant. The message must be in the chat (404 otherwise).
+   */
+  public static markChatRead<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      messageId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<MarkChatReadResponses, MarkChatReadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "body", key: "messageId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      MarkChatReadResponses,
+      MarkChatReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/read",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Mute a chat until a time, or until unmuted
+   *
+   * For a participant. Without `until` the chat stays muted until you unmute it.
+   */
+  public static muteChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      until?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<MuteChatResponses, MuteChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "body", key: "until" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      MuteChatResponses,
+      MuteChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/mute",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Unmute a chat
+   *
+   * For a participant.
+   */
+  public static unmuteChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnmuteChatResponses, UnmuteChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      UnmuteChatResponses,
+      UnmuteChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/unmute",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Lock a chat in a community you moderate
+   *
+   * For a moderator who is a member of the community. Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged.
+   */
+  public static lockChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<LockChatResponses, LockChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      LockChatResponses,
+      LockChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/lock",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unlock a chat in a community you moderate
+   *
+   * For a moderator who is a member of the community. Unlocking an unlocked chat returns it unchanged.
+   */
+  public static unlockChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnlockChatResponses, UnlockChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      UnlockChatResponses,
+      UnlockChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/unlock",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Unblock a person in a community
+   *
+   * For a member of the community. A direct chat closed by the block reopens unless a moderator locked it. 409 when you unblock yourself.
+   */
+  public static unblockMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnblockMemberResponses, UnblockMemberErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      UnblockMemberResponses,
+      UnblockMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/blocks/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Block a person in a community
+   *
+   * For a member of the community. Neither of you can message the other there; a direct chat between you closes. Blocking twice is harmless. 409 when you block yourself.
+   */
+  public static blockMember<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<BlockMemberResponses, BlockMemberErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      BlockMemberResponses,
+      BlockMemberErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/blocks/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+}
+
 export class Progress {
   /**
-   * Report usage on a target; the progress service decides completion
+   * Report usage on an activity; the progress service decides completion
+   *
+   * For a member who can open the course. Reports facts, never a decision: the service decides whether the activity is complete. 404 when the activity or its course is not published, or you cannot open it.
    */
   public static reportProgress<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2046,7 +6277,7 @@ export class Progress {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/progress",
+      url: "/api/member/progress",
       ...options,
       ...params,
       headers: {
@@ -2058,28 +6289,30 @@ export class Progress {
   }
 
   /**
-   * The student's progress in one course
+   * Your progress in one course
+   *
+   * For a member of the organization, derived from the course's current structure. 404 when the course is not published or you do not hold it.
    */
-  public static getLearnCourseProgress<ThrowOnError extends boolean = false>(
+  public static getMemberCourseProgress<ThrowOnError extends boolean = false>(
     parameters: {
       courseId: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
-    GetLearnCourseProgressResponses,
-    GetLearnCourseProgressErrors,
+    GetMemberCourseProgressResponses,
+    GetMemberCourseProgressErrors,
     ThrowOnError,
     "data"
   > {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
     return (options?.client ?? client).get<
-      GetLearnCourseProgressResponses,
-      GetLearnCourseProgressErrors,
+      GetMemberCourseProgressResponses,
+      GetMemberCourseProgressErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/courses/{courseId}/progress",
+      url: "/api/member/courses/{courseId}/progress",
       ...options,
       ...params,
     });
@@ -2089,6 +6322,8 @@ export class Progress {
 export class Discussion {
   /**
    * Read an activity's comments
+   *
+   * For a student who can open the course, and staff. Returns the activity's resolved comment settings with the comments; removed comments keep their place without their body.
    */
   public static listActivityComments<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2109,7 +6344,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/activities/{activityId}/comments",
+      url: "/api/member/activities/{activityId}/comments",
       ...options,
       ...params,
     });
@@ -2117,6 +6352,8 @@ export class Discussion {
 
   /**
    * Post a comment or reply on an activity
+   *
+   * For a student who can open the course, and staff, while discussion is on for the activity (403 otherwise). Lands pending when the course requires review and you are not staff. Replies nest one level and need threading on.
    */
   public static postComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2145,7 +6382,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/activities/{activityId}/comments",
+      url: "/api/member/activities/{activityId}/comments",
       ...options,
       ...params,
       headers: {
@@ -2157,7 +6394,9 @@ export class Discussion {
   }
 
   /**
-   * Delete a comment
+   * Delete your comment, or one you moderate
+   *
+   * For the author, staff on an activity comment, or a moderator on a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
    */
   public static deleteComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2173,7 +6412,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}",
+      url: "/api/member/comments/{commentId}",
       ...options,
       ...params,
     });
@@ -2181,6 +6420,8 @@ export class Discussion {
 
   /**
    * Revise your own comment
+   *
+   * Author only; not even staff may revise it. Discussion must be open where the comment is, and a removed comment cannot be revised.
    */
   public static editComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2207,7 +6448,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}",
+      url: "/api/member/comments/{commentId}",
       ...options,
       ...params,
       headers: {
@@ -2220,6 +6461,8 @@ export class Discussion {
 
   /**
    * Withdraw your reaction from a comment
+   *
+   * For anyone who can read the comment. Returns the new counts.
    */
   public static clearCommentReaction<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2240,14 +6483,16 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reaction",
+      url: "/api/member/comments/{commentId}/reaction",
       ...options,
       ...params,
     });
   }
 
   /**
-   * Set your reaction to a comment, replacing any you already had
+   * Set your reaction on a comment
+   *
+   * For anyone who can read the comment, while reactions are on where it is (403 otherwise). Replaces any reaction you already had and returns the new counts.
    */
   public static setCommentReaction<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2274,7 +6519,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reaction",
+      url: "/api/member/comments/{commentId}/reaction",
       ...options,
       ...params,
       headers: {
@@ -2286,7 +6531,9 @@ export class Discussion {
   }
 
   /**
-   * Flag a comment for moderator attention
+   * Flag a comment for the moderators
+   *
+   * For anyone who can read the comment. Flagging it again while your flag is open returns that flag.
    */
   public static reportComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2313,7 +6560,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/comments/{commentId}/reports",
+      url: "/api/member/comments/{commentId}/reports",
       ...options,
       ...params,
       headers: {
@@ -2325,7 +6572,50 @@ export class Discussion {
   }
 
   /**
-   * List comments, filtered by course, activity, author, status or reports
+   * Dismiss the open flags on a comment in a space you moderate
+   *
+   * For a moderator of a post comment, or staff for an activity comment. Closes every open flag and leaves the comment up.
+   */
+  public static resolveCommentFlags<ThrowOnError extends boolean = false>(
+    parameters: {
+      commentId: string;
+      resolution: "dismissed";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ResolveCommentFlagsResponses, ResolveCommentFlagsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "commentId" },
+            { in: "body", key: "resolution" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      ResolveCommentFlagsResponses,
+      ResolveCommentFlagsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/comments/{commentId}/flags/resolution",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * List course comments for moderation (staff)
+   *
+   * Staff only (owner, admin, instructor). Comments on course activities, filtered by course, activity, author, status or open reports; each row carries the author's email and the open reports.
    */
   public static listComments<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2340,7 +6630,7 @@ export class Discussion {
       orgUserId?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListCommentsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListCommentsResponses, ListCommentsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2359,7 +6649,12 @@ export class Discussion {
         },
       ],
     );
-    return (options?.client ?? client).get<ListCommentsResponses, unknown, ThrowOnError, "data">({
+    return (options?.client ?? client).get<
+      ListCommentsResponses,
+      ListCommentsErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/comments",
       ...options,
@@ -2368,7 +6663,9 @@ export class Discussion {
   }
 
   /**
-   * Remove a comment as a moderator
+   * Remove a course comment (staff)
+   *
+   * Staff only (owner, admin, instructor). Hides the comment and resolves its open reports as `removed`. Removing a removed comment returns it unchanged.
    */
   public static moderateRemoveComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2396,7 +6693,9 @@ export class Discussion {
   }
 
   /**
-   * Publish a comment: approves a pending one, restores a removed one
+   * Publish a course comment (staff)
+   *
+   * Staff only (owner, admin, instructor). Approves a pending comment or restores a removed one; a published comment is returned unchanged.
    */
   public static publishComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2435,7 +6734,9 @@ export class Discussion {
   }
 
   /**
-   * Dismiss every open report on a comment
+   * Dismiss every open report on a course comment (staff)
+   *
+   * Staff only (owner, admin, instructor). The comment stays up.
    */
   public static dismissCommentReports<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2463,7 +6764,9 @@ export class Discussion {
   }
 
   /**
-   * Reply to a comment from the moderation queue
+   * Reply to a course comment from the moderation queue (staff)
+   *
+   * Staff only (owner, admin, instructor). Replies nest one level: answering a reply attaches to its root comment.
    */
   public static replyToComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2504,36 +6807,110 @@ export class Discussion {
 
 export class Assets {
   /**
-   * Get a short-lived presigned URL to serve an asset to the student
+   * Register an image you are about to upload and get a presigned upload URL
+   *
+   * For a member of the organization. Member uploads are images only (409 otherwise). The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.
    */
-  public static getAssetDownloadUrl<ThrowOnError extends boolean = false>(
+  public static requestMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
-      id: string;
+      filename: string;
+      contentType: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetAssetDownloadUrlResponses, GetAssetDownloadUrlErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+  ): RequestResult<RequestMemberUploadResponses, RequestMemberUploadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "filename" },
+            { in: "body", key: "contentType" },
+          ],
+        },
+      ],
+    );
     return (options?.client ?? client).post<
-      GetAssetDownloadUrlResponses,
-      GetAssetDownloadUrlErrors,
+      RequestMemberUploadResponses,
+      RequestMemberUploadErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/learn/assets/{id}/url",
+      url: "/api/member/uploads",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Confirm an upload you started
+   *
+   * Uploader only; anyone else gets 404. Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.
+   */
+  public static finalizeMemberUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    FinalizeMemberUploadResponses,
+    FinalizeMemberUploadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).post<
+      FinalizeMemberUploadResponses,
+      FinalizeMemberUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}/finalize",
       ...options,
       ...params,
     });
   }
 
   /**
-   * Register an asset and get a presigned upload URL
+   * Delete an upload of yours that nothing references
+   *
+   * Uploader only; anyone else gets 404. 409 while a profile, post or message still uses it.
+   */
+  public static deleteMemberUpload<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteMemberUploadResponses, DeleteMemberUploadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteMemberUploadResponses,
+      DeleteMemberUploadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Register a library asset and get a presigned upload URL (staff)
+   *
+   * Staff only (owner, admin, instructor). The asset stays pending until you upload the file and confirm it.
    */
   public static requestUpload<ThrowOnError extends boolean = false>(
     parameters: {
       filename: string;
       contentType: string;
-      kind: "video" | "download" | "content";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
@@ -2544,7 +6921,6 @@ export class Assets {
           args: [
             { in: "body", key: "filename" },
             { in: "body", key: "contentType" },
-            { in: "body", key: "kind" },
           ],
         },
       ],
@@ -2568,7 +6944,9 @@ export class Assets {
   }
 
   /**
-   * Confirm an upload completed (captures size + content type)
+   * Confirm a library upload completed (staff)
+   *
+   * Staff only (owner, admin, instructor). Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.
    */
   public static confirmAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2591,7 +6969,9 @@ export class Assets {
   }
 
   /**
-   * Browse the organization's media library
+   * Browse the organization's media library (staff)
+   *
+   * Staff only (owner, admin, instructor). Library files by default; `source: member` lists members' uploads.
    */
   public static listAssets<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2599,7 +6979,8 @@ export class Assets {
       pageSize?: number;
       search?: string;
       sort?: string;
-      kind?: "video" | "download" | "content";
+      kind?: "image" | "video" | "audio" | "document";
+      source?: "library" | "member";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {
@@ -2613,6 +6994,7 @@ export class Assets {
             { in: "query", key: "search" },
             { in: "query", key: "sort" },
             { in: "query", key: "kind" },
+            { in: "query", key: "source" },
           ],
         },
       ],
@@ -2631,7 +7013,9 @@ export class Assets {
   }
 
   /**
-   * Delete an asset (removes the object from storage)
+   * Delete an asset nothing references (staff)
+   *
+   * Staff only (owner, admin, instructor). Removes the row and the stored file. 409 while content still uses it.
    */
   public static deleteAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2654,7 +7038,9 @@ export class Assets {
   }
 
   /**
-   * Get an asset's metadata
+   * Get an asset's metadata (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2674,17 +7060,308 @@ export class Assets {
   }
 
   /**
-   * Get a short-lived presigned URL to download/serve an asset
+   * Redirect to a library file to show it (staff)
+   *
+   * Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.
    */
-  public static requestAssetDownload<ThrowOnError extends boolean = false>(
+  public static getLibraryFile<ThrowOnError extends boolean = false>(
     parameters: {
       id: string;
-      filename?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetLibraryFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<unknown, GetLibraryFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/assets/{id}/file",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a library file saved under its filename (staff)
+   *
+   * Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.
+   */
+  public static downloadLibraryFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, DownloadLibraryFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      DownloadLibraryFileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/assets/{id}/download",
+      ...options,
+      ...params,
+    });
+  }
+}
+
+export class Files {
+  /**
+   * Redirect to a course's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published course; staff may fetch any. 404 when the course has no thumbnail.
+   */
+  public static getCourseThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetCourseThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
+    return (options?.client ?? client).get<unknown, GetCourseThumbnailErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/member/courses/{courseId}/thumbnail",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * Redirect to a download's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published download; staff may fetch any. 404 when the download has no thumbnail.
+   */
+  public static getDownloadThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      downloadId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetDownloadThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      GetDownloadThumbnailErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/downloads/{downloadId}/thumbnail",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a community's thumbnail
+   *
+   * Any org user may fetch the thumbnail of a published community; staff may fetch any. 404 when the community has no thumbnail.
+   */
+  public static getCommunityThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetCommunityThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      unknown,
+      GetCommunityThumbnailErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/thumbnail",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a file used in a lesson
+   *
+   * Served when the student can open the course, the course and the lesson are published, and the lesson lists the file. Staff may fetch any file a lesson lists. Use the URL as an img, video or audio src.
+   */
+  public static getActivityFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      activityId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetActivityFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "activityId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetActivityFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/activities/{activityId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a file in a download, saved under its display name
+   *
+   * Served when the student can open the download, it is published, and it lists the file. Staff may fetch any file a download lists. The storage link lives DELIVERY_URL_EXPIRY seconds.
+   */
+  public static getDownloadFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      downloadId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetDownloadFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "downloadId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetDownloadFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/downloads/{downloadId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a post's cover image
+   *
+   * Served to whoever can read the post. 404 when the post has no cover.
+   */
+  public static getPostCover<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetPostCoverErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).get<unknown, GetPostCoverErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/cover",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an image attached to a chat message
+   *
+   * Served to the chat's participants while the message stands (staff also after it is deleted), and to moderators while the message is flagged.
+   */
+  public static getMessageAttachment<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+      messageId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetMessageAttachmentErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatId" },
+            { in: "path", key: "messageId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      unknown,
+      GetMessageAttachmentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/messages/{messageId}/attachments/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an org user's profile photo
+   *
+   * Served to org users of the same organization when the photo belongs to it. 404 when the person has no photo here.
+   */
+  public static getPersonImage<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetPersonImageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).get<unknown, GetPersonImageErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/people/{orgUserId}/image",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to an image you uploaded
+   *
+   * Served only to the person who uploaded it, once it is finalized.
+   */
+  public static getMemberUploadFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetMemberUploadFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
+    return (options?.client ?? client).get<
+      unknown,
+      GetMemberUploadFileErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/uploads/{id}/file",
+      ...options,
+      ...params,
+    });
+  }
+}
+
+export class Notifications {
+  /**
+   * List your notifications, newest first, with your unread count
+   *
+   * For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.
+   */
+  public static listMemberNotifications<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
-    RequestAssetDownloadResponses,
-    RequestAssetDownloadErrors,
+    ListMemberNotificationsResponses,
+    ListMemberNotificationsErrors,
     ThrowOnError,
     "data"
   > {
@@ -2693,20 +7370,159 @@ export class Assets {
       [
         {
           args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "filename" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
           ],
         },
       ],
     );
-    return (options?.client ?? client).post<
-      RequestAssetDownloadResponses,
-      RequestAssetDownloadErrors,
+    return (options?.client ?? client).get<
+      ListMemberNotificationsResponses,
+      ListMemberNotificationsErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/assets/{id}/download-url",
+      url: "/api/member/notifications",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark one of your notifications read
+   *
+   * For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.
+   */
+  public static markMemberNotificationRead<ThrowOnError extends boolean = false>(
+    parameters: {
+      notificationId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkMemberNotificationReadResponses,
+    MarkMemberNotificationReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "notificationId" }] }],
+    );
+    return (options?.client ?? client).post<
+      MarkMemberNotificationReadResponses,
+      MarkMemberNotificationReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/{notificationId}/read",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark all your notifications read
+   *
+   * For any signed-in person in the organization. Returns how many were unread.
+   */
+  public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkAllMemberNotificationsReadResponses,
+    MarkAllMemberNotificationsReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).post<
+      MarkAllMemberNotificationsReadResponses,
+      MarkAllMemberNotificationsReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/read",
+      ...options,
+    });
+  }
+
+  /**
+   * Read how you are told about each kind of notification
+   *
+   * For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.
+   */
+  public static getMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationPreferencesResponses,
+    GetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetMemberNotificationPreferencesResponses,
+      GetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
+      ...options,
+    });
+  }
+
+  /**
+   * Set how you are told about the given kinds of notification
+   *
+   * For any signed-in person in the organization. Changes only the kinds sent and returns every kind.
+   */
+  public static setMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    parameters: {
+      preferences: Array<{
+        kind:
+          | "newPostInSpace"
+          | "newCommentOnPost"
+          | "replyToYourComment"
+          | "yourPostWasPublished"
+          | "yourPostWasRemoved"
+          | "yourCommentWasRemoved"
+          | "requestApproved"
+          | "requestDeclined"
+          | "invitedToSpace"
+          | "newMessage"
+          | "messageRequest"
+          | "addedToGroupChat"
+          | "youAreNowAModerator"
+          | "membershipEndingSoon"
+          | "welcomeToCommunity"
+          | "postAwaitingReview"
+          | "joinRequest"
+          | "somethingWasFlagged"
+          | "messageWasFlagged";
+        inApp: boolean;
+        email: boolean;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetMemberNotificationPreferencesResponses,
+    SetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "body", key: "preferences" }] }],
+    );
+    return (options?.client ?? client).put<
+      SetMemberNotificationPreferencesResponses,
+      SetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
       ...options,
       ...params,
       headers: {
@@ -2720,7 +7536,9 @@ export class Assets {
 
 export class Reporting {
   /**
-   * A student's learner record: per-course progress and completion
+   * A student's learner record (staff)
+   *
+   * Staff only (owner, admin, instructor). Per-course progress and completion.
    */
   public static getStudentAnalytics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2743,12 +7561,19 @@ export class Reporting {
   }
 
   /**
-   * Back-office overview stats
+   * Back-office overview stats (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getOverview<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetOverviewResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetOverviewResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<GetOverviewResponses, GetOverviewErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetOverviewResponses,
+      GetOverviewErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/overview",
       ...options,
@@ -2756,18 +7581,20 @@ export class Reporting {
   }
 
   /**
-   * Enrollments granted per day over a trailing window
+   * Enrollments granted per day over a trailing window (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getEnrollmentSeries<ThrowOnError extends boolean = false>(
     parameters?: {
       days?: number;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetEnrollmentSeriesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<GetEnrollmentSeriesResponses, GetEnrollmentSeriesErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "days" }] }]);
     return (options?.client ?? client).get<
       GetEnrollmentSeriesResponses,
-      unknown,
+      GetEnrollmentSeriesErrors,
       ThrowOnError,
       "data"
     >({
@@ -2779,7 +7606,9 @@ export class Reporting {
   }
 
   /**
-   * Completion and engagement stats for a course
+   * Completion and engagement stats for a course (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getCourseAnalytics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2802,7 +7631,9 @@ export class Reporting {
   }
 
   /**
-   * Enrollments granted per day for a course over a trailing window
+   * Enrollments granted per day for a course over a trailing window (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getCourseEnrollmentSeries<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2843,7 +7674,9 @@ export class Reporting {
 
 export class Entitlements {
   /**
-   * List entitlements
+   * List entitlements (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listEntitlements<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2858,7 +7691,7 @@ export class Entitlements {
       type?: "course" | "download";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListEntitlementsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListEntitlementsResponses, ListEntitlementsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2879,7 +7712,7 @@ export class Entitlements {
     );
     return (options?.client ?? client).get<
       ListEntitlementsResponses,
-      unknown,
+      ListEntitlementsErrors,
       ThrowOnError,
       "data"
     >({
@@ -2891,17 +7724,19 @@ export class Entitlements {
   }
 
   /**
-   * Grant a student access to a piece of content
+   * Grant a person access to content or a bundle (staff)
+   *
+   * Staff only (owner, admin, instructor). Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     parameters: {
       orgUserId: string;
       contentId?: string | null;
       bundleId?: string | null;
-      expiresAt: unknown;
+      expiresAt: string | null;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<GrantEntitlementResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<GrantEntitlementResponses, GrantEntitlementErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -2917,7 +7752,7 @@ export class Entitlements {
     );
     return (options?.client ?? client).post<
       GrantEntitlementResponses,
-      unknown,
+      GrantEntitlementErrors,
       ThrowOnError,
       "data"
     >({
@@ -2934,7 +7769,9 @@ export class Entitlements {
   }
 
   /**
-   * Revoke or reinstate an entitlement
+   * Revoke or reinstate an entitlement (staff)
+   *
+   * Staff only (owner, admin, instructor). Access follows the status at once.
    */
   public static setEntitlementStatus<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2980,27 +7817,34 @@ export class Entitlements {
 
 export class Automations {
   /**
-   * List automations, optionally only workflows or only webhooks
+   * List automations (staff)
+   *
+   * Staff only (owner, admin, instructor). Optionally only workflows or only webhooks.
    */
   public static listAutomations<ThrowOnError extends boolean = false>(
     parameters?: {
       kind?: "workflow" | "webhook";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "kind" }] }]);
-    return (options?.client ?? client).get<ListAutomationsResponses, unknown, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/automations",
-        ...options,
-        ...params,
-      },
-    );
+    return (options?.client ?? client).get<
+      ListAutomationsResponses,
+      ListAutomationsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/automations",
+      ...options,
+      ...params,
+    });
   }
 
   /**
-   * Create a workflow automation
+   * Create a workflow automation (staff)
+   *
+   * Staff only (owner, admin, instructor). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.
    */
   public static createAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3013,9 +7857,12 @@ export class Automations {
           [key: string]: JsonValueInput;
         };
       }>;
+      filter?: {
+        [key: string]: JsonValueInput;
+      } | null;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateAutomationResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -3025,13 +7872,14 @@ export class Automations {
             { in: "body", key: "description" },
             { in: "body", key: "triggers" },
             { in: "body", key: "actions" },
+            { in: "body", key: "filter" },
           ],
         },
       ],
     );
     return (options?.client ?? client).post<
       CreateAutomationResponses,
-      unknown,
+      CreateAutomationErrors,
       ThrowOnError,
       "data"
     >({
@@ -3048,14 +7896,21 @@ export class Automations {
   }
 
   /**
-   * List the actions automations can use
+   * List the actions automations can use (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listAutomationActions<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationActionsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListAutomationActionsResponses,
+    ListAutomationActionsErrors,
+    ThrowOnError,
+    "data"
+  > {
     return (options?.client ?? client).get<
       ListAutomationActionsResponses,
-      unknown,
+      ListAutomationActionsErrors,
       ThrowOnError,
       "data"
     >({
@@ -3066,14 +7921,21 @@ export class Automations {
   }
 
   /**
-   * List the domain events automations can react to
+   * List the domain events automations can react to (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static listAutomationTriggers<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationTriggersResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<
+    ListAutomationTriggersResponses,
+    ListAutomationTriggersErrors,
+    ThrowOnError,
+    "data"
+  > {
     return (options?.client ?? client).get<
       ListAutomationTriggersResponses,
-      unknown,
+      ListAutomationTriggersErrors,
       ThrowOnError,
       "data"
     >({
@@ -3084,7 +7946,9 @@ export class Automations {
   }
 
   /**
-   * Delete a workflow automation (webhooks are deleted through the webhook endpoints)
+   * Delete a workflow automation (staff)
+   *
+   * Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints, and system automations cannot be deleted (409). Its runs stay readable.
    */
   public static deleteAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3107,7 +7971,9 @@ export class Automations {
   }
 
   /**
-   * Get an automation by id
+   * Get an automation (staff)
+   *
+   * Staff only (owner, admin, instructor). Workflows and webhooks alike.
    */
   public static getAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3130,7 +7996,9 @@ export class Automations {
   }
 
   /**
-   * Update a workflow automation (webhooks change through the webhook endpoints)
+   * Update a workflow automation (staff)
+   *
+   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.
    */
   public static updateAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3144,6 +8012,9 @@ export class Automations {
           [key: string]: JsonValueInput;
         };
       }>;
+      filter?: {
+        [key: string]: JsonValueInput;
+      } | null;
       enabled?: boolean;
     },
     options?: Options<never, ThrowOnError>,
@@ -3158,6 +8029,7 @@ export class Automations {
             { in: "body", key: "description" },
             { in: "body", key: "triggers" },
             { in: "body", key: "actions" },
+            { in: "body", key: "filter" },
             { in: "body", key: "enabled" },
           ],
         },
@@ -3182,7 +8054,9 @@ export class Automations {
   }
 
   /**
-   * List an automation's runs — a deleted automation's runs remain reachable (audit trail)
+   * List an automation's runs (staff)
+   *
+   * Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404.
    */
   public static listAutomationRuns<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3194,7 +8068,7 @@ export class Automations {
       status?: "running" | "completed" | "failed";
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAutomationRunsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListAutomationRunsResponses, ListAutomationRunsErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
@@ -3212,7 +8086,7 @@ export class Automations {
     );
     return (options?.client ?? client).get<
       ListAutomationRunsResponses,
-      unknown,
+      ListAutomationRunsErrors,
       ThrowOnError,
       "data"
     >({
@@ -3224,9 +8098,9 @@ export class Automations {
   }
 
   /**
-   * Run a finished run again
+   * Run a finished run again (staff)
    *
-   * Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).
+   * Staff only (owner, admin, instructor). Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).
    */
   public static rerunAutomationRun<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3260,12 +8134,19 @@ export class Automations {
   }
 
   /**
-   * List the organization's webhooks
+   * List the organization's webhooks (staff)
+   *
+   * Staff only (owner, admin, instructor). Signing secrets are not included.
    */
   public static listWebhooks<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListWebhooksResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<ListWebhooksResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<ListWebhooksResponses, ListWebhooksErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListWebhooksResponses,
+      ListWebhooksErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/automations/webhooks",
       ...options,
@@ -3273,9 +8154,9 @@ export class Automations {
   }
 
   /**
-   * Create a webhook — returns its signing secret
+   * Create a webhook (staff)
    *
-   * Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
+   * Staff only (owner, admin, instructor). Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
    */
   public static createWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3316,7 +8197,9 @@ export class Automations {
   }
 
   /**
-   * Delete a webhook and its signing secret — its delivery history is kept
+   * Delete a webhook and its signing secret (staff)
+   *
+   * Staff only (owner, admin, instructor). Its delivery history is kept.
    */
   public static deleteWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3339,7 +8222,9 @@ export class Automations {
   }
 
   /**
-   * Get a webhook by id
+   * Get a webhook (staff)
+   *
+   * Staff only (owner, admin, instructor). The signing secret is not included.
    */
   public static getWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3362,7 +8247,9 @@ export class Automations {
   }
 
   /**
-   * Change a webhook's URL, events, description or enabled flag
+   * Change a webhook's URL, events, description or enabled flag (staff)
+   *
+   * Staff only (owner, admin, instructor). Changes only the fields sent. 400 when an event is reserved or unknown.
    */
   public static updateWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3407,7 +8294,9 @@ export class Automations {
   }
 
   /**
-   * Reveal a webhook's signing secret
+   * Reveal a webhook's signing secret (staff)
+   *
+   * Staff only (owner, admin, instructor).
    */
   public static getWebhookSecret<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3430,7 +8319,9 @@ export class Automations {
   }
 
   /**
-   * Replace a webhook's signing secret — the old one stops working immediately
+   * Replace a webhook's signing secret (staff)
+   *
+   * Staff only (owner, admin, instructor). The old secret stops working immediately.
    */
   public static rotateWebhookSecret<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3455,7 +8346,9 @@ export class Automations {
 
 export class Integrations {
   /**
-   * List the integrations this deployment supports, with their config schemas
+   * List the integrations this deployment supports (staff)
+   *
+   * Staff only (owner, admin, instructor). Each with the JSON Schemas of its config, its secrets and its actions.
    */
   public static listAvailableIntegrations<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -3478,7 +8371,9 @@ export class Integrations {
   }
 
   /**
-   * List the organization's integration connections
+   * List the organization's integration connections (staff)
+   *
+   * Staff only (owner, admin, instructor). Secrets are never returned.
    */
   public static listConnections<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -3496,7 +8391,9 @@ export class Integrations {
   }
 
   /**
-   * Connect an integration (stores its secrets encrypted)
+   * Connect an integration (staff)
+   *
+   * Staff only (owner, admin, instructor). Stores the secrets encrypted; they are never returned. 400 when the integration is unknown or the config is invalid; 409 when the organization already has a connection to it.
    */
   public static connectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3541,7 +8438,9 @@ export class Integrations {
   }
 
   /**
-   * Disconnect an integration (destroys its stored secrets)
+   * Disconnect an integration (staff)
+   *
+   * Staff only (owner, admin, instructor). Destroys its stored secrets.
    */
   public static disconnectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3569,7 +8468,9 @@ export class Integrations {
   }
 
   /**
-   * Get a connection
+   * Get a connection (staff)
+   *
+   * Staff only (owner, admin, instructor). Secrets are never returned.
    */
   public static getConnection<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3592,7 +8493,9 @@ export class Integrations {
   }
 
   /**
-   * Change a connection's configuration or active flag
+   * Change a connection's configuration or active flag (staff)
+   *
+   * Staff only (owner, admin, instructor). 400 when the config is invalid for the integration.
    */
   public static configureConnection<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3635,7 +8538,9 @@ export class Integrations {
   }
 
   /**
-   * Replace a connection's secrets (re-authenticate)
+   * Replace a connection's secrets (staff)
+   *
+   * Staff only (owner, admin, instructor). The new secrets replace the stored ones.
    */
   public static reconnectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3681,7 +8586,9 @@ export class Integrations {
   }
 
   /**
-   * Invoke one of a connection's actions (e.g. a listing that feeds a picker)
+   * Invoke one of a connection's actions (staff)
+   *
+   * Staff only (owner, admin, instructor). Runs the action, such as a listing that feeds a picker, with `input` checked against its input schema. 400 when the action fails or rejects the input; 404 when the connection or action does not exist; 409 when the connection is inactive.
    */
   public static invokeConnectionAction<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3732,13 +8639,15 @@ export class Integrations {
 export class Access {
   /**
    * Every access scope and whether your role can grant it
+   *
+   * Staff only (owner, admin, instructor). Each scope an app connection or API key can carry, marked with whether your role holds it. Only allowed scopes can be granted.
    */
   public static listAccessScopes<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAccessScopesResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListAccessScopesResponses, ListAccessScopesErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
       ListAccessScopesResponses,
-      unknown,
+      ListAccessScopesErrors,
       ThrowOnError,
       "data"
     >({
@@ -3750,13 +8659,15 @@ export class Access {
 
   /**
    * Apps connected to this organization as you
+   *
+   * Staff only (owner, admin, instructor). The apps you connected to this organization, each with the scopes you granted and when.
    */
   public static listConnectedApps<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListConnectedAppsResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<ListConnectedAppsResponses, ListConnectedAppsErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
       ListConnectedAppsResponses,
-      unknown,
+      ListConnectedAppsErrors,
       ThrowOnError,
       "data"
     >({
@@ -3768,17 +8679,19 @@ export class Access {
 
   /**
    * Disconnect an app
+   *
+   * Staff only (owner, admin, instructor). Revokes your consent and refresh tokens for the app in this organization; its next call is refused.
    */
   public static revokeConnectedApp<ThrowOnError extends boolean = false>(
     parameters: {
       clientId: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<RevokeConnectedAppResponses, unknown, ThrowOnError, "data"> {
+  ): RequestResult<RevokeConnectedAppResponses, RevokeConnectedAppErrors, ThrowOnError, "data"> {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "clientId" }] }]);
     return (options?.client ?? client).delete<
       RevokeConnectedAppResponses,
-      unknown,
+      RevokeConnectedAppErrors,
       ThrowOnError,
       "data"
     >({
@@ -3791,11 +8704,18 @@ export class Access {
 
   /**
    * Your API keys for this organization
+   *
+   * Staff only (owner, admin, instructor). Your keys for this organization with their scopes. The key itself is never returned again after it is created.
    */
   public static listApiKeys<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListApiKeysResponses, unknown, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<ListApiKeysResponses, unknown, ThrowOnError, "data">({
+  ): RequestResult<ListApiKeysResponses, ListApiKeysErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListApiKeysResponses,
+      ListApiKeysErrors,
+      ThrowOnError,
+      "data"
+    >({
       responseStyle: "data",
       url: "/api/access/api-keys",
       ...options,
@@ -3804,6 +8724,8 @@ export class Access {
 
   /**
    * Create an API key
+   *
+   * Staff only (owner, admin, instructor). The key acts as you in this organization with the scopes given. 403 when your role cannot hold one of them. The key is returned once.
    */
   public static createApiKey<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3830,6 +8752,13 @@ export class Access {
         | "automations:delete"
         | "comments:read"
         | "comments:moderate"
+        | "communities:read"
+        | "communities:write"
+        | "communities:delete"
+        | "community_members:read"
+        | "community_members:write"
+        | "community_moderation:read"
+        | "community_moderation:write"
       >;
     },
     options?: Options<never, ThrowOnError>,
@@ -3865,6 +8794,8 @@ export class Access {
 
   /**
    * Delete an API key
+   *
+   * Staff only (owner, admin, instructor). 404 when the key is not one of yours in this organization.
    */
   public static deleteApiKey<ThrowOnError extends boolean = false>(
     parameters: {

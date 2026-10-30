@@ -104,5 +104,21 @@ ${cards.join("\n")}
 `,
 );
 
+// Fumadocs still emits the v10 `APIPage` name beside `OpenAPIPage`. This site
+// only provides `OpenAPIPage`.
+const compat = `  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+`;
+for (const dir of meta.pages) {
+  const files = (await readdir(path.join(out, dir))).filter((name) => name.endsWith(".mdx"));
+  for (const name of files) {
+    const file = path.join(out, dir, name);
+    const raw = await readFile(file, "utf8");
+    if (!raw.includes(compat)) continue;
+    await writeFile(file, raw.replace(compat, "  const { OpenAPIPage } = props.components ?? {};\n").replaceAll("<Comp ", "<OpenAPIPage "));
+  }
+}
+
 // Serve the spec itself so agents and codegen tools can fetch it from the site.
 await copyFile("../../packages/sdk/openapi.json", "./public/openapi.json");

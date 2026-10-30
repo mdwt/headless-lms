@@ -6,14 +6,22 @@ const author = {
   id: "orm_a",
   firstName: "Ana",
   lastName: "Diaz",
+  displayName: null,
+  headline: null,
   image: null,
+  imageAssetId: null,
+  imageUrl: null,
   role: "student" as const,
 };
 const instructor = {
   id: "orm_s",
   firstName: "Sarah",
   lastName: "Chen",
+  displayName: null,
+  headline: null,
   image: null,
+  imageAssetId: null,
+  imageUrl: null,
   role: "instructor" as const,
 };
 
@@ -23,6 +31,8 @@ function comment(over: Partial<CommentView> = {}): CommentView {
   return {
     id: "cmt_1",
     activityId: "act_1",
+    postId: null,
+    communityId: null,
     parentId: null,
     author,
     body: "hello",

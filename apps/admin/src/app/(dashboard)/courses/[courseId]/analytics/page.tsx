@@ -7,7 +7,7 @@ import { ActivityEngagementTable } from "./_components/activity-engagement-table
 import { AnalyticsStats } from "./_components/analytics-stats";
 
 // Analytics tab: completion + engagement for the course, computed against the
-// currently enrolled cohort by the reporting/courses read model.
+// currently enrolled cohort by the reporting/admin course read.
 export default async function CourseAnalyticsTab({
   params,
   searchParams,

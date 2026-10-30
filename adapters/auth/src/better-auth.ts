@@ -21,6 +21,7 @@ import type { CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
+import { NotFoundError } from "@headless-lms/core/shared/errors";
 import { customSession, jwt, magicLink, organization } from "better-auth/plugins";
 import {
   type AccessTokenAuthorization,
@@ -480,7 +481,7 @@ export class BetterAuth
   async deleteApiKey(headers: HeaderBag, orgId: string, keyId: string): Promise<void> {
     const owned = await this.listApiKeys(headers, orgId);
     if (!owned.some((key) => key.id === keyId)) {
-      throw new OrganizationRuleError("That API key does not exist");
+      throw new NotFoundError("API key", keyId);
     }
     await this.pluginApi.deleteApiKey({ body: { keyId }, headers: fromNodeHeaders(headers) });
   }

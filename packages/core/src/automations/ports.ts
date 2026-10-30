@@ -21,6 +21,7 @@ import type {
   UpdateWebhookInput,
 } from './types.js';
 import type { CredentialStore, DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { ScheduledAutomation } from '../types/index.js';
 
 export type {
   AutomationDispatch,
@@ -31,7 +32,10 @@ export type {
   WebhookSender,
 } from '../types/index.js';
 
-export type NewAutomation = CreateAutomationInput & { kind: AutomationKind };
+export type NewAutomation = CreateAutomationInput & {
+  kind: AutomationKind;
+  source?: 'system' | 'user';
+};
 
 /** A run row before persistence assigns its id and event_id. */
 export type NewAutomationRun = Omit<AutomationRun, 'id' | 'eventId'>;
@@ -67,6 +71,7 @@ export interface AutomationsService {
 // Outbound ports (persistence contracts the repositories fulfil).
 export interface AutomationsRepository {
   insert(orgId: string, input: NewAutomation): Promise<Automation>;
+  insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null>;
   update(orgId: string, id: string, patch: UpdateAutomationInput): Promise<Automation | null>;
   /** Returns the deleted row (the event snapshot), or null if it didn't exist. */
   delete(orgId: string, id: string): Promise<Automation | null>;
@@ -74,6 +79,7 @@ export interface AutomationsRepository {
   listByOrg(orgId: string, kind?: AutomationKind): Promise<Automation[]>;
   /** All rows whose triggers include `trigger`, enabled and disabled alike — the service filters to `enabled`. */
   listByTrigger(orgId: string, trigger: string): Promise<Automation[]>;
+  listSchedules(): Promise<ScheduledAutomation[]>;
 }
 
 export interface AutomationRunsRepository {
@@ -96,6 +102,12 @@ export interface AutomationRunsRepository {
     automationId: string,
     query: AutomationRunsQuery,
   ): Promise<Page<AutomationRun>>;
+  recentRecipients(
+    orgId: string,
+    automationId: string,
+    chatId: string,
+    since: Date,
+  ): Promise<string[]>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

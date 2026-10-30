@@ -9,14 +9,6 @@
  */
 
 import { ApiError } from "@/lib/api/http";
-import type { AssetKind } from "@/lib/api/types";
-
-/** Map a browser File to the API's coarse asset kind. */
-export function kindForFile(file: File): AssetKind {
-  if (file.type.startsWith("image/")) return "content";
-  if (file.type.startsWith("video/")) return "video";
-  return "download";
-}
 
 /**
  * PUT the file straight to object storage using the presigned URL + headers

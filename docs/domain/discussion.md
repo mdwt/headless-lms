@@ -10,12 +10,13 @@ the author made.
 - Owns the **comment**: its author, the activity it attaches to, what it replies
   to, its body, and its moderation state.
 - Owns **reactions** to comments and **reports** of comments.
-- Owns **discussion settings** for a course, and the **comments state** of an
-  individual activity.
+- Reads the **discussion settings** on a course and the **comments state** on an
+  activity. Content owns both as part of the course's definition and is the only
+  writer; discussion applies them.
 - Owns the **moderation lifecycle**: what state a comment is in and who may
   change it.
-- Comments attach to an activity — the leaf a learner opens. There are no
-  module-level or course-level comments.
+- Comments attach to an activity — the leaf a learner opens — or, in a
+  community, to a post. There are no module-level or course-level comments.
 - References the activity its comments attach to (content), the person who
   wrote each comment (identity), and access to the content (entitlements).
   Does **not** own content, access, identity, or notification delivery.
@@ -33,8 +34,9 @@ the author made.
   restore a removed one, resolve a report.
 - **Work a queue** — list what awaits a moderator across a course or the org:
   comments pending review, and comments carrying unresolved reports.
-- **Configure** — set a course's discussion settings; set or clear an activity's
-  comments state.
+- **Resolve settings** — read a course's discussion settings and an activity's
+  comments state from content and resolve what the activity accepts and serves.
+  Setting them is a content capability.
 
 ## Model
 
@@ -47,6 +49,12 @@ the author made.
   per person, per comment, per kind.
 - **Report** — one person's flag against one comment: an optional reason and
   whether it has been resolved. One per person, per comment.
+
+### Settings discussion reads
+
+Neither is a discussion entity. Both are part of the course's definition in
+content, written only by content and read by discussion.
+
 - **Discussion settings** — per course: whether discussion is enabled, whether
   replies are allowed, whether comments require review, whether reactions are
   enabled.
@@ -89,7 +97,9 @@ Whether an author is staff is resolved from their current role in the org each
 time comments are read, and is never recorded on the comment. The same role
 decides three things: who carries an instructor badge, who bypasses review, and
 who may moderate. Any staff org user — owner, admin or instructor —
-moderates; there is no narrower moderator role.
+moderates course comments. The moderator role is a Better Auth org role for
+community posts and comments. It is not staff, and it does not moderate course
+comments.
 
 An author has full control of their own comments: read, revise, remove, with no
 time limit and regardless of replies. Edits are neither versioned nor evented.
@@ -122,21 +132,28 @@ observe, and no automation is present unless one is configured.
 
 ### Queue scope
 
-The pending and reported queues scope to a course. A comment records only the
-activity it attaches to; which course that activity sits in is content's fact
-and can change when a course is restructured, so it is resolved when the queue
-is read rather than copied onto every comment.
+The pending and reported queues for course comments scope to a course. A
+comment on an activity records only the activity it attaches to; which course
+that activity sits in is content's fact and can change when a course is
+restructured, so it is resolved when the queue is read rather than copied onto
+every comment. A community's post and comment flags scope to the space. Message
+flags scope to the community.
 
 ## Boundaries
 
 1. **discussion → content** — discussion references the activity its comments
-   attach to; content owns it and knows nothing of discussion. Which course
-   an activity sits in is content's fact — discussion resolves it when scoping
-   settings or a queue and never stores a copy. Removing an activity removes
-   its comments, reactions, reports and comments state.
-2. **discussion → identity** — discussion references the person's org user
+   attach to, or the post's space; content owns both and knows nothing of
+   discussion. Which course an activity sits in is content's fact — discussion
+   resolves it when scoping settings or a queue and never stores a copy. A post
+   stores the community id, because a space is not moved between communities.
+   A course's discussion settings, an activity's comments state, a space's post
+   defaults and a community's chat settings are content's too: content defines
+   and writes them, discussion reads them to decide what it accepts and serves.
+   Removing an activity removes its comments, reactions and reports. Removing a
+   space removes its posts.
+2. **discussion → organizations** — discussion references the person's org user
    in the org on every comment, reaction and report, and reads their role from
-   it. Identity owns the org user and the role; discussion stores neither.
+   it. Organizations owns the org user and the role; discussion stores neither.
 3. **discussion → entitlements** — an activity's comments are gated by access to
    the content it attaches to. Entitlements resolves access; discussion serves
    and accepts nothing for content a person cannot open. Entitlements decides
@@ -153,8 +170,48 @@ is read rather than copied onto every comment.
 - `comment.removed` — a comment's body stopped being served; names who removed
   it, so an author's removal and a moderator's are distinguishable.
 
-Each names the comment, its author, and the activity it attaches to. Reactions,
-edits and comments state changes are not evented.
+Each names the comment, its author, and the activity or post it attaches to. A
+comment on a post also carries the community id. Reactions, edits and comments
+state changes are not evented.
+
+## Community
+
+Discussion also owns what members write inside a community.
+
+- **Post** — what a member writes in a space: author, space, community, title,
+  body, topic, status (`draft | scheduled | pending | published | removed`),
+  and a cover that is an asset id. `community_id` is stored on the row. A post
+  enters `pending` when the space requires review and the author is not staff,
+  and is published otherwise. `comments_closed` and `reactions_enabled` are
+  null when the space default applies. `pinned` is a boolean.
+- **Comment on a post** — the same comment, targeting the post, storing the
+  community id, created `published`. Flags and removal moderate it.
+  `requireReview` applies to posts.
+- **Follow, bookmark, reaction, flag** — a member's state on a post. A flag
+  does not change the post.
+- **Feed** — the space's published posts, or the posts from every space a
+  person can open. Pinned first, then newest.
+- **Chat** — a private thread in one community. Every chat table carries the
+  community id: the chat, its participants, its messages, attachments,
+  reactions, flags, and blocks. A DM is two people, at most one per community.
+  A group chat is three or more and is created open. A message request is a
+  direct chat awaiting acceptance. A mute is per participant per chat.
+- **Block** — two people inside one community. It closes their direct chat
+  there and rejects their sends in that community, including in a group chat.
+  The other participants can still send. Another community is untouched.
+
+A post's topic is a topic of its own space. A topic cannot be deleted while a
+post references it.
+
+Staff are owner, admin and instructor. A moderator moderates the communities
+they hold a grant to and is not staff.
+
+Events, in addition to the comment events: `post.created`, `post.updated`,
+`post.published`, `post.removed`, `post.reported`, `chat.created`,
+`chat.updated`, `chat.participant.added`, `message.sent`, `message.deleted`,
+`message.reported`. A transition the row does not store, such as the status a
+post had before it published, is `metadata.previousStatus`. A comment on a
+post emits `comment.created` only.
 
 ## How comments accrue
 

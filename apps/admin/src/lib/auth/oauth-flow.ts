@@ -8,6 +8,9 @@ export const SCOPE_RESOURCES: { resource: string; label: string }[] = [
   { resource: "analytics", label: "Analytics" },
   { resource: "automations", label: "Workflows and webhooks" },
   { resource: "comments", label: "Comments" },
+  { resource: "communities", label: "Communities" },
+  { resource: "community_members", label: "Community members" },
+  { resource: "community_moderation", label: "Community moderation" },
 ];
 
 export const SCOPE_ACTION_LABELS: Record<string, string> = {
@@ -23,6 +26,9 @@ export const SCOPE_NOTES: Record<string, string> = {
   "bundles:write": "Change includes removing items from a bundle.",
   "access:write": "Change includes revoking a student's access.",
   "comments:moderate": "Moderate includes removing comments.",
+  "communities:write": "Change includes removing links from a space.",
+  "community_members:write": "Change includes removing people from a space.",
+  "community_moderation:write": "Change includes removing posts and comments and locking chats.",
 };
 
 export const EXPIRED_SIGN_IN_LINK =

@@ -21,7 +21,7 @@ export const API_URL =
 // call site unwraps. `onError` turns the raw response body it would otherwise
 // throw into an `ApiError` carrying the status.
 //
-// The Learn API answers 401 when the session doesn't resolve to a portal
+// The member API answers 401 when the session doesn't resolve to a portal
 // student — a staff login on the shared dev cookie, or a session whose
 // student/org rows no longer exist. That's a routing concern, not an application
 // error: the session is stale/unlinked, so drop it and send the user back to

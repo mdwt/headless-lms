@@ -34,6 +34,16 @@ describe("translateDbErrors (class boundary)", () => {
     expect((err as ConflictError).message).not.toContain("Key (");
   });
 
+  it("names no columns when a composite key is duplicated", () => {
+    const err = translateDbError(
+      drizzleLikeError("23505", {
+        detail: "Key (org_id, space_id, content_id)=(org_1, spc_1, crs_1) already exists.",
+      }),
+    );
+    expect(err).toBeInstanceOf(ConflictError);
+    expect((err as ConflictError).message).toBe("This already exists");
+  });
+
   it("sanitizes non-constraint failures into DbQueryError", async () => {
     const err = await new FakeRepo().list().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DbQueryError);

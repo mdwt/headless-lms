@@ -1,4 +1,14 @@
-import { commentReportSchema, commentSchema } from '../types/schemas/index.js';
+import { z } from 'zod';
+import {
+  chatSchema,
+  commentReportSchema,
+  commentSchema,
+  idSchema,
+  messageFlagSchema,
+  messageSchema,
+  postFlagSchema,
+  postSchema,
+} from '../types/schemas/index.js';
 import {
   defineEvent,
   type EventOf,
@@ -11,6 +21,8 @@ const publicComment = commentSchema
     id: true,
     orgId: true,
     activityId: true,
+    postId: true,
+    communityId: true,
     parentId: true,
     orgUserId: true,
     body: true,
@@ -21,10 +33,12 @@ const publicComment = commentSchema
   })
   .strip();
 
-const publicCommentReport = commentReportSchema
+const reportedComment = commentReportSchema.extend({ communityId: idSchema.nullable() });
+const publicCommentReport = reportedComment
   .pick({
     id: true,
     orgId: true,
+    communityId: true,
     commentId: true,
     orgUserId: true,
     reason: true,
@@ -33,6 +47,35 @@ const publicCommentReport = commentReportSchema
     updatedAt: true,
   })
   .strip();
+const reportedPost = postFlagSchema.extend({ communityId: idSchema });
+
+const chatEventSchema = chatSchema.extend({
+  participantIds: z.array(idSchema),
+});
+
+const publicChat = chatEventSchema
+  .pick({
+    id: true,
+    orgId: true,
+    communityId: true,
+    kind: true,
+    status: true,
+    createdBy: true,
+    participantIds: true,
+  })
+  .strip();
+
+const participantAddedSchema = z
+  .object({
+    chatId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    addedBy: idSchema,
+  })
+  .strict();
+
+const publicMessage = messageSchema.omit({ body: true }).strip();
+const publicMessageFlag = messageFlagSchema.omit({ reason: true }).strip();
 
 export const discussionEvents = {
   commentCreated: defineEvent({
@@ -56,8 +99,80 @@ export const discussionEvents = {
   commentReported: defineEvent({
     type: 'discussion.comment.reported',
     version: 1,
-    data: commentReportSchema,
+    data: reportedComment,
     publicData: publicCommentReport,
+  }),
+  postCreated: defineEvent({
+    type: 'discussion.post.created',
+    version: 1,
+    data: postSchema,
+    publicData: postSchema,
+  }),
+  postUpdated: defineEvent({
+    type: 'discussion.post.updated',
+    version: 1,
+    data: postSchema,
+    publicData: postSchema,
+  }),
+  postPublished: defineEvent({
+    type: 'discussion.post.published',
+    version: 1,
+    data: postSchema,
+    publicData: postSchema,
+  }),
+  postRemoved: defineEvent({
+    type: 'discussion.post.removed',
+    version: 1,
+    data: postSchema,
+    publicData: postSchema,
+  }),
+  postReported: defineEvent({
+    type: 'discussion.post.reported',
+    version: 1,
+    data: reportedPost,
+    publicData: reportedPost,
+  }),
+  chatCreated: defineEvent({
+    type: 'discussion.chat.created',
+    version: 1,
+    data: chatEventSchema,
+    publicData: publicChat,
+  }),
+  chatUpdated: defineEvent({
+    type: 'discussion.chat.updated',
+    version: 1,
+    data: chatEventSchema,
+    publicData: publicChat,
+  }),
+  chatParticipantAdded: defineEvent({
+    type: 'discussion.chat.participant.added',
+    version: 1,
+    data: participantAddedSchema,
+    publicData: participantAddedSchema,
+  }),
+  messageSent: defineEvent({
+    type: 'discussion.message.sent',
+    version: 1,
+    data: messageSchema,
+    publicData: publicMessage,
+  }),
+  messageDeleted: defineEvent({
+    type: 'discussion.message.deleted',
+    version: 1,
+    data: messageSchema,
+    publicData: publicMessage,
+  }),
+  messageReported: defineEvent({
+    type: 'discussion.message.reported',
+    version: 1,
+    data: messageFlagSchema,
+    publicData: publicMessageFlag,
+  }),
+  digestDue: defineEvent({
+    type: 'discussion.digest.due',
+    version: 1,
+    data: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
+    publicData: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
   }),
 };
 
@@ -65,5 +180,16 @@ export type CommentCreated = EventOf<typeof discussionEvents.commentCreated>;
 export type CommentPublished = EventOf<typeof discussionEvents.commentPublished>;
 export type CommentRemoved = EventOf<typeof discussionEvents.commentRemoved>;
 export type CommentReported = EventOf<typeof discussionEvents.commentReported>;
-export type CommentEvent = EventOfValues<typeof discussionEvents>;
-export type NewDiscussionEvent = NewDomainEvent<CommentEvent>;
+export type DiscussionEvent = EventOfValues<typeof discussionEvents>;
+export type PostCreated = EventOf<typeof discussionEvents.postCreated>;
+export type PostUpdated = EventOf<typeof discussionEvents.postUpdated>;
+export type PostPublished = EventOf<typeof discussionEvents.postPublished>;
+export type PostRemoved = EventOf<typeof discussionEvents.postRemoved>;
+export type PostReported = EventOf<typeof discussionEvents.postReported>;
+export type ChatCreated = EventOf<typeof discussionEvents.chatCreated>;
+export type ChatUpdated = EventOf<typeof discussionEvents.chatUpdated>;
+export type ChatParticipantAdded = EventOf<typeof discussionEvents.chatParticipantAdded>;
+export type MessageSent = EventOf<typeof discussionEvents.messageSent>;
+export type MessageDeleted = EventOf<typeof discussionEvents.messageDeleted>;
+export type MessageReported = EventOf<typeof discussionEvents.messageReported>;
+export type NewDiscussionEvent = NewDomainEvent<DiscussionEvent>;

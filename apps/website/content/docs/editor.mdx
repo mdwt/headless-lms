@@ -1,0 +1,75 @@
+---
+title: Custom editor
+description: The contract a lesson content editor implements, and what the app hosting it does.
+---
+
+Lesson content is edited and rendered by a swappable editor. `@headless-lms/editor` defines the contract, and [Plate](/docs/plugins/content-plate) is the editor that ships. The backend stores a lesson's content without reading it, so everything that depends on the format goes through the contract.
+
+## The editor module
+
+An editor default-exports an `EditorModule`:
+
+| Member             | What it is                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `Editor`           | Client component that edits the content.                                                      |
+| `Renderer`         | Server-safe component that displays it: `{ config, assetUrls }`.                              |
+| `assetIds(config)` | Required. The ids of the host assets the content uses, once each, in document order.          |
+| `validate(config)` | Optional structural check, run before a save.                                                 |
+| `slots`            | The host slots the editor fills: `toolbar`, `blocks`.                                         |
+| `meta`             | `{ type, version }` of the content format. Content in any other format is refused, not shown. |
+
+A config stores the asset id of each media node, never a URL. The URL comes from `assetUrls`, the map the API returns on each activity, keyed by asset id.
+
+`assetIds` is how the API knows which files a lesson may serve. A lesson's `assetUrls` holds only the files its last save listed, and the file URL answers `404` for anything else, so an editor whose `assetIds` misses a media node publishes a lesson with broken media.
+
+### Editor props
+
+| Prop                               | What it is                                                                    |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `initialConfig`                    | The stored content. `null` or invalid starts empty.                           |
+| `assetUrls`                        | URLs for the assets the initial content uses.                                 |
+| `onSave(config)`                   | Persists the content. The config carries asset ids, not URLs.                 |
+| `onChange(config)`                 | Called on every edit, for host-owned save buttons and dirty state.            |
+| `uploadFile(file, { onProgress })` | Host upload. Resolves `{ id, name, size, type, url }`.                        |
+| `pickAsset({ kind })`              | Host media library picker. Resolves the same shape, or `null` when cancelled. |
+| `slots`                            | DOM elements for the `toolbar` and `blocks` slots.                            |
+
+Store the `id` returned by `uploadFile` and `pickAsset` on the media node. It is what `assetIds` returns and what `assetUrls` is keyed by. The returned `url` shows the file during the editing session.
+
+### Media playback
+
+`EditorMediaModule.MediaProvider` passes `MediaTracking` to the editor's media players: `onEvent` reports playback and `startPosition(assetId)` gives the resume point.
+
+## What the host does
+
+### Saving
+
+Send the content and `assetIds(config)` together:
+
+```ts
+import { Content } from "@headless-lms/sdk";
+import editor from "./editor.config";
+
+await Content.updateActivity({
+  courseId,
+  moduleId,
+  activityId,
+  settings: {
+    ...settings,
+    content: { type: editor.meta.type, version: editor.meta.version, config },
+  },
+  assetIds: editor.assetIds(config),
+});
+```
+
+A save without `assetIds` keeps the lesson's current list, so send it whenever the content changes. Every id must be a ready file in the organization's media library; anything else is refused with a `409` naming the ids.
+
+### Rendering
+
+Pass the activity's `assetUrls` to the `Renderer`, for students and for staff previews alike:
+
+```tsx
+<Renderer config={activity.settings.content.config} assetUrls={activity.assetUrls} />
+```
+
+Each URL is stable and checks access on every request. See [Building a frontend](/docs/building-a-frontend#files) for the rules and the cookie setup.

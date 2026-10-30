@@ -31,6 +31,8 @@ export interface ToolDef<Input extends z.ZodObject> extends Omit<Tool, 'input' |
 
 export const noInput = z.object({});
 
+export const actor = (scope: OrgScope) => ({ id: scope.orgUserId, role: scope.role });
+
 export function defineTool<Input extends z.ZodObject>(def: ToolDef<Input>): Tool {
   return { ...def, call: (input, ctx) => def.call(input as z.output<Input>, ctx) };
 }

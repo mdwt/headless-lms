@@ -11,10 +11,11 @@ import { useEffect } from "react";
 
 import type { PageEditorProps } from "@headless-lms/editor";
 
+import { withAssetUrls, withoutAssetUrls } from "./asset-urls";
+
 import { EditorKit } from "./editor/editor-kit";
 import { HostSlotsProvider } from "./hooks/use-host-slots";
 import { PickAssetProvider } from "./hooks/use-pick-asset";
-import { ResolveAssetUrlProvider } from "./hooks/use-resolve-asset-url";
 import { UploadProvider } from "./hooks/use-upload-file";
 import { Editor as EditorArea, EditorContainer } from "./ui/editor";
 import { isNodeList } from "./validate";
@@ -27,20 +28,22 @@ export function Editor({
   onChange,
   onSave,
   pickAsset,
-  resolveAssetUrl,
+  assetUrls,
   uploadFile,
   slots,
 }: PageEditorProps) {
   const editor = usePlateEditor({
     plugins: EditorKit,
-    value: isNodeList(initialConfig) ? (initialConfig as Value) : EMPTY_VALUE,
+    value: isNodeList(initialConfig)
+      ? withAssetUrls(initialConfig as Value, assetUrls)
+      : EMPTY_VALUE,
   });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        void onSave(editor.children);
+        void onSave(withoutAssetUrls(editor.children));
       }
     };
     window.addEventListener("keydown", handler);
@@ -50,15 +53,13 @@ export function Editor({
   return (
     <UploadProvider uploadFile={uploadFile ?? null}>
       <PickAssetProvider pickAsset={pickAsset ?? null}>
-        <ResolveAssetUrlProvider resolveAssetUrl={resolveAssetUrl ?? null}>
-          <HostSlotsProvider slots={slots ?? NO_SLOTS}>
-            <Plate editor={editor} onValueChange={({ value }) => onChange?.(value)}>
-              <EditorContainer className="h-auto overflow-visible" variant="default">
-                <EditorArea placeholder="Type '/' for commands…" variant="default" />
-              </EditorContainer>
-            </Plate>
-          </HostSlotsProvider>
-        </ResolveAssetUrlProvider>
+        <HostSlotsProvider slots={slots ?? NO_SLOTS}>
+          <Plate editor={editor} onValueChange={({ value }) => onChange?.(withoutAssetUrls(value))}>
+            <EditorContainer className="h-auto overflow-visible" variant="default">
+              <EditorArea placeholder="Type '/' for commands…" variant="default" />
+            </EditorContainer>
+          </Plate>
+        </HostSlotsProvider>
       </PickAssetProvider>
     </UploadProvider>
   );

@@ -10,7 +10,7 @@ import {
   StudentsQuery,
   UpdateStudentBody,
 } from '../../schemas/index.js';
-import { defineTool, noInput, type Tool } from '../tool.js';
+import { actor, defineTool, noInput, type Tool } from '../tool.js';
 
 export const peopleTools: Tool[] = [
   defineTool({
@@ -23,7 +23,7 @@ export const peopleTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: StudentsQuery,
-    call: (input, { container, scope }) => container.reporting.students.list(scope.orgId, input),
+    call: (input, { container, scope }) => container.reporting.admin.listStudents(scope.orgId, input),
   }),
   defineTool({
     name: 'update_student',
@@ -49,7 +49,7 @@ export const peopleTools: Tool[] = [
     openWorld: true,
     input: CreateInvite.omit({ role: true }),
     call: (input, { container, scope }) =>
-      container.organizations.createInvite({
+      container.organizations.createInvite(actor(scope), {
         orgId: scope.orgId,
         inviterUserId: scope.userId,
         role: 'student',
@@ -66,7 +66,7 @@ export const peopleTools: Tool[] = [
     openWorld: true,
     input: StudentIdParam,
     call: ({ id }, { container, scope }) =>
-      container.organizations.resendStudentInvite({
+      container.organizations.resendStudentInvite(actor(scope), {
         orgId: scope.orgId,
         orgUserId: id,
         inviterUserId: scope.userId,
@@ -87,7 +87,7 @@ export const peopleTools: Tool[] = [
     name: 'grant_access',
     title: 'Grant access',
     description:
-      'Give a student access to one course or download (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.',
+      'Give a student access to one course, download or community (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.',
     scope: 'access:write',
     kind: 'write',
     idempotent: false,
@@ -117,7 +117,7 @@ export const peopleTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: noInput,
-    call: (_input, { container, scope }) => container.reporting.dashboard.overview(scope.orgId),
+    call: (_input, { container, scope }) => container.reporting.admin.overview(scope.orgId),
   }),
   defineTool({
     name: 'get_enrollment_trend',
@@ -130,7 +130,7 @@ export const peopleTools: Tool[] = [
     openWorld: false,
     input: EnrollmentSeriesQuery,
     call: ({ days }, { container, scope }) =>
-      container.reporting.dashboard.enrollments(scope.orgId, days),
+      container.reporting.admin.enrollments(scope.orgId, days),
   }),
   defineTool({
     name: 'get_course_analytics',
@@ -143,7 +143,7 @@ export const peopleTools: Tool[] = [
     openWorld: false,
     input: CourseIdPathParam,
     call: ({ courseId }, { container, scope }) =>
-      container.reporting.courses.analytics(scope.orgId, courseId),
+      container.reporting.admin.courseAnalytics(scope.orgId, courseId),
   }),
   defineTool({
     name: 'get_course_enrollment_trend',
@@ -155,7 +155,7 @@ export const peopleTools: Tool[] = [
     openWorld: false,
     input: EnrollmentSeriesQuery.extend(CourseIdPathParam.shape),
     call: ({ courseId, days }, { container, scope }) =>
-      container.reporting.courses.enrollments(scope.orgId, courseId, days),
+      container.reporting.admin.courseEnrollments(scope.orgId, courseId, days),
   }),
   defineTool({
     name: 'get_student_analytics',
@@ -167,6 +167,6 @@ export const peopleTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: StudentIdParam,
-    call: ({ id }, { container, scope }) => container.reporting.students.analytics(scope.orgId, id),
+    call: ({ id }, { container, scope }) => container.reporting.admin.studentAnalytics(scope.orgId, id),
   }),
 ];

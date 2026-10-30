@@ -9,6 +9,7 @@ export type {
   AutomationRun,
   AutomationRunsQuery,
   AutomationRunStatus,
+  AutomationSource,
   AutomationsQuery,
   AutomationTrigger,
   AvailableAction,
@@ -32,9 +33,17 @@ export interface AutomationDispatch {
   event: DomainEvent;
 }
 
+export interface ScheduledAutomation {
+  orgId: string;
+  automationId: string;
+  cron: string;
+}
+
 export interface AutomationExecutor {
   runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult>;
   finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void>;
+  listSchedules?(): Promise<ScheduledAutomation[]>;
+  fireSchedule?(orgId: string, automationId: string, firedAt: Date): Promise<void>;
 }
 
 export interface AutomationEngine {
@@ -42,6 +51,7 @@ export interface AutomationEngine {
   dispatch(d: AutomationDispatch): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
+  syncSchedules?(): Promise<void>;
 }
 
 export interface WebhookRequest {

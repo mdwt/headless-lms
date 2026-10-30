@@ -1,26 +1,42 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { NotFoundError, ConflictError } from '@headless-lms/core/shared/errors';
-import { OrganizationRuleError } from '@headless-lms/core/organizations';
+import { NotFoundError, ConflictError, InvalidInputError } from '@headless-lms/core/shared/errors';
+import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
+  ActionInvocationError,
   AlreadyConnectedError,
   InvalidConfigError,
   UnknownIntegrationError,
 } from '@headless-lms/core/integrations';
 import { AutomationKindMismatchError, ReservedActionError } from '@headless-lms/core/automations';
-import { errorHandler } from './error-handler.js';
+import { validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { errorHandler, notFoundHandler } from './error-handler.js';
 
 let app: FastifyInstance;
 
 beforeAll(async () => {
   app = Fastify();
+  app.setValidatorCompiler(validatorCompiler);
   app.setErrorHandler(errorHandler);
+  app.setNotFoundHandler(notFoundHandler);
+  app.withTypeProvider<ZodTypeProvider>().route({
+    method: 'POST',
+    url: '/validated',
+    schema: {
+      body: z.object({ topics: z.array(z.object({ name: z.string().min(1) })) }).strict(),
+    },
+    handler: async () => ({ ok: true }),
+  });
   const throwers: Record<string, () => never> = {
     'not-found': () => {
       throw new NotFoundError('Course', 'c1');
     },
     'org-rule': () => {
       throw new OrganizationRuleError('cannot demote the last owner');
+    },
+    'invalid-invite': () => {
+      throw new InviteError('invalid invite');
     },
     'already-connected': () => {
       throw new AlreadyConnectedError('slack');
@@ -30,6 +46,12 @@ beforeAll(async () => {
     },
     'invalid-config': () => {
       throw new InvalidConfigError('slack', ['channel is required']);
+    },
+    'invalid-input': () => {
+      throw new InvalidInputError('This image is too large');
+    },
+    'action-failed': () => {
+      throw new ActionInvocationError('slack', 'postMessage', new Error('token xoxb-123 revoked'));
     },
     conflict: () => {
       throw new ConflictError('A student with this email already exists');
@@ -88,10 +110,31 @@ describe('central error handler', () => {
     });
   });
 
+  it('maps InvalidInputError to 400 invalid_input', async () => {
+    const res = await app.inject({ method: 'GET', url: '/invalid-input' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'invalid_input', message: 'This image is too large' });
+  });
+
+  it('maps ActionInvocationError to 502 without the integration message', async () => {
+    const res = await app.inject({ method: 'GET', url: '/action-failed' });
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({
+      error: 'action_failed',
+      message: 'The integration did not respond as expected',
+    });
+  });
+
   it('maps OrganizationRuleError to 409 conflict', async () => {
     const res = await app.inject({ method: 'GET', url: '/org-rule' });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: 'conflict', message: 'cannot demote the last owner' });
+  });
+
+  it('maps InviteError to 400 invalid_invite', async () => {
+    const res = await app.inject({ method: 'GET', url: '/invalid-invite' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'invalid_invite', message: 'invalid invite' });
   });
 
   it('maps AlreadyConnectedError to 409 already_connected', async () => {
@@ -112,11 +155,47 @@ describe('central error handler', () => {
     expect(res.json()).toMatchObject({ error: 'invalid_config' });
   });
 
-  it('returns 500 internal_error with the request id for unhandled errors', async () => {
+  it('returns 500 internal_error with the request id and no system message for unhandled errors', async () => {
     const res = await app.inject({ method: 'GET', url: '/unhandled' });
     expect(res.statusCode).toBe(500);
     const body = res.json();
     expect(body.error).toBe('internal_error');
     expect(body.requestId).toBeTypeOf('string');
+    expect(body.message).not.toContain('boom');
+  });
+
+  it('turns a validation failure into 400 validation with the path of each issue', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/validated',
+      payload: { topics: [{ name: 'Wins' }, { name: '' }], extra: 1 },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body.error).toBe('validation');
+    expect(body.issues.map((issue: { path: string }) => issue.path).sort()).toEqual(
+      ['body', 'body.topics[1].name'].sort(),
+    );
+    expect(body.message).toMatch(/^body/);
+  });
+
+  it('turns an unparseable body into 400 invalid_body', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/validated',
+      headers: { 'content-type': 'application/json' },
+      payload: '{not json',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      error: 'invalid_body',
+      message: 'The request body must be valid JSON',
+    });
+  });
+
+  it('answers an unknown route with 404 not_found', async () => {
+    const res = await app.inject({ method: 'GET', url: '/nowhere' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'not_found', message: 'No route for GET /nowhere' });
   });
 });

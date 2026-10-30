@@ -42,7 +42,7 @@ export function CopyButton({ code, className }: { code: string; className?: stri
       onClick={copy}
       aria-label="Copy code to clipboard"
       className={cn(
-        "relative inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground",
+        "relative inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground",
         className,
       )}
     >
@@ -53,7 +53,7 @@ export function CopyButton({ code, className }: { code: string; className?: stri
       <span aria-live="polite" className="sr-only">
         {copied ? "Copied" : ""}
       </span>
-      {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
     </button>
   );
 }

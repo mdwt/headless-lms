@@ -62,12 +62,7 @@ export class SesEmailAdapter implements EmailSender {
     try {
       await this.client.send(command);
     } catch (err) {
-      const e = err as { name?: string; message?: string };
-      this.logger?.error("email send failed", {
-        to: message.to,
-        name: e?.name ?? "",
-        detail: e?.message ?? "",
-      });
+      this.logger?.error("email send failed", { err });
       throw err;
     }
   }

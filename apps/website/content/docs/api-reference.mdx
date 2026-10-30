@@ -9,12 +9,38 @@ Browse every endpoint in the [API reference](/docs/api), generated from the same
 
 ## Using the SDK
 
-The generated SDK mirrors these routes with full type safety, including request payloads and response shapes. Point it at an API origin once at startup with `configureSdk`, then call the service for the area you want — `Students`, `Courses`, `Entitlements`, `Learn`, `Organizations`, `Assets`, `Automations`, `Dashboard`, `Discussion`, `Downloads`, `Integrations`. A failed request throws rather than resolving to `undefined`.
+The generated SDK mirrors these routes with full type safety, including request payloads and response shapes. Point it at an API origin once at startup with `configureSdk`, then call the service for the area you want — `Organizations`, `Content`, `Progress`, `Discussion`, `Assets`, `Reporting`, `Entitlements`, `Automations`, `Integrations`. A failed request throws rather than resolving to `undefined`.
 
 ```ts title="usage.ts"
-import { configureSdk, Students } from "@headless-lms/sdk";
+import { configureSdk, Organizations } from "@headless-lms/sdk";
 
 configureSdk({ baseUrl });
 
-const student = await Students.getStudent({ id: studentId });
+const student = await Organizations.getStudent({ id: studentId });
 ```
+
+## Errors
+
+Every response that is not a success carries the same envelope: an `error` code a client can branch on and a `message` a person can read. The message is written for the screen, never a stack trace or an internal code.
+
+| Status | `error`             | When                                                                                                                   |
+| ------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 400    | `validation`        | The body, query or path failed its schema. `issues` lists each problem with its `path`, such as `body.topics[1].name`. |
+| 400    | `invalid_body`      | The body is not valid JSON.                                                                                            |
+| 400    | `invalid_invite`    | The invitation token is unknown or expired.                                                                            |
+| 401    | `unauthorized`      | No session, or a session with no active organization.                                                                  |
+| 403    | `forbidden`         | Signed in, but not allowed to do this.                                                                                 |
+| 404    | `not_found`         | The route or the record does not exist in this organization.                                                           |
+| 409    | `conflict`          | The request breaks a rule of the current state, such as a duplicate name.                                              |
+| 413    | `payload_too_large` | The body is over the size limit.                                                                                       |
+| 500    | `internal_error`    | Something failed on the server. `requestId` matches the server log line.                                               |
+
+```json title="400 validation"
+{
+  "error": "validation",
+  "message": "body.topics[1].name: must not be empty",
+  "issues": [{ "path": "body.topics[1].name", "message": "must not be empty" }]
+}
+```
+
+Each operation in the reference lists the statuses it can return. Every request is logged with its id, status and duration, and every refused request is logged with the code and message it was given, so a `requestId` from a response finds the matching line.

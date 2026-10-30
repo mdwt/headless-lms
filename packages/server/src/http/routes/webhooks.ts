@@ -5,17 +5,17 @@ import {
   AutomationIdParam,
   CreatedWebhook,
   CreateWebhookBody,
-  ErrorBody,
   UpdateWebhookBody,
   Webhook,
   WebhookSecret,
+  refusals,
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveScope } from '../scope.js';
 
 const DELIVERY_DESCRIPTION =
-  "Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.";
+  "Staff only (owner, admin, instructor). Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.";
 
 export async function webhooksRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -29,8 +29,9 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'listWebhooks',
       tags,
-      summary: "List the organization's webhooks",
-      response: { 200: z.array(Webhook) },
+      summary: "List the organization's webhooks (staff)",
+      description: 'Staff only (owner, admin, instructor). Signing secrets are not included.',
+      response: { 200: z.array(Webhook), ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -45,10 +46,10 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'createWebhook',
       tags,
-      summary: 'Create a webhook — returns its signing secret',
+      summary: 'Create a webhook (staff)',
       description: DELIVERY_DESCRIPTION,
       body: CreateWebhookBody,
-      response: { 201: CreatedWebhook, 400: ErrorBody },
+      response: { 201: CreatedWebhook, ...refusals(400, 403) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -64,9 +65,10 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'getWebhook',
       tags,
-      summary: 'Get a webhook by id',
+      summary: 'Get a webhook (staff)',
+      description: 'Staff only (owner, admin, instructor). The signing secret is not included.',
       params: AutomationIdParam,
-      response: { 200: Webhook, 404: ErrorBody },
+      response: { 200: Webhook, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -85,10 +87,12 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'updateWebhook',
       tags,
-      summary: "Change a webhook's URL, events, description or enabled flag",
+      summary: "Change a webhook's URL, events, description or enabled flag (staff)",
+      description:
+        'Staff only (owner, admin, instructor). Changes only the fields sent. 400 when an event is reserved or unknown.',
       params: AutomationIdParam,
       body: UpdateWebhookBody,
-      response: { 200: Webhook, 400: ErrorBody, 404: ErrorBody },
+      response: { 200: Webhook, ...refusals(400, 403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -107,9 +111,10 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'deleteWebhook',
       tags,
-      summary: 'Delete a webhook and its signing secret — its delivery history is kept',
+      summary: 'Delete a webhook and its signing secret (staff)',
+      description: 'Staff only (owner, admin, instructor). Its delivery history is kept.',
       params: AutomationIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -128,9 +133,10 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'getWebhookSecret',
       tags,
-      summary: "Reveal a webhook's signing secret",
+      summary: "Reveal a webhook's signing secret (staff)",
+      description: 'Staff only (owner, admin, instructor).',
       params: AutomationIdParam,
-      response: { 200: WebhookSecret, 404: ErrorBody },
+      response: { 200: WebhookSecret, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -149,9 +155,11 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     schema: {
       operationId: 'rotateWebhookSecret',
       tags,
-      summary: "Replace a webhook's signing secret — the old one stops working immediately",
+      summary: "Replace a webhook's signing secret (staff)",
+      description:
+        'Staff only (owner, admin, instructor). The old secret stops working immediately.',
       params: AutomationIdParam,
-      response: { 200: WebhookSecret, 404: ErrorBody },
+      response: { 200: WebhookSecret, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

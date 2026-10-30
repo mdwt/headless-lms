@@ -10,6 +10,7 @@ import type {
   ActivityAssetLink,
   ActivityNode,
   Course,
+  ContentType,
   CourseSettings,
   EntitlementGrant,
   EntitlementStatus,
@@ -46,6 +47,18 @@ export function courseSettingsOf(course: Course): CourseSettings {
 /** active|expired|revoked — revoked wins; an elapsed expiry reads as expired. */
 export function entitlementStatusOf(grant: EntitlementGrant): EntitlementStatus {
   if (grant.status === "revoked") return "revoked";
-  if (grant.expiresAt && new Date(grant.expiresAt).getTime() < Date.now()) return "expired";
+  if (grant.expiresAt && new Date(grant.expiresAt).getTime() <= Date.now()) return "expired";
   return "active";
+}
+
+const CONTENT_TYPE_BY_PREFIX: Record<string, ContentType> = {
+  crs: "course",
+  dwn: "download",
+  cmy: "community",
+};
+
+/** A content id's type, read off its id prefix (`crs_`, `dwn_`, `cmy_`). */
+export function contentTypeOf(contentId: string): ContentType | null {
+  const prefix = contentId.slice(0, contentId.indexOf("_"));
+  return CONTENT_TYPE_BY_PREFIX[prefix] ?? null;
 }

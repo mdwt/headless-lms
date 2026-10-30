@@ -59,7 +59,7 @@ const cases: ToolCase[] = [
     tool: 'delete_course',
     args: { courseId: 'crs_1' },
     service: 'content.deleteCourse',
-    expected: ['org_1', 'crs_1'],
+    expected: ['org_1', 'crs_1', { id: 'ou_1', role: 'owner' }],
     returns: undefined,
   },
   {

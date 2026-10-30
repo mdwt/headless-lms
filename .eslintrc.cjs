@@ -10,27 +10,12 @@ const CONTEXTS = [
   "discussion",
 ];
 
-const CONTEXT_INTERNAL_FILES = [
-  "service",
-  "model",
-  "types",
-  "events",
-  "actions",
-  "catalog",
-  "registry",
-  "members",
-  "roles",
-];
+const CROSS_CONTEXT_DEEP_IMPORTS = CONTEXTS.flatMap((c) => [`../${c}/*`, `!../${c}/index.js`]);
 
-const CROSS_CONTEXT_DEEP_IMPORTS = [
-  ...CONTEXT_INTERNAL_FILES.map((f) => `../*/${f}.js`),
-  ...CONTEXTS.map((c) => `../${c}/ports.js`),
-];
-
-const REPORTING_CROSS_CONTEXT_DEEP_IMPORTS = [
-  ...CONTEXT_INTERNAL_FILES.map((f) => `../../*/${f}.js`),
-  ...CONTEXTS.map((c) => `../../${c}/ports.js`),
-];
+const REPORTING_CROSS_CONTEXT_DEEP_IMPORTS = CONTEXTS.flatMap((c) => [
+  `../../${c}/*`,
+  `!../../${c}/index.js`,
+]);
 
 module.exports = {
   root: true,

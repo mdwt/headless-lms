@@ -38,7 +38,7 @@ export class ResendEmailAdapter implements EmailSender {
           body && typeof body === "object" && "message" in body ? String(body.message) : "",
         )
         .catch(() => "");
-      this.logger?.error("email send failed", { to: message.to, status: response.status, detail });
+      this.logger?.error("email send failed", { status: response.status, detail });
       throw new Error(`resend responded ${response.status}${detail ? `: ${detail}` : ""}`);
     }
   }

@@ -4,9 +4,15 @@
 // organizations context (`org_users`), not here.
 import { eq, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { IdentityRepository } from "@headless-lms/core/identity";
-import type { CreateUserInput, Logger, UpdateUserInput, User } from "@headless-lms/core/types";
-import { users } from "../schema/identity.js";
+import type { IdentityRepository, ProfilePatch } from "@headless-lms/core/identity";
+import type {
+  CreateUserInput,
+  Logger,
+  UpdateUserInput,
+  User,
+  UserProfile,
+} from "@headless-lms/core/types";
+import { userProfiles, users } from "../schema/identity.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 
@@ -65,6 +71,63 @@ export class DrizzleIdentityRepository implements IdentityRepository {
       .where(sql`lower(${users.email}) = lower(${email})`)
       .limit(1);
     return row ?? null;
+  }
+
+  async findProfile(userId: string): Promise<UserProfile | null> {
+    const [row] = await this.db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async upsertProfile(userId: string, patch: ProfilePatch): Promise<UserProfile> {
+    const existing = await this.findProfile(userId);
+    if (!existing) {
+      const [row] = await this.db
+        .insert(userProfiles)
+        .values({
+          userId,
+          displayName: patch.displayName ?? null,
+          headline: patch.headline ?? null,
+          bio: patch.bio ?? null,
+          imageAssetOrgId: patch.imageAssetOrgId ?? null,
+          imageAssetId: patch.imageAssetId ?? null,
+          extra: patch.extra ?? {},
+        })
+        .returning();
+      if (!row) {
+        throw new Error("failed to insert profile");
+      }
+      return row;
+    }
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.displayName !== undefined) {
+      set.displayName = patch.displayName;
+    }
+    if (patch.headline !== undefined) {
+      set.headline = patch.headline;
+    }
+    if (patch.bio !== undefined) {
+      set.bio = patch.bio;
+    }
+    if (patch.imageAssetOrgId !== undefined) {
+      set.imageAssetOrgId = patch.imageAssetOrgId;
+      set.imageAssetId = patch.imageAssetId;
+    }
+    if (patch.extra !== undefined) {
+      set.extra = patch.extra;
+    }
+    const [row] = await this.db
+      .update(userProfiles)
+      .set(set)
+      .where(eq(userProfiles.userId, userId))
+      .returning();
+    if (!row) {
+      throw new Error("failed to update profile");
+    }
+    return row;
   }
 }
 translateDbErrors(DrizzleIdentityRepository);

@@ -27,6 +27,27 @@ This means there are a lot of interfaces defined in the core service, which in t
 By default the repo ships with working adapters for everyting, so anyone can get going as-is or check the existing
 adapters as reference when creating new ones.
 
+### Access checks
+
+Whether a member can open content is decided only by the entitlements context:
+
+- Services and the member surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
+  it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
+- SQL reads the `content_access` view (`adapters/db/src/schema/entitlements.ts`) for cohorts, counts and community
+  membership; `activeGrantCovers` in `grant-covers.ts` reads it too. It is the single definition of access: active
+  grants, with bundle grants expanded to the bundle's current items.
+- Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
+  access themselves.
+
+### Serving files
+
+Every file is fetched from a stable API URL that checks access on every request and redirects to a signed storage URL.
+`FileUrls` (`@headless-lms/core/assets`) builds those URLs, and responses carry them in their file fields
+(`thumbnailUrl`, `assetUrls`, `url`, `coverUrl`, `imageUrl`). The context that owns the file decides who may fetch it,
+then calls `AssetFiles.signFile`. No response carries a signed storage URL, and no route serves a file by asset id
+alone. A lesson's files are recorded on save from the editor's `assetIds(config)`; a file the lesson doesn't list is
+not served. Download files use `DELIVERY_URL_EXPIRY`; every other file uses `STORAGE_DOWNLOAD_EXPIRY`.
+
 ### Adapters, Plugins, Integrations
 
 There are 3 ways to change or extend the core service.
@@ -34,7 +55,7 @@ There are 3 ways to change or extend the core service.
 | Type             | Description                                                                                                                                  | Examples                                                                                                                                     |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Video, Event Bus, Cache (Redis/in-memory) |
-| **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Extended comments, Community                                                                                                                 |
+| **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Slack. Community is a content type in the core, not a plugin.                                                                                |
 | **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly                                                                                                               |
 
 ## Composition
@@ -56,6 +77,25 @@ The core is organized by context (or domain), and each domain defines its ports 
 A context is imported only through its `index.ts` (`@headless-lms/core/<context>`).
 There is no orchastration layer at this point - and that's a decision that ensures that each use case has a domain
 owner as we build out the system.
+
+### Reporting
+
+Reporting is the read domain. It lives in `packages/core` as `@headless-lms/core/reporting/*`. It reads every
+context, owns no data, and writes nothing. The other contexts do not import it. The HTTP layer and the composition
+root do.
+
+There are two services, one per product. A person calls the service for the product they are logged into. Role is a
+guard on the route, not another service.
+
+`reporting/member` is the person in the member product: a student in a course, a member in a community, a moderator.
+It answers the courses, progress, and downloads they can open, the community directory, and the community home. The
+`/api/member` prefix is the member HTTP API. Its course, download, progress, directory, and community-home routes call
+`reporting/member`. The other routes under that prefix call the context that owns the operation.
+
+`reporting/admin` is the person in the admin app: owner, admin, and instructor. It answers the org overview, course
+analytics, the roster, a student's record, a community's members, and the community staff analytics.
+
+`reporting/member` and `reporting/admin` are the services in the code.
 
 | Type        | Description                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------------------ |

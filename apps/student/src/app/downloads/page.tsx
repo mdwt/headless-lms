@@ -2,31 +2,15 @@ import Link from "next/link";
 import { Download as DownloadIcon, Inbox } from "lucide-react";
 
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
-import type { Download } from "@/lib/api/types";
-
-async function thumbnailsFor(downloads: Download[]): Promise<Map<string, string>> {
-  const urls = new Map<string, string>();
-  await Promise.all(
-    downloads.map(async (d) => {
-      if (!d.thumbnailAssetId) return;
-      const url = await learnApi.assetUrl(d.thumbnailAssetId);
-      if (url) urls.set(d.id, url);
-    }),
-  );
-  return urls;
-}
+import { memberApi } from "@/lib/api/server";
 
 export default async function DownloadsPage() {
-  const downloadsPromise = learnApi.listDownloads();
+  const downloadsPromise = memberApi.listDownloads();
   await requireAuth(downloadsPromise);
   const downloads = await downloadsPromise;
-  // File counts come from each download's own assets resource; the learn list
+  // File counts come from each download's own assets resource; the member list
   // row is the bare download record.
-  const [thumbnails, details] = await Promise.all([
-    thumbnailsFor(downloads),
-    Promise.all(downloads.map((d) => learnApi.getDownload(d.id))),
-  ]);
+  const details = await Promise.all(downloads.map((d) => memberApi.getDownload(d.id)));
   const fileCounts = new Map(downloads.map((d, i) => [d.id, details[i]?.assets.length ?? 0]));
 
   return (
@@ -51,13 +35,9 @@ export default async function DownloadsPage() {
               href={`/downloads/${download.id}`}
               className="flex flex-col overflow-hidden rounded-card border border-line bg-surface transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[3px] hover:border-line-hover hover:shadow-[0_12px_30px_-18px_rgba(20,20,18,0.28)] dark:hover:shadow-none"
             >
-              {thumbnails.has(download.id) ? (
+              {download.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={thumbnails.get(download.id)}
-                  alt=""
-                  className="h-[150px] w-full object-cover"
-                />
+                <img src={download.thumbnailUrl} alt="" className="h-[150px] w-full object-cover" />
               ) : (
                 <div className="grid h-[150px] w-full place-items-center bg-surface-warm-2 text-ink-faintest">
                   <DownloadIcon className="size-8" strokeWidth={1.5} />

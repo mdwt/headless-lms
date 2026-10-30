@@ -10,7 +10,8 @@ import type {
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
 import { OrganizationRuleError } from './members.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
 import { generateInviteToken } from '../shared/invite-token.js';
 import type { IdentityService, User } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
@@ -105,6 +106,8 @@ function fakeRepo(over?: Partial<OrganizationsRepository>): OrganizationsReposit
     findOrgUser: vi.fn().mockResolvedValue(STUDENT),
     findOrgUsersByUser: vi.fn().mockResolvedValue([]),
     findOrgUserById: vi.fn().mockResolvedValue(STUDENT),
+    findOrgUsersByIds: vi.fn().mockResolvedValue([]),
+    findOrgUserIdsByRole: vi.fn().mockResolvedValue([]),
     createOrgUser: vi.fn().mockImplementation((input) => Promise.resolve({ ...STUDENT, ...input })),
     updateOrgUser: vi
       .fn()
@@ -182,16 +185,18 @@ function build(opts?: {
     mailer: { send },
     inviteUrls: { studentPortalUrl: 'https://learn.test', adminAppUrl: 'https://admin.test' },
   });
-  return { service, repo, people, orgAdmin, send, appended };
+  return { service, repo, membersRepo, people, orgAdmin, send, appended };
 }
 
 const CTX: MemberWriteContext = { orgId: 'org_1', authOrgId: 'org_1', headers: {} };
+const ADMIN: Actor = { id: 'orm_admin', role: 'admin' };
+const INSTRUCTOR: Actor = { id: 'orm_instructor', role: 'instructor' };
 
 describe('createInvite', () => {
   it('adds a new student as an invited org user and emails the invite', async () => {
     const { service, repo, people, send, appended } = build();
 
-    await service.createInvite({
+    await service.createInvite(ADMIN, {
       orgId: 'org_1',
       email: 'ada@example.com',
       role: 'student',
@@ -218,7 +223,7 @@ describe('createInvite', () => {
     const people = fakePeople({ getUserByEmail: vi.fn().mockResolvedValue(PERSON) });
     const { service } = build({ people });
 
-    await service.createInvite({
+    await service.createInvite(ADMIN, {
       orgId: 'org_1',
       email: 'ada@example.com',
       role: 'student',
@@ -236,7 +241,7 @@ describe('createInvite', () => {
     const { service, send } = build({ repo, people });
 
     await expect(
-      service.createInvite({
+      service.createInvite(ADMIN, {
         orgId: 'org_1',
         email: 'ada@example.com',
         role: 'student',
@@ -250,7 +255,7 @@ describe('createInvite', () => {
   it('creates only the invite for staff', async () => {
     const { service, repo, people, appended } = build();
 
-    await service.createInvite({
+    await service.createInvite(ADMIN, {
       orgId: 'org_1',
       email: 'grace@example.com',
       role: 'admin',
@@ -267,7 +272,7 @@ describe('createInvite', () => {
     const { service } = build({ send });
 
     await expect(
-      service.createInvite({
+      service.createInvite(ADMIN, {
         orgId: 'org_1',
         email: 'ada@example.com',
         role: 'student',
@@ -277,13 +282,59 @@ describe('createInvite', () => {
   });
 });
 
+describe('createInvite authorization', () => {
+  it('refuses an actor without manage_users', async () => {
+    const { service, repo, people, send } = build();
+
+    await expect(
+      service.createInvite(INSTRUCTOR, {
+        orgId: 'org_1',
+        email: 'ada@example.com',
+        role: 'moderator',
+        inviterUserId: 'usr_owner',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(people.createUser).not.toHaveBeenCalled();
+    expect(repo.upsertPendingInvite).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('refuses a student invite from an actor without manage_users', async () => {
+    const { service, repo } = build();
+
+    await expect(
+      service.createInvite(INSTRUCTOR, {
+        orgId: 'org_1',
+        email: 'ada@example.com',
+        role: 'student',
+        inviterUserId: 'usr_owner',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(repo.createOrgUser).not.toHaveBeenCalled();
+  });
+
+  it('never invites an owner', async () => {
+    const { service, repo } = build();
+
+    await expect(
+      service.createInvite(ADMIN, {
+        orgId: 'org_1',
+        email: 'grace@example.com',
+        role: 'owner' as never,
+        inviterUserId: 'usr_owner',
+      }),
+    ).rejects.toBeInstanceOf(OrganizationRuleError);
+    expect(repo.upsertPendingInvite).not.toHaveBeenCalled();
+  });
+});
+
 describe('resendStudentInvite', () => {
   const input = { orgId: 'org_1', orgUserId: 'orm_1', inviterUserId: 'usr_owner' };
 
   it('sends the existing invite again with a new token', async () => {
     const { service, repo, send } = build();
 
-    await service.resendStudentInvite(input);
+    await service.resendStudentInvite(ADMIN, input);
 
     expect(repo.setInviteToken).toHaveBeenCalledWith(
       'org_1',
@@ -300,7 +351,7 @@ describe('resendStudentInvite', () => {
     const repo = fakeRepo({ findPendingInvite: vi.fn().mockResolvedValue(null) });
     const { service, send } = build({ repo });
 
-    await expect(service.resendStudentInvite(input)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.resendStudentInvite(ADMIN, input)).rejects.toBeInstanceOf(NotFoundError);
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -310,14 +361,74 @@ describe('resendStudentInvite', () => {
     });
     const { service } = build({ repo });
 
-    await expect(service.resendStudentInvite(input)).rejects.toBeInstanceOf(OrganizationRuleError);
+    await expect(service.resendStudentInvite(ADMIN, input)).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
   });
 
   it('surfaces a failed email', async () => {
     const send = vi.fn().mockRejectedValue(new Error('not implemented'));
     const { service } = build({ send });
 
-    await expect(service.resendStudentInvite(input)).rejects.toThrow('not implemented');
+    await expect(service.resendStudentInvite(ADMIN, input)).rejects.toThrow('not implemented');
+  });
+
+  it('refuses an actor without manage_users', async () => {
+    const { service, repo, send } = build();
+
+    await expect(service.resendStudentInvite(INSTRUCTOR, input)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(repo.setInviteToken).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteOrgUser', () => {
+  it('deletes a student and emits student deleted', async () => {
+    const { service, repo, appended } = build();
+
+    await service.deleteOrgUser('org_1', ADMIN, 'orm_1');
+
+    expect(repo.deleteOrgUser).toHaveBeenCalledWith('org_1', 'orm_1');
+    expect(appended.map((e) => e.type)).toEqual(['organization.student.deleted']);
+  });
+
+  it('refuses an actor without manage_users', async () => {
+    const { service, repo } = build();
+
+    await expect(service.deleteOrgUser('org_1', INSTRUCTOR, 'orm_1')).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(repo.deleteOrgUser).not.toHaveBeenCalled();
+  });
+
+  it.each(['admin', 'instructor', 'moderator'] as const)(
+    'refuses to delete a %s, who is removed as a member instead',
+    async (role) => {
+      const repo = fakeRepo({
+        findOrgUserById: vi.fn().mockResolvedValue({ ...STUDENT, role, status: 'active' }),
+      });
+      const { service, appended } = build({ repo });
+
+      await expect(service.deleteOrgUser('org_1', ADMIN, 'orm_1')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      expect(repo.deleteOrgUser).not.toHaveBeenCalled();
+      expect(appended).toEqual([]);
+    },
+  );
+
+  it('passes on the conflict when the student cannot be deleted', async () => {
+    const repo = fakeRepo({
+      deleteOrgUser: vi.fn().mockRejectedValue(new ConflictError('cannot be deleted')),
+    });
+    const { service, appended } = build({ repo });
+
+    await expect(service.deleteOrgUser('org_1', ADMIN, 'orm_1')).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    expect(appended).toEqual([]);
   });
 });
 
@@ -386,15 +497,292 @@ describe('member writes', () => {
   it('changes a role through Better Auth', async () => {
     const { service, orgAdmin } = build({ members: member() });
 
-    await service.updateMemberRole(CTX, 'orm_staff', 'instructor');
+    await service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'instructor');
 
     expect(orgAdmin.updateRole).toHaveBeenCalledWith(CTX, 'usr_staff', 'instructor');
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('creates a membership when a student is given a role', async () => {
+    const { service, orgAdmin, repo, membersRepo } = build();
+    const mirrored = member({ id: 'orm_1', role: 'moderator', email: 'ada@example.com' });
+    vi.mocked(orgAdmin.grantMembership).mockImplementation(async () => {
+      vi.mocked(membersRepo.findById).mockResolvedValue(mirrored);
+    });
+
+    const promoted = await service.updateMemberRole(CTX, ADMIN, 'orm_1', 'moderator');
+
+    expect(orgAdmin.grantMembership).toHaveBeenCalledWith('org_1', 'usr_1', 'moderator');
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+    expect(repo.findOrgUserById).toHaveBeenCalledWith('org_1', 'orm_1');
+    expect(promoted).toMatchObject({
+      id: 'orm_1',
+      role: 'moderator',
+      status: 'active',
+      email: 'ada@example.com',
+    });
+  });
+
+  it('changes the role of a membership that exists while the mirror says student', async () => {
+    const { service, orgAdmin, membersRepo, appended } = build();
+    const mirrored = member({ id: 'orm_1', role: 'moderator', email: 'ada@example.com' });
+    vi.mocked(orgAdmin.updateRole).mockImplementation(async (_ctx, _user, role) => {
+      await service.updateOrgUser('org_1', 'usr_1', { role });
+      vi.mocked(membersRepo.findById).mockResolvedValue(mirrored);
+    });
+
+    const promoted = await service.updateMemberRole(CTX, ADMIN, 'orm_1', 'moderator');
+
+    expect(orgAdmin.grantMembership).toHaveBeenCalledWith('org_1', 'usr_1', 'moderator');
+    expect(orgAdmin.updateRole).toHaveBeenCalledWith(CTX, 'usr_1', 'moderator');
+    expect(promoted).toMatchObject({ id: 'orm_1', role: 'moderator' });
+    expect(appended).toEqual([
+      expect.objectContaining({
+        type: 'organization.user.updated',
+        metadata: { actorOrgUserId: 'orm_admin' },
+      }),
+    ]);
+  });
+
+  it('refuses instead of answering when the mirror never takes the role', async () => {
+    const { service } = build();
+
+    await expect(service.updateMemberRole(CTX, ADMIN, 'orm_1', 'moderator')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+  });
+
+  it('refuses to promote a student who has not joined', async () => {
+    const people = fakePeople({
+      getUserById: vi.fn().mockResolvedValue({ ...PERSON, externalId: null }),
+    });
+    const { service, orgAdmin } = build({ people });
+
+    await expect(service.updateMemberRole(CTX, ADMIN, 'orm_1', 'moderator')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('refuses a role change by an actor without manage_users', async () => {
+    const { service, orgAdmin } = build({ members: member({ role: 'instructor' }) });
+
+    await expect(
+      service.updateMemberRole(CTX, INSTRUCTOR, 'orm_staff', 'admin'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+  });
+
+  it('refuses to promote a student for an actor without manage_users', async () => {
+    const { service, orgAdmin } = build();
+
+    await expect(
+      service.updateMemberRole(CTX, INSTRUCTOR, 'orm_1', 'owner'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      service.updateMemberRole(CTX, INSTRUCTOR, 'orm_1', 'moderator'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('never grants owner through a role change', async () => {
+    const { service, orgAdmin } = build({ members: member() });
+
+    await expect(service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'owner')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+  });
+
+  it('never makes a student the owner', async () => {
+    const { service, orgAdmin } = build();
+
+    await expect(service.updateMemberRole(CTX, ADMIN, 'orm_1', 'owner')).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    expect(orgAdmin.grantMembership).not.toHaveBeenCalled();
+  });
+
+  it('makes a moderator a student with one Better Auth call', async () => {
+    const repo = fakeRepo({
+      findOrgUserById: vi.fn().mockResolvedValue({ ...STUDENT, id: 'orm_staff', status: 'active' }),
+    });
+    const { service, orgAdmin } = build({ repo, members: member({ role: 'moderator' }) });
+
+    const demoted = await service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'student');
+
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+    expect(orgAdmin.removeMember).toHaveBeenCalledTimes(1);
+    expect(orgAdmin.removeMember).toHaveBeenCalledWith(CTX, 'usr_staff');
+    expect(demoted).toMatchObject({ id: 'orm_staff', role: 'student', status: 'active' });
+  });
+
+  it('keeps the org user as a student when the mirror removes a demoted moderator', async () => {
+    const moderator: OrgUser = { ...STUDENT, id: 'orm_staff', role: 'moderator', status: 'active' };
+    const repo = fakeRepo({
+      findOrgUser: vi.fn().mockResolvedValue(moderator),
+      findOrgUserById: vi.fn().mockResolvedValue({ ...moderator, role: 'student' }),
+    });
+    const { service, orgAdmin, appended } = build({ repo, members: member({ role: 'moderator' }) });
+    vi.mocked(orgAdmin.removeMember).mockImplementation(async () => {
+      await service.removeOrgUser('org_1', 'usr_1');
+    });
+
+    await service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'student');
+
+    expect(repo.deleteOrgUser).not.toHaveBeenCalled();
+    expect(repo.updateOrgUser).toHaveBeenCalledWith('org_1', 'orm_staff', { role: 'student' });
+    expect(appended).toEqual([
+      expect.objectContaining({
+        type: 'organization.user.updated',
+        data: expect.objectContaining({ id: 'orm_staff', role: 'student' }),
+        metadata: { actorOrgUserId: 'orm_admin' },
+      }),
+    ]);
+  });
+
+  it('deletes the org user when a member is removed outside a demotion', async () => {
+    const moderator: OrgUser = { ...STUDENT, id: 'orm_staff', role: 'moderator', status: 'active' };
+    const repo = fakeRepo({ findOrgUser: vi.fn().mockResolvedValue(moderator) });
+    const { service, orgAdmin, appended } = build({ repo, members: member({ role: 'moderator' }) });
+    vi.mocked(orgAdmin.removeMember).mockImplementation(async () => {
+      await service.removeOrgUser('org_1', 'usr_1');
+    });
+
+    await service.removeMember(CTX, ADMIN, 'orm_staff');
+
+    expect(repo.deleteOrgUser).toHaveBeenCalledWith('org_1', 'orm_staff');
+    expect(repo.updateOrgUser).not.toHaveBeenCalled();
+    expect(appended.map((e) => e.type)).toEqual(['organization.user.deleted']);
+  });
+
+  it('refuses to make staff a student', async () => {
+    const { service, orgAdmin } = build({ members: member({ role: 'instructor' }) });
+
+    await expect(
+      service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'student'),
+    ).rejects.toBeInstanceOf(OrganizationRuleError);
+    expect(orgAdmin.updateRole).not.toHaveBeenCalled();
+    expect(orgAdmin.removeMember).not.toHaveBeenCalled();
+  });
+
+  it('records the actor on the role change the mirror emits', async () => {
+    const moderator: OrgUser = { ...STUDENT, id: 'orm_staff', role: 'moderator', status: 'active' };
+    const repo = fakeRepo({ findOrgUser: vi.fn().mockResolvedValue(moderator) });
+    const { service, orgAdmin, appended } = build({
+      repo,
+      members: member({ role: 'moderator' }),
+    });
+    vi.mocked(orgAdmin.updateRole).mockImplementation(async (_ctx, _user, role) => {
+      await service.updateOrgUser('org_1', 'usr_staff', { role });
+    });
+
+    await service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'instructor');
+
+    expect(appended).toEqual([
+      expect.objectContaining({
+        type: 'organization.user.updated',
+        metadata: { actorOrgUserId: 'orm_admin' },
+      }),
+    ]);
+  });
+
+  it('records the actor when a student is given the moderator role', async () => {
+    const { service, orgAdmin, membersRepo, appended } = build();
+    vi.mocked(orgAdmin.grantMembership).mockImplementation(async () => {
+      await service.addOrgUser({ orgId: 'org_1', userId: 'usr_1', role: 'moderator' });
+      vi.mocked(membersRepo.findById).mockResolvedValue(member({ id: 'orm_1', role: 'moderator' }));
+    });
+
+    await service.updateMemberRole(CTX, ADMIN, 'orm_1', 'moderator');
+
+    expect(appended).toEqual([
+      expect.objectContaining({
+        type: 'organization.user.updated',
+        metadata: { actorOrgUserId: 'orm_admin' },
+      }),
+    ]);
+  });
+
+  it('attributes overlapping role changes of one org user to their own actors', async () => {
+    const moderator: OrgUser = { ...STUDENT, id: 'orm_staff', role: 'moderator', status: 'active' };
+    const repo = fakeRepo({ findOrgUser: vi.fn().mockResolvedValue(moderator) });
+    const { service, orgAdmin, appended } = build({
+      repo,
+      members: member({ role: 'moderator' }),
+    });
+    const OWNER: Actor = { id: 'orm_owner', role: 'owner' };
+    let releaseFirst!: () => void;
+    const firstHeld = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let calls = 0;
+    vi.mocked(orgAdmin.updateRole).mockImplementation(async (_ctx, _user, role) => {
+      calls += 1;
+      if (calls === 1) {
+        await firstHeld;
+      }
+      await service.updateOrgUser('org_1', 'usr_staff', { role });
+    });
+
+    const first = service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'instructor');
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await service.updateMemberRole(CTX, OWNER, 'orm_staff', 'admin');
+    releaseFirst();
+    await first;
+
+    expect(appended.map((e) => [(e.data as OrgUser).role, e.metadata])).toEqual([
+      ['admin', { actorOrgUserId: 'orm_owner' }],
+      ['instructor', { actorOrgUserId: 'orm_admin' }],
+    ]);
+  });
+
+  it('records no actor on a mirror write for another org user inside a role change', async () => {
+    const other: OrgUser = { ...STUDENT, id: 'orm_other', role: 'moderator', status: 'active' };
+    const repo = fakeRepo({ findOrgUser: vi.fn().mockResolvedValue(other) });
+    const { service, orgAdmin, appended } = build({
+      repo,
+      members: member({ role: 'moderator' }),
+    });
+    vi.mocked(orgAdmin.updateRole).mockImplementation(async () => {
+      await service.updateOrgUser('org_1', 'usr_other', { role: 'instructor' });
+    });
+
+    await service.updateMemberRole(CTX, ADMIN, 'orm_staff', 'instructor');
+
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).not.toHaveProperty('metadata');
+  });
+
+  it('records no actor on a role change Better Auth made on its own', async () => {
+    const repo = fakeRepo({
+      findOrgUser: vi.fn().mockResolvedValue({ ...STUDENT, role: 'moderator' }),
+    });
+    const { service, appended } = build({ repo });
+
+    await service.updateOrgUser('org_1', 'usr_1', { role: 'instructor' });
+
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).not.toHaveProperty('metadata');
+  });
+
+  it('updates the existing org user when a membership is created for them', async () => {
+    const { service, repo, appended } = build();
+
+    await service.addOrgUser({ orgId: 'org_1', userId: 'usr_1', role: 'moderator' });
+
+    expect(repo.createOrgUser).not.toHaveBeenCalled();
+    expect(repo.updateOrgUser).toHaveBeenCalledWith('org_1', 'orm_1', {
+      role: 'moderator',
+      status: 'active',
+    });
+    expect(appended.map((event) => event.type)).toEqual(['organization.user.updated']);
   });
 
   it('removes a member through Better Auth', async () => {
     const { service, orgAdmin } = build({ members: member() });
 
-    await expect(service.removeMember(CTX, 'orm_staff')).resolves.toBe(true);
+    await expect(service.removeMember(CTX, ADMIN, 'orm_staff')).resolves.toBe(true);
     expect(orgAdmin.removeMember).toHaveBeenCalledWith(CTX, 'usr_staff');
   });
 
@@ -403,17 +791,29 @@ describe('member writes', () => {
       members: member({ kind: 'invite', userExternalId: null, inviteId: 'inv_9' }),
     });
 
-    await service.removeMember(CTX, 'inv_9');
+    await service.removeMember(CTX, ADMIN, 'inv_9');
 
     expect(repo.setInviteStatus).toHaveBeenCalledWith('org_1', 'inv_9', 'canceled');
     expect(orgAdmin.removeMember).not.toHaveBeenCalled();
     expect(appended.map((e) => e.type)).toEqual(['organization.invite.canceled']);
   });
 
+  it('refuses a removal by an actor without manage_users', async () => {
+    const { service, orgAdmin, repo } = build({
+      members: member({ kind: 'invite', userExternalId: null, inviteId: 'inv_9' }),
+    });
+
+    await expect(service.removeMember(CTX, INSTRUCTOR, 'orm_staff')).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(orgAdmin.removeMember).not.toHaveBeenCalled();
+    expect(repo.setInviteStatus).not.toHaveBeenCalled();
+  });
+
   it('refuses to remove the owner', async () => {
     const { service, orgAdmin } = build({ members: member({ role: 'owner' as never }) });
 
-    await expect(service.removeMember(CTX, 'orm_staff')).rejects.toBeInstanceOf(
+    await expect(service.removeMember(CTX, ADMIN, 'orm_staff')).rejects.toBeInstanceOf(
       OrganizationRuleError,
     );
     expect(orgAdmin.removeMember).not.toHaveBeenCalled();
@@ -422,12 +822,28 @@ describe('member writes', () => {
 
 describe('Better Auth mirror', () => {
   it('removes the org user by the person id', async () => {
-    const { service, repo } = build();
+    const repo = fakeRepo({
+      findOrgUser: vi.fn().mockResolvedValue({ ...STUDENT, role: 'moderator', status: 'active' }),
+    });
+    const { service } = build({ repo });
 
     await service.removeOrgUser('org_1', 'usr_1');
 
     expect(repo.findOrgUser).toHaveBeenCalledWith('org_1', 'usr_1');
     expect(repo.deleteOrgUser).toHaveBeenCalledWith('org_1', 'orm_1');
+  });
+
+  it('keeps a student org user when their membership is removed', async () => {
+    const repo = fakeRepo({
+      findOrgUser: vi.fn().mockResolvedValue({ ...STUDENT, status: 'active' }),
+    });
+    const { service, appended } = build({ repo });
+
+    const kept = await service.removeOrgUser('org_1', 'usr_1');
+
+    expect(repo.deleteOrgUser).not.toHaveBeenCalled();
+    expect(kept.role).toBe('student');
+    expect(appended).toEqual([]);
   });
 
   it('updates the org user by the person id', async () => {

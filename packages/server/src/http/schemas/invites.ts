@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { emailSchema } from '@headless-lms/core/schemas';
 
 /** Roles an invitation can carry. Never owner. */
-export const InviteRole = z.enum(['admin', 'instructor', 'student']);
+export const InviteRole = z.enum(['admin', 'instructor', 'moderator', 'student']);
 export type InviteRole = z.infer<typeof InviteRole>;
 
 export const Invite = z.object({

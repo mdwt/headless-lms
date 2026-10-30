@@ -7,9 +7,9 @@
  * parks its `resolve` in state, the dialog renders, and selecting (or closing)
  * settles the promise.
  *
- * The returned `url` is a short-lived presigned URL for the editing session;
- * the durable reference is `id`, which the editor persists on the media node
- * (see `editor-upload.ts`).
+ * The returned `url` is the staff library URL, for display in the editing
+ * session; the durable reference is `id`, which the editor persists on the
+ * media node (see `editor-upload.ts`).
  */
 
 import { useCallback, useState, type ReactNode } from "react";
@@ -17,15 +17,11 @@ import { toast } from "sonner";
 import type { EditorMediaKind, UploadedEditorFile } from "@headless-lms/editor";
 
 import { AssetPickerDialog } from "@/app/(dashboard)/media/_components/asset-picker-dialog";
-import { getAssetUrlAction } from "@/app/(dashboard)/media/actions";
 import type { Asset, AssetKind } from "@/lib/api/types";
 
-/** The API's coarse kinds don't cover audio — it, like any other non-image,
- *  non-video upload, is a `download`. */
 function assetKindFor(kind: EditorMediaKind): AssetKind {
-  if (kind === "image") return "content";
-  if (kind === "video") return "video";
-  return "download";
+  if (kind === "file") return "document";
+  return kind;
 }
 
 interface PickRequest {
@@ -56,20 +52,19 @@ export function useAssetPicker(): {
   );
 
   const onSelect = useCallback(
-    async (asset: Asset) => {
-      try {
-        const url = await getAssetUrlAction(asset.id, asset.filename);
-        settle({
-          id: asset.id,
-          name: asset.filename,
-          size: asset.size,
-          type: asset.contentType,
-          url,
-        });
-      } catch {
+    (asset: Asset) => {
+      if (!asset.url) {
         toast.error("Couldn't open that file", { description: asset.filename });
         settle(null);
+        return;
       }
+      settle({
+        id: asset.id,
+        name: asset.filename,
+        size: asset.size,
+        type: asset.contentType,
+        url: asset.url,
+      });
     },
     [settle],
   );
@@ -77,7 +72,7 @@ export function useAssetPicker(): {
   const picker = (
     <AssetPickerDialog
       open={!!request}
-      kind={request?.kind ?? "content"}
+      kind={request?.kind ?? "image"}
       onOpenChange={(open) => {
         if (!open) settle(null);
       }}

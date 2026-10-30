@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hatchet-dev/typescript-sdk": "^1.28.0",
+    "@headless-lms/adapter-defaults": "workspace:*",
     "@headless-lms/core": "workspace:*"
   },
   "devDependencies": {

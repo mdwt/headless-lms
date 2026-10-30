@@ -23,25 +23,21 @@ export interface UploadedEditorFile {
 }
 
 /**
- * Host-side asset URL broker. Media nodes that persist a durable asset id call
- * this whenever they need a displayable URL — the embedded `url` in stored
- * config is a presign from save time and may have expired. Resolves `null`
- * when the asset is gone or inaccessible (nodes fall back to the stored URL).
+ * Displayable URLs for the host assets a config references, keyed by asset id:
+ * the map the host's API returned with the content. A config stores the asset
+ * id of a media node and never its URL; the URL comes from this map.
  */
-export type ResolveAssetUrl = (assetId: string) => Promise<string | null>;
+export type AssetUrls = Readonly<Record<string, string>>;
 
 export type EditorSlot = "toolbar" | "blocks";
 
 export interface PageEditorProps {
   /** The stored editor config blob, verbatim. `null`/invalid → start empty. */
   initialConfig: unknown;
-  /**
-   * Host-provided URL broker for media nodes referencing host assets. Stored
-   * configs embed save-time presigned URLs that expire; editors that support
-   * media resolve fresh ones through this when displaying existing content.
-   */
-  resolveAssetUrl?: ResolveAssetUrl;
-  /** Persist the current config. The editor awaits this for pending state. */
+  /** URLs for the host assets the initial config references. */
+  assetUrls: AssetUrls;
+  /** Persist the current config. The editor awaits this for pending state.
+   *  Configs handed to `onSave` and `onChange` carry asset ids, not URLs. */
   onSave: (config: unknown) => Promise<void>;
   /**
    * Fired with the current config on every edit. Lets the host own the save
@@ -76,10 +72,10 @@ export interface EditorModule {
   /** Entry must be RSC-safe: no 'use client', no hooks/browser APIs at top level.
    *  May render 'use client' islands internally. Props passed into islands must be
    *  serializable; composition across the boundary only via children.
-   *  `resolveAssetUrl` is awaited by asset-backed media nodes during server
-   *  render, so each node materializes with a currently-valid URL. */
-  Renderer: ComponentType<{ config: unknown; resolveAssetUrl?: ResolveAssetUrl }>;
+   *  Asset-backed media nodes take their URL from `assetUrls`. */
+  Renderer: ComponentType<{ config: unknown; assetUrls: AssetUrls }>;
   validate?: (config: unknown) => { ok: true } | { ok: false; errors: string[] };
+  assetIds: (config: unknown) => string[];
   slots?: readonly EditorSlot[];
   meta: {
     /** Unique identifier for this editor's config format, stored with every
@@ -101,13 +97,11 @@ export interface MediaTrackingEvent {
   duration: number | null;
 }
 
-/** Host-provided callbacks for media playback: facts out, resume/refresh in. */
+/** Host-provided callbacks for media playback: facts out, resume in. */
 export interface MediaTracking {
   onEvent?: (event: MediaTrackingEvent) => void;
   /** Resume point for an asset, seconds. */
   startPosition?: (assetId: string) => number | undefined;
-  /** Fresh playback URL when the embedded presign has expired. */
-  refreshUrl?: (assetId: string) => Promise<string | null>;
 }
 
 /**

@@ -1,0 +1,61 @@
+---
+title: Building a frontend
+description: Read a signed-in member's courses, downloads and community, and show their files.
+---
+
+The student app in `apps/student` is one frontend over the member API. Any other frontend uses the same routes, under `/api/member`.
+
+## Sessions and the organization
+
+- A member signs in with email and password through Better Auth (`/api/auth/*`). The session is a cookie.
+- The organization comes from the session, not from a header or subdomain.
+- Every `/api/member` route answers `401` without a session.
+
+## Access
+
+The API decides what a member can open. A member can open a course, a download or a community when they hold an active grant to it, or to a bundle that contains it. Grants to bundles are resolved on the server; a frontend never sees the difference.
+
+Member routes return only what the member can open and answer `404` for everything else, never `403`, so a response never confirms that something exists. List with [`GET /api/member/courses`](/docs/api/content/listMemberCourses) and [`GET /api/member/downloads`](/docs/api/content/listMemberDownloads), and treat `404` as "not available to this member".
+
+## Files
+
+Every file has a stable URL on the API. Each request to it checks access, then answers with a `302` redirect to a signed storage URL. Responses carry these URLs in their file fields, so a frontend puts them straight into `src` or `href` and never asks for a file by asset id.
+
+| File                                    | Field                                                                                                 | Who may fetch it                                                                                                     |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Course, download or community thumbnail | `thumbnailUrl`                                                                                        | Any org user, when the item is published; staff always                                                               |
+| File in a lesson                        | `assetUrls[assetId]` on each activity                                                                 | The member can open the course, the course and lesson are published, and the lesson lists the file; staff always     |
+| File in a download                      | `url` on each file of [`GET /api/member/downloads/{downloadId}`](/docs/api/content/getMemberDownload) | The member can open the download, it is published, and it lists the file; staff always. Saved under its display name |
+| Post cover                              | `coverUrl`                                                                                            | Whoever can read the post                                                                                            |
+| Message attachment                      | `url` on each of `attachments`                                                                        | The chat's participants while the message stands; moderators while it is flagged                                     |
+| Profile photo                           | `imageUrl` on authors, senders, directory entries and notifications                                   | Org users of the photo's organization                                                                                |
+| Your own upload                         | `url` on a finalized upload, and `imageUrl` on your own profile                                       | Only the person who uploaded it                                                                                      |
+
+Anything else is a `404`. The Files section of the [API reference](/docs/api) lists every route.
+
+```tsx
+<img src={course.thumbnailUrl} alt="" />
+<video src={activity.assetUrls[videoAssetId]} controls />
+<a href={file.url} download>
+  {file.displayName ?? file.filename}
+</a>
+```
+
+### The session cookie has to reach the API
+
+An `<img>` or `<video>` request can't carry a token; it sends cookies. Serve the frontend and the API from the same site, as subdomains of one domain such as `learn.example.com` and `api.example.com`, and set `AUTH_COOKIE_DOMAIN` to the parent domain (`.example.com`). Locally everything runs on `localhost`, which already shares the cookie. Don't set `crossorigin="anonymous"` on media elements, since it stops the cookie being sent to another subdomain.
+
+### Link lifetimes
+
+The stable URL never expires; only the storage link it redirects to does. Requesting the stable URL again returns a fresh one.
+
+| File               | Storage link lifetime | Setting                   |
+| ------------------ | --------------------- | ------------------------- |
+| File in a download | 5 minutes             | `DELIVERY_URL_EXPIRY`     |
+| Every other file   | 24 hours              | `STORAGE_DOWNLOAD_EXPIRY` |
+
+A download link is used once to start the download. Video and audio keep fetching parts of the file while they play, so their links outlive a viewing.
+
+## Lesson content
+
+A lesson's content is in its activity's `settings.content`, as `{ type, version, config }`. `config` is in the editor's own format: render it with the editor's `Renderer`, passing the activity's `assetUrls`. See [Custom editor](/docs/editor).

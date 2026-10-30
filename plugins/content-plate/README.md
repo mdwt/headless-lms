@@ -26,6 +26,8 @@ src/
   editor.tsx        # 'use client' contract Editor — Plate + EditorKit + Save
   renderer.tsx      # RSC-safe contract Renderer — PlateStatic + BaseEditorKit
   validate.ts       # shallow node-array check
+  asset-ids.ts      # contract assetIds — host asset ids the content shows
+  asset-urls.ts     # applies the host's assetUrls to asset-backed nodes
   editor/
     editor-kit.tsx        # assembled interactive plugin kit
     editor-base-kit.tsx   # assembled static (server) kit
@@ -48,6 +50,24 @@ Uploads go through the **host app's media API**, not the package: the contract's
 and `hooks/use-upload-file.tsx` exposes it to the media components via
 `UploadProvider`. Without a handler, files fall back to non-persistent local
 object URLs.
+
+## Asset links
+
+The contract's required `assetIds(config)` returns every `assetId` on a node of
+the config, in document order, without duplicates. When an activity's content
+is saved, the admin sends exactly these ids as the activity's asset links; the
+server accepts only ready media library files of the org. A media node without
+an `assetId` (a non-persistent local preview) is not linked.
+
+## Asset URLs
+
+The API returns each activity with `assetUrls`, a signed URL per linked file
+keyed by asset id, and the host passes it to `Editor` and `Renderer` as
+`assetUrls`. A stored config holds a media node's `assetId` and never its URL.
+Both entries give every asset node the URL from the map before rendering, and
+an asset node the host did not serve has none. The editor drops the URL of
+every asset node from the configs it hands to `onSave` and `onChange`. External
+media keeps its own `url`.
 
 ## Styling
 

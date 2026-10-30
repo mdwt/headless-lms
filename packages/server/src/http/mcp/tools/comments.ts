@@ -4,10 +4,7 @@ import {
   DiscussionActivityParam,
   ReplyToComment,
 } from '../../schemas/index.js';
-import type { OrgScope } from '../../scope.js';
-import { defineTool, type Tool } from '../tool.js';
-
-const actor = (scope: OrgScope) => ({ id: scope.orgUserId, role: scope.role });
+import { actor, defineTool, type Tool } from '../tool.js';
 
 export const commentTools: Tool[] = [
   defineTool({

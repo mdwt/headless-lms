@@ -1,8 +1,9 @@
 // organizations context — ports.
 import type { Invite, Organization, OrgUser } from './model.js';
-import type { Member, MembersQuery, Page } from './members.js';
+import type { Member, MemberRoleChange, MembersQuery, Page } from './members.js';
 import type { Role } from './roles.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
 import type {
   AcceptInviteInput,
   AddOrgUserInput,
@@ -31,23 +32,24 @@ export interface OrganizationService {
   updateOrgUser(orgId: string, userId: string, patch: UpdateOrgUserInput): Promise<OrgUser>;
   getByExternalId(externalId: string): Promise<Organization | null>;
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
+  getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   getById(id: string): Promise<Organization | null>;
   // Mints a domain-owned invite (token + row + event, one transaction) and
   // emails the invite link. A student invite also adds the student. Throws
   // ConflictError when the person already belongs to the org.
-  createInvite(input: CreateInviteInput): Promise<Invite>;
+  createInvite(actor: Actor, input: CreateInviteInput): Promise<Invite>;
   // The invite a valid (pending, unexpired) token points at; null otherwise.
   peekInvite(token: string): Promise<Invite | null>;
   // Token-based acceptance by the logged-in account. A student's org user is
   // activated; staff are granted a Better Auth membership, which the org user
   // mirrors.
   acceptInvite(input: AcceptInviteInput): Promise<OrgUser>;
-  deleteOrgUser(orgId: string, id: string): Promise<OrgUser>;
+  deleteOrgUser(orgId: string, actor: Actor, id: string): Promise<OrgUser>;
   // Resends the student's pending invite with a new token. Throws NotFoundError
   // when the org user or the pending invite is unknown, OrganizationRuleError
   // when they have already joined.
-  resendStudentInvite(input: ResendStudentInviteInput): Promise<void>;
+  resendStudentInvite(actor: Actor, input: ResendStudentInviteInput): Promise<void>;
   // Corrects the person behind a student row — the names and the address an
   // admin typed on the invite form. Throws NotFoundError when the org user is
   // unknown, ConflictError when the address is taken. Changing the address of a
@@ -60,8 +62,14 @@ export interface OrganizationService {
   // Member-management operations (formerly the `team` context). Reads come from
   // the domain mirror; writes go through Better Auth via OrgAdmin.
   listMembers(orgId: string, query: MembersQuery): Promise<Page<Member>>;
-  updateMemberRole(ctx: MemberWriteContext, id: string, role: Role): Promise<Member | null>;
-  removeMember(ctx: MemberWriteContext, id: string): Promise<boolean>;
+  updateMemberRole(
+    ctx: MemberWriteContext,
+    actor: Actor,
+    id: string,
+    role: Role,
+  ): Promise<MemberRoleChange | null>;
+  removeMember(ctx: MemberWriteContext, actor: Actor, id: string): Promise<boolean>;
+  staffOrgUserIds(orgId: string): Promise<string[]>;
 }
 
 /** Atomic write scope: tx-bound repo + outbox appender, one transaction. */
@@ -116,6 +124,8 @@ export interface OrganizationsRepository {
   /** Every org this person belongs to, oldest first. */
   findOrgUsersByUser(userId: string): Promise<OrgUser[]>;
   findOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
+  findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
+  findOrgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]>;
   /** Links a user to the org under a role. Throws ConflictError when they
    *  already hold a row there. */
   createOrgUser(input: CreateOrgUserInput): Promise<OrgUser>;

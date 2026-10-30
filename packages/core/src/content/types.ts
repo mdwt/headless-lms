@@ -12,4 +12,11 @@ export type {
   ListBundlesQuery,
   CreateBundleInput,
   UpdateBundleInput,
+  ListCommunitiesQuery,
+  CreateCommunityInput,
+  UpdateCommunityInput,
+  PatchDmSettingsInput,
+  CreateSpaceInput,
+  UpdateSpaceInput,
+  SetSpaceTopicsInput,
 } from '../types/index.js';

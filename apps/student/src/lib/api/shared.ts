@@ -1,7 +1,7 @@
 /**
  * Transport error type. The SDK is configured to throw this (see
  * `server-call.ts` and `client-sdk.ts`) instead of returning a result envelope,
- * so callers branch on the status — a 404 from a Learn read means "not enrolled
+ * so callers branch on the status — a 404 from a member read means "not enrolled
  * / not visible", which is a page state rather than a failure.
  */
 export class ApiError extends Error {

@@ -16,9 +16,9 @@ import "server-only";
  * content titles, download assets joined with file metadata — is composed here
  * from multiple bare reads (see lib/api/compose).
  *
- * Only SSR-prefetched **read** methods live here. Mutations and browser-only
- * flows (`uploadAsset`, presigned `assetDownloadUrl`, `useAssetUrl`) stay
- * client-side and are never prefetched. Query serialization goes through the
+ * Only SSR-prefetched **read** methods live here. Mutations and the browser-side
+ * upload flow (presigned PUT straight to storage) stay client-side and are
+ * never prefetched. Query serialization goes through the
  * shared `toQuery` so prefetch keys match client keys exactly (cache hit, no
  * refetch on first paint).
  */
@@ -27,6 +27,7 @@ import {
   Access,
   Assets,
   Automations,
+  Communities,
   Content,
   Discussion,
   Entitlements,
@@ -36,7 +37,7 @@ import {
 } from "@headless-lms/sdk";
 
 import { toQuery } from "./shared";
-import { buildModuleTree, entitlementStatusOf } from "./compose";
+import { buildModuleTree, contentTypeOf, entitlementStatusOf } from "./compose";
 import { fullName } from "@/lib/format";
 import { authHeaders } from "./server-call";
 import type {
@@ -64,29 +65,36 @@ import type {
   OverviewStats,
   Paginated,
   CommentListItem,
+  ContentType,
   ScopeOption,
   Student,
   StudentAnalytics,
   Webhook,
 } from "./types";
 
+/** Title of one content item, read from the resource its type names. */
+async function contentTitleOf(
+  type: ContentType,
+  id: string,
+  headers: Awaited<ReturnType<typeof authHeaders>>,
+): Promise<string> {
+  if (type === "course") return (await Content.getCourse({ id }, headers)).title;
+  if (type === "download") return (await Content.getDownload({ downloadId: id }, headers)).title;
+  return (await Communities.getCommunity({ communityId: id }, headers)).title;
+}
+
 /** Resolve a granted content id to its type + display title. The grant row
- *  stores only the id, so probe the two content resources in order. */
+ *  stores only the id; its prefix names the type, so one read gets the title. */
 async function contentRefOf(
   contentId: string,
   headers: Awaited<ReturnType<typeof authHeaders>>,
 ): Promise<Entitlement["content"]> {
+  const type = contentTypeOf(contentId);
+  if (!type) return { id: contentId, type: "course", title: contentId };
   try {
-    const course = await Content.getCourse({ id: contentId }, headers);
-    return { id: contentId, type: "course", title: course.title };
+    return { id: contentId, type, title: await contentTitleOf(type, contentId, headers) };
   } catch {
-    // fall through to download
-  }
-  try {
-    const download = await Content.getDownload({ downloadId: contentId }, headers);
-    return { id: contentId, type: "download", title: download.title };
-  } catch {
-    return { id: contentId, type: "course", title: contentId };
+    return { id: contentId, type, title: contentId };
   }
 }
 
@@ -140,26 +148,6 @@ async function composeEntitlements(grants: EntitlementGrant[]): Promise<Entitlem
   });
 }
 
-/** Join bare download→asset link rows with each asset's file metadata. Also
- *  used by the download-asset server actions to return display rows. */
-export async function composeDownloadAssets(
-  links: Awaited<ReturnType<typeof Content.listDownloadAssets>>,
-): Promise<DownloadAsset[]> {
-  const headers = await authHeaders();
-  const assetIds = [...new Set(links.map((l) => l.assetId))];
-  const assets = await Promise.all(assetIds.map((id) => Assets.getAsset({ id }, headers)));
-  const assetById = new Map(assets.map((a) => [a.id, a]));
-  return links.map((l) => {
-    const asset = assetById.get(l.assetId);
-    return {
-      ...l,
-      filename: asset?.filename ?? l.assetId,
-      contentType: asset?.contentType ?? "application/octet-stream",
-      size: asset?.size ?? 0,
-    };
-  });
-}
-
 export const serverApi = {
   // reporting
   async overview(): Promise<OverviewStats> {
@@ -197,14 +185,15 @@ export const serverApi = {
   // their item titles so the picker can show what a bundle contains.
   async contentLite(): Promise<
     (
-      | { id: string; title: string; type: "course" | "download" }
+      | { id: string; title: string; type: ContentType }
       | { id: string; title: string; type: "bundle"; itemTitles: string[] }
     )[]
   > {
     const headers = await authHeaders();
-    const [coursesPage, downloadsPage, bundlesPage] = await Promise.all([
+    const [coursesPage, downloadsPage, communitiesPage, bundlesPage] = await Promise.all([
       Content.listCourses({ pageSize: 100, sort: "title" }, headers),
       Content.listDownloads({ pageSize: 100, sort: "title" }, headers),
+      Communities.listCommunities({ pageSize: 100, sort: "title" }, headers),
       Content.listBundles({ pageSize: 100, sort: "name" }, headers),
     ]);
     const bundleItems = await Promise.all(
@@ -213,6 +202,7 @@ export const serverApi = {
     const titleById = new Map([
       ...coursesPage.rows.map((c) => [c.id, c.title] as const),
       ...downloadsPage.rows.map((d) => [d.id, d.title] as const),
+      ...communitiesPage.rows.map((c) => [c.id, c.title] as const),
     ]);
     const byTitle = (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title);
     const bundles = bundlesPage.rows
@@ -229,7 +219,10 @@ export const serverApi = {
     const downloads = downloadsPage.rows
       .map((d) => ({ id: d.id, title: d.title, type: "download" as const }))
       .sort(byTitle);
-    return [...bundles, ...courses, ...downloads];
+    const communities = communitiesPage.rows
+      .map((c) => ({ id: c.id, title: c.title, type: "community" as const }))
+      .sort(byTitle);
+    return [...bundles, ...courses, ...downloads, ...communities];
   },
 
   // bundles
@@ -260,8 +253,7 @@ export const serverApi = {
     return await Content.getDownload({ downloadId }, await authHeaders());
   },
   async listDownloadAssets(downloadId: string): Promise<DownloadAsset[]> {
-    const links = await Content.listDownloadAssets({ downloadId }, await authHeaders());
-    return composeDownloadAssets(links);
+    return await Content.listDownloadAssets({ downloadId }, await authHeaders());
   },
   /** Header stats for one download, composed from its assets + grants. */
   async downloadStats(
@@ -352,7 +344,7 @@ export const serverApi = {
       .map((m) => ({ id: m.id, name: fullName(m) }));
   },
 
-  // media library (assets) — list only; presigned URL/upload stay client-side
+  // media library (assets) — list only; uploads stay client-side
   async listAssets(params: ListParams): Promise<Paginated<Asset>> {
     return await Assets.listAssets(toQuery(params, ["kind"]), await authHeaders());
   },

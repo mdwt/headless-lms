@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { requireAuth } from "@/lib/auth/server-session";
-import { learnApi } from "@/lib/api/server";
+import { memberApi } from "@/lib/api/server";
 import { adaptCourse } from "@/lib/adapt";
 import { renderActivityContent } from "@/components/player/content/render-activity";
 import { CoursePlayer } from "@/components/player/course-player";
@@ -15,12 +15,12 @@ export default async function CoursePlayerPage({
   const { courseId } = await params;
   const session = await requireAuth();
   const [course, modules, activities, org, viewer, progress] = await Promise.all([
-    learnApi.getCourse(courseId),
-    learnApi.listModules(courseId),
-    learnApi.listActivities(courseId),
-    learnApi.org(),
-    learnApi.viewer(),
-    learnApi.courseProgress(courseId),
+    memberApi.getCourse(courseId),
+    memberApi.listModules(courseId),
+    memberApi.listActivities(courseId),
+    memberApi.org(),
+    memberApi.viewer(),
+    memberApi.courseProgress(courseId),
   ]);
   if (!course || !modules || !activities) notFound();
 
@@ -32,12 +32,11 @@ export default async function CoursePlayerPage({
   const resumeLessonId = (lessons.find((l) => completion[l.id] !== "completed") ?? lessons[0])?.id;
   // Render each activity's Plate content on the server so the client player
   // receives ready-made nodes (no client re-execution → no hydration mismatch).
-  // Stored media URLs are save-time presigns (long expired) — each media node
-  // mints a fresh one for itself through the Renderer's `resolveAssetUrl`.
+  // Media nodes take their URLs from the activity's `assetUrls`, served with it.
   const renderedContent: Record<string, ReactNode> = {};
   for (const mod of adapted.modules) {
     for (const lesson of mod.lessons) {
-      renderedContent[lesson.id] = renderActivityContent(lesson.content ?? null);
+      renderedContent[lesson.id] = renderActivityContent(lesson.content ?? null, lesson.assetUrls);
     }
   }
 

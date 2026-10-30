@@ -1,29 +1,39 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
-import type { User } from './model.js';
+import type { User, UserProfile, UserProfileView } from './model.js';
+import type { UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
+import type { FileUrls, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
+
+const UNNAMED = 'A member';
 
 export class IdentityServiceImpl implements IdentityService {
   private readonly repo: IdentityRepository;
   private readonly logger: Logger;
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
+  private readonly images: MemberImageReader;
+  private readonly fileUrls: FileUrls;
 
   constructor(input: {
     repo: IdentityRepository;
     logger?: Logger;
     mailer: Mailer;
     uow: IdentityUnitOfWork;
+    images: MemberImageReader;
+    fileUrls: FileUrls;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
     this.logger = input.logger ?? noopLogger;
     this.uow = input.uow;
+    this.images = input.images;
+    this.fileUrls = input.fileUrls;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -32,7 +42,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userCreated.make({ orgId: '-', data: user })]);
       return user;
     });
-    this.logger.info('user created', { user: created });
+    this.logger.info('user created', { userId: created.id });
     return created;
   }
 
@@ -56,7 +66,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
-    this.logger.info('user linked to auth account', { user: linked });
+    this.logger.info('user linked to auth account', { userId: linked.id });
     return linked;
   }
 
@@ -71,7 +81,7 @@ export class IdentityServiceImpl implements IdentityService {
       await outbox.append([identityEvents.userUpdated.make({ orgId: '-', data: user! })]);
       return user!;
     });
-    this.logger.info('user updated', { user: updated });
+    this.logger.info('user updated', { userId: updated.id });
     return updated;
   }
 
@@ -97,5 +107,78 @@ export class IdentityServiceImpl implements IdentityService {
 
   async sendMagicLink(input: { email: string; url: string }): Promise<void> {
     await this.mailer.send(input.email, 'magicLink', { url: input.url });
+  }
+
+  async profileOf(orgId: string, userId: string): Promise<UserProfileView> {
+    const stored = await this.repo.findProfile(userId);
+    if (stored) {
+      return this.view(orgId, stored);
+    }
+    const never = new Date(0);
+    return {
+      userId,
+      displayName: null,
+      headline: null,
+      bio: null,
+      imageAssetOrgId: null,
+      imageAssetId: null,
+      imageUrl: null,
+      extra: {},
+      createdAt: never,
+      updatedAt: never,
+    };
+  }
+
+  private view(orgId: string, profile: UserProfile): UserProfileView {
+    const imageAssetId = profile.imageAssetOrgId === orgId ? profile.imageAssetId : null;
+    return { ...profile, imageUrl: imageAssetId ? this.fileUrls.memberUpload(imageAssetId) : null };
+  }
+
+  async displayName(userId: string | null): Promise<string> {
+    if (userId === null) {
+      return UNNAMED;
+    }
+    const [profile, user] = await Promise.all([
+      this.repo.findProfile(userId),
+      this.repo.findUserById(userId),
+    ]);
+    const named = profile?.displayName?.trim();
+    if (named) {
+      return named;
+    }
+    const composed = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+    return composed || UNNAMED;
+  }
+
+  async updateProfile(
+    orgId: string,
+    userId: string,
+    actorUserId: string,
+    orgUserId: string,
+    patch: UpdateProfileInput,
+  ): Promise<UserProfileView> {
+    if (actorUserId !== userId) {
+      throw new ForbiddenError('You can only update your own profile');
+    }
+    const user = await this.repo.findUserById(userId);
+    if (!user) {
+      throw new NotFoundError('User', userId);
+    }
+    if (patch.imageAssetId != null) {
+      const owned = await this.images.ownsImage(orgId, patch.imageAssetId, orgUserId);
+      if (!owned) {
+        this.logger.debug('profile photo refused', {
+          userId,
+          orgUserId,
+          assetId: patch.imageAssetId,
+        });
+        throw new NotFoundError('Asset', patch.imageAssetId);
+      }
+    }
+    const imageAssetOrgId =
+      patch.imageAssetId === undefined ? undefined : patch.imageAssetId === null ? null : orgId;
+    const profile = await this.repo.upsertProfile(userId, { ...patch, imageAssetOrgId });
+    this.logger.info('profile updated', { userId });
+    return this.view(orgId, profile);
   }
 }

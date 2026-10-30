@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ListQuery, paginated, OrgUserProfileSchema } from './shared.js';
 
 /** Org-scoped roles, mirrored from better-auth's organization plugin. */
-export const Role = z.enum(['owner', 'admin', 'instructor']);
+export const Role = z.enum(['owner', 'admin', 'instructor', 'moderator']);
 export type Role = z.infer<typeof Role>;
 
 export const MemberStatus = z.enum(['active', 'invited']);
@@ -26,8 +26,16 @@ export type MembersQuery = z.infer<typeof MembersQuery>;
 export const MembersPage = paginated(Member);
 export type MembersPage = z.infer<typeof MembersPage>;
 
-export const UpdateMemberRole = z.object({ role: Role });
+export const AssignableRole = z.enum(['admin', 'instructor', 'moderator', 'student']);
+export type AssignableRole = z.infer<typeof AssignableRole>;
+
+export const UpdateMemberRole = z.object({ role: AssignableRole });
 export type UpdateMemberRole = z.infer<typeof UpdateMemberRole>;
+
+export const MemberRoleChange = Member.extend({
+  role: z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']),
+});
+export type MemberRoleChange = z.infer<typeof MemberRoleChange>;
 
 export const MemberIdParam = z.object({ id: z.string() });
 export type MemberIdParam = z.infer<typeof MemberIdParam>;

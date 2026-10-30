@@ -16,8 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/http";
 import type { Download } from "@/lib/api/types";
 
-import { confirmAssetAction, getAssetUrlAction, requestUploadAction } from "../../../media/actions";
-import { kindForFile, putToStorage } from "../../../media/upload-to-storage";
+import { confirmAssetAction, requestUploadAction } from "../../../media/actions";
+import { putToStorage } from "../../../media/upload-to-storage";
 import { updateDownloadAction } from "../../actions";
 
 const schema = z.object({
@@ -95,7 +95,11 @@ export function DownloadDetailsForm({ download }: { download: Download }) {
             <Textarea id="description" rows={5} {...register("description")} />
           </Field>
 
-          <ThumbnailField downloadId={download.id} thumbnailAssetId={download.thumbnailAssetId} />
+          <ThumbnailField
+            downloadId={download.id}
+            thumbnailAssetId={download.thumbnailAssetId}
+            url={download.thumbnailUrl}
+          />
         </SettingsSection>
       </form>
     </SettingsSurface>
@@ -109,27 +113,19 @@ export function DownloadDetailsForm({ download }: { download: Download }) {
 function ThumbnailField({
   downloadId,
   thumbnailAssetId,
+  url,
 }: {
   downloadId: string;
   thumbnailAssetId: string | null;
+  url: string | null;
 }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
-  const [url, setUrl] = useState<string | null>(null);
+  // The download's thumbnail URL is stable across replacements, so a fresh
+  // upload previews through its own asset URL instead.
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!thumbnailAssetId) return;
-    let cancelled = false;
-    void getAssetUrlAction(thumbnailAssetId)
-      .then((u) => {
-        if (!cancelled) setUrl(u);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [thumbnailAssetId]);
+  const previewUrl = uploadedUrl ?? url;
 
   async function onFileSelected(file: File) {
     setUploading(true);
@@ -137,13 +133,13 @@ function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
-        kind: kindForFile(file),
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
-      await confirmAssetAction(ticket.asset.id);
+      const asset = await confirmAssetAction(ticket.asset.id);
       // Thumbnail-only patch: omit every other field so a concurrent edit to
       // the title/category/description elsewhere isn't clobbered.
       await updateDownloadAction(downloadId, { thumbnailAssetId: ticket.asset.id });
+      setUploadedUrl(asset.url);
       toast.success("Thumbnail updated");
       router.refresh();
     } catch (e) {
@@ -159,9 +155,9 @@ function ThumbnailField({
     <Field id="thumbnail" label="Thumbnail" hint="Shown on the download card.">
       <div className="flex items-center gap-4">
         <div className="flex size-20 items-center justify-center overflow-hidden rounded-lg bg-surface-2 outline-1 -outline-offset-1 outline-ink/5">
-          {url ? (
+          {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="" className="size-full object-cover" />
+            <img src={previewUrl} alt="" className="size-full object-cover" />
           ) : (
             <ImageIcon className="size-5 text-ink-4" />
           )}

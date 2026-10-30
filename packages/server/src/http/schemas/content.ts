@@ -2,7 +2,12 @@
 // @headless-lms/core/schemas; route-local schemas define endpoint-only
 // concerns such as defaults, params, and pagination envelopes.
 import { z } from 'zod';
-import { courseSchema, courseSettingsSchema, courseStatusSchema } from '@headless-lms/core/schemas';
+import {
+  courseSettingsSchema,
+  courseStatusSchema,
+  courseViewSchema,
+  idSchema,
+} from '@headless-lms/core/schemas';
 import { ListQuery, paginated } from './shared.js';
 
 export const CourseStatus = courseStatusSchema;
@@ -14,7 +19,7 @@ export type CourseSettings = z.infer<typeof CourseSettings>;
 export const PatchCourseSettings = CourseSettings.partial();
 export type PatchCourseSettings = z.infer<typeof PatchCourseSettings>;
 
-export const Course = courseSchema;
+export const Course = courseViewSchema;
 export type Course = z.infer<typeof Course>;
 
 export const CreateCourse = z.object({
@@ -30,7 +35,7 @@ export const UpdateCourse = z.object({
   category: z.string().optional(),
   status: CourseStatus.optional(),
   /** null clears the cover. */
-  thumbnailAssetId: z.string().nullable().optional(),
+  thumbnailAssetId: idSchema.nullable().optional(),
 });
 export type UpdateCourse = z.infer<typeof UpdateCourse>;
 

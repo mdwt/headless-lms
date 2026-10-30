@@ -10,7 +10,7 @@ import {
   ConnectedAppList,
   CreateApiKey,
   CreatedApiKey,
-  ErrorBody,
+  refusals,
   ScopeOptionList,
 } from '../schemas/index.js';
 import { resolveScope } from '../scope.js';
@@ -27,7 +27,9 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'listAccessScopes',
       tags,
       summary: 'Every access scope and whether your role can grant it',
-      response: { 200: ScopeOptionList },
+      description:
+        'Staff only (owner, admin, instructor). Each scope an app connection or API key can carry, marked with whether your role holds it. Only allowed scopes can be granted.',
+      response: { 200: ScopeOptionList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -43,7 +45,9 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'listConnectedApps',
       tags,
       summary: 'Apps connected to this organization as you',
-      response: { 200: ConnectedAppList },
+      description:
+        'Staff only (owner, admin, instructor). The apps you connected to this organization, each with the scopes you granted and when.',
+      response: { 200: ConnectedAppList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -59,8 +63,10 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'revokeConnectedApp',
       tags,
       summary: 'Disconnect an app',
+      description:
+        'Staff only (owner, admin, instructor). Revokes your consent and refresh tokens for the app in this organization; its next call is refused.',
       params: ClientIdParam,
-      response: { 204: z.void() },
+      response: { 204: z.void(), ...refusals(403) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -77,7 +83,9 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'listApiKeys',
       tags,
       summary: 'Your API keys for this organization',
-      response: { 200: ApiKeyList },
+      description:
+        'Staff only (owner, admin, instructor). Your keys for this organization with their scopes. The key itself is never returned again after it is created.',
+      response: { 200: ApiKeyList, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -93,8 +101,10 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'createApiKey',
       tags,
       summary: 'Create an API key',
+      description:
+        'Staff only (owner, admin, instructor). The key acts as you in this organization with the scopes given. 403 when your role cannot hold one of them. The key is returned once.',
       body: CreateApiKey,
-      response: { 201: CreatedApiKey, 403: ErrorBody },
+      response: { 201: CreatedApiKey, ...refusals(400, 403) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -117,8 +127,10 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'deleteApiKey',
       tags,
       summary: 'Delete an API key',
+      description:
+        'Staff only (owner, admin, instructor). 404 when the key is not one of yours in this organization.',
       params: ApiKeyIdParam,
-      response: { 204: z.void(), 409: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);

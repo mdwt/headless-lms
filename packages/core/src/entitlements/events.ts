@@ -1,4 +1,4 @@
-import { entitlementSchema } from '../types/schemas/index.js';
+import { entitlementSchema, idSchema, spaceMemberSchema } from '../types/schemas/index.js';
 import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.js';
 
 const publicEntitlement = entitlementSchema
@@ -16,6 +16,9 @@ const publicEntitlement = entitlementSchema
     updatedAt: true,
   })
   .strip();
+
+const endingSoonSchema = entitlementSchema.extend({ communityId: idSchema }).strict();
+const publicEndingSoon = publicEntitlement.extend({ communityId: idSchema }).strip();
 
 export const entitlementEvents = {
   entitlementCreated: defineEvent({
@@ -42,10 +45,38 @@ export const entitlementEvents = {
     data: entitlementSchema,
     publicData: publicEntitlement,
   }),
+  entitlementEndingSoon: defineEvent({
+    type: 'entitlement.ending_soon',
+    version: 1,
+    data: endingSoonSchema,
+    publicData: publicEndingSoon,
+  }),
+  spaceMemberCreated: defineEvent({
+    type: 'entitlement.space_member.created',
+    version: 1,
+    data: spaceMemberSchema,
+    publicData: spaceMemberSchema,
+  }),
+  spaceMemberUpdated: defineEvent({
+    type: 'entitlement.space_member.updated',
+    version: 1,
+    data: spaceMemberSchema,
+    publicData: spaceMemberSchema,
+  }),
+  spaceMemberDeleted: defineEvent({
+    type: 'entitlement.space_member.deleted',
+    version: 1,
+    data: spaceMemberSchema,
+    publicData: spaceMemberSchema,
+  }),
 };
 
 export type EntitlementCreated = EventOf<typeof entitlementEvents.entitlementCreated>;
 export type EntitlementUpdated = EventOf<typeof entitlementEvents.entitlementUpdated>;
 export type EntitlementDeleted = EventOf<typeof entitlementEvents.entitlementDeleted>;
 export type EntitlementExpired = EventOf<typeof entitlementEvents.entitlementExpired>;
+export type EntitlementEndingSoon = EventOf<typeof entitlementEvents.entitlementEndingSoon>;
+export type SpaceMemberCreated = EventOf<typeof entitlementEvents.spaceMemberCreated>;
+export type SpaceMemberUpdated = EventOf<typeof entitlementEvents.spaceMemberUpdated>;
+export type SpaceMemberDeleted = EventOf<typeof entitlementEvents.spaceMemberDeleted>;
 export type EntitlementEvent = EventOfValues<typeof entitlementEvents>;

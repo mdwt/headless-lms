@@ -28,6 +28,18 @@ export function loadStorageConfig(): MinioStorageConfig {
   };
 }
 
+export function parseMemberImageMaxBytes(): number {
+  const raw = process.env.MEMBER_IMAGE_MAX_BYTES;
+  if (raw === undefined || raw === "") {
+    return 10 * 1024 * 1024;
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`invalid MEMBER_IMAGE_MAX_BYTES "${raw}" (expected a positive integer)`);
+  }
+  return value;
+}
+
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
@@ -61,6 +73,7 @@ function loadContainerConfig(): ContainerConfig {
     // overrides this with the same value; kept here only so this object
     // satisfies Config on its own.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    memberImageMaxBytes: parseMemberImageMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
     authBaseURL: apiOrigin,
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
@@ -92,14 +105,13 @@ export function loadServerConfig(): ServerConfig {
     // can never drift from what better-auth is configured with.
     publicUrl: container.authBaseURL,
     clientOrigins: parseClientOrigins(),
-    // Fastify's per-request access log: on in production, off elsewhere so the
-    // dev console stays readable. REQUEST_LOGGING=true/false overrides either way.
-    requestLogging: process.env.REQUEST_LOGGING
-      ? process.env.REQUEST_LOGGING !== "false"
-      : process.env.NODE_ENV === "production",
-    // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
-    // default must never silently extend entitled/paywalled link lifetimes.
+    // Fastify's per-request access log, one line per request with its id,
+    // status and duration. On unless REQUEST_LOGGING=false.
+    requestLogging: process.env.REQUEST_LOGGING !== "false",
+    // Download files only: their link is used once to start the download.
+    // Every other file streams or loads under STORAGE_DOWNLOAD_EXPIRY.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    memberImageMaxBytes: parseMemberImageMaxBytes(),
     container,
   };
 }

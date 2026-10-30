@@ -1,41 +1,41 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { GithubIcon, LogoMark } from "@/components/logo";
-import { CodeBlock } from "@/components/code-block";
-import { siteConfig } from "@/lib/site";
+import { LogoMark } from "@/components/logo";
+import { CopyCommand } from "@/components/copy-command";
+import { Backdrop } from "@/components/landing/backdrop";
 
 export function Cta() {
   return (
-    <section className="border-t border-border/70 py-20">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-3xl border border-border bg-card px-6 py-14 text-center sm:px-12">
-          <LogoMark className="mx-auto mb-6 size-14" />
-          <h2 className="mx-auto max-w-[35ch] text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            Spin up your own LMS in one command
+    <section className="px-2 pt-28 pb-2 md:px-3 md:pt-40 md:pb-3">
+      <div className="relative isolate overflow-hidden rounded-[22px] md:rounded-[28px]">
+        <Backdrop
+          name="dusk"
+          sizes="100vw"
+          className="-z-10"
+          style={{ objectPosition: "50% 40%" }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(55%_58%_at_50%_52%,rgb(255_246_238/0.72),rgb(255_246_238/0.25)_70%,transparent_95%)]"
+        />
+        <div className="container-page flex flex-col items-center py-24 text-center md:py-36">
+          <LogoMark className="size-12 text-[#2a1a14]" />
+          <h2 className="mt-8 max-w-[16ch] text-[38px] leading-[1.02] font-semibold tracking-[-0.045em] text-balance text-[#2a1a14] md:text-[64px]">
+            Spin up your own LMS in one command.
           </h2>
-          <p className="mx-auto mt-4 max-w-[48ch] text-lg text-pretty text-muted-foreground">
-            Create a standalone installation that owns its config and plugins, and deploys anywhere
-            Node and Postgres run.
+          <p className="mt-5 max-w-[500px] text-[17px] leading-[1.55] text-[#2a1a14]/75 md:text-[18.5px]">
+            A standalone installation that owns its config and plugins, and deploys anywhere Node
+            and Postgres run.
           </p>
-
-          <div className="mx-auto mt-8 max-w-md">
-            <CodeBlock code={siteConfig.installCommand} language="bash" />
-          </div>
-
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button size="lg" render={<Link href="/docs" />}>
+          <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/docs"
+              className="inline-flex h-[46px] items-center gap-2 rounded-[6px] bg-[#1a100c] px-5 text-[15px] font-medium text-white transition-colors hover:bg-[#1a100c]/85"
+            >
               Get started
               <ArrowRight className="size-4" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              render={<a href={siteConfig.githubUrl} target="_blank" rel="noreferrer" />}
-            >
-              <GithubIcon className="size-4" />
-              Star on GitHub
-            </Button>
+            </Link>
+            <CopyCommand tone="warm" className="h-[46px] w-full max-w-[360px] text-left" />
           </div>
         </div>
       </div>

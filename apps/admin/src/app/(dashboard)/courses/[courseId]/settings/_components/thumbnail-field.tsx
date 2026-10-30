@@ -3,8 +3,9 @@
 /**
  * Settings → Thumbnail: pick the course's cover, either by uploading a new
  * image or by linking one already in the media library. Nothing is copied —
- * the course stores the asset id and pages re-sign a fresh URL at render time,
- * so the preview URL held here is only good for this session.
+ * the course stores the asset id. The course's thumbnail URL stays the same
+ * when the image changes, so a newly picked image previews through its own
+ * library URL.
  */
 
 import { useRef, useState } from "react";
@@ -14,11 +15,7 @@ import { toast } from "sonner";
 import { SettingsSection } from "@/components/forms/settings-section";
 import { Button } from "@/components/ui/button";
 import { AssetPickerDialog } from "@/app/(dashboard)/media/_components/asset-picker-dialog";
-import {
-  confirmAssetAction,
-  getAssetUrlAction,
-  requestUploadAction,
-} from "@/app/(dashboard)/media/actions";
+import { confirmAssetAction, requestUploadAction } from "@/app/(dashboard)/media/actions";
 import { putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
 import type { Asset } from "@/lib/api/types";
 
@@ -31,7 +28,7 @@ export function ThumbnailField({
 }: {
   courseId: string;
   assetId: string | null;
-  /** Presigned preview URL for `assetId`, resolved on the server. */
+  /** The course's thumbnail URL, as the course read served it. */
   url: string | null;
 }) {
   const [preview, setPreview] = useState<{ id: string; url: string } | null>(
@@ -60,8 +57,8 @@ export function ThumbnailField({
   async function onSelect(asset: Asset) {
     setPickerOpen(false);
     try {
-      const signed = await getAssetUrlAction(asset.id, asset.filename);
-      await save({ id: asset.id, url: signed });
+      if (!asset.url) throw new Error(`${asset.filename} cannot be shown`);
+      await save({ id: asset.id, url: asset.url });
     } catch (err) {
       toast.error("Couldn't use that file", { description: (err as Error).message });
     }
@@ -78,12 +75,11 @@ export function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type,
-        kind: "content",
       });
       await putToStorage(ticket.uploadUrl, ticket.headers, file, setProgress);
-      await confirmAssetAction(ticket.asset.id);
-      const signed = await getAssetUrlAction(ticket.asset.id, file.name);
-      await save({ id: ticket.asset.id, url: signed });
+      const asset = await confirmAssetAction(ticket.asset.id);
+      if (!asset.url) throw new Error(`${file.name} has not finished uploading`);
+      await save({ id: asset.id, url: asset.url });
     } catch (err) {
       toast.error("Upload failed", { description: (err as Error).message });
       setBusy(null);
@@ -101,8 +97,8 @@ export function ThumbnailField({
       <div className="flex flex-col gap-4">
         <div className="relative grid aspect-video w-56 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-well">
           {preview ? (
-            // Presigned URLs are short-lived and host-varying — next/image would
-            // need every storage host allowlisted, so this stays a plain img.
+            // The API redirects to a signed storage URL — next/image would need
+            // every storage host allowlisted, so this stays a plain img.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview.url} alt="" className="size-full object-cover" />
           ) : (
@@ -166,7 +162,7 @@ export function ThumbnailField({
 
         <AssetPickerDialog
           open={pickerOpen}
-          kind="content"
+          kind="image"
           onOpenChange={setPickerOpen}
           onSelect={onSelect}
         />

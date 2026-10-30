@@ -13,8 +13,8 @@ import {
   BundlesPage,
   BundlesQuery,
   CreateBundle,
-  ErrorBody,
   UpdateBundle,
+  refusals,
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
@@ -32,9 +32,10 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'listBundles',
       tags: ['Content'],
-      summary: 'List bundles',
+      summary: 'List bundles (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       querystring: BundlesQuery,
-      response: { 200: BundlesPage },
+      response: { 200: BundlesPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -49,9 +50,10 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'getBundle',
       tags: ['Content'],
-      summary: 'Get a bundle by id',
+      summary: 'Get a bundle (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: BundleIdParam,
-      response: { 200: Bundle, 404: ErrorBody },
+      response: { 200: Bundle, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -70,9 +72,11 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'createBundle',
       tags: ['Content'],
-      summary: 'Create a bundle, optionally with initial content',
+      summary: 'Create a bundle, optionally with initial content (staff)',
+      description:
+        'Staff only (owner, admin, instructor). 404 when an initial content id is unknown.',
       body: CreateBundle,
-      response: { 201: Bundle, 404: ErrorBody },
+      response: { 201: Bundle, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -88,10 +92,11 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'updateBundle',
       tags: ['Content'],
-      summary: 'Update a bundle',
+      summary: 'Rename a bundle (staff)',
+      description: 'Staff only (owner, admin, instructor).',
       params: BundleIdParam,
       body: UpdateBundle,
-      response: { 200: Bundle, 404: ErrorBody },
+      response: { 200: Bundle, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -106,9 +111,11 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'deleteBundle',
       tags: ['Content'],
-      summary: 'Delete a bundle (its content survives)',
+      summary: 'Delete a bundle (staff)',
+      description:
+        'Staff only (owner, admin, instructor). Its content survives; access granted through the bundle ends.',
       params: BundleIdParam,
-      response: { 204: z.void(), 404: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -124,9 +131,10 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'listBundleItems',
       tags: ['Content'],
-      summary: "List a bundle's content items",
+      summary: "List a bundle's content (staff)",
+      description: 'Staff only (owner, admin, instructor).',
       params: BundleIdParam,
-      response: { 200: z.array(BundleItem), 404: ErrorBody },
+      response: { 200: z.array(BundleItem), ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -141,10 +149,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'addBundleItem',
       tags: ['Content'],
-      summary: 'Add a content item to a bundle',
+      summary: 'Add content to a bundle (staff)',
+      description:
+        "Staff only (owner, admin, instructor). Everyone who holds the bundle can open the content from then on. Returns the bundle's content.",
       params: BundleIdParam,
       body: AddBundleItem,
-      response: { 200: z.array(BundleItem), 404: ErrorBody },
+      response: { 200: z.array(BundleItem), ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -159,9 +169,11 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     schema: {
       operationId: 'removeBundleItem',
       tags: ['Content'],
-      summary: 'Remove a content item from a bundle (the content survives)',
+      summary: 'Remove content from a bundle (staff)',
+      description:
+        "Staff only (owner, admin, instructor). The content survives; access to it through the bundle ends. Returns the bundle's content.",
       params: BundleItemParams,
-      response: { 200: z.array(BundleItem), 404: ErrorBody },
+      response: { 200: z.array(BundleItem), ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);

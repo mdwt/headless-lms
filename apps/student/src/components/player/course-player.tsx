@@ -29,7 +29,6 @@ import {
 } from "@/lib/video-tracking";
 import editorMedia from "@/editor-media.config";
 import type { MediaTrackingEvent } from "@headless-lms/editor";
-import { Assets } from "@headless-lms/sdk";
 
 import { PlayerHeader } from "./player-header";
 import { CurriculumSidebar, type SidebarStyle } from "./curriculum-sidebar";
@@ -166,16 +165,6 @@ export function CoursePlayer({
     },
     [assetSeed, curLessonId],
   );
-
-  const refreshUrl = useCallback(async (assetId: string): Promise<string | null> => {
-    ensureClientSdk();
-    try {
-      const ticket = await Assets.getAssetDownloadUrl({ id: assetId });
-      return ticket.url;
-    } catch {
-      return null;
-    }
-  }, []);
 
   // Flush unsent watch state when the tab hides or the lesson unmounts.
   useEffect(() => {
@@ -337,11 +326,7 @@ export function CoursePlayer({
                   </span>
                 </div>
               )}
-              <editorMedia.MediaProvider
-                onEvent={onMediaEvent}
-                startPosition={startPosition}
-                refreshUrl={refreshUrl}
-              >
+              <editorMedia.MediaProvider onEvent={onMediaEvent} startPosition={startPosition}>
                 <ContentArea node={curLesson ? renderedContent[curLessonId] : null} />
               </editorMedia.MediaProvider>
               {curLessonId && (

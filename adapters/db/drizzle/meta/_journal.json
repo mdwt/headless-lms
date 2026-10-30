@@ -26,8 +26,57 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1791823114706,
-      "tag": "0003_clever_captain_cross",
+      "when": 1792574273608,
+      "tag": "0003_community",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792652068527,
+      "tag": "0004_assets_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792654657973,
+      "tag": "0005_notices_and_seed_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792664309207,
+      "tag": "0006_community_review_fixes",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793025210130,
+      "tag": "0007_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793267692172,
+      "tag": "0008_content_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793271619441,
+      "tag": "0009_community_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793328918383,
+      "tag": "0010_mcp_access",
       "breakpoints": true
     }
   ]

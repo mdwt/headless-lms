@@ -13,7 +13,7 @@
 // can't be typed without widening it to `unknown` — each repository chains the
 // two joins inline instead.
 import { orgUsers } from "../schema/organizations.js";
-import { users } from "../schema/identity.js";
+import { userProfiles, users } from "../schema/identity.js";
 import { user } from "../schema/better-auth.js";
 
 /** Spread into a `.select({ ... })` to get the profile columns. */
@@ -23,4 +23,13 @@ export const orgUserProfileColumns = {
   lastName: users.lastName,
   email: users.email,
   image: user.image,
+};
+
+export const authorProfileColumns = {
+  ...orgUserProfileColumns,
+  role: orgUsers.role,
+  displayName: userProfiles.displayName,
+  headline: userProfiles.headline,
+  imageAssetOrgId: userProfiles.imageAssetOrgId,
+  imageAssetId: userProfiles.imageAssetId,
 };

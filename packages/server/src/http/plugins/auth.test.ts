@@ -13,11 +13,14 @@ const SESSION = {
   session: { activeOrganizationId: ORG.id },
 };
 
+const logContext: Record<string, unknown>[] = [];
+
 const container = {
   mcp: mcpEndpoints({
     authBaseURL: 'https://lms.example.com',
     adminAppUrl: 'https://admin.example.com',
   }),
+  requestContext: { set: (fields: Record<string, unknown>) => logContext.push(fields) },
   auth: { verify: async () => SESSION, handler: async () => new Response(null) },
   organizations: {
     getById: async (id: string) => (id === ORG.id ? ORG : null),
@@ -55,6 +58,12 @@ describe('requireOrgSession', () => {
     const res = await app.inject({ method: 'GET', url: '/org-scoped' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ authOrgId: 'org_1', orgId: 'org_1', userId: 'usr_1' });
+  });
+
+  it('puts the org on the request log context', async () => {
+    logContext.length = 0;
+    await app.inject({ method: 'GET', url: '/org-scoped' });
+    expect(logContext).toEqual([{ orgId: 'org_1' }]);
   });
 });
 

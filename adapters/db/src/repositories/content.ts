@@ -23,30 +23,48 @@ import type {
   AddDownloadAssetInput,
   Bundle,
   BundleItem,
+  Community,
+  CommunityStatus,
   ContentRepository,
   Course,
   CourseSettings,
   CourseStatus,
   CreateBundleInput,
+  CreateCommunityInput,
   CreateCourseInput,
   CreateDownloadInput,
+  CreateSpaceInput,
   Download,
   DownloadAsset,
   DownloadStatus,
   ListBundlesQuery,
+  ListCommunitiesQuery,
   ListCoursesQuery,
   ListDownloadsQuery,
   Module,
   Page,
+  PatchDmSettingsInput,
   SaveActivityInput,
+  SetSpaceTopicsInput,
+  Space,
+  SpaceAccessRule,
+  SpaceDetail,
   UpdateBundleInput,
+  UpdateCommunityInput,
   UpdateCourseInput,
   UpdateDownloadInput,
+  UpdateSpaceInput,
 } from "@headless-lms/core/content";
-import { courseSettingsDefaults, type Setting } from "@headless-lms/core/schemas";
+import {
+  communitySettingsDefaults,
+  courseSettingsDefaults,
+  spaceSettingsDefaults,
+  type Setting,
+} from "@headless-lms/core/schemas";
 import {
   bundles,
   bundleItems,
+  communities,
   contentItems,
   courses,
   modules,
@@ -54,14 +72,31 @@ import {
   activityAssets,
   downloads,
   downloadAssets,
+  spaceLinks,
+  spaceTopics,
+  spaces,
 } from "../schema/content.js";
 import { settings } from "../schema/settings.js";
+import { posts } from "../schema/discussion.js";
 import { deepMerge } from "./settings.js";
 import { genId } from "@headless-lms/core/shared/id";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { NotFoundError, ConflictError } from "@headless-lms/core/shared/errors";
-import { isUniqueViolation, translateDbErrors } from "./pg-errors.js";
+import { isUniqueViolation, pgErrorFields, translateDbErrors } from "./pg-errors.js";
+
+const LIBRARY_ONLY = "An activity can only use ready files from the media library";
+const MISSING_ASSET_DETAIL = /^Key \(org_id, asset_id\)=\((?:[^,]+), (.+?)\) is not present/;
+
+function refusedLink(err: unknown): ConflictError | undefined {
+  const pg = pgErrorFields(err);
+  if (pg?.code !== "23503") {
+    return undefined;
+  }
+  const missing = pg.detail?.match(MISSING_ASSET_DETAIL)?.[1];
+  const message = missing ? `${LIBRARY_ONLY}. Not available: ${missing}` : LIBRARY_ONLY;
+  return Object.assign(new ConflictError(message), { cause: err });
+}
 
 // A course's settings live in the shared `settings` table (namespace
 // 'content', scoped by course id) — joined here so the repository answers in
@@ -73,6 +108,42 @@ const courseSettingsJoin = and(
   eq(settings.namespace, SETTINGS_NAMESPACE),
   eq(settings.scopeId, courses.id),
 );
+
+const communitySettingsJoin = and(
+  eq(settings.orgId, communities.orgId),
+  eq(settings.namespace, SETTINGS_NAMESPACE),
+  eq(settings.scopeId, communities.id),
+);
+
+function toCommunity(
+  row: typeof communities.$inferSelect,
+  storedSettings: Record<string, unknown> | null,
+): Community {
+  const raw = storedSettings?.dm;
+  const stored =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  return {
+    ...row,
+    status: row.status as CommunityStatus,
+    settings: { dm: { ...communitySettingsDefaults.dm, ...stored } as Community["settings"]["dm"] },
+  };
+}
+
+function toSpace(row: typeof spaces.$inferSelect): Space {
+  return {
+    ...row,
+    accessRule: row.accessRule as SpaceAccessRule,
+    settings: { ...spaceSettingsDefaults, ...row.settings },
+  };
+}
+
+const communitySortColumns: Record<string, AnyColumn | SQL> = {
+  title: communities.title,
+  slug: communities.slug,
+  status: communities.status,
+  createdAt: communities.createdAt,
+  updatedAt: communities.updatedAt,
+};
 
 function toCourse(
   row: typeof courses.$inferSelect,
@@ -414,9 +485,13 @@ export class DrizzleContentRepository implements ContentRepository {
       .delete(activityAssets)
       .where(and(eq(activityAssets.orgId, orgId), eq(activityAssets.activityId, activityId)));
     if (assetIds.length) {
-      await tx
-        .insert(activityAssets)
-        .values(assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })));
+      try {
+        await tx
+          .insert(activityAssets)
+          .values(assetIds.map((assetId, i) => ({ orgId, activityId, assetId, seq: i })));
+      } catch (err) {
+        throw refusedLink(err) ?? err;
+      }
     }
   }
 
@@ -1041,6 +1116,499 @@ export class DrizzleContentRepository implements ContentRepository {
         ),
       );
     return this.listBundleItems(orgId, bundleId);
+  }
+
+  async listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>> {
+    const conditions: SQL[] = [eq(communities.orgId, orgId)];
+    if (query.status) {
+      conditions.push(eq(communities.status, query.status));
+    }
+    const search = query.search?.trim();
+    if (search) {
+      const like = `%${search}%`;
+      const match = or(ilike(communities.title, like), ilike(communities.description, like));
+      if (match) {
+        conditions.push(match);
+      }
+    }
+    const where = and(...conditions);
+    let sortKey = "createdAt";
+    let direction: "asc" | "desc" = "desc";
+    if (query.sort) {
+      const isDesc = query.sort.startsWith("-");
+      const key = isDesc ? query.sort.slice(1) : query.sort;
+      if (key in communitySortColumns) {
+        sortKey = key;
+        direction = isDesc ? "desc" : "asc";
+      }
+    }
+    const sortExpr = communitySortColumns[sortKey] ?? communities.createdAt;
+    const orderBy = direction === "desc" ? desc(sortExpr) : asc(sortExpr);
+    const rows = await this.db
+      .select({ community: communities, settingsValue: settings.value })
+      .from(communities)
+      .leftJoin(settings, communitySettingsJoin)
+      .where(where)
+      .orderBy(orderBy)
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const [totalRow] = await this.db.select({ value: count() }).from(communities).where(where);
+    return {
+      rows: rows.map((row) => toCommunity(row.community, row.settingsValue)),
+      total: totalRow?.value ?? 0,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
+  async findCommunityById(orgId: string, id: string): Promise<Community | null> {
+    const [row] = await this.db
+      .select({ community: communities, settingsValue: settings.value })
+      .from(communities)
+      .leftJoin(settings, communitySettingsJoin)
+      .where(and(eq(communities.orgId, orgId), eq(communities.id, id)))
+      .limit(1);
+    return row ? toCommunity(row.community, row.settingsValue) : null;
+  }
+
+  async findCommunitiesByIds(orgId: string, ids: string[]): Promise<Community[]> {
+    const rows = await this.db
+      .select({ community: communities, settingsValue: settings.value })
+      .from(communities)
+      .leftJoin(settings, communitySettingsJoin)
+      .where(and(eq(communities.orgId, orgId), inArray(communities.id, ids)))
+      .orderBy(asc(communities.title), asc(communities.id));
+    return rows.map((row) => toCommunity(row.community, row.settingsValue));
+  }
+
+  async listPublishedCommunityIds(orgId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .where(and(eq(communities.orgId, orgId), eq(communities.status, "published")))
+      .orderBy(asc(communities.createdAt), asc(communities.id));
+    return rows.map((row) => row.id);
+  }
+
+  async createCommunity(
+    orgId: string,
+    input: CreateCommunityInput,
+    slug: string,
+  ): Promise<Community> {
+    const id = genId("community");
+    await this.db.insert(contentItems).values({ orgId, id, type: "community" });
+    const [inserted] = await this.db
+      .insert(communities)
+      .values({
+        orgId,
+        id,
+        title: input.title,
+        slug,
+        description: input.description ?? "",
+      })
+      .returning({ id: communities.id });
+    if (!inserted) {
+      throw new Error("failed to insert community");
+    }
+    const created = await this.findCommunityById(orgId, inserted.id);
+    if (!created) {
+      throw new Error("failed to load created community");
+    }
+    return created;
+  }
+
+  async updateCommunity(
+    orgId: string,
+    id: string,
+    patch: UpdateCommunityInput,
+  ): Promise<Community | null> {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.title !== undefined) {
+      set.title = patch.title;
+    }
+    if (patch.description !== undefined) {
+      set.description = patch.description;
+    }
+    if (patch.status !== undefined) {
+      set.status = patch.status;
+    }
+    if (patch.thumbnailAssetId !== undefined) {
+      set.thumbnailAssetId = patch.thumbnailAssetId;
+    }
+    const [updated] = await this.db
+      .update(communities)
+      .set(set)
+      .where(and(eq(communities.orgId, orgId), eq(communities.id, id)))
+      .returning({ id: communities.id });
+    if (!updated) {
+      return null;
+    }
+    return this.findCommunityById(orgId, id);
+  }
+
+  async patchDmSettings(
+    orgId: string,
+    id: string,
+    patch: PatchDmSettingsInput,
+  ): Promise<Community | null> {
+    const community = await this.findCommunityById(orgId, id);
+    if (!community) {
+      return null;
+    }
+    const key = and(
+      eq(settings.orgId, orgId),
+      eq(settings.namespace, SETTINGS_NAMESPACE),
+      eq(settings.scopeId, id),
+    );
+    await this.tx(async (tx) => {
+      let [existing] = await tx.select().from(settings).where(key).for("update");
+      const value = { dm: patch } as Setting["value"];
+      if (!existing) {
+        const [inserted] = await tx
+          .insert(settings)
+          .values({ orgId, namespace: SETTINGS_NAMESPACE, scopeId: id, value })
+          .onConflictDoNothing()
+          .returning();
+        if (inserted) {
+          return;
+        }
+        [existing] = await tx.select().from(settings).where(key).for("update");
+        if (!existing) {
+          throw new Error("community settings patch: row vanished mid-transaction");
+        }
+      }
+      await tx
+        .update(settings)
+        .set({
+          value: deepMerge(existing.value, { dm: patch }) as Setting["value"],
+          updatedAt: new Date(),
+        })
+        .where(key);
+    });
+    return this.findCommunityById(orgId, id);
+  }
+
+  async deleteCommunity(orgId: string, id: string): Promise<boolean> {
+    const deleted = await this.db
+      .delete(contentItems)
+      .where(
+        and(
+          eq(contentItems.orgId, orgId),
+          eq(contentItems.id, id),
+          eq(contentItems.type, "community"),
+        ),
+      )
+      .returning({ id: contentItems.id });
+    return deleted.length > 0;
+  }
+
+  async deleteCommunitySettings(orgId: string, id: string): Promise<void> {
+    await this.db
+      .delete(settings)
+      .where(
+        and(
+          eq(settings.orgId, orgId),
+          eq(settings.namespace, SETTINGS_NAMESPACE),
+          eq(settings.scopeId, id),
+        ),
+      );
+  }
+
+  async listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
+    const rows = await this.db
+      .select()
+      .from(spaces)
+      .where(and(eq(spaces.orgId, orgId), eq(spaces.communityId, communityId)))
+      .orderBy(asc(spaces.seq));
+    return this.withSpaceParts(orgId, rows.map(toSpace));
+  }
+
+  async findSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null> {
+    const [row] = await this.db
+      .select()
+      .from(spaces)
+      .where(and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId)))
+      .limit(1);
+    if (!row) {
+      return null;
+    }
+    const [detail] = await this.withSpaceParts(orgId, [toSpace(row)]);
+    return detail ?? null;
+  }
+
+  async lockSpace(orgId: string, spaceId: string): Promise<Space | null> {
+    const [row] = await this.db
+      .select()
+      .from(spaces)
+      .where(and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId)))
+      .for("update")
+      .limit(1);
+    return row ? toSpace(row) : null;
+  }
+
+  async createSpace(
+    orgId: string,
+    communityId: string,
+    input: CreateSpaceInput,
+  ): Promise<SpaceDetail> {
+    const existing = await this.db
+      .select({ seq: spaces.seq })
+      .from(spaces)
+      .where(and(eq(spaces.orgId, orgId), eq(spaces.communityId, communityId)));
+    const nextSeq = existing.reduce((max, row) => Math.max(max, row.seq), -1) + 1;
+    const [inserted] = await this.db
+      .insert(spaces)
+      .values({
+        orgId,
+        communityId,
+        name: input.name,
+        description: input.description ?? "",
+        seq: nextSeq,
+        accessRule: input.accessRule ?? "all_members",
+        capacity: input.capacity ?? null,
+        settings: { ...spaceSettingsDefaults, ...input.settings },
+      })
+      .returning({ id: spaces.id });
+    if (!inserted) {
+      throw new Error("failed to insert space");
+    }
+    const created = await this.findSpace(orgId, inserted.id);
+    if (!created) {
+      throw new Error("failed to load created space");
+    }
+    return created;
+  }
+
+  async updateSpace(
+    orgId: string,
+    communityId: string,
+    spaceId: string,
+    patch: UpdateSpaceInput,
+  ): Promise<SpaceDetail | null> {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (patch.name !== undefined) {
+      set.name = patch.name;
+    }
+    if (patch.description !== undefined) {
+      set.description = patch.description;
+    }
+    if (patch.accessRule !== undefined) {
+      set.accessRule = patch.accessRule;
+    }
+    if (patch.capacity !== undefined) {
+      set.capacity = patch.capacity;
+    }
+    if (patch.settings !== undefined) {
+      set.settings = { ...spaceSettingsDefaults, ...patch.settings };
+    }
+    const [updated] = await this.db
+      .update(spaces)
+      .set(set)
+      .where(
+        and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId), eq(spaces.communityId, communityId)),
+      )
+      .returning({ id: spaces.id });
+    if (!updated) {
+      return null;
+    }
+    return this.findSpace(orgId, spaceId);
+  }
+
+  async deleteSpace(orgId: string, communityId: string, spaceId: string): Promise<boolean> {
+    const deleted = await this.db
+      .delete(spaces)
+      .where(
+        and(eq(spaces.orgId, orgId), eq(spaces.id, spaceId), eq(spaces.communityId, communityId)),
+      )
+      .returning({ id: spaces.id });
+    return deleted.length > 0;
+  }
+
+  async reorderSpaces(
+    orgId: string,
+    communityId: string,
+    orderedIds: string[],
+  ): Promise<SpaceDetail[]> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await this.db
+        .update(spaces)
+        .set({ seq: i })
+        .where(
+          and(
+            eq(spaces.orgId, orgId),
+            eq(spaces.communityId, communityId),
+            eq(spaces.id, orderedIds[i]!),
+          ),
+        );
+    }
+    return this.listSpaces(orgId, communityId);
+  }
+
+  async setSpaceTopics(
+    orgId: string,
+    spaceId: string,
+    input: SetSpaceTopicsInput,
+  ): Promise<SpaceDetail> {
+    await this.tx(async (tx) => {
+      const existing = await tx
+        .select({ id: spaceTopics.id })
+        .from(spaceTopics)
+        .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.spaceId, spaceId)))
+        .for("update");
+      const kept = new Set(input.topics.flatMap((topic) => (topic.id ? [topic.id] : [])));
+      const known = new Set(existing.map((topic) => topic.id));
+      for (const id of kept) {
+        if (!known.has(id)) {
+          throw new NotFoundError("Topic", id);
+        }
+      }
+      const removed = existing.filter((topic) => !kept.has(topic.id)).map((topic) => topic.id);
+      if (removed.length) {
+        await tx
+          .delete(spaceTopics)
+          .where(and(eq(spaceTopics.orgId, orgId), inArray(spaceTopics.id, removed)));
+      }
+      for (let seq = 0; seq < input.topics.length; seq++) {
+        const topic = input.topics[seq]!;
+        if (topic.id) {
+          await tx
+            .update(spaceTopics)
+            .set({ name: topic.name, seq, updatedAt: new Date() })
+            .where(and(eq(spaceTopics.orgId, orgId), eq(spaceTopics.id, topic.id)));
+        } else {
+          await tx.insert(spaceTopics).values({ orgId, spaceId, name: topic.name, seq });
+        }
+      }
+    });
+    const space = await this.findSpace(orgId, spaceId);
+    if (!space) {
+      throw new NotFoundError("Space", spaceId);
+    }
+    return space;
+  }
+
+  async topicsInUse(orgId: string, spaceId: string, topicIds: string[]): Promise<string[]> {
+    if (topicIds.length === 0) {
+      return [];
+    }
+    await this.db
+      .select({ id: spaceTopics.id })
+      .from(spaceTopics)
+      .where(
+        and(
+          eq(spaceTopics.orgId, orgId),
+          eq(spaceTopics.spaceId, spaceId),
+          inArray(spaceTopics.id, topicIds),
+        ),
+      )
+      .for("update");
+    const rows = await this.db
+      .selectDistinct({ topicId: posts.topicId })
+      .from(posts)
+      .where(
+        and(eq(posts.orgId, orgId), eq(posts.spaceId, spaceId), inArray(posts.topicId, topicIds)),
+      );
+    return rows.flatMap((row) => (row.topicId ? [row.topicId] : []));
+  }
+
+  async addSpaceLink(orgId: string, spaceId: string, contentId: string): Promise<SpaceDetail> {
+    const [item] = await this.db
+      .select({ id: contentItems.id, type: contentItems.type })
+      .from(contentItems)
+      .where(and(eq(contentItems.orgId, orgId), eq(contentItems.id, contentId)))
+      .limit(1);
+    if (
+      !item ||
+      (item.type !== "course" && item.type !== "download" && item.type !== "community")
+    ) {
+      throw new NotFoundError("Content", contentId);
+    }
+    const existing = await this.db
+      .select({ seq: spaceLinks.seq })
+      .from(spaceLinks)
+      .where(and(eq(spaceLinks.orgId, orgId), eq(spaceLinks.spaceId, spaceId)));
+    const nextSeq = existing.reduce((max, row) => Math.max(max, row.seq), -1) + 1;
+    await this.db.insert(spaceLinks).values({ orgId, spaceId, contentId, seq: nextSeq });
+    const space = await this.findSpace(orgId, spaceId);
+    if (!space) {
+      throw new NotFoundError("Space", spaceId);
+    }
+    return space;
+  }
+
+  async removeSpaceLink(orgId: string, spaceId: string, linkId: string): Promise<SpaceDetail> {
+    const deleted = await this.db
+      .delete(spaceLinks)
+      .where(
+        and(
+          eq(spaceLinks.orgId, orgId),
+          eq(spaceLinks.spaceId, spaceId),
+          eq(spaceLinks.id, linkId),
+        ),
+      )
+      .returning({ id: spaceLinks.id });
+    if (deleted.length === 0) {
+      throw new NotFoundError("Link", linkId);
+    }
+    const space = await this.findSpace(orgId, spaceId);
+    if (!space) {
+      throw new NotFoundError("Space", spaceId);
+    }
+    return space;
+  }
+
+  async reorderSpaceLinks(
+    orgId: string,
+    spaceId: string,
+    orderedIds: string[],
+  ): Promise<SpaceDetail> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await this.db
+        .update(spaceLinks)
+        .set({ seq: i })
+        .where(
+          and(
+            eq(spaceLinks.orgId, orgId),
+            eq(spaceLinks.spaceId, spaceId),
+            eq(spaceLinks.id, orderedIds[i]!),
+          ),
+        );
+    }
+    const space = await this.findSpace(orgId, spaceId);
+    if (!space) {
+      throw new NotFoundError("Space", spaceId);
+    }
+    return space;
+  }
+
+  async spacesLinkingContent(orgId: string, contentId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ spaceId: spaceLinks.spaceId })
+      .from(spaceLinks)
+      .where(and(eq(spaceLinks.orgId, orgId), eq(spaceLinks.contentId, contentId)));
+    return [...new Set(rows.map((row) => row.spaceId))];
+  }
+
+  private async withSpaceParts(orgId: string, rows: Space[]): Promise<SpaceDetail[]> {
+    if (rows.length === 0) {
+      return [];
+    }
+    const ids = rows.map((row) => row.id);
+    const topics = await this.db
+      .select()
+      .from(spaceTopics)
+      .where(and(eq(spaceTopics.orgId, orgId), inArray(spaceTopics.spaceId, ids)))
+      .orderBy(asc(spaceTopics.seq));
+    const links = await this.db
+      .select()
+      .from(spaceLinks)
+      .where(and(eq(spaceLinks.orgId, orgId), inArray(spaceLinks.spaceId, ids)))
+      .orderBy(asc(spaceLinks.seq));
+    return rows.map((space) => ({
+      ...space,
+      topics: topics.filter((topic) => topic.spaceId === space.id),
+      links: links.filter((link) => link.spaceId === space.id),
+    }));
   }
 }
 translateDbErrors(DrizzleContentRepository);

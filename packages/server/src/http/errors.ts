@@ -1,5 +1,10 @@
-import { ConflictError, ForbiddenError, NotFoundError } from '@headless-lms/core/shared/errors';
-import { OrganizationRuleError } from '@headless-lms/core/organizations';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '@headless-lms/core/shared/errors';
+import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
   ActionInvocationError,
   AlreadyConnectedError,
@@ -11,45 +16,172 @@ import {
   InvalidTriggerError,
   ReservedActionError,
 } from '@headless-lms/core/automations';
+import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { NoActiveOrgError } from './scope.js';
 import { UnauthorizedError } from './plugins/auth.js';
 
-export interface ClassifiedError {
+export type Refusal = {
   status: number;
-  code: string;
+  error: string;
   message: string;
+  issues?: { path: string; message: string }[];
+};
+
+const BODY_ERRORS: Record<string, Refusal> = {
+  FST_ERR_CTP_INVALID_JSON_BODY: {
+    status: 400,
+    error: 'invalid_body',
+    message: 'The request body must be valid JSON',
+  },
+  FST_ERR_CTP_EMPTY_JSON_BODY: {
+    status: 400,
+    error: 'invalid_body',
+    message: 'The request body must be valid JSON',
+  },
+  FST_ERR_CTP_INVALID_MEDIA_TYPE: {
+    status: 415,
+    error: 'unsupported_media_type',
+    message: 'Send the request body as application/json',
+  },
+  FST_ERR_CTP_BODY_TOO_LARGE: {
+    status: 413,
+    error: 'payload_too_large',
+    message: 'The request body is too large',
+  },
+  FST_ERR_NOT_FOUND: { status: 404, error: 'not_found', message: 'No such route' },
+};
+
+function issuePath(context: string, instancePath: string): string {
+  const inner = instancePath
+    .split('/')
+    .filter((part) => part.length > 0)
+    .map((part) => (/^\d+$/.test(part) ? `[${part}]` : `.${part}`))
+    .join('');
+  return `${context}${inner}`;
 }
 
-const RULES: Array<[abstract new (...args: never[]) => Error, number, string]> = [
-  [NotFoundError, 404, 'not_found'],
-  [ConflictError, 409, 'conflict'],
-  [ForbiddenError, 403, 'forbidden'],
-  [OrganizationRuleError, 409, 'conflict'],
-  [AlreadyConnectedError, 409, 'already_connected'],
-  [UnknownIntegrationError, 400, 'unknown_integration'],
-  [InvalidConfigError, 400, 'invalid_config'],
-  [ActionInvocationError, 502, 'action_failed'],
-  [InvalidTriggerError, 400, 'invalid_trigger'],
-  [ReservedActionError, 400, 'reserved_action'],
-  [AutomationKindMismatchError, 409, 'kind_mismatch'],
-  [NoActiveOrgError, 403, 'forbidden'],
-  // No session at all — 401 so the client bounces to login, not a generic 403.
-  [UnauthorizedError, 401, 'unauthorized'],
-];
+type IssueParams = {
+  expected?: string;
+  received?: string;
+  minimum?: number | bigint;
+  maximum?: number | bigint;
+  inclusive?: boolean;
+  origin?: string;
+  keys?: string[];
+  values?: unknown[];
+  format?: string;
+};
 
-export function classifyError(error: unknown): ClassifiedError | null {
-  for (const [type, status, code] of RULES) {
-    if (error instanceof type) {
-      return { status, code, message: error.message };
-    }
+function describeIssue(keyword: string | undefined, params: IssueParams, fallback: string): string {
+  switch (keyword) {
+    case 'invalid_type':
+      if (params.received === 'undefined' || params.received === 'null') {
+        return 'is required';
+      }
+      return params.expected ? `must be ${withArticle(params.expected)}` : fallback;
+    case 'too_small':
+      return params.origin === 'string'
+        ? Number(params.minimum) === 1
+          ? 'must not be empty'
+          : `must be at least ${params.minimum} characters`
+        : params.origin === 'array'
+          ? `must have at least ${params.minimum} ${Number(params.minimum) === 1 ? 'item' : 'items'}`
+          : `must be ${params.inclusive === false ? 'greater than' : 'at least'} ${params.minimum}`;
+    case 'too_big':
+      return params.origin === 'string'
+        ? `must be at most ${params.maximum} characters`
+        : params.origin === 'array'
+          ? `must have at most ${params.maximum} items`
+          : `must be ${params.inclusive === false ? 'less than' : 'at most'} ${params.maximum}`;
+    case 'unrecognized_keys':
+      return `has ${params.keys && params.keys.length > 1 ? 'unknown fields' : 'an unknown field'} ${(params.keys ?? []).map((key) => `"${key}"`).join(', ')}`;
+    case 'invalid_value':
+      return `must be one of ${(params.values ?? []).map((value) => JSON.stringify(value)).join(', ')}`;
+    case 'invalid_format':
+      return params.format ? `must be a valid ${params.format.replace(/_/g, ' ')}` : fallback;
+    case 'invalid_union':
+      return 'is not in an accepted shape';
+    default:
+      return fallback;
   }
-  const err = error as { statusCode?: number; code?: string; message?: string };
-  if (typeof err?.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500) {
+}
+
+function withArticle(noun: string): string {
+  return /^[aeiou]/i.test(noun) ? `an ${noun}` : `a ${noun}`;
+}
+
+export function classifyError(error: unknown): Refusal | undefined {
+  if (error instanceof NotFoundError) {
+    return { status: 404, error: 'not_found', message: error.message };
+  }
+  if (error instanceof InvalidInputError) {
+    return { status: 400, error: 'invalid_input', message: error.message };
+  }
+  if (error instanceof ConflictError || error instanceof OrganizationRuleError) {
+    return { status: 409, error: 'conflict', message: error.message };
+  }
+  if (error instanceof ForbiddenError || error instanceof NoActiveOrgError) {
+    return { status: 403, error: 'forbidden', message: error.message };
+  }
+  if (error instanceof UnauthorizedError) {
+    return { status: 401, error: 'unauthorized', message: error.message };
+  }
+  if (error instanceof InviteError) {
+    return { status: 400, error: 'invalid_invite', message: error.message };
+  }
+  if (error instanceof AlreadyConnectedError) {
+    return { status: 409, error: 'already_connected', message: error.message };
+  }
+  if (error instanceof UnknownIntegrationError) {
+    return { status: 400, error: 'unknown_integration', message: error.message };
+  }
+  if (error instanceof InvalidConfigError) {
+    return { status: 400, error: 'invalid_config', message: error.message };
+  }
+  if (error instanceof InvalidTriggerError) {
+    return { status: 400, error: 'invalid_trigger', message: error.message };
+  }
+  if (error instanceof ReservedActionError) {
+    return { status: 400, error: 'reserved_action', message: error.message };
+  }
+  if (error instanceof ActionInvocationError) {
     return {
-      status: err.statusCode,
-      code: err.code ?? 'bad_request',
-      message: err.message ?? 'Bad request',
+      status: 502,
+      error: 'action_failed',
+      message: 'The integration did not respond as expected',
     };
   }
-  return null;
+  if (error instanceof AutomationKindMismatchError) {
+    return { status: 409, error: 'kind_mismatch', message: error.message };
+  }
+  if (hasZodFastifySchemaValidationErrors(error)) {
+    const context = (error as { validationContext?: string }).validationContext ?? 'request';
+    const issues = error.validation.map((issue) => ({
+      path: issuePath(context, issue.instancePath),
+      message: describeIssue(
+        issue.keyword,
+        (issue.params ?? {}) as IssueParams,
+        issue.message ?? 'is invalid',
+      ),
+    }));
+    const first = issues[0];
+    return {
+      status: 400,
+      error: 'validation',
+      message: first ? `${first.path}: ${first.message}` : 'The request is invalid',
+      issues,
+    };
+  }
+  const err = error as { statusCode?: number; code?: string };
+  if (err.code && BODY_ERRORS[err.code]) {
+    return BODY_ERRORS[err.code];
+  }
+  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500) {
+    return {
+      status: err.statusCode,
+      error: 'bad_request',
+      message: 'The request could not be processed',
+    };
+  }
+  return undefined;
 }

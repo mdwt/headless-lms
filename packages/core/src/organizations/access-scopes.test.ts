@@ -10,13 +10,13 @@ import {
 } from './access-scopes.js';
 
 describe('access scopes', () => {
-  it('lets owners and admins hold all 21 scopes', () => {
-    expect(ACCESS_SCOPES).toHaveLength(21);
+  it('lets owners and admins hold all 28 scopes', () => {
+    expect(ACCESS_SCOPES).toHaveLength(28);
     expect(scopesForRole('owner')).toEqual([...ACCESS_SCOPES]);
     expect(scopesForRole('admin')).toEqual([...ACCESS_SCOPES]);
   });
 
-  it('lets an instructor hold only the scopes that need no permission', () => {
+  it('lets an instructor hold the scopes that need no permission or only moderation', () => {
     expect(scopesForRole('instructor')).toEqual([
       'courses:read',
       'downloads:read',
@@ -24,6 +24,11 @@ describe('access scopes', () => {
       'media:read',
       'automations:read',
       'comments:read',
+      'communities:read',
+      'community_members:read',
+      'community_members:write',
+      'community_moderation:read',
+      'community_moderation:write',
     ]);
   });
 
@@ -44,12 +49,13 @@ describe('access scopes', () => {
     expect(() => assertRoleHoldsScopes('instructor', ['courses:read'])).not.toThrow();
   });
 
-  it('marks exactly the four delete scopes', () => {
+  it('marks exactly the five delete scopes', () => {
     expect(ACCESS_SCOPES.filter((scope) => isDeleteScope(scope))).toEqual([
       'courses:delete',
       'downloads:delete',
       'bundles:delete',
       'automations:delete',
+      'communities:delete',
     ]);
   });
 

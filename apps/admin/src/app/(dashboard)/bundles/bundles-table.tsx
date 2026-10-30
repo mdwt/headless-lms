@@ -147,7 +147,7 @@ function BundlesTableInner({
           toDelete ? (
             <>
               This permanently deletes <span className="font-medium text-ink">{toDelete.name}</span>
-              . The courses and downloads it contains are not affected.
+              . The content it contains is not affected.
             </>
           ) : null
         }

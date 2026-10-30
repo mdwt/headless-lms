@@ -4,12 +4,13 @@
 import { z } from 'zod';
 import {
   activityAssetSchema,
-  activitySchema,
+  activityViewSchema,
   moduleSchema,
   saveActivityInputSchema,
+  idSchema,
 } from '@headless-lms/core/schemas';
 
-export const Activity = activitySchema;
+export const Activity = activityViewSchema;
 export type Activity = z.infer<typeof Activity>;
 
 export const ActivityAsset = activityAssetSchema;
@@ -22,7 +23,7 @@ export type Module = z.infer<typeof Module>;
 export const ModuleList = z.array(Module);
 export type ModuleList = z.infer<typeof ModuleList>;
 
-/** A course's activities as bare rows, ordered by (moduleId, seq). */
+/** A course's activities, each with the stable file URLs of the files it links, ordered by (moduleId, seq). */
 export const ActivityList = z.array(Activity);
 export type ActivityList = z.infer<typeof ActivityList>;
 
@@ -49,7 +50,9 @@ export type CreateModule = z.infer<typeof CreateModule>;
 export const UpdateModule = z.object({ title: z.string().min(1) });
 export type UpdateModule = z.infer<typeof UpdateModule>;
 
-export const ReorderInput = z.object({ orderedIds: z.array(z.string()) });
+export const ReorderInput = z.object({
+  orderedIds: z.array(idSchema).max(500).describe('Every id in the collection, in the new order'),
+});
 export type ReorderInput = z.infer<typeof ReorderInput>;
 
 export const SaveActivity = saveActivityInputSchema;

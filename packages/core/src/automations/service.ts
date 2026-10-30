@@ -6,8 +6,12 @@
 // hands it to the injected AutomationEngine, which calls back into
 // `runAction`/`finalize`.
 import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catalog.js';
-import { executeAction } from './actions.js';
+import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
+import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
+import type { NotificationDesk } from '../identity/index.js';
+import { communitySeeds, orgSeeds, type SeedAutomation } from './seeds.js';
+import { cronSupported } from './schedule.js';
 import {
   AutomationKindMismatchError,
   InvalidTriggerError,
@@ -43,7 +47,7 @@ import type {
   WebhookSender,
 } from './ports.js';
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
-import type { JsonValue } from '../types/index.js';
+import type { JsonValue, ScheduledAutomation } from '../types/index.js';
 import { deliverWebhookInputSchema } from '../types/schemas/index.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
@@ -62,14 +66,47 @@ function isEnabledOnlyUpdate<T extends { enabled?: boolean }>(
   return Object.values(rest).every((v) => v === undefined);
 }
 
+function floorMinute(at: Date): number {
+  const copy = new Date(at);
+  copy.setUTCSeconds(0, 0);
+  return copy.getTime();
+}
+
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function recordString(value: unknown, key: string): string | null {
+  if (typeof value !== 'object' || value === null || !(key in value)) {
+    return null;
+  }
+  const found = (value as Record<string, unknown>)[key];
+  return typeof found === 'string' ? found : null;
+}
+
+function filterMatches(filter: Record<string, JsonValue> | null, data: unknown): boolean {
+  if (filter == null) {
+    return true;
+  }
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return false;
+  }
+  const record = data as Record<string, unknown>;
+  return Object.entries(filter).every(([key, expected]) => {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+      return false;
+    }
+    return JSON.stringify(record[key]) === JSON.stringify(expected);
+  });
 }
 
 function assertAuthorableTriggers(triggers: string[]): void {
   for (const trigger of triggers) {
     if (trigger.startsWith('automation.')) {
       throw new InvalidTriggerError(trigger);
+    }
+    if (trigger.startsWith('schedule:') && !cronSupported(trigger.slice('schedule:'.length))) {
+      throw new InvalidTriggerError(trigger, 'schedule');
     }
   }
 }
@@ -120,6 +157,10 @@ export type AutomationsServiceParams = {
   integrations: Pick<IntegrationsService, 'available'>;
   credentials: CredentialStore;
   webhooks: WebhookSender;
+  mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
+  grants: GrantWriter;
+  desk: NotificationDesk;
+  scheduledWork: ScheduledWork;
   logger?: Logger;
 };
 
@@ -133,6 +174,10 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly integrations: Pick<IntegrationsService, 'available'>;
   private readonly credentials: CredentialStore;
   private readonly webhooks: WebhookSender;
+  private readonly mail: CommunityMailReads;
+  private readonly grants: GrantWriter;
+  private readonly desk: NotificationDesk;
+  private readonly scheduledWork: ScheduledWork;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -145,6 +190,14 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.integrations = params.integrations;
     this.credentials = params.credentials;
     this.webhooks = params.webhooks;
+    this.mail = {
+      ...params.mail,
+      recentMessageRecipients: (orgId, automationId, chatId, since) =>
+        this.runsRepo.recentRecipients(orgId, automationId, chatId, since),
+    };
+    this.grants = params.grants;
+    this.desk = params.desk;
+    this.scheduledWork = params.scheduledWork;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -153,9 +206,82 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (event.type.startsWith('automation.')) {
       return;
     }
+    await this.seedFor(event);
     const automations = await this.safeListByTrigger(event);
-    for (const automation of automations.filter((a) => a.enabled)) {
+    for (const automation of automations) {
+      const matches = filterMatches(automation.filter, event.data);
+      if (!automation.enabled || !matches) {
+        if (automation.enabled && !matches) {
+          this.logger.debug('automation filter skipped', {
+            orgId: event.orgId,
+            automationId: automation.id,
+            trigger: event.type,
+          });
+        }
+        continue;
+      }
       await this.dispatchOne(automation, event);
+    }
+  }
+
+  private seedsFor(event: DomainEvent): SeedAutomation[] | null {
+    if (event.type === 'organization.created') {
+      return orgSeeds();
+    }
+    if (event.type !== 'content.community.created') {
+      return null;
+    }
+    const communityId = recordString(event.data, 'id');
+    if (!communityId) {
+      this.logger.error('community seed missing id', { orgId: event.orgId, eventId: event.id });
+      return null;
+    }
+    return communitySeeds(communityId);
+  }
+
+  private async seedFor(event: DomainEvent): Promise<void> {
+    const rows = this.seedsFor(event);
+    if (!rows) {
+      return;
+    }
+    const seeded = await this.uow.run(async ({ automations, outbox }) => {
+      const created = [];
+      for (const row of rows) {
+        const inserted = await automations.insertSeed(event.orgId, {
+          name: row.name,
+          description: row.description,
+          triggers: row.triggers,
+          actions: row.actions,
+          filter: row.filter,
+          kind: 'workflow',
+          source: 'system',
+        });
+        if (inserted) {
+          created.push(
+            automationEvents.automationCreated.make({ orgId: event.orgId, data: inserted }),
+          );
+        }
+      }
+      if (created.length > 0) {
+        await outbox.append(created);
+        this.logger.info('system automations seeded', {
+          orgId: event.orgId,
+          trigger: event.type,
+          count: created.length,
+        });
+      }
+      return created.length;
+    });
+    if (seeded > 0) {
+      await this.reconcileSchedules(event.orgId);
+    }
+  }
+
+  private async reconcileSchedules(orgId: string): Promise<void> {
+    try {
+      await this.engine.syncSchedules?.();
+    } catch (err) {
+      this.logger.error('automation schedules not reconciled', { orgId, err });
     }
   }
 
@@ -166,7 +292,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       this.logger.error('automations: failed to load trigger matches', {
         orgId: event.orgId,
         trigger: event.type,
-        error: err instanceof Error ? err.message : String(err),
+        err,
       });
       return [];
     }
@@ -182,15 +308,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       }
       await this.engine.dispatch(this.dispatchFor(automation, run, event));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       this.logger.error('automation run failed', {
         orgId: event.orgId,
         automationId: automation.id,
         runId: run?.id,
-        error: message,
+        trigger: event.type,
+        eventId: event.id,
+        err,
       });
       if (run) {
-        await this.recordFailure(run, message);
+        await this.recordFailure(run, err instanceof Error ? err.message : String(err));
       }
     }
   }
@@ -259,8 +386,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     } catch (err) {
       this.logger.error('failed to record automation run failure', {
         orgId: run.orgId,
+        automationId: run.automationId,
         runId: run.id,
-        error: err instanceof Error ? err.message : String(err),
+        err,
         originalError: error,
       });
       return null;
@@ -272,13 +400,108 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (!action) {
       throw new Error(`automation ${d.automationId} run ${d.runId}: no action at index ${index}`);
     }
-    await executeAction(action, d.event, {
-      mailer: this.mailer,
-      lookups: this.lookups,
-      credentials: this.credentials,
-      webhooks: this.webhooks,
+    let outcome: ActionOutcome;
+    try {
+      outcome = await executeAction(action, d.event, {
+        mailer: this.mailer,
+        lookups: this.lookups,
+        credentials: this.credentials,
+        webhooks: this.webhooks,
+        mail: this.mail,
+        grants: this.grants,
+        desk: this.desk,
+        scheduledWork: this.scheduledWork,
+        automationId: d.automationId,
+        actionInput: action.input,
+        logger: this.logger,
+      });
+    } catch (err) {
+      this.logger.error('automation action failed', {
+        orgId: d.orgId,
+        automationId: d.automationId,
+        runId: d.runId,
+        trigger: d.event.type,
+        index,
+        type: action.type,
+        err,
+      });
+      throw err;
+    }
+    const { recipients, failed } = outcome;
+    this.logger.info('automation action completed', {
+      orgId: d.orgId,
+      automationId: d.automationId,
+      runId: d.runId,
+      type: action.type,
+      recipients: recipients.length,
+      failed: failed.length,
     });
-    return { index, type: action.type, status: 'completed' };
+    return {
+      index,
+      type: action.type,
+      status: 'completed',
+      ...(recipients.length > 0 ? { recipients } : {}),
+      ...(failed.length > 0
+        ? { error: `delivery failed for ${failed.length} recipients: ${failed.join(', ')}` }
+        : {}),
+    };
+  }
+
+  async listSchedules(): Promise<ScheduledAutomation[]> {
+    return this.repo.listSchedules();
+  }
+
+  async fireSchedule(orgId: string, automationId: string, at: Date): Promise<void> {
+    const firedAt = new Date(floorMinute(at));
+    const automation = await this.repo.findById(orgId, automationId);
+    if (!automation?.enabled || firedAt.getTime() < floorMinute(automation.createdAt)) {
+      this.logger.debug('schedule skipped', { orgId, automationId });
+      return;
+    }
+    if (!(await this.scheduleHasWork(orgId, automation, firedAt))) {
+      this.logger.debug('schedule idle', { orgId, automationId });
+      return;
+    }
+    const event: DomainEvent = {
+      type: 'automation.schedule.fired',
+      id: `schedule_${automationId}_${firedAt.toISOString()}`,
+      orgId,
+      version: 1,
+      occurredAt: firedAt.toISOString(),
+      data: { automationId, firedAt: firedAt.toISOString() },
+    };
+    await this.dispatchOne(automation, event);
+  }
+
+  private async scheduleHasWork(
+    orgId: string,
+    automation: Automation,
+    firedAt: Date,
+  ): Promise<boolean> {
+    const checks = automation.actions.map((action) => this.pendingWork(action.type));
+    const known = checks.filter((check) => check !== null);
+    if (checks.length === 0 || known.length < checks.length) {
+      return true;
+    }
+    for (const check of known) {
+      if (await check(orgId, firedAt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private pendingWork(type: string): ((orgId: string, now: Date) => Promise<boolean>) | null {
+    switch (type) {
+      case 'publishDuePosts':
+        return (orgId, now) => this.scheduledWork.hasDuePosts(orgId, now);
+      case 'expireDueGrants':
+        return (orgId, now) => this.scheduledWork.hasDueGrants(orgId, now);
+      case 'removeUnattachedUploads':
+        return (orgId, now) => this.scheduledWork.hasUnattachedUploads(orgId, now);
+      default:
+        return null;
+    }
   }
 
   async finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void> {
@@ -309,6 +532,39 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         }));
       await outbox.append([runEvent, ...actionFailedEvents]);
     });
+    this.logOutcome(d, status, results);
+  }
+
+  private logOutcome(
+    d: AutomationDispatch,
+    status: 'completed' | 'failed',
+    results: AutomationActionResult[],
+  ): void {
+    const run = {
+      orgId: d.orgId,
+      automationId: d.automationId,
+      runId: d.runId,
+      trigger: d.event.type,
+      eventId: d.event.id,
+    };
+    if (status === 'failed') {
+      const failed = results.find((r) => r.status === 'failed');
+      const index = failed?.index ?? results.length;
+      this.logger.error('automation run failed', {
+        ...run,
+        index,
+        action: failed?.type ?? d.actions[index]?.type,
+        error: failed?.error ?? 'not every action ran',
+      });
+      return;
+    }
+    const partial = results.filter((r) => r.error !== undefined);
+    if (partial.length > 0) {
+      this.logger.warn('automation run completed with failed deliveries', {
+        ...run,
+        actions: partial.map(({ index, type, error }) => ({ index, type, error })),
+      });
+    }
   }
 
   async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
@@ -324,6 +580,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       return created;
     });
     this.logger.info('automation created', { orgId, automationId: automation.id });
+    await this.reconcileSchedules(orgId);
     return automation;
   }
 
@@ -357,6 +614,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     });
     if (automation) {
       this.logger.info('automation updated', { orgId, automationId: id });
+      await this.reconcileSchedules(orgId);
     }
     return automation;
   }
@@ -369,6 +627,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (existing.kind !== 'workflow') {
       throw new AutomationKindMismatchError(id, existing.kind);
     }
+    if (existing.source === 'system') {
+      throw new ConflictError('A system automation cannot be deleted');
+    }
     const deleted = await this.uow.run(async ({ automations, outbox }) => {
       const removed = await automations.delete(orgId, id);
       if (!removed) {
@@ -379,6 +640,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     });
     if (deleted) {
       this.logger.info('automation deleted', { orgId, automationId: id });
+      await this.reconcileSchedules(orgId);
     }
     return deleted !== null;
   }
@@ -422,14 +684,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     try {
       await this.engine.dispatch(this.dispatchFor(automation, run, run.event));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       this.logger.error('automation rerun failed', {
         orgId,
         automationId,
         runId: run.id,
-        error: message,
+        trigger: run.trigger,
+        err,
       });
-      return (await this.recordFailure(run, message)) ?? run;
+      return (
+        (await this.recordFailure(run, err instanceof Error ? err.message : String(err))) ?? run
+      );
     }
     this.logger.info('automation rerun started', { orgId, automationId, runId: run.id });
     return run;

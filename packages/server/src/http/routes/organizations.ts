@@ -6,10 +6,9 @@ import {
   AcceptInviteResult,
   CreateInvite,
   CreateOrganization,
-  ErrorBody,
   Invite,
-  Member,
   MemberIdParam,
+  MemberRoleChange,
   MembersPage,
   MembersQuery,
   GetInviteResult,
@@ -17,6 +16,7 @@ import {
   Organization,
   UpdateMemberRole,
   UpdateOrganization,
+  refusals,
 } from '../schemas/index.js';
 import type { MemberWriteContext } from '@headless-lms/core/organizations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
@@ -45,6 +45,8 @@ export async function organizationsRoutes(
       operationId: 'createOrganization',
       tags,
       summary: 'Create an organization and make it active',
+      description:
+        'For any signed-in person, including one with no organization yet. The caller becomes its owner.',
       body: CreateOrganization,
       response: { 201: Organization },
     },
@@ -68,9 +70,10 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'updateOrganization',
       tags,
-      summary: 'Update the active organization',
+      summary: 'Update the active organization (staff)',
+      description: 'Owner or admin. Changes its name or slug; 409 when the slug is taken.',
       body: UpdateOrganization,
-      response: { 200: Organization, 409: ErrorBody },
+      response: { 200: Organization, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -95,9 +98,11 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'listMembers',
       tags,
-      summary: 'List organization members',
+      summary: "List the organization's team members (staff)",
+      description:
+        'Staff only (owner, admin, instructor). The team: everyone in the organization who is not a student.',
       querystring: MembersQuery,
-      response: { 200: MembersPage },
+      response: { 200: MembersPage, ...refusals(403) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -112,10 +117,12 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'updateMemberRole',
       tags,
-      summary: "Change a member's role",
+      summary: "Change a member's role (staff)",
+      description:
+        'Owner or admin only. The owner role can be neither granted nor changed (409), and only a moderator can become a student.',
       params: MemberIdParam,
       body: UpdateMemberRole,
-      response: { 200: Member, 404: ErrorBody, 409: ErrorBody },
+      response: { 200: MemberRoleChange, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
@@ -124,7 +131,12 @@ export async function organizationsRoutes(
         authOrgId: scope.authOrgId,
         headers: req.headers,
       };
-      const member = await organizations.updateMemberRole(ctx, req.params.id, req.body.role);
+      const member = await organizations.updateMemberRole(
+        ctx,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+        req.body.role,
+      );
       if (!member) {
         throw new NotFoundError('Member', req.params.id);
       }
@@ -139,9 +151,11 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'removeMember',
       tags,
-      summary: 'Remove an organization member',
+      summary: 'Remove an organization member (staff)',
+      description:
+        'Owner or admin only. Removing a pending member cancels their invite. The owner cannot be removed (409).',
       params: MemberIdParam,
-      response: { 204: z.void(), 404: ErrorBody, 409: ErrorBody },
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const scope = await resolveScope(container, req);
@@ -150,7 +164,11 @@ export async function organizationsRoutes(
         authOrgId: scope.authOrgId,
         headers: req.headers,
       };
-      const removed = await organizations.removeMember(ctx, req.params.id);
+      const removed = await organizations.removeMember(
+        ctx,
+        { id: scope.orgUserId, role: scope.role },
+        req.params.id,
+      );
       if (!removed) {
         throw new NotFoundError('Member', req.params.id);
       }
@@ -165,26 +183,38 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'createInvite',
       tags,
-      summary: 'Invite a member or student into the active organization',
+      summary: 'Invite a member or student into the active organization (staff)',
+      description:
+        'Owner or admin only. A student is created by this call, so their access can be granted before they accept. 409 when a student with that email is already in the organization.',
       body: CreateInvite,
-      response: { 201: Invite, 409: ErrorBody },
+      response: { 201: Invite, ...refusals(403, 409) },
     },
-    handler: async (req) => {
+    handler: async (req, reply) => {
       // Domain ids, not the session's auth ids: invites FK to organizations.id
       // and users.id.
       const scope = await resolveScope(container, req);
-      const invite = await organizations.createInvite({
-        orgId: scope.orgId,
-        inviterUserId: scope.userId,
-        email: req.body.email,
-        role: req.body.role,
-        ...(req.body.firstName !== undefined && { firstName: req.body.firstName }),
-        ...(req.body.lastName !== undefined && { lastName: req.body.lastName }),
-        sendEmail: req.body.sendEmail,
-      });
+      const invite = await organizations.createInvite(
+        { id: scope.orgUserId, role: scope.role },
+        {
+          orgId: scope.orgId,
+          inviterUserId: scope.userId,
+          email: req.body.email,
+          role: req.body.role,
+          ...(req.body.firstName !== undefined && { firstName: req.body.firstName }),
+          ...(req.body.lastName !== undefined && { lastName: req.body.lastName }),
+          sendEmail: req.body.sendEmail,
+        },
+      );
 
-      req.log.debug({ invite }, 'created invite');
-      return invite;
+      req.log.debug({ inviteId: invite.id }, 'created invite');
+      return reply.code(201).send({
+        id: invite.id,
+        email: invite.email,
+        role: invite.role,
+        status: invite.status,
+        expiresAt: invite.expiresAt,
+        createdAt: invite.createdAt,
+      });
     },
   });
 
@@ -200,8 +230,10 @@ export async function organizationsRoutes(
       operationId: 'getInvite',
       tags,
       summary: 'Read an invite by its token',
+      description:
+        'Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.',
       params: InviteTokenParam,
-      response: { 200: GetInviteResult, 404: ErrorBody },
+      response: { 200: GetInviteResult, ...refusals(404) },
     },
     handler: async (req) => {
       const invite = await organizations.peekInvite(req.params.token);
@@ -232,9 +264,11 @@ export async function organizationsRoutes(
     schema: {
       operationId: 'acceptInvite',
       tags,
-      summary: 'Accept an invite with the logged-in account',
+      summary: 'Accept an invite with the signed-in account',
+      description:
+        "For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, or the email does not match.",
       body: AcceptInvite,
-      response: { 200: AcceptInviteResult, 400: ErrorBody },
+      response: { 200: AcceptInviteResult, ...refusals(400, 404) },
     },
     handler: async (req) => {
       // No active org yet, so no resolveScope — but acceptInvite links a domain

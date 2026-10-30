@@ -13,7 +13,7 @@ const cases: ToolCase[] = [
   {
     tool: 'list_students',
     args: { search: 'sam' },
-    service: 'reporting.students.list',
+    service: 'reporting.admin.listStudents',
     expected: ['org_1', { page: 1, pageSize: 20, search: 'sam' }],
   },
   {
@@ -35,6 +35,7 @@ const cases: ToolCase[] = [
     args: { email: 'sam@acme.test', firstName: 'Sam' },
     service: 'organizations.createInvite',
     expected: [
+      { id: 'ou_1', role: 'owner' },
       {
         orgId: 'org_1',
         inviterUserId: 'usr_1',
@@ -49,7 +50,7 @@ const cases: ToolCase[] = [
     tool: 'resend_student_invite',
     args: { id: 'ou_9' },
     service: 'organizations.resendStudentInvite',
-    expected: [{ orgId: 'org_1', orgUserId: 'ou_9', inviterUserId: 'usr_1' }],
+    expected: [{ id: 'ou_1', role: 'owner' }, { orgId: 'org_1', orgUserId: 'ou_9', inviterUserId: 'usr_1' }],
     returns: undefined,
   },
   {
@@ -73,31 +74,31 @@ const cases: ToolCase[] = [
     service: 'entitlements.setStatus',
     expected: ['org_1', 'ent_1', 'revoked'],
   },
-  { tool: 'get_dashboard', args: {}, service: 'reporting.dashboard.overview', expected: ['org_1'] },
+  { tool: 'get_dashboard', args: {}, service: 'reporting.admin.overview', expected: ['org_1'] },
   {
     tool: 'get_enrollment_trend',
     args: { days: 7 },
-    service: 'reporting.dashboard.enrollments',
+    service: 'reporting.admin.enrollments',
     expected: ['org_1', 7],
     returns: [],
   },
   {
     tool: 'get_course_analytics',
     args: { courseId: 'crs_1' },
-    service: 'reporting.courses.analytics',
+    service: 'reporting.admin.courseAnalytics',
     expected: ['org_1', 'crs_1'],
   },
   {
     tool: 'get_course_enrollment_trend',
     args: { courseId: 'crs_1' },
-    service: 'reporting.courses.enrollments',
+    service: 'reporting.admin.courseEnrollments',
     expected: ['org_1', 'crs_1', 30],
     returns: [],
   },
   {
     tool: 'get_student_analytics',
     args: { id: 'ou_9' },
-    service: 'reporting.students.analytics',
+    service: 'reporting.admin.studentAnalytics',
     expected: ['org_1', 'ou_9'],
   },
 ];

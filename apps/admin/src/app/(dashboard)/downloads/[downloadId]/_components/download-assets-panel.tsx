@@ -42,7 +42,7 @@ import type { DownloadAsset } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 import { confirmAssetAction, requestUploadAction } from "../../../media/actions";
-import { kindForFile, putToStorage } from "../../../media/upload-to-storage";
+import { putToStorage } from "../../../media/upload-to-storage";
 import {
   addDownloadAssetAction,
   removeDownloadAssetAction,
@@ -257,7 +257,6 @@ export function DownloadAssetsPanel({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
-        kind: kindForFile(file),
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
       await confirmAssetAction(ticket.asset.id);

@@ -12,11 +12,12 @@ import type { Student } from "@/lib/api/types";
 import { ProgressCell } from "./progress-meter";
 
 /**
- * Column set for the students list. `onView`/`onDelete` drive the row-action
- * menu; row clicks are wired separately on the table (onRowClick).
+ * Column set for the students list. `onView`/`onMakeModerator`/`onDelete` drive
+ * the row-action menu; row clicks are wired separately on the table (onRowClick).
  */
 export function studentColumns(
   onView: (id: string) => void,
+  onMakeModerator: (student: Student) => void,
   onDelete: (student: Student) => void,
 ): ColumnDef<Student, unknown>[] {
   return [
@@ -74,6 +75,12 @@ export function studentColumns(
           <RowActions>
             <DropdownMenuItem onClick={() => onView(row.original.id)}>
               View student
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={row.original.status !== "active"}
+              onClick={() => onMakeModerator(row.original)}
+            >
+              Make moderator
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="danger" onClick={() => onDelete(row.original)}>

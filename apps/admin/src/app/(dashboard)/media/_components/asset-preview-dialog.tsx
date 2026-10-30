@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { Copy, Download, FileText, Loader2, Trash2 } from "lucide-react";
+import { Copy, Download, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Asset } from "@/lib/api/types";
@@ -16,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { getAssetUrlAction } from "../actions";
 
 function isImage(a: Asset) {
   return a.contentType.startsWith("image/");
@@ -37,35 +35,13 @@ export function AssetPreviewDialog({
   onOpenChange: (open: boolean) => void;
   onDelete: (asset: Asset) => void;
 }) {
-  // Presigned URLs are short-lived, so fetch on demand when the dialog opens
-  // (via a Server Action) rather than caching long-term.
-  const [url, setUrl] = useState<string | null>(null);
-  const [isLoading, startTransition] = useTransition();
-  const assetId = asset?.id;
-
-  useEffect(() => {
-    if (!open || !assetId) return;
-    let cancelled = false;
-    startTransition(async () => {
-      // Clear any prior asset's URL and resolve this one — all inside the
-      // transition so no state is set synchronously in the effect body.
-      setUrl(null);
-      try {
-        const next = await getAssetUrlAction(assetId);
-        if (!cancelled) setUrl(next);
-      } catch {
-        if (!cancelled) setUrl(null);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, assetId]);
+  const url = asset?.url ?? null;
+  const downloadUrl = asset?.downloadUrl ?? null;
 
   async function copyLink() {
     if (!url) return;
     await navigator.clipboard.writeText(url);
-    toast.success("Link copied", { description: "Short-lived presigned URL." });
+    toast.success("Link copied", { description: "Opens only for signed-in staff." });
   }
 
   return (
@@ -82,9 +58,7 @@ export function AssetPreviewDialog({
           {asset && (
             <>
               <div className="grid min-h-56 place-items-center overflow-hidden rounded-lg bg-surface-2 p-2 outline-1 -outline-offset-1 outline-ink/5">
-                {isLoading ? (
-                  <Loader2 className="size-5 animate-spin text-ink-4" />
-                ) : isImage(asset) && url ? (
+                {isImage(asset) && url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={url}
@@ -133,9 +107,9 @@ export function AssetPreviewDialog({
               <Copy />
               Copy link
             </Button>
-            <Button variant="primary" size="sm" asChild={!!url} disabled={!url}>
-              {url ? (
-                <a href={url} target="_blank" rel="noreferrer" download={asset?.filename}>
+            <Button variant="primary" size="sm" asChild={!!downloadUrl} disabled={!downloadUrl}>
+              {downloadUrl ? (
+                <a href={downloadUrl} target="_blank" rel="noreferrer" download={asset?.filename}>
                   <Download />
                   Download
                 </a>

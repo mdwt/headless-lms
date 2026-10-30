@@ -3,6 +3,7 @@
 // entry file is 'use client') becomes a client reference across the boundary.
 import type { EditorModule } from "@headless-lms/editor";
 
+import { assetIds } from "./asset-ids";
 import { Editor } from "./editor";
 import { Renderer } from "./renderer";
 import { validate } from "./validate";
@@ -11,6 +12,7 @@ const plateEditor: EditorModule = {
   Editor,
   Renderer,
   validate,
+  assetIds,
   slots: ["toolbar", "blocks"],
   meta: { type: "plate", version: 1 },
 };

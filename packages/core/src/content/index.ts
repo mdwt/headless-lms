@@ -2,24 +2,40 @@
 export { ContentService } from './service.js';
 export type {
   BundlesService,
+  CommunitiesService,
+  CommunityReader,
   CourseManagementService,
   ContentRepository,
   ContentService as ContentServicePort,
   DownloadablesService,
+  SpaceRowLock,
 } from './ports.js';
 export type {
   Course,
   CourseStatus,
   CourseSettings,
+  CourseView,
   Module,
   Activity,
   ActivityAsset,
+  ActivityView,
   SaveActivityInput,
   DownloadStatus,
   Download,
   DownloadAsset,
+  DownloadFile,
+  DownloadView,
   Bundle,
   BundleItem,
+  Community,
+  CommunityStatus,
+  CommunityView,
+  DmSettings,
+  Space,
+  SpaceAccessRule,
+  SpaceDetail,
+  SpaceLink,
+  SpaceTopic,
 } from './model.js';
 export type {
   CreateCourseInput,
@@ -34,6 +50,13 @@ export type {
   ListBundlesQuery,
   CreateBundleInput,
   UpdateBundleInput,
+  CreateCommunityInput,
+  UpdateCommunityInput,
+  CreateSpaceInput,
+  UpdateSpaceInput,
+  ListCommunitiesQuery,
+  PatchDmSettingsInput,
+  SetSpaceTopicsInput,
 } from './types.js';
 export { contentEvents } from './events.js';
 export type {
@@ -56,5 +79,12 @@ export type {
   BundleDeleted,
   BundleItemAdded,
   BundleItemRemoved,
+  CommunityCreated,
+  CommunityUpdated,
+  CommunityDeleted,
+  CommunitySpaceCreated,
+  CommunitySpaceUpdated,
+  CommunitySpaceDeleted,
+  CommunitySpacesReordered,
   ContentEvent,
 } from './events.js';

@@ -92,8 +92,14 @@ function structure(overrides?: { a1Settings?: unknown }): {
   };
 }
 
-function fakeContent(modules: Module[], activities: Activity[]): CourseManagementService {
+function fakeContent(
+  modules: Module[],
+  activities: Activity[],
+  courseStatus: 'published' | 'draft' = 'published',
+): CourseManagementService {
   return {
+    getCourse: async (_orgId: string, id: string) =>
+      id === 'c1' ? { id, status: courseStatus } : null,
     listCourseModules: async () => modules,
     listCourseActivities: async () => activities,
     getActivity: async (_orgId: string, id: string) => activities.find((a) => a.id === id) ?? null,
@@ -101,12 +107,16 @@ function fakeContent(modules: Module[], activities: Activity[]): CourseManagemen
   } as unknown as CourseManagementService;
 }
 
-function makeService(structure: { modules: Module[]; activities: Activity[] }) {
+function makeService(
+  structure: { modules: Module[]; activities: Activity[] },
+  opts: { hasAccess?: boolean; courseStatus?: 'published' | 'draft' } = {},
+) {
   const { repo, records } = fakeRepo();
   const { uow, appended } = fakeUow(repo);
   const svc = new ProgressServiceImpl({
     repo,
-    content: fakeContent(structure.modules, structure.activities),
+    content: fakeContent(structure.modules, structure.activities, opts.courseStatus),
+    access: { hasAccess: async () => opts.hasAccess ?? true },
     uow,
   });
   return { svc, records, appended };
@@ -266,6 +276,19 @@ describe('ProgressService.report', () => {
 
   it('rejects a report for a draft activity (published: false)', async () => {
     const { svc } = makeService(structure({ a1Settings: { published: false } }));
+    await expect(svc.report('org-1', input('a1', []))).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('rejects a report from a student without access to the course', async () => {
+    const { svc, records } = makeService(structure(), { hasAccess: false });
+    await expect(svc.report('org-1', input('a1', [{ completed: true }]))).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(records).toHaveLength(0);
+  });
+
+  it('rejects a report for an activity in an unpublished course', async () => {
+    const { svc } = makeService(structure(), { courseStatus: 'draft' });
     await expect(svc.report('org-1', input('a1', []))).rejects.toBeInstanceOf(NotFoundError);
   });
 

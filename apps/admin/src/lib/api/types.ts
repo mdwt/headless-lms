@@ -40,7 +40,6 @@ import type {
   ListMembersResponse,
   ListModulesResponse,
   ListStudentsResponse,
-  RequestAssetDownloadResponse,
   RequestUploadResponse,
   UpdateCourseSettingsResponse,
 } from "@headless-lms/sdk";
@@ -59,14 +58,8 @@ export type CourseSettings = UpdateCourseSettingsResponse;
 
 export type Download = GetDownloadResponse;
 export type DownloadStatus = Download["status"];
-/** Bare download→asset link row, exactly as the API stores it. */
-export type DownloadAssetLink = ListDownloadAssetsResponse[number];
-/** A link row joined client-side with its asset's file metadata for display. */
-export type DownloadAsset = DownloadAssetLink & {
-  filename: string;
-  contentType: string;
-  size: number;
-};
+/** A download's file as the API serves it: the link row with its file's name, type, size and URL. */
+export type DownloadAsset = ListDownloadAssetsResponse[number];
 
 export type Bundle = GetBundleResponse;
 /** Bare bundle→content link row, exactly as the API stores it. */
@@ -77,9 +70,10 @@ export type BundleRow = Bundle & { contentIds: string[] };
 export type Module = ListModulesResponse[number];
 
 /**
- * An activity as the API serves it: a bare row whose content-specific data
- * lives in the opaque `settings` blob. Asset links are their own resource
- * (`listActivityAssets`); `ActivityNode` carries them joined client-side.
+ * An activity as the API serves it: a row whose content-specific data lives in
+ * the opaque `settings` blob, with `assetUrls` for the files it links. Asset
+ * links are their own resource (`listActivityAssets`); `ActivityNode` carries
+ * them joined client-side.
  */
 export type Activity = ListActivitiesResponse[number];
 export type ActivityAssetLink = ListActivityAssetsResponse[number];
@@ -138,6 +132,9 @@ export type EntitlementGrant = ListEntitlementsResponse["rows"][number];
 /** active|expired|revoked — `expired` is derived client-side from `expiresAt`. */
 export type EntitlementStatus = EntitlementGrant["status"] | "expired";
 
+/** The type of a single grantable, bundleable content item. */
+export type ContentType = "course" | "download" | "community";
+
 /**
  * A grant row joined client-side with the student's identity and the granted
  * target's title (each its own resource on the API), plus the derived status.
@@ -149,7 +146,7 @@ export type Entitlement = Omit<EntitlementGrant, "status"> & {
   firstName: string | null;
   lastName: string | null;
   email: string;
-  content: { id: string; type: "course" | "download" | "bundle"; title: string };
+  content: { id: string; type: ContentType | "bundle"; title: string };
 };
 
 export type Member = ListMembersResponse["rows"][number];
@@ -188,7 +185,6 @@ export type Asset = GetAssetResponse;
 export type AssetKind = Asset["kind"];
 export type AssetStatus = Asset["status"];
 export type UploadTicket = RequestUploadResponse;
-export type DownloadTicket = RequestAssetDownloadResponse;
 
 // Page envelopes (shape: { rows, total, page, pageSize }).
 export type CoursesPage = ListCoursesResponse;
