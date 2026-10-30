@@ -1,5 +1,11 @@
 # create-headless-lms
 
+## 0.1.2
+
+### Patch Changes
+
+- Communities with spaces, posts, chats, moderation and member profiles; an MCP server with OAuth sign-in, connected apps and scoped API keys; access-checked proxy URLs for every file; per-person notification preferences; one API error envelope and request limits; security hardening across automations, auth and webhooks. Breaking: an organization no longer edits a person's name or email.
+
 ## 0.1.1
 
 ### Patch Changes

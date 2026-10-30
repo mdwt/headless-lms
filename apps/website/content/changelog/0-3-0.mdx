@@ -1,0 +1,48 @@
+---
+title: 0.3.0
+description: Communities, the MCP server, OAuth and API keys, and access-checked file URLs.
+date: 2026-10-30
+---
+
+### Communities
+
+- Communities with spaces, posts, comments and chats inside one community
+- Post review, flags and a moderation queue per space. Chat moderation is staff only.
+- Moderator role and member profiles
+- By-invite spaces stay hidden. The other spaces show locked to people without access.
+- Member directory and a community home that carries what a community app needs
+- Community mail sent on a schedule
+- Staff run the community from the admin app
+
+### MCP server and API access
+
+- MCP server with tools for students, access, analytics, workflows, webhooks, comments and communities
+- OAuth sign-in for connecting apps, with an org picker and a scope picker on consent
+- Connected apps and scoped API keys in the admin settings. An API key also works as a bearer token.
+
+### Files
+
+- Every file, including lesson media, is served through an access-checked proxy URL
+- One asset registry for library files and member uploads
+- Members can upload images
+
+### Notifications
+
+- Each person chooses how they want to be notified
+
+### API
+
+- One error envelope with plain messages
+- Request limits on free-form fields and documented error statuses
+- Every access check goes through entitlements
+
+### Security
+
+- Webhooks refuse loopback, private and metadata addresses. Set `WEBHOOK_ALLOW_PRIVATE_NETWORK=true` for local development.
+- Automation runs show only the event fields a webhook publishes, and a webhook's secret reference is no longer returned
+- OAuth clients can't be created or changed from the browser
+- Auth membership stays in step with the LMS, and MCP token checks are stricter
+
+### Breaking
+
+- An organization no longer edits a person's name or email
