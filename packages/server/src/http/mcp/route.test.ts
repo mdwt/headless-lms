@@ -95,39 +95,33 @@ describe('POST /mcp credentials', () => {
     );
   });
 
-  it('challenges a person who is a student in the org', async () => {
-    const server = await build(granted([...ACCESS_SCOPES], 'student'));
+  async function refused(container: Container) {
+    const server = await build(container);
     const res = await server.inject({
       method: 'POST',
       url: '/mcp',
       headers: legacyHeaders,
       payload: listPayload,
     });
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(403);
+    expect(res.headers['www-authenticate']).toBeUndefined();
+    expect(res.json()).toEqual({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Only staff of this organization can use this server' },
+      id: null,
+    });
+  }
+
+  it('refuses a person who is a student in the org without a challenge', async () => {
+    await refused(granted([...ACCESS_SCOPES], 'student'));
   });
 
-  it('challenges a person with no org user in the org', async () => {
-    const server = await build(fakeContainer({ organizations: { getOrgUser: async () => null } }));
-    const res = await server.inject({
-      method: 'POST',
-      url: '/mcp',
-      headers: legacyHeaders,
-      payload: listPayload,
-    });
-    expect(res.statusCode).toBe(401);
+  it('refuses a person with no org user in the org without a challenge', async () => {
+    await refused(fakeContainer({ organizations: { getOrgUser: async () => null } }));
   });
 
-  it('challenges a grant for an organization that does not exist', async () => {
-    const server = await build(
-      fakeContainer({ organizations: { getByExternalId: async () => null } }),
-    );
-    const res = await server.inject({
-      method: 'POST',
-      url: '/mcp',
-      headers: legacyHeaders,
-      payload: listPayload,
-    });
-    expect(res.statusCode).toBe(401);
+  it('refuses a grant for an organization that does not exist without a challenge', async () => {
+    await refused(fakeContainer({ organizations: { getByExternalId: async () => null } }));
   });
 
   it('verifies the credential against the public resource URL, not the Host header', async () => {

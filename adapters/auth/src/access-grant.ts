@@ -43,6 +43,15 @@ export async function needsOrgChoice(
   return !(await memberOrgIds()).includes(activeOrgId);
 }
 
+export async function consentOrgId(
+  activeOrgId: string | null,
+  memberOrgIds: () => Promise<readonly string[]>,
+): Promise<string | null> {
+  return activeOrgId !== null && !(await needsOrgChoice(activeOrgId, memberOrgIds))
+    ? activeOrgId
+    : null;
+}
+
 export function orgIdFromMetadata(metadata: unknown): string | null {
   let value = metadata;
   if (typeof value === "string") {

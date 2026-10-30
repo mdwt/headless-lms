@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   accessTokenAuthorization,
+  consentOrgId,
   grantFromClaims,
   isCompactJws,
   needsOrgChoice,
@@ -21,6 +22,21 @@ describe("needsOrgChoice", () => {
   });
   it("keeps an active org the user is a member of", async () => {
     expect(await needsOrgChoice("org_b", members)).toBe(false);
+  });
+});
+
+describe("consentOrgId", () => {
+  const members = async () => ["org_a", "org_b"];
+
+  it("binds the consent to an active org the user is a member of", async () => {
+    expect(await consentOrgId("org_b", members)).toBe("org_b");
+  });
+  it("refuses an active org the user is not a member of", async () => {
+    expect(await consentOrgId("org_student_portal", members)).toBeNull();
+    expect(await consentOrgId("org_a", async () => [])).toBeNull();
+  });
+  it("refuses a session without an active org", async () => {
+    expect(await consentOrgId(null, members)).toBeNull();
   });
 });
 

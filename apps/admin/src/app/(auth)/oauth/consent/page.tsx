@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
 import { API_URL } from "@/lib/api/api-url";
 import { serverApi } from "@/lib/api/server";
 import {
@@ -61,9 +62,12 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
         <h1 className="text-2xl font-semibold tracking-tight text-ink text-balance">
           Connect {name}
         </h1>
-        {origin.length > 0 && (
-          <p className="text-sm text-ink-3 text-pretty">{origin.join(" · ")}</p>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="warning">Unverified app</Badge>
+          {origin.length > 0 && (
+            <p className="text-sm text-ink-3 text-pretty">{origin.join(" · ")}</p>
+          )}
+        </div>
         <p className="text-sm text-ink-3 text-pretty">
           {scopes.length > 0
             ? `${name} will act in ${org} as you. Choose what it can do.`

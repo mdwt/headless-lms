@@ -136,6 +136,20 @@ describe("verifyAccess", () => {
     expect(await verify(`Bearer ${await token()}`)).toEqual(grant);
   });
 
+  it("reads the key set once across verifications", async () => {
+    const { auth, token, verify } = await setup();
+    const api = auth.api as unknown as { getJwks(): Promise<unknown> };
+    const getJwks = api.getJwks.bind(api);
+    let reads = 0;
+    api.getJwks = async () => {
+      reads += 1;
+      return getJwks();
+    };
+    expect(await verify(`Bearer ${await token()}`)).toEqual(grant);
+    expect(await verify(`Bearer ${await token()}`)).toEqual(grant);
+    expect(reads).toBe(1);
+  });
+
   it("drops scopes the person has since unticked", async () => {
     const { auth, token, verify } = await setup();
     const ctx = await auth.$context;
@@ -253,6 +267,104 @@ describe("verifyAccess", () => {
     const key = await dpopKey();
     const accessToken = await token({ cnf: { jkt: key.jkt }, client_id: "client_2" });
     expect(await verify(`DPoP ${accessToken}`, await key.proof(accessToken))).toBeNull();
+  });
+});
+
+describe("organization endpoints", () => {
+  async function signUp(auth: Awaited<ReturnType<typeof setup>>["auth"], name: string) {
+    const email = `${name.toLowerCase()}@example.com`;
+    const send = (path: string, body: Record<string, string>) =>
+      auth.handler(
+        new Request(`http://localhost:8100/api/auth${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, password: "a-long-password", ...body }),
+        }),
+      );
+    const created = (await (await send("/sign-up/email", { name })).json()) as {
+      user: { id: string };
+    };
+    const ctx = await auth.$context;
+    await ctx.internalAdapter.updateUser(created.user.id, { emailVerified: true });
+    const res = await send("/sign-in/email", {});
+    const cookie = res.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ");
+    return { userId: created.user.id, cookie };
+  }
+
+  async function orgWithAdmin() {
+    const { auth } = await setup();
+    const sarah = await signUp(auth, "Sarah");
+    const james = await signUp(auth, "James");
+    const org = await auth.api.createOrganization({
+      body: { name: "Academy", slug: "academy" },
+      headers: new Headers({ cookie: sarah.cookie }),
+    });
+    const other = await auth.api.createOrganization({
+      body: { name: "Other", slug: "other" },
+      headers: new Headers({ cookie: sarah.cookie }),
+    });
+    await auth.api.addMember({
+      body: { userId: james.userId, organizationId: org!.id, role: "admin" },
+    });
+    const ctx = await auth.$context;
+    const invitation = await ctx.adapter.create<Record<string, unknown>, { id: string }>({
+      model: "invitation",
+      data: {
+        organizationId: other!.id,
+        email: "james@example.com",
+        role: "admin",
+        status: "pending",
+        inviterId: sarah.userId,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      },
+    });
+    const asJames = (path: string, body: unknown) =>
+      auth.handler(
+        new Request(`http://localhost:8100/api/auth${path}`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            cookie: james.cookie,
+            origin: "http://localhost:8100",
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+    const members = async () => ctx.adapter.count({ model: "member" });
+    const invitations = async () => ctx.adapter.count({ model: "invitation" });
+    return { orgId: org!.id, invitationId: invitation.id, asJames, members, invitations };
+  }
+
+  it("refuses leaving an organization, which skips the member hooks", async () => {
+    const { orgId, asJames, members } = await orgWithAdmin();
+    expect((await asJames("/organization/leave", { organizationId: orgId })).status).toBe(403);
+    expect(await members()).toBe(3);
+  });
+
+  it("refuses inviting through the auth engine", async () => {
+    const { orgId, asJames, invitations } = await orgWithAdmin();
+    const res = await asJames("/organization/invite-member", {
+      email: "emma@example.com",
+      role: "admin",
+      organizationId: orgId,
+    });
+    expect(res.status).toBe(403);
+    expect(await invitations()).toBe(1);
+  });
+
+  it("refuses accepting an engine invitation, which adds a member without the hooks", async () => {
+    const { invitationId, asJames, members } = await orgWithAdmin();
+    expect((await asJames("/organization/accept-invitation", { invitationId })).status).toBe(403);
+    expect(await members()).toBe(3);
+  });
+
+  it("still lets a member switch their active organization", async () => {
+    const { orgId, asJames } = await orgWithAdmin();
+    expect((await asJames("/organization/set-active", { organizationId: orgId })).status).toBe(200);
   });
 });
 
