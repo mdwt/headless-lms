@@ -362,6 +362,20 @@ describe("organization endpoints", () => {
     expect(await members()).toBe(3);
   });
 
+  it("refuses creating or changing OAuth clients from the browser", async () => {
+    const { asJames } = await orgWithAdmin();
+    const created = await asJames("/oauth2/create-client", {
+      client_name: "Claude",
+      redirect_uris: ["https://evil.example.com/callback"],
+    });
+    expect(created.status).toBe(403);
+    const updated = await asJames("/oauth2/update-client", {
+      client_id: "anything",
+      update: { client_name: "Claude" },
+    });
+    expect(updated.status).toBe(403);
+  });
+
   it("still lets a member switch their active organization", async () => {
     const { orgId, asJames } = await orgWithAdmin();
     expect((await asJames("/organization/set-active", { organizationId: orgId })).status).toBe(200);

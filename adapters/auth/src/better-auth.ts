@@ -73,6 +73,12 @@ const UNMIRRORED_ORG_ENDPOINTS = new Set([
   "/organization/accept-invitation",
 ]);
 
+const OAUTH_CLIENT_WRITES = new Set([
+  "/oauth2/create-client",
+  "/oauth2/update-client",
+  "/oauth2/delete-client",
+]);
+
 function activeOrgOf(session: unknown): string | null {
   const value = (session as { activeOrganizationId?: string | null } | null)?.activeOrganizationId;
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -239,6 +245,11 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         }
         if (UNMIRRORED_ORG_ENDPOINTS.has(ctx.path)) {
           throw new APIError("FORBIDDEN", { message: "Membership changes go through the LMS" });
+        }
+        if (OAUTH_CLIENT_WRITES.has(ctx.path) && (ctx.request || ctx.headers)) {
+          throw new APIError("FORBIDDEN", {
+            message: "Apps register themselves when they connect",
+          });
         }
         if (ctx.path === "/api-key/update" && ctx.body?.metadata !== undefined) {
           throw new APIError("FORBIDDEN", {
