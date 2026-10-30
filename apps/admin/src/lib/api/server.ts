@@ -33,6 +33,7 @@ import {
   Entitlements,
   Integrations,
   Organizations,
+  Posts,
   Reporting,
 } from "@headless-lms/sdk";
 
@@ -65,8 +66,14 @@ import type {
   OverviewStats,
   Paginated,
   CommentListItem,
+  Community,
+  CommunityMember,
+  CommunityModeration,
   ContentType,
   ScopeOption,
+  Space,
+  SpaceLinkRow,
+  SpaceMember,
   Student,
   StudentAnalytics,
   Webhook,
@@ -146,6 +153,47 @@ async function composeEntitlements(grants: EntitlementGrant[]): Promise<Entitlem
       },
     };
   });
+}
+
+type Headers = Awaited<ReturnType<typeof authHeaders>>;
+
+async function peopleById(
+  ids: string[],
+  headers: Headers,
+): Promise<Map<string, { name: string; email: string }>> {
+  const unique = [...new Set(ids)];
+  const people = new Map<string, { name: string; email: string }>();
+  if (unique.length === 0) return people;
+  const team = await Organizations.listMembers({ pageSize: 100 }, headers);
+  for (const m of team.rows) people.set(m.id, { name: fullName(m), email: m.email });
+  const students = await Promise.all(
+    unique
+      .filter((id) => !people.has(id))
+      .map(async (id) => {
+        try {
+          return await Organizations.getStudent({ id }, headers);
+        } catch {
+          return null;
+        }
+      }),
+  );
+  for (const s of students) if (s) people.set(s.id, { name: fullName(s), email: s.email });
+  return people;
+}
+
+async function linkableTitles(
+  headers: Headers,
+): Promise<{ id: string; title: string; type: ContentType }[]> {
+  const [courses, downloads, communities] = await Promise.all([
+    Content.listCourses({ pageSize: 100, sort: "title" }, headers),
+    Content.listDownloads({ pageSize: 100, sort: "title" }, headers),
+    Communities.listCommunities({ pageSize: 100, sort: "title" }, headers),
+  ]);
+  return [
+    ...courses.rows.map((c) => ({ id: c.id, title: c.title, type: "course" as const })),
+    ...downloads.rows.map((d) => ({ id: d.id, title: d.title, type: "download" as const })),
+    ...communities.rows.map((c) => ({ id: c.id, title: c.title, type: "community" as const })),
+  ];
 }
 
 export const serverApi = {
@@ -342,6 +390,145 @@ export const serverApi = {
     return page.rows
       .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "instructor")
       .map((m) => ({ id: m.id, name: fullName(m) }));
+  },
+
+  // communities
+  async listCommunities(params: ListParams): Promise<Paginated<Community>> {
+    return await Communities.listCommunities(toQuery(params, ["status"]), await authHeaders());
+  },
+  async getCommunity(communityId: string): Promise<Community> {
+    return await Communities.getCommunity({ communityId }, await authHeaders());
+  },
+  async communitySpaces(communityId: string): Promise<Space[]> {
+    return await Communities.listCommunitySpaces({ communityId }, await authHeaders());
+  },
+  async getSpace(communityId: string, spaceId: string): Promise<Space> {
+    return await Communities.getSpace({ communityId, spaceId }, await authHeaders());
+  },
+  async communityMemberCount(communityId: string): Promise<number> {
+    const page = await Communities.listCommunityMembers(
+      { communityId, page: 1, pageSize: 1 },
+      await authHeaders(),
+    );
+    return page.total;
+  },
+  async communityMembers(
+    communityId: string,
+    params: ListParams,
+  ): Promise<Paginated<CommunityMember>> {
+    return await Communities.listCommunityMembers(
+      {
+        communityId,
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search || undefined,
+      },
+      await authHeaders(),
+    );
+  },
+  async communityMembersLite(
+    communityId: string,
+  ): Promise<{ id: string; name: string; email: string; role: CommunityMember["role"] }[]> {
+    const page = await Communities.listCommunityMembers(
+      { communityId, page: 1, pageSize: 100 },
+      await authHeaders(),
+    );
+    return page.rows.map((m) => ({ id: m.id, name: fullName(m), email: m.email, role: m.role }));
+  },
+  async spaceMembers(communityId: string, spaceId: string): Promise<SpaceMember[]> {
+    const headers = await authHeaders();
+    const rows: Awaited<ReturnType<typeof Communities.listCommunitySpaceMembers>>["rows"] = [];
+    for (let page = 1; ; page++) {
+      const batch = await Communities.listCommunitySpaceMembers(
+        { communityId, spaceId, page, pageSize: 100 },
+        headers,
+      );
+      rows.push(...batch.rows);
+      if (rows.length >= batch.total || batch.rows.length === 0) break;
+    }
+    const people = await peopleById(
+      rows.map((r) => r.orgUserId),
+      headers,
+    );
+    return rows.map((r) => ({
+      ...r,
+      name: people.get(r.orgUserId)?.name ?? "Unknown person",
+      email: people.get(r.orgUserId)?.email ?? "",
+    }));
+  },
+  async spaceLinks(space: Space): Promise<SpaceLinkRow[]> {
+    const content = await linkableTitles(await authHeaders());
+    const byId = new Map(content.map((c) => [c.id, c]));
+    return space.links.map((link) => {
+      const target = byId.get(link.contentId);
+      return {
+        ...link,
+        type: target?.type ?? contentTypeOf(link.contentId) ?? "course",
+        title: target?.title ?? link.contentId,
+      };
+    });
+  },
+  async linkableContent(): Promise<{ id: string; title: string; type: ContentType }[]> {
+    return await linkableTitles(await authHeaders());
+  },
+  async communityModeration(communityId: string): Promise<CommunityModeration> {
+    const headers = await authHeaders();
+    const [spaces, messages] = await Promise.all([
+      Communities.listCommunitySpaces({ communityId }, headers),
+      Communities.getCommunityMessageQueue({ communityId }, headers),
+    ]);
+    const queues = await Promise.all(
+      spaces.map((space) =>
+        Communities.getCommunitySpaceQueue({ communityId, spaceId: space.id }, headers),
+      ),
+    );
+    const flaggedPostIds = [...new Set(queues.flatMap((q) => q.flags.map((f) => f.postId)))];
+    const [posts, people] = await Promise.all([
+      Promise.all(
+        flaggedPostIds.map(async (postId) => {
+          try {
+            return await Posts.getPost({ postId }, headers);
+          } catch {
+            return null;
+          }
+        }),
+      ),
+      peopleById(
+        queues.flatMap((q) => q.commentFlags.map((f) => f.comment.orgUserId)),
+        headers,
+      ),
+    ]);
+    const postById = new Map(posts.filter((p) => p !== null).map((p) => [p.id, p]));
+    return {
+      spaces: spaces.map((space, i) => {
+        const queue = queues[i];
+        const flagsByPost = Map.groupBy(queue.flags, (f) => f.postId);
+        const flagsByComment = Map.groupBy(queue.commentFlags, (f) => f.comment.id);
+        return {
+          space: { id: space.id, name: space.name },
+          pending: queue.pending,
+          flaggedPosts: [...flagsByPost].flatMap(([postId, flags]) => {
+            const post = postById.get(postId);
+            return post ? [{ post, flags }] : [];
+          }),
+          flaggedComments: [...flagsByComment].map(([, flags]) => ({
+            comment: flags[0].comment,
+            authorName: people.get(flags[0].comment.orgUserId)?.name ?? "Unknown person",
+            flags,
+          })),
+        };
+      }),
+      messages: messages.entries,
+    };
+  },
+  async communityAutomations(communityId: string): Promise<Automation[]> {
+    const automations = await Automations.listAutomations(
+      { kind: "workflow" },
+      await authHeaders(),
+    );
+    return automations
+      .filter((a) => a.filter?.communityId === communityId)
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
 
   // media library (assets) — list only; uploads stay client-side

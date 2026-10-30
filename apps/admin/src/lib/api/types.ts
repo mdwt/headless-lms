@@ -13,6 +13,11 @@ import type {
   GetCourseResponse,
   ListCommentsResponse,
   GetBundleResponse,
+  GetCommunityAnalyticsResponse,
+  GetCommunityMessageQueueResponse,
+  GetCommunityResponse,
+  GetCommunitySpaceQueueResponse,
+  GetPostResponse,
   GetDownloadResponse,
   GetCourseAnalyticsResponse,
   GetEnrollmentSeriesResponse,
@@ -33,6 +38,9 @@ import type {
   ListBundleItemsResponse,
   ListBundlesResponse,
   ListConnectionsResponse,
+  ListCommunityMembersResponse,
+  ListCommunitySpaceMembersResponse,
+  ListCommunitySpacesResponse,
   ListCoursesResponse,
   ListDownloadAssetsResponse,
   ListDownloadsResponse,
@@ -204,6 +212,44 @@ export type CommentStatus = CommentListItem["status"];
 /** A course's comment settings. Not a resource of its own: they ride on the
  *  course payload, so read and write both go through course settings. */
 export type CommentSettings = NonNullable<CourseSettings["comments"]>;
+
+// --- community ---------------------------------------------------------------
+
+export type Community = GetCommunityResponse;
+export type CommunityStatus = Community["status"];
+export type DmSettings = Community["settings"]["dm"];
+export type CommunityAnalytics = GetCommunityAnalyticsResponse;
+export type CommunityMember = ListCommunityMembersResponse["rows"][number];
+
+export type Space = ListCommunitySpacesResponse[number];
+export type SpaceAccessRule = Space["accessRule"];
+export type SpaceSettings = Space["settings"];
+export type SpaceTopic = Space["topics"][number];
+export type SpaceLinkRow = Space["links"][number] & { type: ContentType; title: string };
+
+export type SpaceMemberRow = ListCommunitySpaceMembersResponse["rows"][number];
+export type SpaceMemberStatus = SpaceMemberRow["status"];
+export type SpaceMember = SpaceMemberRow & { name: string; email: string };
+
+export type CommunityPost = GetPostResponse;
+export type SpaceQueue = GetCommunitySpaceQueueResponse;
+export type MessageQueueEntry = GetCommunityMessageQueueResponse["entries"][number];
+
+export interface SpaceModeration {
+  space: { id: string; name: string };
+  pending: SpaceQueue["pending"];
+  flaggedPosts: { post: CommunityPost; flags: SpaceQueue["flags"] }[];
+  flaggedComments: {
+    comment: SpaceQueue["commentFlags"][number]["comment"];
+    authorName: string;
+    flags: SpaceQueue["commentFlags"];
+  }[];
+}
+
+export interface CommunityModeration {
+  spaces: SpaceModeration[];
+  messages: MessageQueueEntry[];
+}
 
 // --- auth / session (not part of the resource API) -------------------------
 

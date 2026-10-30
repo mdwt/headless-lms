@@ -34,6 +34,7 @@ const ALL_NAV: NavItem[] = [
     children: [
       { href: "/courses", label: "Courses" },
       { href: "/downloads", label: "Downloads" },
+      { href: "/communities", label: "Communities" },
       { href: "/bundles", label: "Bundles" },
     ],
   },

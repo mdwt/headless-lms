@@ -51,6 +51,8 @@ export const can = {
   createBundle: (u: SessionUser) => isManager(u.role),
   editBundle: (u: SessionUser) => isManager(u.role),
   deleteBundle: (u: SessionUser) => isManager(u.role),
+  manageCommunities: (u: SessionUser) => isManager(u.role),
+  moderateCommunities: (u: SessionUser) => isManager(u.role) || u.role === "instructor",
   manageStudents: (u: SessionUser) => isManager(u.role),
   manageEntitlements: (u: SessionUser) => isManager(u.role),
   viewMembers: (u: SessionUser) => isManager(u.role),
