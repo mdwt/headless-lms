@@ -96,18 +96,21 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       tags: ['Organizations'],
       summary: "Update a student's profile (staff)",
       description:
-        "Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.",
+        'Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else.',
       params: StudentIdParam,
       body: UpdateStudentBody,
       response: { 200: Student, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      await container.organizations.updateStudent({
-        orgId: scope.orgId,
-        orgUserId: req.params.id,
-        ...req.body,
-      });
+      await container.organizations.updateStudent(
+        { id: scope.orgUserId, role: scope.role },
+        {
+          orgId: scope.orgId,
+          orgUserId: req.params.id,
+          ...req.body,
+        },
+      );
       // Re-read through the report so the response is the same shape the list
       // and detail GETs return, aggregates included.
       const student = await students.getStudent(scope.orgId, req.params.id);

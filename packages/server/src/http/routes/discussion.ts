@@ -57,7 +57,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
     },
     handler: async (req) => {
       const orgUser = await container.organizations.getOrgUser(req.orgId, req.userId);
-      return discussion.remove(req.orgId, req.params.commentId, orgUser!);
+      return discussion.remove(req.orgId, req.params.commentId, orgUser!, null);
     },
   });
 
@@ -80,7 +80,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
       if (!orgUser) {
         throw new NotFoundError('OrgUser', req.userId);
       }
-      return discussion.publish(req.orgId, req.params.commentId, orgUser);
+      return discussion.publish(req.orgId, req.params.commentId, orgUser, null);
     },
   });
 
@@ -101,7 +101,7 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
       if (!orgUser) {
         throw new NotFoundError('OrgUser', req.userId);
       }
-      await discussion.resolveReports(req.orgId, req.params.commentId, orgUser);
+      await discussion.resolveReports(req.orgId, req.params.commentId, orgUser, null);
       return reply.code(204).send();
     },
   });

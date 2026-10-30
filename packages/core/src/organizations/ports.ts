@@ -55,7 +55,7 @@ export interface OrganizationService {
   // unknown, ConflictError when the address is taken. Changing the address of a
   // student who has not accepted kills their pending invite, since the token
   // was minted against the old one.
-  updateStudent(input: UpdateStudentInput): Promise<OrgUser>;
+  updateStudent(actor: Actor, input: UpdateStudentInput): Promise<OrgUser>;
   // Resolve an org by its public slug — used by the student portal boundary to
   // map the portal org slug to the tenant org id.
   getBySlug(slug: string): Promise<Organization | null>;

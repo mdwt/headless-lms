@@ -30,14 +30,18 @@ export const peopleTools: Tool[] = [
     name: 'update_student',
     title: 'Update student',
     description:
-      "Correct a student's first name, last name and email. All three are required. Returns the student's membership record; list_students shows the updated profile.",
+      "Correct the first name, last name and email of a student this organization added who has not made an account yet. All three are required. Refused once the student has their own account or belongs to another organization. Returns the student's membership record; list_students shows the updated profile.",
     scope: 'students:write',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: UpdateStudentBody.extend(StudentIdParam.shape),
     call: ({ id, ...profile }, { container, scope }) =>
-      container.organizations.updateStudent({ orgId: scope.orgId, orgUserId: id, ...profile }),
+      container.organizations.updateStudent(actor(scope), {
+        orgId: scope.orgId,
+        orgUserId: id,
+        ...profile,
+      }),
   }),
   defineTool({
     name: 'invite_student',

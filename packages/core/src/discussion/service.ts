@@ -412,7 +412,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     return canModerate(actor.role);
   }
 
-  private inCommunity(comment: Comment, communityId: string | undefined): boolean {
+  private inCommunity(comment: Comment, communityId: string | null | undefined): boolean {
     return communityId === undefined || comment.communityId === communityId;
   }
 
@@ -471,7 +471,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-    communityId?: string,
+    communityId?: string | null,
   ): Promise<CommentView> {
     return this.renderOne(
       orgId,
@@ -484,7 +484,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-    communityId?: string,
+    communityId?: string | null,
   ): Promise<Comment> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {
@@ -547,7 +547,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-    communityId?: string,
+    communityId?: string | null,
   ): Promise<CommentView> {
     return this.renderOne(
       orgId,
@@ -560,7 +560,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-    communityId?: string,
+    communityId?: string | null,
   ): Promise<Comment> {
     if (!this.isStaff(actor)) {
       throw new ForbiddenError('You cannot restore this comment');
@@ -679,12 +679,17 @@ export class DiscussionServiceImpl implements DiscussionService {
    *  caller must not decide that itself. `approve` and `restore` still enforce
    *  their own staff check; the check here covers the third path, where a
    *  comment is already published and neither of them would run. */
-  async publish(orgId: string, commentId: string, actor: Actor): Promise<Comment> {
+  async publish(
+    orgId: string,
+    commentId: string,
+    actor: Actor,
+    communityId?: string | null,
+  ): Promise<Comment> {
     if (!this.isStaff(actor)) {
       throw new ForbiddenError('You cannot publish this comment');
     }
     const comment = await this.getComment(orgId, commentId);
-    if (!comment) {
+    if (!comment || !this.inCommunity(comment, communityId)) {
       this.logger.warn('comment publish rejected — not found', {
         orgId,
         commentId,
@@ -705,7 +710,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-    communityId?: string,
+    communityId?: string | null,
   ): Promise<void> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment || !this.inCommunity(comment, communityId)) {

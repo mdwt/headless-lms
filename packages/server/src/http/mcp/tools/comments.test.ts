@@ -15,13 +15,13 @@ const cases: ToolCase[] = [
     tool: 'publish_comment',
     args: { commentId: 'cmt_1' },
     service: 'discussion.publish',
-    expected: ['org_1', 'cmt_1', actor],
+    expected: ['org_1', 'cmt_1', actor, null],
   },
   {
     tool: 'dismiss_comment_reports',
     args: { commentId: 'cmt_1' },
     service: 'discussion.resolveReports',
-    expected: ['org_1', 'cmt_1', actor],
+    expected: ['org_1', 'cmt_1', actor, null],
     returns: undefined,
   },
   {
@@ -34,7 +34,7 @@ const cases: ToolCase[] = [
     tool: 'remove_comment',
     args: { commentId: 'cmt_1' },
     service: 'discussion.remove',
-    expected: ['org_1', 'cmt_1', actor],
+    expected: ['org_1', 'cmt_1', actor, null],
   },
 ];
 

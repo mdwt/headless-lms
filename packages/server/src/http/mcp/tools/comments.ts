@@ -29,7 +29,7 @@ export const commentTools: Tool[] = [
     openWorld: false,
     input: CommentIdParam,
     call: ({ commentId }, { container, scope }) =>
-      container.discussion.publish(scope.orgId, commentId, actor(scope)),
+      container.discussion.publish(scope.orgId, commentId, actor(scope), null),
   }),
   defineTool({
     name: 'dismiss_comment_reports',
@@ -41,7 +41,7 @@ export const commentTools: Tool[] = [
     openWorld: false,
     input: CommentIdParam,
     call: ({ commentId }, { container, scope }) =>
-      container.discussion.resolveReports(scope.orgId, commentId, actor(scope)),
+      container.discussion.resolveReports(scope.orgId, commentId, actor(scope), null),
   }),
   defineTool({
     name: 'reply_to_comment',
@@ -71,6 +71,6 @@ export const commentTools: Tool[] = [
     openWorld: false,
     input: CommentIdParam,
     call: ({ commentId }, { container, scope }) =>
-      container.discussion.remove(scope.orgId, commentId, actor(scope)),
+      container.discussion.remove(scope.orgId, commentId, actor(scope), null),
   }),
 ];

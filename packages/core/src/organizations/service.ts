@@ -34,7 +34,7 @@ import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
-import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { IdentityService } from '../identity/index.js';
 import { genId } from '../shared/id.js';
@@ -310,8 +310,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     return invite;
   }
 
-  async updateStudent(input: UpdateStudentInput): Promise<OrgUser> {
+  async updateStudent(actor: Actor, input: UpdateStudentInput): Promise<OrgUser> {
     const { orgId, orgUserId, firstName, lastName, email } = input;
+    this.assertManagesUsers(actor, orgId);
     const orgUser = await this.repo.findOrgUserById(orgId, orgUserId);
     if (!orgUser || orgUser.role !== STUDENT_ROLE) {
       throw new NotFoundError('Student', orgUserId);
@@ -319,6 +320,27 @@ export class OrganizationServiceImpl implements OrganizationService {
     const person = await this.people.getUserById(orgUser.userId);
     if (!person) {
       throw new NotFoundError('User', orgUser.userId);
+    }
+
+    const memberships = await this.repo.findOrgUsersByUser(person.id);
+    if (person.externalId !== null || memberships.some((member) => member.orgId !== orgId)) {
+      this.logger.warn(
+        'student update rejected: the person has an account or another organization',
+        {
+          orgId,
+          orgUserId,
+          actorOrgUserId: actor.id,
+        },
+      );
+      throw new ConflictError(
+        'This student has their own account or belongs to another organization, so only they can change their name and email',
+      );
+    }
+    if (email !== undefined && email.toLowerCase() !== person.email.toLowerCase()) {
+      const holder = await this.people.getUserByEmail(email);
+      if (holder && holder.id !== person.id) {
+        throw new ConflictError('That email belongs to someone else');
+      }
     }
 
     const previousEmail = person.email;

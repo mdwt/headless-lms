@@ -21,6 +21,7 @@ const cases: ToolCase[] = [
     args: { id: 'ou_9', firstName: 'Sam', lastName: 'Lee', email: 'sam@acme.test' },
     service: 'organizations.updateStudent',
     expected: [
+      { id: 'ou_1', role: 'owner' },
       {
         orgId: 'org_1',
         orgUserId: 'ou_9',

@@ -1367,6 +1367,23 @@ describe('comments on a post', () => {
     expect((await service.restore('o1', view.id, admin, 'cmy_1')).status).toBe('published');
   });
 
+  it('keeps course comment moderation off comments on posts', async () => {
+    const { service } = postService();
+    const admin: Actor = { id: 'ou_admin', role: 'admin' };
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'hi',
+    });
+    await service.reportComment('o1', view.id, other, 'spam');
+    await expect(service.resolveReports('o1', view.id, admin, null)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(service.remove('o1', view.id, admin, null)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.publish('o1', view.id, admin, null)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
   it('answers a comment on a post the person cannot open exactly like a missing comment', async () => {
     const { service } = postService(null, 'published', 'ou_out');
     const outsider: Actor = { id: 'ou_out', role: 'student' };
