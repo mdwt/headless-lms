@@ -1017,14 +1017,12 @@ describe('AutomationsService CRUD', () => {
         data,
       } as unknown as DomainEvent;
       const runsRepo = fakeRunsRepo({
-        list: vi
-          .fn()
-          .mockResolvedValue({
-            rows: [{ ...RUN, trigger: type, event }],
-            total: 1,
-            page: 1,
-            pageSize: 20,
-          }),
+        list: vi.fn().mockResolvedValue({
+          rows: [{ ...RUN, trigger: type, event }],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+        }),
       });
       const { svc } = build(fakeRepo(), runsRepo);
       const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
