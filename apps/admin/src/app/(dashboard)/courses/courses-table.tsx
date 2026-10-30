@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
@@ -133,9 +133,11 @@ function CoursesTableInner({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Courses"
-        subtitle={`${total} ${total === 1 ? "course" : "courses"}`}
+        subtitle={
+          isBlank(total, table) ? undefined : `${total} ${total === 1 ? "course" : "courses"}`
+        }
         actions={
-          canCreate ? (
+          canCreate && !isBlank(total, table) ? (
             <Button variant="primary" onClick={openCreate}>
               New course
             </Button>
@@ -170,7 +172,7 @@ function CoursesTableInner({
             options: CATEGORY_OPTIONS,
           },
         ]}
-        emptyTitle="No courses found"
+        emptyTitle="No courses yet"
         emptyDescription={
           canCreate
             ? "Get started by creating your first course."
@@ -178,7 +180,7 @@ function CoursesTableInner({
         }
         emptyAction={
           canCreate ? (
-            <Button variant="secondary" size="sm" onClick={openCreate}>
+            <Button variant="primary" onClick={openCreate}>
               New course
             </Button>
           ) : undefined

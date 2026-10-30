@@ -34,7 +34,7 @@ export function ColumnHeader<TData, TValue>({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "-mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-ink-3 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:text-ink",
+          "group/sort -mx-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-ink-3 outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:text-ink",
           align === "right" && "flex-row-reverse",
           className,
         )}
@@ -45,7 +45,7 @@ export function ColumnHeader<TData, TValue>({
         ) : sorted === "asc" ? (
           <ArrowUp className="size-3.5" />
         ) : (
-          <ChevronsUpDown className="size-3.5 opacity-60" />
+          <ChevronsUpDown className="size-3.5 opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60 group-data-[state=open]/sort:opacity-60" />
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align === "right" ? "end" : "start"}>

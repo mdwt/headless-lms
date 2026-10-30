@@ -142,7 +142,7 @@ function EntitlementsTableInner({
         emptyTitle="No entitlements yet"
         emptyDescription="Grant a student access to a course to see it here."
         emptyAction={
-          <Button variant="secondary" size="sm" onClick={() => setGrantOpen(true)}>
+          <Button variant="primary" onClick={() => setGrantOpen(true)}>
             Grant access
           </Button>
         }

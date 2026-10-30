@@ -3,12 +3,19 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { Bell, ChevronLeft, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { CourseStatusBadge } from "@/components/status-badge";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
 import { formatNumber, relativeTime } from "@/lib/format";
@@ -16,6 +23,7 @@ import type { Community } from "@/lib/api/types";
 
 import { deleteCommunityAndRedirectAction, setCommunityPublishedAction } from "../../actions";
 import { CommunityTabsNav } from "./community-tabs-nav";
+import { NotificationsDialog } from "./notifications-dialog";
 
 export function CommunityHeader({
   community,
@@ -29,9 +37,11 @@ export function CommunityHeader({
   const canManage = can.manageCommunities(user);
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const published = community.status === "published";
 
   function onTogglePublish() {
-    const next: Community["status"] = community.status === "published" ? "draft" : "published";
+    const next: Community["status"] = published ? "draft" : "published";
     startTransition(async () => {
       try {
         await setCommunityPublishedAction(community.id, next);
@@ -86,21 +96,44 @@ export function CommunityHeader({
 
         {canManage && (
           <div className="flex shrink-0 items-center gap-2">
-            <Button variant="primary" onClick={onTogglePublish} disabled={isPending}>
-              {community.status === "published" ? "Unpublish" : "Publish"}
-            </Button>
             <Button
-              variant="destructive"
-              onClick={() => setConfirmingDelete(true)}
+              variant={published ? "secondary" : "primary"}
+              onClick={onTogglePublish}
               disabled={isPending}
             >
-              Delete
+              {published ? "Unpublish" : "Publish"}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="More actions" disabled={isPending}>
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => setNotificationsOpen(true)}>
+                  <Bell />
+                  Notifications
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="danger" onSelect={() => setConfirmingDelete(true)}>
+                  <Trash2 />
+                  Delete community
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
 
       <CommunityTabsNav communityId={community.id} canManage={canManage} />
+
+      {canManage && (
+        <NotificationsDialog
+          communityId={community.id}
+          open={notificationsOpen}
+          onOpenChange={setNotificationsOpen}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmingDelete}

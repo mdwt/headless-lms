@@ -29,7 +29,11 @@ export function FacetedFilter<TData, TValue>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="secondary" size="sm" className="border-dashed">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-ink-3 data-[state=open]:bg-hover data-[state=open]:text-ink"
+        >
           <ListFilter />
           {title}
           {selected.size > 0 && (

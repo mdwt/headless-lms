@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { Automations, Communities } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
+import { serverApi } from "@/lib/api/server";
 import type {
+  Automation,
   Community,
   CommunityStatus,
   DmSettings,
@@ -227,6 +229,10 @@ export async function setChatLockedAction(
   if (locked) await Communities.lockCommunityChat({ communityId, chatId }, headers);
   else await Communities.unlockCommunityChat({ communityId, chatId }, headers);
   revalidateCommunity();
+}
+
+export async function listCommunityNotificationsAction(communityId: string): Promise<Automation[]> {
+  return await serverApi.communityAutomations(communityId);
 }
 
 export async function setAutomationEnabledAction(id: string, enabled: boolean): Promise<void> {

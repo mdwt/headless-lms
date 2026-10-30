@@ -2,12 +2,13 @@
 
 import { Suspense, useCallback, useMemo, useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { MessagesSquare } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
@@ -90,9 +91,13 @@ function CommunitiesTableInner({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Communities"
-        subtitle={`${total} ${total === 1 ? "community" : "communities"}`}
+        subtitle={
+          isBlank(total, table)
+            ? undefined
+            : `${total} ${total === 1 ? "community" : "communities"}`
+        }
         actions={
-          canCreate ? (
+          canCreate && !isBlank(total, table) ? (
             <Button variant="primary" onClick={() => setCreating(true)}>
               New community
             </Button>
@@ -122,7 +127,8 @@ function CommunitiesTableInner({
             ],
           },
         ]}
-        emptyTitle="No communities found"
+        emptyIcon={<MessagesSquare />}
+        emptyTitle="No communities yet"
         emptyDescription={
           canCreate
             ? "Create a community, then add the spaces members post in."
@@ -130,7 +136,7 @@ function CommunitiesTableInner({
         }
         emptyAction={
           canCreate ? (
-            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            <Button variant="primary" onClick={() => setCreating(true)}>
               New community
             </Button>
           ) : undefined

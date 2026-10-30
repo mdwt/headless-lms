@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
@@ -94,9 +94,11 @@ function BundlesTableInner({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Bundles"
-        subtitle={`${total} ${total === 1 ? "bundle" : "bundles"}`}
+        subtitle={
+          isBlank(total, table) ? undefined : `${total} ${total === 1 ? "bundle" : "bundles"}`
+        }
         actions={
-          canCreate ? (
+          canCreate && !isBlank(total, table) ? (
             <Button variant="primary" onClick={openCreate}>
               New bundle
             </Button>
@@ -116,13 +118,13 @@ function BundlesTableInner({
         getRowId={(b) => b.id}
         searchPlaceholder="Search bundles…"
         onRowClick={canEdit ? openEdit : undefined}
-        emptyTitle="No bundles found"
+        emptyTitle="No bundles yet"
         emptyDescription={
           canCreate ? "Get started by creating your first bundle." : "There are no bundles yet."
         }
         emptyAction={
           canCreate ? (
-            <Button variant="secondary" size="sm" onClick={openCreate}>
+            <Button variant="primary" onClick={openCreate}>
               New bundle
             </Button>
           ) : undefined

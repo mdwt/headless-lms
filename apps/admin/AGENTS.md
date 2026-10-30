@@ -20,12 +20,11 @@ Canonical examples: `src/app/(dashboard)/courses/[courseId]/settings/_components
   (right-aligned under the fields, `disabled={isPending || !isDirty}`). Omit the
   heading when it would repeat the active tab's label.
 - **`SettingsSurface` is the outermost element of every form surface**, even a
-  single-section one. It is the one centered `max-w-3xl` column and owns the
+  single-section one. It is the one left-aligned `max-w-3xl` column and owns the
   single hairline between stacked sections (each section or its wrapping
   `<form>` a direct child). Never add another `max-w-*` inside it.
-- A detail page whose content is form-first (e.g. the student page) constrains
-  the whole page — header, stats, tabs, and tab panels — to the same
-  `mx-auto w-full max-w-3xl` column, so every edge lines up.
+- Pages, detail pages included, fill the shell's `max-w-7xl` column and stay
+  left-aligned. Only form surfaces are capped, by `SettingsSurface`.
 - Label-left/control-right settings (switches, compact selects) are `SettingRow`s
   as section children. Stacked inputs are `Field`s; side-by-side pairs use a
   `grid grid-cols-1 gap-5 sm:grid-cols-2`.

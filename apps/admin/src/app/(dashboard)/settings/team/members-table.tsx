@@ -152,11 +152,11 @@ function MembersTableInner({
             </Button>
           ) : undefined
         }
-        emptyTitle="No members found"
+        emptyTitle="No members yet"
         emptyDescription="Invite teammates to help manage courses and students."
         emptyAction={
           canInvite ? (
-            <Button variant="secondary" size="sm" onClick={() => setInviteOpen(true)}>
+            <Button variant="primary" onClick={() => setInviteOpen(true)}>
               <UserPlus />
               Invite member
             </Button>

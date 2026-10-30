@@ -18,7 +18,7 @@ import { type DataTableState } from "./use-data-table";
 import { FacetedFilter, type FacetOption } from "./faceted-filter";
 import { ViewOptions } from "./view-options";
 import { Pagination } from "./pagination";
-import { TableEmpty, TableError, TableForbidden, TableSkeleton } from "./states";
+import { EmptyState, TableError, TableForbidden, TableNoMatches, TableSkeleton } from "./states";
 
 // Type the custom `meta.align` used by right-aligned columns so consumers get
 // `meta: { align: "right" }` checked and the render sites need no cast.
@@ -56,7 +56,17 @@ export interface DataTableProps<TData> {
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
+  emptyIcon?: ReactNode;
   onRowClick?: (row: TData) => void;
+}
+
+export function isFiltered(state: DataTableState): boolean {
+  return state.search.length > 0 || state.columnFilters.length > 0;
+}
+
+/** True when the list has nothing in it at all — not just nothing matching a search. */
+export function isBlank(total: number, state: DataTableState): boolean {
+  return total === 0 && !isFiltered(state);
 }
 
 /**
@@ -83,6 +93,7 @@ export function DataTable<TData>({
   emptyTitle = "Nothing here yet",
   emptyDescription,
   emptyAction,
+  emptyIcon,
   onRowClick,
 }: DataTableProps<TData>) {
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -107,30 +118,46 @@ export function DataTable<TData>({
 
   const isForbidden = isError && error instanceof ApiError && error.status === 403;
   const colCount = table.getVisibleLeafColumns().length;
-  const hasToolbarFilters = state.search.length > 0 || state.columnFilters.length > 0;
-  const showData = !isLoading && !isError && (rows?.length ?? 0) > 0;
+  const filtered = isFiltered(state);
+  const hasRows = (rows?.length ?? 0) > 0;
+  const ready = !isLoading && !isError;
+  const resetFilters = () => {
+    state.setSearch("");
+    state.setColumnFilters([]);
+  };
+
+  if (ready && !hasRows && isBlank(total, state)) {
+    return (
+      <EmptyState
+        icon={emptyIcon}
+        title={emptyTitle}
+        description={emptyDescription}
+        action={emptyAction}
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-col">
-      {/* Toolbar — search + facets + view options + page actions */}
-      <div className="flex flex-col gap-3 pb-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {searchable ? (
-            <div className="relative w-full sm:w-64">
+            <div className="relative w-full sm:w-72">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-4" />
               <Input
                 value={state.search}
                 onChange={(e) => state.setSearch(e.target.value)}
                 placeholder={searchPlaceholder}
                 aria-label="Search"
-                className="pl-9"
+                name="search"
+                className="border-transparent bg-surface-2/70 pl-9 hover:bg-surface-2 focus-visible:bg-surface"
               />
               {state.search && (
                 <button
                   type="button"
                   onClick={() => state.setSearch("")}
                   aria-label="Clear search"
-                  className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded text-ink-4 transition-colors hover:text-ink"
+                  className="absolute top-1/2 right-2 grid size-6 -translate-y-1/2 place-items-center rounded text-ink-4 hover:text-ink"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -139,20 +166,13 @@ export function DataTable<TData>({
           ) : null}
           {facets.map((f) => {
             const column = table.getColumn(f.columnId);
-            if (!column) return null; // facet column not mounted — skip gracefully
+            if (!column) return null;
             return (
               <FacetedFilter key={f.columnId} column={column} title={f.title} options={f.options} />
             );
           })}
-          {hasToolbarFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                state.setSearch("");
-                state.setColumnFilters([]);
-              }}
-            >
+          {filtered && (
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
               Reset
               <X />
             </Button>
@@ -164,77 +184,73 @@ export function DataTable<TData>({
         </div>
       </div>
 
-      {/* Table — directly on the background, horizontal rules only */}
-      <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-        <div className="inline-block min-w-full px-4 py-2 align-middle sm:px-6 lg:px-8">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id}>
-                  {hg.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      scope="col"
-                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                      className={cn(
-                        "px-3 pb-3 text-left text-xs font-medium whitespace-nowrap text-ink-3",
-                        header.column.columnDef.meta?.align === "right" && "text-right",
-                      )}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-
-            {isLoading ? (
-              <TableSkeleton columns={colCount} />
-            ) : isForbidden ? (
-              <TableForbidden colSpan={colCount} />
-            ) : isError ? (
-              <TableError colSpan={colCount} onRetry={refetch} />
-            ) : showData ? (
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                    className={cn(
-                      "border-t border-line transition-colors",
-                      onRowClick && "cursor-pointer hover:bg-hover",
-                    )}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
+      {ready && !hasRows ? (
+        <TableNoMatches onReset={resetFilters} />
+      ) : (
+        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full px-4 py-2 align-middle sm:px-6 lg:px-8">
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id}>
+                    {hg.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        scope="col"
+                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
                         className={cn(
-                          "px-3 py-3.5 align-middle text-ink-2",
-                          cell.column.columnDef.meta?.align === "right" && "text-right",
+                          "h-10 border-b border-line/70 px-3 text-left text-[0.8125rem] font-medium whitespace-nowrap text-ink-3",
+                          header.column.columnDef.meta?.align === "right" && "text-right",
                         )}
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
                     ))}
                   </tr>
                 ))}
-              </tbody>
-            ) : (
-              <TableEmpty
-                colSpan={colCount}
-                title={emptyTitle}
-                description={emptyDescription}
-                action={emptyAction}
-                filtered={hasToolbarFilters}
-              />
-            )}
-          </table>
-        </div>
-      </div>
+              </thead>
 
-      {!isLoading && !isError && (
+              {isLoading ? (
+                <TableSkeleton columns={colCount} />
+              ) : isForbidden ? (
+                <TableForbidden colSpan={colCount} />
+              ) : isError ? (
+                <TableError colSpan={colCount} onRetry={refetch} />
+              ) : (
+                <tbody className={cn(isFetching && "opacity-60")}>
+                  <tr aria-hidden="true">
+                    <td colSpan={colCount} className="h-2 p-0" />
+                  </tr>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                      className={cn("group", onRowClick && "cursor-pointer")}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className={cn(
+                            "px-3 py-3 align-middle text-ink-2 first:rounded-l-lg last:rounded-r-lg",
+                            onRowClick && "group-hover:bg-hover",
+                            cell.column.columnDef.meta?.align === "right" && "text-right",
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
+
+      {ready && hasRows && (
         <Pagination
           page={state.page}
           pageSize={state.pageSize}

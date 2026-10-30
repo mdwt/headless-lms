@@ -34,11 +34,11 @@ export function communitiesColumns(opts: {
                 e.stopPropagation();
                 onView(community);
               }}
-              className="rounded-sm text-left font-medium text-ink underline-offset-4 outline-none hover:text-brand hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="rounded-sm text-left font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {community.title}
             </button>
-            <span className="text-xs text-ink-4">{community.slug}</span>
+            <span className="text-[0.8125rem] text-ink-4">{community.slug}</span>
           </div>
         );
       },
@@ -47,14 +47,6 @@ export function communitiesColumns(opts: {
       accessorKey: "status",
       header: ({ column }) => <ColumnHeader column={column} title="Status" />,
       cell: ({ row }) => <CourseStatusBadge status={row.original.status} />,
-    },
-    {
-      id: "messages",
-      header: ({ column }) => <ColumnHeader column={column} title="Direct messages" />,
-      enableSorting: false,
-      cell: ({ row }) => (
-        <span className="text-ink-2">{row.original.settings.dm.enabled ? "On" : "Off"}</span>
-      ),
     },
     {
       accessorKey: "updatedAt",

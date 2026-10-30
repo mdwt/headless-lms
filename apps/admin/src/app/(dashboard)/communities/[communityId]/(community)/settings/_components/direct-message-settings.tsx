@@ -85,10 +85,7 @@ export function DirectMessageSettings({
   }
 
   return (
-    <SettingsSection
-      title="Direct messages"
-      description="Private chats between people who hold this community."
-    >
+    <SettingsSection description="Private chats between people who hold this community.">
       {TOGGLES.map(({ key, label, hint }) => (
         <SettingRow key={key} id={`dm-${key}`} label={label} hint={hint}>
           <Switch

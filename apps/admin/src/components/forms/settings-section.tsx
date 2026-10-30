@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The outermost wrapper of every form/settings surface: one narrow column
- * (centered in whatever container it sits in) with a single hairline between
+ * (aligned to the page's left edge) with a single hairline between
  * stacked sections (or the forms wrapping them). Content fills the column
  * edge to edge — no rails, no extra width caps anywhere inside.
  */
@@ -19,7 +19,7 @@ export function SettingsSurface({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-3xl flex-col divide-y divide-line",
+        "flex w-full max-w-3xl flex-col divide-y divide-line",
         "[&>*]:py-8 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0",
         className,
       )}

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { useCurrentUser } from "@/lib/auth/session-context";
 import { can } from "@/lib/roles";
@@ -121,9 +121,11 @@ function DownloadsTableInner({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Downloads"
-        subtitle={`${total} ${total === 1 ? "download" : "downloads"}`}
+        subtitle={
+          isBlank(total, table) ? undefined : `${total} ${total === 1 ? "download" : "downloads"}`
+        }
         actions={
-          canCreate ? (
+          canCreate && !isBlank(total, table) ? (
             <Button variant="primary" onClick={openCreate}>
               New download
             </Button>
@@ -153,13 +155,13 @@ function DownloadsTableInner({
             ],
           },
         ]}
-        emptyTitle="No downloads found"
+        emptyTitle="No downloads yet"
         emptyDescription={
           canCreate ? "Get started by creating your first download." : "There are no downloads yet."
         }
         emptyAction={
           canCreate ? (
-            <Button variant="secondary" size="sm" onClick={openCreate}>
+            <Button variant="primary" onClick={openCreate}>
               New download
             </Button>
           ) : undefined

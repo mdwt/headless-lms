@@ -22,7 +22,7 @@ export function RowActions({
       <DropdownMenuTrigger
         onClick={(e) => e.stopPropagation()}
         aria-label={label}
-        className="grid size-7 place-items-center rounded-md text-ink-3 outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:bg-hover data-[state=open]:text-ink"
+        className="grid size-7 place-items-center rounded-md text-ink-4 outline-none hover:bg-hover-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:bg-hover data-[state=open]:text-ink"
       >
         <MoreHorizontal className="size-4" />
       </DropdownMenuTrigger>

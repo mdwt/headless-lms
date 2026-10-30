@@ -142,7 +142,7 @@ function AutomationsTableInner({
         emptyTitle="No workflows yet"
         emptyDescription="Create a workflow to react to events — like emailing a student when they complete a course."
         emptyAction={
-          <Button variant="secondary" size="sm" asChild>
+          <Button variant="primary" asChild>
             <Link href="/automations/workflows/new">New workflow</Link>
           </Button>
         }

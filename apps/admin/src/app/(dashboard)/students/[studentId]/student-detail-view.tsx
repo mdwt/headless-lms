@@ -107,7 +107,7 @@ export function StudentDetailView({
     });
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-2 text-ink-3">
           <Link href="/students">

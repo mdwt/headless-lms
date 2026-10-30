@@ -129,7 +129,7 @@ function WebhooksTableInner({
         emptyTitle="No webhooks yet"
         emptyDescription="Add a webhook to send events — like a student being granted access — to your own systems."
         emptyAction={
-          <Button variant="secondary" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>
             Add webhook
           </Button>
         }
