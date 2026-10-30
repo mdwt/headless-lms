@@ -1,10 +1,18 @@
 import { z } from 'zod';
+import { isPublicHostname } from '../../shared/network.js';
 import { domainEventSchema, idSchema, jsonRecordSchema } from './shared.js';
+
+export const MAX_AUTOMATION_TRIGGERS = 20;
+export const MAX_AUTOMATION_ACTIONS = 20;
+export const MAX_WEBHOOK_EVENTS = 100;
 
 export const automationTriggerSchema = z.string().trim().min(1);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
-export const automationTriggersSchema = z.array(automationTriggerSchema).min(1);
+export const automationTriggersSchema = z
+  .array(automationTriggerSchema)
+  .min(1)
+  .max(MAX_AUTOMATION_TRIGGERS);
 
 export const automationKindSchema = z.enum(['workflow', 'webhook']);
 export type AutomationKind = z.infer<typeof automationKindSchema>;
@@ -44,7 +52,7 @@ export const createAutomationInputSchema = z
     name: z.string(),
     description: z.string().optional(),
     triggers: automationTriggersSchema,
-    actions: z.array(automationActionSchema),
+    actions: z.array(automationActionSchema).min(1).max(MAX_AUTOMATION_ACTIONS),
     filter: jsonRecordSchema.nullable().optional(),
   })
   .strict();
@@ -140,7 +148,11 @@ export const deliverWebhookInputSchema = z
   .strict();
 export type DeliverWebhookInput = z.infer<typeof deliverWebhookInputSchema>;
 
-export const webhookUrlSchema = z.url({ protocol: /^https?$/ });
+export const webhookUrlSchema = z
+  .url({ protocol: /^https?$/ })
+  .refine((value) => isPublicHostname(new URL(value).hostname), {
+    message: 'Webhook URL must be a public address, not localhost or a private network address',
+  });
 
 export const webhookSchema = z
   .object({
@@ -159,7 +171,7 @@ export type Webhook = z.output<typeof webhookSchema>;
 export const createWebhookInputSchema = z
   .object({
     url: webhookUrlSchema,
-    events: automationTriggersSchema,
+    events: z.array(automationTriggerSchema).min(1).max(MAX_WEBHOOK_EVENTS),
     description: z.string().optional(),
   })
   .strict();

@@ -34,6 +34,21 @@ export class InvalidTriggerError extends Error {
   }
 }
 
+export const ACTION_FAILED = 'The action failed';
+
+/** An action failure whose message is safe to record on the run. */
+export class ActionFailedError extends Error {
+  constructor(message: string = ACTION_FAILED) {
+    super(message);
+    this.name = 'ActionFailedError';
+  }
+}
+
+/** The message a run records for an action that threw `err`. */
+export function actionFailureMessage(err: unknown): string {
+  return err instanceof ActionFailedError ? err.message : ACTION_FAILED;
+}
+
 export class ReservedActionError extends Error {
   constructor(readonly actionType: string) {
     super(`action "${actionType}" is reserved to webhooks`);

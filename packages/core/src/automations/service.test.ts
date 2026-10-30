@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { AutomationsServiceImpl } from './service.js';
 import { createHmac } from 'node:crypto';
 import {
+  ActionFailedError,
   AutomationKindMismatchError,
   InvalidTriggerError,
   ReservedActionError,
@@ -511,6 +512,35 @@ describe('AutomationsService.runAction', () => {
     });
   });
 
+  it('replaces an unclassified error with a generic one and logs the original', async () => {
+    const { logger, entries } = createCapturingLogger();
+    const { svc } = build(
+      fakeRepo(),
+      fakeRunsRepo(),
+      fakeEngine(),
+      fakeMailer(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      logger,
+    );
+    const failure = svc.runAction(
+      dispatch({ type: 'grantAccess', input: { contentId: 'c1' } }, ENTITLEMENT_CREATED_EVENT),
+      0,
+    );
+    await expect(failure).rejects.toThrow(ActionFailedError);
+    await expect(failure).rejects.toThrow(/^The action failed$/);
+    expect(entries.find((entry) => entry.level === 'error')?.meta).toEqual(
+      expect.objectContaining({
+        runId: 'run_1',
+        index: 0,
+        err: new Error('grantAccess: no grant writer configured'),
+      }),
+    );
+  });
+
   it('derives accessRevoked (no contentId) from an entitlement.deleted event', async () => {
     const mailer = fakeMailer();
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), mailer);
@@ -801,6 +831,30 @@ describe('AutomationsService CRUD', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it('rejects a trigger the system does not emit, on create and update', async () => {
+    const { svc, repo, append } = build();
+    const actions = [{ type: 'sendEmail', input: { template: 'accessGranted' } }];
+    await expect(
+      svc.create('org-1', { name: 'Typo', triggers: ['entitlement.creatd'], actions }),
+    ).rejects.toThrow(InvalidTriggerError);
+    await expect(
+      svc.update('org-1', 'atm_1', { triggers: ['entitlement.created', 'lesson.watched'] }),
+    ).rejects.toThrow(InvalidTriggerError);
+    expect(repo.insert).not.toHaveBeenCalled();
+    expect(repo.update).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('accepts catalog triggers and supported schedules', async () => {
+    const { svc, repo } = build();
+    await svc.create('org-1', {
+      name: 'Hourly',
+      triggers: ['schedule:0 * * * *', 'discussion.message.sent'],
+      actions: [{ type: 'publishDuePosts', input: {} }],
+    });
+    expect(repo.insert).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
     const { svc, repo, append } = build();
     await expect(
@@ -899,6 +953,99 @@ describe('AutomationsService CRUD', () => {
     const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
     expect(page.rows).toEqual([RUN]);
     expect(runsRepo.list).toHaveBeenCalledWith('org-1', 'atm_1', { page: 1, pageSize: 20 });
+  });
+
+  it('keeps a webhook signing secret reference out of listed and fetched automations', async () => {
+    const repo = fakeRepo({
+      listByOrg: vi.fn().mockResolvedValue([AUTOMATION, WEBHOOK_AUTOMATION]),
+      findById: vi.fn().mockResolvedValue(WEBHOOK_AUTOMATION),
+    });
+    const { svc } = build(repo);
+    const listed = await svc.list('org-1');
+    expect(listed[0]).toEqual(AUTOMATION);
+    expect(listed[1]!.actions).toEqual([
+      { type: 'deliverWebhook', input: { url: 'https://crm.example.com/hooks' } },
+    ]);
+    const fetched = await svc.get('org-1', 'atm_wh');
+    expect(fetched!.actions[0]!.input).not.toHaveProperty('secretRef');
+  });
+
+  it.each([
+    {
+      type: 'discussion.message.sent',
+      hidden: 'body',
+      data: {
+        orgId: 'org-1',
+        id: 'msg_1',
+        communityId: 'cmy_1',
+        chatId: 'cht_1',
+        orgUserId: 'ou_1',
+        body: 'my private message',
+        replyToId: null,
+        editedAt: null,
+        deletedAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+    {
+      type: 'organization.invite.created',
+      hidden: 'tokenHash',
+      data: {
+        id: 'inv_1',
+        orgId: 'org-1',
+        email: 'ann@example.com',
+        role: 'student',
+        status: 'pending',
+        invitedBy: 'ou_1',
+        tokenHash: 'hash',
+        expiresAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+  ])(
+    'lists $type runs with only the published fields of the event',
+    async ({ type, hidden, data }) => {
+      const event = {
+        type,
+        version: 1,
+        id: 'evt_9',
+        orgId: 'org-1',
+        occurredAt: '2026-01-01T00:00:00Z',
+        metadata: { requestId: 'req_1' },
+        data,
+      } as unknown as DomainEvent;
+      const runsRepo = fakeRunsRepo({
+        list: vi
+          .fn()
+          .mockResolvedValue({
+            rows: [{ ...RUN, trigger: type, event }],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+          }),
+      });
+      const { svc } = build(fakeRepo(), runsRepo);
+      const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
+      const listed = page.rows[0]!.event;
+      expect(listed).not.toHaveProperty('metadata');
+      expect(listed.data).not.toHaveProperty(hidden);
+      expect(listed.data).toEqual(expect.objectContaining({ id: data.id, orgId: 'org-1' }));
+      expect(page.total).toBe(1);
+    },
+  );
+
+  it('lists a run whose event has no published shape without its data', async () => {
+    const event = { ...ENTITLEMENT_CREATED_EVENT, type: 'automation.created' } as DomainEvent;
+    const runsRepo = fakeRunsRepo({
+      list: vi
+        .fn()
+        .mockResolvedValue({ rows: [{ ...RUN, event }], total: 1, page: 1, pageSize: 20 }),
+    });
+    const { svc } = build(fakeRepo(), runsRepo);
+    const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
+    expect(page.rows[0]!.event.data).toBeNull();
   });
 });
 
@@ -1063,6 +1210,41 @@ describe('AutomationsService.rerun', () => {
       actions: AUTOMATION.actions,
       event: ENTITLEMENT_CREATED_EVENT,
     });
+  });
+
+  it('reruns with the full stored event and returns only its published fields', async () => {
+    const event = {
+      type: 'discussion.message.sent',
+      version: 1,
+      id: 'evt_9',
+      orgId: 'org-1',
+      occurredAt: '2026-01-01T00:00:00Z',
+      data: {
+        orgId: 'org-1',
+        id: 'msg_1',
+        communityId: 'cmy_1',
+        chatId: 'cht_1',
+        orgUserId: 'ou_1',
+        body: 'my private message',
+        replyToId: null,
+        editedAt: null,
+        deletedAt: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    } as unknown as DomainEvent;
+    const stored = { ...FAILED_RUN, trigger: event.type, event };
+    const runsRepo = fakeRunsRepo({
+      findById: vi.fn().mockResolvedValue(stored),
+      restart: vi.fn().mockResolvedValue({ ...stored, status: 'running', actionResults: [] }),
+    });
+    const { svc, engine } = build(fakeRepo(), runsRepo);
+
+    const run = await svc.rerun('org-1', 'atm_1', 'run_1');
+
+    expect(vi.mocked(engine.dispatch).mock.calls[0]![0].event).toEqual(event);
+    expect(run.event.data).not.toHaveProperty('body');
+    expect(run.event.data).toEqual(expect.objectContaining({ id: 'msg_1', chatId: 'cht_1' }));
   });
 
   it('refuses a run that is still running', async () => {
@@ -1475,6 +1657,16 @@ describe('AutomationsService.runAction deliverWebhook', () => {
   it('throws on a non-2xx response so the engine retries', async () => {
     const { svc } = buildWith(fakeWebhooks(500));
     await expect(svc.runAction(dispatch, 0)).rejects.toThrow(/responded 500/);
+  });
+
+  it('records an unreachable endpoint without the transport error', async () => {
+    const webhooks: WebhookSender = {
+      send: vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED 10.0.0.5:5432')),
+    };
+    const { svc } = buildWith(webhooks);
+    const failure = svc.runAction(dispatch, 0);
+    await expect(failure).rejects.toThrow(ActionFailedError);
+    await expect(failure).rejects.toThrow('deliverWebhook: the endpoint could not be reached');
   });
 
   it('throws when the signing secret is gone', async () => {

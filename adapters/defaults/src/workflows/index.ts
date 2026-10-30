@@ -7,6 +7,7 @@ import type {
   AutomationExecutor,
   Logger,
 } from "@headless-lms/core/types";
+import { ActionFailedError, actionFailureMessage } from "@headless-lms/core/automations";
 import { startScheduleLoop } from "./schedule.js";
 
 export { startScheduleLoop };
@@ -32,12 +33,20 @@ export class InlineAutomationEngine implements AutomationEngine {
       try {
         results.push(await executor.runAction(d, index));
       } catch (err) {
-        const message = (err as { message?: unknown } | undefined)?.message ?? err;
+        if (!(err instanceof ActionFailedError)) {
+          this.logger?.error("automation action failed", {
+            orgId: d.orgId,
+            automationId: d.automationId,
+            runId: d.runId,
+            index,
+            err,
+          });
+        }
         results.push({
           index,
           type: d.actions[index]!.type,
           status: "failed",
-          error: String(message),
+          error: actionFailureMessage(err),
         });
         break;
       }

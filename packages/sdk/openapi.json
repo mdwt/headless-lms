@@ -53003,7 +53003,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.",
+        "description": "Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else.",
         "requestBody": {
           "required": true,
           "content": {
@@ -55057,7 +55057,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.",
+        "description": "Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.",
         "requestBody": {
           "required": true,
           "content": {
@@ -55073,6 +55073,7 @@
                   },
                   "triggers": {
                     "minItems": 1,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -55080,6 +55081,8 @@
                     }
                   },
                   "actions": {
+                    "minItems": 1,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -55882,7 +55885,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.",
+        "description": "Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.",
         "requestBody": {
           "required": true,
           "content": {
@@ -55898,6 +55901,7 @@
                   },
                   "triggers": {
                     "minItems": 1,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -55905,6 +55909,8 @@
                     }
                   },
                   "actions": {
+                    "minItems": 1,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "object",
@@ -56436,7 +56442,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404.",
+        "description": "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.",
         "parameters": [
           {
             "schema": {
@@ -57315,7 +57321,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.",
+        "description": "Staff only (owner, admin, instructor). `url` must be a public address: localhost and private network addresses are refused when saved and when delivering. Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -57329,6 +57335,7 @@
                   },
                   "events": {
                     "minItems": 1,
+                    "maxItems": 100,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -57774,6 +57781,7 @@
                   },
                   "events": {
                     "minItems": 1,
+                    "maxItems": 100,
                     "type": "array",
                     "items": {
                       "type": "string",

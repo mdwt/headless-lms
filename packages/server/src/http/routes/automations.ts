@@ -90,7 +90,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: 'Create a workflow automation (staff)',
       description:
-        'Staff only (owner, admin, instructor). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.',
+        'Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.',
       body: CreateAutomationBody,
       response: { 201: Automation, ...refusals(400, 403) },
     },
@@ -132,7 +132,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: 'Update a workflow automation (staff)',
       description:
-        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.',
+        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.',
       params: AutomationIdParam,
       body: UpdateAutomationBody,
       response: { 200: Automation, ...refusals(400, 403, 404, 409) },
@@ -179,7 +179,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: "List an automation's runs (staff)",
       description:
-        "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404.",
+        "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.",
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
       response: { 200: AutomationRunsPage, ...refusals(403) },

@@ -5,7 +5,12 @@
 // against enabled automations for its trigger, opens one run per match, and
 // hands it to the injected AutomationEngine, which calls back into
 // `runAction`/`finalize`.
-import { catalogActions, catalogTriggers, DELIVER_WEBHOOK_ACTION } from './catalog.js';
+import {
+  catalogActions,
+  catalogTriggers,
+  DELIVER_WEBHOOK_ACTION,
+  publicDataSchema,
+} from './catalog.js';
 import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
@@ -13,6 +18,7 @@ import type { NotificationDesk } from '../identity/index.js';
 import { communitySeeds, orgSeeds, type SeedAutomation } from './seeds.js';
 import { cronSupported } from './schedule.js';
 import {
+  ActionFailedError,
   AutomationKindMismatchError,
   InvalidTriggerError,
   ReservedActionError,
@@ -111,12 +117,55 @@ function assertAuthorableTriggers(triggers: string[]): void {
   }
 }
 
+function assertCatalogTriggers(triggers: string[], schedules: boolean): void {
+  assertAuthorableTriggers(triggers);
+  const known = new Set(catalogTriggers().map((t) => t.type));
+  for (const trigger of triggers) {
+    if (!(schedules && trigger.startsWith('schedule:')) && !known.has(trigger)) {
+      throw new InvalidTriggerError(trigger, 'unknown');
+    }
+  }
+}
+
 function assertAuthorableActions(actions: AutomationAction[]): void {
   for (const action of actions) {
     if (action.type === DELIVER_WEBHOOK_ACTION) {
       throw new ReservedActionError(action.type);
     }
   }
+}
+
+const SCHEDULE_FIRED = 'automation.schedule.fired';
+
+function publicEventData(event: DomainEvent): JsonValue {
+  const parsed =
+    event.type === SCHEDULE_FIRED
+      ? { success: true as const, data: event.data }
+      : publicDataSchema(event.type)?.safeParse(event.data);
+  return parsed?.success ? (JSON.parse(JSON.stringify(parsed.data)) as JsonValue) : null;
+}
+
+/** A run as callers see it: its event carries only what a webhook of that event would. */
+function toRunView(run: AutomationRun): AutomationRun {
+  const { type, version, id, orgId, occurredAt } = run.event;
+  return {
+    ...run,
+    event: { type, version, id, orgId, occurredAt, data: publicEventData(run.event) },
+  };
+}
+
+/** An automation as callers see it: a webhook's credential reference stays internal. */
+function toAutomationView(automation: Automation): Automation {
+  return {
+    ...automation,
+    actions: automation.actions.map((action) => {
+      if (action.type !== DELIVER_WEBHOOK_ACTION) {
+        return action;
+      }
+      const { secretRef: _secretRef, ...input } = action.input;
+      return { ...action, input };
+    }),
+  };
 }
 
 function webhookTarget(automation: Automation): DeliverWebhookInput {
@@ -425,7 +474,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         type: action.type,
         err,
       });
-      throw err;
+      throw err instanceof ActionFailedError ? err : new ActionFailedError();
     }
     const { recipients, failed } = outcome;
     this.logger.info('automation action completed', {
@@ -463,7 +512,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       return;
     }
     const event: DomainEvent = {
-      type: 'automation.schedule.fired',
+      type: SCHEDULE_FIRED,
       id: `schedule_${automationId}_${firedAt.toISOString()}`,
       orgId,
       version: 1,
@@ -568,7 +617,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
-    assertAuthorableTriggers(input.triggers);
+    assertCatalogTriggers(input.triggers, true);
     assertAuthorableActions(input.actions);
     const automation = await this.uow.run(async ({ automations, outbox }) => {
       const created = await automations.insert(orgId, {
@@ -590,7 +639,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     input: UpdateAutomationInput,
   ): Promise<Automation | null> {
     if (input.triggers !== undefined) {
-      assertAuthorableTriggers(input.triggers);
+      assertCatalogTriggers(input.triggers, true);
     }
     if (input.actions !== undefined) {
       assertAuthorableActions(input.actions);
@@ -645,20 +694,23 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return deleted !== null;
   }
 
-  list(orgId: string, query?: AutomationsQuery): Promise<Automation[]> {
-    return this.repo.listByOrg(orgId, query?.kind);
+  async list(orgId: string, query?: AutomationsQuery): Promise<Automation[]> {
+    const automations = await this.repo.listByOrg(orgId, query?.kind);
+    return automations.map(toAutomationView);
   }
 
-  get(orgId: string, id: string): Promise<Automation | null> {
-    return this.repo.findById(orgId, id);
+  async get(orgId: string, id: string): Promise<Automation | null> {
+    const automation = await this.repo.findById(orgId, id);
+    return automation ? toAutomationView(automation) : null;
   }
 
-  listRuns(
+  async listRuns(
     orgId: string,
     automationId: string,
     query: AutomationRunsQuery,
   ): Promise<Page<AutomationRun>> {
-    return this.runsRepo.list(orgId, automationId, query);
+    const page = await this.runsRepo.list(orgId, automationId, query);
+    return { ...page, rows: page.rows.map(toRunView) };
   }
 
   async rerun(orgId: string, automationId: string, runId: string): Promise<AutomationRun> {
@@ -691,12 +743,14 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         trigger: run.trigger,
         err,
       });
-      return (
-        (await this.recordFailure(run, err instanceof Error ? err.message : String(err))) ?? run
+      const failed = await this.recordFailure(
+        run,
+        err instanceof Error ? err.message : String(err),
       );
+      return toRunView(failed ?? run);
     }
     this.logger.info('automation rerun started', { orgId, automationId, runId: run.id });
-    return run;
+    return toRunView(run);
   }
 
   async listWebhooks(orgId: string): Promise<Webhook[]> {
@@ -711,7 +765,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
 
   async createWebhook(orgId: string, input: CreateWebhookInput): Promise<CreatedWebhook> {
     const events = unique(input.events);
-    this.assertSubscribableEvents(events);
+    assertCatalogTriggers(events, false);
     const secret = generateWebhookSecret();
     const automation = await this.uow.run(async ({ automations, credentials, outbox }) => {
       const secretRef = await credentials.store(orgId, { secret });
@@ -740,7 +794,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     const events = input.events === undefined ? undefined : unique(input.events);
     if (events) {
-      this.assertSubscribableEvents(events);
+      assertCatalogTriggers(events, false);
     }
     const { secretRef } = webhookTarget(existing);
     const patch: UpdateAutomationInput = {
@@ -816,16 +870,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private async findWebhook(orgId: string, id: string): Promise<Automation | null> {
     const automation = await this.repo.findById(orgId, id);
     return automation?.kind === 'webhook' ? automation : null;
-  }
-
-  private assertSubscribableEvents(events: string[]): void {
-    assertAuthorableTriggers(events);
-    const known = new Set(catalogTriggers().map((t) => t.type));
-    for (const event of events) {
-      if (!known.has(event)) {
-        throw new InvalidTriggerError(event, 'unknown');
-      }
-    }
   }
 
   availableActions(): AvailableActions {

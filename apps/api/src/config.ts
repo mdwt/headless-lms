@@ -93,6 +93,7 @@ function loadContainerConfig(): ContainerConfig {
     logging: {
       level: parseLogLevel(),
     },
+    webhookAllowPrivateNetwork: process.env.WEBHOOK_ALLOW_PRIVATE_NETWORK === "true",
   };
 }
 
