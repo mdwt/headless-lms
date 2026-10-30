@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AutomationActionResult, AutomationDispatch, Logger } from "@headless-lms/core/types";
+import { ActionFailedError } from "@headless-lms/core/automations";
+import { createCapturingLogger } from "@headless-lms/core/shared/logger";
 import { HatchetAutomationEngine, type HatchetClientLike } from "./index.js";
 
 /** Records every `task`/`durableTask`/`worker` call the adapter makes and lets a
@@ -62,11 +64,11 @@ function fakeHatchetClient() {
       }
       return scheduleFn(input, {});
     },
-    callAction: (input: { dispatch: AutomationDispatch; index: number }) => {
+    callAction: (input: { dispatch: AutomationDispatch; index: number }, retryCount = 0) => {
       if (!actionFn) {
         throw new Error("action task not declared yet");
       }
-      return actionFn(input, {});
+      return actionFn(input, { retryCount: () => retryCount });
     },
     callRunDispatch: (dispatch: AutomationDispatch, ctx: unknown) => {
       if (!runDispatchFn) {
@@ -178,6 +180,74 @@ describe("HatchetAutomationEngine", () => {
     expect(finalize).toHaveBeenCalledWith(d, results);
   });
 
+  it("rethrows an action error for Hatchet to retry until the last attempt", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    engine.register({
+      runAction: vi.fn(async () => {
+        throw new ActionFailedError("deliverWebhook: endpoint responded 500");
+      }),
+      finalize: vi.fn(),
+    });
+    const d = dispatch();
+
+    await expect(fake.callAction({ dispatch: d, index: 1 }, 2)).rejects.toThrow(
+      "deliverWebhook: endpoint responded 500",
+    );
+    await expect(fake.callAction({ dispatch: d, index: 1 }, 3)).resolves.toEqual({
+      index: 1,
+      type: "sendEmail",
+      status: "failed",
+      error: "deliverWebhook: endpoint responded 500",
+    });
+  });
+
+  it("records a generic message for an unclassified error on the last attempt and logs it", async () => {
+    const fake = fakeHatchetClient();
+    const { logger, entries } = createCapturingLogger();
+    const engine = new HatchetAutomationEngine(fake.client, logger);
+    const err = new Error('relation "automation_runs" violates constraint "x_fkey"');
+    engine.register({
+      runAction: vi.fn(async () => {
+        throw err;
+      }),
+      finalize: vi.fn(),
+    });
+    const d = dispatch();
+
+    await expect(fake.callAction({ dispatch: d, index: 0 }, 3)).resolves.toEqual({
+      index: 0,
+      type: "sendEmail",
+      status: "failed",
+      error: "The action failed",
+    });
+    expect(entries).toContainEqual({
+      level: "error",
+      msg: "automation action failed",
+      meta: { orgId: "org-1", automationId: "automation-1", runId: "run-1", index: 0, err },
+    });
+  });
+
+  it("stops the sequence at a failed child result", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const finalize = vi.fn(async () => {});
+    engine.register({ runAction: vi.fn(), finalize });
+    const failed: AutomationActionResult = {
+      index: 0,
+      type: "sendEmail",
+      status: "failed",
+      error: "deliverWebhook: endpoint responded 500",
+    };
+    const ctx = { spawnChild: vi.fn(async () => failed) };
+    const d = dispatch();
+
+    await fake.callRunDispatch(d, ctx);
+
+    expect(ctx.spawnChild).toHaveBeenCalledTimes(1);
+    expect(finalize).toHaveBeenCalledWith(d, [failed]);
+  });
+
   it("stops the sequence and finalizes with a failed result when a child exhausts its retries", async () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);
@@ -214,7 +284,7 @@ describe("HatchetAutomationEngine", () => {
     expect(finalize).toHaveBeenCalledTimes(1);
     expect(finalize).toHaveBeenCalledWith(d, [
       { index: 0, type: "sendEmail", status: "completed" },
-      { index: 1, type: "sendEmail", status: "failed", error: "boom" },
+      { index: 1, type: "sendEmail", status: "failed", error: "The action failed" },
     ]);
   });
 

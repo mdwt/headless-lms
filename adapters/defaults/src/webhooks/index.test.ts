@@ -6,7 +6,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
-import { FetchWebhookSender } from "./index.js";
+import { FetchWebhookSender, WebhookAddressRefusedError } from "./index.js";
 
 interface Received {
   method: string | undefined;
@@ -38,11 +38,14 @@ async function listen(
   return { url: `http://127.0.0.1:${port}/hooks`, received };
 }
 
+const local = (timeoutMs?: number) =>
+  new FetchWebhookSender({ allowPrivateNetwork: true, timeoutMs });
+
 describe("FetchWebhookSender", () => {
   it("POSTs the body with the given headers and returns the response status", async () => {
     const { url, received } = await listen((res) => res.writeHead(204).end());
 
-    const response = await new FetchWebhookSender().send({
+    const response = await local().send({
       url,
       headers: { "content-type": "application/json", "webhook-id": "evt_1" },
       body: '{"ok":true}',
@@ -63,7 +66,7 @@ describe("FetchWebhookSender", () => {
 
   it("returns a non-2xx status instead of throwing", async () => {
     const { url } = await listen((res) => res.writeHead(500).end("boom"));
-    const response = await new FetchWebhookSender().send({ url, headers: {}, body: "{}" });
+    const response = await local().send({ url, headers: {}, body: "{}" });
     expect(response).toEqual({ status: 500 });
   });
 
@@ -71,15 +74,48 @@ describe("FetchWebhookSender", () => {
     const { url, received } = await listen((res) =>
       res.writeHead(307, { location: "http://127.0.0.1:1/elsewhere" }).end(),
     );
-    const response = await new FetchWebhookSender().send({ url, headers: {}, body: "{}" });
+    const response = await local().send({ url, headers: {}, body: "{}" });
     expect(response).toEqual({ status: 307 });
     expect(received).toHaveLength(1);
   });
 
   it("rejects when the endpoint does not answer within the timeout", async () => {
     const { url } = await listen(() => {});
+    await expect(local(50).send({ url, headers: {}, body: "{}" })).rejects.toThrow();
+  });
+
+  it("reaches a hostname through its resolved address", async () => {
+    const { url, received } = await listen((res) => res.writeHead(200).end());
+    const response = await local().send({
+      url: url.replace("127.0.0.1", "localhost"),
+      headers: {},
+      body: "{}",
+    });
+    expect(response).toEqual({ status: 200 });
+    expect(received).toHaveLength(1);
+  });
+
+  it("refuses loopback and private addresses unless allowed", async () => {
+    const { url, received } = await listen((res) => res.writeHead(204).end());
+    const sender = new FetchWebhookSender();
+    await expect(sender.send({ url, headers: {}, body: "{}" })).rejects.toThrow(
+      WebhookAddressRefusedError,
+    );
     await expect(
-      new FetchWebhookSender(50).send({ url, headers: {}, body: "{}" }),
-    ).rejects.toThrow();
+      sender.send({ url: url.replace("127.0.0.1", "localhost"), headers: {}, body: "{}" }),
+    ).rejects.toThrow(WebhookAddressRefusedError);
+    for (const target of [
+      "http://10.0.0.1/hooks",
+      "http://169.254.169.254/latest/meta-data",
+      "http://[::1]/hooks",
+      "http://[::ffff:192.168.0.1]/hooks",
+      "http://[fd00:ec2::254]/hooks",
+      "http://0.0.0.0/hooks",
+    ]) {
+      await expect(sender.send({ url: target, headers: {}, body: "{}" })).rejects.toThrow(
+        WebhookAddressRefusedError,
+      );
+    }
+    expect(received).toHaveLength(0);
   });
 });

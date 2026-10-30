@@ -11,7 +11,8 @@ import { entitlementEvents } from '../entitlements/index.js';
 import type { NewNotification } from '../identity/index.js';
 import type { DomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import type { AutomationAction } from './model.js';
+import { ActionFailedError, type AutomationAction } from './model.js';
+import type { WebhookResponse } from './ports.js';
 import {
   ALL_EMAIL_TEMPLATE_IDS,
   DELIVER_WEBHOOK_ACTION,
@@ -85,7 +86,9 @@ function reachedNoOne(): ActionOutcome {
 
 function assertSomeDelivered(action: string, outcome: ActionOutcome): ActionOutcome {
   if (outcome.recipients.length === 0 && outcome.failed.length > 0) {
-    throw new Error(`${action}: delivery failed for all ${outcome.failed.length} recipients`);
+    throw new ActionFailedError(
+      `${action}: delivery failed for all ${outcome.failed.length} recipients`,
+    );
   }
   return outcome;
 }
@@ -104,17 +107,17 @@ export async function executeAction(
     case 'sendEmail': {
       const template = action.input['template'];
       if (!isEmailTemplateId(template)) {
-        throw new Error(`sendEmail: unknown template "${String(template)}"`);
+        throw new ActionFailedError(`sendEmail: unknown template "${String(template)}"`);
       }
       const derivation = SEND_EMAIL_DERIVATIONS[template];
       if (!derivation || !derivation.triggers.includes(event.type)) {
-        throw new Error(
+        throw new ActionFailedError(
           `sendEmail: template "${template}" cannot be derived from event "${event.type}"`,
         );
       }
       const derived = await derivation.derive(event, { ...deps, actionInput: action.input });
       if (!derived) {
-        throw new Error(
+        throw new ActionFailedError(
           `sendEmail: event "${event.type}" is missing the data required to derive template "${template}"`,
         );
       }
@@ -130,7 +133,9 @@ export async function executeAction(
     case NOTIFY_ACTION: {
       const kind = notificationKindSchema.safeParse(action.input['kind']);
       if (!kind.success) {
-        throw new Error(`${NOTIFY_ACTION}: unknown kind "${String(action.input['kind'])}"`);
+        throw new ActionFailedError(
+          `${NOTIFY_ACTION}: unknown kind "${String(action.input['kind'])}"`,
+        );
       }
       return notify(kind.data, event, { ...deps, actionInput: action.input });
     }
@@ -159,7 +164,7 @@ export async function executeAction(
       return reachedNoOne();
     }
     default: {
-      throw new Error(`unknown automation action type "${action.type}"`);
+      throw new ActionFailedError(`unknown automation action type "${action.type}"`);
     }
   }
 }
@@ -193,13 +198,13 @@ async function notify<K extends NotificationKind>(
 ): Promise<ActionOutcome> {
   const derivation = SEND_EMAIL_DERIVATIONS[kind] as EmailDerivation<K> | undefined;
   if (!derivation || !derivation.triggers.includes(event.type)) {
-    throw new Error(
+    throw new ActionFailedError(
       `${NOTIFY_ACTION}: kind "${kind}" cannot be derived from event "${event.type}"`,
     );
   }
   const recipients = await derivation.derive(event, deps);
   if (!recipients) {
-    throw new Error(
+    throw new ActionFailedError(
       `${NOTIFY_ACTION}: event "${event.type}" is missing the data required to derive kind "${kind}"`,
     );
   }
@@ -268,11 +273,11 @@ async function grantAccess(
   const contentId = typeof action.input.contentId === 'string' ? action.input.contentId : null;
   const bundleId = typeof action.input.bundleId === 'string' ? action.input.bundleId : null;
   if ((contentId == null) === (bundleId == null)) {
-    throw new Error('grantAccess: provide exactly one of contentId or bundleId');
+    throw new ActionFailedError('grantAccess: provide exactly one of contentId or bundleId');
   }
   const orgUserId = grantRecipient(event);
   if (!orgUserId) {
-    throw new Error(`grantAccess: event "${event.type}" has no recipient`);
+    throw new ActionFailedError(`grantAccess: event "${event.type}" has no recipient`);
   }
   const days = action.input.expiresInDays;
   const expiresAt =
@@ -289,22 +294,24 @@ async function deliverWebhook(
 ): Promise<void> {
   const input = deliverWebhookInputSchema.safeParse(action.input);
   if (!input.success) {
-    throw new Error(`${DELIVER_WEBHOOK_ACTION}: invalid input`);
+    throw new ActionFailedError(`${DELIVER_WEBHOOK_ACTION}: invalid input`);
   }
   const publicData = publicDataSchema(event.type);
   if (!publicData) {
-    throw new Error(`${DELIVER_WEBHOOK_ACTION}: event "${event.type}" is not published`);
+    throw new ActionFailedError(
+      `${DELIVER_WEBHOOK_ACTION}: event "${event.type}" is not published`,
+    );
   }
   const data = publicData.safeParse(event.data);
   if (!data.success) {
-    throw new Error(
+    throw new ActionFailedError(
       `${DELIVER_WEBHOOK_ACTION}: event "${event.type}" does not match its published shape`,
     );
   }
   const secrets = await deps.credentials.reveal(event.orgId, input.data.secretRef);
   const secret = secrets?.['secret'];
   if (typeof secret !== 'string') {
-    throw new Error(`${DELIVER_WEBHOOK_ACTION}: signing secret not found`);
+    throw new ActionFailedError(`${DELIVER_WEBHOOK_ACTION}: signing secret not found`);
   }
   const body = JSON.stringify({
     id: event.id,
@@ -315,12 +322,23 @@ async function deliverWebhook(
     data: data.data,
   });
   const timestamp = Math.floor(Date.now() / 1000);
-  const response = await deps.webhooks.send({
-    url: input.data.url,
-    headers: webhookHeaders(secret, event.id, timestamp, body),
-    body,
-  });
+  let response: WebhookResponse;
+  try {
+    response = await deps.webhooks.send({
+      url: input.data.url,
+      headers: webhookHeaders(secret, event.id, timestamp, body),
+      body,
+    });
+  } catch (err) {
+    (deps.logger ?? noopLogger).warn('webhook endpoint not reached', {
+      orgId: event.orgId,
+      automationId: deps.automationId,
+      eventId: event.id,
+      err,
+    });
+    throw new ActionFailedError(`${DELIVER_WEBHOOK_ACTION}: the endpoint could not be reached`);
+  }
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`${DELIVER_WEBHOOK_ACTION}: endpoint responded ${response.status}`);
+    throw new ActionFailedError(`${DELIVER_WEBHOOK_ACTION}: endpoint responded ${response.status}`);
   }
 }

@@ -89,7 +89,7 @@ export interface AdapterOverrides {
   templates?: TemplateRenderer;
   /** Durable automation engine, or a factory given the automations logger. Absent → InlineAutomationEngine (in-process, one attempt per action). */
   workflows?: AutomationEngine | ((logger: Logger) => AutomationEngine);
-  /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (fetch, 10s timeout). */
+  /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (public addresses only, 10s timeout). */
   webhooks?: WebhookSender;
 }
 
@@ -125,6 +125,8 @@ export interface Config {
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
   memberImageMaxBytes: number;
+  /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
+  webhookAllowPrivateNetwork?: boolean;
 }
 
 /** Tuning for the transactional-outbox relay. Every field is optional; the
@@ -503,7 +505,9 @@ export async function buildContainer(
     lookups: mailerLookups,
     integrations,
     credentials: credentialStore,
-    webhooks: options?.adapters?.webhooks ?? new FetchWebhookSender(),
+    webhooks:
+      options?.adapters?.webhooks ??
+      new FetchWebhookSender({ allowPrivateNetwork: config.webhookAllowPrivateNetwork }),
     mail: wired.mail,
     grants: wired.grants,
     desk: notifications,

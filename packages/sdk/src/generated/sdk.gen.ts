@@ -7844,7 +7844,7 @@ export class Automations {
   /**
    * Create a workflow automation (staff)
    *
-   * Staff only (owner, admin, instructor). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.
+   * Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.
    */
   public static createAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7998,7 +7998,7 @@ export class Automations {
   /**
    * Update a workflow automation (staff)
    *
-   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved or unsupported, or an action is reserved for webhooks.
+   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.
    */
   public static updateAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8056,7 +8056,7 @@ export class Automations {
   /**
    * List an automation's runs (staff)
    *
-   * Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404.
+   * Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.
    */
   public static listAutomationRuns<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8156,7 +8156,7 @@ export class Automations {
   /**
    * Create a webhook (staff)
    *
-   * Staff only (owner, admin, instructor). Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
+   * Staff only (owner, admin, instructor). `url` must be a public address: localhost and private network addresses are refused when saved and when delivering. Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
    */
   public static createWebhook<ThrowOnError extends boolean = false>(
     parameters: {

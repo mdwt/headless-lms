@@ -1468,7 +1468,7 @@
     {
       "name": "list_automations",
       "title": "List workflows and webhooks",
-      "description": "Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook). Webhooks show a reference to their signing secret, never the secret itself.",
+      "description": "Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook).",
       "resource": "automations",
       "scope": "automations:read",
       "kind": "read",
@@ -1486,7 +1486,7 @@
     {
       "name": "list_automation_runs",
       "title": "List workflow and webhook runs",
-      "description": "Runs of one workflow or webhook, newest first, with the trigger event and each action result.",
+      "description": "Runs of one workflow or webhook, newest first, with the trigger event as a webhook would receive it and each action result.",
       "resource": "automations",
       "scope": "automations:read",
       "kind": "read",

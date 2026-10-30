@@ -36,7 +36,7 @@ export const automationTools: Tool[] = [
     name: 'list_automations',
     title: 'List workflows and webhooks',
     description:
-      'Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook). Webhooks show a reference to their signing secret, never the secret itself.',
+      'Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook).',
     scope: 'automations:read',
     kind: 'read',
     idempotent: true,
@@ -48,7 +48,7 @@ export const automationTools: Tool[] = [
     name: 'list_automation_runs',
     title: 'List workflow and webhook runs',
     description:
-      'Runs of one workflow or webhook, newest first, with the trigger event and each action result.',
+      'Runs of one workflow or webhook, newest first, with the trigger event as a webhook would receive it and each action result.',
     scope: 'automations:read',
     kind: 'read',
     idempotent: true,

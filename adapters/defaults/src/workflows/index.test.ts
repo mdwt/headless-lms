@@ -4,6 +4,8 @@ import type {
   AutomationDispatch,
   AutomationExecutor,
 } from "@headless-lms/core/types";
+import { ActionFailedError } from "@headless-lms/core/automations";
+import { createCapturingLogger } from "@headless-lms/core/shared/logger";
 import { InlineAutomationEngine } from "./index.js";
 
 function dispatch(): AutomationDispatch {
@@ -55,7 +57,8 @@ describe("InlineAutomationEngine", () => {
   });
 
   it("stops after a throwing action and finalizes once with completed-then-failed results", async () => {
-    const engine = new InlineAutomationEngine();
+    const { logger, entries } = createCapturingLogger();
+    const engine = new InlineAutomationEngine(logger);
     const executor: AutomationExecutor = {
       runAction: vi.fn(
         async (_d: AutomationDispatch, index: number): Promise<AutomationActionResult> => {
@@ -83,7 +86,41 @@ describe("InlineAutomationEngine", () => {
     expect(executor.finalize).toHaveBeenCalledTimes(1);
     expect(executor.finalize).toHaveBeenCalledWith(d, [
       { index: 0, type: "sendEmail", status: "completed" },
-      { index: 1, type: "sendEmail", status: "failed", error: "boom" },
+      { index: 1, type: "sendEmail", status: "failed", error: "The action failed" },
+    ]);
+    expect(entries).toEqual([
+      {
+        level: "error",
+        msg: "automation action failed",
+        meta: {
+          orgId: "org-1",
+          automationId: "automation-1",
+          runId: "run-1",
+          index: 1,
+          err: new Error("boom"),
+        },
+      },
+    ]);
+  });
+
+  it("records the message of an ActionFailedError as is", async () => {
+    const engine = new InlineAutomationEngine();
+    const executor: AutomationExecutor = {
+      runAction: vi.fn(async (): Promise<AutomationActionResult> => {
+        throw new ActionFailedError("deliverWebhook: endpoint responded 500");
+      }),
+      finalize: vi.fn(async () => {}),
+    };
+    engine.register(executor);
+    const d = dispatch();
+    await engine.dispatch(d);
+    expect(executor.finalize).toHaveBeenCalledWith(d, [
+      {
+        index: 0,
+        type: "sendEmail",
+        status: "failed",
+        error: "deliverWebhook: endpoint responded 500",
+      },
     ]);
   });
 

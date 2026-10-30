@@ -3,7 +3,14 @@ export { AutomationsServiceImpl } from './service.js';
 export { cronMatches } from './schedule.js';
 export type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
 export { automationEvents } from './events.js';
-export { AutomationKindMismatchError, InvalidTriggerError, ReservedActionError } from './model.js';
+export {
+  ACTION_FAILED,
+  ActionFailedError,
+  actionFailureMessage,
+  AutomationKindMismatchError,
+  InvalidTriggerError,
+  ReservedActionError,
+} from './model.js';
 export type {
   AutomationsService,
   AutomationsRepository,

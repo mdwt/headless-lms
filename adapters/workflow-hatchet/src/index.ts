@@ -7,6 +7,11 @@ import type {
   ScheduledAutomation,
 } from "@headless-lms/core/types";
 import { Hatchet } from "@hatchet-dev/typescript-sdk";
+import {
+  ACTION_FAILED,
+  ActionFailedError,
+  actionFailureMessage,
+} from "@headless-lms/core/automations";
 
 const WORKFLOW_NAME = "automation-run";
 const ACTION_TASK_NAME = "automation-run-action";
@@ -14,6 +19,7 @@ const SCHEDULE_TASK_NAME = "automation-schedule";
 const WORKER_NAME = "automation-run-worker";
 const CRON_PREFIX = "hlms-schedule:";
 const RECONCILE_EVERY_MS = 5 * 60_000;
+const ACTION_RETRIES = 3;
 
 interface ActionTaskInput {
   dispatch: AutomationDispatch;
@@ -23,6 +29,10 @@ interface ActionTaskInput {
 interface ScheduleTaskInput {
   orgId: string;
   automationId: string;
+}
+
+interface TaskCtxLike {
+  retryCount?(): number;
 }
 
 interface DurableCtxLike {
@@ -99,8 +109,8 @@ export class HatchetAutomationEngine implements AutomationEngine {
   ) {
     this.actionTask = this.client.task<ActionTaskInput>({
       name: ACTION_TASK_NAME,
-      retries: 3,
-      fn: async (input) => this.runAction(input),
+      retries: ACTION_RETRIES,
+      fn: async (input, ctx) => this.runAction(input, ctx as TaskCtxLike | undefined),
     });
 
     this.scheduleTask = this.client.task<ScheduleTaskInput>({
@@ -225,11 +235,40 @@ export class HatchetAutomationEngine implements AutomationEngine {
     await this.executor.fireSchedule(input.orgId, input.automationId, floorMinute(new Date()));
   }
 
-  private async runAction(input: ActionTaskInput): Promise<AutomationActionResult> {
+  private async runAction(
+    input: ActionTaskInput,
+    ctx: TaskCtxLike | undefined,
+  ): Promise<AutomationActionResult> {
     if (!this.executor) {
       throw new Error("HatchetAutomationEngine: automation-run-action invoked before register()");
     }
-    return this.executor.runAction(input.dispatch, input.index);
+    const { dispatch, index } = input;
+    try {
+      return await this.executor.runAction(dispatch, index);
+    } catch (err) {
+      if ((ctx?.retryCount?.() ?? ACTION_RETRIES) < ACTION_RETRIES) {
+        throw err;
+      }
+      if (!(err instanceof ActionFailedError)) {
+        this.logActionError(dispatch, index, err);
+      }
+      return {
+        index,
+        type: dispatch.actions[index]!.type,
+        status: "failed",
+        error: actionFailureMessage(err),
+      };
+    }
+  }
+
+  private logActionError(dispatch: AutomationDispatch, index: number, err: unknown): void {
+    this.logger?.error("automation action failed", {
+      orgId: dispatch.orgId,
+      automationId: dispatch.automationId,
+      runId: dispatch.runId,
+      index,
+      err,
+    });
   }
 
   private async runDispatch(dispatch: AutomationDispatch, ctx: DurableCtxLike): Promise<void> {
@@ -240,16 +279,20 @@ export class HatchetAutomationEngine implements AutomationEngine {
 
     const results: AutomationActionResult[] = [];
     for (let index = 0; index < dispatch.actions.length; index++) {
+      let result: AutomationActionResult;
       try {
-        results.push(await ctx.spawnChild(this.actionTask, { dispatch, index }));
+        result = await ctx.spawnChild(this.actionTask, { dispatch, index });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        results.push({
+        this.logActionError(dispatch, index, err);
+        result = {
           index,
           type: dispatch.actions[index]!.type,
           status: "failed",
-          error: message,
-        });
+          error: ACTION_FAILED,
+        };
+      }
+      results.push(result);
+      if (result.status === "failed") {
         break;
       }
     }
