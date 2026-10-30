@@ -38,7 +38,12 @@ import { user } from "../schema/better-auth.js";
 import type { OrgUserStatus } from "@headless-lms/core/types";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { orgUserProfileColumns } from "./org-user-profile.js";
+import {
+  orgUserProfileColumns,
+  studentFirstName,
+  studentLastName,
+  studentProfileColumns,
+} from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
 import { grantExpired, grantOpens } from "./grant-covers.js";
 
@@ -81,7 +86,6 @@ function toStudent(row: StudentRow): Student {
     lastActiveAt: row.lastActiveAt ? new Date(row.lastActiveAt).toISOString() : null,
   };
 }
-
 
 export class DrizzleAdminRepository implements AdminReportRepository {
   constructor(
@@ -135,7 +139,6 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     const rows = result.rows as { date: string; count: number }[];
     return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
   }
-
 
   private async courseExists(orgId: string, courseId: string): Promise<boolean> {
     const [row] = await this.db
@@ -287,7 +290,6 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
   }
 
-
   async listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
     // Staff share this table now — the role filter is what keeps them out of
     // the students report.
@@ -296,7 +298,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     if (q) {
       const like = `%${q}%`;
       filters.push(
-        or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.email, like))!,
+        or(ilike(studentFirstName, like), ilike(studentLastName, like), ilike(users.email, like))!,
       );
     }
     const where = and(...filters);
@@ -309,7 +311,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
 
     const rows = await this.db
       .select({
-        ...orgUserProfileColumns,
+        ...studentProfileColumns,
         status: orgUsers.status,
         createdAt: orgUsers.createdAt,
         entitlementCount: entitlementCountExpr,
@@ -330,6 +332,8 @@ export class DrizzleAdminRepository implements AdminReportRepository {
         orgUsers.orgId,
         orgUsers.id,
         orgUsers.status,
+        users.id,
+        users.externalId,
         users.email,
         users.firstName,
         users.lastName,
@@ -350,7 +354,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
   async getStudent(orgId: string, id: string): Promise<Student | null> {
     const [row] = await this.db
       .select({
-        ...orgUserProfileColumns,
+        ...studentProfileColumns,
         status: orgUsers.status,
         createdAt: orgUsers.createdAt,
         entitlementCount: entitlementCountExpr,
@@ -369,6 +373,8 @@ export class DrizzleAdminRepository implements AdminReportRepository {
         orgUsers.orgId,
         orgUsers.id,
         orgUsers.status,
+        users.id,
+        users.externalId,
         users.email,
         users.firstName,
         users.lastName,
@@ -481,10 +487,10 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       case "lastActiveAt":
         return [dir(lastActiveExpr)];
       case "lastName":
-        return [dir(users.lastName), dir(users.firstName)];
+        return [dir(studentLastName), dir(studentFirstName)];
       case "firstName":
       default:
-        return [dir(users.firstName), dir(users.lastName)];
+        return [dir(studentFirstName), dir(studentLastName)];
     }
   }
 
@@ -567,7 +573,11 @@ export class DrizzleAdminRepository implements AdminReportRepository {
         .from(spaces)
         .leftJoin(
           posts,
-          and(eq(posts.orgId, spaces.orgId), eq(posts.spaceId, spaces.id), eq(posts.status, "published")),
+          and(
+            eq(posts.orgId, spaces.orgId),
+            eq(posts.spaceId, spaces.id),
+            eq(posts.status, "published"),
+          ),
         )
         .where(and(eq(spaces.orgId, orgId), eq(spaces.communityId, communityId)))
         .groupBy(spaces.id),
@@ -586,7 +596,11 @@ export class DrizzleAdminRepository implements AdminReportRepository {
           ),
         )
         .where(
-          and(eq(posts.orgId, orgId), eq(posts.communityId, communityId), eq(posts.status, "published")),
+          and(
+            eq(posts.orgId, orgId),
+            eq(posts.communityId, communityId),
+            eq(posts.status, "published"),
+          ),
         )
         .groupBy(posts.id),
       this.db
@@ -607,7 +621,10 @@ export class DrizzleAdminRepository implements AdminReportRepository {
           resolved: sql<number>`cast(count(*) filter (where ${commentFlags.resolvedAt} is not null) as int)`,
         })
         .from(commentFlags)
-        .innerJoin(comments, and(eq(comments.orgId, commentFlags.orgId), eq(comments.id, commentFlags.commentId)))
+        .innerJoin(
+          comments,
+          and(eq(comments.orgId, commentFlags.orgId), eq(comments.id, commentFlags.commentId)),
+        )
         .where(and(eq(commentFlags.orgId, orgId), eq(comments.communityId, communityId))),
       this.db
         .select({
@@ -650,8 +667,14 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     return {
       memberCount: Number(members?.count ?? 0),
       activeMembers: authors.length,
-      postsPerSpace: postsPerSpace.map((row) => ({ spaceId: row.spaceId, count: Number(row.count) })),
-      commentsPerPost: commentsPerPost.map((row) => ({ postId: row.postId, count: Number(row.count) })),
+      postsPerSpace: postsPerSpace.map((row) => ({
+        spaceId: row.spaceId,
+        count: Number(row.count),
+      })),
+      commentsPerPost: commentsPerPost.map((row) => ({
+        postId: row.postId,
+        count: Number(row.count),
+      })),
       messagesSent: Number(sent?.count ?? 0),
       flagsRaised: raised,
       flagsResolved: resolved,
@@ -690,7 +713,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     if (q) {
       const like = `%${q}%`;
       filters.push(
-        or(ilike(users.firstName, like), ilike(users.lastName, like), ilike(users.email, like))!,
+        or(ilike(studentFirstName, like), ilike(studentLastName, like), ilike(users.email, like))!,
       );
     }
     const where = and(...filters);

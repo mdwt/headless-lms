@@ -55,6 +55,40 @@ describe('runTool', () => {
     expect(result.structuredContent).toEqual({ ok: true });
   });
 
+  it('shapes the result with the output schema when the tool has one', async () => {
+    const shaped = defineTool({
+      name: 'probe',
+      title: 'Probe',
+      description: 'Probe',
+      scope: 'courses:read',
+      kind: 'read',
+      idempotent: true,
+      openWorld: false,
+      input: z.object({ id: z.string() }),
+      output: z.object({ id: z.string() }),
+      call: () => ({ id: 'x', tokenHash: 'secret' }),
+    });
+    const result = await runTool(shaped, { id: 'x' }, ctx());
+    expect(result.structuredContent).toEqual({ id: 'x' });
+  });
+
+  it('reports only an invalid tool input as invalid input', async () => {
+    const own = await runTool(
+      tool(() => ({ a: 1 })),
+      { id: 7 },
+      ctx(),
+    );
+    expect(own.isError).toBe(true);
+    expect(own.content[0]?.text).toMatch(/^Invalid input/);
+    const inner = await runTool(
+      tool(() => z.object({ secretRef: z.string() }).parse({})),
+      { id: 'x' },
+      ctx(),
+    );
+    expect(inner.isError).toBe(true);
+    expect(inner.content[0]?.text).toBe('Internal error (request req_test)');
+  });
+
   it('answers not found when the call returns null or false', async () => {
     for (const value of [null, false]) {
       const result = await runTool(

@@ -18,7 +18,7 @@ description: 'The tenant: its members, roles, invites and students'
 <Card href="/docs/api/organizations/getMemberViewer" title="Get the caller's identity within the session's org" description="For a member of the organization: your org user id, which the member API keys on, and your role here." />
 <Card href="/docs/api/organizations/listStudents" title="List students (staff)" description="Staff only (owner, admin, instructor)." />
 <Card href="/docs/api/organizations/getStudent" title="Get a student (staff)" description="Staff only (owner, admin, instructor)." />
-<Card href="/docs/api/organizations/updateStudent" title="Update a student's profile (staff)" description="Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else." />
+<Card href="/docs/api/organizations/updateStudent" title="Update a student's profile (staff)" description="Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else." />
 <Card href="/docs/api/organizations/deleteStudent" title="Delete a student (staff)" description="Owner or admin only. 409 when the person has written posts, comments or messages." />
 <Card href="/docs/api/organizations/resendStudentInvite" title="Re-send a pending student's invite email (staff)" description="Owner or admin only. Issues a new token, so the previous link stops working. 404 when the student has no pending invite; 409 when it was already accepted." />
 </Cards>

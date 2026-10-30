@@ -21,6 +21,7 @@ export interface Tool {
   idempotent: boolean;
   openWorld: boolean;
   input: z.ZodObject;
+  output?: z.ZodType;
   call(input: unknown, ctx: ToolContext): unknown;
 }
 
@@ -61,9 +62,6 @@ export function toToolResult(data: unknown): ToolResult {
 }
 
 function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
-  if (error instanceof z.ZodError) {
-    return `Invalid input: ${z.prettifyError(error)}`;
-  }
   const known = classifyError(error);
   if (known) {
     return known.message;
@@ -76,9 +74,16 @@ function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
 }
 
 export async function runTool(tool: Tool, args: unknown, ctx: ToolContext): Promise<ToolResult> {
+  const input = tool.input.safeParse(args);
+  if (!input.success) {
+    return toolError(`Invalid input: ${z.prettifyError(input.error)}`);
+  }
   try {
-    const result = await tool.call(tool.input.parse(args), ctx);
-    return result === null || result === false ? toolError('Not found.') : toToolResult(result);
+    const result = await tool.call(input.data, ctx);
+    if (result === null || result === false) {
+      return toolError('Not found.');
+    }
+    return toToolResult(tool.output && result !== undefined ? tool.output.parse(result) : result);
   } catch (error) {
     return toolError(describeFailure(error, tool, ctx));
   }

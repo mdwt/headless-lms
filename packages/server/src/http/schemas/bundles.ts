@@ -12,13 +12,13 @@ export const BundleItem = bundleItemSchema;
 export type BundleItem = z.infer<typeof BundleItem>;
 
 export const CreateBundle = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
   contentIds: z.array(idSchema).max(500).optional(),
 });
 export type CreateBundle = z.infer<typeof CreateBundle>;
 
 export const UpdateBundle = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().trim().min(1).max(200).optional(),
 });
 export type UpdateBundle = z.infer<typeof UpdateBundle>;
 

@@ -23,16 +23,16 @@ export const DownloadFile = downloadFileSchema;
 export type DownloadFile = z.infer<typeof DownloadFile>;
 
 export const CreateDownload = z.object({
-  title: z.string().min(1),
-  description: z.string().default(''),
-  category: z.string().default(''),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(5_000).default(''),
+  category: z.string().trim().max(100).default(''),
 });
 export type CreateDownload = z.infer<typeof CreateDownload>;
 
 export const UpdateDownload = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  category: z.string().optional(),
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(5_000).optional(),
+  category: z.string().trim().max(100).optional(),
   status: DownloadStatus.optional(),
   thumbnailAssetId: idSchema.nullable().optional(),
 });
@@ -40,7 +40,7 @@ export type UpdateDownload = z.infer<typeof UpdateDownload>;
 
 export const DownloadsQuery = ListQuery.extend({
   status: DownloadStatus.optional(),
-  category: z.string().optional(),
+  category: z.string().trim().max(100).optional(),
 });
 export type DownloadsQuery = z.infer<typeof DownloadsQuery>;
 
@@ -52,7 +52,7 @@ export type AddDownloadAsset = z.infer<typeof AddDownloadAsset>;
 
 /** `null` restores the `filename` fallback. */
 export const RenameDownloadAsset = z.object({
-  displayName: z.string().nullable(),
+  displayName: z.string().trim().min(1).max(255).nullable(),
 });
 export type RenameDownloadAsset = z.infer<typeof RenameDownloadAsset>;
 

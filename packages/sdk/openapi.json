@@ -474,7 +474,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -1808,7 +1809,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -1836,7 +1838,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "in": "query",
             "name": "category",
@@ -2126,15 +2129,18 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "description": {
                     "default": "",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 5000
                   },
                   "category": {
                     "default": "",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                   }
                 },
                 "required": [
@@ -2703,13 +2709,16 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "description": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 5000
                   },
                   "category": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                   },
                   "status": {
                     "type": "string",
@@ -3482,7 +3491,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -16087,7 +16097,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -16115,7 +16126,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "in": "query",
             "name": "category",
@@ -16368,15 +16380,18 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "description": {
                     "default": "",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 5000
                   },
                   "category": {
                     "default": "",
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                   }
                 },
                 "required": [
@@ -16871,13 +16886,16 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "description": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 5000
                   },
                   "category": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                   },
                   "status": {
                     "type": "string",
@@ -18149,7 +18167,9 @@
                 "properties": {
                   "displayName": {
                     "nullable": true,
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
                   }
                 },
                 "required": [
@@ -18686,7 +18706,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -18909,7 +18930,8 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   },
                   "contentIds": {
                     "maxItems": 500,
@@ -19336,7 +19358,8 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 }
               }
@@ -48274,7 +48297,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -52528,7 +52552,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -53003,7 +53028,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.",
+        "description": "Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else.",
         "requestBody": {
           "required": true,
           "content": {
@@ -53975,7 +54000,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -56462,7 +56488,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",
@@ -59889,7 +59916,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 200
             },
             "in": "query",
             "name": "search",

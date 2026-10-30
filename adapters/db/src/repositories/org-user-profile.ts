@@ -12,6 +12,7 @@
 // chained call, so a generic wrapper around `.innerJoin(...).leftJoin(...)`
 // can't be typed without widening it to `unknown` — each repository chains the
 // two joins inline instead.
+import { sql } from "drizzle-orm";
 import { orgUsers } from "../schema/organizations.js";
 import { userProfiles, users } from "../schema/identity.js";
 import { user } from "../schema/better-auth.js";
@@ -32,4 +33,26 @@ export const authorProfileColumns = {
   headline: userProfiles.headline,
   imageAssetOrgId: userProfiles.imageAssetOrgId,
   imageAssetId: userProfiles.imageAssetId,
+};
+
+// A person is shared across organizations. Until an invited student accepts,
+// the inviting org sees the name and avatar only when the profile is its own:
+// no account yet and no other organization.
+const profileVisible = sql`(${orgUsers.status} <> 'invited' or (${users.externalId} is null and not exists (
+  select 1 from org_users other where other.user_id = ${users.id} and other.org_id <> ${orgUsers.orgId}
+)))`;
+
+export const studentFirstName = sql<
+  string | null
+>`case when ${profileVisible} then ${users.firstName} end`;
+export const studentLastName = sql<
+  string | null
+>`case when ${profileVisible} then ${users.lastName} end`;
+
+export const studentProfileColumns = {
+  id: orgUsers.id,
+  firstName: studentFirstName,
+  lastName: studentLastName,
+  email: users.email,
+  image: sql<string | null>`case when ${profileVisible} then ${user.image} end`,
 };

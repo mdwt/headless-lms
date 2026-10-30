@@ -5,6 +5,7 @@ import {
   EntitlementIdParam,
   EntitlementsQuery,
   GrantEntitlement,
+  Invite,
   SetEntitlementStatus,
   StudentIdParam,
   StudentsQuery,
@@ -53,6 +54,7 @@ export const peopleTools: Tool[] = [
     idempotent: false,
     openWorld: true,
     input: CreateInvite.omit({ role: true }),
+    output: Invite,
     call: (input, { container, scope }) =>
       container.organizations.createInvite(actor(scope), {
         orgId: scope.orgId,

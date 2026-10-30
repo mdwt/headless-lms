@@ -1,6 +1,7 @@
 import {
   AddBundleItem,
   AddDownloadAsset,
+  AssetsPage,
   AssetsQuery,
   BundleIdParam,
   BundleItemParams,
@@ -223,6 +224,7 @@ export const catalogTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: AssetsQuery,
+    output: AssetsPage,
     call: (input, { container, scope }) => container.assets.list(scope.orgId, input),
   }),
 ];

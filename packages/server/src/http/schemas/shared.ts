@@ -57,7 +57,7 @@ export type PageQuery = z.infer<typeof PageQuery>;
 export const ListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().trim().optional(),
+  search: z.string().trim().max(200).optional(),
   /** Sort field, optionally prefixed with `-` for descending (e.g. `-updatedAt`). */
   sort: z.string().optional(),
 });

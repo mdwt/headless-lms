@@ -156,6 +156,7 @@ export type ToolCase = {
   service: string;
   expected: unknown[];
   returns?: unknown;
+  shown?: unknown;
 };
 
 function serviceFake(path: string, returns: unknown, calls: unknown[][]): Record<string, unknown> {
@@ -180,5 +181,7 @@ export async function runCase(tools: readonly Tool[], c: ToolCase): Promise<void
   const result = await callTool(c.tool, c.args, ctx, tools);
   expect(result.isError ?? false).toBe(false);
   expect(calls).toEqual([c.expected]);
-  expect(result.structuredContent).toEqual(toToolResult(returns).structuredContent);
+  expect(result.structuredContent).toEqual(
+    toToolResult('shown' in c ? c.shown : returns).structuredContent,
+  );
 }

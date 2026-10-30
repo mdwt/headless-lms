@@ -918,7 +918,7 @@ export class Organizations {
   /**
    * Update a student's profile (staff)
    *
-   * Staff only (owner, admin, instructor). Corrects the person's name or email; a pending invite follows a new email. 409 when the email belongs to someone else.
+   * Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else.
    */
   public static updateStudent<ThrowOnError extends boolean = false>(
     parameters: {
