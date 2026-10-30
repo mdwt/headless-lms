@@ -30,6 +30,8 @@
         "./adapters/defaults/src/*.ts"
       ],
       "@headless-lms/adapter-email-resend": ["./adapters/email-resend/src/index.ts"],
+      "@headless-lms/adapter-email-templates": ["./adapters/email-templates/src/index.tsx"],
+      "@headless-lms/adapter-workflow-hatchet": ["./adapters/workflow-hatchet/src/index.ts"],
       "@headless-lms/adapter-storage-minio": ["./adapters/storage-minio/src/index.ts"],
       "@headless-lms/plugin-slack": ["./plugins/slack/src/index.ts"],
       "@headless-lms/content-plate": ["./plugins/content-plate/src/index.ts"]
