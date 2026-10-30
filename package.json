@@ -18,7 +18,7 @@
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @headless-lms/adapter-db db:generate",
     "db:migrate": "pnpm --filter @headless-lms/adapter-db db:migrate",
-    "gen:sdk": "pnpm --filter @headless-lms/api gen:openapi && pnpm --filter @headless-lms/sdk gen",
+    "gen:sdk": "pnpm --filter @headless-lms/api gen:openapi && pnpm --filter @headless-lms/sdk gen && pnpm --filter @headless-lms/api gen:mcp-docs",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "build:packages": "pnpm --filter './packages/*' --filter './adapters/*' --filter './plugins/*' -r build",

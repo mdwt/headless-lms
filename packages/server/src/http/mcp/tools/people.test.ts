@@ -50,7 +50,10 @@ const cases: ToolCase[] = [
     tool: 'resend_student_invite',
     args: { id: 'ou_9' },
     service: 'organizations.resendStudentInvite',
-    expected: [{ id: 'ou_1', role: 'owner' }, { orgId: 'org_1', orgUserId: 'ou_9', inviterUserId: 'usr_1' }],
+    expected: [
+      { id: 'ou_1', role: 'owner' },
+      { orgId: 'org_1', orgUserId: 'ou_9', inviterUserId: 'usr_1' },
+    ],
     returns: undefined,
   },
   {

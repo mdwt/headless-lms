@@ -1,0 +1,155 @@
+---
+title: Connect an AI assistant
+description: Let Claude, ChatGPT and other MCP clients work in one organization, with your role and only the scopes you grant.
+---
+
+The API serves an [MCP](https://modelcontextprotocol.io) endpoint next to the REST API. An assistant connected to it can set up courses, grant access, run moderation queues and read analytics in one organization. It acts as the person who connected it.
+
+```txt title="Server URL"
+https://<your-api-host>/mcp
+```
+
+Every tool is one call to the same domain services the SDK and the admin app use, so validation, events, workflows and webhooks behave exactly as they do there.
+
+## How a connection works
+
+<Steps>
+<Step>
+
+**Add the server URL to your assistant.** It discovers the sign-in details from the URL on its own.
+
+</Step>
+<Step>
+
+**Sign in with your admin account.** The assistant opens the admin app's sign-in page. If you belong to more than one organization, choose the one to connect.
+
+</Step>
+<Step>
+
+**Choose what it may do.** The consent page lists the [scopes](/docs/mcp/permissions) your role can grant. Read scopes are ticked for you. Change and delete scopes are opt-in.
+
+</Step>
+<Step>
+
+**Start asking.** The assistant sees only the [tools](/docs/mcp/tools) for the scopes you granted.
+
+</Step>
+</Steps>
+
+To widen or narrow a connection, connect again and tick a different set. To end one, disconnect it in **Settings → Connected apps**.
+
+## Connect your assistant
+
+<Tabs items={["Claude", "ChatGPT", "Claude Code", "Cursor and others"]}>
+<Tab value="Claude">
+
+In Claude, open **Settings → Connectors**, choose **Add custom connector**, and paste the server URL. Claude opens the sign-in page when you connect.
+
+</Tab>
+<Tab value="ChatGPT">
+
+Turn on developer mode in ChatGPT's settings, then create an app with the server URL and OAuth as its authentication. ChatGPT opens the sign-in page when you connect.
+
+</Tab>
+<Tab value="Claude Code">
+
+```bash
+claude mcp add --transport http headless-lms https://<your-api-host>/mcp
+```
+
+Then run `/mcp` in Claude Code and choose **Authenticate** to sign in.
+
+</Tab>
+<Tab value="Cursor and others">
+
+Clients that speak Streamable HTTP take the URL directly. In Cursor, add it to `.cursor/mcp.json`:
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "headless-lms": { "url": "https://<your-api-host>/mcp" }
+  }
+}
+```
+
+Clients without client ID metadata documents register themselves dynamically, including ones that redirect to `localhost`.
+
+</Tab>
+</Tabs>
+
+## Connect with an API key
+
+Use an API key where nobody is present to sign in: scripts, CI, or the Claude API's MCP connector. Create one in **Settings → API keys**. A key belongs to you, works in the organization you created it in, and carries the scopes you ticked. It is shown once.
+
+Send it as a bearer token, or in the `x-api-key` header:
+
+<Tabs items={["Claude API", "Claude Code", "HTTP"]}>
+<Tab value="Claude API">
+
+Add the server to the request's `mcp_servers`, with the key as its authorization token:
+
+```json
+{
+  "type": "url",
+  "name": "headless-lms",
+  "url": "https://<your-api-host>/mcp",
+  "authorization_token": "<your API key>"
+}
+```
+
+</Tab>
+<Tab value="Claude Code">
+
+```bash
+claude mcp add --transport http headless-lms https://<your-api-host>/mcp \
+  --header "Authorization: Bearer $LMS_API_KEY"
+```
+
+</Tab>
+<Tab value="HTTP">
+
+```bash
+curl https://<your-api-host>/mcp \
+  -H "Authorization: Bearer $LMS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+</Tab>
+</Tabs>
+
+## What a connection can never do
+
+- **Go beyond your role.** A scope is offered only if your role holds it, and the role is checked again on every call. Owners and admins can grant every scope; instructors fewer. See [who can grant what](/docs/mcp/permissions#which-roles-can-grant-what).
+- **Delete without asking.** Delete scopes are never ticked for you, and without them the delete tools don't exist for the connection.
+- **Outlive your access.** Access tokens last 15 minutes and every call reads your membership from the database. Removing someone from the organization, or disconnecting the app, cuts it off on the next call.
+- **Handle secrets or files.** There are no tools for uploads, integration credentials, webhook secrets or staff management. Lesson content can't be written. Those stay in the admin app.
+
+Students can't connect. A connection belongs to one organization; to work in another, connect again.
+
+## Run it yourself
+
+The endpoint is part of the API, so there is nothing extra to deploy. It needs two settings you already have:
+
+| Variable          | Used for                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_URL` | The API's public origin. The server URL is this plus `/mcp`, and the token issuer is this plus `/api/auth`. |
+| `ADMIN_APP_URL`   | Where assistants send people to sign in, choose an organization and consent.                                |
+
+OAuth is on only when `BETTER_AUTH_URL` is `https`, or a loopback address such as `http://localhost:8000` for local work. Otherwise the API logs one warning at start-up and `/mcp` accepts API keys only.
+
+Clients find the authorization server from these documents, served at the domain root:
+
+- `/.well-known/oauth-protected-resource/mcp`
+- `/.well-known/oauth-authorization-server/api/auth`
+
+## When something goes wrong
+
+| What you see                               | What it means                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| The assistant can't find a tool you expect | The connection lacks its scope, or your role can't hold it. Connect again and tick it.           |
+| `401` on every call                        | The token expired and could not refresh, the app was disconnected, or you left the organization. |
+| The sign-in link has expired               | The sign-in took too long. Start connecting again from the assistant.                            |
+| A tool answers "Not found"                 | The id doesn't exist in this organization, or it's something your role can't see.                |
+| Internal error with a request id           | Something failed on the server. Quote the request id; it's in the API's logs.                    |

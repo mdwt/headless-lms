@@ -101,7 +101,7 @@ export const communityMemberTools: Tool[] = [
     name: 'remove_space_member',
     title: 'Remove space member',
     description:
-      "Remove a person from a space, whether they are a member, asked to join or were invited. Their access to the community stays. Not for a space open to all members.",
+      'Remove a person from a space, whether they are a member, asked to join or were invited. Their access to the community stays. Not for a space open to all members.',
     scope: 'community_members:write',
     kind: 'destructive',
     idempotent: true,

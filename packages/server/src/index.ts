@@ -5,6 +5,13 @@ import { buildContainer, type BuildContainerOptions, type Container } from './ap
 import type { ServerConfig } from './http/config.js';
 
 export { buildServer } from './http/server.js';
+export { mcpCatalogue } from './http/mcp/catalogue.js';
+export type {
+  CatalogueField,
+  CatalogueScope,
+  CatalogueTool,
+  McpCatalogue,
+} from './http/mcp/catalogue.js';
 export { loadIntegrations } from './app/integrations.js';
 export { InlineAutomationEngine } from '@headless-lms/adapter-defaults/workflows';
 // Operational functions consumed by the @headless-lms/cli bin.

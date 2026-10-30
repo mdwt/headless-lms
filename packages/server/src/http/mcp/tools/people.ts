@@ -23,7 +23,8 @@ export const peopleTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: StudentsQuery,
-    call: (input, { container, scope }) => container.reporting.admin.listStudents(scope.orgId, input),
+    call: (input, { container, scope }) =>
+      container.reporting.admin.listStudents(scope.orgId, input),
   }),
   defineTool({
     name: 'update_student',
@@ -167,6 +168,7 @@ export const peopleTools: Tool[] = [
     idempotent: true,
     openWorld: false,
     input: StudentIdParam,
-    call: ({ id }, { container, scope }) => container.reporting.admin.studentAnalytics(scope.orgId, id),
+    call: ({ id }, { container, scope }) =>
+      container.reporting.admin.studentAnalytics(scope.orgId, id),
   }),
 ];

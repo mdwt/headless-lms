@@ -1,0 +1,12 @@
+---
+title: Tools
+description: Every tool an assistant can use, the scope it needs and the input it takes.
+---
+
+Each tool is one call to a domain service, with the same validation and errors as the REST API. Lists that take `page` and `pageSize` are paginated. Ids come from the matching list tool, such as `list_courses` or `list_spaces`.
+
+Pick a role and a set of scopes to see exactly which tools that connection gets. Reads never change anything. Changes create, update, reorder or publish. Removes deletes, revokes or takes something down, so your assistant should ask before running one.
+
+<ToolCatalogue />
+
+A tool that answers "Not found" means the id isn't in this organization. Any other refusal carries the same message the REST API returns, such as a space being full or a topic still in use.

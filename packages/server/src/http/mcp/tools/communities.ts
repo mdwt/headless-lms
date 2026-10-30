@@ -30,7 +30,8 @@ export const communityTools: Tool[] = [
   defineTool({
     name: 'list_spaces',
     title: 'List spaces',
-    description: 'The spaces of a community, in order, each with its access rule, topics and links.',
+    description:
+      'The spaces of a community, in order, each with its access rule, topics and links.',
     scope: 'communities:read',
     kind: 'read',
     idempotent: true,
@@ -158,7 +159,8 @@ export const communityTools: Tool[] = [
   defineTool({
     name: 'remove_space_link',
     title: 'Remove space link',
-    description: 'Take a link out of a space. The linked content itself is kept. Returns the space.',
+    description:
+      'Take a link out of a space. The linked content itself is kept. Returns the space.',
     scope: 'communities:write',
     kind: 'destructive',
     idempotent: true,

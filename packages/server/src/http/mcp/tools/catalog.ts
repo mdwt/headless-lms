@@ -131,7 +131,8 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'list_bundles',
     title: 'List bundles',
-    description: 'Search and page through bundles: sets of courses, downloads and communities granted together.',
+    description:
+      'Search and page through bundles: sets of courses, downloads and communities granted together.',
     scope: 'bundles:read',
     kind: 'read',
     idempotent: true,
@@ -154,7 +155,8 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'create_bundle',
     title: 'Create bundle',
-    description: 'Create a bundle, optionally with the course, download and community ids it starts with.',
+    description:
+      'Create a bundle, optionally with the course, download and community ids it starts with.',
     scope: 'bundles:write',
     kind: 'write',
     idempotent: false,
@@ -189,7 +191,8 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'remove_bundle_item',
     title: 'Remove from bundle',
-    description: 'Take a course, download or community out of a bundle. Returns the remaining items.',
+    description:
+      'Take a course, download or community out of a bundle. Returns the remaining items.',
     scope: 'bundles:write',
     kind: 'destructive',
     idempotent: true,

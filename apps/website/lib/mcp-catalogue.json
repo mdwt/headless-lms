@@ -1,0 +1,2891 @@
+{
+  "instructions": "Manage one organization of a headless LMS: courses and their modules, downloads, bundles, media, students and their access, analytics, workflows and webhooks, comment moderation, and communities with their spaces, members and moderation. You only see the tools this connection was granted. Lists that take page and pageSize are paginated. Activity content cannot be written here.",
+  "scopes": [
+    {
+      "scope": "courses:read",
+      "resource": "courses",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "courses:write",
+      "resource": "courses",
+      "action": "write",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "courses:delete",
+      "resource": "courses",
+      "action": "delete",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "downloads:read",
+      "resource": "downloads",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "downloads:write",
+      "resource": "downloads",
+      "action": "write",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "downloads:delete",
+      "resource": "downloads",
+      "action": "delete",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "bundles:read",
+      "resource": "bundles",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "bundles:write",
+      "resource": "bundles",
+      "action": "write",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "bundles:delete",
+      "resource": "bundles",
+      "action": "delete",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "media:read",
+      "resource": "media",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "students:read",
+      "resource": "students",
+      "action": "read",
+      "permission": "view_student_progress",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "students:write",
+      "resource": "students",
+      "action": "write",
+      "permission": "manage_users",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "students:invite",
+      "resource": "students",
+      "action": "invite",
+      "permission": "manage_users",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "access:read",
+      "resource": "access",
+      "action": "read",
+      "permission": "view_student_progress",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "access:write",
+      "resource": "access",
+      "action": "write",
+      "permission": "manage_users",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "analytics:read",
+      "resource": "analytics",
+      "action": "read",
+      "permission": "view_student_progress",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "automations:read",
+      "resource": "automations",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "automations:write",
+      "resource": "automations",
+      "action": "write",
+      "permission": "manage_org_settings",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "automations:delete",
+      "resource": "automations",
+      "action": "delete",
+      "permission": "manage_org_settings",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "comments:read",
+      "resource": "comments",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "comments:moderate",
+      "resource": "comments",
+      "action": "moderate",
+      "permission": "edit_assigned_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "communities:read",
+      "resource": "communities",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "communities:write",
+      "resource": "communities",
+      "action": "write",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "communities:delete",
+      "resource": "communities",
+      "action": "delete",
+      "permission": "create_course",
+      "roles": [
+        "owner",
+        "admin"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "community_members:read",
+      "resource": "community_members",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "community_members:write",
+      "resource": "community_members",
+      "action": "write",
+      "permission": "moderate",
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": true
+    },
+    {
+      "scope": "community_moderation:read",
+      "resource": "community_moderation",
+      "action": "read",
+      "permission": null,
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": false
+    },
+    {
+      "scope": "community_moderation:write",
+      "resource": "community_moderation",
+      "action": "write",
+      "permission": "moderate",
+      "roles": [
+        "owner",
+        "admin",
+        "instructor"
+      ],
+      "removes": true
+    }
+  ],
+  "tools": [
+    {
+      "name": "list_courses",
+      "title": "List courses",
+      "description": "Search and page through the courses, each with its status and settings. Filter by status or category.",
+      "resource": "courses",
+      "scope": "courses:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_modules",
+      "title": "List modules",
+      "description": "The modules of a course, in order.",
+      "resource": "courses",
+      "scope": "courses:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_course",
+      "title": "Create course",
+      "description": "Create a draft course. Publish it with update_course.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_course",
+      "title": "Update course",
+      "description": "Change a course title, description, category or cover image, or publish and unpublish it with status. Fields left out stay as they are.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "thumbnailAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_course_settings",
+      "title": "Update course settings",
+      "description": "Change course settings such as transcript downloads and comments. Settings left out stay as they are.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "transcriptDownloads",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "comments",
+          "type": "object",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_module",
+      "title": "Create module",
+      "description": "Add a module at the end of a course. Returns the course modules in order.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "rename_module",
+      "title": "Rename module",
+      "description": "Rename a module. Returns the course modules in order.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "moduleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reorder_modules",
+      "title": "Reorder modules",
+      "description": "Set the module order of a course. Pass every module id of the course in the new order.",
+      "resource": "courses",
+      "scope": "courses:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "orderedIds",
+          "type": "string[]",
+          "required": true,
+          "description": "Every id in the collection, in the new order"
+        },
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_course",
+      "title": "Delete course",
+      "description": "Permanently delete a course with its modules and activities.",
+      "resource": "courses",
+      "scope": "courses:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_module",
+      "title": "Delete module",
+      "description": "Permanently delete a module with its activities. Returns the remaining modules in order.",
+      "resource": "courses",
+      "scope": "courses:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "moduleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_downloads",
+      "title": "List downloads",
+      "description": "Search and page through downloads: file collections a student can be granted. Filter by status or category.",
+      "resource": "downloads",
+      "scope": "downloads:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_download_files",
+      "title": "List download files",
+      "description": "The files of a download, in order, with their display names.",
+      "resource": "downloads",
+      "scope": "downloads:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_download",
+      "title": "Create download",
+      "description": "Create a draft download. Add files with add_download_file and publish it with update_download.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_download",
+      "title": "Update download",
+      "description": "Change a download title, description, category or cover image, or publish and unpublish it with status. Fields left out stay as they are.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "thumbnailAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "add_download_file",
+      "title": "Add file to download",
+      "description": "Add an uploaded file to the end of a download. Find file ids with list_media.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "displayName",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "rename_download_file",
+      "title": "Rename download file",
+      "description": "Set the name a file shows under in a download. null shows the file name.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "displayName",
+          "type": "string | null",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reorder_download_files",
+      "title": "Reorder download files",
+      "description": "Set the file order of a download. Pass every file id of the download in the new order.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "assetIds",
+          "type": "string[]",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_download_file",
+      "title": "Remove file from download",
+      "description": "Take a file out of a download. The uploaded file itself is kept.",
+      "resource": "downloads",
+      "scope": "downloads:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_download",
+      "title": "Delete download",
+      "description": "Permanently delete a download. The uploaded files are kept.",
+      "resource": "downloads",
+      "scope": "downloads:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "downloadId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_bundles",
+      "title": "List bundles",
+      "description": "Search and page through bundles: sets of courses, downloads and communities granted together.",
+      "resource": "bundles",
+      "scope": "bundles:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_bundle_items",
+      "title": "List bundle items",
+      "description": "The courses, downloads and communities in a bundle.",
+      "resource": "bundles",
+      "scope": "bundles:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "bundleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_bundle",
+      "title": "Create bundle",
+      "description": "Create a bundle, optionally with the course, download and community ids it starts with.",
+      "resource": "bundles",
+      "scope": "bundles:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "contentIds",
+          "type": "string[]",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "rename_bundle",
+      "title": "Rename bundle",
+      "description": "Rename a bundle.",
+      "resource": "bundles",
+      "scope": "bundles:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "bundleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "add_bundle_item",
+      "title": "Add to bundle",
+      "description": "Add a course, download or community to a bundle. Returns the bundle items.",
+      "resource": "bundles",
+      "scope": "bundles:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "contentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "bundleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_bundle_item",
+      "title": "Remove from bundle",
+      "description": "Take a course, download or community out of a bundle. Returns the remaining items.",
+      "resource": "bundles",
+      "scope": "bundles:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "bundleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "contentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_bundle",
+      "title": "Delete bundle",
+      "description": "Permanently delete a bundle. Its courses, downloads and communities are kept.",
+      "resource": "bundles",
+      "scope": "bundles:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "bundleId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_media",
+      "title": "List media",
+      "description": "Search and page through uploaded files, to use in downloads or as cover images of courses, downloads and communities. Uploading is done in the admin app.",
+      "resource": "media",
+      "scope": "media:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "kind",
+          "type": "\"image\" | \"video\" | \"audio\" | \"document\"",
+          "required": false,
+          "description": "The media class, derived by the server from the content type."
+        },
+        {
+          "name": "source",
+          "type": "\"library\" | \"member\"",
+          "required": false,
+          "description": "Defaults to `library`."
+        }
+      ]
+    },
+    {
+      "name": "list_students",
+      "title": "List students",
+      "description": "Search and page through the students with their access count, average progress, status and last activity.",
+      "resource": "students",
+      "scope": "students:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_student",
+      "title": "Update student",
+      "description": "Correct a student's first name, last name and email. All three are required. Returns the student's membership record; list_students shows the updated profile.",
+      "resource": "students",
+      "scope": "students:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "firstName",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "lastName",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "invite_student",
+      "title": "Invite student",
+      "description": "Invite someone by email as a student. They exist as an invited student at once. sendEmail false skips the email.",
+      "resource": "students",
+      "scope": "students:invite",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": true,
+      "fields": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "firstName",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "lastName",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sendEmail",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "resend_student_invite",
+      "title": "Resend student invite",
+      "description": "Send a pending student's invite email again.",
+      "resource": "students",
+      "scope": "students:invite",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_access",
+      "title": "List access",
+      "description": "Who has access to what. Filter by student (orgUserId), content, type or status.",
+      "resource": "access",
+      "scope": "access:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"active\" | \"expired\" | \"revoked\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "contentId",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "type",
+          "type": "\"course\" | \"download\"",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "grant_access",
+      "title": "Grant access",
+      "description": "Give a student access to one course, download or community (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.",
+      "resource": "access",
+      "scope": "access:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "expiresAt",
+          "type": "date-time | null",
+          "required": true,
+          "description": "When access ends; null never expires"
+        },
+        {
+          "name": "contentId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "bundleId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "set_access_status",
+      "title": "Revoke or reinstate access",
+      "description": "Revoke an access grant, or reinstate a revoked one.",
+      "resource": "access",
+      "scope": "access:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "status",
+          "type": "\"active\" | \"revoked\"",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_dashboard",
+      "title": "Get dashboard",
+      "description": "Published and draft course counts, active students, and access grants expiring soon.",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": []
+    },
+    {
+      "name": "get_enrollment_trend",
+      "title": "Get enrollment trend",
+      "description": "Daily enrollments across the organization for the last days (default 30, at most 365).",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "days",
+          "type": "integer",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_course_analytics",
+      "title": "Get course analytics",
+      "description": "Enrolled, started and completed counts, average progress and per-activity engagement for one course.",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_course_enrollment_trend",
+      "title": "Get course enrollment trend",
+      "description": "Daily enrollments in one course for the last days (default 30, at most 365).",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "days",
+          "type": "integer",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_student_analytics",
+      "title": "Get student analytics",
+      "description": "One student's enrolled, started and completed counts, average progress and progress in each course.",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_automation_triggers",
+      "title": "List workflow triggers",
+      "description": "The events that can start a workflow.",
+      "resource": "automations",
+      "scope": "automations:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": []
+    },
+    {
+      "name": "list_automation_actions",
+      "title": "List workflow actions",
+      "description": "The actions a workflow can run, with the settings each one takes.",
+      "resource": "automations",
+      "scope": "automations:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": []
+    },
+    {
+      "name": "list_automations",
+      "title": "List workflows and webhooks",
+      "description": "Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook). Webhooks show a reference to their signing secret, never the secret itself.",
+      "resource": "automations",
+      "scope": "automations:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "kind",
+          "type": "\"workflow\" | \"webhook\"",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_automation_runs",
+      "title": "List workflow and webhook runs",
+      "description": "Runs of one workflow or webhook, newest first, with the trigger event and each action result.",
+      "resource": "automations",
+      "scope": "automations:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"running\" | \"completed\" | \"failed\"",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_automation",
+      "title": "Create workflow",
+      "description": "Create a workflow from triggers and ordered actions. Use list_automation_triggers and list_automation_actions for valid values.",
+      "resource": "automations",
+      "scope": "automations:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "triggers",
+          "type": "string[]",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "actions",
+          "type": "object[]",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "filter",
+          "type": "object | null",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_automation",
+      "title": "Update workflow",
+      "description": "Change a workflow name, description, triggers or actions, or turn it on and off with enabled. Fields left out stay as they are.",
+      "resource": "automations",
+      "scope": "automations:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "triggers",
+          "type": "string[]",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "actions",
+          "type": "object[]",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "filter",
+          "type": "object | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "rerun_automation_run",
+      "title": "Re-run workflow or webhook run",
+      "description": "Run a finished workflow or webhook run again with its original trigger event, using the automation's current actions. Emails and webhook deliveries are sent again. The new outcome replaces the run's previous one. A run still in progress can't be re-run.",
+      "resource": "automations",
+      "scope": "automations:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "runId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_automation",
+      "title": "Delete workflow",
+      "description": "Permanently delete a workflow.",
+      "resource": "automations",
+      "scope": "automations:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_webhook",
+      "title": "Update webhook",
+      "description": "Change a webhook URL, events or description, or turn it on and off with enabled. Fields left out stay as they are.",
+      "resource": "automations",
+      "scope": "automations:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "events",
+          "type": "string[]",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_webhook",
+      "title": "Delete webhook",
+      "description": "Permanently delete a webhook and its signing secret. Its delivery history is kept.",
+      "resource": "automations",
+      "scope": "automations:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_comments",
+      "title": "List comments",
+      "description": "The comment moderation queue. Filter by status, reported, course, activity or author. Each comment carries its activityId and parentId.",
+      "resource": "comments",
+      "scope": "comments:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"pending\" | \"published\" | \"removed\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "reported",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "activityId",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "publish_comment",
+      "title": "Publish comment",
+      "description": "Publish a comment: approves one waiting for review, or restores a removed one.",
+      "resource": "comments",
+      "scope": "comments:moderate",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dismiss_comment_reports",
+      "title": "Dismiss comment reports",
+      "description": "Mark the reports on a comment as resolved. The comment's status does not change.",
+      "resource": "comments",
+      "scope": "comments:moderate",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reply_to_comment",
+      "title": "Reply to comment",
+      "description": "Reply to a published top-level comment as yourself. Pass its activityId and its id. To answer a reply, reply to its parentId.",
+      "resource": "comments",
+      "scope": "comments:moderate",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "body",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "activityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_comment",
+      "title": "Remove comment",
+      "description": "Take a comment down.",
+      "resource": "comments",
+      "scope": "comments:moderate",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_communities",
+      "title": "List communities",
+      "description": "Search and page through the communities, drafts included, each with its status and direct-message settings. Filter by status, search by title.",
+      "resource": "communities",
+      "scope": "communities:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_spaces",
+      "title": "List spaces",
+      "description": "The spaces of a community, in order, each with its access rule, topics and links.",
+      "resource": "communities",
+      "scope": "communities:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_community",
+      "title": "Create community",
+      "description": "Create a draft community with the default direct-message settings and no spaces. Add spaces with create_space and publish it with update_community.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_community",
+      "title": "Update community",
+      "description": "Change a community title, description or cover image, or publish and unpublish it with status. The cover must be a ready image from list_media; null clears it. Fields left out stay as they are.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "thumbnailAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_community_messaging",
+      "title": "Update community messaging",
+      "description": "Change the direct-message settings of a community: who may message whom from now on. Settings left out stay as they are.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "memberToMember",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "memberToStaff",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "staffToAnyone",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "firstMessageIsRequest",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "groupChats",
+          "type": "boolean",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "groupSize",
+          "type": "integer",
+          "required": false,
+          "description": "The most people a group chat may hold, its creator included"
+        }
+      ]
+    },
+    {
+      "name": "create_space",
+      "title": "Create space",
+      "description": "Add a space at the end of a community. Its access rule decides who can open it: all members, by request or by invite. A space open to all members cannot have a capacity.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "accessRule",
+          "type": "\"all_members\" | \"by_request\" | \"by_invite\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "capacity",
+          "type": "integer | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "settings",
+          "type": "object",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "update_space",
+      "title": "Update space",
+      "description": "Change a space name, description, access rule, capacity or settings. settings merges into the current settings. Fields left out stay as they are.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "accessRule",
+          "type": "\"all_members\" | \"by_request\" | \"by_invite\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "capacity",
+          "type": "integer | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "settings",
+          "type": "object",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reorder_spaces",
+      "title": "Reorder spaces",
+      "description": "Set the space order of a community. Pass every space id of the community in the new order.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "ids",
+          "type": "string[]",
+          "required": true,
+          "description": "Every id in the collection, once each, in the new order"
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "set_space_topics",
+      "title": "Set space topics",
+      "description": "Replace the topics of a space. An entry with an id keeps and renames that topic, one without adds a topic, and a topic left out is deleted. A topic that posts use cannot be deleted.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "topics",
+          "type": "object[]",
+          "required": true,
+          "description": "The complete list, in order. A topic left out is deleted"
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "add_space_link",
+      "title": "Add space link",
+      "description": "Link a course, download or community into a space, after its other links. Returns the space.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "contentId",
+          "type": "string",
+          "required": true,
+          "description": "The course, download or community to link"
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reorder_space_links",
+      "title": "Reorder space links",
+      "description": "Set the link order of a space. Pass every link id of the space in the new order.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "ids",
+          "type": "string[]",
+          "required": true,
+          "description": "Every id in the collection, once each, in the new order"
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_space_link",
+      "title": "Remove space link",
+      "description": "Take a link out of a space. The linked content itself is kept. Returns the space.",
+      "resource": "communities",
+      "scope": "communities:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "linkId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_space",
+      "title": "Delete space",
+      "description": "Permanently delete a space with its posts, comments and members.",
+      "resource": "communities",
+      "scope": "communities:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_community",
+      "title": "Delete community",
+      "description": "Permanently delete a community with its spaces. Links to it from other spaces are removed.",
+      "resource": "communities",
+      "scope": "communities:delete",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_community_analytics",
+      "title": "Get community analytics",
+      "description": "Membership, activity and moderation counts for one community.",
+      "resource": "analytics",
+      "scope": "analytics:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_community_members",
+      "title": "List community members",
+      "description": "Page through everyone with active access to a community, granted directly or through a bundle. Search by name or email.",
+      "resource": "community_members",
+      "scope": "community_members:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_space_members",
+      "title": "List space members",
+      "description": "Page through a space's members, its open requests to join and its open invitations.",
+      "resource": "community_members",
+      "scope": "community_members:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "add_space_member",
+      "title": "Add space member",
+      "description": "Place a member of the community straight into a space, with no request or invitation. Not for a space open to all members, or one that is full.",
+      "resource": "community_members",
+      "scope": "community_members:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "invite_space_member",
+      "title": "Invite space member",
+      "description": "Invite a member of the community into an invite-only space. They are notified and join when they accept.",
+      "resource": "community_members",
+      "scope": "community_members:write",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": true,
+      "fields": [
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "approve_space_request",
+      "title": "Approve space request",
+      "description": "Approve a person's request to join a space. Not when the space is full.",
+      "resource": "community_members",
+      "scope": "community_members:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "decline_space_request",
+      "title": "Decline space request",
+      "description": "Decline a person's request to join a space.",
+      "resource": "community_members",
+      "scope": "community_members:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_space_member",
+      "title": "Remove space member",
+      "description": "Remove a person from a space, whether they are a member, asked to join or were invited. Their access to the community stays. Not for a space open to all members.",
+      "resource": "community_members",
+      "scope": "community_members:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_space_moderation_queue",
+      "title": "Get space moderation queue",
+      "description": "The posts awaiting review in a space and the open flags on its posts and comments. Each list holds at most the 100 oldest; working the queue brings in the next ones.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spaceId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_message_moderation_queue",
+      "title": "Get message moderation queue",
+      "description": "The messages in a community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:read",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "approve_post",
+      "title": "Approve post",
+      "description": "Publish a post that is awaiting review.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "postId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dismiss_post_flags",
+      "title": "Dismiss post flags",
+      "description": "Close every open flag on a post and leave it up.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "resolution",
+          "type": "\"dismissed\"",
+          "required": true,
+          "description": "`dismissed` closes the open flags and leaves the post up. Removing the post resolves its flags as `removed` instead."
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "postId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_post",
+      "title": "Remove post",
+      "description": "Take a published or pending post down and resolve its open flags as removed. restore_post brings it back.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "postId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "restore_post",
+      "title": "Restore post",
+      "description": "Put a removed post back up.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "postId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dismiss_post_comment_flags",
+      "title": "Dismiss post comment flags",
+      "description": "Close every open flag on a comment on a post and leave it up.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_post_comment",
+      "title": "Remove post comment",
+      "description": "Hide a comment on a post and resolve its open flags as removed. restore_post_comment brings it back.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "restore_post_comment",
+      "title": "Restore post comment",
+      "description": "Publish a removed comment on a post again.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "commentId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "dismiss_message_flags",
+      "title": "Dismiss message flags",
+      "description": "Close every open flag on a chat message and leave it up.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "resolution",
+          "type": "\"dismissed\"",
+          "required": true,
+          "description": "`dismissed` closes the open flags and leaves the message up. Deleting the message or locking the chat resolves its flags as `deleted` or `locked` instead."
+        },
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "messageId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "lock_chat",
+      "title": "Lock chat",
+      "description": "Stop everyone sending or editing messages in a chat until it is unlocked. Its open message flags are resolved as locked.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "chatId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "unlock_chat",
+      "title": "Unlock chat",
+      "description": "Let the participants of a locked chat send messages again.",
+      "resource": "community_moderation",
+      "scope": "community_moderation:write",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "communityId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "chatId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    }
+  ]
+}

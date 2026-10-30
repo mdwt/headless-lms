@@ -9,6 +9,7 @@
     "build": "tsdown",
     "start": "node --env-file=../../.env dist/main.js",
     "gen:openapi": "tsx --env-file=../../.env scripts/gen-openapi.ts",
+    "gen:mcp-docs": "tsx scripts/gen-mcp-docs.ts",
     "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",

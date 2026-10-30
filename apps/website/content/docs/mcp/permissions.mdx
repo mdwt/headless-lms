@@ -1,0 +1,33 @@
+---
+title: Permissions
+description: The scopes a connection can carry, and which roles can grant them.
+---
+
+A connection or API key carries scopes. Each scope is one area and one action, such as `courses:read` or `communities:delete`, and each tool needs exactly one. A connection sees only the tools whose scope it holds.
+
+<ScopeMatrix />
+
+## Which roles can grant what
+
+A scope is offered only to roles that hold its permission, and the role is checked again on every call. If someone's role changes, their connections change with it on the next call.
+
+- **Owners and admins** can grant every scope.
+- **Instructors** can view courses, downloads, bundles, media, workflows, comments and communities, and can view and change community members and community moderation. Students, access and analytics stay with owners and admins.
+
+Students and moderators can't connect.
+
+## What is ticked for you
+
+The consent page and the API key form start with every view scope ticked and every other scope cleared. Change scopes are opt-in. Delete scopes sit apart under a warning and are never ticked for you.
+
+Some change scopes can also remove things: taking a file out of a download, revoking a student's access, removing someone from a space, or taking a post down. The consent page says so next to each of them.
+
+## Communities
+
+Three areas cover communities:
+
+- **Communities** is the structure: the community itself, its direct-message settings, and its spaces with their topics and links. Changing it needs owner or admin. Deleting a community or a space needs `communities:delete`.
+- **Community members** is who is in which space: listing members, adding and inviting people, approving and declining requests, removing people.
+- **Community moderation** is the review queues: approving and removing posts, removing comments, dismissing flags, and locking chats.
+
+Granting access to a community itself is an access grant, under `access:write`, like a course or download.
