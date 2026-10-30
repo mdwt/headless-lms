@@ -284,21 +284,6 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
   }
 
-  async cancelPendingInvite(orgId: string, email: string): Promise<Invite | null> {
-    const [row] = await this.db
-      .update(invites)
-      .set({ status: "canceled" })
-      .where(
-        and(
-          eq(invites.orgId, orgId),
-          sql`lower(${invites.email}) = lower(${email})`,
-          eq(invites.status, "pending"),
-        ),
-      )
-      .returning();
-    return row ? toInvite(row) : null;
-  }
-
   async deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null> {
     try {
       const [row] = await this.db

@@ -117,7 +117,7 @@ describe('access routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/access/scopes', headers: H });
     expect(res.statusCode).toBe(200);
     const options: Array<{ scope: string; allowed: boolean }> = res.json();
-    expect(options).toHaveLength(28);
+    expect(options).toHaveLength(27);
     expect(options.filter((option) => option.allowed).map((option) => option.scope)).toEqual([
       'courses:read',
       'downloads:read',

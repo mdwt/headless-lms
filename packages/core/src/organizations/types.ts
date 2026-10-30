@@ -38,17 +38,6 @@ export interface UnlinkOrgUserInput {
   userExternalId: string;
 }
 
-export interface UpdatePersonInput {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-}
-
-export interface UpdateStudentInput extends UpdatePersonInput {
-  orgId: string;
-  orgUserId: string;
-}
-
 export interface ResendStudentInviteInput {
   orgId: string;
   orgUserId: string;

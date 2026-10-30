@@ -17091,99 +17091,6 @@ export type GetStudentResponses = {
 
 export type GetStudentResponse = GetStudentResponses[keyof GetStudentResponses];
 
-export type UpdateStudentData = {
-  body: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: "/api/students/{id}";
-};
-
-export type UpdateStudentErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type UpdateStudentError = UpdateStudentErrors[keyof UpdateStudentErrors];
-
-export type UpdateStudentResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-    image: string | null;
-    entitlementCount: number;
-    avgProgress: number;
-    status: "invited" | "active";
-    joinedAt: string;
-    lastActiveAt: string | null;
-  };
-};
-
-export type UpdateStudentResponse = UpdateStudentResponses[keyof UpdateStudentResponses];
-
 export type GetStudentAnalyticsData = {
   body?: never;
   path: {
@@ -20425,7 +20332,6 @@ export type ListAccessScopesResponses = {
       | "bundles:delete"
       | "media:read"
       | "students:read"
-      | "students:write"
       | "students:invite"
       | "access:read"
       | "access:write"
@@ -20627,7 +20533,6 @@ export type CreateApiKeyData = {
       | "bundles:delete"
       | "media:read"
       | "students:read"
-      | "students:write"
       | "students:invite"
       | "access:read"
       | "access:write"

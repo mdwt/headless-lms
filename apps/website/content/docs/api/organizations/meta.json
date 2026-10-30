@@ -14,7 +14,6 @@
     "getMemberViewer",
     "listStudents",
     "getStudent",
-    "updateStudent",
     "deleteStudent",
     "resendStudentInvite"
   ]

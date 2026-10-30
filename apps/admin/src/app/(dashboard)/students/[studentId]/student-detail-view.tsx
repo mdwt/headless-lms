@@ -28,7 +28,6 @@ import type {
 import { GrantAccessDialog, type LiteContent } from "../_components/grant-access-dialog";
 import { setEntitlementStatusAction } from "../../entitlements/actions";
 import { deleteStudentAction, resendStudentInviteAction } from "../actions";
-import { StudentDetailsForm } from "./student-details-form";
 
 /**
  * Student detail client view (option 2). The student and their entitlements
@@ -125,16 +124,11 @@ export function StudentDetailView({
         onDelete={() => setConfirmDelete(true)}
       />
 
-      <Tabs defaultValue="details" className="flex flex-col gap-6">
+      <Tabs defaultValue="access" className="flex flex-col gap-6">
         <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="access">Access</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="details">
-          <StudentDetailsForm student={student} />
-        </TabsContent>
 
         <TabsContent value="access" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between gap-4">

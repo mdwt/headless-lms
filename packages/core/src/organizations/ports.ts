@@ -15,7 +15,6 @@ import type {
   ResendStudentInviteInput,
   UpdateOrganizationInput,
   UpdateOrgUserInput,
-  UpdateStudentInput,
 } from './types.js';
 
 // Sessions are identity's, so the header shape it forwards is declared there.
@@ -55,7 +54,6 @@ export interface OrganizationService {
   // unknown, ConflictError when the address is taken. Changing the address of a
   // student who has not accepted kills their pending invite, since the token
   // was minted against the old one.
-  updateStudent(actor: Actor, input: UpdateStudentInput): Promise<OrgUser>;
   // Resolve an org by its public slug — used by the student portal boundary to
   // map the portal org slug to the tenant org id.
   getBySlug(slug: string): Promise<Organization | null>;
@@ -133,7 +131,6 @@ export interface OrganizationsRepository {
   /** Every org this person is a student in — the scope of `student.linked`. */
   findStudentOrgUsers(userId: string): Promise<OrgUser[]>;
   /** Kills the org's pending invite for an address, if any. */
-  cancelPendingInvite(orgId: string, email: string): Promise<Invite | null>;
 
   deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null>;
 }

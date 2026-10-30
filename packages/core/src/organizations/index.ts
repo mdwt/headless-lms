@@ -44,8 +44,6 @@ export type {
   UpdateOrgUserInput,
   OrgUserStatus,
   ResendStudentInviteInput,
-  UpdatePersonInput,
-  UpdateStudentInput,
   LinkOrgUserInput,
   UnlinkOrgUserInput,
 } from './types.js';

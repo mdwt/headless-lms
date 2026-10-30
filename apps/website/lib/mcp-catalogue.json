@@ -127,17 +127,6 @@
       "removes": false
     },
     {
-      "scope": "students:write",
-      "resource": "students",
-      "action": "write",
-      "permission": "manage_users",
-      "roles": [
-        "owner",
-        "admin"
-      ],
-      "removes": false
-    },
-    {
       "scope": "students:invite",
       "resource": "students",
       "action": "invite",
@@ -1134,42 +1123,6 @@
           "name": "sort",
           "type": "string",
           "required": false,
-          "description": null
-        }
-      ]
-    },
-    {
-      "name": "update_student",
-      "title": "Update student",
-      "description": "Correct the first name, last name and email of a student this organization added who has not made an account yet. All three are required. Refused once the student has their own account or belongs to another organization. Returns the student's membership record; list_students shows the updated profile.",
-      "resource": "students",
-      "scope": "students:write",
-      "kind": "write",
-      "idempotent": true,
-      "openWorld": false,
-      "fields": [
-        {
-          "name": "firstName",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "lastName",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "email",
-          "type": "string",
-          "required": true,
-          "description": null
-        },
-        {
-          "name": "id",
-          "type": "string",
-          "required": true,
           "description": null
         }
       ]

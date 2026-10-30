@@ -115,7 +115,6 @@ function fakeRepo(over?: Partial<OrganizationsRepository>): OrganizationsReposit
         Promise.resolve({ ...STUDENT, orgId, id, ...patch }),
       ),
     findStudentOrgUsers: vi.fn().mockResolvedValue([]),
-    cancelPendingInvite: vi.fn().mockResolvedValue(null),
     deleteOrgUser: vi
       .fn()
       .mockImplementation((orgId, id) => Promise.resolve({ ...STUDENT, orgId, id })),
@@ -325,72 +324,6 @@ describe('createInvite authorization', () => {
       }),
     ).rejects.toBeInstanceOf(OrganizationRuleError);
     expect(repo.upsertPendingInvite).not.toHaveBeenCalled();
-  });
-});
-
-describe('updateStudent', () => {
-  const input = {
-    orgId: 'org_1',
-    orgUserId: 'orm_1',
-    firstName: 'Ada',
-    lastName: 'Byron',
-    email: 'ada.byron@example.com',
-  };
-  const invitedPerson = { ...PERSON, externalId: null };
-
-  it('corrects a student this org added who has no account yet', async () => {
-    const { service, people, repo } = build({
-      people: fakePeople({ getUserById: vi.fn().mockResolvedValue(invitedPerson) }),
-      repo: fakeRepo({ findOrgUsersByUser: vi.fn().mockResolvedValue([STUDENT]) }),
-    });
-    await service.updateStudent(ADMIN, input);
-    expect(people.updateUser).toHaveBeenCalledWith('usr_1', {
-      firstName: 'Ada',
-      lastName: 'Byron',
-      email: 'ada.byron@example.com',
-    });
-    expect(repo.cancelPendingInvite).toHaveBeenCalledWith('org_1', 'ada@example.com');
-  });
-
-  it('refuses a student who has their own account', async () => {
-    const { service, people } = build({
-      repo: fakeRepo({ findOrgUsersByUser: vi.fn().mockResolvedValue([STUDENT]) }),
-    });
-    await expect(service.updateStudent(ADMIN, input)).rejects.toBeInstanceOf(ConflictError);
-    expect(people.updateUser).not.toHaveBeenCalled();
-  });
-
-  it('refuses a person who also belongs to another organization', async () => {
-    const { service, people } = build({
-      people: fakePeople({ getUserById: vi.fn().mockResolvedValue(invitedPerson) }),
-      repo: fakeRepo({
-        findOrgUsersByUser: vi
-          .fn()
-          .mockResolvedValue([STUDENT, { ...STUDENT, id: 'orm_other', orgId: 'org_2' }]),
-      }),
-    });
-    await expect(service.updateStudent(ADMIN, input)).rejects.toBeInstanceOf(ConflictError);
-    expect(people.updateUser).not.toHaveBeenCalled();
-  });
-
-  it('refuses an email that belongs to someone else', async () => {
-    const { service, people } = build({
-      people: fakePeople({
-        getUserById: vi.fn().mockResolvedValue(invitedPerson),
-        getUserByEmail: vi.fn().mockResolvedValue({ ...PERSON, id: 'usr_2' }),
-      }),
-      repo: fakeRepo({ findOrgUsersByUser: vi.fn().mockResolvedValue([STUDENT]) }),
-    });
-    await expect(service.updateStudent(ADMIN, input)).rejects.toBeInstanceOf(ConflictError);
-    expect(people.updateUser).not.toHaveBeenCalled();
-  });
-
-  it('refuses an instructor', async () => {
-    const { service, people } = build({
-      people: fakePeople({ getUserById: vi.fn().mockResolvedValue(invitedPerson) }),
-    });
-    await expect(service.updateStudent(INSTRUCTOR, input)).rejects.toBeInstanceOf(ForbiddenError);
-    expect(people.updateUser).not.toHaveBeenCalled();
   });
 });
 

@@ -32,7 +32,6 @@ const NAMES = [
   'delete_bundle',
   'list_media',
   'list_students',
-  'update_student',
   'invite_student',
   'resend_student_invite',
   'list_access',
@@ -95,7 +94,7 @@ const NAMES = [
 ];
 
 describe('tool registry', () => {
-  it('is exactly the 88 designed tools, in order', () => {
+  it('is exactly the 87 designed tools, in order', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual(NAMES);
   });
 

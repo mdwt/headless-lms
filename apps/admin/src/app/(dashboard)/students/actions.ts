@@ -32,21 +32,6 @@ export async function addStudentAction(input: AddStudentInput): Promise<void> {
   revalidatePath("/students");
 }
 
-export interface UpdateStudentInput {
-  firstName: string;
-  lastName: string;
-  email: string;
-}
-
-// Corrects what an admin typed on the invite form. Changing the address of a
-// student who hasn't accepted retires their pending invite, so the list has to
-// be revalidated too — their invite state moved.
-export async function updateStudentAction(id: string, input: UpdateStudentInput): Promise<void> {
-  await Organizations.updateStudent({ id, ...input }, await authHeaders());
-  revalidatePath("/students");
-  revalidatePath(`/students/${id}`);
-}
-
 export async function resendStudentInviteAction(id: string): Promise<void> {
   await Organizations.resendStudentInvite({ id }, await authHeaders());
   revalidatePath(`/students/${id}`);

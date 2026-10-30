@@ -10,8 +10,8 @@ import {
 } from './access-scopes.js';
 
 describe('access scopes', () => {
-  it('lets owners and admins hold all 28 scopes', () => {
-    expect(ACCESS_SCOPES).toHaveLength(28);
+  it('lets owners and admins hold all 27 scopes', () => {
+    expect(ACCESS_SCOPES).toHaveLength(27);
     expect(scopesForRole('owner')).toEqual([...ACCESS_SCOPES]);
     expect(scopesForRole('admin')).toEqual([...ACCESS_SCOPES]);
   });

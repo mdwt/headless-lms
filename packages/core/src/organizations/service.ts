@@ -27,14 +27,13 @@ import type {
   ResendStudentInviteInput,
   UpdateOrganizationInput,
   UpdateOrgUserInput,
-  UpdateStudentInput,
 } from './types.js';
 import { organizationEvents, type OrganizationEvent } from './events.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { IdentityService } from '../identity/index.js';
 import { genId } from '../shared/id.js';
@@ -308,60 +307,6 @@ export class OrganizationServiceImpl implements OrganizationService {
 
     this.logger.info('invite created', { orgId, inviteId: invite.id, role, sendEmail });
     return invite;
-  }
-
-  async updateStudent(actor: Actor, input: UpdateStudentInput): Promise<OrgUser> {
-    const { orgId, orgUserId, firstName, lastName, email } = input;
-    this.assertManagesUsers(actor, orgId);
-    const orgUser = await this.repo.findOrgUserById(orgId, orgUserId);
-    if (!orgUser || orgUser.role !== STUDENT_ROLE) {
-      throw new NotFoundError('Student', orgUserId);
-    }
-    const person = await this.people.getUserById(orgUser.userId);
-    if (!person) {
-      throw new NotFoundError('User', orgUser.userId);
-    }
-
-    const memberships = await this.repo.findOrgUsersByUser(person.id);
-    if (person.externalId !== null || memberships.some((member) => member.orgId !== orgId)) {
-      this.logger.warn(
-        'student update rejected: the person has an account or another organization',
-        {
-          orgId,
-          orgUserId,
-          actorOrgUserId: actor.id,
-        },
-      );
-      throw new ConflictError(
-        'This student has their own account or belongs to another organization, so only they can change their name and email',
-      );
-    }
-    if (email !== undefined && email.toLowerCase() !== person.email.toLowerCase()) {
-      const holder = await this.people.getUserByEmail(email);
-      if (holder && holder.id !== person.id) {
-        throw new ConflictError('That email belongs to someone else');
-      }
-    }
-
-    const previousEmail = person.email;
-    await this.people.updateUser(person.id, {
-      ...(firstName !== undefined && { firstName }),
-      ...(lastName !== undefined && { lastName }),
-      ...(email !== undefined && { email }),
-    });
-
-    // The pending invite carries its own copy of the address and a token minted
-    // against it. Once the address is corrected that invite points at the wrong
-    // person, so it is cancelled rather than left live — the admin re-sends,
-    // which mints a fresh one for the new address. A student who has already
-    // accepted has no pending invite to worry about.
-    const emailChanged = email !== undefined && email.toLowerCase() !== previousEmail.toLowerCase();
-    if (emailChanged && orgUser.status !== 'active') {
-      await this.repo.cancelPendingInvite(orgId, previousEmail);
-    }
-
-    this.logger.info('student updated', { orgId, orgUserId, emailChanged });
-    return orgUser;
   }
 
   async resendStudentInvite(actor: Actor, input: ResendStudentInviteInput): Promise<void> {

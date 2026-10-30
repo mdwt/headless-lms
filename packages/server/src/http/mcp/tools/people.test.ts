@@ -17,21 +17,6 @@ const cases: ToolCase[] = [
     expected: ['org_1', { page: 1, pageSize: 20, search: 'sam' }],
   },
   {
-    tool: 'update_student',
-    args: { id: 'ou_9', firstName: 'Sam', lastName: 'Lee', email: 'sam@acme.test' },
-    service: 'organizations.updateStudent',
-    expected: [
-      { id: 'ou_1', role: 'owner' },
-      {
-        orgId: 'org_1',
-        orgUserId: 'ou_9',
-        firstName: 'Sam',
-        lastName: 'Lee',
-        email: 'sam@acme.test',
-      },
-    ],
-  },
-  {
     tool: 'invite_student',
     args: { email: 'sam@acme.test', firstName: 'Sam' },
     service: 'organizations.createInvite',
@@ -131,7 +116,6 @@ describe('student, access and analytics tools', () => {
   it('declare their scope and hints', () => {
     expect(toolSpecs(peopleTools)).toEqual([
       ['list_students', 'students:read', 'read', true, false],
-      ['update_student', 'students:write', 'write', true, false],
       ['invite_student', 'students:invite', 'write', false, true],
       ['resend_student_invite', 'students:invite', 'write', false, true],
       ['list_access', 'access:read', 'read', true, false],

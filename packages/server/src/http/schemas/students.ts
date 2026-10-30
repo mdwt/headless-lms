@@ -1,6 +1,5 @@
 // Students resource schemas.
 import { z } from 'zod';
-import { emailSchema } from '@headless-lms/core/schemas';
 import { ListQuery, paginated, OrgUserProfileSchema } from './shared.js';
 
 export const OrgUserStatus = z.enum(['invited', 'active']);
@@ -47,12 +46,3 @@ export type StudentsPage = z.infer<typeof StudentsPage>;
 
 export const StudentIdParam = z.object({ id: z.string() });
 export type StudentIdParam = z.infer<typeof StudentIdParam>;
-
-// Every field is a correction to what an admin typed, so all three are sent
-// together — the form edits the whole profile, not one attribute at a time.
-export const UpdateStudentBody = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  email: emailSchema,
-});
-export type UpdateStudentBody = z.infer<typeof UpdateStudentBody>;

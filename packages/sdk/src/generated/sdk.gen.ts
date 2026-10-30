@@ -466,8 +466,6 @@ import type {
   UpdatePostResponses,
   UpdateSpaceErrors,
   UpdateSpaceResponses,
-  UpdateStudentErrors,
-  UpdateStudentResponses,
   UpdateWebhookErrors,
   UpdateWebhookResponses,
 } from "./types.gen";
@@ -912,51 +910,6 @@ export class Organizations {
       url: "/api/students/{id}",
       ...options,
       ...params,
-    });
-  }
-
-  /**
-   * Update a student's profile (staff)
-   *
-   * Owner or admin only. Corrects the name or email of a student this organization added who has not made an account. A pending invite follows a new email. 409 when the student has their own account or belongs to another organization, or when the email belongs to someone else.
-   */
-  public static updateStudent<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateStudentResponses, UpdateStudentErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "firstName" },
-            { in: "body", key: "lastName" },
-            { in: "body", key: "email" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).patch<
-      UpdateStudentResponses,
-      UpdateStudentErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/students/{id}",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
     });
   }
 
@@ -8742,7 +8695,6 @@ export class Access {
         | "bundles:delete"
         | "media:read"
         | "students:read"
-        | "students:write"
         | "students:invite"
         | "access:read"
         | "access:write"

@@ -9,7 +9,6 @@ import {
   SetEntitlementStatus,
   StudentIdParam,
   StudentsQuery,
-  UpdateStudentBody,
 } from '../../schemas/index.js';
 import { actor, defineTool, noInput, type Tool } from '../tool.js';
 
@@ -26,23 +25,6 @@ export const peopleTools: Tool[] = [
     input: StudentsQuery,
     call: (input, { container, scope }) =>
       container.reporting.admin.listStudents(scope.orgId, input),
-  }),
-  defineTool({
-    name: 'update_student',
-    title: 'Update student',
-    description:
-      "Correct the first name, last name and email of a student this organization added who has not made an account yet. All three are required. Refused once the student has their own account or belongs to another organization. Returns the student's membership record; list_students shows the updated profile.",
-    scope: 'students:write',
-    kind: 'write',
-    idempotent: true,
-    openWorld: false,
-    input: UpdateStudentBody.extend(StudentIdParam.shape),
-    call: ({ id, ...profile }, { container, scope }) =>
-      container.organizations.updateStudent(actor(scope), {
-        orgId: scope.orgId,
-        orgUserId: id,
-        ...profile,
-      }),
   }),
   defineTool({
     name: 'invite_student',
