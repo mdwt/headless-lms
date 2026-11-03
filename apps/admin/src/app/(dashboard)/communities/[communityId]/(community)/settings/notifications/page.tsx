@@ -3,6 +3,7 @@ import { serverApi } from "@/lib/api/server";
 import { SettingsSurface } from "@/components/forms/settings-section";
 
 import { CommunityCategories } from "../_components/community-categories";
+import { DigestScheduleForm } from "../_components/digest-schedule-form";
 
 export default async function CommunityNotificationSettings({
   params,
@@ -22,6 +23,7 @@ export default async function CommunityNotificationSettings({
 
   return (
     <SettingsSurface>
+      <DigestScheduleForm communityId={community.id} digest={community.settings.digest} />
       <CommunityCategories
         communityId={community.id}
         list={list}

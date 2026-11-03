@@ -9,6 +9,7 @@ import { listRefusal, type ListRefusal } from "@/components/notification-categor
 import type {
   Community,
   CommunityStatus,
+  DigestSchedule,
   DmSettings,
   NotificationCategory,
   Space,
@@ -79,6 +80,18 @@ export async function patchDmSettingsAction(
   );
   revalidateCommunity();
   return community.settings.dm;
+}
+
+export async function patchDigestScheduleAction(
+  communityId: string,
+  digest: DigestSchedule | null,
+): Promise<DigestSchedule | null> {
+  const community = await Communities.patchCommunityDmSettings(
+    { communityId, digest },
+    await authHeaders(),
+  );
+  revalidateCommunity();
+  return community.settings.digest;
 }
 
 export interface SpaceInput {
