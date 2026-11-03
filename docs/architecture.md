@@ -78,6 +78,16 @@ A context is imported only through its `index.ts` (`@headless-lms/core/<context>
 There is no orchastration layer at this point - and that's a decision that ensures that each use case has a domain
 owner as we build out the system.
 
+### Ownership
+
+Every record has one owning context. The owner is decided by what the record is about, not by who it is for, which
+context delivers it, or which app shows it. A person's own records are identity's: profile, notification settings,
+devices. A person's state about something another context owns belongs to that context: a follow, bookmark,
+reaction, flag or mute on a post, space or chat is discussion's. Progress is state of that kind with a context of
+its own. A record of something the system did belongs to the context that did it: a notification the server sent,
+and its deliveries, are automations', which runs that process. A record keyed by another context's item, or read
+only by another context, is in the wrong place.
+
 ### Reporting
 
 Reporting is the read domain. It lives in `packages/core` as `@headless-lms/core/reporting/*`. It reads every
