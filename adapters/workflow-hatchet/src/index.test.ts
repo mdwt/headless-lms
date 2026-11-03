@@ -561,6 +561,43 @@ describe("HatchetAutomationEngine as Scheduler", () => {
     expect(fake.schedule).not.toHaveBeenCalled();
   });
 
+  it("at schedules a new run when the pending run fires before it can be moved", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.scheduled.list as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ rows: [{ metadata: { id: "scheduled-1" } }] })
+      .mockResolvedValueOnce({ rows: [] });
+    (fake.client.scheduled.update as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('[{"description":"Scheduled workflow not found."}]'),
+    );
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runAt = new Date("2026-11-03T10:07:00.000Z");
+
+    await engine.at("automations.notifications.flush", runAt, "usr_1:cht_1", { chatId: "cht_1" });
+
+    expect(fake.client.scheduled.update).toHaveBeenCalledWith("scheduled-1", { triggerAt: runAt });
+    expect(fake.schedule).toHaveBeenCalledWith(
+      runAt,
+      { job: "automations.notifications.flush", key: "usr_1:cht_1", payload: { chatId: "cht_1" } },
+      { additionalMetadata: { job: "automations.notifications.flush", key: "usr_1%3Acht_1" } },
+    );
+  });
+
+  it("at fails when the move is refused and the run is still pending", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.scheduled.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      rows: [{ metadata: { id: "scheduled-1" } }],
+    });
+    (fake.client.scheduled.update as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("hatchet down"),
+    );
+    const engine = new HatchetAutomationEngine(fake.client);
+
+    await expect(
+      engine.at("discussion.post.publish", new Date(), "pst_1", { postId: "pst_1" }),
+    ).rejects.toThrow("hatchet down");
+    expect(fake.schedule).not.toHaveBeenCalled();
+  });
+
   it("at encodes a key holding colons in the metadata and its filter, and keeps it raw in the input", async () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);

@@ -219,26 +219,42 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   }
 
   async at(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void> {
-    const page = await this.client.scheduled.list({
-      workflow: this.jobTask,
-      additionalMetadata: jobMetadataFilter(job, key),
-      statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
-    });
-    const [found, ...extra] = page.rows ?? [];
+    const [found, ...extra] = await this.pendingRuns(job, key);
     if (!found) {
-      await this.jobTask.schedule(
-        runAt,
-        { job, key, payload },
-        { additionalMetadata: jobMetadata(job, key) },
-      );
+      await this.scheduleJob(job, runAt, key, payload);
       return;
     }
-    await this.client.scheduled.update(found.metadata.id, { triggerAt: runAt });
+    try {
+      await this.client.scheduled.update(found.metadata.id, { triggerAt: runAt });
+    } catch (err) {
+      const pending = await this.pendingRuns(job, key);
+      if (pending.some((run) => run.metadata.id === found.metadata.id)) {
+        throw err;
+      }
+      await this.scheduleJob(job, runAt, key, payload);
+    }
     if (extra.length > 0) {
       await this.client.scheduled.bulkDelete({
         scheduledRuns: extra.map((run) => run.metadata.id),
       });
     }
+  }
+
+  private async pendingRuns(job: string, key: string): Promise<HatchetScheduledRunLike[]> {
+    const page = await this.client.scheduled.list({
+      workflow: this.jobTask,
+      additionalMetadata: jobMetadataFilter(job, key),
+      statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
+    });
+    return page.rows ?? [];
+  }
+
+  private async scheduleJob(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void> {
+    await this.jobTask.schedule(
+      runAt,
+      { job, key, payload },
+      { additionalMetadata: jobMetadata(job, key) },
+    );
   }
 
   async cancel(job: string, key: string): Promise<void> {
