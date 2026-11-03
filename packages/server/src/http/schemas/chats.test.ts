@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ChatListItem, MuteChat, ResolveMessageFlags } from './chats.js';
+import { ChatListItem, ResolveMessageFlags } from './chats.js';
+import { SetMute, SetPostSubscription } from './discussion.js';
 
 describe('chat schemas', () => {
   it('accepts only a dismissal when resolving message flags', () => {
@@ -8,20 +9,7 @@ describe('chat schemas', () => {
     expect(ResolveMessageFlags.safeParse({ resolution: 'locked' }).success).toBe(false);
   });
 
-  it('mutes until unmuted when no time is given and refuses an explicit null', () => {
-    expect(MuteChat.parse({})).toEqual({});
-    expect(MuteChat.parse({ until: '2030-01-01T00:00:00Z' }).until).toEqual(
-      new Date('2030-01-01T00:00:00Z'),
-    );
-    expect(MuteChat.parse({ until: '2030-01-01T02:00:00+02:00' }).until).toEqual(
-      new Date('2030-01-01T00:00:00Z'),
-    );
-    expect(MuteChat.safeParse({ until: null }).success).toBe(false);
-    expect(MuteChat.safeParse({ until: 0 }).success).toBe(false);
-    expect(MuteChat.safeParse({ until: 'tomorrow' }).success).toBe(false);
-  });
-
-  it('carries a mute as a flag and an optional end time', () => {
+  it('carries your mute as a subscription, or null', () => {
     const chat = {
       orgId: 'org-1',
       id: 'cht_1',
@@ -43,13 +31,43 @@ describe('chat schemas', () => {
     };
     const parsed = ChatListItem.parse({
       ...item,
-      muted: true,
-      mutedUntil: '2030-01-01T00:00:00Z',
+      subscription: { state: 'muted', mutedUntil: '2030-01-01T00:00:00Z' },
     });
-    expect([parsed.muted, parsed.mutedUntil]).toEqual([true, new Date('2030-01-01T00:00:00Z')]);
-    const unmuted = ChatListItem.parse({ ...item, muted: false, mutedUntil: null });
-    expect([unmuted.muted, unmuted.mutedUntil]).toEqual([false, null]);
-    expect(ChatListItem.safeParse({ ...item, mute: null }).success).toBe(false);
-    expect(ChatListItem.safeParse({ ...item, muted: true }).success).toBe(false);
+    expect(parsed.subscription).toEqual({
+      state: 'muted',
+      mutedUntil: new Date('2030-01-01T00:00:00Z'),
+    });
+    expect(ChatListItem.parse({ ...item, subscription: null }).subscription).toBeNull();
+    expect(ChatListItem.safeParse(item).success).toBe(false);
+    expect(ChatListItem.safeParse({ ...item, subscription: { state: 'muted' } }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('subscription bodies', () => {
+  it('mutes until changed when no time is given, and accepts an end time', () => {
+    expect(SetMute.parse({ state: 'muted' })).toEqual({ state: 'muted' });
+    expect(SetMute.parse({ state: 'muted', mutedUntil: null })).toEqual({
+      state: 'muted',
+      mutedUntil: null,
+    });
+    expect(SetMute.parse({ state: 'muted', mutedUntil: '2030-01-01T02:00:00+02:00' })).toEqual({
+      state: 'muted',
+      mutedUntil: new Date('2030-01-01T00:00:00Z'),
+    });
+    expect(SetMute.safeParse({ state: 'muted', mutedUntil: 'tomorrow' }).success).toBe(false);
+  });
+
+  it('takes an end time only with a mute, and following only on a post', () => {
+    expect(SetMute.parse({ state: 'none' })).toEqual({ state: 'none' });
+    expect(SetMute.safeParse({ state: 'none', mutedUntil: null }).success).toBe(false);
+    expect(SetMute.safeParse({ state: 'following' }).success).toBe(false);
+    expect(SetPostSubscription.parse({ state: 'following' })).toEqual({ state: 'following' });
+    expect(
+      SetPostSubscription.safeParse({ state: 'following', mutedUntil: '2030-01-01T00:00:00Z' })
+        .success,
+    ).toBe(false);
+    expect(SetPostSubscription.safeParse({ state: 'subscribed' }).success).toBe(false);
   });
 });

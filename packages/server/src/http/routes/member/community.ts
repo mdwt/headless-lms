@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { actorOf } from './actor.js';
@@ -12,6 +13,8 @@ import {
   DirectoryQuery,
   OrgUserBody,
   PageQuery,
+  SetMute,
+  SpaceIdParam,
   SpaceMember,
   SpaceMemberParam,
   SpaceMembersPage,
@@ -358,6 +361,27 @@ export async function memberCommunityRoutes(
         req.params.spaceId,
         req.params.orgUserId,
       );
+    },
+  });
+
+  r.route({
+    method: 'PUT',
+    url: '/api/member/spaces/:spaceId/subscription',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'setSpaceSubscription',
+      tags,
+      summary: 'Mute a space, or clear your mute',
+      description:
+        'For anyone who can open the space. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions, actions on you and moderation work still notify. `none` clears the mute.',
+      params: SpaceIdParam,
+      body: SetMute,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      await container.subscriptions.setSpace(req.orgId, actor, req.params.spaceId, req.body);
+      return reply.code(204).send();
     },
   });
 }

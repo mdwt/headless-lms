@@ -12887,8 +12887,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -12919,7 +12939,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -13451,8 +13471,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -13483,7 +13523,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -13862,8 +13902,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -13894,7 +13954,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -14273,8 +14333,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -14305,7 +14385,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -21505,6 +21585,30 @@
                                   "additionalProperties": false
                                 },
                                 "description": "Linked content that is published; staff also see unpublished targets"
+                              },
+                              "subscription": {
+                                "nullable": true,
+                                "description": "Your mute on this space while it applies; null when none",
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "type": "string",
+                                    "enum": [
+                                      "following",
+                                      "muted"
+                                    ]
+                                  },
+                                  "mutedUntil": {
+                                    "nullable": true,
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "state",
+                                  "mutedUntil"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -21518,7 +21622,8 @@
                               "capacity",
                               "settings",
                               "topics",
-                              "links"
+                              "links",
+                              "subscription"
                             ],
                             "additionalProperties": false
                           }
@@ -21897,6 +22002,30 @@
                             "additionalProperties": false
                           },
                           "description": "Linked content that is published; staff also see unpublished targets"
+                        },
+                        "subscription": {
+                          "nullable": true,
+                          "description": "Your mute on this space while it applies; null when none",
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "following",
+                                "muted"
+                              ]
+                            },
+                            "mutedUntil": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "mutedUntil"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -21910,7 +22039,8 @@
                         "capacity",
                         "settings",
                         "topics",
-                        "links"
+                        "links",
+                        "subscription"
                       ],
                       "additionalProperties": false
                     }
@@ -25124,6 +25254,206 @@
         }
       }
     },
+    "/api/member/spaces/{spaceId}/subscription": {
+      "put": {
+        "operationId": "setSpaceSubscription",
+        "summary": "Mute a space, or clear your mute",
+        "tags": [
+          "Communities"
+        ],
+        "description": "For anyone who can open the space. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions, actions on you and moderation work still notify. `none` clears the mute.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "muted"
+                        ]
+                      },
+                      "mutedUntil": {
+                        "description": "When the mute ends. Omit or null to mute until you change it",
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Mute it: its activity stops notifying you, except mentions and actions on you"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "none"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Neither follow nor mute it"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "spaceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/member/communities/{communityId}/feed": {
       "get": {
         "operationId": "getMemberFeed",
@@ -25341,8 +25671,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -25373,7 +25723,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -25771,8 +26121,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -25803,7 +26173,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -26201,8 +26571,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -26233,7 +26623,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -26648,8 +27038,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -26680,7 +27090,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -27064,8 +27474,28 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "following": {
-                            "type": "boolean"
+                          "subscription": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "bookmarked": {
                             "type": "boolean"
@@ -27096,7 +27526,7 @@
                           "reactions",
                           "viewerReaction",
                           "commentCount",
-                          "following",
+                          "subscription",
                           "bookmarked"
                         ],
                         "additionalProperties": false
@@ -27694,8 +28124,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -27726,7 +28176,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -28122,8 +28572,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -28154,7 +28624,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -28537,8 +29007,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -28569,7 +29059,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -28940,8 +29430,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -28972,7 +29482,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -29365,8 +29875,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -29397,7 +29927,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -29793,8 +30323,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -29825,7 +30375,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -30196,8 +30746,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -30228,7 +30798,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -30599,8 +31169,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -30631,7 +31221,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -31002,8 +31592,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -31034,7 +31644,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -31405,8 +32015,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -31437,7 +32067,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -31808,8 +32438,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -31840,7 +32490,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -32211,8 +32861,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -32243,7 +32913,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -32614,8 +33284,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -32646,7 +33336,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -33037,8 +33727,28 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
-                    "following": {
-                      "type": "boolean"
+                    "subscription": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
                     },
                     "bookmarked": {
                       "type": "boolean"
@@ -33069,7 +33779,7 @@
                     "reactions",
                     "viewerReaction",
                     "commentCount",
-                    "following",
+                    "subscription",
                     "bookmarked"
                   ],
                   "additionalProperties": false
@@ -33664,187 +34374,80 @@
         }
       }
     },
-    "/api/member/posts/{postId}/follow": {
-      "post": {
-        "operationId": "followPost",
-        "summary": "Follow a post",
+    "/api/member/posts/{postId}/subscription": {
+      "put": {
+        "operationId": "setPostSubscription",
+        "summary": "Follow or mute a post, or clear either",
         "tags": [
           "Posts"
         ],
-        "description": "For anyone who can read the post. You are notified of new comments on it. Following twice is harmless.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "postId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "issues": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "Where in the request, such as `body.topics[1].name`"
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "additionalProperties": false
+        "description": "For anyone who can read the post. `following` notifies you of its new comments. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions and actions on you still notify. `none` clears both.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "following"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Follow the post: you are notified of its new comments"
                   },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "muted"
+                        ]
+                      },
+                      "mutedUntil": {
+                        "description": "When the mute ends. Omit or null to mute until you change it",
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
                     },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Mute it: its activity stops notifying you, except mentions and actions on you"
                   },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "none"
+                        ]
+                      }
                     },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Neither follow nor mute it"
+                  }
+                ]
               }
             }
           }
-        }
-      },
-      "delete": {
-        "operationId": "unfollowPost",
-        "summary": "Stop following a post",
-        "tags": [
-          "Posts"
-        ],
-        "description": "For anyone who can read the post. Harmless when you do not follow it.",
+        },
         "parameters": [
           {
             "schema": {
@@ -35790,13 +36393,29 @@
                             "nullable": true,
                             "type": "string"
                           },
-                          "muted": {
-                            "type": "boolean"
-                          },
-                          "mutedUntil": {
+                          "subscription": {
                             "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
+                            "description": "Your mute on this chat while it applies; null when none",
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "following",
+                                  "muted"
+                                ]
+                              },
+                              "mutedUntil": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "mutedUntil"
+                            ],
+                            "additionalProperties": false
                           },
                           "unread": {
                             "type": "integer",
@@ -35842,8 +36461,7 @@
                           "chat",
                           "participantIds",
                           "lastReadMessageId",
-                          "muted",
-                          "mutedUntil",
+                          "subscription",
                           "unread",
                           "lastMessage"
                         ],
@@ -39979,208 +40597,64 @@
         }
       }
     },
-    "/api/member/chats/{chatId}/mute": {
-      "post": {
-        "operationId": "muteChat",
-        "summary": "Mute a chat until a time, or until unmuted",
+    "/api/member/chats/{chatId}/subscription": {
+      "put": {
+        "operationId": "setChatSubscription",
+        "summary": "Mute a chat, or clear your mute",
         "tags": [
           "Chats"
         ],
-        "description": "For a participant. Without `until` the chat stays muted until you unmute it.",
+        "description": "For a participant. `muted` stops its messages notifying you, until `mutedUntil` when given; a mention still notifies you. `none` clears the mute.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "until": {
-                    "description": "When the mute ends. Omit to mute until you unmute",
-                    "type": "string",
-                    "format": "date-time",
-                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "muted"
+                        ]
+                      },
+                      "mutedUntil": {
+                        "description": "When the mute ends. Omit or null to mute until you change it",
+                        "nullable": true,
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Mute it: its activity stops notifying you, except mentions and actions on you"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "none"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "state"
+                    ],
+                    "additionalProperties": false,
+                    "description": "Neither follow nor mute it"
                   }
-                },
-                "additionalProperties": false
+                ]
               }
             }
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "chatId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "issues": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "Where in the request, such as `body.topics[1].name`"
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/member/chats/{chatId}/unmute": {
-      "post": {
-        "operationId": "unmuteChat",
-        "summary": "Unmute a chat",
-        "tags": [
-          "Chats"
-        ],
-        "description": "For a participant.",
         "parameters": [
           {
             "schema": {

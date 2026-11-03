@@ -40,8 +40,8 @@ import type {
   Post,
   PostBookmark,
   PostFlag,
-  PostFollow,
   PostReaction,
+  Subscription,
 } from "@headless-lms/core/schemas";
 import { genId } from "@headless-lms/core/shared/id";
 import { organizations, orgUsers } from "./organizations.js";
@@ -136,33 +136,6 @@ export const postReactions = pgTable(
     postId: text("post_id").notNull(),
     orgUserId: text("org_user_id").notNull(),
     emoji: text("emoji").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.postId, t.orgUserId] }),
-    postFk: foreignKey({
-      columns: [t.orgId, t.postId],
-      foreignColumns: [posts.orgId, posts.id],
-    }).onDelete("cascade"),
-    orgUserFk: foreignKey({
-      columns: [t.orgId, t.orgUserId],
-      foreignColumns: [orgUsers.orgId, orgUsers.id],
-    }).onDelete("cascade"),
-  }),
-);
-
-export const postFollows = pgTable(
-  "post_follows",
-  {
-    orgId: text("org_id")
-      .notNull()
-      .references(() => organizations.id),
-    postId: text("post_id").notNull(),
-    orgUserId: text("org_user_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -442,8 +415,6 @@ export const chatUsers = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
     leftAt: timestamp("left_at", { withTimezone: true }),
     lastReadMessageId: text("last_read_message_id"),
-    muted: boolean("muted").notNull().default(false),
-    mutedUntil: timestamp("muted_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -657,9 +628,29 @@ export const digestRuns = pgTable(
   }),
 );
 
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    orgId: text("org_id").notNull(),
+    orgUserId: text("org_user_id").notNull(),
+    itemType: text("item_type", { enum: ["post", "space", "chat"] }).notNull(),
+    itemId: text("item_id").notNull(),
+    state: text("state", { enum: ["following", "muted"] }).notNull(),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.orgUserId, t.itemType, t.itemId] }),
+    orgUserFk: foreignKey({
+      columns: [t.orgId, t.orgUserId],
+      foreignColumns: [orgUsers.orgId, orgUsers.id],
+    }).onDelete("cascade"),
+    itemIdx: index("subscriptions_item_idx").on(t.orgId, t.itemType, t.itemId, t.state),
+  }),
+);
+
 type _PostsDrift = Expect<NoDrift<typeof posts.$inferSelect, Post>>;
 type _PostReactionsDrift = Expect<NoDrift<typeof postReactions.$inferSelect, PostReaction>>;
-type _PostFollowsDrift = Expect<NoDrift<typeof postFollows.$inferSelect, PostFollow>>;
 type _PostBookmarksDrift = Expect<NoDrift<typeof postBookmarks.$inferSelect, PostBookmark>>;
 type _PostFlagsDrift = Expect<NoDrift<typeof postFlags.$inferSelect, PostFlag>>;
 type _CommentsDrift = Expect<NoDrift<typeof comments.$inferSelect, Comment>>;
@@ -679,3 +670,4 @@ type _MessageReactionsDrift = Expect<
 type _MessageFlagsDrift = Expect<NoDrift<typeof messageFlags.$inferSelect, MessageFlag>>;
 type _BlockedUsersDrift = Expect<NoDrift<typeof blockedUsers.$inferSelect, BlockedUser>>;
 type _DigestRunsDrift = Expect<NoDrift<typeof digestRuns.$inferSelect, DigestRun>>;
+type _SubscriptionsDrift = Expect<NoDrift<typeof subscriptions.$inferSelect, Subscription>>;

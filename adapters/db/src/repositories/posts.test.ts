@@ -144,15 +144,11 @@ describe("DrizzlePostRepository viewer state", () => {
     expect(statements[0]?.params).toEqual(["ou_1", "org1", "pst_1", "pst_2", "pst_3"]);
   });
 
-  it("reads the viewer's follows and bookmarks among a page of posts in one query each", async () => {
+  it("reads the viewer's bookmarks among a page of posts in one query", async () => {
     const { repo, statements } = capture();
-    await repo.followedAmong("org1", ["pst_1", "pst_2"], "ou_1");
     await repo.bookmarkedAmong("org1", ["pst_1", "pst_2"], "ou_1");
-    expect(statements).toHaveLength(2);
+    expect(statements).toHaveLength(1);
     expect(statements[0]?.text).toMatch(
-      /^select "post_id" from "post_follows" where \("post_follows"\."org_id" = \$\d+ and "post_follows"\."org_user_id" = \$\d+ and "post_follows"\."post_id" in \(\$\d+, \$\d+\)\)$/,
-    );
-    expect(statements[1]?.text).toMatch(
       /^select "post_id" from "post_bookmarks" where \("post_bookmarks"\."org_id" = \$\d+ and "post_bookmarks"\."org_user_id" = \$\d+ and "post_bookmarks"\."post_id" in \(\$\d+, \$\d+\)\)$/,
     );
     for (const statement of statements) {
@@ -163,7 +159,6 @@ describe("DrizzlePostRepository viewer state", () => {
   it("skips the query for an empty page", async () => {
     const { repo, statements } = capture();
     await expect(repo.reactionsOf("org1", [], "ou_1")).resolves.toEqual({});
-    await expect(repo.followedAmong("org1", [], "ou_1")).resolves.toEqual([]);
     await expect(repo.bookmarkedAmong("org1", [], "ou_1")).resolves.toEqual([]);
     expect(statements).toHaveLength(0);
   });

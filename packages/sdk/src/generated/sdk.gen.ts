@@ -131,8 +131,6 @@ import type {
   FlagMessageResponses,
   FlagPostErrors,
   FlagPostResponses,
-  FollowPostErrors,
-  FollowPostResponses,
   GetActivityFileErrors,
   GetAssetErrors,
   GetAssetResponses,
@@ -314,8 +312,6 @@ import type {
   MarkMemberNotificationReadResponses,
   ModerateRemoveCommentErrors,
   ModerateRemoveCommentResponses,
-  MuteChatErrors,
-  MuteChatResponses,
   OpenPostCommentsErrors,
   OpenPostCommentsResponses,
   PatchCommunityDmSettingsErrors,
@@ -404,6 +400,8 @@ import type {
   SchedulePostResponses,
   SendChatMessageErrors,
   SendChatMessageResponses,
+  SetChatSubscriptionErrors,
+  SetChatSubscriptionResponses,
   SetCommentReactionErrors,
   SetCommentReactionResponses,
   SetEntitlementStatusErrors,
@@ -416,6 +414,10 @@ import type {
   SetPostReactionPolicyErrors,
   SetPostReactionPolicyResponses,
   SetPostReactionResponses,
+  SetPostSubscriptionErrors,
+  SetPostSubscriptionResponses,
+  SetSpaceSubscriptionErrors,
+  SetSpaceSubscriptionResponses,
   SetSpaceTopicsErrors,
   SetSpaceTopicsResponses,
   StartDirectChatErrors,
@@ -428,14 +430,10 @@ import type {
   UnblockMemberResponses,
   UnbookmarkPostErrors,
   UnbookmarkPostResponses,
-  UnfollowPostErrors,
-  UnfollowPostResponses,
   UnlockChatErrors,
   UnlockChatResponses,
   UnlockCommunityChatErrors,
   UnlockCommunityChatResponses,
-  UnmuteChatErrors,
-  UnmuteChatResponses,
   UnpinPostErrors,
   UnpinPostResponses,
   UnpublishCommunityErrors,
@@ -4465,6 +4463,62 @@ export class Communities {
       ...params,
     });
   }
+
+  /**
+   * Mute a space, or clear your mute
+   *
+   * For anyone who can open the space. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions, actions on you and moderation work still notify. `none` clears the mute.
+   */
+  public static setSpaceSubscription<ThrowOnError extends boolean = false>(
+    parameters: {
+      spaceId: string;
+      body:
+        | {
+            state: "muted";
+            /**
+             * When the mute ends. Omit or null to mute until you change it
+             */
+            mutedUntil?: string | null;
+          }
+        | {
+            state: "none";
+          };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetSpaceSubscriptionResponses,
+    SetSpaceSubscriptionErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "spaceId" },
+            { key: "body", map: "body" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetSpaceSubscriptionResponses,
+      SetSpaceSubscriptionErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/spaces/{spaceId}/subscription",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
 }
 
 export class Profile {
@@ -5227,52 +5281,56 @@ export class Posts {
   }
 
   /**
-   * Stop following a post
+   * Follow or mute a post, or clear either
    *
-   * For anyone who can read the post. Harmless when you do not follow it.
+   * For anyone who can read the post. `following` notifies you of its new comments. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions and actions on you still notify. `none` clears both.
    */
-  public static unfollowPost<ThrowOnError extends boolean = false>(
+  public static setPostSubscription<ThrowOnError extends boolean = false>(
     parameters: {
       postId: string;
+      body:
+        | {
+            state: "following";
+          }
+        | {
+            state: "muted";
+            /**
+             * When the mute ends. Omit or null to mute until you change it
+             */
+            mutedUntil?: string | null;
+          }
+        | {
+            state: "none";
+          };
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<UnfollowPostResponses, UnfollowPostErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
-    return (options?.client ?? client).delete<
-      UnfollowPostResponses,
-      UnfollowPostErrors,
+  ): RequestResult<SetPostSubscriptionResponses, SetPostSubscriptionErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { key: "body", map: "body" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetPostSubscriptionResponses,
+      SetPostSubscriptionErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/follow",
+      url: "/api/member/posts/{postId}/subscription",
       ...options,
       ...params,
-    });
-  }
-
-  /**
-   * Follow a post
-   *
-   * For anyone who can read the post. You are notified of new comments on it. Following twice is harmless.
-   */
-  public static followPost<ThrowOnError extends boolean = false>(
-    parameters: {
-      postId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<FollowPostResponses, FollowPostErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
-    return (options?.client ?? client).post<
-      FollowPostResponses,
-      FollowPostErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/posts/{postId}/follow",
-      ...options,
-      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 
@@ -6050,36 +6108,46 @@ export class Chats {
   }
 
   /**
-   * Mute a chat until a time, or until unmuted
+   * Mute a chat, or clear your mute
    *
-   * For a participant. Without `until` the chat stays muted until you unmute it.
+   * For a participant. `muted` stops its messages notifying you, until `mutedUntil` when given; a mention still notifies you. `none` clears the mute.
    */
-  public static muteChat<ThrowOnError extends boolean = false>(
+  public static setChatSubscription<ThrowOnError extends boolean = false>(
     parameters: {
       chatId: string;
-      until?: string;
+      body:
+        | {
+            state: "muted";
+            /**
+             * When the mute ends. Omit or null to mute until you change it
+             */
+            mutedUntil?: string | null;
+          }
+        | {
+            state: "none";
+          };
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<MuteChatResponses, MuteChatErrors, ThrowOnError, "data"> {
+  ): RequestResult<SetChatSubscriptionResponses, SetChatSubscriptionErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
         {
           args: [
             { in: "path", key: "chatId" },
-            { in: "body", key: "until" },
+            { key: "body", map: "body" },
           ],
         },
       ],
     );
-    return (options?.client ?? client).post<
-      MuteChatResponses,
-      MuteChatErrors,
+    return (options?.client ?? client).put<
+      SetChatSubscriptionResponses,
+      SetChatSubscriptionErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/chats/{chatId}/mute",
+      url: "/api/member/chats/{chatId}/subscription",
       ...options,
       ...params,
       headers: {
@@ -6087,31 +6155,6 @@ export class Chats {
         ...options?.headers,
         ...params.headers,
       },
-    });
-  }
-
-  /**
-   * Unmute a chat
-   *
-   * For a participant.
-   */
-  public static unmuteChat<ThrowOnError extends boolean = false>(
-    parameters: {
-      chatId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<UnmuteChatResponses, UnmuteChatErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
-    return (options?.client ?? client).post<
-      UnmuteChatResponses,
-      UnmuteChatErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/chats/{chatId}/unmute",
-      ...options,
-      ...params,
     });
   }
 

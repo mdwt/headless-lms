@@ -26,6 +26,7 @@ import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
+import { activeSubscription } from './subscriptions.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -40,6 +41,7 @@ import type {
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
+  SubscriptionsRepository,
 } from './ports.js';
 import { MODERATION_QUEUE_LIMIT } from './ports.js';
 
@@ -49,6 +51,7 @@ export type ChatServiceParams = {
   content: CommunityReader;
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
+  subscriptions: SubscriptionsRepository;
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: ChatUnitOfWork;
@@ -61,6 +64,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly content: CommunityReader;
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
+  private readonly subscriptions: SubscriptionsRepository;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: ChatUnitOfWork;
@@ -72,6 +76,7 @@ export class ChatServiceImpl implements ChatService {
     this.content = params.content;
     this.authors = params.authors;
     this.profiles = params.profiles;
+    this.subscriptions = params.subscriptions;
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
@@ -444,22 +449,6 @@ export class ChatServiceImpl implements ChatService {
     this.logger.debug('chat marked read', { orgId, chatId, messageId });
   }
 
-  async mute(orgId: string, actor: Actor, chatId: string, until?: Date): Promise<void> {
-    const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
-    await this.requireActive(this.repo, orgId, chat.id, actor.id);
-    await this.repo.setMuted(orgId, chatId, actor.id, true, until ?? null);
-    this.logger.debug('chat muted', { orgId, chatId });
-  }
-
-  async unmute(orgId: string, actor: Actor, chatId: string): Promise<void> {
-    const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
-    await this.requireActive(this.repo, orgId, chat.id, actor.id);
-    await this.repo.setMuted(orgId, chatId, actor.id, false, null);
-    this.logger.debug('chat unmuted', { orgId, chatId });
-  }
-
   async block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void> {
     if (actor.id === orgUserId) {
       throw new InvalidInputError('You cannot block yourself');
@@ -583,11 +572,16 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(orgId, actor, communityId);
     const now = new Date();
     const page = await this.repo.listForUser(orgId, communityId, actor.id, query);
+    const subscribed = await this.subscriptions.forViewer(
+      orgId,
+      actor.id,
+      'chat',
+      page.rows.map((item) => item.chat.id),
+    );
+    const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
     const items = page.rows.map((item) => ({
       ...item,
-      ...(item.muted && item.mutedUntil !== null && item.mutedUntil <= now
-        ? { muted: false, mutedUntil: null }
-        : {}),
+      subscription: activeSubscription(subscriptionOf.get(item.chat.id), now),
       lastMessage:
         item.lastMessage && item.lastMessage.deletedAt !== null && !isStaffRole(actor.role)
           ? { ...item.lastMessage, body: '' }
@@ -1015,8 +1009,6 @@ export class ChatServiceImpl implements ChatService {
       joinedAt: now,
       leftAt: null,
       lastReadMessageId: null,
-      muted: false,
-      mutedUntil: null,
       createdAt: now,
       updatedAt: now,
     };

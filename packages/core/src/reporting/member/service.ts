@@ -3,7 +3,7 @@ import { seesSpace, type EntitlementsService, type SpaceMember } from '../../ent
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetFiles, FileUrls } from '../../assets/index.js';
 import { isStaffRole } from '../../organizations/index.js';
-import type { ChatService, PostService } from '../../discussion/index.js';
+import type { ChatService, PostService, SubscriptionService } from '../../discussion/index.js';
 import type { Notification, NotificationInbox } from '../../identity/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type { Page } from '../../types/index.js';
@@ -51,6 +51,7 @@ export type MemberReportServiceParams = {
   notifications: Pick<NotificationInbox, 'listNotifications'>;
   posts: Pick<PostService, 'visibleTitles'>;
   chats: Pick<ChatService, 'titlesFor'>;
+  subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
 };
 
 export class MemberReportServiceImpl implements MemberReportService {
@@ -63,6 +64,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly inbox: Pick<NotificationInbox, 'listNotifications'>;
   private readonly posts: Pick<PostService, 'visibleTitles'>;
   private readonly chats: Pick<ChatService, 'titlesFor'>;
+  private readonly subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
 
   constructor(params: MemberReportServiceParams) {
     this.repo = params.repo;
@@ -74,6 +76,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.inbox = params.notifications;
     this.posts = params.posts;
     this.chats = params.chats;
+    this.subscriptions = params.subscriptions;
   }
 
   async notifications(
@@ -393,10 +396,17 @@ export class MemberReportServiceImpl implements MemberReportService {
     communityId: string,
     spaces: SpaceDetail[],
   ): Promise<CommunityHomeSpace[]> {
-    const [openIds, counts, standings] = await Promise.all([
+    const [openIds, counts, standings, subscribed] = await Promise.all([
       this.access.openSpaceIds(orgId, actor, communityId),
       this.repo.spaceMemberCounts(orgId, communityId),
       this.access.spaceStandings(orgId, actor, communityId),
+      this.subscriptions.viewerSubscriptions(
+        orgId,
+        actor.id,
+        'space',
+        spaces.map((space) => space.id),
+        new Date(),
+      ),
     ]);
     const open = new Set(openIds);
     const seen = spaces.filter((space) =>
@@ -423,6 +433,7 @@ export class MemberReportServiceImpl implements MemberReportService {
           settings: space.settings,
           topics: space.topics.map((topic) => ({ id: topic.id, name: topic.name })),
           links: await this.linkViews(orgId, actor, space.links),
+          subscription: subscribed[space.id] ?? null,
         };
       }),
     );

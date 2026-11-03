@@ -18,7 +18,7 @@ import type {
   ReactionEmoji,
 } from "@headless-lms/core/types";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { postFlags, postFollows, postBookmarks, postReactions, posts } from "../schema/index.js";
+import { postFlags, postBookmarks, postReactions, posts } from "../schema/index.js";
 import { translateDbErrors } from "./pg-errors.js";
 
 type PostRow = typeof posts.$inferSelect;
@@ -307,47 +307,6 @@ export class DrizzlePostRepository implements PostRepository {
         target: [postReactions.orgId, postReactions.postId, postReactions.orgUserId],
         set: { emoji },
       });
-  }
-
-  async follow(orgId: string, postId: string, orgUserId: string): Promise<void> {
-    await this.db.insert(postFollows).values({ orgId, postId, orgUserId }).onConflictDoNothing();
-  }
-
-  async followerIds(orgId: string, postId: string): Promise<string[]> {
-    const rows = await this.db
-      .select({ orgUserId: postFollows.orgUserId })
-      .from(postFollows)
-      .where(and(eq(postFollows.orgId, orgId), eq(postFollows.postId, postId)));
-    return rows.map((row) => row.orgUserId);
-  }
-
-  async followedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]> {
-    if (postIds.length === 0) {
-      return [];
-    }
-    const rows = await this.db
-      .select({ postId: postFollows.postId })
-      .from(postFollows)
-      .where(
-        and(
-          eq(postFollows.orgId, orgId),
-          eq(postFollows.orgUserId, orgUserId),
-          inArray(postFollows.postId, postIds),
-        ),
-      );
-    return rows.map((row) => row.postId);
-  }
-
-  async unfollow(orgId: string, postId: string, orgUserId: string): Promise<void> {
-    await this.db
-      .delete(postFollows)
-      .where(
-        and(
-          eq(postFollows.orgId, orgId),
-          eq(postFollows.postId, postId),
-          eq(postFollows.orgUserId, orgUserId),
-        ),
-      );
   }
 
   async bookmark(orgId: string, postId: string, orgUserId: string): Promise<void> {

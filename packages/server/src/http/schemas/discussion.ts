@@ -17,7 +17,7 @@ import {
   idSchema,
 } from '@headless-lms/core/schemas';
 import { z } from 'zod';
-import { ListQuery, type Matches, paginated } from './shared.js';
+import { DateTimeInput, ListQuery, type Matches, paginated } from './shared.js';
 
 export const CommentStatus = commentStatusSchema;
 export type CommentStatus = z.infer<typeof CommentStatus>;
@@ -32,6 +32,27 @@ export type ReactionEmoji = z.infer<typeof ReactionEmoji>;
 /** Counts by emoji; unused ones are absent, so no reactions serves `{}`. */
 export const ReactionCounts = z.record(z.string(), z.number().int());
 export type ReactionCounts = z.infer<typeof ReactionCounts>;
+
+const Following = z
+  .object({ state: z.literal('following') })
+  .strict()
+  .describe('Follow the post: you are notified of its new comments');
+const Muted = z
+  .object({
+    state: z.literal('muted'),
+    mutedUntil: DateTimeInput.nullable()
+      .optional()
+      .describe('When the mute ends. Omit or null to mute until you change it'),
+  })
+  .strict()
+  .describe('Mute it: its activity stops notifying you, except mentions and actions on you');
+const Unsubscribed = z
+  .object({ state: z.literal('none') })
+  .strict()
+  .describe('Neither follow nor mute it');
+
+export const SetPostSubscription = z.discriminatedUnion('state', [Following, Muted, Unsubscribed]);
+export const SetMute = z.discriminatedUnion('state', [Muted, Unsubscribed]);
 
 export const CommentView = commentViewSchema;
 export type CommentView = z.infer<typeof CommentView>;

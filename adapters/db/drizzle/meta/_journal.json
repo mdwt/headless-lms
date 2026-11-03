@@ -85,6 +85,13 @@
       "when": 1793704233769,
       "tag": "0011_digest_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793705803267,
+      "tag": "0012_subscriptions",
+      "breakpoints": true
     }
   ]
 }

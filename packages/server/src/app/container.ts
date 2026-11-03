@@ -22,6 +22,7 @@ import {
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
+  DrizzleSubscriptionsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
 import { InMemoryEventBus } from '@headless-lms/adapter-defaults/events';
@@ -54,6 +55,7 @@ import {
   DigestServiceImpl,
   DiscussionServiceImpl,
   PostServiceImpl,
+  SubscriptionServiceImpl,
   discussionJobs,
   discussionRecurringJobs,
 } from '@headless-lms/core/discussion';
@@ -195,6 +197,7 @@ export interface Container {
   discussion: DiscussionServiceImpl;
   posts: PostServiceImpl;
   chats: ChatServiceImpl;
+  subscriptions: SubscriptionServiceImpl;
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
   automations: AutomationsServiceImpl;
@@ -383,6 +386,7 @@ export async function buildContainer(
   const postReads = new DrizzlePostRepository(db, discussionLogger);
   const discussionReads = new DrizzleDiscussionRepository(db, discussionLogger);
   const chatReads = new DrizzleChatRepository(db, discussionLogger);
+  const subscriptionReads = new DrizzleSubscriptionsRepository(db, discussionLogger);
   const posts = new PostServiceImpl({
     repo: postReads,
     access: entitlements,
@@ -390,6 +394,7 @@ export async function buildContainer(
     authors,
     profiles: discussionReads,
     comments: discussionReads,
+    subscriptions: subscriptionReads,
     images: assets,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
@@ -405,6 +410,7 @@ export async function buildContainer(
     content,
     authors,
     profiles: discussionReads,
+    subscriptions: subscriptionReads,
     images: assets,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
@@ -424,6 +430,14 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     settings,
+    logger: discussionLogger,
+  });
+
+  const subscriptions = new SubscriptionServiceImpl({
+    repo: subscriptionReads,
+    access: entitlements,
+    posts,
+    chats,
     logger: discussionLogger,
   });
 
@@ -451,6 +465,7 @@ export async function buildContainer(
       notifications,
       posts,
       chats,
+      subscriptions,
     }),
   };
 
@@ -517,6 +532,7 @@ export async function buildContainer(
     organizations,
     identity,
     posts,
+    subscriptions,
     discussion,
     chats,
   });
@@ -696,6 +712,7 @@ export async function buildContainer(
     discussion,
     posts,
     chats,
+    subscriptions,
     assets,
     integrations,
     automations,

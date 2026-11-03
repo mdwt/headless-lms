@@ -24,7 +24,8 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
     },
     organizations: { getOrgUserById: reject, staffOrgUserIds: reject },
     identity: { displayName: reject },
-    posts: { followerIds: reject, find: reject },
+    posts: { find: reject },
+    subscriptions: { followerIds: reject, itemSubscriptions: reject },
     discussion: { getComment: reject },
     chats: { chatSummary: reject, latestMessageBody: reject, isBlocked: reject },
     ...over,
@@ -93,6 +94,72 @@ describe('communityMail', () => {
       { id: 'cmy_1', title: 'Founder Collab' },
     ]);
     expect(listCommunitiesById).toHaveBeenCalledWith('org_1', ['cmy_1']);
+  });
+
+  it('reads followers from the post subscriptions', async () => {
+    const followerIds = vi.fn(async () => ['ou_emma']);
+    const { mail } = communityMail(
+      deps({ subscriptions: { followerIds, itemSubscriptions: reject } }),
+    );
+
+    await expect(mail.followerIds('org_1', 'pst_1')).resolves.toEqual(['ou_emma']);
+    expect(followerIds).toHaveBeenCalledWith('org_1', 'pst_1');
+  });
+
+  it("reads each chat participant's mute from the chat's subscriptions", async () => {
+    const at = new Date('2026-01-01T00:00:00Z');
+    const until = new Date('2030-01-01T00:00:00Z');
+    const participant = (orgUserId: string) => ({ orgUserId, leftAt: null }) as never;
+    const itemSubscriptions = vi.fn(async () => [
+      {
+        orgId: 'org_1',
+        orgUserId: 'ou_james',
+        itemType: 'chat' as const,
+        itemId: 'cht_1',
+        state: 'muted' as const,
+        mutedUntil: until,
+        createdAt: at,
+      },
+      {
+        orgId: 'org_1',
+        orgUserId: 'ou_emma',
+        itemType: 'chat' as const,
+        itemId: 'cht_1',
+        state: 'muted' as const,
+        mutedUntil: null,
+        createdAt: at,
+      },
+    ]);
+    const { mail } = communityMail(
+      deps({
+        subscriptions: { followerIds: reject, itemSubscriptions },
+        chats: {
+          chatSummary: async () => ({
+            chat: {
+              communityId: 'cmy_1',
+              kind: 'group',
+              status: 'open',
+              createdBy: 'ou_sarah',
+            } as never,
+            participants: [
+              participant('ou_sarah'),
+              participant('ou_james'),
+              participant('ou_emma'),
+            ],
+          }),
+          latestMessageBody: reject,
+          isBlocked: reject,
+        },
+      }),
+    );
+
+    const chat = await mail.chat('org_1', 'cht_1');
+    expect(chat?.participants).toEqual([
+      { orgUserId: 'ou_sarah', muted: false, mutedUntil: null, leftAt: null },
+      { orgUserId: 'ou_james', muted: true, mutedUntil: until, leftAt: null },
+      { orgUserId: 'ou_emma', muted: true, mutedUntil: null, leftAt: null },
+    ]);
+    expect(itemSubscriptions).toHaveBeenCalledWith('org_1', { type: 'chat', id: 'cht_1' });
   });
 
   it('grants through the idempotent grant', async () => {

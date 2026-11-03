@@ -17,11 +17,11 @@ import {
   MessageIdParam,
   MessagesPage,
   MessageView,
-  MuteChat,
   OrgUserBody,
   Reactions,
   ResolveMessageFlags,
   SendMessage,
+  SetMute,
   SetReaction,
   StartDirectChat,
   StartGroupChat,
@@ -329,40 +329,22 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
   });
 
   r.route({
-    method: 'POST',
-    url: '/api/member/chats/:chatId/mute',
+    method: 'PUT',
+    url: '/api/member/chats/:chatId/subscription',
     preHandler: app.requireOrgSession,
     schema: {
-      operationId: 'muteChat',
+      operationId: 'setChatSubscription',
       tags,
-      summary: 'Mute a chat until a time, or until unmuted',
-      description: 'For a participant. Without `until` the chat stays muted until you unmute it.',
+      summary: 'Mute a chat, or clear your mute',
+      description:
+        'For a participant. `muted` stops its messages notifying you, until `mutedUntil` when given; a mention still notifies you. `none` clears the mute.',
       params: ChatIdParam,
-      body: MuteChat,
+      body: SetMute,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.mute(req.orgId, actor, req.params.chatId, req.body.until);
-      return reply.code(204).send();
-    },
-  });
-
-  r.route({
-    method: 'POST',
-    url: '/api/member/chats/:chatId/unmute',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'unmuteChat',
-      tags,
-      summary: 'Unmute a chat',
-      description: 'For a participant.',
-      params: ChatIdParam,
-      response: { 204: z.void(), ...refusals(403, 404) },
-    },
-    handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.unmute(req.orgId, actor, req.params.chatId);
+      await container.subscriptions.setChat(req.orgId, actor, req.params.chatId, req.body);
       return reply.code(204).send();
     },
   });

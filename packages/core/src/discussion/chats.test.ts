@@ -10,12 +10,79 @@ import { createFileUrls } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
 import type {
   AuthorRoleReader,
+  ChatInboxRow,
   ChatListItem,
   ChatRepository,
   ChatUnitOfWork,
   SendMessageInput,
+  SubscriptionsRepository,
 } from './ports.js';
-import type { Chat, ChatUser, Message, MessageFlag, Page, Role } from '../types/index.js';
+import type {
+  Chat,
+  ChatUser,
+  Message,
+  MessageFlag,
+  Page,
+  Role,
+  Subscription,
+} from '../types/index.js';
+
+function subscriptionStore() {
+  const rows: Subscription[] = [];
+  const same = (row: Subscription, orgUserId: string, itemType: string, itemId: string) =>
+    row.orgUserId === orgUserId && row.itemType === itemType && row.itemId === itemId;
+  const repo: SubscriptionsRepository = {
+    async upsert(_orgId, subscription) {
+      const index = rows.findIndex((row) =>
+        same(row, subscription.orgUserId, subscription.itemType, subscription.itemId),
+      );
+      if (index >= 0) {
+        rows[index] = {
+          ...rows[index]!,
+          state: subscription.state,
+          mutedUntil: subscription.mutedUntil,
+        };
+        return;
+      }
+      rows.push({ ...subscription });
+    },
+    async remove(_orgId, orgUserId, itemType, itemId) {
+      const index = rows.findIndex((row) => same(row, orgUserId, itemType, itemId));
+      if (index >= 0) {
+        rows.splice(index, 1);
+      }
+    },
+    async forViewer(_orgId, orgUserId, itemType, itemIds) {
+      return rows.filter(
+        (row) =>
+          row.orgUserId === orgUserId && row.itemType === itemType && itemIds.includes(row.itemId),
+      );
+    },
+    async ofItem(_orgId, itemType, itemId) {
+      return rows.filter((row) => row.itemType === itemType && row.itemId === itemId);
+    },
+    async followerIds(_orgId, postId) {
+      return rows
+        .filter(
+          (row) => row.itemType === 'post' && row.itemId === postId && row.state === 'following',
+        )
+        .map((row) => row.orgUserId);
+    },
+    async mutedAmong(_orgId, itemType, itemId, orgUserIds, at) {
+      return rows
+        .filter(
+          (row) =>
+            row.itemType === itemType &&
+            row.itemId === itemId &&
+            row.state === 'muted' &&
+            orgUserIds.includes(row.orgUserId) &&
+            (row.mutedUntil === null || row.mutedUntil > at),
+        )
+        .map((row) => row.orgUserId);
+    },
+  };
+  return { rows, repo };
+}
 
 const dmSettings: DmSettings = {
   enabled: true,
@@ -126,7 +193,7 @@ function harness(options?: {
                 user.chatId === chat.id && user.orgUserId === orgUserId && user.leftAt === null,
             ),
         )
-        .map((chat): ChatListItem => {
+        .map((chat): ChatInboxRow => {
           const mine = users.find(
             (user) => user.chatId === chat.id && user.orgUserId === orgUserId,
           );
@@ -142,8 +209,6 @@ function harness(options?: {
               .map((user) => user.orgUserId)
               .sort(),
             lastReadMessageId: mine?.lastReadMessageId ?? null,
-            muted: mine?.muted ?? false,
-            mutedUntil: mine?.mutedUntil ?? null,
             unread: 0,
             lastMessage: last
               ? {
@@ -193,15 +258,6 @@ function harness(options?: {
       );
       if (user) {
         user.lastReadMessageId = messageId;
-      }
-    },
-    async setMuted(orgId, chatId, orgUserId, muted, mutedUntil) {
-      const user = users.find(
-        (row) => row.orgId === orgId && row.chatId === chatId && row.orgUserId === orgUserId,
-      );
-      if (user) {
-        user.muted = muted;
-        user.mutedUntil = mutedUntil;
       }
     },
     async insertMessage(_orgId, message) {
@@ -416,9 +472,11 @@ function harness(options?: {
       }),
   };
 
+  const subscriptions = subscriptionStore();
   const svc = new ChatServiceImpl({
     repo,
     access,
+    subscriptions: subscriptions.repo,
     content: {
       async getSpace() {
         return null;
@@ -469,6 +527,7 @@ function harness(options?: {
 
   return {
     svc,
+    subscriptions,
     chats,
     messages,
     attachments,
@@ -1323,28 +1382,35 @@ describe('chats', () => {
     expect(flags).toHaveLength(1);
   });
 
-  it('mutes with a flag and an optional end time, and unmuting clears both', async () => {
-    const { svc, users } = harness({ settings: { firstMessageIsRequest: false } });
+  it('lists each chat with your mute while it applies, and none once it has ended', async () => {
+    const { svc, subscriptions } = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await svc.startDirect(ORG, member, {
       communityId: COMMUNITY,
       orgUserId: other.id,
       body: null,
       assetIds: [],
     });
-    const mine = () => {
-      const user = users.find((row) => row.orgUserId === member.id);
-      return [user?.muted, user?.mutedUntil];
-    };
-    expect(mine()).toEqual([false, null]);
-    await svc.mute(ORG, member, chat.id);
-    expect(mine()).toEqual([true, null]);
-    const listed = (await svc.listChats(ORG, member, COMMUNITY, PAGE)).rows[0];
-    expect([listed?.muted, listed?.mutedUntil]).toEqual([true, null]);
+    const listed = async (actor: Actor) =>
+      (await svc.listChats(ORG, actor, COMMUNITY, PAGE)).rows[0]?.subscription;
+    expect(await listed(member)).toBeNull();
+    const mute = (mutedUntil: Date | null) =>
+      subscriptions.repo.upsert(ORG, {
+        orgId: ORG,
+        orgUserId: member.id,
+        itemType: 'chat',
+        itemId: chat.id,
+        state: 'muted',
+        mutedUntil,
+        createdAt: new Date(),
+      });
+    await mute(null);
+    expect(await listed(member)).toEqual({ state: 'muted', mutedUntil: null });
+    expect(await listed(other)).toBeNull();
     const until = new Date('2030-01-01T00:00:00Z');
-    await svc.mute(ORG, member, chat.id, until);
-    expect(mine()).toEqual([true, until]);
-    await svc.unmute(ORG, member, chat.id);
-    expect(mine()).toEqual([false, null]);
+    await mute(until);
+    expect(await listed(member)).toEqual({ state: 'muted', mutedUntil: until });
+    await mute(new Date('2020-01-01T00:00:00Z'));
+    expect(await listed(member)).toBeNull();
   });
 
   it('serves each queued message with its flags, its chat and the people in it', async () => {

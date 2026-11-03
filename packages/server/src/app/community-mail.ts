@@ -1,6 +1,11 @@
 import type { CommunityMailReads, GrantWriter } from '@headless-lms/core/automations';
 import type { ContentService } from '@headless-lms/core/content';
-import type { ChatService, DiscussionService, PostService } from '@headless-lms/core/discussion';
+import type {
+  ChatService,
+  DiscussionService,
+  PostService,
+  SubscriptionService,
+} from '@headless-lms/core/discussion';
 import type { EntitlementsService } from '@headless-lms/core/entitlements';
 import type { IdentityService } from '@headless-lms/core/identity';
 import type { OrganizationService } from '@headless-lms/core/organizations';
@@ -21,7 +26,8 @@ export type CommunityMailDeps = {
   >;
   organizations: Pick<OrganizationService, 'getOrgUserById' | 'staffOrgUserIds'>;
   identity: Pick<IdentityService, 'displayName'>;
-  posts: Pick<PostService, 'followerIds' | 'find'>;
+  posts: Pick<PostService, 'find'>;
+  subscriptions: Pick<SubscriptionService, 'followerIds' | 'itemSubscriptions'>;
   discussion: Pick<DiscussionService, 'getComment'>;
   chats: Pick<ChatService, 'chatSummary' | 'latestMessageBody' | 'isBlocked'>;
 };
@@ -65,7 +71,7 @@ export function communityMail(deps: CommunityMailDeps): {
       const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);
       return deps.identity.displayName(orgUser?.userId ?? null);
     },
-    followerIds: (orgId, postId) => deps.posts.followerIds(orgId, postId),
+    followerIds: (orgId, postId) => deps.subscriptions.followerIds(orgId, postId),
     async comment(orgId, commentId) {
       const comment = await deps.discussion.getComment(orgId, commentId);
       return comment
@@ -86,20 +92,26 @@ export function communityMail(deps: CommunityMailDeps): {
     },
     async chat(orgId, chatId) {
       const summary = await deps.chats.chatSummary(orgId, chatId);
-      return summary
-        ? {
-            communityId: summary.chat.communityId,
-            kind: summary.chat.kind,
-            status: summary.chat.status,
-            createdBy: summary.chat.createdBy,
-            participants: summary.participants.map((participant) => ({
-              orgUserId: participant.orgUserId,
-              muted: participant.muted,
-              mutedUntil: participant.mutedUntil,
-              leftAt: participant.leftAt,
-            })),
-          }
-        : null;
+      if (!summary) {
+        return null;
+      }
+      const mutes = new Map(
+        (await deps.subscriptions.itemSubscriptions(orgId, { type: 'chat', id: chatId }))
+          .filter((subscription) => subscription.state === 'muted')
+          .map((subscription) => [subscription.orgUserId, subscription.mutedUntil]),
+      );
+      return {
+        communityId: summary.chat.communityId,
+        kind: summary.chat.kind,
+        status: summary.chat.status,
+        createdBy: summary.chat.createdBy,
+        participants: summary.participants.map((participant) => ({
+          orgUserId: participant.orgUserId,
+          muted: mutes.has(participant.orgUserId),
+          mutedUntil: mutes.get(participant.orgUserId) ?? null,
+          leftAt: participant.leftAt,
+        })),
+      };
     },
     latestMessageBody: (orgId, chatId) => deps.chats.latestMessageBody(orgId, chatId),
     pairBlocked: (orgId, communityId, a, b) => deps.chats.isBlocked(orgId, communityId, a, b),

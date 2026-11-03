@@ -23,8 +23,66 @@ import type {
   PostReactions,
   PostRepository,
   PostUnitOfWork,
+  SubscriptionsRepository,
 } from './ports.js';
-import type { FlaggedComment, Post, PostFlag, Role } from '../types/index.js';
+import type { FlaggedComment, Post, PostFlag, Role, Subscription } from '../types/index.js';
+
+function subscriptionStore() {
+  const rows: Subscription[] = [];
+  const same = (row: Subscription, orgUserId: string, itemType: string, itemId: string) =>
+    row.orgUserId === orgUserId && row.itemType === itemType && row.itemId === itemId;
+  const repo: SubscriptionsRepository = {
+    async upsert(_orgId, subscription) {
+      const index = rows.findIndex((row) =>
+        same(row, subscription.orgUserId, subscription.itemType, subscription.itemId),
+      );
+      if (index >= 0) {
+        rows[index] = {
+          ...rows[index]!,
+          state: subscription.state,
+          mutedUntil: subscription.mutedUntil,
+        };
+        return;
+      }
+      rows.push({ ...subscription });
+    },
+    async remove(_orgId, orgUserId, itemType, itemId) {
+      const index = rows.findIndex((row) => same(row, orgUserId, itemType, itemId));
+      if (index >= 0) {
+        rows.splice(index, 1);
+      }
+    },
+    async forViewer(_orgId, orgUserId, itemType, itemIds) {
+      return rows.filter(
+        (row) =>
+          row.orgUserId === orgUserId && row.itemType === itemType && itemIds.includes(row.itemId),
+      );
+    },
+    async ofItem(_orgId, itemType, itemId) {
+      return rows.filter((row) => row.itemType === itemType && row.itemId === itemId);
+    },
+    async followerIds(_orgId, postId) {
+      return rows
+        .filter(
+          (row) => row.itemType === 'post' && row.itemId === postId && row.state === 'following',
+        )
+        .map((row) => row.orgUserId);
+    },
+    async mutedAmong(_orgId, itemType, itemId, orgUserIds, at) {
+      return rows
+        .filter(
+          (row) =>
+            row.itemType === itemType &&
+            row.itemId === itemId &&
+            row.state === 'muted' &&
+            orgUserIds.includes(row.orgUserId) &&
+            (row.mutedUntil === null || row.mutedUntil > at),
+        )
+        .map((row) => row.orgUserId);
+    },
+  };
+  return { rows, repo };
+}
 
 const AT = new Date('2026-10-21T12:00:00.000Z');
 const ORG = 'org-1';
@@ -101,7 +159,6 @@ function harness(options?: {
   const flags: PostFlag[] = [];
   const commentFlagRows: { spaceId: string; flag: FlaggedComment }[] = [];
   const commentRows: { postId: string; status: 'pending' | 'published' | 'removed' }[] = [];
-  const followed = new Set<string>();
   const reactions: { postId: string; orgUserId: string; emoji: string }[] = [];
   let current = options?.spaces ?? [space()];
   const calls: NewDomainEvent[][] = [];
@@ -224,18 +281,6 @@ function harness(options?: {
       if (emoji !== null) {
         reactions.push({ postId, orgUserId, emoji });
       }
-    },
-    async follow(_orgId, postId, orgUserId) {
-      followed.add(`${postId}:${orgUserId}`);
-    },
-    async followerIds() {
-      return [];
-    },
-    async followedAmong(_orgId, postIds, orgUserId) {
-      return postIds.filter((postId) => followed.has(`${postId}:${orgUserId}`));
-    },
-    async unfollow(_orgId, postId, orgUserId) {
-      followed.delete(`${postId}:${orgUserId}`);
     },
     async bookmark(_orgId, postId, orgUserId) {
       if (!bookmarks.some((mark) => mark.postId === postId && mark.orgUserId === orgUserId)) {
@@ -399,9 +444,11 @@ function harness(options?: {
     cancel: vi.fn(options?.scheduler?.cancel ?? (async () => {})),
   };
 
+  const subscriptions = subscriptionStore();
   const svc = new PostServiceImpl({
     repo,
     access,
+    subscriptions: subscriptions.repo,
     content: {
       async getSpace(_orgId, spaceId) {
         return current.find((item) => item.id === spaceId) ?? null;
@@ -434,7 +481,7 @@ function harness(options?: {
     commentFlagRows,
     commentRows,
     calls,
-    followed,
+    subscriptions,
     setSpaces(next: SpaceDetail[]) {
       current = next;
     },
@@ -528,7 +575,6 @@ describe('posts', () => {
     for (const run of [
       svc.getPost(ORG, outsider, created.id),
       svc.setReaction(ORG, created.id, outsider, '👍'),
-      svc.follow(ORG, created.id, outsider),
       svc.bookmark(ORG, created.id, outsider),
       svc.flag(ORG, created.id, outsider, 'spam'),
       svc.remove(ORG, created.id, outsider),
@@ -732,8 +778,8 @@ describe('posts', () => {
     expect(flags.find((flag) => flag.id === flagged.id)?.resolution).toBe('dismissed');
   });
 
-  it('refuses a reaction when reactions are off and records a follow without an event', async () => {
-    const { svc, calls, followed, setSpaces } = harness();
+  it('refuses a reaction when reactions are off', async () => {
+    const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: false, requireReview: false } })]);
     const created = await svc.create(ORG, member, draftInput());
     await expect(svc.setReaction(ORG, created.id, other, '👍')).rejects.toBeInstanceOf(
@@ -742,10 +788,6 @@ describe('posts', () => {
     await svc.setReactions(ORG, created.id, moderator, true);
     const counts = await svc.setReaction(ORG, created.id, other, '👍');
     expect(counts.viewerReaction).toBe('👍');
-    const before = calls.length;
-    await svc.follow(ORG, created.id, other);
-    expect(followed.has(`${created.id}:${other.id}`)).toBe(true);
-    expect(calls).toHaveLength(before);
   });
 
   it('shows pending posts and open flags to a moderator and refuses a member', async () => {
@@ -941,14 +983,22 @@ describe('posts', () => {
     expect(saved).toMatchObject({ total: 3, page: 1, pageSize: 2 });
   });
 
-  it('carries reaction counts, the viewer reaction, comment count, follow and bookmark on every post view', async () => {
-    const { svc, commentRows } = harness();
+  it('carries reaction counts, the viewer reaction, comment count, subscription and bookmark on every post view', async () => {
+    const { svc, commentRows, subscriptions } = harness();
     const post = await svc.create(ORG, member, draftInput());
     await svc.create(ORG, member, draftInput({ title: 'Other' }));
     await svc.setReaction(ORG, post.id, member, '👍');
     await svc.setReaction(ORG, post.id, other, '👍');
     await svc.setReaction(ORG, post.id, moderator, '🎉');
-    await svc.follow(ORG, post.id, other);
+    await subscriptions.repo.upsert(ORG, {
+      orgId: ORG,
+      orgUserId: other.id,
+      itemType: 'post',
+      itemId: post.id,
+      state: 'following',
+      mutedUntil: null,
+      createdAt: AT,
+    });
     await svc.bookmark(ORG, post.id, other);
     commentRows.push(
       { postId: post.id, status: 'published' },
@@ -963,13 +1013,13 @@ describe('posts', () => {
     expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
       ...state,
       viewerReaction: '👍',
-      following: true,
+      subscription: { state: 'following', mutedUntil: null },
       bookmarked: true,
     });
     expect(await svc.getPost(ORG, moderator, post.id)).toMatchObject({
       ...state,
       viewerReaction: '🎉',
-      following: false,
+      subscription: null,
       bookmarked: false,
     });
     const bare = { reactions: {}, viewerReaction: null, commentCount: 0 };
@@ -977,19 +1027,19 @@ describe('posts', () => {
     expect(feedPage.rows.find((row) => row.id === post.id)).toMatchObject({
       ...state,
       viewerReaction: '👍',
-      following: true,
+      subscription: { state: 'following', mutedUntil: null },
       bookmarked: true,
     });
     expect(feedPage.rows.find((row) => row.title === 'Other')).toMatchObject({
       ...bare,
-      following: false,
+      subscription: null,
       bookmarked: false,
     });
     expect(
       (await svc.memberFeed(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
     ).toMatchObject({
       viewerReaction: '👍',
-      following: false,
+      subscription: null,
       bookmarked: false,
     });
     expect(
@@ -1003,13 +1053,13 @@ describe('posts', () => {
       ...state,
       viewerReaction: '🎉',
     });
-    await svc.unfollow(ORG, post.id, other);
+    await subscriptions.repo.remove(ORG, other.id, 'post', post.id);
     await svc.unbookmark(ORG, post.id, other);
     await svc.setReaction(ORG, post.id, other, null);
     expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
       reactions: { '👍': 1, '🎉': 1 },
       viewerReaction: null,
-      following: false,
+      subscription: null,
       bookmarked: false,
     });
   });

@@ -108,7 +108,10 @@ function fakeContent(
 const fileUrls = createFileUrls('https://api.test');
 const files = { signFile: async (_orgId: string, assetId: string) => `https://signed/${assetId}` };
 
-const readers: Pick<MemberReportServiceParams, 'notifications' | 'posts' | 'chats'> = {
+const readers: Pick<
+  MemberReportServiceParams,
+  'notifications' | 'posts' | 'chats' | 'subscriptions'
+> = {
   notifications: {
     listNotifications: async (_orgId, _userId, query) => ({
       rows: [],
@@ -120,11 +123,12 @@ const readers: Pick<MemberReportServiceParams, 'notifications' | 'posts' | 'chat
   },
   posts: { visibleTitles: async () => ({}) },
   chats: { titlesFor: async () => ({}) },
+  subscriptions: { viewerSubscriptions: async () => ({}) },
 };
 
 const deps: Pick<
   MemberReportServiceParams,
-  'files' | 'fileUrls' | 'access' | 'notifications' | 'posts' | 'chats'
+  'files' | 'fileUrls' | 'access' | 'notifications' | 'posts' | 'chats' | 'subscriptions'
 > = {
   files,
   fileUrls,
@@ -784,7 +788,10 @@ describe('community home', () => {
     space('spc_invited', 'by_invite'),
     space('spc_joined', 'by_invite'),
   ];
-  const build = (standings: Record<string, SpaceMember['status']> = {}) =>
+  const build = (
+    standings: Record<string, SpaceMember['status']> = {},
+    muted: Record<string, { state: 'muted'; mutedUntil: Date | null }> = {},
+  ) =>
     new MemberReportServiceImpl({
       repo: fakeEntitlementReader({ spaceMemberCounts: async () => ({ spc_request: 4 }) }),
       content: fakeContentService({
@@ -810,6 +817,12 @@ describe('community home', () => {
       }),
       progress: fakeProgress([]),
       ...deps,
+      subscriptions: {
+        viewerSubscriptions: async (_o, orgUserId, itemType, itemIds) =>
+          orgUserId === student.id && itemType === 'space'
+            ? Object.fromEntries(itemIds.flatMap((id) => (muted[id] ? [[id, muted[id]]] : [])))
+            : {},
+      },
       access: {
         ...deps.access,
         isCommunityMember: async () => true,
@@ -854,6 +867,27 @@ describe('community home', () => {
       standing: 'member',
       description: 'About spc_joined',
       topics: [{ id: 'top_spc_joined', name: 'Wins' }],
+    });
+  });
+
+  it('carries your mute on each space you can open and leaves it off a locked one', async () => {
+    const until = new Date('2030-01-01T00:00:00Z');
+    const svc = build(
+      {},
+      {
+        spc_all: { state: 'muted', mutedUntil: until },
+        spc_request: { state: 'muted', mutedUntil: null },
+      },
+    );
+    const home = await svc.communityHome('o1', student, 'cmy_1');
+    const byId = new Map(home!.spaces.map((row) => [row.id, row]));
+    expect(byId.get('spc_all')).toMatchObject({
+      locked: false,
+      subscription: { state: 'muted', mutedUntil: until },
+    });
+    expect(byId.get('spc_request')).not.toHaveProperty('subscription');
+    expect(await svc.communitySpace('o1', moderator, 'cmy_1', 'spc_all')).toMatchObject({
+      subscription: null,
     });
   });
 

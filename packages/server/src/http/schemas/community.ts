@@ -12,6 +12,7 @@ import {
   setSpaceTopicsInputSchema,
   spaceDetailSchema,
   spaceMemberSchema,
+  subscriptionViewSchema,
   updateCommunityInputSchema,
   updateSpaceInputSchema,
 } from '@headless-lms/core/schemas';
@@ -57,6 +58,7 @@ export const SpaceLinkBody = z
 
 export const CommunityIdParam = z.object({ communityId: z.string() });
 export const CommunitySpaceParam = z.object({ communityId: z.string(), spaceId: z.string() });
+export const SpaceIdParam = z.object({ spaceId: z.string() });
 export const SpaceLinkParam = CommunitySpaceParam.extend({ linkId: z.string() });
 export const SpaceMemberParam = CommunitySpaceParam.extend({ orgUserId: z.string() });
 export const CommunityPostParam = z.object({ communityId: z.string(), postId: z.string() });
@@ -129,6 +131,9 @@ export const OpenCommunitySpace = CommunityHomeSpaceBase.extend({
       }),
     )
     .describe('Linked content that is published; staff also see unpublished targets'),
+  subscription: subscriptionViewSchema
+    .nullable()
+    .describe('Your mute on this space while it applies; null when none'),
 });
 
 export const CommunityHomeSpace = z

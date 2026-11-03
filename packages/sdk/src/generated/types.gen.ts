@@ -4117,7 +4117,10 @@ export type GetCommunitySpaceQueueResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     flags: Array<{
@@ -4269,7 +4272,10 @@ export type ApproveCommunityPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -4388,7 +4394,10 @@ export type RemoveCommunityPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -4508,7 +4517,10 @@ export type RestoreCommunityPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -6939,6 +6951,13 @@ export type GetMemberCommunityHomeResponses = {
             type: "course" | "download" | "community";
             title: string;
           }>;
+          /**
+           * Your mute on this space while it applies; null when none
+           */
+          subscription: {
+            state: "following" | "muted";
+            mutedUntil: string | null;
+          } | null;
         }
     >;
   };
@@ -7067,6 +7086,13 @@ export type GetMemberSpaceResponses = {
           type: "course" | "download" | "community";
           title: string;
         }>;
+        /**
+         * Your mute on this space while it applies; null when none
+         */
+        subscription: {
+          state: "following" | "muted";
+          mutedUntil: string | null;
+        } | null;
       };
 };
 
@@ -8069,6 +8095,77 @@ export type RemoveSpaceMemberResponses = {
 export type RemoveSpaceMemberResponse =
   RemoveSpaceMemberResponses[keyof RemoveSpaceMemberResponses];
 
+export type SetSpaceSubscriptionData = {
+  body:
+    | {
+        state: "muted";
+        /**
+         * When the mute ends. Omit or null to mute until you change it
+         */
+        mutedUntil?: string | null;
+      }
+    | {
+        state: "none";
+      };
+  path: {
+    spaceId: string;
+  };
+  query?: never;
+  url: "/api/member/spaces/{spaceId}/subscription";
+};
+
+export type SetSpaceSubscriptionErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type SetSpaceSubscriptionError =
+  SetSpaceSubscriptionErrors[keyof SetSpaceSubscriptionErrors];
+
+export type SetSpaceSubscriptionResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
 export type GetMemberFeedData = {
   body?: never;
   path: {
@@ -8175,7 +8272,10 @@ export type GetMemberFeedResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     total: number;
@@ -8292,7 +8392,10 @@ export type ListOwnPostsResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     total: number;
@@ -8409,7 +8512,10 @@ export type ListBookmarkedPostsResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     total: number;
@@ -8532,7 +8638,10 @@ export type GetSpaceFeedResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     total: number;
@@ -8647,7 +8756,10 @@ export type GetSpaceQueueResponses = {
       };
       viewerReaction: string | null;
       commentCount: number;
-      following: boolean;
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       bookmarked: boolean;
     }>;
     flags: Array<{
@@ -8825,7 +8937,10 @@ export type CreatePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -8934,7 +9049,10 @@ export type GetPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9057,7 +9175,10 @@ export type UpdatePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9174,7 +9295,10 @@ export type SubmitPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9304,7 +9428,10 @@ export type SchedulePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9421,7 +9548,10 @@ export type UnschedulePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9538,7 +9668,10 @@ export type ApprovePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9655,7 +9788,10 @@ export type RemovePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9772,7 +9908,10 @@ export type RestorePostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -9889,7 +10028,10 @@ export type PinPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -10006,7 +10148,10 @@ export type UnpinPostResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -10123,7 +10268,10 @@ export type ClosePostCommentsResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -10241,7 +10389,10 @@ export type OpenPostCommentsResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -10364,7 +10515,10 @@ export type SetPostReactionPolicyResponses = {
     };
     viewerReaction: string | null;
     commentCount: number;
-    following: boolean;
+    subscription: {
+      state: "following" | "muted";
+      mutedUntil: string | null;
+    } | null;
     bookmarked: boolean;
   };
 };
@@ -10534,16 +10688,29 @@ export type SetPostReactionResponses = {
 
 export type SetPostReactionResponse = SetPostReactionResponses[keyof SetPostReactionResponses];
 
-export type UnfollowPostData = {
-  body?: never;
+export type SetPostSubscriptionData = {
+  body:
+    | {
+        state: "following";
+      }
+    | {
+        state: "muted";
+        /**
+         * When the mute ends. Omit or null to mute until you change it
+         */
+        mutedUntil?: string | null;
+      }
+    | {
+        state: "none";
+      };
   path: {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/follow";
+  url: "/api/member/posts/{postId}/subscription";
 };
 
-export type UnfollowPostErrors = {
+export type SetPostSubscriptionErrors = {
   /**
    * Default Response
    */
@@ -10593,77 +10760,9 @@ export type UnfollowPostErrors = {
   };
 };
 
-export type UnfollowPostError = UnfollowPostErrors[keyof UnfollowPostErrors];
+export type SetPostSubscriptionError = SetPostSubscriptionErrors[keyof SetPostSubscriptionErrors];
 
-export type UnfollowPostResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
-
-export type FollowPostData = {
-  body?: never;
-  path: {
-    postId: string;
-  };
-  query?: never;
-  url: "/api/member/posts/{postId}/follow";
-};
-
-export type FollowPostErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type FollowPostError = FollowPostErrors[keyof FollowPostErrors];
-
-export type FollowPostResponses = {
+export type SetPostSubscriptionResponses = {
   /**
    * Default Response
    */
@@ -11281,8 +11380,13 @@ export type ListMemberChatsResponses = {
       };
       participantIds: Array<string>;
       lastReadMessageId: string | null;
-      muted: boolean;
-      mutedUntil: string | null;
+      /**
+       * Your mute on this chat while it applies; null when none
+       */
+      subscription: {
+        state: "following" | "muted";
+        mutedUntil: string | null;
+      } | null;
       unread: number;
       lastMessage: {
         id: string;
@@ -12591,21 +12695,26 @@ export type MarkChatReadResponses = {
   204: unknown;
 };
 
-export type MuteChatData = {
-  body: {
-    /**
-     * When the mute ends. Omit to mute until you unmute
-     */
-    until?: string;
-  };
+export type SetChatSubscriptionData = {
+  body:
+    | {
+        state: "muted";
+        /**
+         * When the mute ends. Omit or null to mute until you change it
+         */
+        mutedUntil?: string | null;
+      }
+    | {
+        state: "none";
+      };
   path: {
     chatId: string;
   };
   query?: never;
-  url: "/api/member/chats/{chatId}/mute";
+  url: "/api/member/chats/{chatId}/subscription";
 };
 
-export type MuteChatErrors = {
+export type SetChatSubscriptionErrors = {
   /**
    * Default Response
    */
@@ -12655,77 +12764,9 @@ export type MuteChatErrors = {
   };
 };
 
-export type MuteChatError = MuteChatErrors[keyof MuteChatErrors];
+export type SetChatSubscriptionError = SetChatSubscriptionErrors[keyof SetChatSubscriptionErrors];
 
-export type MuteChatResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
-
-export type UnmuteChatData = {
-  body?: never;
-  path: {
-    chatId: string;
-  };
-  query?: never;
-  url: "/api/member/chats/{chatId}/unmute";
-};
-
-export type UnmuteChatErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type UnmuteChatError = UnmuteChatErrors[keyof UnmuteChatErrors];
-
-export type UnmuteChatResponses = {
+export type SetChatSubscriptionResponses = {
   /**
    * Default Response
    */

@@ -18,6 +18,10 @@ import type {
   PostFlagResolution,
   PostStatus,
   PostView,
+  SubjectRef,
+  Subscription,
+  SubscriptionItemType,
+  SubscriptionView,
 } from '../types/index.js';
 import type { CommunityDigest, SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
@@ -311,8 +315,6 @@ export interface PostService {
     actor: Actor,
     emoji: ReactionEmoji | null,
   ): Promise<PostReactions>;
-  follow(orgId: string, postId: string, actor: Actor): Promise<void>;
-  unfollow(orgId: string, postId: string, actor: Actor): Promise<void>;
   bookmark(orgId: string, postId: string, actor: Actor): Promise<void>;
   unbookmark(orgId: string, postId: string, actor: Actor): Promise<void>;
   flag(orgId: string, postId: string, actor: Actor, reason: string): Promise<PostFlag>;
@@ -353,7 +355,6 @@ export interface PostService {
   getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
   visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
-  followerIds(orgId: string, postId: string): Promise<string[]>;
   moderationQueue(
     orgId: string,
     actor: Actor,
@@ -399,10 +400,6 @@ export interface PostRepository {
     orgUserId: string,
     emoji: ReactionEmoji | null,
   ): Promise<void>;
-  follow(orgId: string, postId: string, orgUserId: string): Promise<void>;
-  unfollow(orgId: string, postId: string, orgUserId: string): Promise<void>;
-  followerIds(orgId: string, postId: string): Promise<string[]>;
-  followedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]>;
   bookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   bookmarkedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]>;
@@ -463,11 +460,12 @@ export interface ChatListItem {
   chat: Chat;
   participantIds: string[];
   lastReadMessageId: string | null;
-  muted: boolean;
-  mutedUntil: Date | null;
+  subscription: SubscriptionView | null;
   unread: number;
   lastMessage: ChatLastMessage | null;
 }
+
+export type ChatInboxRow = Omit<ChatListItem, 'subscription'>;
 
 export interface MessageReactions {
   reactions: ReactionCounts;
@@ -506,8 +504,6 @@ export interface ChatService {
     emoji: ReactionEmoji | null,
   ): Promise<MessageReactions>;
   markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void>;
-  mute(orgId: string, actor: Actor, chatId: string, until?: Date): Promise<void>;
-  unmute(orgId: string, actor: Actor, chatId: string): Promise<void>;
   block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
   unblock(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
   flagMessage(orgId: string, actor: Actor, messageId: string, reason: string): Promise<MessageFlag>;
@@ -576,18 +572,11 @@ export interface ChatRepository {
     communityId: string,
     orgUserId: string,
     query: PageQuery,
-  ): Promise<Page<ChatListItem>>;
+  ): Promise<Page<ChatInboxRow>>;
   participants(orgId: string, chatId: string): Promise<ChatUser[]>;
   join(orgId: string, user: ChatUser): Promise<void>;
   markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
   setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
-  setMuted(
-    orgId: string,
-    chatId: string,
-    orgUserId: string,
-    muted: boolean,
-    mutedUntil: Date | null,
-  ): Promise<void>;
   insertMessage(orgId: string, message: Message): Promise<Message>;
   updateMessage(
     orgId: string,
@@ -656,3 +645,49 @@ export interface ChatWriteScope {
   outbox: OutboxAppender;
 }
 export type ChatUnitOfWork = UnitOfWork<ChatWriteScope>;
+
+export type SubscriptionInput =
+  { state: 'following' } | { state: 'muted'; mutedUntil?: Date | null } | { state: 'none' };
+
+export type MuteInput = Exclude<SubscriptionInput, { state: 'following' }>;
+
+export interface SubscriptionService {
+  setPost(orgId: string, actor: Actor, postId: string, input: SubscriptionInput): Promise<void>;
+  setSpace(orgId: string, actor: Actor, spaceId: string, input: MuteInput): Promise<void>;
+  setChat(orgId: string, actor: Actor, chatId: string, input: MuteInput): Promise<void>;
+  viewerSubscriptions(
+    orgId: string,
+    orgUserId: string,
+    itemType: SubscriptionItemType,
+    itemIds: string[],
+    at: Date,
+  ): Promise<Record<string, SubscriptionView>>;
+  followerIds(orgId: string, postId: string): Promise<string[]>;
+  mutedAmong(orgId: string, item: SubjectRef, orgUserIds: string[], at: Date): Promise<string[]>;
+  itemSubscriptions(orgId: string, item: SubjectRef): Promise<Subscription[]>;
+}
+
+export interface SubscriptionsRepository {
+  upsert(orgId: string, subscription: Subscription): Promise<void>;
+  remove(
+    orgId: string,
+    orgUserId: string,
+    itemType: SubscriptionItemType,
+    itemId: string,
+  ): Promise<void>;
+  forViewer(
+    orgId: string,
+    orgUserId: string,
+    itemType: SubscriptionItemType,
+    itemIds: string[],
+  ): Promise<Subscription[]>;
+  ofItem(orgId: string, itemType: SubscriptionItemType, itemId: string): Promise<Subscription[]>;
+  followerIds(orgId: string, postId: string): Promise<string[]>;
+  mutedAmong(
+    orgId: string,
+    itemType: SubscriptionItemType,
+    itemId: string,
+    orgUserIds: string[],
+    at: Date,
+  ): Promise<string[]>;
+}

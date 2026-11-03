@@ -19,6 +19,7 @@ import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
 import { POST_PUBLISH_JOB } from './jobs.js';
+import { activeSubscription } from './subscriptions.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -32,6 +33,7 @@ import type {
   PostService,
   PostUnitOfWork,
   SpaceModerationQueue,
+  SubscriptionsRepository,
   UpdatePostInput,
 } from './ports.js';
 import { MODERATION_QUEUE_LIMIT } from './ports.js';
@@ -44,6 +46,7 @@ export type PostServiceParams = {
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
   comments: PostCommentReader;
+  subscriptions: SubscriptionsRepository;
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: PostUnitOfWork;
@@ -67,6 +70,7 @@ export class PostServiceImpl implements PostService {
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
   private readonly comments: PostCommentReader;
+  private readonly subscriptions: SubscriptionsRepository;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: PostUnitOfWork;
@@ -80,6 +84,7 @@ export class PostServiceImpl implements PostService {
     this.authors = params.authors;
     this.profiles = params.profiles;
     this.comments = params.comments;
+    this.subscriptions = params.subscriptions;
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
@@ -563,18 +568,6 @@ export class PostServiceImpl implements PostService {
     return counts[postId] ?? { reactions: {} };
   }
 
-  async follow(orgId: string, postId: string, actor: Actor): Promise<void> {
-    await this.loadVisible(orgId, actor, postId);
-    await this.repo.follow(orgId, postId, actor.id);
-    this.logger.debug('post followed', { orgId, postId, orgUserId: actor.id });
-  }
-
-  async unfollow(orgId: string, postId: string, actor: Actor): Promise<void> {
-    await this.loadVisible(orgId, actor, postId);
-    await this.repo.unfollow(orgId, postId, actor.id);
-    this.logger.debug('post unfollowed', { orgId, postId, orgUserId: actor.id });
-  }
-
   async bookmark(orgId: string, postId: string, actor: Actor): Promise<void> {
     await this.loadVisible(orgId, actor, postId);
     await this.repo.bookmark(orgId, postId, actor.id);
@@ -773,10 +766,6 @@ export class PostServiceImpl implements PostService {
     return this.repo.find(orgId, postId);
   }
 
-  followerIds(orgId: string, postId: string): Promise<string[]> {
-    return this.repo.followerIds(orgId, postId);
-  }
-
   private async submittable(
     orgId: string,
     post: Post,
@@ -809,14 +798,15 @@ export class PostServiceImpl implements PostService {
       return [];
     }
     const postIds = posts.map((post) => post.id);
-    const [records, reactions, commentCounts, followed, bookmarked] = await Promise.all([
+    const now = new Date();
+    const [records, reactions, commentCounts, subscribed, bookmarked] = await Promise.all([
       this.profiles.authorsOf(orgId, [...new Set(posts.map((post) => post.orgUserId))]),
       this.repo.reactionsOf(orgId, postIds, actor.id),
       this.comments.publishedCommentCounts(orgId, postIds),
-      this.repo.followedAmong(orgId, postIds, actor.id),
+      this.subscriptions.forViewer(orgId, actor.id, 'post', postIds),
       this.repo.bookmarkedAmong(orgId, postIds, actor.id),
     ]);
-    const following = new Set(followed);
+    const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
     const saved = new Set(bookmarked);
     return posts.map((post) => {
       const record = records[post.orgUserId];
@@ -831,7 +821,7 @@ export class PostServiceImpl implements PostService {
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
         commentCount: commentCounts[post.id] ?? 0,
-        following: following.has(post.id),
+        subscription: activeSubscription(subscriptionOf.get(post.id), now),
         bookmarked: saved.has(post.id),
       };
     });

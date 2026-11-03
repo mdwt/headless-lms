@@ -21,6 +21,7 @@ import {
   ResolvePostFlags,
   SchedulePost,
   SetPostReactions,
+  SetPostSubscription,
   SetReaction,
   SpaceQueue,
   UpdatePost,
@@ -449,40 +450,22 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
   });
 
   r.route({
-    method: 'POST',
-    url: '/api/member/posts/:postId/follow',
+    method: 'PUT',
+    url: '/api/member/posts/:postId/subscription',
     preHandler: app.requireOrgSession,
     schema: {
-      operationId: 'followPost',
+      operationId: 'setPostSubscription',
       tags,
-      summary: 'Follow a post',
+      summary: 'Follow or mute a post, or clear either',
       description:
-        'For anyone who can read the post. You are notified of new comments on it. Following twice is harmless.',
+        'For anyone who can read the post. `following` notifies you of its new comments. `muted` stops its activity notifying you, until `mutedUntil` when given; mentions and actions on you still notify. `none` clears both.',
       params: PostIdParam,
+      body: SetPostSubscription,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      await posts.follow(req.orgId, req.params.postId, actor);
-      return reply.code(204).send();
-    },
-  });
-
-  r.route({
-    method: 'DELETE',
-    url: '/api/member/posts/:postId/follow',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'unfollowPost',
-      tags,
-      summary: 'Stop following a post',
-      description: 'For anyone who can read the post. Harmless when you do not follow it.',
-      params: PostIdParam,
-      response: { 204: z.void(), ...refusals(403, 404) },
-    },
-    handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await posts.unfollow(req.orgId, req.params.postId, actor);
+      await container.subscriptions.setPost(req.orgId, actor, req.params.postId, req.body);
       return reply.code(204).send();
     },
   });

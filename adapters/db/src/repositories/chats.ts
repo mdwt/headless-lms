@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
-  ChatListItem,
+  ChatInboxRow,
   ChatRepository,
   FeedQuery,
   MessageReactions,
@@ -58,8 +58,6 @@ function toChatUser(row: ChatUserRow): ChatUser {
     joinedAt: row.joinedAt,
     leftAt: row.leftAt,
     lastReadMessageId: row.lastReadMessageId,
-    muted: row.muted,
-    mutedUntil: row.mutedUntil,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -201,7 +199,7 @@ export class DrizzleChatRepository implements ChatRepository {
     communityId: string,
     orgUserId: string,
     query: PageQuery,
-  ): Promise<Page<ChatListItem>> {
+  ): Promise<Page<ChatInboxRow>> {
     const unread = sql<number>`cast((
       select count(*)
       from messages m
@@ -241,8 +239,6 @@ export class DrizzleChatRepository implements ChatRepository {
       .select({
         chat: chats,
         lastReadMessageId: chatUsers.lastReadMessageId,
-        muted: chatUsers.muted,
-        mutedUntil: chatUsers.mutedUntil,
         unread,
         lastId: latest.id,
         lastOrgUserId: latest.orgUserId,
@@ -289,8 +285,6 @@ export class DrizzleChatRepository implements ChatRepository {
         chat: toChat(row.chat),
         participantIds: (byChat.get(row.chat.id) ?? []).sort(),
         lastReadMessageId: row.lastReadMessageId,
-        muted: row.muted,
-        mutedUntil: row.mutedUntil,
         unread: row.unread,
         lastMessage:
           row.lastId !== null && row.lastOrgUserId !== null && row.lastCreatedAt !== null
@@ -327,8 +321,6 @@ export class DrizzleChatRepository implements ChatRepository {
         joinedAt: user.joinedAt,
         leftAt: user.leftAt,
         lastReadMessageId: user.lastReadMessageId,
-        muted: user.muted,
-        mutedUntil: user.mutedUntil,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -362,25 +354,6 @@ export class DrizzleChatRepository implements ChatRepository {
     await this.db
       .update(chatUsers)
       .set({ lastReadMessageId: messageId, updatedAt: new Date() })
-      .where(
-        and(
-          eq(chatUsers.orgId, orgId),
-          eq(chatUsers.chatId, chatId),
-          eq(chatUsers.orgUserId, orgUserId),
-        ),
-      );
-  }
-
-  async setMuted(
-    orgId: string,
-    chatId: string,
-    orgUserId: string,
-    muted: boolean,
-    mutedUntil: Date | null,
-  ): Promise<void> {
-    await this.db
-      .update(chatUsers)
-      .set({ muted, mutedUntil, updatedAt: new Date() })
       .where(
         and(
           eq(chatUsers.orgId, orgId),

@@ -154,6 +154,33 @@ export const listCommentsQuerySchema = z
   .strict();
 export type ListCommentsQuery = z.infer<typeof listCommentsQuerySchema>;
 
+export const subscriptionItemTypeSchema = z.enum(['post', 'space', 'chat']);
+export type SubscriptionItemType = z.infer<typeof subscriptionItemTypeSchema>;
+
+export const subscriptionStateSchema = z.enum(['following', 'muted']);
+export type SubscriptionState = z.infer<typeof subscriptionStateSchema>;
+
+export const subscriptionSchema = z
+  .object({
+    orgId: idSchema,
+    orgUserId: idSchema,
+    itemType: subscriptionItemTypeSchema,
+    itemId: idSchema,
+    state: subscriptionStateSchema,
+    mutedUntil: z.coerce.date().nullable(),
+    createdAt: z.coerce.date(),
+  })
+  .strict();
+export type Subscription = z.output<typeof subscriptionSchema>;
+
+export const subscriptionViewSchema = z
+  .object({
+    state: subscriptionStateSchema,
+    mutedUntil: z.coerce.date().nullable(),
+  })
+  .strict();
+export type SubscriptionView = z.output<typeof subscriptionViewSchema>;
+
 export const postStatusSchema = z.enum(['draft', 'scheduled', 'pending', 'published', 'removed']);
 export type PostStatus = z.infer<typeof postStatusSchema>;
 
@@ -189,7 +216,7 @@ export const postViewSchema = postSchema
     reactions: reactionCountsSchema,
     viewerReaction: reactionEmojiSchema.nullable(),
     commentCount: z.number().int().min(0),
-    following: z.boolean(),
+    subscription: subscriptionViewSchema.nullable(),
     bookmarked: z.boolean(),
   })
   .strict();
@@ -221,17 +248,6 @@ export const postReactionSchema = z
   })
   .strict();
 export type PostReaction = z.output<typeof postReactionSchema>;
-
-export const postFollowSchema = z
-  .object({
-    orgId: idSchema,
-    postId: idSchema,
-    orgUserId: idSchema,
-    createdAt: z.coerce.date(),
-    updatedAt: z.coerce.date(),
-  })
-  .strict();
-export type PostFollow = z.output<typeof postFollowSchema>;
 
 export const postBookmarkSchema = z
   .object({
@@ -294,8 +310,6 @@ export const chatUserSchema = z
     joinedAt: z.coerce.date(),
     leftAt: z.coerce.date().nullable(),
     lastReadMessageId: idSchema.nullable(),
-    muted: z.boolean(),
-    mutedUntil: z.coerce.date().nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })

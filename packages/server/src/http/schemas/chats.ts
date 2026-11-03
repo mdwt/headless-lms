@@ -6,8 +6,9 @@ import {
   messageFlagResolutionSchema,
   messageFlagSchema,
   messageViewSchema,
+  subscriptionViewSchema,
 } from '@headless-lms/core/schemas';
-import { DateTimeInput, paginated } from './shared.js';
+import { paginated } from './shared.js';
 
 export const Chat = chatSchema;
 export const MessageFlag = messageFlagSchema;
@@ -18,8 +19,9 @@ export const ChatListItem = z.object({
   chat: Chat,
   participantIds: z.array(z.string()),
   lastReadMessageId: z.string().nullable(),
-  muted: z.boolean(),
-  mutedUntil: z.coerce.date().nullable(),
+  subscription: subscriptionViewSchema
+    .nullable()
+    .describe('Your mute on this chat while it applies; null when none'),
   unread: z.number().int(),
   lastMessage: chatLastMessageSchema.nullable(),
 });
@@ -81,11 +83,6 @@ export const SendMessage = z
 export const EditMessage = z.object({ body: MessageBody }).strict();
 export const MarkRead = z
   .object({ messageId: idSchema.describe('The newest message you have read in this chat') })
-  .strict();
-export const MuteChat = z
-  .object({
-    until: DateTimeInput.optional().describe('When the mute ends. Omit to mute until you unmute'),
-  })
   .strict();
 export const OrgUserBody = z.object({ orgUserId: idSchema }).strict();
 export const ResolveMessageFlags = z

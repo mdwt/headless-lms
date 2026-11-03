@@ -2,6 +2,7 @@
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
 import type { NotificationKind } from '../../identity/index.js';
+import type { SubscriptionView } from '../../types/index.js';
 
 export type {
   ActivityView,
@@ -60,6 +61,7 @@ export interface OpenCommunitySpace extends CommunityHomeSpaceBase {
   settings: { comments: boolean; reactions: boolean; requireReview: boolean };
   topics: { id: string; name: string }[];
   links: CommunityHomeLink[];
+  subscription: SubscriptionView | null;
 }
 
 export type CommunityHomeSpace = LockedCommunitySpace | OpenCommunitySpace;

@@ -3,6 +3,7 @@ export { DiscussionServiceImpl, DEFAULT_SETTINGS } from './service.js';
 export { PostServiceImpl } from './posts.js';
 export { DigestServiceImpl, latestDueAt } from './digests.js';
 export { ChatServiceImpl } from './chats.js';
+export { SubscriptionServiceImpl, activeSubscription } from './subscriptions.js';
 export { authorView } from './authors.js';
 export { discussionEvents } from './events.js';
 export {
@@ -45,6 +46,7 @@ export type {
   StartGroupInput,
   SendMessageInput,
   ChatListItem,
+  ChatInboxRow,
   MessageQueue,
   ChatService,
   ChatRepository,
@@ -55,6 +57,10 @@ export type {
   DigestService,
   DigestUnitOfWork,
   DigestWriteScope,
+  MuteInput,
+  SubscriptionInput,
+  SubscriptionService,
+  SubscriptionsRepository,
 } from './ports.js';
 export type {
   Comment,
