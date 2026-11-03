@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { APIContracts, ConcurrencyLimitStrategy } from "@hatchet-dev/typescript-sdk";
+import { APIContracts } from "@hatchet-dev/typescript-sdk/clients/rest/index.js";
+import { ConcurrencyLimitStrategy } from "@hatchet-dev/typescript-sdk/v1/index.js";
 import type { AutomationActionResult, AutomationDispatch, Logger } from "@headless-lms/core/types";
 import { ActionFailedError } from "@headless-lms/core/automations";
 import { createCapturingLogger } from "@headless-lms/core/shared/logger";

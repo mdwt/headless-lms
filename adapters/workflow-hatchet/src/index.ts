@@ -9,7 +9,8 @@ import type {
   JsonValue,
 } from "@headless-lms/core/types";
 import type { RecurringJob, ScheduledJob, Scheduler } from "@headless-lms/core/shared/ports";
-import { APIContracts, ConcurrencyLimitStrategy, Hatchet } from "@hatchet-dev/typescript-sdk";
+import { APIContracts } from "@hatchet-dev/typescript-sdk/clients/rest/index.js";
+import { ConcurrencyLimitStrategy, HatchetClient as Hatchet } from "@hatchet-dev/typescript-sdk/v1/index.js";
 import {
   ACTION_FAILED,
   ActionFailedError,
