@@ -359,6 +359,7 @@ function harness(options?: {
       if (emoji !== null) {
         reactions.push({ messageId, orgUserId, emoji });
       }
+      return index < 0 && emoji !== null;
     },
     async reactionsOf(_orgId, messageIds, viewerId) {
       const byMessage: Record<
@@ -1640,5 +1641,63 @@ describe('message mentions', () => {
     const deleted = await svc.deleteMessage(ORG, member, sent.id);
     expect(deleted.mentions).toEqual([]);
     expect(mentions.rows).toEqual([]);
+  });
+});
+
+describe('message events', () => {
+  const dataOfLast = (calls: NewDomainEvent[][], type: string) =>
+    calls
+      .flat()
+      .filter((row) => row.type === type)
+      .at(-1)?.data as Record<string, unknown> | undefined;
+
+  it('announces only a person’s first reaction to a message', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: null,
+      assetIds: [],
+    });
+    const sent = await h.svc.send(ORG, member, chat.id, messageInput('hi'));
+    h.calls.length = 0;
+    await h.svc.setReaction(ORG, other, sent.id, '👍');
+    await h.svc.setReaction(ORG, other, sent.id, '🎉');
+    await h.svc.setReaction(ORG, other, sent.id, null);
+    expect(h.calls.flat()).toEqual([
+      expect.objectContaining({
+        type: 'discussion.message.reaction.added',
+        data: {
+          messageId: sent.id,
+          chatId: chat.id,
+          communityId: COMMUNITY,
+          orgUserId: other.id,
+          reaction: '👍',
+        },
+      }),
+    ]);
+  });
+
+  it('announces an edit with the people it newly mentions', async () => {
+    const h = harness();
+    const chat = await h.svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    const sent = await h.svc.send(ORG, member, chat.id, messageInput('hi <@ou_other>'));
+    await h.svc.editMessage(ORG, member, sent.id, 'hi <@ou_other> <@ou_third> <@ou_out>');
+    expect(dataOfLast(h.calls, 'discussion.message.updated')).toMatchObject({
+      id: sent.id,
+      body: 'hi <@ou_other> <@ou_third> <@ou_out>',
+      mentionedOrgUserIds: [third.id],
+    });
+    expect(
+      h.calls
+        .flat()
+        .filter((row) => row.type === 'discussion.message.updated')
+        .at(-1)?.metadata,
+    ).toEqual({ actorOrgUserId: member.id, chatStatus: 'open' });
+    await h.svc.editMessage(ORG, member, sent.id, 'hi <@ou_third>');
+    expect(dataOfLast(h.calls, 'discussion.message.updated')?.mentionedOrgUserIds).toEqual([]);
   });
 });

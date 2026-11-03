@@ -420,6 +420,18 @@ const TRIGGERS: CatalogTrigger[] = [
     description: 'a comment was published',
   },
   {
+    event: discussionEvents.commentUpdated,
+    label: 'Comment updated',
+    category: 'Discussion',
+    description: 'a comment was edited',
+  },
+  {
+    event: discussionEvents.commentReactionAdded,
+    label: 'Comment reaction added',
+    category: 'Discussion',
+    description: 'a person reacted to a comment for the first time',
+  },
+  {
     event: discussionEvents.commentRemoved,
     label: 'Comment removed',
     category: 'Discussion',
@@ -448,6 +460,12 @@ const TRIGGERS: CatalogTrigger[] = [
     label: 'Post published',
     category: 'Discussion',
     description: 'a post was published',
+  },
+  {
+    event: discussionEvents.postReactionAdded,
+    label: 'Post reaction added',
+    category: 'Discussion',
+    description: 'a person reacted to a post for the first time',
   },
   {
     event: discussionEvents.postRemoved,
@@ -484,6 +502,18 @@ const TRIGGERS: CatalogTrigger[] = [
     label: 'Message sent',
     category: 'Discussion',
     description: 'a message was sent',
+  },
+  {
+    event: discussionEvents.messageUpdated,
+    label: 'Message updated',
+    category: 'Discussion',
+    description: 'a message was edited',
+  },
+  {
+    event: discussionEvents.messageReactionAdded,
+    label: 'Message reaction added',
+    category: 'Discussion',
+    description: 'a person reacted to a message for the first time',
   },
   {
     event: discussionEvents.messageDeleted,

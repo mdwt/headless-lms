@@ -554,7 +554,25 @@ export class PostServiceImpl implements PostService {
     if (!(post.reactionsEnabled ?? space.settings.reactions)) {
       throw new ForbiddenError('Reactions are off on this post');
     }
-    await this.repo.setReaction(orgId, postId, actor.id, emoji);
+    await this.uow.run(async ({ posts, outbox }) => {
+      const first = await posts.setReaction(orgId, postId, actor.id, emoji);
+      if (!first || emoji === null) {
+        return;
+      }
+      await outbox.append([
+        discussionEvents.postReactionAdded.make({
+          orgId,
+          data: {
+            postId,
+            spaceId: post.spaceId,
+            communityId: post.communityId,
+            orgUserId: actor.id,
+            reaction: emoji,
+          },
+          metadata: this.meta(actor),
+        }),
+      ]);
+    });
     this.logger.debug('post reaction set', { orgId, postId, orgUserId: actor.id });
     const counts = await this.repo.reactionsOf(orgId, [postId], actor.id);
     return counts[postId] ?? { reactions: {} };

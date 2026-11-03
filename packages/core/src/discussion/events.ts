@@ -8,6 +8,7 @@ import {
   messageSchema,
   postFlagSchema,
   postSchema,
+  reactionEmojiSchema,
 } from '../types/schemas/index.js';
 import {
   defineEvent,
@@ -82,6 +83,38 @@ const participantAddedSchema = z
 
 const publicMessage = messageSchema.omit({ body: true }).strip();
 
+const postReactionAddedSchema = z
+  .object({
+    postId: idSchema,
+    spaceId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    reaction: reactionEmojiSchema,
+  })
+  .strict();
+
+const commentReactionAddedSchema = z
+  .object({
+    commentId: idSchema,
+    postId: idSchema.nullable(),
+    activityId: idSchema.nullable(),
+    spaceId: idSchema.nullable(),
+    communityId: idSchema.nullable(),
+    orgUserId: idSchema,
+    reaction: reactionEmojiSchema,
+  })
+  .strict();
+
+const messageReactionAddedSchema = z
+  .object({
+    messageId: idSchema,
+    chatId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    reaction: reactionEmojiSchema,
+  })
+  .strict();
+
 const digestDueSchema = z
   .object({ communityId: idSchema, from: z.coerce.date(), to: z.coerce.date() })
   .strict();
@@ -99,6 +132,18 @@ export const discussionEvents = {
     version: 1,
     data: commentEventSchema,
     publicData: publicComment,
+  }),
+  commentUpdated: defineEvent({
+    type: 'discussion.comment.updated',
+    version: 1,
+    data: commentEventSchema,
+    publicData: publicComment,
+  }),
+  commentReactionAdded: defineEvent({
+    type: 'discussion.comment.reaction.added',
+    version: 1,
+    data: commentReactionAddedSchema,
+    publicData: commentReactionAddedSchema,
   }),
   commentRemoved: defineEvent({
     type: 'discussion.comment.removed',
@@ -129,6 +174,12 @@ export const discussionEvents = {
     version: 1,
     data: postEventSchema,
     publicData: publicPost,
+  }),
+  postReactionAdded: defineEvent({
+    type: 'discussion.post.reaction.added',
+    version: 1,
+    data: postReactionAddedSchema,
+    publicData: postReactionAddedSchema,
   }),
   postRemoved: defineEvent({
     type: 'discussion.post.removed',
@@ -166,6 +217,18 @@ export const discussionEvents = {
     data: messageEventSchema,
     publicData: publicMessage,
   }),
+  messageUpdated: defineEvent({
+    type: 'discussion.message.updated',
+    version: 1,
+    data: messageEventSchema,
+    publicData: publicMessage,
+  }),
+  messageReactionAdded: defineEvent({
+    type: 'discussion.message.reaction.added',
+    version: 1,
+    data: messageReactionAddedSchema,
+    publicData: messageReactionAddedSchema,
+  }),
   messageDeleted: defineEvent({
     type: 'discussion.message.deleted',
     version: 1,
@@ -188,18 +251,23 @@ export const discussionEvents = {
 
 export type CommentCreated = EventOf<typeof discussionEvents.commentCreated>;
 export type CommentPublished = EventOf<typeof discussionEvents.commentPublished>;
+export type CommentUpdated = EventOf<typeof discussionEvents.commentUpdated>;
+export type CommentReactionAdded = EventOf<typeof discussionEvents.commentReactionAdded>;
 export type CommentRemoved = EventOf<typeof discussionEvents.commentRemoved>;
 export type CommentReported = EventOf<typeof discussionEvents.commentReported>;
 export type DiscussionEvent = EventOfValues<typeof discussionEvents>;
 export type PostCreated = EventOf<typeof discussionEvents.postCreated>;
 export type PostUpdated = EventOf<typeof discussionEvents.postUpdated>;
 export type PostPublished = EventOf<typeof discussionEvents.postPublished>;
+export type PostReactionAdded = EventOf<typeof discussionEvents.postReactionAdded>;
 export type PostRemoved = EventOf<typeof discussionEvents.postRemoved>;
 export type PostReported = EventOf<typeof discussionEvents.postReported>;
 export type ChatCreated = EventOf<typeof discussionEvents.chatCreated>;
 export type ChatUpdated = EventOf<typeof discussionEvents.chatUpdated>;
 export type ChatParticipantAdded = EventOf<typeof discussionEvents.chatParticipantAdded>;
 export type MessageSent = EventOf<typeof discussionEvents.messageSent>;
+export type MessageUpdated = EventOf<typeof discussionEvents.messageUpdated>;
+export type MessageReactionAdded = EventOf<typeof discussionEvents.messageReactionAdded>;
 export type MessageDeleted = EventOf<typeof discussionEvents.messageDeleted>;
 export type MessageReported = EventOf<typeof discussionEvents.messageReported>;
 export type DigestDue = EventOf<typeof discussionEvents.digestDue>;

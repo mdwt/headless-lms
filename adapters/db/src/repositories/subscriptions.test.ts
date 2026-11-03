@@ -39,9 +39,9 @@ describe("DrizzleSubscriptionsRepository", () => {
 
   it("reads active mutes among the given people, open-ended or ending later", async () => {
     const { repo, statements } = capture([["ou_1"]]);
-    await expect(repo.mutedAmong("org_1", "post", "pst_1", ["ou_1", "ou_2"], at)).resolves.toEqual(
-      ["ou_1"],
-    );
+    await expect(repo.mutedAmong("org_1", "post", "pst_1", ["ou_1", "ou_2"], at)).resolves.toEqual([
+      "ou_1",
+    ]);
     expect(statements[0]?.text).toBe(
       'select "org_user_id" from "subscriptions" where ("subscriptions"."org_id" = $1 and "subscriptions"."item_type" = $2 and "subscriptions"."item_id" = $3 and "subscriptions"."state" = $4 and "subscriptions"."org_user_id" in ($5, $6) and ("subscriptions"."muted_until" is null or "subscriptions"."muted_until" > $7))',
     );

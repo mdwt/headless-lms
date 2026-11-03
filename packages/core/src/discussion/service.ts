@@ -548,9 +548,20 @@ export class DiscussionServiceImpl implements DiscussionService {
         // the old body.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.mentions.sync(orgId, 'comment', commentId, candidates, new Date());
+      const added = await scope.mentions.sync(orgId, 'comment', commentId, candidates, new Date());
+      await scope.outbox.append([
+        discussionEvents.commentUpdated.make({
+          orgId,
+          data: {
+            ...next,
+            mentionedOrgUserIds: next.status === 'published' ? keepAllowed(candidates, added) : [],
+          },
+          metadata: next.postId ? { actorOrgUserId: actor.id } : undefined,
+        }),
+      ]);
       return next;
     });
+    this.logger.info('comment edited', { orgId, commentId, actorId: actor.id });
     return this.renderOne(orgId, updated, actor);
   }
 
@@ -685,7 +696,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     commentId: string,
     actor: Actor,
-  ): Promise<{ comment: Comment; config: CommentsConfig }> {
+  ): Promise<{ comment: Comment; config: CommentsConfig; spaceId: string | null }> {
     const comment = await this.getComment(orgId, commentId);
     if (!comment) {
       throw new NotFoundError('Comment', commentId);
@@ -698,14 +709,14 @@ export class DiscussionServiceImpl implements DiscussionService {
         requireReview: false,
         reactions: post.reactionsEnabled ?? space.settings.reactions,
       };
-      return { comment, config };
+      return { comment, config, spaceId: post.spaceId };
     }
     const activityId = this.activityIdOf(comment);
     if (!(await this.hasAccess(orgId, activityId, actor))) {
       throw new ForbiddenError('You cannot open this activity');
     }
     const config = await this.resolveConfig(orgId, activityId);
-    return { comment, config };
+    return { comment, config, spaceId: null };
   }
 
   async setReaction(
@@ -714,7 +725,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     actor: Actor,
     emoji: ReactionEmoji | null,
   ): Promise<CommentReactions> {
-    const { comment, config } = await this.loadWithConfig(orgId, commentId, actor);
+    const { comment, config, spaceId } = await this.loadWithConfig(orgId, commentId, actor);
     if (!config.enabled && !comment.postId) {
       throw new ForbiddenError('Discussion is not open on this activity');
     }
@@ -726,7 +737,27 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (comment.status === 'removed') {
       throw new ForbiddenError('A removed comment cannot be reacted to');
     }
-    await this.repo.setReaction(orgId, commentId, actor.id, emoji);
+    await this.uow.run(async (scope) => {
+      const first = await scope.discussion.setReaction(orgId, commentId, actor.id, emoji);
+      if (!first || emoji === null) {
+        return;
+      }
+      await scope.outbox.append([
+        discussionEvents.commentReactionAdded.make({
+          orgId,
+          data: {
+            commentId,
+            postId: comment.postId,
+            activityId: comment.activityId,
+            spaceId,
+            communityId: comment.communityId,
+            orgUserId: actor.id,
+            reaction: emoji,
+          },
+          metadata: { actorOrgUserId: actor.id },
+        }),
+      ]);
+    });
     const stored = await this.repo.reactionsOf(orgId, [commentId], actor.id);
     return stored[commentId] ?? EMPTY_REACTIONS;
   }

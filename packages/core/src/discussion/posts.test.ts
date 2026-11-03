@@ -318,6 +318,7 @@ function harness(options?: {
       if (emoji !== null) {
         reactions.push({ postId, orgUserId, emoji });
       }
+      return index < 0 && emoji !== null;
     },
     async bookmark(_orgId, postId, orgUserId) {
       if (!bookmarks.some((mark) => mark.postId === postId && mark.orgUserId === orgUserId)) {
@@ -1677,5 +1678,38 @@ describe('post mentions', () => {
     await svc.restore(ORG, post.id, moderator);
     expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
+  });
+});
+
+describe('post reaction events', () => {
+  it('announces only a person’s first reaction to a post', async () => {
+    const { svc, calls } = harness();
+    const post = await svc.create(ORG, member, draftInput());
+    calls.length = 0;
+    await svc.setReaction(ORG, post.id, other, '👍');
+    expect(calls).toEqual([
+      [
+        expect.objectContaining({
+          type: 'discussion.post.reaction.added',
+          data: {
+            postId: post.id,
+            spaceId: 'spc_1',
+            communityId: 'cmy_1',
+            orgUserId: other.id,
+            reaction: '👍',
+          },
+          metadata: { actorOrgUserId: other.id },
+        }),
+      ],
+    ]);
+    await svc.setReaction(ORG, post.id, other, '🎉');
+    await svc.setReaction(ORG, post.id, other, null);
+    await svc.setReaction(ORG, post.id, moderator, null);
+    expect(calls).toHaveLength(1);
+    await svc.setReaction(ORG, post.id, moderator, '🎉');
+    expect(calls.flat().map((event) => event.type)).toEqual([
+      'discussion.post.reaction.added',
+      'discussion.post.reaction.added',
+    ]);
   });
 });

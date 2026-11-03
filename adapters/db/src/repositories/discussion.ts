@@ -25,6 +25,7 @@ import { user } from "../schema/better-auth.js";
 import { authorProfileColumns } from "./org-user-profile.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
+import { insertedRow } from "./inserted-row.js";
 
 type CommentRow = typeof comments.$inferSelect;
 
@@ -218,7 +219,7 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     commentId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (emoji === null) {
       await this.db
         .delete(commentReactions)
@@ -229,15 +230,17 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
             eq(commentReactions.orgUserId, orgUserId),
           ),
         );
-      return;
+      return false;
     }
-    await this.db
+    const [row] = await this.db
       .insert(commentReactions)
       .values({ orgId, commentId, orgUserId, emoji })
       .onConflictDoUpdate({
         target: [commentReactions.orgId, commentReactions.commentId, commentReactions.orgUserId],
         set: { emoji },
-      });
+      })
+      .returning({ inserted: insertedRow });
+    return row?.inserted === true;
   }
 
   async authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>> {

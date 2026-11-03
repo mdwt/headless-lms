@@ -187,7 +187,7 @@ export interface DiscussionRepository extends PostCommentReader, AuthorProfileRe
     commentId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void>;
+  ): Promise<boolean>;
 
   /** Returns null when this person has already reported this comment. */
   insertReport(orgId: string, report: CommentReport): Promise<CommentReport | null>;
@@ -401,7 +401,7 @@ export interface PostRepository {
     postId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void>;
+  ): Promise<boolean>;
   bookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   unbookmark(orgId: string, postId: string, orgUserId: string): Promise<void>;
   bookmarkedAmong(orgId: string, postIds: string[], orgUserId: string): Promise<string[]>;
@@ -606,7 +606,7 @@ export interface ChatRepository {
     messageId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void>;
+  ): Promise<boolean>;
   reactionsOf(
     orgId: string,
     messageIds: string[],

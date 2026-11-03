@@ -196,6 +196,7 @@ export function fakeRepo() {
       if (type !== null) {
         reactions.push({ commentId, orgUserId, type });
       }
+      return i < 0 && type !== null;
     },
     async insertReport(_orgId, report) {
       const dup = reports.some(
@@ -1339,6 +1340,36 @@ describe('comments on a post', () => {
     return { service, appended, mentions, ...fake };
   }
 
+  it('announces a first reaction to a comment on a post with the post’s space', async () => {
+    const { service, appended } = postService();
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: 'hi',
+    });
+    await service.setReaction('o1', view.id, other, '👍');
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.reaction.added',
+      data: {
+        commentId: view.id,
+        postId: 'pst_1',
+        activityId: null,
+        spaceId: space.id,
+        communityId: 'cmy_1',
+        orgUserId: other.id,
+        reaction: '👍',
+      },
+      metadata: { actorOrgUserId: other.id },
+    });
+    await service.edit('o1', view.id, learner, 'edited');
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.updated',
+      data: { body: 'edited', mentionedOrgUserIds: [] },
+      metadata: { actorOrgUserId: learner.id },
+    });
+  });
+
   it('mentions the people who can open the post’s space and carries them on creation', async () => {
     const { service, appended, mentions } = postService();
     const view = await service.postComment('o1', {
@@ -1570,5 +1601,66 @@ describe('comment mentions on an activity', () => {
     expect((await service.restore('o1', c.id, staff)).mentions).toEqual([
       { orgUserId: other.id, name: other.id },
     ]);
+  });
+});
+
+describe('comment events', () => {
+  const lastOf = (appended: NewDiscussionEvent[], type: string) =>
+    appended.filter((event) => event.type === type).at(-1);
+
+  it('announces only a person’s first reaction to a comment on an activity', async () => {
+    const { service, appended } = await openCourse();
+    const c = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'a',
+    });
+    await service.setReaction('o1', c.id, other, '👍');
+    await service.setReaction('o1', c.id, other, '🎉');
+    await service.setReaction('o1', c.id, other, null);
+    const added = appended.filter((event) => event.type === 'discussion.comment.reaction.added');
+    expect(added).toHaveLength(1);
+    expect(added[0]?.data).toEqual({
+      commentId: c.id,
+      postId: null,
+      activityId: 'a1',
+      spaceId: null,
+      communityId: null,
+      orgUserId: other.id,
+      reaction: '👍',
+    });
+  });
+
+  it('announces an edit, carrying the newly mentioned only while published', async () => {
+    const { service, appended, settings } = await openCourse();
+    const c = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'hi <@ou_other>',
+    });
+    await service.edit('o1', c.id, learner, 'hi <@ou_other> <@ou_staff>');
+    expect(lastOf(appended, 'discussion.comment.updated')?.data).toMatchObject({
+      id: c.id,
+      body: 'hi <@ou_other> <@ou_staff>',
+      mentionedOrgUserIds: [staff.id],
+    });
+    await setSettings(settings, 'c1', { requireReview: true });
+    const held = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'held',
+    });
+    await service.edit('o1', held.id, learner, 'held <@ou_other>');
+    expect(lastOf(appended, 'discussion.comment.updated')?.data).toMatchObject({
+      id: held.id,
+      mentionedOrgUserIds: [],
+    });
+    await service.approve('o1', held.id, staff);
+    expect(lastOf(appended, 'discussion.comment.published')?.data).toMatchObject({
+      mentionedOrgUserIds: [other.id],
+    });
   });
 });

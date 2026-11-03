@@ -28,6 +28,7 @@ import {
   messages,
 } from "../schema/index.js";
 import { translateDbErrors } from "./pg-errors.js";
+import { insertedRow } from "./inserted-row.js";
 
 type ChatRow = typeof chats.$inferSelect;
 type ChatUserRow = typeof chatUsers.$inferSelect;
@@ -478,7 +479,7 @@ export class DrizzleChatRepository implements ChatRepository {
     messageId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (emoji === null) {
       await this.db
         .delete(messageReactions)
@@ -489,15 +490,17 @@ export class DrizzleChatRepository implements ChatRepository {
             eq(messageReactions.orgUserId, orgUserId),
           ),
         );
-      return;
+      return false;
     }
-    await this.db
+    const [row] = await this.db
       .insert(messageReactions)
       .values({ orgId, communityId, messageId, orgUserId, emoji })
       .onConflictDoUpdate({
         target: [messageReactions.orgId, messageReactions.messageId, messageReactions.orgUserId],
         set: { emoji, updatedAt: new Date() },
-      });
+      })
+      .returning({ inserted: insertedRow });
+    return row?.inserted === true;
   }
 
   async reactionsOf(

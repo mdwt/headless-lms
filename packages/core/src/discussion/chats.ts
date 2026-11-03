@@ -386,13 +386,22 @@ export class ChatServiceImpl implements ChatService {
       return this.viewOf(orgId, actor, message);
     }
     const now = new Date();
-    const saved = await this.uow.run(async ({ chats, mentions }) => {
+    const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
       const next = await chats.updateMessage(orgId, messageId, { body, editedAt: now });
       if (!next) {
         throw new NotFoundError('Message', messageId);
       }
+      const chat = await this.mustChat(chats, orgId, next.chatId);
       const users = await chats.participants(orgId, next.chatId);
-      await mentions.sync(orgId, 'message', messageId, this.mentionable(body, users), now);
+      const candidates = this.mentionable(body, users);
+      const added = await mentions.sync(orgId, 'message', messageId, candidates, now);
+      await outbox.append([
+        discussionEvents.messageUpdated.make({
+          orgId,
+          data: { ...next, mentionedOrgUserIds: keepAllowed(candidates, added) },
+          metadata: { ...this.meta(actor), chatStatus: chat.status },
+        }),
+      ]);
       return next;
     });
     this.logger.info('message edited', { orgId, messageId, actorId: actor.id });
@@ -445,7 +454,25 @@ export class ChatServiceImpl implements ChatService {
     const message = await this.mustMessage(this.repo, orgId, messageId);
     await this.requireActor(orgId, actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
-    await this.repo.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
+    await this.uow.run(async ({ chats, outbox }) => {
+      const first = await chats.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
+      if (!first || emoji === null) {
+        return;
+      }
+      await outbox.append([
+        discussionEvents.messageReactionAdded.make({
+          orgId,
+          data: {
+            messageId,
+            chatId: message.chatId,
+            communityId: message.communityId,
+            orgUserId: actor.id,
+            reaction: emoji,
+          },
+          metadata: this.meta(actor),
+        }),
+      ]);
+    });
     this.logger.debug('message reaction set', { orgId, messageId });
     const counts = await this.repo.reactionsOf(orgId, [messageId], actor.id);
     return counts[messageId] ?? { reactions: {} };

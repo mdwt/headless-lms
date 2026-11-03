@@ -20,6 +20,7 @@ import type {
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { postFlags, postBookmarks, postReactions, posts } from "../schema/index.js";
 import { translateDbErrors } from "./pg-errors.js";
+import { insertedRow } from "./inserted-row.js";
 
 type PostRow = typeof posts.$inferSelect;
 type FlagRow = typeof postFlags.$inferSelect;
@@ -287,7 +288,7 @@ export class DrizzlePostRepository implements PostRepository {
     postId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (emoji === null) {
       await this.db
         .delete(postReactions)
@@ -298,15 +299,17 @@ export class DrizzlePostRepository implements PostRepository {
             eq(postReactions.orgUserId, orgUserId),
           ),
         );
-      return;
+      return false;
     }
-    await this.db
+    const [row] = await this.db
       .insert(postReactions)
       .values({ orgId, postId, orgUserId, emoji })
       .onConflictDoUpdate({
         target: [postReactions.orgId, postReactions.postId, postReactions.orgUserId],
         set: { emoji },
-      });
+      })
+      .returning({ inserted: insertedRow });
+    return row?.inserted === true;
   }
 
   async bookmark(orgId: string, postId: string, orgUserId: string): Promise<void> {
