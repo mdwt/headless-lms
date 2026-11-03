@@ -15,5 +15,6 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../../adapters/email-templates/src/**/*.tsx"],
+  "exclude": ["../../adapters/email-templates/src/**/*.test.tsx"]
 }
