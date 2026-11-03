@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import {
+  notificationCategoryListSchema,
+  notificationCategorySchema,
   notificationKindSchema,
   notificationPreferenceSchema,
+  notificationScopeSchema,
   notificationSchema,
+  reasonSchema,
 } from '@headless-lms/core/schemas';
 import type { NotificationView as DomainNotificationView } from '@headless-lms/core/reporting/member';
 import { paginated, type Matches } from './shared.js';
@@ -59,3 +63,35 @@ export const SetNotificationPreferences = z
       .describe('One entry per kind to change, each kind at most once; kinds left out keep theirs'),
   })
   .strict();
+
+export const NotificationCategory = notificationCategorySchema;
+
+export const NotificationCategoryList = z.object({
+  categories: z.array(NotificationCategory),
+  source: z
+    .enum(['default', 'stored'])
+    .describe('`default` while the list in use is the server default, `stored` once one is saved'),
+});
+
+export const ReplaceNotificationCategories = z
+  .object({
+    categories: notificationCategoryListSchema.describe(
+      'The whole ordered list; a notification is filed under the first category that matches',
+    ),
+  })
+  .strict();
+
+export const NotificationCategoryDefaults = z.object({ categories: z.array(NotificationCategory) });
+
+export const NotificationListScopeQuery = z
+  .object({ scope: z.enum(['org', 'community']) })
+  .strict();
+
+export const NotificationTypeInfo = z.object({
+  type: z.string(),
+  scopes: z.array(notificationScopeSchema),
+  reasons: z.array(reasonSchema),
+});
+export const NotificationTypeInfos = z.array(NotificationTypeInfo);
+
+export const NotificationChannelInfos = z.array(z.object({ channel: z.string() }));

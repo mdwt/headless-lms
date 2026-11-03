@@ -143,6 +143,8 @@ import type {
   GetCommunityErrors,
   GetCommunityMessageQueueErrors,
   GetCommunityMessageQueueResponses,
+  GetCommunityNotificationCategoriesErrors,
+  GetCommunityNotificationCategoriesResponses,
   GetCommunityResponses,
   GetCommunitySpaceQueueErrors,
   GetCommunitySpaceQueueResponses,
@@ -156,6 +158,8 @@ import type {
   GetCourseErrors,
   GetCourseResponses,
   GetCourseThumbnailErrors,
+  GetDefaultNotificationCategoriesErrors,
+  GetDefaultNotificationCategoriesResponses,
   GetDownloadErrors,
   GetDownloadFileErrors,
   GetDownloadResponses,
@@ -189,6 +193,8 @@ import type {
   GetMemberViewerErrors,
   GetMemberViewerResponses,
   GetMessageAttachmentErrors,
+  GetOrgNotificationCategoriesErrors,
+  GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
   GetOverviewResponses,
   GetPersonImageErrors,
@@ -290,6 +296,10 @@ import type {
   ListMembersResponses,
   ListModulesErrors,
   ListModulesResponses,
+  ListNotificationChannelsErrors,
+  ListNotificationChannelsResponses,
+  ListNotificationTypesErrors,
+  ListNotificationTypesResponses,
   ListOwnPostsErrors,
   ListOwnPostsResponses,
   ListPostCommentsErrors,
@@ -358,6 +368,10 @@ import type {
   ReorderSpaceLinksResponses,
   ReorderSpacesErrors,
   ReorderSpacesResponses,
+  ReplaceCommunityNotificationCategoriesErrors,
+  ReplaceCommunityNotificationCategoriesResponses,
+  ReplaceOrgNotificationCategoriesErrors,
+  ReplaceOrgNotificationCategoriesResponses,
   ReplyToCommentErrors,
   ReplyToCommentResponses,
   ReportCommentErrors,
@@ -374,6 +388,10 @@ import type {
   RerunAutomationRunResponses,
   ResendStudentInviteErrors,
   ResendStudentInviteResponses,
+  ResetCommunityNotificationCategoriesErrors,
+  ResetCommunityNotificationCategoriesResponses,
+  ResetOrgNotificationCategoriesErrors,
+  ResetOrgNotificationCategoriesResponses,
   ResolveCommentFlagsErrors,
   ResolveCommentFlagsResponses,
   ResolveCommunityCommentFlagsErrors,
@@ -935,6 +953,539 @@ export class Organizations {
       url: "/api/students/{id}/invite/resend",
       ...options,
       ...params,
+    });
+  }
+}
+
+export class Notifications {
+  /**
+   * List the notification types a category list can cover (staff)
+   *
+   * Owner or admin only. `scope=org` lists the types the org list can cover, `scope=community` those a community list can cover. Each type carries all its scopes, so an editor can tell which types can be per space.
+   */
+  public static listNotificationTypes<ThrowOnError extends boolean = false>(
+    parameters: {
+      scope: "org" | "community";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListNotificationTypesResponses,
+    ListNotificationTypesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "scope" }] }]);
+    return (options?.client ?? client).get<
+      ListNotificationTypesResponses,
+      ListNotificationTypesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-types",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the notification channels this deployment can deliver on (staff)
+   *
+   * Owner or admin only. `inApp` is always first.
+   */
+  public static listNotificationChannels<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListNotificationChannelsResponses,
+    ListNotificationChannelsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      ListNotificationChannelsResponses,
+      ListNotificationChannelsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-channels",
+      ...options,
+    });
+  }
+
+  /**
+   * Go back to the default notification categories for the organization (staff)
+   *
+   * Owner or admin only. Removes the stored list; the default applies again.
+   */
+  public static resetOrgNotificationCategories<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResetOrgNotificationCategoriesResponses,
+    ResetOrgNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).delete<
+      ResetOrgNotificationCategoriesResponses,
+      ResetOrgNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-categories",
+      ...options,
+    });
+  }
+
+  /**
+   * Get the organization's notification categories (staff)
+   *
+   * Owner or admin only. The list in use for notifications outside any community, with `source` saying whether it is the default or a stored list.
+   */
+  public static getOrgNotificationCategories<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetOrgNotificationCategoriesResponses,
+    GetOrgNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetOrgNotificationCategoriesResponses,
+      GetOrgNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-categories",
+      ...options,
+    });
+  }
+
+  /**
+   * Replace the organization's notification categories (staff)
+   *
+   * Owner or admin only. Stores the whole list. 422 when a key repeats, a type cannot be in the org list, a reason is not allowed for its type, a channel is not configured, or earlier categories already cover everything a category covers.
+   */
+  public static replaceOrgNotificationCategories<ThrowOnError extends boolean = false>(
+    parameters: {
+      categories: Array<{
+        key: string;
+        covers: Array<{
+          type: string;
+          reasons: Array<
+            | "subject"
+            | "post_author"
+            | "comment_author"
+            | "message_author"
+            | "follower"
+            | "thread_participant"
+            | "mentioned"
+            | "participant"
+            | "space_member"
+            | "community_member"
+            | "course_member"
+            | "moderator"
+            | "staff"
+          >;
+        }>;
+        channels: {
+          [key: string]: {
+            default: boolean;
+            locked: boolean;
+          };
+        };
+        perSpace?: boolean;
+        spaceDefaults?: {
+          [key: string]: {
+            [key: string]: boolean;
+          };
+        };
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ReplaceOrgNotificationCategoriesResponses,
+    ReplaceOrgNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "categories" }] }]);
+    return (options?.client ?? client).put<
+      ReplaceOrgNotificationCategoriesResponses,
+      ReplaceOrgNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-categories",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Get the default notification categories (staff)
+   *
+   * Owner or admin only. The default org list (`scope=org`) or community list (`scope=community`), offering only the configured channels.
+   */
+  public static getDefaultNotificationCategories<ThrowOnError extends boolean = false>(
+    parameters: {
+      scope: "org" | "community";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetDefaultNotificationCategoriesResponses,
+    GetDefaultNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "scope" }] }]);
+    return (options?.client ?? client).get<
+      GetDefaultNotificationCategoriesResponses,
+      GetDefaultNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/notification-categories/defaults",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Go back to the default notification categories for a community (staff)
+   *
+   * Owner or admin only. Removes the stored list; the default applies again.
+   */
+  public static resetCommunityNotificationCategories<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ResetCommunityNotificationCategoriesResponses,
+    ResetCommunityNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).delete<
+      ResetCommunityNotificationCategoriesResponses,
+      ResetCommunityNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/notification-categories",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get a community's notification categories (staff)
+   *
+   * Owner or admin only. The list in use for the community, with `source` saying whether it is the default or a stored list.
+   */
+  public static getCommunityNotificationCategories<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetCommunityNotificationCategoriesResponses,
+    GetCommunityNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetCommunityNotificationCategoriesResponses,
+      GetCommunityNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/notification-categories",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Replace a community's notification categories (staff)
+   *
+   * Owner or admin only. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, `perSpace` is set on a type that cannot occur in a space, `spaceDefaults` appears without `perSpace` or names a channel the category does not offer, or earlier categories already cover everything a category covers.
+   */
+  public static replaceCommunityNotificationCategories<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      categories: Array<{
+        key: string;
+        covers: Array<{
+          type: string;
+          reasons: Array<
+            | "subject"
+            | "post_author"
+            | "comment_author"
+            | "message_author"
+            | "follower"
+            | "thread_participant"
+            | "mentioned"
+            | "participant"
+            | "space_member"
+            | "community_member"
+            | "course_member"
+            | "moderator"
+            | "staff"
+          >;
+        }>;
+        channels: {
+          [key: string]: {
+            default: boolean;
+            locked: boolean;
+          };
+        };
+        perSpace?: boolean;
+        spaceDefaults?: {
+          [key: string]: {
+            [key: string]: boolean;
+          };
+        };
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ReplaceCommunityNotificationCategoriesResponses,
+    ReplaceCommunityNotificationCategoriesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "categories" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReplaceCommunityNotificationCategoriesResponses,
+      ReplaceCommunityNotificationCategoriesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/communities/{communityId}/notification-categories",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * List your notifications, newest first, with your unread count
+   *
+   * For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.
+   */
+  public static listMemberNotifications<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListMemberNotificationsResponses,
+    ListMemberNotificationsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListMemberNotificationsResponses,
+      ListMemberNotificationsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark one of your notifications read
+   *
+   * For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.
+   */
+  public static markMemberNotificationRead<ThrowOnError extends boolean = false>(
+    parameters: {
+      notificationId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkMemberNotificationReadResponses,
+    MarkMemberNotificationReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "notificationId" }] }],
+    );
+    return (options?.client ?? client).post<
+      MarkMemberNotificationReadResponses,
+      MarkMemberNotificationReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/{notificationId}/read",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Mark all your notifications read
+   *
+   * For any signed-in person in the organization. Returns how many were unread.
+   */
+  public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    MarkAllMemberNotificationsReadResponses,
+    MarkAllMemberNotificationsReadErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).post<
+      MarkAllMemberNotificationsReadResponses,
+      MarkAllMemberNotificationsReadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/read",
+      ...options,
+    });
+  }
+
+  /**
+   * Read how you are told about each kind of notification
+   *
+   * For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.
+   */
+  public static getMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationPreferencesResponses,
+    GetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetMemberNotificationPreferencesResponses,
+      GetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
+      ...options,
+    });
+  }
+
+  /**
+   * Set how you are told about the given kinds of notification
+   *
+   * For any signed-in person in the organization. Changes only the kinds sent and returns every kind.
+   */
+  public static setMemberNotificationPreferences<ThrowOnError extends boolean = false>(
+    parameters: {
+      preferences: Array<{
+        kind:
+          | "newPostInSpace"
+          | "newCommentOnPost"
+          | "replyToYourComment"
+          | "yourPostWasPublished"
+          | "yourPostWasRemoved"
+          | "yourCommentWasRemoved"
+          | "requestApproved"
+          | "requestDeclined"
+          | "invitedToSpace"
+          | "newMessage"
+          | "messageRequest"
+          | "addedToGroupChat"
+          | "youAreNowAModerator"
+          | "membershipEndingSoon"
+          | "welcomeToCommunity"
+          | "postAwaitingReview"
+          | "joinRequest"
+          | "somethingWasFlagged"
+          | "messageWasFlagged";
+        inApp: boolean;
+        email: boolean;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetMemberNotificationPreferencesResponses,
+    SetMemberNotificationPreferencesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "body", key: "preferences" }] }],
+    );
+    return (options?.client ?? client).put<
+      SetMemberNotificationPreferencesResponses,
+      SetMemberNotificationPreferencesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notification-preferences",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 }
@@ -7382,193 +7933,6 @@ export class Files {
       url: "/api/member/uploads/{id}/file",
       ...options,
       ...params,
-    });
-  }
-}
-
-export class Notifications {
-  /**
-   * List your notifications, newest first, with your unread count
-   *
-   * For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.
-   */
-  public static listMemberNotifications<ThrowOnError extends boolean = false>(
-    parameters?: {
-      page?: number;
-      pageSize?: number;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    ListMemberNotificationsResponses,
-    ListMemberNotificationsErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "page" },
-            { in: "query", key: "pageSize" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      ListMemberNotificationsResponses,
-      ListMemberNotificationsErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notifications",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Mark one of your notifications read
-   *
-   * For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.
-   */
-  public static markMemberNotificationRead<ThrowOnError extends boolean = false>(
-    parameters: {
-      notificationId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    MarkMemberNotificationReadResponses,
-    MarkMemberNotificationReadErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [{ args: [{ in: "path", key: "notificationId" }] }],
-    );
-    return (options?.client ?? client).post<
-      MarkMemberNotificationReadResponses,
-      MarkMemberNotificationReadErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notifications/{notificationId}/read",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Mark all your notifications read
-   *
-   * For any signed-in person in the organization. Returns how many were unread.
-   */
-  public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    MarkAllMemberNotificationsReadResponses,
-    MarkAllMemberNotificationsReadErrors,
-    ThrowOnError,
-    "data"
-  > {
-    return (options?.client ?? client).post<
-      MarkAllMemberNotificationsReadResponses,
-      MarkAllMemberNotificationsReadErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notifications/read",
-      ...options,
-    });
-  }
-
-  /**
-   * Read how you are told about each kind of notification
-   *
-   * For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.
-   */
-  public static getMemberNotificationPreferences<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    GetMemberNotificationPreferencesResponses,
-    GetMemberNotificationPreferencesErrors,
-    ThrowOnError,
-    "data"
-  > {
-    return (options?.client ?? client).get<
-      GetMemberNotificationPreferencesResponses,
-      GetMemberNotificationPreferencesErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notification-preferences",
-      ...options,
-    });
-  }
-
-  /**
-   * Set how you are told about the given kinds of notification
-   *
-   * For any signed-in person in the organization. Changes only the kinds sent and returns every kind.
-   */
-  public static setMemberNotificationPreferences<ThrowOnError extends boolean = false>(
-    parameters: {
-      preferences: Array<{
-        kind:
-          | "newPostInSpace"
-          | "newCommentOnPost"
-          | "replyToYourComment"
-          | "yourPostWasPublished"
-          | "yourPostWasRemoved"
-          | "yourCommentWasRemoved"
-          | "requestApproved"
-          | "requestDeclined"
-          | "invitedToSpace"
-          | "newMessage"
-          | "messageRequest"
-          | "addedToGroupChat"
-          | "youAreNowAModerator"
-          | "membershipEndingSoon"
-          | "welcomeToCommunity"
-          | "postAwaitingReview"
-          | "joinRequest"
-          | "somethingWasFlagged"
-          | "messageWasFlagged";
-        inApp: boolean;
-        email: boolean;
-      }>;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    SetMemberNotificationPreferencesResponses,
-    SetMemberNotificationPreferencesErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [{ args: [{ in: "body", key: "preferences" }] }],
-    );
-    return (options?.client ?? client).put<
-      SetMemberNotificationPreferencesResponses,
-      SetMemberNotificationPreferencesErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notification-preferences",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
     });
   }
 }

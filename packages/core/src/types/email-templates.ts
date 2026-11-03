@@ -48,7 +48,12 @@ export interface EmailTemplateParams {
     postId: string;
     communityId: string;
   };
-  yourPostWasRemoved: { postTitle: string; spaceName: string; spaceId: string; communityId: string };
+  yourPostWasRemoved: {
+    postTitle: string;
+    spaceName: string;
+    spaceId: string;
+    communityId: string;
+  };
   newCommentOnPost: {
     postTitle: string;
     commenterName: string;
@@ -124,7 +129,7 @@ export interface EmailTemplateParams {
     communityId: string;
   };
   mention: { authorName: string; excerpt: string; communityId: string } & (
-    | { postTitle: string; postId: string; commentId: string | null }
+    | { postTitle: string; postId: string; commentId?: string }
     | { chatTitle: string; chatId: string }
   );
   messageReacted: {

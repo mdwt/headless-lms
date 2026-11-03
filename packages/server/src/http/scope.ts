@@ -1,6 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 import { isStaffRole, type StaffRole } from '@headless-lms/core/organizations';
+import { ForbiddenError } from '@headless-lms/core/shared/errors';
 
 export interface OrgScope {
   /** Domain `organizations.id` for the session's active org. */
@@ -69,4 +70,15 @@ export async function resolveScopeFor(
   }
   container.requestContext.set({ orgId: org.id });
   return { orgId: org.id, userId: user.id, orgUserId: orgUser.id, role: orgUser.role, authOrgId };
+}
+
+export async function resolveConfiguratorScope(
+  container: Container,
+  req: FastifyRequest,
+): Promise<OrgScope> {
+  const scope = await resolveScope(container, req);
+  if (scope.role !== 'owner' && scope.role !== 'admin') {
+    throw new ForbiddenError('Only an owner or an admin can configure notifications');
+  }
+  return scope;
 }

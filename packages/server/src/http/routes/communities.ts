@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import { resolveScope } from '../scope.js';
+import { resolveConfiguratorScope, resolveScope } from '../scope.js';
 import {
   Community,
   CommunityAnalytics,
@@ -14,8 +14,10 @@ import {
   CreateCommunity,
   CreateSpace,
   MessageQueue,
+  NotificationCategoryList,
   OrderedIds,
   PatchCommunitySettings,
+  ReplaceNotificationCategories,
   SetSpaceTopics,
   SpaceDetail,
   SpaceLinkBody,
@@ -156,6 +158,65 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
         id: scope.orgUserId,
         role: scope.role,
       });
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/communities/:communityId/notification-categories',
+    schema: {
+      operationId: 'getCommunityNotificationCategories',
+      tags: ['Notifications'],
+      summary: "Get a community's notification categories (staff)",
+      description:
+        'Owner or admin only. The list in use for the community, with `source` saying whether it is the default or a stored list.',
+      params: CommunityIdParam,
+      response: { 200: NotificationCategoryList, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const scope = await resolveConfiguratorScope(container, req);
+      return container.notificationCategories.community.get(scope.orgId, req.params.communityId);
+    },
+  });
+
+  r.route({
+    method: 'PUT',
+    url: '/api/communities/:communityId/notification-categories',
+    schema: {
+      operationId: 'replaceCommunityNotificationCategories',
+      tags: ['Notifications'],
+      summary: "Replace a community's notification categories (staff)",
+      description:
+        'Owner or admin only. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, `perSpace` is set on a type that cannot occur in a space, `spaceDefaults` appears without `perSpace` or names a channel the category does not offer, or earlier categories already cover everything a category covers.',
+      params: CommunityIdParam,
+      body: ReplaceNotificationCategories,
+      response: { 200: NotificationCategoryList, ...refusals(400, 403, 404, 422) },
+    },
+    handler: async (req) => {
+      const scope = await resolveConfiguratorScope(container, req);
+      return container.notificationCategories.community.replace(
+        scope.orgId,
+        req.params.communityId,
+        req.body.categories,
+      );
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/communities/:communityId/notification-categories',
+    schema: {
+      operationId: 'resetCommunityNotificationCategories',
+      tags: ['Notifications'],
+      summary: 'Go back to the default notification categories for a community (staff)',
+      description: 'Owner or admin only. Removes the stored list; the default applies again.',
+      params: CommunityIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const scope = await resolveConfiguratorScope(container, req);
+      await container.notificationCategories.community.reset(scope.orgId, req.params.communityId);
+      return reply.code(204).send();
     },
   });
 

@@ -44,7 +44,7 @@ import {
 import { StorageAdapter } from '@headless-lms/adapter-defaults/storage';
 import { BetterAuth } from '@headless-lms/adapter-auth';
 
-import { ContentService } from '@headless-lms/core/content';
+import { CommunityNotificationCategories, ContentService } from '@headless-lms/core/content';
 import {
   EntitlementsServiceImpl,
   entitlementsJobs,
@@ -68,6 +68,7 @@ import {
 import {
   type OrgAdmin,
   OrganizationServiceImpl,
+  OrgNotificationCategories,
   parseRole,
 } from '@headless-lms/core/organizations';
 import {
@@ -77,7 +78,14 @@ import {
   createFileUrls,
 } from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
-import { AutomationsServiceImpl } from '@headless-lms/core/automations';
+import {
+  AutomationsServiceImpl,
+  DEFAULT_COMMUNITY_CATEGORIES,
+  DEFAULT_ORG_CATEGORIES,
+  NOTIFICATION_TYPES,
+  type NotificationCategories,
+} from '@headless-lms/core/automations';
+import { buildNotificationRegistries } from './notification-channels.js';
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
@@ -87,9 +95,12 @@ import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 
 import type {
+  ChannelRegistry,
   CredentialStore,
   EmailSender,
   Logger,
+  NotificationChannel,
+  NotificationTypeRegistry,
   ObjectStorage,
   OutboxRelay,
   Scheduler,
@@ -108,6 +119,8 @@ export interface AdapterOverrides {
   workflows?: (AutomationEngine & Scheduler) | ((logger: Logger) => AutomationEngine & Scheduler);
   /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (public addresses only, 10s timeout). */
   webhooks?: WebhookSender;
+  /** Notification channels beyond in-app, email and push; each key must be new. */
+  notificationChannels?: NotificationChannel[];
 }
 
 export interface BuildContainerOptions {
@@ -202,6 +215,13 @@ export interface Container {
   assets: AssetsServiceImpl;
   integrations: IntegrationsServiceImpl;
   automations: AutomationsServiceImpl;
+  notificationTypes: NotificationTypeRegistry;
+  notificationChannels: ChannelRegistry;
+  notificationCategories: {
+    community: CommunityNotificationCategories;
+    org: OrgNotificationCategories;
+  };
+  notificationCategoryLists: NotificationCategories;
   /** Cross-cutting settings store. Not a context — a leaf every context may use;
    *  inject `settings.for('<namespace>')` into a service, never the service itself. */
   settings: SettingsService;
@@ -347,6 +367,35 @@ export async function buildContainer(
     fileUrls,
     logger: contentLogger,
   });
+  const notificationRegistries = buildNotificationRegistries({
+    declarations: NOTIFICATION_TYPES,
+    defaults: { community: DEFAULT_COMMUNITY_CATEGORIES, org: DEFAULT_ORG_CATEGORIES },
+    mailer: options?.adapters?.email ? mailer : null,
+    emailOf: async (_orgId, userId) => (await identity.getUserById(userId))?.email ?? null,
+    channels: options?.adapters?.notificationChannels ?? [],
+  });
+  const notificationCategories = {
+    community: new CommunityNotificationCategories({
+      communities: new DrizzleContentRepository(db, contentLogger),
+      settings,
+      types: notificationRegistries.types,
+      channels: notificationRegistries.channels,
+      logger: contentLogger,
+    }),
+    org: new OrgNotificationCategories({
+      settings,
+      types: notificationRegistries.types,
+      channels: notificationRegistries.channels,
+      logger: logger.child({ name: 'org' }),
+    }),
+  };
+  const notificationCategoryLists: NotificationCategories = {
+    listFor: async (orgId, communityId) =>
+      (communityId
+        ? await notificationCategories.community.get(orgId, communityId)
+        : await notificationCategories.org.get(orgId, orgId)
+      ).categories,
+  };
   // Entitlements: reads on the root db; writes + outbox append in one tx.
   const entitlementsUow = new DrizzleUnitOfWork(db, (tx) => ({
     entitlements: new DrizzleEntitlementsRepository(tx, entitlementsLogger),
@@ -725,6 +774,10 @@ export async function buildContainer(
     assets,
     integrations,
     automations,
+    notificationTypes: notificationRegistries.types,
+    notificationChannels: notificationRegistries.channels,
+    notificationCategories,
+    notificationCategoryLists,
     settings,
     reporting,
     storage,

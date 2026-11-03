@@ -137,7 +137,6 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     communityId: "cmy_1",
     postTitle: "Hello",
     postId: "pst_1",
-    commentId: null,
   },
   messageReacted: {
     excerpt: "Hello",

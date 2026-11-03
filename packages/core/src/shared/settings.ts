@@ -10,6 +10,7 @@ export interface SettingsRecord {
 
 export enum SettingsNamespace {
   content = 'content',
+  organizations = 'organizations',
 }
 
 export interface SettingsRepository {

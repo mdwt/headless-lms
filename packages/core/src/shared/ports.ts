@@ -153,6 +153,20 @@ export interface ChannelRegistry {
   get(key: string): NotificationChannel | undefined;
 }
 
+export interface NotificationCategoryService {
+  get(
+    orgId: string,
+    scopeId: string,
+  ): Promise<{ categories: NotificationCategory[]; source: 'default' | 'stored' }>;
+  replace(
+    orgId: string,
+    scopeId: string,
+    categories: NotificationCategory[],
+  ): Promise<{ categories: NotificationCategory[]; source: 'stored' }>;
+  reset(orgId: string, scopeId: string): Promise<void>;
+  defaults(): NotificationCategory[];
+}
+
 export interface PushSender {
   send(devices: PushDevice[], message: PushMessage): Promise<DeliveryResult>;
 }

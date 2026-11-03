@@ -613,6 +613,516 @@ export type AcceptInviteResponses = {
 
 export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
 
+export type ListNotificationTypesData = {
+  body?: never;
+  path?: never;
+  query: {
+    scope: "org" | "community";
+  };
+  url: "/api/notification-types";
+};
+
+export type ListNotificationTypesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListNotificationTypesError =
+  ListNotificationTypesErrors[keyof ListNotificationTypesErrors];
+
+export type ListNotificationTypesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    type: string;
+    scopes: Array<"org" | "community" | "space" | "chat">;
+    reasons: Array<
+      | "subject"
+      | "post_author"
+      | "comment_author"
+      | "message_author"
+      | "follower"
+      | "thread_participant"
+      | "mentioned"
+      | "participant"
+      | "space_member"
+      | "community_member"
+      | "course_member"
+      | "moderator"
+      | "staff"
+    >;
+  }>;
+};
+
+export type ListNotificationTypesResponse =
+  ListNotificationTypesResponses[keyof ListNotificationTypesResponses];
+
+export type ListNotificationChannelsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/notification-channels";
+};
+
+export type ListNotificationChannelsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListNotificationChannelsError =
+  ListNotificationChannelsErrors[keyof ListNotificationChannelsErrors];
+
+export type ListNotificationChannelsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    channel: string;
+  }>;
+};
+
+export type ListNotificationChannelsResponse =
+  ListNotificationChannelsResponses[keyof ListNotificationChannelsResponses];
+
+export type ResetOrgNotificationCategoriesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/notification-categories";
+};
+
+export type ResetOrgNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResetOrgNotificationCategoriesError =
+  ResetOrgNotificationCategoriesErrors[keyof ResetOrgNotificationCategoriesErrors];
+
+export type ResetOrgNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetOrgNotificationCategoriesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/notification-categories";
+};
+
+export type GetOrgNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetOrgNotificationCategoriesError =
+  GetOrgNotificationCategoriesErrors[keyof GetOrgNotificationCategoriesErrors];
+
+export type GetOrgNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+    /**
+     * `default` while the list in use is the server default, `stored` once one is saved
+     */
+    source: "default" | "stored";
+  };
+};
+
+export type GetOrgNotificationCategoriesResponse =
+  GetOrgNotificationCategoriesResponses[keyof GetOrgNotificationCategoriesResponses];
+
+export type ReplaceOrgNotificationCategoriesData = {
+  body: {
+    /**
+     * The whole ordered list; a notification is filed under the first category that matches
+     */
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/notification-categories";
+};
+
+export type ReplaceOrgNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  422: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ReplaceOrgNotificationCategoriesError =
+  ReplaceOrgNotificationCategoriesErrors[keyof ReplaceOrgNotificationCategoriesErrors];
+
+export type ReplaceOrgNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+    /**
+     * `default` while the list in use is the server default, `stored` once one is saved
+     */
+    source: "default" | "stored";
+  };
+};
+
+export type ReplaceOrgNotificationCategoriesResponse =
+  ReplaceOrgNotificationCategoriesResponses[keyof ReplaceOrgNotificationCategoriesResponses];
+
+export type GetDefaultNotificationCategoriesData = {
+  body?: never;
+  path?: never;
+  query: {
+    scope: "org" | "community";
+  };
+  url: "/api/notification-categories/defaults";
+};
+
+export type GetDefaultNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetDefaultNotificationCategoriesError =
+  GetDefaultNotificationCategoriesErrors[keyof GetDefaultNotificationCategoriesErrors];
+
+export type GetDefaultNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+  };
+};
+
+export type GetDefaultNotificationCategoriesResponse =
+  GetDefaultNotificationCategoriesResponses[keyof GetDefaultNotificationCategoriesResponses];
+
 export type ListCoursesData = {
   body?: never;
   path?: never;
@@ -1808,6 +2318,347 @@ export type PatchCommunityDmSettingsResponses = {
 
 export type PatchCommunityDmSettingsResponse =
   PatchCommunityDmSettingsResponses[keyof PatchCommunityDmSettingsResponses];
+
+export type ResetCommunityNotificationCategoriesData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/notification-categories";
+};
+
+export type ResetCommunityNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ResetCommunityNotificationCategoriesError =
+  ResetCommunityNotificationCategoriesErrors[keyof ResetCommunityNotificationCategoriesErrors];
+
+export type ResetCommunityNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetCommunityNotificationCategoriesData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/notification-categories";
+};
+
+export type GetCommunityNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetCommunityNotificationCategoriesError =
+  GetCommunityNotificationCategoriesErrors[keyof GetCommunityNotificationCategoriesErrors];
+
+export type GetCommunityNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+    /**
+     * `default` while the list in use is the server default, `stored` once one is saved
+     */
+    source: "default" | "stored";
+  };
+};
+
+export type GetCommunityNotificationCategoriesResponse =
+  GetCommunityNotificationCategoriesResponses[keyof GetCommunityNotificationCategoriesResponses];
+
+export type ReplaceCommunityNotificationCategoriesData = {
+  body: {
+    /**
+     * The whole ordered list; a notification is filed under the first category that matches
+     */
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+  };
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/communities/{communityId}/notification-categories";
+};
+
+export type ReplaceCommunityNotificationCategoriesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  422: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ReplaceCommunityNotificationCategoriesError =
+  ReplaceCommunityNotificationCategoriesErrors[keyof ReplaceCommunityNotificationCategoriesErrors];
+
+export type ReplaceCommunityNotificationCategoriesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      covers: Array<{
+        type: string;
+        reasons: Array<
+          | "subject"
+          | "post_author"
+          | "comment_author"
+          | "message_author"
+          | "follower"
+          | "thread_participant"
+          | "mentioned"
+          | "participant"
+          | "space_member"
+          | "community_member"
+          | "course_member"
+          | "moderator"
+          | "staff"
+        >;
+      }>;
+      channels: {
+        [key: string]: {
+          default: boolean;
+          locked: boolean;
+        };
+      };
+      perSpace?: boolean;
+      spaceDefaults?: {
+        [key: string]: {
+          [key: string]: boolean;
+        };
+      };
+    }>;
+    /**
+     * `default` while the list in use is the server default, `stored` once one is saved
+     */
+    source: "default" | "stored";
+  };
+};
+
+export type ReplaceCommunityNotificationCategoriesResponse =
+  ReplaceCommunityNotificationCategoriesResponses[keyof ReplaceCommunityNotificationCategoriesResponses];
 
 export type PublishCommunityData = {
   body?: never;

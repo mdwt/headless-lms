@@ -4,6 +4,7 @@ import {
   InvalidInputError,
   NotFoundError,
   UnavailableError,
+  ValidationError,
 } from '@headless-lms/core/shared/errors';
 import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
@@ -117,6 +118,14 @@ export function classifyError(error: unknown): Refusal | undefined {
   }
   if (error instanceof InvalidInputError) {
     return { status: 400, error: 'invalid_input', message: error.message };
+  }
+  if (error instanceof ValidationError) {
+    return {
+      status: 422,
+      error: 'unprocessable',
+      message: error.message,
+      issues: error.problems.map((problem) => ({ path: 'body', message: problem })),
+    };
   }
   if (error instanceof ConflictError || error instanceof OrganizationRuleError) {
     return { status: 409, error: 'conflict', message: error.message };

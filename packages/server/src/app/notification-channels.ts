@@ -1,0 +1,138 @@
+import type {
+  ChannelRegistry,
+  EmailTemplateId,
+  EmailTemplateParams,
+  JsonValue,
+  NotificationCategory,
+  NotificationChannel,
+  NotificationTypeDeclaration,
+  NotificationTypeRegistry,
+  StoredNotification,
+} from '@headless-lms/core/shared/ports';
+import { offeringConfigured } from '@headless-lms/core/shared/notification-categories';
+import type { Mailer } from '@headless-lms/core/shared/mailer';
+
+export const IN_APP = 'inApp';
+export const EMAIL = 'email';
+
+const CONTENT_SUBJECTS = new Set(['course', 'download', 'community', 'bundle']);
+
+export function buildNotificationTypeRegistry(
+  declarations: NotificationTypeDeclaration[],
+  defaults: { community: NotificationCategory[]; org: NotificationCategory[] },
+  configured: string[],
+): NotificationTypeRegistry {
+  const byType = new Map<string, NotificationTypeDeclaration>();
+  for (const declaration of declarations) {
+    if (byType.has(declaration.type)) {
+      throw new Error(`notification type ${declaration.type} is declared twice`);
+    }
+    byType.set(declaration.type, declaration);
+  }
+  const lists = {
+    community: offeringConfigured(defaults.community, configured),
+    org: offeringConfigured(defaults.org, configured),
+  };
+  return {
+    list: () =>
+      declarations.map(({ type, scopes, reasons }) => ({
+        type,
+        scopes: [...scopes],
+        reasons: [...reasons],
+      })),
+    get: (type) => byType.get(type),
+    defaults: (scope) => structuredClone(lists[scope]),
+  };
+}
+
+export function buildChannelRegistry(channels: NotificationChannel[]): ChannelRegistry {
+  const byKey = new Map<string, NotificationChannel>();
+  for (const channel of channels) {
+    if (channel.key === IN_APP || byKey.has(channel.key)) {
+      throw new Error(`notification channel ${channel.key} is registered twice`);
+    }
+    byKey.set(channel.key, channel);
+  }
+  const keys = [IN_APP, ...byKey.keys()];
+  return {
+    list: () => [...keys],
+    get: (key) => byKey.get(key),
+  };
+}
+
+export function emailTemplateFor(
+  declaration: NotificationTypeDeclaration,
+  notification: Pick<StoredNotification, 'scope' | 'matchedReason'>,
+): EmailTemplateId | null {
+  const email = declaration.email?.[notification.scope];
+  if (!email) {
+    return null;
+  }
+  return email.byReason?.[notification.matchedReason] ?? email.template;
+}
+
+export function emailParams(notification: StoredNotification): Record<string, JsonValue> {
+  const ids: Record<string, JsonValue> = {};
+  for (const ref of [notification.parent, notification.subject]) {
+    if (ref) {
+      ids[`${ref.type}Id`] = ref.id;
+    }
+  }
+  if (notification.subject && CONTENT_SUBJECTS.has(notification.subject.type)) {
+    ids.contentId = notification.subject.id;
+  }
+  if (notification.communityId) {
+    ids.communityId = notification.communityId;
+  }
+  if (notification.spaceId) {
+    ids.spaceId = notification.spaceId;
+  }
+  return { ...ids, ...notification.display };
+}
+
+export function emailChannel(deps: {
+  mailer: Pick<Mailer, 'send'>;
+  types: NotificationTypeRegistry;
+  emailOf: (orgId: string, userId: string) => Promise<string | null>;
+}): NotificationChannel {
+  return {
+    key: EMAIL,
+    recipient: async (orgId, userId) => {
+      const email = await deps.emailOf(orgId, userId);
+      return email ? { email } : null;
+    },
+    deliver: async (notification, to) => {
+      const declaration = deps.types.get(notification.type);
+      const template = declaration ? emailTemplateFor(declaration, notification) : null;
+      if (!template || !to.email) {
+        throw new Error(`no email template for ${notification.type} in ${notification.scope}`);
+      }
+      await deps.mailer.send(
+        to.email,
+        template,
+        emailParams(notification) as unknown as EmailTemplateParams[typeof template],
+      );
+      return { deadDeviceIds: [] };
+    },
+  };
+}
+
+export function buildNotificationRegistries(deps: {
+  declarations: NotificationTypeDeclaration[];
+  defaults: { community: NotificationCategory[]; org: NotificationCategory[] };
+  mailer: Pick<Mailer, 'send'> | null;
+  emailOf: (orgId: string, userId: string) => Promise<string | null>;
+  channels: NotificationChannel[];
+}): { types: NotificationTypeRegistry; channels: ChannelRegistry } {
+  const configured = [
+    IN_APP,
+    ...(deps.mailer ? [EMAIL] : []),
+    ...deps.channels.map((channel) => channel.key),
+  ];
+  const types = buildNotificationTypeRegistry(deps.declarations, deps.defaults, configured);
+  const channels = buildChannelRegistry([
+    ...(deps.mailer ? [emailChannel({ mailer: deps.mailer, types, emailOf: deps.emailOf })] : []),
+    ...deps.channels,
+  ]);
+  return { types, channels };
+}

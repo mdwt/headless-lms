@@ -26,15 +26,18 @@ export const ValidationErrorBody = ErrorBody.extend({
 });
 export type ValidationErrorBody = z.infer<typeof ValidationErrorBody>;
 
-type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 502 | 503;
+type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 422 | 502 | 503;
 type RefusalBodies<S extends RefusalStatus> = {
-  [K in S]: K extends 400 ? typeof ValidationErrorBody : typeof ErrorBody;
+  [K in S]: K extends 400 | 422 ? typeof ValidationErrorBody : typeof ErrorBody;
 };
 
 /** Response schemas for the refusals a route can answer. A 400 keeps the validation `issues`. */
 export function refusals<S extends RefusalStatus>(...statuses: S[]): RefusalBodies<S> {
   return Object.fromEntries(
-    statuses.map((status) => [status, status === 400 ? ValidationErrorBody : ErrorBody]),
+    statuses.map((status) => [
+      status,
+      status === 400 || status === 422 ? ValidationErrorBody : ErrorBody,
+    ]),
   ) as RefusalBodies<S>;
 }
 

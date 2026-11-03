@@ -49,3 +49,13 @@ export class UnavailableError extends Error {
     this.name = 'UnavailableError';
   }
 }
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    readonly problems: string[] = [message],
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}

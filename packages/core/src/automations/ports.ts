@@ -21,7 +21,7 @@ import type {
   UpdateWebhookInput,
 } from './types.js';
 import type { CredentialStore, DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
-import type { ScheduledAutomation } from '../types/index.js';
+import type { NotificationCategory, ScheduledAutomation } from '../types/index.js';
 
 export type {
   AutomationDispatch,
@@ -36,6 +36,10 @@ export type NewAutomation = CreateAutomationInput & {
   kind: AutomationKind;
   source?: 'system' | 'user';
 };
+
+export interface NotificationCategories {
+  listFor(orgId: string, communityId: string | null): Promise<NotificationCategory[]>;
+}
 
 /** A run row before persistence assigns its id and event_id. */
 export type NewAutomationRun = Omit<AutomationRun, 'id' | 'eventId'>;

@@ -1,6 +1,8 @@
 // automations context — public surface. Re-export only what other contexts may use.
 export { AutomationsServiceImpl } from './service.js';
 export { cronMatches } from './schedule.js';
+export { NOTIFICATION_TYPES } from './notifications/types.js';
+export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifications/defaults.js';
 export type { CommunityMailReads, GrantWriter } from './community-mail.js';
 export { automationEvents } from './events.js';
 export {
@@ -21,6 +23,7 @@ export type {
   AutomationEngine,
   NewAutomation,
   NewAutomationRun,
+  NotificationCategories,
   WebhookRequest,
   WebhookResponse,
   WebhookSender,

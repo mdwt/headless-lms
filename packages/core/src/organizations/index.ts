@@ -1,5 +1,6 @@
 // organizations context — public surface.
 export { OrganizationServiceImpl } from './service.js';
+export { OrgNotificationCategories } from './notification-categories.js';
 export { organizationEvents } from './events.js';
 
 export type {
