@@ -760,6 +760,10 @@ export class ChatServiceImpl implements ChatService {
     return this.repo.unreadFor(orgId, chatId, orgUserId);
   }
 
+  findMessage(orgId: string, messageId: string): Promise<Message | null> {
+    return this.repo.findMessage(orgId, messageId);
+  }
+
   async latestMessageBody(orgId: string, chatId: string): Promise<string | null> {
     const page = await this.repo.listMessages(orgId, chatId, { page: 1, pageSize: 1 });
     return page.rows[0]?.body ?? null;

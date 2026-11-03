@@ -42,6 +42,7 @@ export type {
   SpaceModerationQueue,
   PostCommentReader,
   PostService,
+  PublishedPost,
   PostRepository,
   PostWriteScope,
   PostUnitOfWork,

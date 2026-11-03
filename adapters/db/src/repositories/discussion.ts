@@ -95,6 +95,26 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
     return row ? toComment(row) : null;
   }
 
+  async commenterIds(
+    orgId: string,
+    target: { postId: string } | { activityId: string },
+  ): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ orgUserId: comments.orgUserId })
+      .from(comments)
+      .where(
+        and(
+          eq(comments.orgId, orgId),
+          "postId" in target
+            ? eq(comments.postId, target.postId)
+            : eq(comments.activityId, target.activityId),
+          eq(comments.status, "published"),
+        ),
+      )
+      .orderBy(asc(comments.orgUserId));
+    return rows.map((row) => row.orgUserId);
+  }
+
   async updateComment(
     orgId: string,
     id: string,

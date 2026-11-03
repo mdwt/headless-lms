@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   BookmarkQuery,
@@ -8,6 +8,7 @@ import type {
   PostReactions,
   PostRepository,
   PostPatch,
+  PublishedPost,
 } from "@headless-lms/core/discussion";
 import type {
   Logger,
@@ -18,7 +19,7 @@ import type {
   ReactionEmoji,
 } from "@headless-lms/core/types";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { postFlags, postBookmarks, postReactions, posts } from "../schema/index.js";
+import { comments, postFlags, postBookmarks, postReactions, posts } from "../schema/index.js";
 import { translateDbErrors } from "./pg-errors.js";
 import { insertedRow } from "./inserted-row.js";
 
@@ -148,6 +149,34 @@ export class DrizzlePostRepository implements PostRepository {
       .from(posts)
       .where(and(eq(posts.orgId, orgId), inArray(posts.id, ids)));
     return rows.map(toPost);
+  }
+
+  async publishedBetween(
+    orgId: string,
+    communityId: string,
+    from: Date,
+    to: Date,
+  ): Promise<PublishedPost[]> {
+    const rows = await this.db
+      .select({
+        postId: posts.id,
+        spaceId: posts.spaceId,
+        title: posts.title,
+        orgUserId: posts.orgUserId,
+        commentCount: sql<number>`(select count(*)::int from ${comments} where ${comments.orgId} = ${posts.orgId} and ${comments.postId} = ${posts.id} and ${comments.status} = 'published')`,
+      })
+      .from(posts)
+      .where(
+        and(
+          eq(posts.orgId, orgId),
+          eq(posts.communityId, communityId),
+          eq(posts.status, "published"),
+          gt(posts.publishedAt, from),
+          lte(posts.publishedAt, to),
+        ),
+      )
+      .orderBy(asc(posts.publishedAt), asc(posts.id));
+    return rows.map((row) => ({ ...row, commentCount: Number(row.commentCount) }));
   }
 
   async listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>> {

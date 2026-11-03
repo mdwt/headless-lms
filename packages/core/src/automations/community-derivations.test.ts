@@ -468,7 +468,13 @@ describe('community email audiences', () => {
       mail: {
         ...base.mail,
         post: vi.fn(async () => post),
-        comment: vi.fn(async () => ({ orgUserId: 'ou_3', postId: 'pst_1', body: 'Parent' })),
+        comment: vi.fn(async () => ({
+          orgUserId: 'ou_3',
+          postId: 'pst_1',
+          activityId: null,
+          parentId: null,
+          body: 'Parent',
+        })),
         followerIds: vi.fn(async () => ['ou_3', 'ou_4']),
         spaceOpenersAmong: vi.fn(async (_orgId: string, _spaceId: string, ids: string[]) =>
           ids.filter((id) => openers.includes(id)),

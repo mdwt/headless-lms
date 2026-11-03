@@ -75,7 +75,13 @@ export function communityMail(deps: CommunityMailDeps): {
     async comment(orgId, commentId) {
       const comment = await deps.discussion.getComment(orgId, commentId);
       return comment
-        ? { orgUserId: comment.orgUserId, postId: comment.postId, body: comment.body }
+        ? {
+            orgUserId: comment.orgUserId,
+            postId: comment.postId,
+            activityId: comment.activityId,
+            parentId: comment.parentId,
+            body: comment.body,
+          }
         : null;
     },
     async post(orgId, postId) {

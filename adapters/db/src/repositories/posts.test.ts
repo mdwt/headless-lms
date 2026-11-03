@@ -208,3 +208,29 @@ describe("DrizzlePostRepository queue lists", () => {
     ]);
   });
 });
+
+describe("DrizzlePostRepository.publishedBetween", () => {
+  it("lists the community's posts published after from and up to to, with their comment counts", async () => {
+    const statements: { text: string; params: unknown[] }[] = [];
+    const client = {
+      async query(config: string | { text: string }, params: unknown[] = []) {
+        statements.push({ text: typeof config === "string" ? config : config.text, params });
+        return { rows: [["pst_1", "spc_1", "Hola", "ou_sarah", "2"]], rowCount: 1 };
+      },
+    };
+    const repo = new DrizzlePostRepository(drizzle({ client: client as never }));
+    const from = new Date("2026-10-29T06:00:00.000Z");
+    const to = new Date("2026-11-05T06:00:00.000Z");
+    await expect(repo.publishedBetween("org1", "cmy_1", from, to)).resolves.toEqual([
+      { postId: "pst_1", spaceId: "spc_1", title: "Hola", orgUserId: "ou_sarah", commentCount: 2 },
+    ]);
+    const { text, params } = statements[0]!;
+    expect(text).toContain('"posts"."published_at" > $');
+    expect(text).toContain('"posts"."published_at" <= $');
+    expect(text).toContain('from "comments" where');
+    expect(text).toContain("'published'");
+    expect(params).toEqual(
+      expect.arrayContaining(["org1", "cmy_1", "published", from.toISOString(), to.toISOString()]),
+    );
+  });
+});

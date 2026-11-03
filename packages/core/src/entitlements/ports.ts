@@ -156,6 +156,8 @@ export interface EntitlementsService extends CommunityAccessReader {
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
   openCommunityIds(orgId: string, actor: Actor): Promise<string[]>;
+  communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
+  contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
 }
 
@@ -219,6 +221,7 @@ export interface EntitlementsRepository {
   communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
   openCommunityIds(orgId: string, orgUserId: string): Promise<string[]>;
+  contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

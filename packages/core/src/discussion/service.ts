@@ -251,6 +251,13 @@ export class DiscussionServiceImpl implements DiscussionService {
     return activity ? this.courseOpeners(orgId, activity.courseId, orgUserIds) : [];
   }
 
+  commenterIds(
+    orgId: string,
+    target: { postId: string } | { activityId: string },
+  ): Promise<string[]> {
+    return this.repo.commenterIds(orgId, target);
+  }
+
   async postComment(orgId: string, input: PostCommentInput): Promise<CommentView> {
     if (input.postId) {
       return this.postOnPost(orgId, input.postId, input);

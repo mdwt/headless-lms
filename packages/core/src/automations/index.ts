@@ -8,6 +8,14 @@ export {
   NO_ADDRESS,
   NotificationDelivery,
 } from './notifications/delivery.js';
+export {
+  IN_APP,
+  MESSAGE_SENT,
+  NotificationProcessor,
+  PUSH,
+  noChatDebounce,
+} from './notifications/processor.js';
+export { RECIPIENT_RULES } from './notifications/rules/index.js';
 export { NOTIFICATION_TYPES } from './notifications/types.js';
 export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifications/defaults.js';
 export type { CommunityMailReads, GrantWriter } from './community-mail.js';
@@ -34,8 +42,11 @@ export type {
   NewDelivery,
   NewNotification,
   ListedNotification,
+  ChatDebounce,
   NotificationCategories,
   NotificationPage,
+  NotificationReads,
+  RecipientRule,
   NotificationsRepository,
   NotificationsService,
   UnreadCounts,

@@ -190,3 +190,13 @@ describe("transitions", () => {
     expect(queries[1]!.text).toMatch(/for update/);
   });
 });
+
+describe("holders", () => {
+  it("lists the people whose active grants open the content", async () => {
+    const { repo, queries } = capturingDb([["ou_1"], ["ou_2"]]);
+    await expect(repo.contentHolderIds("org-1", "crs_1")).resolves.toEqual(["ou_1", "ou_2"]);
+    const { text, values } = queries[0]!;
+    expect(text).toMatch(/^select distinct "org_user_id" from "content_access"/);
+    expect(values).toEqual(["org-1", "crs_1"]);
+  });
+});

@@ -37,6 +37,7 @@ import type {
   SpaceModerationQueue,
   SubscriptionsRepository,
   UpdatePostInput,
+  PublishedPost,
 } from './ports.js';
 import { MODERATION_QUEUE_LIMIT } from './ports.js';
 import type { Page, ReactionEmoji } from './types.js';
@@ -118,6 +119,15 @@ export class PostServiceImpl implements PostService {
         .filter((post) => open.has(post.spaceId) && this.canSee(actor, post))
         .map((post) => [post.id, post.title]),
     );
+  }
+
+  publishedBetween(
+    orgId: string,
+    communityId: string,
+    from: Date,
+    to: Date,
+  ): Promise<PublishedPost[]> {
+    return this.repo.publishedBetween(orgId, communityId, from, to);
   }
 
   async create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView> {

@@ -32,6 +32,7 @@ export interface OrganizationService {
   getByExternalId(externalId: string): Promise<Organization | null>;
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
+  getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   getById(id: string): Promise<Organization | null>;
   orgIds(): Promise<string[]>;

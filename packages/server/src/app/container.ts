@@ -92,13 +92,16 @@ import {
   DEFAULT_ORG_CATEGORIES,
   NOTIFICATION_TYPES,
   NotificationDelivery,
+  NotificationProcessor,
   NotificationsServiceImpl,
+  RECIPIENT_RULES,
   type NotificationCategories,
 } from '@headless-lms/core/automations';
 import { buildNotificationRegistries } from './notification-channels.js';
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
+import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
@@ -662,6 +665,28 @@ export async function buildContainer(
       repo: notificationsRepo,
       channels: notificationRegistries.channels,
       devices,
+      logger: automationsLogger,
+    }),
+    processor: new NotificationProcessor({
+      rules: RECIPIENT_RULES,
+      reads: notificationReads({
+        content,
+        entitlements,
+        organizations,
+        identity,
+        posts,
+        subscriptions,
+        discussion,
+        chats,
+        settings: notificationSettings,
+      }),
+      types: notificationRegistries.types,
+      channels: notificationRegistries.channels,
+      categories: notificationCategoryLists,
+      settings: notificationSettings,
+      devices,
+      repo: notificationsRepo,
+      engine: automationEngine,
       logger: automationsLogger,
     }),
     logger: automationsLogger,

@@ -25,9 +25,12 @@ import type {
   Delivery,
   NotificationCategory,
   NotificationFilter,
+  RecipientList,
   ScheduledAutomation,
   StoredNotification,
+  SubjectRef,
 } from '../types/index.js';
+import type { CommunityMailReads } from './community-mail.js';
 
 export type {
   AutomationDispatch,
@@ -45,6 +48,66 @@ export type NewAutomation = CreateAutomationInput & {
 
 export interface NotificationCategories {
   listFor(orgId: string, communityId: string | null): Promise<NotificationCategory[]>;
+}
+
+export interface NotificationReads extends Omit<CommunityMailReads, 'recentMessageRecipients'> {
+  threadParticipants(orgId: string, item: SubjectRef): Promise<string[]>;
+  mutedAmong(orgId: string, item: SubjectRef, orgUserIds: string[], at: Date): Promise<string[]>;
+  communityMembers(orgId: string, communityId: string): Promise<string[]>;
+  switchedOn(
+    orgId: string,
+    communityId: string,
+    category: string,
+    spaceId: string | null,
+  ): Promise<string[]>;
+  courseHolders(orgId: string, courseId: string): Promise<string[]>;
+  activity(
+    orgId: string,
+    activityId: string,
+  ): Promise<{ title: string; moduleTitle: string; courseId: string; courseTitle: string } | null>;
+  userIdsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, string>>;
+  emailOf(orgId: string, userId: string): Promise<string | null>;
+  contentInfo(
+    orgId: string,
+    item: { contentId: string } | { bundleId: string },
+  ): Promise<{ title: string; type: string } | null>;
+  message(
+    orgId: string,
+    messageId: string,
+  ): Promise<{ orgUserId: string; chatId: string; body: string } | null>;
+  postsPublished(
+    orgId: string,
+    communityId: string,
+    from: Date,
+    to: Date,
+  ): Promise<
+    {
+      postId: string;
+      spaceId: string;
+      title: string;
+      authorName: string;
+      spaceName: string;
+      commentCount: number;
+    }[]
+  >;
+  unreadInChat(
+    orgId: string,
+    chatId: string,
+    orgUserId: string,
+  ): Promise<{
+    count: number;
+    latest: { messageId: string; senderOrgUserId: string; body: string } | null;
+  }>;
+}
+
+export type RecipientRule = (
+  event: DomainEvent,
+  reads: NotificationReads,
+) => Promise<RecipientList[]>;
+
+export interface ChatDebounce {
+  arm(orgId: string, list: RecipientList, occurredAt: Date): Promise<void>;
+  mentioned(orgId: string, userId: string, chatId: string): Promise<void>;
 }
 
 export interface NewNotification extends Omit<StoredNotification, 'orgId'> {
@@ -113,7 +176,7 @@ export type NewAutomationRun = Omit<AutomationRun, 'id' | 'eventId'>;
 
 // Inbound port (use cases the service exposes).
 export interface AutomationsService {
-  /** Matches `event` against enabled automations and dispatches a run per match; never throws. */
+  /** Dispatches a run per enabled automation the event matches, then runs the notification process; throws only when the notification process fails, so the outbox redelivers. */
   handle(event: DomainEvent): Promise<void>;
   /** Built-in action types plus every loaded integration's declared actions. */
   availableActions(): AvailableActions;

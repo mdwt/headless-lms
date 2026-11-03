@@ -42,7 +42,13 @@ export interface CommunityMailReads {
   comment(
     orgId: string,
     commentId: string,
-  ): Promise<{ orgUserId: string; postId: string | null; body: string } | null>;
+  ): Promise<{
+    orgUserId: string;
+    postId: string | null;
+    activityId: string | null;
+    parentId: string | null;
+    body: string;
+  } | null>;
   post(
     orgId: string,
     postId: string,

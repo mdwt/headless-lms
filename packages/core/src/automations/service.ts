@@ -15,6 +15,7 @@ import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter } from './community-mail.js';
 import type { NotificationDelivery } from './notifications/delivery.js';
+import type { NotificationProcessor } from './notifications/processor.js';
 import { cronSupported } from './schedule.js';
 import {
   ActionFailedError,
@@ -212,6 +213,7 @@ export type AutomationsServiceParams = {
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
   delivery: Pick<NotificationDelivery, 'run'>;
+  processor: Pick<NotificationProcessor, 'process'>;
   logger?: Logger;
 };
 
@@ -228,6 +230,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly mail: CommunityMailReads;
   private readonly grants: GrantWriter;
   private readonly delivery: Pick<NotificationDelivery, 'run'>;
+  private readonly processor: Pick<NotificationProcessor, 'process'>;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -247,6 +250,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     };
     this.grants = params.grants;
     this.delivery = params.delivery;
+    this.processor = params.processor;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -270,6 +274,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       }
       await this.dispatchOne(automation, event);
     }
+    await this.processor.process(event);
   }
 
   private async reconcileSchedules(orgId: string): Promise<void> {
@@ -359,7 +364,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     };
   }
 
-  /** Best-effort: logs and never rethrows — `handle` must never throw. */
+  /** Best-effort: logs and never rethrows, so an org automation never fails `handle`. */
   private async recordFailure(run: AutomationRun, error: string): Promise<AutomationRun | null> {
     try {
       return await this.uow.run(async ({ runs, outbox }) => {

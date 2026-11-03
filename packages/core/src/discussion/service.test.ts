@@ -133,6 +133,22 @@ export function fakeRepo() {
     async findComment(orgId, id) {
       return comments.find((c) => c.orgId === orgId && c.id === id) ?? null;
     },
+    async commenterIds(orgId, target) {
+      return [
+        ...new Set(
+          comments
+            .filter(
+              (c) =>
+                c.orgId === orgId &&
+                c.status === 'published' &&
+                ('postId' in target
+                  ? c.postId === target.postId
+                  : c.activityId === target.activityId),
+            )
+            .map((c) => c.orgUserId),
+        ),
+      ].sort();
+    },
     async updateComment(orgId, id, patch) {
       const c = comments.find((x) => x.orgId === orgId && x.id === id);
       if (!c) {

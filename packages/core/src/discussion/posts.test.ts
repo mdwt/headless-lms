@@ -201,6 +201,27 @@ function harness(options?: {
   const calls: NewDomainEvent[][] = [];
 
   const repo: PostRepository = {
+    async publishedBetween(orgId, communityId, from, to) {
+      return rows
+        .filter(
+          (row) =>
+            row.orgId === orgId &&
+            row.communityId === communityId &&
+            row.status === 'published' &&
+            row.publishedAt !== null &&
+            row.publishedAt > from &&
+            row.publishedAt <= to,
+        )
+        .map((row) => ({
+          postId: row.id,
+          spaceId: row.spaceId,
+          title: row.title,
+          orgUserId: row.orgUserId,
+          commentCount: commentRows.filter(
+            (comment) => comment.postId === row.id && comment.status === 'published',
+          ).length,
+        }));
+    },
     async insert(_orgId, post) {
       rows.push({ ...post });
       return { ...post };

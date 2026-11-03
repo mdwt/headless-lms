@@ -444,6 +444,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findOrgUserById(orgId, id);
   }
 
+  async getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]> {
+    const unique = [...new Set(ids)];
+    return unique.length > 0 ? this.repo.findOrgUsersByIds(orgId, unique) : [];
+  }
+
   async getOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
     return this.repo.findOrgUser(orgId, userId);
   }

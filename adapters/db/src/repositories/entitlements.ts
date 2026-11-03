@@ -794,6 +794,15 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.map((row) => row.id);
   }
 
+  async contentHolderIds(orgId: string, contentId: string): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ orgUserId: contentAccess.orgUserId })
+      .from(contentAccess)
+      .where(and(eq(contentAccess.orgId, orgId), eq(contentAccess.contentId, contentId)))
+      .orderBy(asc(contentAccess.orgUserId));
+    return rows.map((row) => row.orgUserId);
+  }
+
   async openCommunityIds(orgId: string, orgUserId: string): Promise<string[]> {
     const rows = await this.db
       .select({ id: communities.id })

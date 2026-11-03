@@ -127,3 +127,23 @@ describe("DrizzleDiscussionRepository.listThreadsByPost", () => {
     expect(statements[0]?.params).not.toContain("ou_mod");
   });
 });
+
+describe("DrizzleDiscussionRepository.commenterIds", () => {
+  it("lists the authors of published comments on a post", async () => {
+    const { repo, statements } = capture([["ou_emma"], ["ou_sarah"]]);
+    await expect(repo.commenterIds("org1", { postId: "pst_1" })).resolves.toEqual([
+      "ou_emma",
+      "ou_sarah",
+    ]);
+    expect(statements[0]?.text).toMatch(/^select distinct "org_user_id" from "comments"/);
+    expect(statements[0]?.text).toContain('"comments"."post_id" = $');
+    expect(statements[0]?.params).toEqual(["org1", "pst_1", "published"]);
+  });
+
+  it("lists the authors of published comments on a course activity", async () => {
+    const { repo, statements } = capture();
+    await repo.commenterIds("org1", { activityId: "act_1" });
+    expect(statements[0]?.text).toContain('"comments"."activity_id" = $');
+    expect(statements[0]?.params).toEqual(["org1", "act_1", "published"]);
+  });
+});

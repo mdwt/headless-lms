@@ -163,6 +163,10 @@ export interface DiscussionService {
 
   /** Plain read of one comment — no rules applied. */
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
+  commenterIds(
+    orgId: string,
+    target: { postId: string } | { activityId: string },
+  ): Promise<string[]>;
 }
 
 export interface ContentAccessReader {
@@ -176,6 +180,10 @@ export interface ActivityGetter {
 export interface DiscussionRepository extends PostCommentReader, AuthorProfileReader {
   insertComment(orgId: string, comment: Comment): Promise<Comment>;
   findComment(orgId: string, id: string): Promise<Comment | null>;
+  commenterIds(
+    orgId: string,
+    target: { postId: string } | { activityId: string },
+  ): Promise<string[]>;
   updateComment(
     orgId: string,
     id: string,
@@ -304,8 +312,22 @@ export interface PostCommentReader {
   publishedCommentCounts(orgId: string, postIds: string[]): Promise<Record<string, number>>;
 }
 
+export interface PublishedPost {
+  postId: string;
+  spaceId: string;
+  title: string;
+  orgUserId: string;
+  commentCount: number;
+}
+
 export interface PostService {
   visibleTitles(orgId: string, actor: Actor, postIds: string[]): Promise<Record<string, string>>;
+  publishedBetween(
+    orgId: string,
+    communityId: string,
+    from: Date,
+    to: Date,
+  ): Promise<PublishedPost[]>;
   create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView>;
   update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
   submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
@@ -386,6 +408,12 @@ export interface PostRepository {
   updateIf(orgId: string, id: string, guard: PostGuard, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
   findMany(orgId: string, ids: string[]): Promise<Post[]>;
+  publishedBetween(
+    orgId: string,
+    communityId: string,
+    from: Date,
+    to: Date,
+  ): Promise<PublishedPost[]>;
   listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;
   listByAuthor(
     orgId: string,
@@ -545,6 +573,7 @@ export interface ChatService {
   ): Promise<{ chat: Chat; participants: ChatUser[] } | null>;
   latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
   unreadInChat(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread>;
+  findMessage(orgId: string, messageId: string): Promise<Message | null>;
   isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
   titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>>;
   messages(
