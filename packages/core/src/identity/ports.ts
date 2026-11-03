@@ -7,8 +7,17 @@ import type {
   UserProfileView,
 } from './model.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
-import type { JsonValue } from '../types/index.js';
+import type {
+  DeviceView,
+  JsonValue,
+  NotificationCategory,
+  PushDevice,
+  PushProvider,
+  SettingsScope,
+  StoredSetting,
+} from '../types/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
 
 export interface UpdateProfileInput {
   displayName?: string | null;
@@ -171,3 +180,106 @@ export interface IdentityTxScope {
 }
 
 export type IdentityUnitOfWork = UnitOfWork<IdentityTxScope>;
+
+export type MemberActor = Actor & { userId: string };
+
+export interface SettingChange {
+  category: string;
+  spaceId?: string;
+  channel: string;
+  enabled: boolean | null;
+}
+
+export interface NotificationSettingsService {
+  get(orgId: string, userId: string, scope: SettingsScope): Promise<StoredSetting[]>;
+  getMany(
+    orgId: string,
+    userIds: string[],
+    scope: SettingsScope,
+    categories: string[],
+  ): Promise<Record<string, StoredSetting[]>>;
+  set(
+    orgId: string,
+    actor: MemberActor,
+    scope: SettingsScope,
+    changes: SettingChange[],
+  ): Promise<void>;
+  switchedOn(
+    orgId: string,
+    communityId: string,
+    category: string,
+    spaceId: string | null,
+  ): Promise<string[]>;
+}
+
+export interface NotificationCategoryReader {
+  communityList(orgId: string, communityId: string): Promise<NotificationCategory[]>;
+  orgList(orgId: string): Promise<NotificationCategory[]>;
+}
+
+export interface CommunityAccessReader {
+  canOpen(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
+}
+
+export interface SettingKey {
+  communityId: string | null;
+  spaceId: string | null;
+  category: string;
+  channel: string;
+}
+
+export interface NotificationSettingsRepository {
+  forUsers(
+    orgId: string,
+    userIds: string[],
+    communityId: string | null,
+    categories: string[] | null,
+  ): Promise<(StoredSetting & { userId: string })[]>;
+  apply(
+    orgId: string,
+    userId: string,
+    upserts: (SettingKey & { enabled: boolean })[],
+    deletes: SettingKey[],
+    at: Date,
+  ): Promise<void>;
+  switchedOn(
+    orgId: string,
+    communityId: string,
+    category: string,
+    spaceId: string | null,
+  ): Promise<string[]>;
+}
+
+export interface DeviceRegistration {
+  provider: PushProvider;
+  token: string;
+  keys?: { p256dh: string; auth: string };
+  appId?: string;
+  environment?: 'production' | 'sandbox';
+}
+
+export interface DevicesService {
+  register(orgId: string, actor: MemberActor, input: DeviceRegistration): Promise<PushDevice>;
+  list(orgId: string, actor: MemberActor): Promise<DeviceView[]>;
+  remove(orgId: string, actor: MemberActor, deviceId: string): Promise<void>;
+  activeDevices(orgId: string, userId: string, since: Date): Promise<PushDevice[]>;
+  removeDead(orgId: string, deviceIds: string[]): Promise<void>;
+  pushConfig(): { vapidPublicKey: string | null };
+}
+
+export interface NewDevice {
+  userId: string;
+  provider: PushProvider;
+  token: string;
+  p256dh: string | null;
+  auth: string | null;
+  appId: string | null;
+  environment: 'production' | 'sandbox' | null;
+}
+
+export interface DevicesRepository {
+  upsert(orgId: string, device: NewDevice, at: Date): Promise<DeviceView>;
+  listForUser(orgId: string, userId: string, since: Date | null): Promise<DeviceView[]>;
+  deleteOwn(orgId: string, userId: string, deviceId: string): Promise<boolean>;
+  deleteMany(orgId: string, deviceIds: string[]): Promise<void>;
+}

@@ -42,6 +42,8 @@ export const ID_PREFIXES = {
   message: 'msg',
   messageFlag: 'mfl',
   notification: 'ntf',
+  notificationSetting: 'nst',
+  device: 'dev',
 } as const;
 
 export type IdType = keyof typeof ID_PREFIXES;

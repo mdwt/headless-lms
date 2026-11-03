@@ -173,6 +173,8 @@ import type {
   GetMemberCommunityDirectoryResponses,
   GetMemberCommunityHomeErrors,
   GetMemberCommunityHomeResponses,
+  GetMemberCommunityNotificationSettingsErrors,
+  GetMemberCommunityNotificationSettingsResponses,
   GetMemberCourseErrors,
   GetMemberCourseProgressErrors,
   GetMemberCourseProgressResponses,
@@ -183,10 +185,14 @@ import type {
   GetMemberFeedResponses,
   GetMemberNotificationPreferencesErrors,
   GetMemberNotificationPreferencesResponses,
+  GetMemberNotificationSettingsErrors,
+  GetMemberNotificationSettingsResponses,
   GetMemberOrgErrors,
   GetMemberOrgResponses,
   GetMemberProfileErrors,
   GetMemberProfileResponses,
+  GetMemberPushConfigErrors,
+  GetMemberPushConfigResponses,
   GetMemberSpaceErrors,
   GetMemberSpaceResponses,
   GetMemberUploadFileErrors,
@@ -286,6 +292,8 @@ import type {
   ListMemberChatsResponses,
   ListMemberCoursesErrors,
   ListMemberCoursesResponses,
+  ListMemberDevicesErrors,
+  ListMemberDevicesResponses,
   ListMemberDownloadsErrors,
   ListMemberDownloadsResponses,
   ListMemberModulesErrors,
@@ -338,6 +346,8 @@ import type {
   ReconnectIntegrationResponses,
   RefuseSpaceInviteErrors,
   RefuseSpaceInviteResponses,
+  RegisterMemberDeviceErrors,
+  RegisterMemberDeviceResponses,
   RemoveBundleItemErrors,
   RemoveBundleItemResponses,
   RemoveCommunityCommentErrors,
@@ -348,6 +358,8 @@ import type {
   RemoveCommunitySpaceMemberResponses,
   RemoveDownloadAssetErrors,
   RemoveDownloadAssetResponses,
+  RemoveMemberDeviceErrors,
+  RemoveMemberDeviceResponses,
   RemoveMemberErrors,
   RemoveMemberResponses,
   RemovePostErrors,
@@ -424,8 +436,12 @@ import type {
   SetCommentReactionResponses,
   SetEntitlementStatusErrors,
   SetEntitlementStatusResponses,
+  SetMemberCommunityNotificationSettingsErrors,
+  SetMemberCommunityNotificationSettingsResponses,
   SetMemberNotificationPreferencesErrors,
   SetMemberNotificationPreferencesResponses,
+  SetMemberNotificationSettingsErrors,
+  SetMemberNotificationSettingsResponses,
   SetMessageReactionErrors,
   SetMessageReactionResponses,
   SetPostReactionErrors,
@@ -1486,6 +1502,281 @@ export class Notifications {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * Read how you are told about each notification category in a community
+   *
+   * For anyone who can open the community, staff included. One entry per category of the list in use, each with the channels it offers on this deployment, whether each is on for you and why (`locked`, `space`, `community`, `spaceDefault` or `default`). A per-space category also lists every space you can open. 404 when you cannot open the community.
+   */
+  public static getMemberCommunityNotificationSettings<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberCommunityNotificationSettingsResponses,
+    GetMemberCommunityNotificationSettingsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetMemberCommunityNotificationSettingsResponses,
+      GetMemberCommunityNotificationSettingsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/settings/notifications",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Switch notification categories on or off per channel in a community
+   *
+   * For anyone who can open the community, staff included. Each setting switches one category on one channel, for all spaces or, for a per-space category, for one space; `enabled: null` removes your choice so the default applies again. Settings left out keep their values. 404 when you cannot open the community; 422 when a category does not exist, does not offer the channel, the channel is locked, or `spaceId` is given for a category that is not per space.
+   */
+  public static setMemberCommunityNotificationSettings<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      settings: Array<{
+        category: string;
+        spaceId?: string;
+        channel: string;
+        /**
+         * null removes your choice, so the default applies again
+         */
+        enabled: boolean | null;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetMemberCommunityNotificationSettingsResponses,
+    SetMemberCommunityNotificationSettingsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      SetMemberCommunityNotificationSettingsResponses,
+      SetMemberCommunityNotificationSettingsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/settings/notifications",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Read how you are told about notifications outside any community
+   *
+   * For anyone signed in to the organization. The organization's categories, such as access and course content, each with the channels it offers and whether each is on for you.
+   */
+  public static getMemberNotificationSettings<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationSettingsResponses,
+    GetMemberNotificationSettingsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetMemberNotificationSettingsResponses,
+      GetMemberNotificationSettingsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/settings/notifications",
+      ...options,
+    });
+  }
+
+  /**
+   * Switch notification categories outside any community on or off per channel
+   *
+   * For anyone signed in to the organization. Works like the community settings, against the organization's categories; `enabled: null` removes your choice. 422 when a category does not exist, does not offer the channel, the channel is locked, or `spaceId` is given.
+   */
+  public static setMemberNotificationSettings<ThrowOnError extends boolean = false>(
+    parameters: {
+      settings: Array<{
+        category: string;
+        spaceId?: string;
+        channel: string;
+        /**
+         * null removes your choice, so the default applies again
+         */
+        enabled: boolean | null;
+      }>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    SetMemberNotificationSettingsResponses,
+    SetMemberNotificationSettingsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "settings" }] }]);
+    return (options?.client ?? client).patch<
+      SetMemberNotificationSettingsResponses,
+      SetMemberNotificationSettingsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/settings/notifications",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * List the devices you registered for push notifications
+   *
+   * For anyone signed in to the organization. Each app install or browser that registered, most recently seen first. A device not seen for 30 days receives no push until it registers again.
+   */
+  public static listMemberDevices<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListMemberDevicesResponses, ListMemberDevicesErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListMemberDevicesResponses,
+      ListMemberDevicesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/devices",
+      ...options,
+    });
+  }
+
+  /**
+   * Register this device for push notifications, or refresh it
+   *
+   * For anyone signed in to the organization. Call it after sign-in and on every launch. A new token adds a device, a known token is refreshed, and a token another person registered moves to you. A browser sends its push subscription endpoint as `token` with its `keys`; an iOS app sends its bundle id as `appId` and its APNs `environment`. 422 when the provider is not configured, an `apns` `appId` is not one of the configured bundle ids, a `webpush` device has no `keys`, or `keys` or `environment` come with a provider they do not apply to.
+   */
+  public static registerMemberDevice<ThrowOnError extends boolean = false>(
+    parameters: {
+      provider: "apns" | "fcm" | "webpush";
+      token: string;
+      keys?: {
+        p256dh: string;
+        auth: string;
+      };
+      appId?: string;
+      environment?: "production" | "sandbox";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RegisterMemberDeviceResponses,
+    RegisterMemberDeviceErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "provider" },
+            { in: "body", key: "token" },
+            { in: "body", key: "keys" },
+            { in: "body", key: "appId" },
+            { in: "body", key: "environment" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      RegisterMemberDeviceResponses,
+      RegisterMemberDeviceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/devices",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove one of your devices
+   *
+   * For the person who registered the device. Call it before signing out, so the next person on the device receives none of your pushes. 404 when the device is not yours.
+   */
+  public static removeMemberDevice<ThrowOnError extends boolean = false>(
+    parameters: {
+      deviceId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveMemberDeviceResponses, RemoveMemberDeviceErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "deviceId" }] }]);
+    return (options?.client ?? client).delete<
+      RemoveMemberDeviceResponses,
+      RemoveMemberDeviceErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/devices/{deviceId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Read what a browser needs to subscribe to push notifications
+   *
+   * For anyone signed in to the organization. `vapidPublicKey` is the `applicationServerKey` for `pushManager.subscribe`, or null when Web Push is not configured.
+   */
+  public static getMemberPushConfig<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberPushConfigResponses, GetMemberPushConfigErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMemberPushConfigResponses,
+      GetMemberPushConfigErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/push-config",
+      ...options,
     });
   }
 }

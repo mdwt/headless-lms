@@ -1,3 +1,4 @@
+import type { ResolvedChannel } from '../../shared/notification-settings.js';
 // reporting/member — read model. Reuses the content domain's Course/Module
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
@@ -116,4 +117,20 @@ export interface NotificationsView {
   page: number;
   pageSize: number;
   unreadCount: number;
+}
+
+export interface NotificationSettingsCategoryView {
+  key: string;
+  perSpace: boolean;
+  channels: ResolvedChannel[];
+  spaces?: { spaceId: string; channels: ResolvedChannel[] }[];
+}
+
+export interface CommunityNotificationSettingsView {
+  communityId: string;
+  categories: NotificationSettingsCategoryView[];
+}
+
+export interface OrgNotificationSettingsView {
+  categories: NotificationSettingsCategoryView[];
 }

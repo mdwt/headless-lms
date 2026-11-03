@@ -4,7 +4,14 @@ import type { ProgressService } from '../../progress/index.js';
 import type { AssetFiles, FileUrls } from '../../assets/index.js';
 import { isStaffRole } from '../../organizations/index.js';
 import type { ChatService, PostService, SubscriptionService } from '../../discussion/index.js';
-import type { Notification, NotificationInbox } from '../../identity/index.js';
+import type {
+  Notification,
+  NotificationInbox,
+  NotificationSettingsService,
+} from '../../identity/index.js';
+import type { ChannelRegistry, NotificationCategoryService } from '../../shared/ports.js';
+import { resolveChannels } from '../../shared/notification-settings.js';
+import type { NotificationCategory, StoredSetting } from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type { Page } from '../../types/index.js';
 import type {
@@ -21,6 +28,9 @@ import type {
   Module,
   NotificationView,
   NotificationsView,
+  CommunityNotificationSettingsView,
+  NotificationSettingsCategoryView,
+  OrgNotificationSettingsView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
 
@@ -52,6 +62,12 @@ export type MemberReportServiceParams = {
   posts: Pick<PostService, 'visibleTitles'>;
   chats: Pick<ChatService, 'titlesFor'>;
   subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
+  notificationCategories: {
+    community: Pick<NotificationCategoryService, 'get'>;
+    org: Pick<NotificationCategoryService, 'get'>;
+  };
+  notificationSettings: Pick<NotificationSettingsService, 'get'>;
+  channels: Pick<ChannelRegistry, 'list'>;
 };
 
 export class MemberReportServiceImpl implements MemberReportService {
@@ -65,6 +81,9 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly posts: Pick<PostService, 'visibleTitles'>;
   private readonly chats: Pick<ChatService, 'titlesFor'>;
   private readonly subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
+  private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
+  private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
+  private readonly channels: Pick<ChannelRegistry, 'list'>;
 
   constructor(params: MemberReportServiceParams) {
     this.repo = params.repo;
@@ -77,6 +96,63 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.posts = params.posts;
     this.chats = params.chats;
     this.subscriptions = params.subscriptions;
+    this.notificationCategories = params.notificationCategories;
+    this.notificationSettings = params.notificationSettings;
+    this.channels = params.channels;
+  }
+
+  async communityNotificationSettings(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    communityId: string,
+  ): Promise<CommunityNotificationSettingsView | null> {
+    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+      return null;
+    }
+    const [list, settings, spaceIds] = await Promise.all([
+      this.notificationCategories.community.get(orgId, communityId),
+      this.notificationSettings.get(orgId, userId, { communityId }),
+      this.access.openSpaceIds(orgId, actor, communityId),
+    ]);
+    return {
+      communityId,
+      categories: this.settingsView(list.categories, settings, spaceIds),
+    };
+  }
+
+  async orgNotificationSettings(
+    orgId: string,
+    userId: string,
+  ): Promise<OrgNotificationSettingsView> {
+    const [list, settings] = await Promise.all([
+      this.notificationCategories.org.get(orgId, orgId),
+      this.notificationSettings.get(orgId, userId, 'org'),
+    ]);
+    return { categories: this.settingsView(list.categories, settings, []) };
+  }
+
+  private settingsView(
+    categories: NotificationCategory[],
+    settings: StoredSetting[],
+    spaceIds: string[],
+  ): NotificationSettingsCategoryView[] {
+    const configured = this.channels.list();
+    return categories.map((category) => {
+      const perSpace = category.perSpace === true;
+      const view: NotificationSettingsCategoryView = {
+        key: category.key,
+        perSpace,
+        channels: resolveChannels(category, settings, null, configured),
+      };
+      if (perSpace) {
+        view.spaces = spaceIds.map((spaceId) => ({
+          spaceId,
+          channels: resolveChannels(category, settings, spaceId, configured),
+        }));
+      }
+      return view;
+    });
   }
 
   async notifications(

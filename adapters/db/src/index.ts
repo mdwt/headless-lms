@@ -16,6 +16,8 @@ export * from "./repositories/member.js";
 export * from "./repositories/members.js";
 export * from "./repositories/mentions.js";
 export * from "./repositories/notifications.js";
+export * from "./repositories/notification-settings.js";
+export * from "./repositories/devices.js";
 export * from "./repositories/org-user-profile.js";
 export * from "./repositories/organizations.js";
 export * from "./repositories/outbox.js";

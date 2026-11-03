@@ -135,3 +135,15 @@ export interface RecipientList {
   recipients?: { orgUserId: string; userId: string; reasons: Reason[] }[];
   audience?: { reason: 'space_member'; spaceId: string; exclude: string[] };
 }
+
+export type PushProvider = PushDevice['provider'];
+
+export interface DeviceView extends PushDevice {
+  lastSeenAt: Date;
+}
+
+export interface PushConfig {
+  apns?: { teamId: string; keyId: string; key: string; bundleIds: string[] };
+  fcm?: { serviceAccount: Record<string, unknown> };
+  webpush?: { publicKey: string; privateKey: string; subject: string };
+}

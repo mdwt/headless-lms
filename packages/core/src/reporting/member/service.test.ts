@@ -110,7 +110,13 @@ const files = { signFile: async (_orgId: string, assetId: string) => `https://si
 
 const readers: Pick<
   MemberReportServiceParams,
-  'notifications' | 'posts' | 'chats' | 'subscriptions'
+  | 'notifications'
+  | 'posts'
+  | 'chats'
+  | 'subscriptions'
+  | 'notificationCategories'
+  | 'notificationSettings'
+  | 'channels'
 > = {
   notifications: {
     listNotifications: async (_orgId, _userId, query) => ({
@@ -124,11 +130,26 @@ const readers: Pick<
   posts: { visibleTitles: async () => ({}) },
   chats: { titlesFor: async () => ({}) },
   subscriptions: { viewerSubscriptions: async () => ({}) },
+  notificationCategories: {
+    community: { get: async () => ({ categories: [], source: 'default' }) },
+    org: { get: async () => ({ categories: [], source: 'default' }) },
+  },
+  notificationSettings: { get: async () => [] },
+  channels: { list: () => ['inApp'] },
 };
 
 const deps: Pick<
   MemberReportServiceParams,
-  'files' | 'fileUrls' | 'access' | 'notifications' | 'posts' | 'chats' | 'subscriptions'
+  | 'files'
+  | 'fileUrls'
+  | 'access'
+  | 'notifications'
+  | 'posts'
+  | 'chats'
+  | 'subscriptions'
+  | 'notificationCategories'
+  | 'notificationSettings'
+  | 'channels'
 > = {
   files,
   fileUrls,

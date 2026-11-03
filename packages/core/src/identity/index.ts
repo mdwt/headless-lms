@@ -1,6 +1,8 @@
 // identity context — public surface.
 export { IdentityServiceImpl } from './service.js';
 export { NotificationServiceImpl, defaultPreference } from './notifications.js';
+export { NotificationSettingsServiceImpl } from './notification-settings.js';
+export { DevicesServiceImpl } from './devices.js';
 export { identityEvents } from './events.js';
 export type {
   IdentityService,
@@ -17,6 +19,17 @@ export type {
   NotificationService,
   NotificationsQuery,
   NotificationsRepository,
+  MemberActor,
+  SettingChange,
+  SettingKey,
+  NotificationSettingsService,
+  NotificationSettingsRepository,
+  NotificationCategoryReader,
+  CommunityAccessReader,
+  DeviceRegistration,
+  DevicesService,
+  DevicesRepository,
+  NewDevice,
 } from './ports.js';
 export type {
   Notification,

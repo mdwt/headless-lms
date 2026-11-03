@@ -9,6 +9,7 @@ import {
   DrizzleCredentialStore,
   DrizzleAdminRepository,
   DrizzleDigestRunRepository,
+  DrizzleDevicesRepository,
   DrizzleDiscussionRepository,
   DrizzlePostRepository,
   DrizzleChatRepository,
@@ -18,6 +19,7 @@ import {
   DrizzleMembersRepository,
   DrizzleMentionsRepository,
   DrizzleNotificationsRepository,
+  DrizzleNotificationSettingsRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
   DrizzleOutboxStore,
@@ -61,8 +63,10 @@ import {
   discussionRecurringJobs,
 } from '@headless-lms/core/discussion';
 import {
+  DevicesServiceImpl,
   IdentityServiceImpl,
   NotificationServiceImpl,
+  NotificationSettingsServiceImpl,
   type SessionAdmin,
 } from '@headless-lms/core/identity';
 import {
@@ -107,7 +111,7 @@ import type {
   TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/core/shared/ports';
-import type { AutomationEngine, WebhookSender } from '@headless-lms/core/types';
+import type { AutomationEngine, PushConfig, WebhookSender } from '@headless-lms/core/types';
 
 /** Installation-supplied ports; an absent slot falls back to a fail-loudly stub. */
 export interface AdapterOverrides {
@@ -121,6 +125,8 @@ export interface AdapterOverrides {
   webhooks?: WebhookSender;
   /** Notification channels beyond in-app, email and push; each key must be new. */
   notificationChannels?: NotificationChannel[];
+  /** Push credentials per provider. Absent → no provider is configured and devices cannot register. */
+  push?: PushConfig;
 }
 
 export interface BuildContainerOptions {
@@ -222,6 +228,8 @@ export interface Container {
     org: OrgNotificationCategories;
   };
   notificationCategoryLists: NotificationCategories;
+  notificationSettings: NotificationSettingsServiceImpl;
+  devices: DevicesServiceImpl;
   /** Cross-cutting settings store. Not a context — a leaf every context may use;
    *  inject `settings.for('<namespace>')` into a service, never the service itself. */
   settings: SettingsService;
@@ -419,6 +427,26 @@ export async function buildContainer(
     uow: entitlementsUow,
     logger: entitlementsLogger,
   });
+  const identityLogger = logger.child({ name: 'identity' });
+  const notificationSettings = new NotificationSettingsServiceImpl({
+    repo: new DrizzleNotificationSettingsRepository(db, identityLogger),
+    categories: {
+      communityList: async (orgId, communityId) =>
+        (await notificationCategories.community.get(orgId, communityId)).categories,
+      orgList: async (orgId) => (await notificationCategories.org.get(orgId, orgId)).categories,
+    },
+    access: {
+      canOpen: (orgId, actor, communityId) =>
+        entitlements.isCommunityMember(orgId, actor, communityId),
+    },
+    channels: notificationRegistries.channels,
+    logger: identityLogger,
+  });
+  const devices = new DevicesServiceImpl({
+    repo: new DrizzleDevicesRepository(db, identityLogger),
+    push: options?.adapters?.push ?? {},
+    logger: identityLogger,
+  });
   // Progress: report writes + outbox append in one tx; content supplies the
   // structure and completion rules the service evaluates against.
   const progressUow = new DrizzleUnitOfWork(db, (tx) => ({
@@ -524,6 +552,9 @@ export async function buildContainer(
       posts,
       chats,
       subscriptions,
+      notificationCategories,
+      notificationSettings,
+      channels: notificationRegistries.channels,
     }),
   };
 
@@ -778,6 +809,8 @@ export async function buildContainer(
     notificationChannels: notificationRegistries.channels,
     notificationCategories,
     notificationCategoryLists,
+    notificationSettings,
+    devices,
     settings,
     reporting,
     storage,

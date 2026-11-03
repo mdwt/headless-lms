@@ -14,4 +14,7 @@ export type {
   OpenCommunitySpace,
   NotificationView,
   NotificationsView,
+  NotificationSettingsCategoryView,
+  CommunityNotificationSettingsView,
+  OrgNotificationSettingsView,
 } from './model.js';

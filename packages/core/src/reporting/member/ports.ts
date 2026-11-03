@@ -14,6 +14,8 @@ import type {
   Module,
   NotificationView,
   NotificationsView,
+  CommunityNotificationSettingsView,
+  OrgNotificationSettingsView,
 } from './model.js';
 import type { Notification } from '../../identity/index.js';
 
@@ -85,6 +87,15 @@ export interface MemberReportService {
     actor: Actor,
     notification: Notification,
   ): Promise<NotificationView>;
+  /** The person's notification settings in a community they can open, resolved per channel. */
+  communityNotificationSettings(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    communityId: string,
+  ): Promise<CommunityNotificationSettingsView | null>;
+  /** The person's notification settings for the org's categories. */
+  orgNotificationSettings(orgId: string, userId: string): Promise<OrgNotificationSettingsView>;
 }
 
 export interface MemberReportRepository {

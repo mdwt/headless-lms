@@ -1,7 +1,7 @@
 // Reads all runtime configuration from the environment and builds the
 // ServerConfig that @headless-lms/server consumes. The only file that
 // touches process.env.
-import type { ServerConfig, ContainerConfig } from "@headless-lms/server";
+import type { ServerConfig, ContainerConfig, PushConfig } from "@headless-lms/server";
 import type { ResendEmailConfig } from "@headless-lms/adapter-email-resend";
 import type { MinioStorageConfig } from "@headless-lms/adapter-storage-minio";
 
@@ -12,6 +12,66 @@ export function loadEmailConfig(): ResendEmailConfig | undefined {
     return undefined;
   }
   return { apiKey, from: process.env.EMAIL_FROM ?? "onboarding@resend.dev" };
+}
+
+function providerEnv(provider: string, names: string[]): Record<string, string> | undefined {
+  const values = Object.fromEntries(names.map((name) => [name, process.env[name] ?? ""]));
+  const set = names.filter((name) => values[name] !== "");
+  if (set.length === 0) {
+    return undefined;
+  }
+  const missing = names.filter((name) => values[name] === "");
+  if (missing.length > 0) {
+    throw new Error(`incomplete ${provider} push configuration: set ${missing.join(", ")}`);
+  }
+  return values;
+}
+
+/** Push credentials per provider; a provider with none of its variables set is not configured. */
+export function loadPushConfig(): PushConfig {
+  const push: PushConfig = {};
+  const apns = providerEnv("APNs", ["APNS_TEAM_ID", "APNS_KEY_ID", "APNS_KEY", "APNS_BUNDLE_IDS"]);
+  if (apns) {
+    push.apns = {
+      teamId: apns.APNS_TEAM_ID!,
+      keyId: apns.APNS_KEY_ID!,
+      key: apns.APNS_KEY!.replace(/\\n/g, "\n"),
+      bundleIds: apns
+        .APNS_BUNDLE_IDS!.split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    };
+  }
+  const fcm = providerEnv("FCM", ["FCM_SERVICE_ACCOUNT"]);
+  if (fcm) {
+    let serviceAccount: unknown;
+    try {
+      serviceAccount = JSON.parse(fcm.FCM_SERVICE_ACCOUNT!);
+    } catch {
+      throw new Error("invalid FCM_SERVICE_ACCOUNT (expected the service account JSON)");
+    }
+    if (
+      typeof serviceAccount !== "object" ||
+      serviceAccount === null ||
+      Array.isArray(serviceAccount)
+    ) {
+      throw new Error("invalid FCM_SERVICE_ACCOUNT (expected the service account JSON)");
+    }
+    push.fcm = { serviceAccount: serviceAccount as Record<string, unknown> };
+  }
+  const webpush = providerEnv("Web Push", [
+    "VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+    "VAPID_SUBJECT",
+  ]);
+  if (webpush) {
+    push.webpush = {
+      publicKey: webpush.VAPID_PUBLIC_KEY!,
+      privateKey: webpush.VAPID_PRIVATE_KEY!,
+      subject: webpush.VAPID_SUBJECT!,
+    };
+  }
+  return push;
 }
 
 export function loadStorageConfig(): MinioStorageConfig {

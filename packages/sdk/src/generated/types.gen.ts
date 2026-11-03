@@ -16794,6 +16794,639 @@ export type SetMemberNotificationPreferencesResponses = {
 export type SetMemberNotificationPreferencesResponse =
   SetMemberNotificationPreferencesResponses[keyof SetMemberNotificationPreferencesResponses];
 
+export type GetMemberCommunityNotificationSettingsData = {
+  body?: never;
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/settings/notifications";
+};
+
+export type GetMemberCommunityNotificationSettingsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberCommunityNotificationSettingsError =
+  GetMemberCommunityNotificationSettingsErrors[keyof GetMemberCommunityNotificationSettingsErrors];
+
+export type GetMemberCommunityNotificationSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    communityId: string;
+    categories: Array<{
+      key: string;
+      perSpace: boolean;
+      channels: Array<{
+        channel: string;
+        enabled: boolean;
+        /**
+         * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
+         */
+        source: "locked" | "space" | "community" | "spaceDefault" | "default";
+        locked: boolean;
+      }>;
+      /**
+       * Per-space categories only: every space you can open
+       */
+      spaces?: Array<{
+        spaceId: string;
+        channels: Array<{
+          channel: string;
+          enabled: boolean;
+          /**
+           * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
+           */
+          source: "locked" | "space" | "community" | "spaceDefault" | "default";
+          locked: boolean;
+        }>;
+      }>;
+    }>;
+  };
+};
+
+export type GetMemberCommunityNotificationSettingsResponse =
+  GetMemberCommunityNotificationSettingsResponses[keyof GetMemberCommunityNotificationSettingsResponses];
+
+export type SetMemberCommunityNotificationSettingsData = {
+  body: {
+    settings: Array<{
+      category: string;
+      spaceId?: string;
+      channel: string;
+      /**
+       * null removes your choice, so the default applies again
+       */
+      enabled: boolean | null;
+    }>;
+  };
+  path: {
+    communityId: string;
+  };
+  query?: never;
+  url: "/api/member/communities/{communityId}/settings/notifications";
+};
+
+export type SetMemberCommunityNotificationSettingsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  422: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type SetMemberCommunityNotificationSettingsError =
+  SetMemberCommunityNotificationSettingsErrors[keyof SetMemberCommunityNotificationSettingsErrors];
+
+export type SetMemberCommunityNotificationSettingsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetMemberNotificationSettingsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/settings/notifications";
+};
+
+export type GetMemberNotificationSettingsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberNotificationSettingsError =
+  GetMemberNotificationSettingsErrors[keyof GetMemberNotificationSettingsErrors];
+
+export type GetMemberNotificationSettingsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    categories: Array<{
+      key: string;
+      perSpace: boolean;
+      channels: Array<{
+        channel: string;
+        enabled: boolean;
+        /**
+         * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
+         */
+        source: "locked" | "space" | "community" | "spaceDefault" | "default";
+        locked: boolean;
+      }>;
+      /**
+       * Per-space categories only: every space you can open
+       */
+      spaces?: Array<{
+        spaceId: string;
+        channels: Array<{
+          channel: string;
+          enabled: boolean;
+          /**
+           * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
+           */
+          source: "locked" | "space" | "community" | "spaceDefault" | "default";
+          locked: boolean;
+        }>;
+      }>;
+    }>;
+  };
+};
+
+export type GetMemberNotificationSettingsResponse =
+  GetMemberNotificationSettingsResponses[keyof GetMemberNotificationSettingsResponses];
+
+export type SetMemberNotificationSettingsData = {
+  body: {
+    settings: Array<{
+      category: string;
+      spaceId?: string;
+      channel: string;
+      /**
+       * null removes your choice, so the default applies again
+       */
+      enabled: boolean | null;
+    }>;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/member/settings/notifications";
+};
+
+export type SetMemberNotificationSettingsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  422: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type SetMemberNotificationSettingsError =
+  SetMemberNotificationSettingsErrors[keyof SetMemberNotificationSettingsErrors];
+
+export type SetMemberNotificationSettingsResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type ListMemberDevicesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/devices";
+};
+
+export type ListMemberDevicesErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListMemberDevicesError = ListMemberDevicesErrors[keyof ListMemberDevicesErrors];
+
+export type ListMemberDevicesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    provider: "apns" | "fcm" | "webpush";
+    token: string;
+    p256dh: string | null;
+    auth: string | null;
+    appId: string | null;
+    environment: "production" | "sandbox";
+    lastSeenAt: string;
+  }>;
+};
+
+export type ListMemberDevicesResponse =
+  ListMemberDevicesResponses[keyof ListMemberDevicesResponses];
+
+export type RegisterMemberDeviceData = {
+  body: {
+    provider: "apns" | "fcm" | "webpush";
+    /**
+     * The APNs device token, the FCM registration token, or the Web Push endpoint URL
+     */
+    token: string;
+    /**
+     * The Web Push subscription keys; webpush only
+     */
+    keys?: {
+      p256dh: string;
+      auth: string;
+    };
+    /**
+     * The iOS bundle id or Android package name
+     */
+    appId?: string;
+    /**
+     * apns only
+     */
+    environment?: "production" | "sandbox";
+  };
+  path?: never;
+  query?: never;
+  url: "/api/member/devices";
+};
+
+export type RegisterMemberDeviceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  422: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RegisterMemberDeviceError =
+  RegisterMemberDeviceErrors[keyof RegisterMemberDeviceErrors];
+
+export type RegisterMemberDeviceResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    provider: "apns" | "fcm" | "webpush";
+    token: string;
+    p256dh: string | null;
+    auth: string | null;
+    appId: string | null;
+    environment: "production" | "sandbox";
+  };
+};
+
+export type RegisterMemberDeviceResponse =
+  RegisterMemberDeviceResponses[keyof RegisterMemberDeviceResponses];
+
+export type RemoveMemberDeviceData = {
+  body?: never;
+  path: {
+    deviceId: string;
+  };
+  query?: never;
+  url: "/api/member/devices/{deviceId}";
+};
+
+export type RemoveMemberDeviceErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveMemberDeviceError = RemoveMemberDeviceErrors[keyof RemoveMemberDeviceErrors];
+
+export type RemoveMemberDeviceResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type GetMemberPushConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/push-config";
+};
+
+export type GetMemberPushConfigErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberPushConfigError = GetMemberPushConfigErrors[keyof GetMemberPushConfigErrors];
+
+export type GetMemberPushConfigResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    vapidPublicKey: string | null;
+  };
+};
+
+export type GetMemberPushConfigResponse =
+  GetMemberPushConfigResponses[keyof GetMemberPushConfigResponses];
+
 export type ListCommentsData = {
   body?: never;
   path?: never;

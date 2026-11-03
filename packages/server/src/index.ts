@@ -33,6 +33,7 @@ export type {
 export type { EmailSender, EmailMessage, ObjectStorage } from '@headless-lms/core/shared/ports';
 export type { Mailer } from '@headless-lms/core/shared/mailer';
 export type { AutomationEngine, WebhookSender } from '@headless-lms/core/automations';
+export type { PushConfig } from '@headless-lms/core/types';
 
 export async function createContainer(
   config: ServerConfig,
