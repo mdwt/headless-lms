@@ -39,6 +39,7 @@ function comment(over: Partial<CommentView> = {}): CommentView {
     status: "published",
     removedBy: null,
     reactions: {},
+    mentions: [],
     createdAt: "2026-07-27T00:00:00.000Z",
     updatedAt: "2026-07-27T00:00:00.000Z",
     ...over,

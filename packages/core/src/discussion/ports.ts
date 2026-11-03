@@ -9,6 +9,7 @@ import type {
   DigestRun,
   FlaggedComment,
   JsonValue,
+  MentionItemType,
   Message,
   MessageFlag,
   MessageFlagResolution,
@@ -209,6 +210,7 @@ export interface DiscussionRepository extends PostCommentReader, AuthorProfileRe
  *  entry commit in one transaction. */
 export interface DiscussionWriteScope {
   discussion: DiscussionRepository;
+  mentions: MentionsRepository;
   outbox: OutboxAppender;
 }
 export type DiscussionUnitOfWork = UnitOfWork<DiscussionWriteScope>;
@@ -415,6 +417,7 @@ export interface PostRepository {
 
 export interface PostWriteScope {
   posts: PostRepository;
+  mentions: MentionsRepository;
   outbox: OutboxAppender;
 }
 export type PostUnitOfWork = UnitOfWork<PostWriteScope>;
@@ -642,6 +645,7 @@ export interface ChatRepository {
 
 export interface ChatWriteScope {
   chats: ChatRepository;
+  mentions: MentionsRepository;
   outbox: OutboxAppender;
 }
 export type ChatUnitOfWork = UnitOfWork<ChatWriteScope>;
@@ -690,4 +694,21 @@ export interface SubscriptionsRepository {
     orgUserIds: string[],
     at: Date,
   ): Promise<string[]>;
+}
+
+export interface MentionsRepository {
+  ofItem(orgId: string, itemType: MentionItemType, itemId: string): Promise<string[]>;
+  forItems(
+    orgId: string,
+    itemType: MentionItemType,
+    itemIds: string[],
+  ): Promise<Record<string, string[]>>;
+  sync(
+    orgId: string,
+    itemType: MentionItemType,
+    itemId: string,
+    orgUserIds: string[],
+    at: Date,
+  ): Promise<string[]>;
+  removeItem(orgId: string, itemType: MentionItemType, itemId: string): Promise<void>;
 }

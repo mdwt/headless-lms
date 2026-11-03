@@ -16,6 +16,7 @@ import {
   DrizzleIdentityRepository,
   DrizzleMemberRepository,
   DrizzleMembersRepository,
+  DrizzleMentionsRepository,
   DrizzleNotificationsRepository,
   DrizzleOrganizationsRepository,
   DrizzleOutboxAppender,
@@ -387,6 +388,7 @@ export async function buildContainer(
   const discussionReads = new DrizzleDiscussionRepository(db, discussionLogger);
   const chatReads = new DrizzleChatRepository(db, discussionLogger);
   const subscriptionReads = new DrizzleSubscriptionsRepository(db, discussionLogger);
+  const mentionReads = new DrizzleMentionsRepository(db, discussionLogger);
   const posts = new PostServiceImpl({
     repo: postReads,
     access: entitlements,
@@ -395,10 +397,12 @@ export async function buildContainer(
     profiles: discussionReads,
     comments: discussionReads,
     subscriptions: subscriptionReads,
+    mentions: mentionReads,
     images: assets,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
+      mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     scheduler: automationEngine,
@@ -411,10 +415,12 @@ export async function buildContainer(
     authors,
     profiles: discussionReads,
     subscriptions: subscriptionReads,
+    mentions: mentionReads,
     images: assets,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       chats: new DrizzleChatRepository(tx, discussionLogger),
+      mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     logger: discussionLogger,
@@ -424,9 +430,12 @@ export async function buildContainer(
     access: entitlements,
     content: content,
     posts,
+    spaces: entitlements,
+    mentions: mentionReads,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
+      mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     settings,

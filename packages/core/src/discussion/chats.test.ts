@@ -14,6 +14,7 @@ import type {
   ChatListItem,
   ChatRepository,
   ChatUnitOfWork,
+  MentionsRepository,
   SendMessageInput,
   SubscriptionsRepository,
 } from './ports.js';
@@ -26,6 +27,41 @@ import type {
   Role,
   Subscription,
 } from '../types/index.js';
+
+function mentionStore() {
+  const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];
+  const of = (itemType: string, itemId: string) =>
+    rows.filter((row) => row.itemType === itemType && row.itemId === itemId);
+  const repo: MentionsRepository = {
+    async ofItem(_orgId, itemType, itemId) {
+      return of(itemType, itemId).map((row) => row.orgUserId);
+    },
+    async forItems(_orgId, itemType, itemIds) {
+      return Object.fromEntries(
+        itemIds
+          .map((itemId) => [itemId, of(itemType, itemId).map((row) => row.orgUserId)] as const)
+          .filter(([, people]) => people.length > 0),
+      );
+    },
+    async sync(_orgId, itemType, itemId, orgUserIds, at) {
+      for (const row of of(itemType, itemId)) {
+        if (!orgUserIds.includes(row.orgUserId)) {
+          rows.splice(rows.indexOf(row), 1);
+        }
+      }
+      const before = of(itemType, itemId).map((row) => row.orgUserId);
+      const added = orgUserIds.filter((orgUserId) => !before.includes(orgUserId));
+      rows.push(...added.map((orgUserId) => ({ itemType, itemId, orgUserId, createdAt: at })));
+      return added;
+    },
+    async removeItem(_orgId, itemType, itemId) {
+      for (const row of of(itemType, itemId)) {
+        rows.splice(rows.indexOf(row), 1);
+      }
+    },
+  };
+  return { rows, repo };
+}
 
 function subscriptionStore() {
   const rows: Subscription[] = [];
@@ -460,10 +496,12 @@ function harness(options?: {
     },
   };
 
+  const mentions = mentionStore();
   const uow: ChatUnitOfWork = {
     run: (fn) =>
       fn({
         chats: repo,
+        mentions: mentions.repo,
         outbox: {
           async append(events: NewDomainEvent[]) {
             calls.push(events);
@@ -477,6 +515,7 @@ function harness(options?: {
     repo,
     access,
     subscriptions: subscriptions.repo,
+    mentions: mentions.repo,
     content: {
       async getSpace() {
         return null;
@@ -528,6 +567,7 @@ function harness(options?: {
   return {
     svc,
     subscriptions,
+    mentions,
     chats,
     messages,
     attachments,
@@ -1545,5 +1585,60 @@ describe('chats', () => {
     await svc.deleteMessage(ORG, member, sent.id);
     expect(await file(other)).toBeNull();
     expect(await file(staff)).toBe('https://signed');
+  });
+});
+
+describe('message mentions', () => {
+  const mentionedIn = (event: NewDomainEvent | undefined) =>
+    (event?.data as { mentionedOrgUserIds?: string[] } | undefined)?.mentionedOrgUserIds;
+
+  async function group() {
+    const h = harness();
+    const chat = await h.svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id, fourth.id],
+    });
+    await h.svc.leave(ORG, fourth, chat.id);
+    return { ...h, chat };
+  }
+
+  it('keeps the participants still in the chat and carries them on the sent event', async () => {
+    const { svc, calls, mentions, chat } = await group();
+    const sent = await svc.send(
+      ORG,
+      member,
+      chat.id,
+      messageInput('<@ou_other> <@ou_fourth> <@ou_out> <@ou_other>'),
+    );
+    const event = calls
+      .flat()
+      .filter((row) => row.type === 'discussion.message.sent')
+      .at(-1);
+    expect(mentionedIn(event)).toEqual([other.id]);
+    expect(mentions.rows.map((row) => [row.itemId, row.orgUserId])).toEqual([[sent.id, other.id]]);
+    expect(sent.mentions).toEqual([{ orgUserId: other.id, name: other.id }]);
+  });
+
+  it('carries the mentions of the first message of a direct chat', async () => {
+    const { svc, calls } = harness({ settings: { firstMessageIsRequest: false } });
+    await svc.startDirect(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+      body: 'hey <@ou_other> <@ou_third>',
+      assetIds: [],
+    });
+    const event = calls.flat().find((row) => row.type === 'discussion.message.sent');
+    expect(mentionedIn(event)).toEqual([other.id]);
+  });
+
+  it('replaces the mentions on an edit and drops them with the deleted message', async () => {
+    const { svc, mentions, chat } = await group();
+    const sent = await svc.send(ORG, member, chat.id, messageInput('hi <@ou_other>'));
+    const edited = await svc.editMessage(ORG, member, sent.id, 'hi <@ou_third>');
+    expect(edited.mentions).toEqual([{ orgUserId: third.id, name: third.id }]);
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([third.id]);
+    const deleted = await svc.deleteMessage(ORG, member, sent.id);
+    expect(deleted.mentions).toEqual([]);
+    expect(mentions.rows).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getTableConfig } from "drizzle-orm/pg-core";
-import { digestRuns, subscriptions } from "./discussion.js";
+import { digestRuns, mentions, subscriptions } from "./discussion.js";
 import { communities } from "./content.js";
 import { orgUsers } from "./organizations.js";
 
@@ -57,5 +57,25 @@ describe("discussion schema — subscriptions", () => {
     expect(getTableConfig(reference.foreignTable).name).toBe(getTableConfig(orgUsers).name);
     expect(reference.columns.map((column) => column.name)).toEqual(["org_id", "org_user_id"]);
     expect(fk.onDelete).toBe("cascade");
+  });
+});
+
+describe("discussion schema — mentions", () => {
+  const config = getTableConfig(mentions);
+
+  it("keys one row per item and person", () => {
+    expect(config.primaryKeys[0]!.columns.map((column) => column.name)).toEqual([
+      "org_id",
+      "item_type",
+      "item_id",
+      "org_user_id",
+    ]);
+  });
+
+  it("cascades from the person and has no key to the item", () => {
+    expect(config.foreignKeys).toHaveLength(1);
+    const reference = config.foreignKeys[0]!.reference();
+    expect(getTableConfig(reference.foreignTable).name).toBe(getTableConfig(orgUsers).name);
+    expect(config.foreignKeys[0]!.onDelete).toBe("cascade");
   });
 });

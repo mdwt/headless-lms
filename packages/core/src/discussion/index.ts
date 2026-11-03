@@ -57,6 +57,7 @@ export type {
   DigestService,
   DigestUnitOfWork,
   DigestWriteScope,
+  MentionsRepository,
   MuteInput,
   SubscriptionInput,
   SubscriptionService,

@@ -4,7 +4,14 @@ import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Comment, CommentReport, CommentSettings } from './model.js';
-import type { ActivitySettings, CourseSettings, Post, SpaceDetail } from '../types/index.js';
+import type {
+  Activity,
+  ActivitySettings,
+  CourseSettings,
+  MentionView,
+  Post,
+  SpaceDetail,
+} from '../types/index.js';
 import type {
   CommentListItem,
   CommentsConfig,
@@ -24,12 +31,15 @@ import type {
   DiscussionRepository,
   DiscussionService,
   DiscussionUnitOfWork,
+  MentionsRepository,
   PageQuery,
   PostCommentInput,
   PostService,
 } from './ports.js';
 import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
+import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
+import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { FileUrls } from '../assets/index.js';
 
 /** A course with no stored settings. Discussion is opt-in, so the common case
@@ -47,7 +57,9 @@ export type DiscussionServiceParams = {
   repo: DiscussionRepository;
   access: ContentAccessReader;
   content: ActivityGetter;
-  posts: Pick<PostService, 'visible'>;
+  posts: Pick<PostService, 'visible' | 'find'>;
+  spaces: Pick<CommunityAccessReader, 'spaceOpenersAmong'>;
+  mentions: MentionsRepository;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
   fileUrls: FileUrls;
@@ -58,7 +70,9 @@ export class DiscussionServiceImpl implements DiscussionService {
   private readonly repo: DiscussionRepository;
   private readonly access: ContentAccessReader;
   private readonly content: ActivityGetter;
-  private readonly posts: Pick<PostService, 'visible'>;
+  private readonly posts: Pick<PostService, 'visible' | 'find'>;
+  private readonly spaces: Pick<CommunityAccessReader, 'spaceOpenersAmong'>;
+  private readonly mentions: MentionsRepository;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
   private readonly fileUrls: FileUrls;
@@ -69,6 +83,8 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.access = params.access;
     this.content = params.content;
     this.posts = params.posts;
+    this.spaces = params.spaces;
+    this.mentions = params.mentions;
     this.uow = params.uow;
     this.settings = params.settings;
     this.fileUrls = params.fileUrls;
@@ -110,6 +126,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     authors: Record<string, AuthorRecord>,
     urls: FileUrls,
     reactions: CommentReactions,
+    mentions: MentionView[],
   ): CommentView {
     const author = authors[comment.orgUserId];
     if (!author) {
@@ -131,6 +148,7 @@ export class DiscussionServiceImpl implements DiscussionService {
       removedBy: remover ? authorView(orgId, remover, urls) : null,
       reactions: reactions.reactions,
       viewerReaction: reactions.viewerReaction,
+      mentions: comment.status === 'removed' ? [] : mentions,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
     };
@@ -148,13 +166,16 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   private async renderOne(orgId: string, comment: Comment, actor: Actor): Promise<CommentView> {
-    const authors = await this.repo.authorsOf(orgId, this.peopleIn([comment]));
+    const [authors, mentioned] = await Promise.all([
+      this.repo.authorsOf(orgId, this.peopleIn([comment])),
+      mentionViews(this.mentions, this.repo, orgId, 'comment', [comment.id]),
+    ]);
     const stored =
       comment.status === 'removed'
         ? EMPTY_REACTIONS
         : ((await this.repo.reactionsOf(orgId, [comment.id], actor.id))[comment.id] ??
           EMPTY_REACTIONS);
-    return this.toView(orgId, comment, authors, this.fileUrls, stored);
+    return this.toView(orgId, comment, authors, this.fileUrls, stored, mentioned[comment.id] ?? []);
   }
 
   private activityIdOf(comment: Comment): string {
@@ -176,7 +197,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     orgId: string,
     activityId: string,
     actor: Actor,
-  ): Promise<void> {
+  ): Promise<Activity> {
     const activity = await this.content.getActivity(orgId, activityId);
     if (!activity) {
       throw new NotFoundError('Activity', activityId);
@@ -187,6 +208,47 @@ export class DiscussionServiceImpl implements DiscussionService {
     ) {
       throw new ForbiddenError('You cannot open this activity');
     }
+    return activity;
+  }
+
+  private async courseOpeners(
+    orgId: string,
+    courseId: string,
+    orgUserIds: string[],
+  ): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    const people = await this.repo.authorsOf(orgId, orgUserIds);
+    const opens = await Promise.all(
+      orgUserIds.map(async (orgUserId) => {
+        const person = people[orgUserId];
+        if (!person) {
+          return false;
+        }
+        return isStaffRole(person.role) || this.access.hasAccess(orgId, orgUserId, courseId);
+      }),
+    );
+    return orgUserIds.filter((_, index) => opens[index]);
+  }
+
+  private async spaceOpeners(orgId: string, spaceId: string, orgUserIds: string[]) {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    return keepAllowed(orgUserIds, await this.spaces.spaceOpenersAmong(orgId, spaceId, orgUserIds));
+  }
+
+  private async openersOf(orgId: string, comment: Comment, orgUserIds: string[]) {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    if (comment.postId) {
+      const post = await this.posts.find(orgId, comment.postId);
+      return post ? this.spaceOpeners(orgId, post.spaceId, orgUserIds) : [];
+    }
+    const activity = await this.content.getActivity(orgId, this.activityIdOf(comment));
+    return activity ? this.courseOpeners(orgId, activity.courseId, orgUserIds) : [];
   }
 
   async postComment(orgId: string, input: PostCommentInput): Promise<CommentView> {
@@ -205,7 +267,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     activityId: string,
     { actor, parentId, body }: PostCommentInput,
   ): Promise<CommentView> {
-    await this.requireActivityOpen(orgId, activityId, actor);
+    const activity = await this.requireActivityOpen(orgId, activityId, actor);
     const config = await this.resolveConfig(orgId, activityId);
 
     if (!config.enabled) {
@@ -247,9 +309,16 @@ export class DiscussionServiceImpl implements DiscussionService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    const mentioned = await this.courseOpeners(orgId, activity.courseId, mentionTokens(body));
     const saved = await this.uow.run(async (scope) => {
       const row = await scope.discussion.insertComment(orgId, comment);
-      await scope.outbox.append([discussionEvents.commentCreated.make({ orgId, data: row })]);
+      await scope.mentions.sync(orgId, 'comment', row.id, mentioned, comment.createdAt);
+      await scope.outbox.append([
+        discussionEvents.commentCreated.make({
+          orgId,
+          data: { ...row, mentionedOrgUserIds: status === 'published' ? mentioned : [] },
+        }),
+      ]);
       this.logger.info('comment created', { orgId, commentId: row.id, status, actorId: actor.id });
       return row;
     });
@@ -295,12 +364,14 @@ export class DiscussionServiceImpl implements DiscussionService {
       createdAt: now,
       updatedAt: now,
     };
+    const mentioned = await this.spaceOpeners(orgId, post.spaceId, mentionTokens(body));
     const saved = await this.uow.run(async (scope) => {
       const row = await scope.discussion.insertComment(orgId, comment);
+      await scope.mentions.sync(orgId, 'comment', row.id, mentioned, now);
       await scope.outbox.append([
         discussionEvents.commentCreated.make({
           orgId,
-          data: row,
+          data: { ...row, mentionedOrgUserIds: mentioned },
           metadata: { actorOrgUserId: actor.id },
         }),
       ]);
@@ -365,7 +436,7 @@ export class DiscussionServiceImpl implements DiscussionService {
     const served = [...roots, ...replies.filter((reply) => rootIds.has(reply.parentId!))].sort(
       (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
     );
-    const [authors, reactions] = await Promise.all([
+    const [authors, reactions, mentioned] = await Promise.all([
       this.repo.authorsOf(orgId, this.peopleIn(served)),
       reactionsOn
         ? this.repo.reactionsOf(
@@ -374,10 +445,24 @@ export class DiscussionServiceImpl implements DiscussionService {
             actor.id,
           )
         : Promise.resolve<Record<string, CommentReactions>>({}),
+      mentionViews(
+        this.mentions,
+        this.repo,
+        orgId,
+        'comment',
+        served.map((comment) => comment.id),
+      ),
     ]);
     const urls = this.fileUrls;
     return served.map((comment) =>
-      this.toView(orgId, comment, authors, urls, reactions[comment.id] ?? EMPTY_REACTIONS),
+      this.toView(
+        orgId,
+        comment,
+        authors,
+        urls,
+        reactions[comment.id] ?? EMPTY_REACTIONS,
+        mentioned[comment.id] ?? [],
+      ),
     );
   }
 
@@ -452,15 +537,20 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (comment.status === 'removed') {
       throw new ForbiddenError('A removed comment cannot be edited');
     }
-    const updated = await this.repo.updateComment(orgId, commentId, {
-      body,
+    const candidates = await this.openersOf(orgId, comment, mentionTokens(body));
+    const updated = await this.uow.run(async (scope) => {
+      const next = await scope.discussion.updateComment(orgId, commentId, {
+        body,
+      });
+      if (!next) {
+        // getComment() proved it existed; a null here means it vanished mid-write.
+        // Returning the pre-edit comment would report success and hand back
+        // the old body.
+        throw new NotFoundError('Comment', commentId);
+      }
+      await scope.mentions.sync(orgId, 'comment', commentId, candidates, new Date());
+      return next;
     });
-    if (!updated) {
-      // getComment() proved it existed; a null here means it vanished mid-write.
-      // Returning the pre-edit comment would report success and hand back
-      // the old body.
-      throw new NotFoundError('Comment', commentId);
-    }
     return this.renderOne(orgId, updated, actor);
   }
 
@@ -666,7 +756,17 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      await scope.outbox.append([discussionEvents.commentPublished.make({ orgId, data: updated })]);
+      const mentioned = await this.openersOf(
+        orgId,
+        updated,
+        await scope.mentions.ofItem(orgId, 'comment', commentId),
+      );
+      await scope.outbox.append([
+        discussionEvents.commentPublished.make({
+          orgId,
+          data: { ...updated, mentionedOrgUserIds: mentioned },
+        }),
+      ]);
       this.logger.info('comment published', { orgId, commentId, actorId: actor.id });
       return updated;
     });

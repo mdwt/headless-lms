@@ -9,6 +9,7 @@ import type {
   ContentAccessReader,
   DiscussionRepository,
   DiscussionUnitOfWork,
+  MentionsRepository,
 } from './ports.js';
 import type { ActivityCommentsRule, Comment, CommentReport, CommentSettings } from './model.js';
 import type { NewDiscussionEvent } from './events.js';
@@ -25,6 +26,41 @@ import {
 } from '../shared/settings.js';
 
 const fileUrls = createFileUrls('https://api.test');
+
+function mentionStore() {
+  const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];
+  const of = (itemType: string, itemId: string) =>
+    rows.filter((row) => row.itemType === itemType && row.itemId === itemId);
+  const repo: MentionsRepository = {
+    async ofItem(_orgId, itemType, itemId) {
+      return of(itemType, itemId).map((row) => row.orgUserId);
+    },
+    async forItems(_orgId, itemType, itemIds) {
+      return Object.fromEntries(
+        itemIds
+          .map((itemId) => [itemId, of(itemType, itemId).map((row) => row.orgUserId)] as const)
+          .filter(([, people]) => people.length > 0),
+      );
+    },
+    async sync(_orgId, itemType, itemId, orgUserIds, at) {
+      for (const row of of(itemType, itemId)) {
+        if (!orgUserIds.includes(row.orgUserId)) {
+          rows.splice(rows.indexOf(row), 1);
+        }
+      }
+      const before = of(itemType, itemId).map((row) => row.orgUserId);
+      const added = orgUserIds.filter((orgUserId) => !before.includes(orgUserId));
+      rows.push(...added.map((orgUserId) => ({ itemType, itemId, orgUserId, createdAt: at })));
+      return added;
+    },
+    async removeItem(_orgId, itemType, itemId) {
+      for (const row of of(itemType, itemId)) {
+        rows.splice(rows.indexOf(row), 1);
+      }
+    },
+  };
+  return { rows, repo };
+}
 
 function photo(id: string, imageAssetId: string): AuthorRecord {
   return {
@@ -261,12 +297,13 @@ export function fakeSettings() {
   return { settings: new SettingsService(repo), rows };
 }
 
-export function fakeUow(repo: DiscussionRepository) {
+export function fakeUow(repo: DiscussionRepository, mentions = mentionStore().repo) {
   const appended: NewDiscussionEvent[] = [];
   const uow: DiscussionUnitOfWork = {
     run: (fn) =>
       fn({
         discussion: repo,
+        mentions,
         outbox: {
           append: async (events) => {
             appended.push(...(events as unknown as NewDiscussionEvent[]));
@@ -311,7 +348,8 @@ function fakeContent(
 }
 
 export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
-  const { uow, appended } = fakeUow(fake.repo);
+  const mentions = mentionStore();
+  const { uow, appended } = fakeUow(fake.repo, mentions.repo);
   const { settings, rows } = fakeSettings();
   const activitySettings = new Map<string, unknown>();
   const service = new DiscussionServiceImpl({
@@ -322,7 +360,10 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
       visible: async () => {
         throw new Error('no post');
       },
+      find: async () => null,
     },
+    spaces: { spaceOpenersAmong: async () => [] },
+    mentions: mentions.repo,
     uow,
     settings,
     fileUrls,
@@ -330,6 +371,7 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
   return {
     service,
     appended,
+    mentions,
     settings,
     settingsRows: rows,
     activitySettings,
@@ -1268,7 +1310,8 @@ describe('comments on a post', () => {
     hiddenFrom?: string,
   ) {
     const fake = fakeRepo();
-    const { uow, appended } = fakeUow(fake.repo);
+    const mentions = mentionStore();
+    const { uow, appended } = fakeUow(fake.repo, mentions.repo);
     const { settings } = fakeSettings();
     const gate = fakeAccess();
     const service = new DiscussionServiceImpl({
@@ -1282,13 +1325,36 @@ describe('comments on a post', () => {
           }
           return { post: { ...post, commentsClosed, status }, space };
         },
+        find: async () => ({ ...post, commentsClosed, status }),
       },
+      spaces: {
+        spaceOpenersAmong: async (_orgId, _spaceId, orgUserIds) =>
+          orgUserIds.filter((id) => id !== hiddenFrom && id !== 'ou_outside'),
+      },
+      mentions: mentions.repo,
       uow,
       settings,
       fileUrls,
     });
-    return { service, appended, ...fake };
+    return { service, appended, mentions, ...fake };
   }
+
+  it('mentions the people who can open the post’s space and carries them on creation', async () => {
+    const { service, appended, mentions } = postService();
+    const view = await service.postComment('o1', {
+      actor: learner,
+      postId: 'pst_1',
+      parentId: null,
+      body: '<@ou_other> <@ou_outside> <@ou_other>',
+    });
+    expect(appended.at(-1)?.data).toMatchObject({ mentionedOrgUserIds: [other.id] });
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id]);
+    expect(view.mentions).toEqual([{ orgUserId: other.id, name: other.id }]);
+    await service.edit('o1', view.id, learner, 'now <@ou_staff>');
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([staff.id]);
+    const listed = await service.postComments('o1', 'pst_1', learner, { page: 1, pageSize: 10 });
+    expect(listed.rows[0]?.mentions).toEqual([{ orgUserId: staff.id, name: staff.id }]);
+  });
 
   it('is created published and does not emit comment.published', async () => {
     const { service, appended } = postService();
@@ -1454,5 +1520,55 @@ describe('course access', () => {
     await expect(
       service.postComment('o1', { actor: staff, activityId: 'a1', parentId: null, body: 'x' }),
     ).resolves.toBeDefined();
+  });
+});
+
+describe('comment mentions on an activity', () => {
+  const data = (event: NewDiscussionEvent | undefined) =>
+    event?.data as { mentionedOrgUserIds?: string[] } | undefined;
+
+  it('keeps staff and people who can open the course, and carries them when published', async () => {
+    const { service, appended, mentions, bar } = await openCourse();
+    bar('ou_barred', 'c1');
+    const view = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'Thanks <@ou_other>, <@ou_barred> and <@ou_staff>',
+    });
+    expect(data(appended.at(-1))?.mentionedOrgUserIds).toEqual([other.id, staff.id]);
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id, staff.id]);
+    expect(view.mentions.map((mention) => mention.orgUserId)).toEqual([other.id, staff.id]);
+  });
+
+  it('carries no one for a pending comment and the mentions at approval', async () => {
+    const { service, appended, settings, bar } = await openCourse();
+    await setSettings(settings, 'c1', { requireReview: true });
+    const c = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: '<@ou_other> <@ou_late>',
+    });
+    expect(appended.at(-1)?.type).toBe('discussion.comment.created');
+    expect(data(appended.at(-1))?.mentionedOrgUserIds).toEqual([]);
+    bar('ou_late', 'c1');
+    await service.approve('o1', c.id, staff);
+    expect(appended.at(-1)?.type).toBe('discussion.comment.published');
+    expect(data(appended.at(-1))?.mentionedOrgUserIds).toEqual([other.id]);
+  });
+
+  it('serves a removed comment without its mentions', async () => {
+    const { service } = await openCourse();
+    const c = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'hi <@ou_other>',
+    });
+    expect((await service.remove('o1', c.id, staff)).mentions).toEqual([]);
+    expect((await service.restore('o1', c.id, staff)).mentions).toEqual([
+      { orgUserId: other.id, name: other.id },
+    ]);
   });
 });

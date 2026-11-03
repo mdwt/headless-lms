@@ -4,11 +4,7 @@ import { organizationEvents } from '../organizations/index.js';
 import { discussionEvents } from '../discussion/index.js';
 import { executeAction } from './actions.js';
 import { COMMUNITY_DERIVATIONS } from './community-derivations.js';
-import {
-  emptyCommunityMail,
-  emptyNotificationDesk,
-  type ActionDeps,
-} from './community-mail.js';
+import { emptyCommunityMail, emptyNotificationDesk, type ActionDeps } from './community-mail.js';
 import type { DomainEvent } from '../shared/ports.js';
 import { createCapturingLogger } from '../shared/logger.js';
 
@@ -127,6 +123,7 @@ describe('community email derivations', () => {
           reactionsEnabled: null,
           createdAt: new Date('2026-01-01T00:00:00Z'),
           updatedAt: new Date('2026-01-02T00:00:00Z'),
+          mentionedOrgUserIds: [],
         },
         metadata: { previousStatus: 'draft' },
       }),
@@ -265,14 +262,14 @@ describe('community email derivations', () => {
     const published = ready(
       discussionEvents.postPublished.make({
         orgId: 'org-1',
-        data: post,
+        data: { ...post, mentionedOrgUserIds: [] },
         metadata: { previousStatus: 'pending', actorOrgUserId: 'staff_1' },
       }),
     );
     const drafted = ready(
       discussionEvents.postPublished.make({
         orgId: 'org-1',
-        data: post,
+        data: { ...post, mentionedOrgUserIds: [] },
         metadata: { previousStatus: 'draft' },
       }),
     );
@@ -354,7 +351,7 @@ describe('community email audiences', () => {
       ready(
         discussionEvents.messageSent.make({
           orgId: 'org-1',
-          data: message,
+          data: { ...message, mentionedOrgUserIds: [] },
           metadata: { actorOrgUserId: 'ou_1', chatStatus },
         }),
       );
@@ -371,13 +368,33 @@ describe('community email audiences', () => {
   });
 
   it('skips a participant muted until a later time or until unmuted', async () => {
-    const event = ready(discussionEvents.messageSent.make({ orgId: 'org-1', data: message }));
+    const event = ready(
+      discussionEvents.messageSent.make({
+        orgId: 'org-1',
+        data: { ...message, mentionedOrgUserIds: [] },
+      }),
+    );
     const people = [
       { orgUserId: 'ou_1', muted: false, mutedUntil: null, leftAt: null },
       { orgUserId: 'ou_2', muted: true, mutedUntil: null, leftAt: null },
-      { orgUserId: 'ou_3', muted: true, mutedUntil: new Date('2026-01-03T00:00:00Z'), leftAt: null },
-      { orgUserId: 'ou_4', muted: true, mutedUntil: new Date('2026-01-01T00:00:00Z'), leftAt: null },
-      { orgUserId: 'ou_5', muted: false, mutedUntil: new Date('2026-01-03T00:00:00Z'), leftAt: null },
+      {
+        orgUserId: 'ou_3',
+        muted: true,
+        mutedUntil: new Date('2026-01-03T00:00:00Z'),
+        leftAt: null,
+      },
+      {
+        orgUserId: 'ou_4',
+        muted: true,
+        mutedUntil: new Date('2026-01-01T00:00:00Z'),
+        leftAt: null,
+      },
+      {
+        orgUserId: 'ou_5',
+        muted: false,
+        mutedUntil: new Date('2026-01-03T00:00:00Z'),
+        leftAt: null,
+      },
     ];
     const members = ['ou_2', 'ou_3', 'ou_4', 'ou_5'];
     expect(
@@ -389,7 +406,12 @@ describe('community email audiences', () => {
   });
 
   it('sends message excerpts only to participants still in the community', async () => {
-    const event = ready(discussionEvents.messageSent.make({ orgId: 'org-1', data: message }));
+    const event = ready(
+      discussionEvents.messageSent.make({
+        orgId: 'org-1',
+        data: { ...message, mentionedOrgUserIds: [] },
+      }),
+    );
     const actionDeps = chatDeps('open', ['ou_3']);
     expect(await COMMUNITY_DERIVATIONS.newMessage!.derive(event, actionDeps)).toEqual([
       expect.objectContaining({ orgUserId: 'ou_3' }),
@@ -443,7 +465,12 @@ describe('community email audiences', () => {
   }
 
   it('sends comment excerpts only to followers who can still open the space', async () => {
-    const event = ready(discussionEvents.commentCreated.make({ orgId: 'org-1', data: comment }));
+    const event = ready(
+      discussionEvents.commentCreated.make({
+        orgId: 'org-1',
+        data: { ...comment, mentionedOrgUserIds: [] },
+      }),
+    );
     const actionDeps = postDeps(['ou_2', 'ou_4']);
     expect(await COMMUNITY_DERIVATIONS.newCommentOnPost!.derive(event, actionDeps)).toEqual([
       expect.objectContaining({ orgUserId: 'ou_4' }),
@@ -457,7 +484,12 @@ describe('community email audiences', () => {
   });
 
   it('sends no reply email to a parent author who can no longer open the space', async () => {
-    const event = ready(discussionEvents.commentCreated.make({ orgId: 'org-1', data: comment }));
+    const event = ready(
+      discussionEvents.commentCreated.make({
+        orgId: 'org-1',
+        data: { ...comment, mentionedOrgUserIds: [] },
+      }),
+    );
     expect(await COMMUNITY_DERIVATIONS.replyToYourComment!.derive(event, postDeps([]))).toEqual([]);
     expect(
       await COMMUNITY_DERIVATIONS.replyToYourComment!.derive(event, postDeps(['ou_3'])),
@@ -519,6 +551,7 @@ describe('executeAction fan-out', () => {
           reactionsEnabled: null,
           createdAt: new Date('2026-01-01T00:00:00Z'),
           updatedAt: new Date('2026-01-02T00:00:00Z'),
+          mentionedOrgUserIds: [],
         },
         metadata: { previousStatus: 'draft' },
       }),

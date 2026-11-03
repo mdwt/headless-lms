@@ -2229,6 +2229,10 @@ export type GetCommunityMessageQueueResponses = {
           [key: string]: number;
         };
         viewerReaction: string | null;
+        mentions: Array<{
+          orgUserId: string;
+          name: string;
+        }>;
       };
       flags: Array<{
         orgId: string;
@@ -4122,6 +4126,10 @@ export type GetCommunitySpaceQueueResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     flags: Array<{
       orgId: string;
@@ -4277,6 +4285,10 @@ export type ApproveCommunityPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -4399,6 +4411,10 @@ export type RemoveCommunityPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -4522,6 +4538,10 @@ export type RestoreCommunityPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -4704,6 +4724,10 @@ export type RemoveCommunityCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -4813,6 +4837,10 @@ export type RestoreCommunityCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -8141,6 +8169,14 @@ export type SetSpaceSubscriptionErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   404: {
     error: string;
     message?: string;
@@ -8277,6 +8313,10 @@ export type GetMemberFeedResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -8397,6 +8437,10 @@ export type ListOwnPostsResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -8517,6 +8561,10 @@ export type ListBookmarkedPostsResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -8643,6 +8691,10 @@ export type GetSpaceFeedResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -8761,6 +8813,10 @@ export type GetSpaceQueueResponses = {
         mutedUntil: string | null;
       } | null;
       bookmarked: boolean;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     flags: Array<{
       orgId: string;
@@ -8942,6 +8998,10 @@ export type CreatePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9054,6 +9114,10 @@ export type GetPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9180,6 +9244,10 @@ export type UpdatePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9300,6 +9368,10 @@ export type SubmitPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9433,6 +9505,10 @@ export type SchedulePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9553,6 +9629,10 @@ export type UnschedulePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9673,6 +9753,10 @@ export type ApprovePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9793,6 +9877,10 @@ export type RemovePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -9913,6 +10001,10 @@ export type RestorePostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -10033,6 +10125,10 @@ export type PinPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -10153,6 +10249,10 @@ export type UnpinPostResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -10273,6 +10373,10 @@ export type ClosePostCommentsResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -10394,6 +10498,10 @@ export type OpenPostCommentsResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -10520,6 +10628,10 @@ export type SetPostReactionPolicyResponses = {
       mutedUntil: string | null;
     } | null;
     bookmarked: boolean;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -11164,6 +11276,10 @@ export type ListPostCommentsResponses = {
         [key: string]: number;
       };
       viewerReaction?: string;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
       createdAt: string;
       updatedAt: string;
     }>;
@@ -11288,6 +11404,10 @@ export type CreatePostCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -11960,6 +12080,10 @@ export type ListChatMessagesResponses = {
         [key: string]: number;
       };
       viewerReaction: string | null;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
     }>;
     total: number;
     page: number;
@@ -12075,6 +12199,10 @@ export type SendChatMessageResponses = {
       [key: string]: number;
     };
     viewerReaction: string | null;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -12184,6 +12312,10 @@ export type DeleteChatMessageResponses = {
       [key: string]: number;
     };
     viewerReaction: string | null;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -12296,6 +12428,10 @@ export type EditChatMessageResponses = {
       [key: string]: number;
     };
     viewerReaction: string | null;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
   };
 };
 
@@ -13677,6 +13813,10 @@ export type ListActivityCommentsResponses = {
         [key: string]: number;
       };
       viewerReaction?: string;
+      mentions: Array<{
+        orgUserId: string;
+        name: string;
+      }>;
       createdAt: string;
       updatedAt: string;
     }>;
@@ -13791,6 +13931,10 @@ export type PostCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -13897,6 +14041,10 @@ export type DeleteCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -14005,6 +14153,10 @@ export type EditCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -16004,6 +16156,10 @@ export type ModerateRemoveCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -16267,6 +16423,10 @@ export type ReplyToCommentResponses = {
       [key: string]: number;
     };
     viewerReaction?: string;
+    mentions: Array<{
+      orgUserId: string;
+      name: string;
+    }>;
     createdAt: string;
     updatedAt: string;
   };

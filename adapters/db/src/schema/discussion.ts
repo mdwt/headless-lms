@@ -33,6 +33,7 @@ import type {
   CommentReaction,
   CommentReport,
   DigestRun,
+  Mention,
   Message,
   MessageAttachment,
   MessageFlag,
@@ -649,6 +650,24 @@ export const subscriptions = pgTable(
   }),
 );
 
+export const mentions = pgTable(
+  "mentions",
+  {
+    orgId: text("org_id").notNull(),
+    itemType: text("item_type", { enum: ["post", "comment", "message"] }).notNull(),
+    itemId: text("item_id").notNull(),
+    orgUserId: text("org_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.itemType, t.itemId, t.orgUserId] }),
+    orgUserFk: foreignKey({
+      columns: [t.orgId, t.orgUserId],
+      foreignColumns: [orgUsers.orgId, orgUsers.id],
+    }).onDelete("cascade"),
+  }),
+);
+
 type _PostsDrift = Expect<NoDrift<typeof posts.$inferSelect, Post>>;
 type _PostReactionsDrift = Expect<NoDrift<typeof postReactions.$inferSelect, PostReaction>>;
 type _PostBookmarksDrift = Expect<NoDrift<typeof postBookmarks.$inferSelect, PostBookmark>>;
@@ -671,3 +690,4 @@ type _MessageFlagsDrift = Expect<NoDrift<typeof messageFlags.$inferSelect, Messa
 type _BlockedUsersDrift = Expect<NoDrift<typeof blockedUsers.$inferSelect, BlockedUser>>;
 type _DigestRunsDrift = Expect<NoDrift<typeof digestRuns.$inferSelect, DigestRun>>;
 type _SubscriptionsDrift = Expect<NoDrift<typeof subscriptions.$inferSelect, Subscription>>;
+type _MentionsDrift = Expect<NoDrift<typeof mentions.$inferSelect, Mention>>;

@@ -131,4 +131,19 @@ describe('trigger catalog', () => {
       'reason',
     );
   });
+
+  it('never publishes the people an item mentions', () => {
+    const mentioning = [
+      discussionEvents.postPublished,
+      discussionEvents.postUpdated,
+      discussionEvents.commentCreated,
+      discussionEvents.commentPublished,
+      discussionEvents.messageSent,
+    ];
+    for (const event of mentioning) {
+      const row = event.dataSchema.parse(sample(event.dataSchema)) as Record<string, unknown>;
+      expect(row.mentionedOrgUserIds).toEqual(['x']);
+      expect(publicDataSchema(event.type)!.parse(row)).not.toHaveProperty('mentionedOrgUserIds');
+    }
+  });
 });

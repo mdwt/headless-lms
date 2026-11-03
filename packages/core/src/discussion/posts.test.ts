@@ -22,10 +22,46 @@ import type {
   PostCommentReader,
   PostReactions,
   PostRepository,
+  MentionsRepository,
   PostUnitOfWork,
   SubscriptionsRepository,
 } from './ports.js';
 import type { FlaggedComment, Post, PostFlag, Role, Subscription } from '../types/index.js';
+
+function mentionStore() {
+  const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];
+  const of = (itemType: string, itemId: string) =>
+    rows.filter((row) => row.itemType === itemType && row.itemId === itemId);
+  const repo: MentionsRepository = {
+    async ofItem(_orgId, itemType, itemId) {
+      return of(itemType, itemId).map((row) => row.orgUserId);
+    },
+    async forItems(_orgId, itemType, itemIds) {
+      return Object.fromEntries(
+        itemIds
+          .map((itemId) => [itemId, of(itemType, itemId).map((row) => row.orgUserId)] as const)
+          .filter(([, people]) => people.length > 0),
+      );
+    },
+    async sync(_orgId, itemType, itemId, orgUserIds, at) {
+      for (const row of of(itemType, itemId)) {
+        if (!orgUserIds.includes(row.orgUserId)) {
+          rows.splice(rows.indexOf(row), 1);
+        }
+      }
+      const before = of(itemType, itemId).map((row) => row.orgUserId);
+      const added = orgUserIds.filter((orgUserId) => !before.includes(orgUserId));
+      rows.push(...added.map((orgUserId) => ({ itemType, itemId, orgUserId, createdAt: at })));
+      return added;
+    },
+    async removeItem(_orgId, itemType, itemId) {
+      for (const row of of(itemType, itemId)) {
+        rows.splice(rows.indexOf(row), 1);
+      }
+    },
+  };
+  return { rows, repo };
+}
 
 function subscriptionStore() {
   const rows: Subscription[] = [];
@@ -155,6 +191,7 @@ function harness(options?: {
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
 }) {
   const rows: Post[] = [];
+  const closed = new Set<string>();
   const bookmarks: { postId: string; orgUserId: string }[] = [];
   const flags: PostFlag[] = [];
   const commentFlagRows: { spaceId: string; flag: FlaggedComment }[] = [];
@@ -354,7 +391,7 @@ function harness(options?: {
       return orgUserIds.filter((id) => id !== outsider.id);
     },
     async spaceOpenersAmong(_orgId, _spaceId, orgUserIds) {
-      return orgUserIds.filter((id) => id !== outsider.id);
+      return orgUserIds.filter((id) => id !== outsider.id && !closed.has(id));
     },
     async spaceOpeners() {
       return [];
@@ -427,10 +464,12 @@ function harness(options?: {
     },
   };
 
+  const mentions = mentionStore();
   const uow: PostUnitOfWork = {
     run: (fn) =>
       fn({
         posts: repo,
+        mentions: mentions.repo,
         outbox: {
           async append(events: NewDomainEvent[]) {
             calls.push(events);
@@ -449,6 +488,7 @@ function harness(options?: {
     repo,
     access,
     subscriptions: subscriptions.repo,
+    mentions: mentions.repo,
     content: {
       async getSpace(_orgId, spaceId) {
         return current.find((item) => item.id === spaceId) ?? null;
@@ -482,6 +522,8 @@ function harness(options?: {
     commentRows,
     calls,
     subscriptions,
+    mentions,
+    closed,
     setSpaces(next: SpaceDetail[]) {
       current = next;
     },
@@ -1518,5 +1560,122 @@ describe('scheduled posts', () => {
     await svc.publishScheduled(ORG, 'pst_missing', new Date(when.getTime() + 1000));
     expect(calls).toEqual([]);
     expect(scheduler.at).not.toHaveBeenCalled();
+  });
+});
+
+describe('post mentions', () => {
+  const later = () => new Date(Date.now() + 60 * 60_000);
+  const mentionedIn = (event: NewDomainEvent | undefined) =>
+    (event?.data as { mentionedOrgUserIds?: string[] } | undefined)?.mentionedOrgUserIds;
+  const lastOf = (calls: NewDomainEvent[][], type: string) =>
+    calls
+      .flat()
+      .filter((event) => event.type === type)
+      .at(-1);
+
+  it('keeps the people who can open the space from the title and body, once each', async () => {
+    const { svc, calls, mentions } = harness();
+    const post = await svc.create(
+      ORG,
+      member,
+      draftInput({
+        title: 'For <@ou_other>',
+        body: 'Hi <@ou_mod>, <@ou_out> and <@ou_other> again; <@ou_staff',
+      }),
+    );
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id, moderator.id]);
+    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([
+      other.id,
+      moderator.id,
+    ]);
+    expect(lastOf(calls, 'discussion.post.created')?.data).not.toHaveProperty(
+      'mentionedOrgUserIds',
+    );
+    expect(post.mentions).toEqual([
+      { orgUserId: other.id, name: 'First Last' },
+      { orgUserId: moderator.id, name: 'First Last' },
+    ]);
+  });
+
+  it('stores the mentions of a draft and carries them when the draft is submitted', async () => {
+    const { svc, calls, closed } = harness();
+    const draft = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'draft', body: '<@ou_other> <@ou_mod>' }),
+    );
+    expect(lastOf(calls, 'discussion.post.published')).toBeUndefined();
+    closed.add(moderator.id);
+    await svc.submit(ORG, draft.id, member);
+    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
+  });
+
+  it('carries no one on an edit of a draft or a post in review', async () => {
+    const { svc, calls, setSpaces, mentions } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    await svc.update(ORG, draft.id, member, { body: 'Now <@ou_other>' });
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const pending = await svc.create(ORG, member, draftInput());
+    await svc.update(ORG, pending.id, member, { body: 'And <@ou_mod>' });
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
+    expect(mentions.rows.map((row) => [row.itemId, row.orgUserId])).toEqual([
+      [draft.id, other.id],
+      [pending.id, moderator.id],
+    ]);
+  });
+
+  it('carries the mentions at approval, as the people who can open the space then', async () => {
+    const { svc, calls, setSpaces, closed } = harness();
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const pending = await svc.create(ORG, member, draftInput({ body: '<@ou_other> <@ou_staff>' }));
+    expect(lastOf(calls, 'discussion.post.published')).toBeUndefined();
+    expect(mentionedIn(lastOf(calls, 'discussion.post.created'))).toBeUndefined();
+    closed.add(staff.id);
+    await svc.approve(ORG, pending.id, moderator);
+    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
+  });
+
+  it('carries the mentions when the publish job publishes a scheduled post', async () => {
+    const { svc, calls } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when, body: 'cc <@ou_other>' }),
+    );
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
+  });
+
+  it('carries only the newly mentioned on an edit of a published post', async () => {
+    const { svc, calls, mentions } = harness();
+    const post = await svc.create(ORG, member, draftInput({ body: 'Hi <@ou_other>' }));
+    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_other> and <@ou_mod>' });
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([moderator.id]);
+    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_mod>' });
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([moderator.id]);
+    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_mod> and <@ou_other>' });
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([other.id]);
+    await svc.pin(ORG, post.id, moderator);
+    expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
+  });
+
+  it('keeps the first mention time of someone still mentioned after an edit', async () => {
+    const { svc, mentions } = harness();
+    const post = await svc.create(ORG, member, draftInput({ body: 'Hi <@ou_other>' }));
+    const first = mentions.rows[0]!.createdAt;
+    await svc.update(ORG, post.id, member, { title: 'New <@ou_mod>' });
+    expect(mentions.rows.find((row) => row.orgUserId === other.id)?.createdAt).toBe(first);
+  });
+
+  it('publishes a restored post again with its mentions', async () => {
+    const { svc, calls } = harness();
+    const post = await svc.create(ORG, member, draftInput({ body: 'cc <@ou_other>' }));
+    await svc.remove(ORG, post.id, moderator);
+    await svc.restore(ORG, post.id, moderator);
+    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
+    expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
   });
 });

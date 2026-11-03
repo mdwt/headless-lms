@@ -20,11 +20,13 @@ import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
 import { POST_PUBLISH_JOB } from './jobs.js';
 import { activeSubscription } from './subscriptions.js';
+import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
   CreatePostInput,
   FeedQuery,
+  MentionsRepository,
   PageQuery,
   PostPatch,
   PostCommentReader,
@@ -47,12 +49,15 @@ export type PostServiceParams = {
   profiles: AuthorProfileReader;
   comments: PostCommentReader;
   subscriptions: SubscriptionsRepository;
+  mentions: MentionsRepository;
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: PostUnitOfWork;
   scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
 };
+
+type EventMeta = { actorOrgUserId?: string; previousStatus?: PostStatus | null };
 
 const PUBLISHED_ONLY: PostStatus[] = ['published'];
 const MODERATOR_VISIBLE: PostStatus[] = ['published', 'pending', 'removed'];
@@ -71,6 +76,7 @@ export class PostServiceImpl implements PostService {
   private readonly profiles: AuthorProfileReader;
   private readonly comments: PostCommentReader;
   private readonly subscriptions: SubscriptionsRepository;
+  private readonly mentions: MentionsRepository;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: PostUnitOfWork;
@@ -85,6 +91,7 @@ export class PostServiceImpl implements PostService {
     this.profiles = params.profiles;
     this.comments = params.comments;
     this.subscriptions = params.subscriptions;
+    this.mentions = params.mentions;
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
@@ -137,8 +144,10 @@ export class PostServiceImpl implements PostService {
       updatedAt: now,
       ...landing,
     };
-    const saved = await this.uow.run(async ({ posts, outbox }) => {
+    const mentioned = await this.mentionable(orgId, space.id, post.title, post.body);
+    const saved = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const created = await posts.insert(orgId, post);
+      await mentions.sync(orgId, 'post', created.id, mentioned, now);
       const events: NewDiscussionEvent[] = [
         discussionEvents.postCreated.make({
           orgId,
@@ -147,13 +156,7 @@ export class PostServiceImpl implements PostService {
         }),
       ];
       if (created.status === 'published') {
-        events.push(
-          discussionEvents.postPublished.make({
-            orgId,
-            data: created,
-            metadata: this.meta(actor, null),
-          }),
-        );
+        events.push(this.published(orgId, created, this.meta(actor, null), mentioned));
       }
       await outbox.append(events);
       return created;
@@ -190,14 +193,27 @@ export class PostServiceImpl implements PostService {
     if (!this.patchChanges(post, patch)) {
       return this.viewOf(orgId, actor, post);
     }
-    const updated = await this.uow.run(async ({ posts, outbox }) => {
-      const next = await this.mustUpdate(posts, orgId, postId, patch);
-      await outbox.append([
-        discussionEvents.postUpdated.make({
+    const retext = patch.title !== undefined || patch.body !== undefined;
+    const candidates = retext
+      ? await this.mentionable(
           orgId,
-          data: next,
-          metadata: this.meta(actor, next.status === 'pending' ? post.status : undefined),
-        }),
+          post.spaceId,
+          patch.title ?? post.title,
+          patch.body ?? post.body,
+        )
+      : [];
+    const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
+      const next = await this.mustUpdate(posts, orgId, postId, patch);
+      const added = retext
+        ? await mentions.sync(orgId, 'post', postId, candidates, new Date())
+        : [];
+      await outbox.append([
+        this.updated(
+          orgId,
+          next,
+          this.meta(actor, next.status === 'pending' ? post.status : undefined),
+          next.status === 'published' ? keepAllowed(candidates, added) : [],
+        ),
       ]);
       return next;
     });
@@ -249,13 +265,7 @@ export class PostServiceImpl implements PostService {
       if (!next) {
         throw new ConflictError('This post cannot be scheduled');
       }
-      await outbox.append([
-        discussionEvents.postUpdated.make({
-          orgId,
-          data: next,
-          metadata: this.meta(actor, post.status),
-        }),
-      ]);
+      await outbox.append([this.updated(orgId, next, this.meta(actor, post.status))]);
       return next;
     });
     this.logger.info('post scheduled', {
@@ -279,13 +289,7 @@ export class PostServiceImpl implements PostService {
       if (!next) {
         throw new ConflictError('This post is not scheduled');
       }
-      await outbox.append([
-        discussionEvents.postUpdated.make({
-          orgId,
-          data: next,
-          metadata: this.meta(actor, post.status),
-        }),
-      ]);
+      await outbox.append([this.updated(orgId, next, this.meta(actor, post.status))]);
       return next;
     });
     this.logger.info('post unscheduled', { orgId, postId, actorId: actor.id });
@@ -316,17 +320,12 @@ export class PostServiceImpl implements PostService {
     const role = await this.authors.roleOf(orgId, post.orgUserId);
     const refused = !(await this.submittable(orgId, post, space, role));
     const patch = refused ? DRAFT : this.submissionOf(space.settings.requireReview, role, now);
-    const saved = await this.uow.run(async ({ posts, outbox }) => {
+    const saved = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const next = await posts.updateIf(orgId, postId, { status: 'scheduled', dueBy: now }, patch);
       if (!next) {
         return null;
       }
-      const metadata = this.meta(null, post.status);
-      await outbox.append([
-        next.status === 'published'
-          ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
-          : discussionEvents.postUpdated.make({ orgId, data: next, metadata }),
-      ]);
+      await outbox.append([await this.landed(mentions, orgId, next, this.meta(null, post.status))]);
       return next;
     });
     if (!saved) {
@@ -365,11 +364,11 @@ export class PostServiceImpl implements PostService {
         return;
       }
       await outbox.append([
-        discussionEvents.postUpdated.make({
+        this.updated(
           orgId,
-          data: reverted,
-          metadata: this.meta(actor, reverted.status === 'draft' ? post.status : undefined),
-        }),
+          reverted,
+          this.meta(actor, reverted.status === 'draft' ? post.status : undefined),
+        ),
       ]);
     });
     throw new UnavailableError('The post could not be scheduled; try again');
@@ -397,7 +396,7 @@ export class PostServiceImpl implements PostService {
       throw new ConflictError('This post is not awaiting review');
     }
     const now = new Date();
-    const updated = await this.uow.run(async ({ posts, outbox }) => {
+    const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, {
         status: 'published',
         publishedAt: now,
@@ -405,11 +404,7 @@ export class PostServiceImpl implements PostService {
         removedBy: null,
       });
       await outbox.append([
-        discussionEvents.postPublished.make({
-          orgId,
-          data: next,
-          metadata: this.meta(actor, post.status),
-        }),
+        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
       ]);
       return next;
     });
@@ -473,19 +468,16 @@ export class PostServiceImpl implements PostService {
     }
     const now = new Date();
     const role = await this.authors.roleOf(orgId, post.orgUserId);
-    const updated = await this.uow.run(async ({ posts, outbox }) => {
+    const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const next = await this.mustUpdate(
         posts,
         orgId,
         postId,
         this.submissionOf(space.settings.requireReview, role, now),
       );
-      const metadata = this.meta(actor, post.status);
-      const event =
-        next.status === 'published'
-          ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
-          : discussionEvents.postUpdated.make({ orgId, data: next, metadata });
-      await outbox.append([event]);
+      await outbox.append([
+        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
+      ]);
       return next;
     });
     this.logger.info('post restored', {
@@ -799,13 +791,15 @@ export class PostServiceImpl implements PostService {
     }
     const postIds = posts.map((post) => post.id);
     const now = new Date();
-    const [records, reactions, commentCounts, subscribed, bookmarked] = await Promise.all([
-      this.profiles.authorsOf(orgId, [...new Set(posts.map((post) => post.orgUserId))]),
-      this.repo.reactionsOf(orgId, postIds, actor.id),
-      this.comments.publishedCommentCounts(orgId, postIds),
-      this.subscriptions.forViewer(orgId, actor.id, 'post', postIds),
-      this.repo.bookmarkedAmong(orgId, postIds, actor.id),
-    ]);
+    const [records, reactions, commentCounts, subscribed, bookmarked, mentioned] =
+      await Promise.all([
+        this.profiles.authorsOf(orgId, [...new Set(posts.map((post) => post.orgUserId))]),
+        this.repo.reactionsOf(orgId, postIds, actor.id),
+        this.comments.publishedCommentCounts(orgId, postIds),
+        this.subscriptions.forViewer(orgId, actor.id, 'post', postIds),
+        this.repo.bookmarkedAmong(orgId, postIds, actor.id),
+        mentionViews(this.mentions, this.profiles, orgId, 'post', postIds),
+      ]);
     const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
     const saved = new Set(bookmarked);
     return posts.map((post) => {
@@ -823,6 +817,7 @@ export class PostServiceImpl implements PostService {
         commentCount: commentCounts[post.id] ?? 0,
         subscription: activeSubscription(subscriptionOf.get(post.id), now),
         bookmarked: saved.has(post.id),
+        mentions: mentioned[post.id] ?? [],
       };
     });
   }
@@ -835,7 +830,7 @@ export class PostServiceImpl implements PostService {
     actor: Actor,
     now: Date,
   ): Promise<Post> {
-    return this.uow.run(async ({ posts, outbox }) => {
+    return this.uow.run(async ({ posts, mentions, outbox }) => {
       const next = await posts.updateIf(
         orgId,
         post.id,
@@ -845,12 +840,9 @@ export class PostServiceImpl implements PostService {
       if (!next) {
         throw new ConflictError('This post cannot be submitted');
       }
-      const metadata = this.meta(actor, post.status);
-      const event =
-        next.status === 'published'
-          ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
-          : discussionEvents.postUpdated.make({ orgId, data: next, metadata });
-      await outbox.append([event]);
+      await outbox.append([
+        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
+      ]);
       return next;
     });
   }
@@ -876,11 +868,11 @@ export class PostServiceImpl implements PostService {
     const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, patch);
       await outbox.append([
-        discussionEvents.postUpdated.make({
+        this.updated(
           orgId,
-          data: next,
-          metadata: this.meta(actor, next.status === 'pending' ? post.status : undefined),
-        }),
+          next,
+          this.meta(actor, next.status === 'pending' ? post.status : undefined),
+        ),
       ]);
       return next;
     });
@@ -1029,7 +1021,66 @@ export class PostServiceImpl implements PostService {
     });
   }
 
-  private meta(actor: Actor | null, previousStatus?: PostStatus | null) {
+  private async mentionable(
+    orgId: string,
+    spaceId: string,
+    title: string,
+    body: string,
+  ): Promise<string[]> {
+    return this.openersOf(orgId, spaceId, mentionTokens(title, body));
+  }
+
+  private async openersOf(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]> {
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+    return keepAllowed(orgUserIds, await this.access.spaceOpenersAmong(orgId, spaceId, orgUserIds));
+  }
+
+  private async landed(
+    mentions: MentionsRepository,
+    orgId: string,
+    post: Post,
+    metadata: EventMeta,
+  ): Promise<NewDiscussionEvent> {
+    if (post.status !== 'published') {
+      return this.updated(orgId, post, metadata);
+    }
+    const mentioned = await this.openersOf(
+      orgId,
+      post.spaceId,
+      await mentions.ofItem(orgId, 'post', post.id),
+    );
+    return this.published(orgId, post, metadata, mentioned);
+  }
+
+  private published(
+    orgId: string,
+    post: Post,
+    metadata: EventMeta,
+    mentionedOrgUserIds: string[],
+  ): NewDiscussionEvent {
+    return discussionEvents.postPublished.make({
+      orgId,
+      data: { ...post, mentionedOrgUserIds },
+      metadata,
+    });
+  }
+
+  private updated(
+    orgId: string,
+    post: Post,
+    metadata: EventMeta,
+    mentionedOrgUserIds: string[] = [],
+  ): NewDiscussionEvent {
+    return discussionEvents.postUpdated.make({
+      orgId,
+      data: { ...post, mentionedOrgUserIds },
+      metadata,
+    });
+  }
+
+  private meta(actor: Actor | null, previousStatus?: PostStatus | null): EventMeta {
     return {
       ...(actor ? { actorOrgUserId: actor.id } : {}),
       ...(previousStatus !== undefined ? { previousStatus } : {}),

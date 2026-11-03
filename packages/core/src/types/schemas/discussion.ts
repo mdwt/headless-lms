@@ -92,6 +92,28 @@ export const commentReportSchema = z
 export type CommentReport = z.output<typeof commentReportSchema>;
 export type CommentReportInput = z.input<typeof commentReportSchema>;
 
+export const mentionItemTypeSchema = z.enum(['post', 'comment', 'message']);
+export type MentionItemType = z.infer<typeof mentionItemTypeSchema>;
+
+export const mentionSchema = z
+  .object({
+    orgId: idSchema,
+    itemType: mentionItemTypeSchema,
+    itemId: idSchema,
+    orgUserId: idSchema,
+    createdAt: z.coerce.date(),
+  })
+  .strict();
+export type Mention = z.output<typeof mentionSchema>;
+
+export const mentionViewSchema = z
+  .object({
+    orgUserId: idSchema,
+    name: z.string(),
+  })
+  .strict();
+export type MentionView = z.output<typeof mentionViewSchema>;
+
 export const commentViewSchema = z
   .object({
     id: idSchema,
@@ -105,6 +127,7 @@ export const commentViewSchema = z
     removedBy: commentAuthorSchema.nullable(),
     reactions: reactionCountsSchema,
     viewerReaction: reactionEmojiSchema.optional(),
+    mentions: z.array(mentionViewSchema),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
@@ -218,6 +241,7 @@ export const postViewSchema = postSchema
     commentCount: z.number().int().min(0),
     subscription: subscriptionViewSchema.nullable(),
     bookmarked: z.boolean(),
+    mentions: z.array(mentionViewSchema),
   })
   .strict();
 export type PostView = z.output<typeof postViewSchema>;
@@ -342,6 +366,7 @@ export const messageViewSchema = messageSchema
     attachments: z.array(messageFileSchema),
     reactions: reactionCountsSchema,
     viewerReaction: reactionEmojiSchema.nullable(),
+    mentions: z.array(mentionViewSchema),
   })
   .strict();
 export type MessageView = z.output<typeof messageViewSchema>;

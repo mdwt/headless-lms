@@ -6587,6 +6587,26 @@
                               "viewerReaction": {
                                 "nullable": true,
                                 "type": "string"
+                              },
+                              "mentions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "orgUserId": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "orgUserId",
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                }
                               }
                             },
                             "required": [
@@ -6604,7 +6624,8 @@
                               "sender",
                               "attachments",
                               "reactions",
-                              "viewerReaction"
+                              "viewerReaction",
+                              "mentions"
                             ],
                             "additionalProperties": false
                           },
@@ -12912,6 +12933,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -12940,7 +12981,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -13496,6 +13538,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -13524,7 +13586,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -13927,6 +13990,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -13955,7 +14038,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -14358,6 +14442,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -14386,7 +14490,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -14974,6 +15079,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -14994,6 +15119,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -15352,6 +15478,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -15372,6 +15518,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -25401,6 +25548,31 @@
               }
             }
           },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "404": {
             "description": "Default Response",
             "content": {
@@ -25696,6 +25868,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -25724,7 +25916,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -26146,6 +26339,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -26174,7 +26387,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -26596,6 +26810,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -26624,7 +26858,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -27063,6 +27298,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -27091,7 +27346,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -27499,6 +27755,26 @@
                           },
                           "bookmarked": {
                             "type": "boolean"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -27527,7 +27803,8 @@
                           "viewerReaction",
                           "commentCount",
                           "subscription",
-                          "bookmarked"
+                          "bookmarked",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -28149,6 +28426,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -28177,7 +28474,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -28597,6 +28895,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -28625,7 +28943,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -29032,6 +29351,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -29060,7 +29399,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -29455,6 +29795,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -29483,7 +29843,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -29900,6 +30261,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -29928,7 +30309,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -30348,6 +30730,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -30376,7 +30778,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -30771,6 +31174,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -30799,7 +31222,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -31194,6 +31618,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -31222,7 +31666,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -31617,6 +32062,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -31645,7 +32110,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -32040,6 +32506,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -32068,7 +32554,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -32463,6 +32950,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -32491,7 +32998,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -32886,6 +33394,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -32914,7 +33442,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -33309,6 +33838,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -33337,7 +33886,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -33752,6 +34302,26 @@
                     },
                     "bookmarked": {
                       "type": "boolean"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -33780,7 +34350,8 @@
                     "viewerReaction",
                     "commentCount",
                     "subscription",
-                    "bookmarked"
+                    "bookmarked",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -35640,6 +36211,26 @@
                           "viewerReaction": {
                             "type": "string"
                           },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -35660,6 +36251,7 @@
                           "status",
                           "removedBy",
                           "reactions",
+                          "mentions",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -36061,6 +36653,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -36081,6 +36693,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -38218,6 +38831,26 @@
                           "viewerReaction": {
                             "nullable": true,
                             "type": "string"
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -38235,7 +38868,8 @@
                           "sender",
                           "attachments",
                           "reactions",
-                          "viewerReaction"
+                          "viewerReaction",
+                          "mentions"
                         ],
                         "additionalProperties": false
                       }
@@ -38614,6 +39248,26 @@
                     "viewerReaction": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -38631,7 +39285,8 @@
                     "sender",
                     "attachments",
                     "reactions",
-                    "viewerReaction"
+                    "viewerReaction",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -38970,6 +39625,26 @@
                     "viewerReaction": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -38987,7 +39662,8 @@
                     "sender",
                     "attachments",
                     "reactions",
-                    "viewerReaction"
+                    "viewerReaction",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -39328,6 +40004,26 @@
                     "viewerReaction": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
                     }
                   },
                   "required": [
@@ -39345,7 +40041,8 @@
                     "sender",
                     "attachments",
                     "reactions",
-                    "viewerReaction"
+                    "viewerReaction",
+                    "mentions"
                   ],
                   "additionalProperties": false
                 }
@@ -43309,6 +44006,26 @@
                           "viewerReaction": {
                             "type": "string"
                           },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -43329,6 +44046,7 @@
                           "status",
                           "removedBy",
                           "reactions",
+                          "mentions",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -43713,6 +44431,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -43733,6 +44471,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -44104,6 +44843,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -44124,6 +44883,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -44472,6 +45232,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -44492,6 +45272,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -50147,6 +50928,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -50167,6 +50968,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -50981,6 +51783,26 @@
                     "viewerReaction": {
                       "type": "string"
                     },
+                    "mentions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -51001,6 +51823,7 @@
                     "status",
                     "removedBy",
                     "reactions",
+                    "mentions",
                     "createdAt",
                     "updatedAt"
                   ],

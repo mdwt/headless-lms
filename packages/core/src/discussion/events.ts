@@ -16,6 +16,12 @@ import {
   type NewDomainEvent,
 } from '../shared/ports.js';
 
+const mentioned = { mentionedOrgUserIds: z.array(idSchema) };
+const commentEventSchema = commentSchema.extend(mentioned);
+const postEventSchema = postSchema.extend(mentioned);
+const publicPost = postSchema.strip();
+const messageEventSchema = messageSchema.extend(mentioned);
+
 const publicComment = commentSchema
   .pick({
     id: true,
@@ -85,13 +91,13 @@ export const discussionEvents = {
   commentCreated: defineEvent({
     type: 'discussion.comment.created',
     version: 1,
-    data: commentSchema,
+    data: commentEventSchema,
     publicData: publicComment,
   }),
   commentPublished: defineEvent({
     type: 'discussion.comment.published',
     version: 1,
-    data: commentSchema,
+    data: commentEventSchema,
     publicData: publicComment,
   }),
   commentRemoved: defineEvent({
@@ -115,14 +121,14 @@ export const discussionEvents = {
   postUpdated: defineEvent({
     type: 'discussion.post.updated',
     version: 1,
-    data: postSchema,
-    publicData: postSchema,
+    data: postEventSchema,
+    publicData: publicPost,
   }),
   postPublished: defineEvent({
     type: 'discussion.post.published',
     version: 1,
-    data: postSchema,
-    publicData: postSchema,
+    data: postEventSchema,
+    publicData: publicPost,
   }),
   postRemoved: defineEvent({
     type: 'discussion.post.removed',
@@ -157,7 +163,7 @@ export const discussionEvents = {
   messageSent: defineEvent({
     type: 'discussion.message.sent',
     version: 1,
-    data: messageSchema,
+    data: messageEventSchema,
     publicData: publicMessage,
   }),
   messageDeleted: defineEvent({

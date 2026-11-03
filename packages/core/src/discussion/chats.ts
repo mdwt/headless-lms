@@ -27,6 +27,7 @@ import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
 import { activeSubscription } from './subscriptions.js';
+import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -34,6 +35,7 @@ import type {
   ChatRepository,
   ChatService,
   ChatUnitOfWork,
+  MentionsRepository,
   MessageQueue,
   MessageQueueEntry,
   MessageReactions,
@@ -52,6 +54,7 @@ export type ChatServiceParams = {
   authors: AuthorRoleReader;
   profiles: AuthorProfileReader;
   subscriptions: SubscriptionsRepository;
+  mentions: MentionsRepository;
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: ChatUnitOfWork;
@@ -65,6 +68,7 @@ export class ChatServiceImpl implements ChatService {
   private readonly authors: AuthorRoleReader;
   private readonly profiles: AuthorProfileReader;
   private readonly subscriptions: SubscriptionsRepository;
+  private readonly mentions: MentionsRepository;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: ChatUnitOfWork;
@@ -77,6 +81,7 @@ export class ChatServiceImpl implements ChatService {
     this.authors = params.authors;
     this.profiles = params.profiles;
     this.subscriptions = params.subscriptions;
+    this.mentions = params.mentions;
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
@@ -96,7 +101,7 @@ export class ChatServiceImpl implements ChatService {
     this.assertMayMessage(settings, actor, role);
     const first: SendMessageInput | null =
       input.body === null ? null : { body: input.body, replyToId: null, assetIds: input.assetIds };
-    const saved = await this.uow.run(async ({ chats, outbox }) => {
+    const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
       await chats.lockDirectPair(orgId, input.communityId, actor.id, input.orgUserId);
       const existing = await chats.findDirect(orgId, input.communityId, actor.id, input.orgUserId);
       if (existing) {
@@ -115,7 +120,7 @@ export class ChatServiceImpl implements ChatService {
           );
         }
         const written = first
-          ? await this.writeMessage(chats, orgId, actor, existing, first)
+          ? await this.writeMessage(chats, mentions, orgId, actor, existing, present, first)
           : null;
         const chat = written?.chat ?? existing;
         const events: NewDiscussionEvent[] = [];
@@ -123,7 +128,9 @@ export class ChatServiceImpl implements ChatService {
           events.push(this.updatedEvent(orgId, actor, chat, present));
         }
         if (written) {
-          events.push(this.sentEvent(orgId, actor, written.chat, written.message));
+          events.push(
+            this.sentEvent(orgId, actor, written.chat, written.message, written.mentioned),
+          );
         }
         if (events.length > 0) {
           await outbox.append(events);
@@ -160,8 +167,8 @@ export class ChatServiceImpl implements ChatService {
       }
       const events: NewDiscussionEvent[] = [this.createdEvent(orgId, actor, chat, users)];
       if (first) {
-        const written = await this.writeMessage(chats, orgId, actor, chat, first);
-        events.push(this.sentEvent(orgId, actor, written.chat, written.message));
+        const written = await this.writeMessage(chats, mentions, orgId, actor, chat, users, first);
+        events.push(this.sentEvent(orgId, actor, written.chat, written.message, written.mentioned));
       }
       await outbox.append(events);
       return { chat, created: true };
@@ -344,16 +351,16 @@ export class ChatServiceImpl implements ChatService {
     if (!settings.enabled) {
       throw new ForbiddenError('Direct messages are off');
     }
-    const saved = await this.uow.run(async ({ chats, outbox }) => {
+    const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
       const chat = await this.mustChat(chats, orgId, chatId);
       const users = await chats.participants(orgId, chatId);
       await this.assertMaySend(chats, orgId, actor, chat, users, settings, input);
-      const written = await this.writeMessage(chats, orgId, actor, chat, input);
+      const written = await this.writeMessage(chats, mentions, orgId, actor, chat, users, input);
       const events: NewDiscussionEvent[] = [];
       if (written.opened) {
         events.push(this.updatedEvent(orgId, actor, written.chat, users));
       }
-      events.push(this.sentEvent(orgId, actor, written.chat, written.message));
+      events.push(this.sentEvent(orgId, actor, written.chat, written.message, written.mentioned));
       await outbox.append(events);
       return written.message;
     });
@@ -378,10 +385,16 @@ export class ChatServiceImpl implements ChatService {
     if (message.body === body) {
       return this.viewOf(orgId, actor, message);
     }
-    const saved = await this.repo.updateMessage(orgId, messageId, { body, editedAt: new Date() });
-    if (!saved) {
-      throw new NotFoundError('Message', messageId);
-    }
+    const now = new Date();
+    const saved = await this.uow.run(async ({ chats, mentions }) => {
+      const next = await chats.updateMessage(orgId, messageId, { body, editedAt: now });
+      if (!next) {
+        throw new NotFoundError('Message', messageId);
+      }
+      const users = await chats.participants(orgId, next.chatId);
+      await mentions.sync(orgId, 'message', messageId, this.mentionable(body, users), now);
+      return next;
+    });
     this.logger.info('message edited', { orgId, messageId, actorId: actor.id });
     return this.viewOf(orgId, actor, saved);
   }
@@ -399,11 +412,12 @@ export class ChatServiceImpl implements ChatService {
       throw new ConflictError('This message was deleted');
     }
     const now = new Date();
-    const saved = await this.uow.run(async ({ chats, outbox }) => {
+    const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
       const next = await chats.updateMessage(orgId, messageId, { deletedAt: now });
       if (!next) {
         throw new NotFoundError('Message', messageId);
       }
+      await mentions.removeItem(orgId, 'message', messageId);
       await chats.resolveFlags(orgId, messageId, {
         resolvedAt: now,
         resolvedBy: actor.id,
@@ -869,13 +883,22 @@ export class ChatServiceImpl implements ChatService {
     await this.requireOwnedImages(orgId, actor.id, input.assetIds);
   }
 
+  private mentionable(body: string, users: ChatUser[]): string[] {
+    return keepAllowed(
+      mentionTokens(body),
+      users.filter((user) => user.leftAt === null).map((user) => user.orgUserId),
+    );
+  }
+
   private async writeMessage(
     chats: ChatRepository,
+    mentions: MentionsRepository,
     orgId: string,
     actor: Actor,
     chat: Chat,
+    users: ChatUser[],
     input: SendMessageInput,
-  ): Promise<{ chat: Chat; message: Message; opened: boolean }> {
+  ): Promise<{ chat: Chat; message: Message; opened: boolean; mentioned: string[] }> {
     const opened =
       chat.kind === 'direct' && chat.status === 'pending' && chat.createdBy !== actor.id;
     const current = opened
@@ -888,7 +911,9 @@ export class ChatServiceImpl implements ChatService {
     if (input.assetIds.length > 0) {
       await chats.attach(orgId, current.communityId, message.id, input.assetIds);
     }
-    return { chat: current, message, opened };
+    const mentioned = this.mentionable(input.body, users);
+    await mentions.sync(orgId, 'message', message.id, mentioned, message.createdAt);
+    return { chat: current, message, opened, mentioned };
   }
 
   private assertMayMessage(settings: DmSettings, actor: Actor, role: Role): void {
@@ -1080,10 +1105,16 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  private sentEvent(orgId: string, actor: Actor, chat: Chat, message: Message) {
+  private sentEvent(
+    orgId: string,
+    actor: Actor,
+    chat: Chat,
+    message: Message,
+    mentionedOrgUserIds: string[],
+  ) {
     return discussionEvents.messageSent.make({
       orgId,
-      data: message,
+      data: { ...message, mentionedOrgUserIds },
       metadata: { ...this.meta(actor), chatStatus: chat.status },
     });
   }
@@ -1102,10 +1133,11 @@ export class ChatServiceImpl implements ChatService {
       return [];
     }
     const messageIds = messages.map((message) => message.id);
-    const [records, attached, reactions] = await Promise.all([
+    const [records, attached, reactions, mentioned] = await Promise.all([
       this.profiles.authorsOf(orgId, [...new Set(messages.map((message) => message.orgUserId))]),
       this.repo.attachmentsOf(orgId, messageIds),
       this.repo.reactionsOf(orgId, messageIds, actor.id),
+      mentionViews(this.mentions, this.profiles, orgId, 'message', messageIds),
     ]);
     const shown = (message: Message) =>
       message.deletedAt !== null && !isStaffRole(actor.role) ? [] : (attached[message.id] ?? []);
@@ -1124,6 +1156,10 @@ export class ChatServiceImpl implements ChatService {
         })),
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
+        mentions:
+          message.deletedAt !== null && !isStaffRole(actor.role)
+            ? []
+            : (mentioned[message.id] ?? []),
       };
     });
   }
