@@ -468,15 +468,18 @@ export class PostServiceImpl implements PostService {
     }
     const now = new Date();
     const role = await this.authors.roleOf(orgId, post.orgUserId);
-    const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
+    const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(
         posts,
         orgId,
         postId,
         this.submissionOf(space.settings.requireReview, role, now),
       );
+      const metadata = this.meta(actor, post.status);
       await outbox.append([
-        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
+        next.status === 'published'
+          ? this.published(orgId, next, metadata, [])
+          : this.updated(orgId, next, metadata),
       ]);
       return next;
     });

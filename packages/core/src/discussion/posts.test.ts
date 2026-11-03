@@ -1671,13 +1671,17 @@ describe('post mentions', () => {
     expect(mentions.rows.find((row) => row.orgUserId === other.id)?.createdAt).toBe(first);
   });
 
-  it('publishes a restored post again with its mentions', async () => {
-    const { svc, calls } = harness();
+  it('publishes a restored post again as a restore, mentioning no one', async () => {
+    const { svc, calls, mentions } = harness();
     const post = await svc.create(ORG, member, draftInput({ body: 'cc <@ou_other>' }));
     await svc.remove(ORG, post.id, moderator);
     await svc.restore(ORG, post.id, moderator);
-    expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
+    expect(lastOf(calls, 'discussion.post.published')).toMatchObject({
+      data: { id: post.id, status: 'published', mentionedOrgUserIds: [] },
+      metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
+    });
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id]);
   });
 });
 
