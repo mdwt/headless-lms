@@ -106,6 +106,7 @@ export function SpaceList({
             </Button>
           </div>
           <DndContext
+            id="community-spaces"
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={DND_MODIFIERS}

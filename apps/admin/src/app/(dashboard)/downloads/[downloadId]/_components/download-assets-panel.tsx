@@ -329,6 +329,7 @@ export function DownloadAssetsPanel({
       ) : (
         <>
           <DndContext
+            id="download-assets"
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={DND_MODIFIERS}

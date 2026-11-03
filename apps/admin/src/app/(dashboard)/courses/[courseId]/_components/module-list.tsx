@@ -221,6 +221,7 @@ function SortableModule({
           </p>
         ) : (
           <DndContext
+            id={`module-activities-${module.id}`}
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={DND_MODIFIERS}
@@ -421,6 +422,7 @@ export function ModuleList({
     <div className="flex flex-col gap-3">
       {canEdit ? (
         <DndContext
+          id="course-modules"
           sensors={sensors}
           collisionDetection={closestCenter}
           modifiers={DND_MODIFIERS}
