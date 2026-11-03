@@ -75,6 +75,18 @@ describe("DrizzleDevicesRepository", () => {
     );
   });
 
+  it("names the people with a device seen since a time in one query", async () => {
+    const { repo, statements } = capture([["usr_1"]]);
+    await expect(repo.usersWithDevices("org_1", ["usr_1", "usr_2"], at)).resolves.toEqual([
+      "usr_1",
+    ]);
+    expect(statements[0]?.text).toMatch(/^select distinct "user_id" from "devices"/);
+    expect(statements[0]?.text).toContain(`"devices"."user_id" in ($2, $3)`);
+    expect(statements[0]?.text).toContain(`"devices"."last_seen_at" >= $4`);
+    await repo.usersWithDevices("org_1", [], at);
+    expect(statements).toHaveLength(1);
+  });
+
   it("deletes a device only for its owner, and dead devices by id", async () => {
     const { repo, statements } = capture([["dev_1"]]);
     await expect(repo.deleteOwn("org_1", "usr_1", "dev_1")).resolves.toBe(true);

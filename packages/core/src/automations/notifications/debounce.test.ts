@@ -110,7 +110,7 @@ function processorWith(
       ],
     },
     settings: { getMany: async () => ({}) },
-    devices: { activeDevices: async () => [] },
+    devices: { withActiveDevices: async () => [] },
     repo: {
       insert: vi.fn(async (_o: string, rows: NewNotification[]) => {
         for (const row of rows) {

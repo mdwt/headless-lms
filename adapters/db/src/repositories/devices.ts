@@ -63,6 +63,23 @@ export class DrizzleDevicesRepository implements DevicesRepository {
     return rows.map(toDevice);
   }
 
+  async usersWithDevices(orgId: string, userIds: string[], since: Date): Promise<string[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .selectDistinct({ userId: devices.userId })
+      .from(devices)
+      .where(
+        and(
+          eq(devices.orgId, orgId),
+          inArray(devices.userId, userIds),
+          gte(devices.lastSeenAt, since),
+        ),
+      );
+    return rows.map((row) => row.userId);
+  }
+
   async deleteOwn(orgId: string, userId: string, deviceId: string): Promise<boolean> {
     const deleted = await this.db
       .delete(devices)

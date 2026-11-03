@@ -30,6 +30,13 @@ function harness(push: PushConfig = PUSH) {
     },
     listForUser: async (_orgId, userId, since) =>
       rows.filter((row) => row.userId === userId && (since === null || row.lastSeenAt >= since)),
+    usersWithDevices: async (_orgId, userIds, since) => [
+      ...new Set(
+        rows
+          .filter((row) => userIds.includes(row.userId) && row.lastSeenAt >= since)
+          .map((row) => row.userId),
+      ),
+    ],
     deleteOwn: async (_orgId, userId, deviceId) => {
       const index = rows.findIndex((row) => row.userId === userId && row.id === deviceId);
       if (index < 0) {
@@ -166,6 +173,19 @@ describe('devices', () => {
     );
     expect(active.map((device) => device.token)).toEqual(['android-1']);
     expect(active[0]).not.toHaveProperty('lastSeenAt');
+  });
+
+  it('names, in one read, the people with a device seen since the cutoff', async () => {
+    const { service, rows } = harness();
+    await service.register('org_1', sarah, iphone);
+    await service.register('org_1', james, { provider: 'fcm', token: 'android-1' });
+    await service.register('org_1', james, { provider: 'fcm', token: 'android-2' });
+    rows[0]!.lastSeenAt = new Date(Date.now() - 31 * DAY);
+    const since = new Date(Date.now() - 30 * DAY);
+    await expect(
+      service.withActiveDevices('org_1', ['usr_sarah', 'usr_james', 'usr_emma'], since),
+    ).resolves.toEqual(['usr_james']);
+    await expect(service.withActiveDevices('org_1', [], since)).resolves.toEqual([]);
   });
 
   it('deletes the devices the provider reported dead', async () => {

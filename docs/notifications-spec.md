@@ -1108,7 +1108,7 @@ The schema migration creates the tables and columns in this section, changes `no
 | `NotificationSettingsService { get; getMany; set; switchedOn }` | identity | identity | automations, `reporting/member`, settings routes |
 | `NotificationCategoryReader { communityList(orgId, communityId); orgList(orgId) }` | identity | composition root, from content and organizations | identity, to validate a settings change |
 | `CommunityAccessReader { canOpen(orgId, actor, communityId) }` | identity | composition root, from entitlements | identity, to check a community settings change |
-| `DevicesService { register; list; remove; activeDevices; removeDead }` | identity | identity | the push channel, automations, device routes |
+| `DevicesService { register; list; remove; activeDevices; withActiveDevices; removeDead }` | identity | identity | the push channel, automations, device routes |
 | `NotificationsService { list; get; unreadCounts; markRead; markAllRead }` | automations | automations | `reporting/member`, notification routes |
 | `ItemTitles { titlesFor(orgId, actor, refs) }` | discussion and content, one each | discussion: posts, comments, chats, messages; content: courses, activities, downloads, bundles, spaces, communities | `reporting/member` |
 | content's and organizations' category services: `get`, `replace`, `reset`, `defaults` | content, organizations | content, organizations | category routes |
@@ -1250,6 +1250,7 @@ interface DevicesService {
   list(orgId: string, actor: Actor): Promise<(PushDevice & { lastSeenAt: Date })[]>;
   remove(orgId: string, actor: Actor, deviceId: string): Promise<void>;
   activeDevices(orgId: string, userId: string, since: Date): Promise<PushDevice[]>;
+  withActiveDevices(orgId: string, userIds: string[], since: Date): Promise<string[]>;
   removeDead(orgId: string, deviceIds: string[]): Promise<void>;
   pushConfig(): { vapidPublicKey: string | null };
 }

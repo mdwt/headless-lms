@@ -85,6 +85,13 @@ export class DevicesServiceImpl implements DevicesService {
     return devices.map(pushDevice);
   }
 
+  async withActiveDevices(orgId: string, userIds: string[], since: Date): Promise<string[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+    return this.repo.usersWithDevices(orgId, [...new Set(userIds)], since);
+  }
+
   async removeDead(orgId: string, deviceIds: string[]): Promise<void> {
     if (deviceIds.length === 0) {
       return;

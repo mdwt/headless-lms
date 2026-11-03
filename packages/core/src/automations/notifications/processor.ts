@@ -67,7 +67,7 @@ export type NotificationProcessorParams = {
   channels: Pick<ChannelRegistry, 'list' | 'get'>;
   categories: NotificationCategories;
   settings: Pick<NotificationSettingsService, 'getMany'>;
-  devices: Pick<DevicesService, 'activeDevices'>;
+  devices: Pick<DevicesService, 'withActiveDevices'>;
   repo: Pick<NotificationsRepository, 'insert' | 'pendingDeliveriesForEvent'>;
   engine: Pick<AutomationEngine, 'deliver'>;
   debounce?: ChatDebounce;
@@ -95,7 +95,7 @@ export class NotificationProcessor {
   private readonly channels: Pick<ChannelRegistry, 'list' | 'get'>;
   private readonly categories: NotificationCategories;
   private readonly settings: Pick<NotificationSettingsService, 'getMany'>;
-  private readonly devices: Pick<DevicesService, 'activeDevices'>;
+  private readonly devices: Pick<DevicesService, 'withActiveDevices'>;
   private readonly repo: Pick<NotificationsRepository, 'insert' | 'pendingDeliveriesForEvent'>;
   private readonly engine: Pick<AutomationEngine, 'deliver'>;
   private readonly debounce: ChatDebounce;
@@ -336,16 +336,23 @@ export class NotificationProcessor {
       categories.map((category) => category.key),
     );
     const configured = this.channels.list();
+    const withDevice = await this.peopleWithDevice(
+      orgId,
+      people,
+      categories,
+      settings,
+      configured,
+    );
     const filed: Filed[] = [];
     for (const person of people) {
-      const entry = await this.fileOne(
-        orgId,
+      const entry = this.fileOne(
         sourceEventId,
         communityId,
         person,
         categories,
         settings[person.userId] ?? [],
         configured,
+        withDevice.has(person.userId),
       );
       if (entry) {
         filed.push(entry);
@@ -354,26 +361,54 @@ export class NotificationProcessor {
     return filed;
   }
 
-  private async fileOne(
+  private async peopleWithDevice(
     orgId: string,
+    people: Person[],
+    categories: NotificationCategory[],
+    settings: Record<string, StoredSetting[]>,
+    configured: string[],
+  ): Promise<Set<string>> {
+    const wanting = people.filter((person) =>
+      categories.some((category) =>
+        this.coveredPairs(category, person.pairs).some(({ pair }) =>
+          resolveChannels(
+            category,
+            settings[person.userId] ?? [],
+            pair.list.spaceId,
+            configured,
+          ).some((channel) => channel.enabled && channel.channel === PUSH),
+        ),
+      ),
+    );
+    if (wanting.length === 0) {
+      return new Set();
+    }
+    const since = new Date(this.now().getTime() - DEVICE_WINDOW_MS);
+    return new Set(
+      await this.devices.withActiveDevices(
+        orgId,
+        wanting.map((person) => person.userId),
+        since,
+      ),
+    );
+  }
+
+  private fileOne(
     sourceEventId: string,
     communityId: string | null,
     person: Person,
     categories: NotificationCategory[],
     settings: StoredSetting[],
     configured: string[],
-  ): Promise<Filed | null> {
-    let hasDevice: boolean | undefined;
+    hasDevice: boolean,
+  ): Filed | null {
     for (const category of categories) {
       for (const { pair, cover } of this.coveredPairs(category, person.pairs)) {
         let on = resolveChannels(category, settings, pair.list.spaceId, configured)
           .filter((channel) => channel.enabled)
           .map((channel) => channel.channel);
-        if (on.includes(PUSH)) {
-          hasDevice ??= await this.hasActiveDevice(orgId, person.userId);
-          if (!hasDevice) {
-            on = on.filter((channel) => channel !== PUSH);
-          }
+        if (!hasDevice) {
+          on = on.filter((channel) => channel !== PUSH);
         }
         if (on.length > 0) {
           return this.filed(sourceEventId, communityId, person, category, pair, cover, on);
@@ -443,11 +478,6 @@ export class NotificationProcessor {
       }
     }
     return covered;
-  }
-
-  private async hasActiveDevice(orgId: string, userId: string): Promise<boolean> {
-    const since = new Date(this.now().getTime() - DEVICE_WINDOW_MS);
-    return (await this.devices.activeDevices(orgId, userId, since)).length > 0;
   }
 
   private async mentionsInChats(orgId: string, filed: Filed[]): Promise<void> {

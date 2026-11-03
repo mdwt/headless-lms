@@ -190,20 +190,8 @@ function build(options: Options = {}) {
   const getMany = vi.fn(async (_o: string, userIds: string[], _scope: unknown, _keys: string[]) =>
     Object.fromEntries(userIds.map((userId) => [userId, options.settings?.[userId] ?? []])),
   );
-  const activeDevices = vi.fn(async (_o: string, userId: string) =>
-    (options.devices ?? []).includes(userId)
-      ? [
-          {
-            id: `dev_${userId}`,
-            provider: 'apns' as const,
-            token: 't',
-            p256dh: null,
-            auth: null,
-            appId: 'com.app',
-            environment: 'production' as const,
-          },
-        ]
-      : [],
+  const withActiveDevices = vi.fn(async (_o: string, userIds: string[], _since: Date) =>
+    userIds.filter((userId) => (options.devices ?? []).includes(userId)),
   );
   const deliver = vi.fn(async (_d: { orgId: string; deliveryId: string }) => {});
   const debounce = { arm: vi.fn(async () => {}), mentioned: vi.fn(async () => {}) };
@@ -225,13 +213,13 @@ function build(options: Options = {}) {
     },
     categories: { listFor },
     settings: { getMany },
-    devices: { activeDevices },
+    devices: { withActiveDevices },
     repo,
     engine: { deliver },
     debounce,
     now: () => NOW,
   });
-  return { processor, repo, reads, listFor, getMany, activeDevices, deliver, debounce, rule };
+  return { processor, repo, reads, listFor, getMany, withActiveDevices, deliver, debounce, rule };
 }
 
 function stored(repo: ReturnType<typeof memoryRepo>, userId: string) {
@@ -398,9 +386,9 @@ describe('NotificationProcessor', () => {
     const without = build({ lists: [commentList([who('ou_emma', 'follower')])] });
     await without.processor.process(EVENT);
     expect(channelsOf(without.repo, stored(without.repo, 'usr_emma')[0]!)).toEqual([]);
-    expect(without.activeDevices).toHaveBeenCalledWith(
+    expect(without.withActiveDevices).toHaveBeenCalledWith(
       'org_1',
-      'usr_emma',
+      ['usr_emma'],
       new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000),
     );
     const onlyPush = build({
@@ -415,6 +403,28 @@ describe('NotificationProcessor', () => {
     });
     await withDevice.processor.process(EVENT);
     expect(channelsOf(withDevice.repo, stored(withDevice.repo, 'usr_emma')[0]!)).toEqual(['push']);
+  });
+
+  it('reads the devices of every person with push on in one call, and none when push is off for all', async () => {
+    const many = build({
+      devices: ['usr_sarah'],
+      lists: [commentList([who('ou_emma', 'follower'), who('ou_sarah', 'post_author')])],
+    });
+    await many.processor.process(EVENT);
+    expect(many.withActiveDevices).toHaveBeenCalledTimes(1);
+    expect(many.withActiveDevices.mock.calls[0]?.[1]).toEqual(
+      expect.arrayContaining(['usr_emma', 'usr_sarah']),
+    );
+    expect(channelsOf(many.repo, stored(many.repo, 'usr_sarah')[0]!)).toContain('push');
+    expect(channelsOf(many.repo, stored(many.repo, 'usr_emma')[0]!)).toEqual([]);
+    const pushOff = build({
+      settings: {
+        usr_emma: [setting('followed_posts', 'push', false)],
+      },
+      lists: [commentList([who('ou_emma', 'follower')])],
+    });
+    await pushOff.processor.process(EVENT);
+    expect(pushOff.withActiveDevices).not.toHaveBeenCalled();
   });
 
   it('stores a notification kept out of the app when only an adapter channel is on', async () => {

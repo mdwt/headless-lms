@@ -173,6 +173,7 @@ export interface DevicesService {
   list(orgId: string, actor: MemberActor): Promise<DeviceView[]>;
   remove(orgId: string, actor: MemberActor, deviceId: string): Promise<void>;
   activeDevices(orgId: string, userId: string, since: Date): Promise<PushDevice[]>;
+  withActiveDevices(orgId: string, userIds: string[], since: Date): Promise<string[]>;
   removeDead(orgId: string, deviceIds: string[]): Promise<void>;
   pushConfig(): { vapidPublicKey: string | null };
 }
@@ -190,6 +191,7 @@ export interface NewDevice {
 export interface DevicesRepository {
   upsert(orgId: string, device: NewDevice, at: Date): Promise<DeviceView>;
   listForUser(orgId: string, userId: string, since: Date | null): Promise<DeviceView[]>;
+  usersWithDevices(orgId: string, userIds: string[], since: Date): Promise<string[]>;
   deleteOwn(orgId: string, userId: string, deviceId: string): Promise<boolean>;
   deleteMany(orgId: string, deviceIds: string[]): Promise<void>;
 }
