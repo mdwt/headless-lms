@@ -88,6 +88,9 @@ function data(message: PushMessage): Record<string, string> {
   if (message.data.spaceId) {
     values.spaceId = message.data.spaceId;
   }
+  if (message.data.courseId) {
+    values.courseId = message.data.courseId;
+  }
   return values;
 }
 

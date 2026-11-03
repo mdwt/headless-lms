@@ -174,9 +174,17 @@ export function pushChannel(deps: {
     },
     deliver: async (notification, to) => {
       const text = deps.types.get(notification.type)?.push?.[notification.scope];
-      if (!text || !to.devices) {
-        throw new Error(`no push text for ${notification.type} in ${notification.scope}`);
+      if (!to.devices) {
+        return { accepted: false, deadDeviceIds: [], error: 'no address' };
       }
+      if (!text) {
+        return {
+          accepted: false,
+          deadDeviceIds: [],
+          error: `no push text for ${notification.type} in ${notification.scope}`,
+        };
+      }
+      const courseId = notification.display.courseId;
       return deps.sender.send(to.devices, {
         title: renderPushText(text.title, notification.display),
         body: renderPushText(text.body, notification.display),
@@ -187,6 +195,7 @@ export function pushChannel(deps: {
           parent: notification.parent,
           communityId: notification.communityId,
           spaceId: notification.spaceId,
+          courseId: typeof courseId === 'string' ? courseId : null,
         },
       });
     },

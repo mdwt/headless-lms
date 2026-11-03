@@ -41,6 +41,7 @@ const MESSAGE: PushMessage = {
     parent: { type: "post", id: "pst_1" },
     communityId: "cmy_1",
     spaceId: "spc_1",
+    courseId: null,
   },
 };
 
@@ -346,7 +347,31 @@ describe("PushAdapter with FCM", () => {
     });
   });
 
-  it("leaves out an absent subject, parent, community or space from the data", async () => {
+  it("names the course of a notification on a course activity", async () => {
+    const { calls, fetchFn } = fakeFetch(fcmRoutes(json(200, {})));
+    const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn });
+
+    await adapter.send([fcmDevice("dev_1")], {
+      ...MESSAGE,
+      data: {
+        ...MESSAGE.data,
+        parent: { type: "activity", id: "act_1" },
+        communityId: null,
+        spaceId: null,
+        courseId: "crs_1",
+      },
+    });
+
+    expect(JSON.parse(String(calls[1]!.init.body)).message.data).toEqual({
+      notificationId: "ntf_1",
+      type: "mention",
+      subject: JSON.stringify({ type: "comment", id: "cmt_1" }),
+      parent: JSON.stringify({ type: "activity", id: "act_1" }),
+      courseId: "crs_1",
+    });
+  });
+
+  it("leaves out an absent subject, parent, community, space or course from the data", async () => {
     const { calls, fetchFn } = fakeFetch(fcmRoutes(json(200, {})));
     const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn });
 

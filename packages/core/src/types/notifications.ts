@@ -115,6 +115,7 @@ export interface PushMessage {
     parent: SubjectRef | null;
     communityId: string | null;
     spaceId: string | null;
+    courseId: string | null;
   };
 }
 

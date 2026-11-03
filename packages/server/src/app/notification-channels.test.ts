@@ -321,15 +321,57 @@ describe('push channel', () => {
         parent: { type: 'post', id: 'pst_1' },
         communityId: 'cmy_1',
         spaceId: 'spc_2',
+        courseId: null,
       },
     });
   });
 
-  it('throws for a type with no push text in the scope', async () => {
-    const { channels } = registries([iphone]);
+  it('names the course of a notification on a course activity', async () => {
+    const send = vi.fn(async () => ({ accepted: true, deadDeviceIds: [] as string[] }));
+    const { channels } = registries([iphone], send);
+    await channels.get('push')!.deliver(
+      notification({
+        scope: 'org',
+        communityId: null,
+        spaceId: null,
+        parent: { type: 'activity', id: 'act_1' },
+        display: {
+          activityTitle: 'Rolling your Rs',
+          courseTitle: 'Spanish in 90 Days',
+          courseId: 'crs_1',
+          commenterName: 'James',
+          excerpt: 'Nice',
+        },
+      }),
+      { devices: [iphone] },
+    );
+    expect(send).toHaveBeenCalledWith(
+      [iphone],
+      expect.objectContaining({
+        data: {
+          notificationId: 'ntf_1',
+          type: 'comment.created',
+          subject: { type: 'comment', id: 'cmt_1' },
+          parent: { type: 'activity', id: 'act_1' },
+          communityId: null,
+          spaceId: null,
+          courseId: 'crs_1',
+        },
+      }),
+    );
+  });
+
+  it('answers not accepted, for good, for a type with no push text in the scope', async () => {
+    const send = vi.fn(async () => ({ accepted: true, deadDeviceIds: [] as string[] }));
+    const { channels } = registries([iphone], send);
     await expect(
       channels.get('push')!.deliver(notification({ type: 'post.liked' }), { devices: [iphone] }),
-    ).rejects.toThrow('no push text for post.liked in space');
+    ).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: [],
+      error: 'no push text for post.liked in space',
+    });
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('is used only when at least one provider is configured', () => {

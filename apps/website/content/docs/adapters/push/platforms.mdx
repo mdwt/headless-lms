@@ -41,7 +41,7 @@ An app registers its push address after sign-in and on every launch with `POST /
 
 ## What a push carries
 
-Every push has a title and body, rendered from the notification, and `data`: `{ notificationId, type, subject, parent, communityId, spaceId }`, so the app can open the item and mark the notification read. On FCM every `data` value is a string, with `subject` and `parent` JSON-encoded.
+Every push has a title and body, rendered from the notification, and `data`: `{ notificationId, type, subject, parent, communityId, spaceId, courseId }`, so the app can open the item and mark the notification read; `courseId` names the course of a notification on a course activity. On FCM every `data` value is a string, with `subject` and `parent` JSON-encoded.
 
 A delivery is sent when at least one device accepts it. A network error, a `429` or a `5xx` from every device is retried by the workflow engine; an answer that won't change on a retry fails the delivery at once. Devices the provider reports as gone are removed.
 

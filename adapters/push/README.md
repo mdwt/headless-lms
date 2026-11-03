@@ -28,12 +28,13 @@ const container = await createContainer(config, {
 ## Payload
 
 Every provider receives the message's `title` and `body` and its `data`:
-`{ notificationId, type, subject, parent, communityId, spaceId }`; `communityId` and `spaceId` are
-null for a notification outside a community or a space.
+`{ notificationId, type, subject, parent, communityId, spaceId, courseId }`; `communityId` and
+`spaceId` are null for a notification outside a community or a space, and `courseId` is null for a
+notification not on a course activity.
 
 - APNs: `{ aps: { alert: { title, body } }, data }`.
 - FCM: `notification: { title, body }` and `data`, whose values FCM requires to be strings:
-  `subject` and `parent` are JSON-encoded `{ type, id }`; each of the four is left out when absent.
+  `subject` and `parent` are JSON-encoded `{ type, id }`; each of the five is left out when absent.
 - Web Push: the JSON `{ title, body, data }`, which the service worker's `push` event reads.
 
 ## Results
