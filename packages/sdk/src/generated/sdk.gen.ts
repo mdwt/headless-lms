@@ -8538,7 +8538,7 @@ export class Automations {
   /**
    * Create a workflow automation (staff)
    *
-   * Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.
+   * Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
    */
   public static createAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8642,7 +8642,7 @@ export class Automations {
   /**
    * Delete a workflow automation (staff)
    *
-   * Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints, and system automations cannot be deleted (409). Its runs stay readable.
+   * Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.
    */
   public static deleteAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8692,7 +8692,7 @@ export class Automations {
   /**
    * Update a workflow automation (staff)
    *
-   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.
+   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
    */
   public static updateAutomation<ThrowOnError extends boolean = false>(
     parameters: {

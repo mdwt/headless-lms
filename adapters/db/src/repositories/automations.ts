@@ -34,7 +34,6 @@ const automationSelection = {
   actions: automations.actions,
   enabled: automations.enabled,
   filter: automations.filter,
-  source: automations.source,
   createdAt: automations.createdAt,
   updatedAt: automations.updatedAt,
 };
@@ -49,7 +48,6 @@ interface AutomationRow {
   actions: Automation["actions"];
   enabled: boolean;
   filter: Automation["filter"];
-  source: Automation["source"];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,7 +63,6 @@ function toAutomation(row: AutomationRow): Automation {
     actions: row.actions,
     enabled: row.enabled,
     filter: row.filter,
-    source: row.source,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -88,7 +85,6 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
         triggers: input.triggers,
         actions: input.actions,
         filter: input.filter ?? null,
-        source: input.source ?? "user",
       })
       .returning({ id: automations.id });
     if (!inserted) {
@@ -99,24 +95,6 @@ export class DrizzleAutomationsRepository implements AutomationsRepository {
       throw new Error("failed to load created automation");
     }
     return created;
-  }
-
-  async insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null> {
-    const [inserted] = await this.db
-      .insert(automations)
-      .values({
-        orgId,
-        name: input.name,
-        kind: input.kind,
-        description: input.description,
-        triggers: input.triggers,
-        actions: input.actions,
-        filter: input.filter ?? null,
-        source: "system",
-      })
-      .onConflictDoNothing()
-      .returning({ id: automations.id });
-    return inserted ? this.findById(orgId, inserted.id) : null;
   }
 
   async update(

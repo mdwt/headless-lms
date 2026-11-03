@@ -34,7 +34,6 @@ export type {
 
 export type NewAutomation = CreateAutomationInput & {
   kind: AutomationKind;
-  source?: 'system' | 'user';
 };
 
 export interface NotificationCategories {
@@ -75,7 +74,6 @@ export interface AutomationsService {
 // Outbound ports (persistence contracts the repositories fulfil).
 export interface AutomationsRepository {
   insert(orgId: string, input: NewAutomation): Promise<Automation>;
-  insertSeed(orgId: string, input: NewAutomation): Promise<Automation | null>;
   update(orgId: string, id: string, patch: UpdateAutomationInput): Promise<Automation | null>;
   /** Returns the deleted row (the event snapshot), or null if it didn't exist. */
   delete(orgId: string, id: string): Promise<Automation | null>;

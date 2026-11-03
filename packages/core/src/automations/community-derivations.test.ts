@@ -4,9 +4,8 @@ import { organizationEvents } from '../organizations/index.js';
 import { discussionEvents } from '../discussion/index.js';
 import { executeAction } from './actions.js';
 import { COMMUNITY_DERIVATIONS } from './community-derivations.js';
-import { emptyCommunityMail, emptyNotificationDesk, type ActionDeps } from './community-mail.js';
+import { emptyCommunityMail, type ActionDeps } from './community-mail.js';
 import type { DomainEvent } from '../shared/ports.js';
-import { createCapturingLogger } from '../shared/logger.js';
 
 function ready(event: {
   type: string;
@@ -48,7 +47,6 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
       space: vi.fn(async () => ({ name: 'Announcements', communityId: 'cmy_1', capacity: 4 })),
     },
     grants: { grant: vi.fn() },
-    desk: emptyNotificationDesk,
     automationId: 'atm_1',
     actionInput: { template: 'welcomeToCommunity', communityId: 'cmy_1' },
     ...over,
@@ -604,132 +602,15 @@ describe('executeAction fan-out', () => {
       ),
     ).rejects.toThrow('sendEmail: delivery failed for all 3 recipients');
   });
-
-  it('still adds every in-app notification when some emails fail', async () => {
-    const send = vi.fn(async (to: string) => {
-      if (to === 'ou_1@example.com') {
-        throw new Error('address rejected');
-      }
-    });
-    const notify = vi.fn(async (_orgId: string, _notifications: unknown[]) => {});
-    const outcome = await executeAction(
-      { type: 'notify', input: { kind: 'newPostInSpace' } },
-      published(),
-      openers({ mailer: { send }, desk: { ...emptyNotificationDesk, notify } }),
-    );
-    expect(send).toHaveBeenCalledTimes(3);
-    expect(notify).toHaveBeenCalledTimes(1);
-    expect(notify.mock.calls[0]?.[1]).toHaveLength(3);
-    expect(outcome).toEqual({ recipients: ['ou_1', 'ou_2', 'ou_3'], failed: ['ou_1'] });
-  });
 });
 
-describe('executeAction notifications', () => {
-  const granted = () =>
-    ready(entitlementEvents.entitlementCreated.make({ orgId: 'org-1', data: ENTITLEMENT }));
-
-  it('emails and adds a notification for each person concerned', async () => {
-    const send = vi.fn(async () => {});
-    const notify = vi.fn(async () => {});
-    const recipients = await executeAction(
-      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
-      granted(),
-      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify } }),
+describe('executeAction notify', () => {
+  it('is no longer an action', async () => {
+    const granted = ready(
+      entitlementEvents.entitlementCreated.make({ orgId: 'org-1', data: ENTITLEMENT }),
     );
-    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
-    expect(send).toHaveBeenCalledWith('ou_1@example.com', 'welcomeToCommunity', expect.anything());
-    expect(notify).toHaveBeenCalledWith('org-1', [
-      {
-        userId: 'usr_ou_1',
-        kind: 'welcomeToCommunity',
-        actorOrgUserId: null,
-        communityId: 'cmy_1',
-        spaceId: null,
-        postId: null,
-        commentId: null,
-        chatId: null,
-        messageId: null,
-      },
-    ]);
-  });
-
-  it('sends no email to a person who turned email off', async () => {
-    const send = vi.fn(async () => {});
-    const notify = vi.fn(async () => {});
-    const preferencesFor = vi.fn(async () => ({
-      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: true, email: false },
-    }));
-    const recipients = await executeAction(
-      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
-      granted(),
-      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
-    );
-    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
-    expect(send).not.toHaveBeenCalled();
-    expect(notify).toHaveBeenCalledWith('org-1', [
-      expect.objectContaining({ userId: 'usr_ou_1', kind: 'welcomeToCommunity' }),
-    ]);
-    expect(preferencesFor).toHaveBeenCalledWith('org-1', ['usr_ou_1'], 'welcomeToCommunity');
-  });
-
-  it('adds no notification for a person who turned in-app off', async () => {
-    const send = vi.fn(async () => {});
-    const notify = vi.fn(async () => {});
-    const preferencesFor = vi.fn(async () => ({
-      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: false, email: true },
-    }));
-    const recipients = await executeAction(
-      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
-      granted(),
-      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify, preferencesFor } }),
-    );
-    expect(recipients).toEqual({ recipients: ['ou_1'], failed: [] });
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(notify).toHaveBeenCalledWith('org-1', []);
-  });
-
-  it('reaches no one who turned both off', async () => {
-    const send = vi.fn(async () => {});
-    const preferencesFor = vi.fn(async () => ({
-      usr_ou_1: { kind: 'welcomeToCommunity' as const, inApp: false, email: false },
-    }));
-    const recipients = await executeAction(
-      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
-      granted(),
-      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, preferencesFor } }),
-    );
-    expect(recipients).toEqual({ recipients: [], failed: [] });
-    expect(send).not.toHaveBeenCalled();
-  });
-
-  it('keeps the in-app notification when the email to that person fails', async () => {
-    const send = vi.fn(async () => {
-      throw new Error('address rejected');
-    });
-    const notify = vi.fn(async () => {});
-    const { logger, entries } = createCapturingLogger();
-    const outcome = await executeAction(
-      { type: 'notify', input: { kind: 'welcomeToCommunity', communityId: 'cmy_1' } },
-      granted(),
-      deps({ mailer: { send }, desk: { ...emptyNotificationDesk, notify }, logger }),
-    );
-    expect(outcome).toEqual({ recipients: ['ou_1'], failed: ['ou_1'] });
-    expect(notify).toHaveBeenCalledWith('org-1', [
-      expect.objectContaining({ userId: 'usr_ou_1', kind: 'welcomeToCommunity' }),
-    ]);
-    expect(entries).toEqual([
-      expect.objectContaining({
-        level: 'warn',
-        msg: 'automation email not delivered',
-        meta: expect.objectContaining({ orgId: 'org-1', orgUserId: 'ou_1' }),
-      }),
-    ]);
-    expect(JSON.stringify(entries[0]?.meta)).not.toContain('ou_1@example.com');
-  });
-
-  it('refuses a kind that is not a notification', async () => {
     await expect(
-      executeAction({ type: 'notify', input: { kind: 'accessGranted' } }, granted(), deps()),
-    ).rejects.toThrow('notify: unknown kind "accessGranted"');
+      executeAction({ type: 'notify', input: { kind: 'welcomeToCommunity' } }, granted, deps()),
+    ).rejects.toThrow('unknown automation action type "notify"');
   });
 });

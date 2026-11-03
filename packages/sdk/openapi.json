@@ -60565,13 +60565,6 @@
                           "$ref": "#/components/schemas/JsonValue"
                         }
                       },
-                      "source": {
-                        "type": "string",
-                        "enum": [
-                          "system",
-                          "user"
-                        ]
-                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -60591,7 +60584,6 @@
                       "actions",
                       "enabled",
                       "filter",
-                      "source",
                       "createdAt",
                       "updatedAt"
                     ],
@@ -60729,7 +60721,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.",
+        "description": "Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.",
         "requestBody": {
           "required": true,
           "content": {
@@ -60865,13 +60857,6 @@
                         "$ref": "#/components/schemas/JsonValue"
                       }
                     },
-                    "source": {
-                      "type": "string",
-                      "enum": [
-                        "system",
-                        "user"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -60891,7 +60876,6 @@
                     "actions",
                     "enabled",
                     "filter",
-                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -61369,13 +61353,6 @@
                         "$ref": "#/components/schemas/JsonValue"
                       }
                     },
-                    "source": {
-                      "type": "string",
-                      "enum": [
-                        "system",
-                        "user"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -61395,7 +61372,6 @@
                     "actions",
                     "enabled",
                     "filter",
-                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -61557,7 +61533,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.",
+        "description": "Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.",
         "requestBody": {
           "required": true,
           "content": {
@@ -61701,13 +61677,6 @@
                         "$ref": "#/components/schemas/JsonValue"
                       }
                     },
-                    "source": {
-                      "type": "string",
-                      "enum": [
-                        "system",
-                        "user"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -61727,7 +61696,6 @@
                     "actions",
                     "enabled",
                     "filter",
-                    "source",
                     "createdAt",
                     "updatedAt"
                   ],
@@ -61914,7 +61882,7 @@
         "tags": [
           "Automations"
         ],
-        "description": "Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints, and system automations cannot be deleted (409). Its runs stay readable.",
+        "description": "Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.",
         "parameters": [
           {
             "schema": {

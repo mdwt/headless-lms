@@ -1,5 +1,4 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
-import type { NotificationDesk } from '../identity/index.js';
 import type {
   ChatStatus,
   EmailTemplateId,
@@ -92,7 +91,6 @@ export interface ActionDeps {
   webhooks: WebhookSender;
   mail: CommunityMailReads;
   grants: GrantWriter;
-  desk: NotificationDesk;
   automationId: string;
   actionInput: Record<string, JsonValue>;
   logger?: Logger;
@@ -118,11 +116,6 @@ export const emptyCommunityMail: CommunityMailReads = {
   activeMemberCount: async () => 0,
   memberCommunityTitles: async () => [],
   recentMessageRecipients: async () => [],
-};
-
-export const emptyNotificationDesk: NotificationDesk = {
-  notify: async () => {},
-  preferencesFor: async () => ({}),
 };
 
 export function actorOf(event: DomainEvent): string | undefined {

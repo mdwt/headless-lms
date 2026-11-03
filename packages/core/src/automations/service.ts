@@ -14,8 +14,6 @@ import {
 import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter } from './community-mail.js';
-import type { NotificationDesk } from '../identity/index.js';
-import { communitySeeds, orgSeeds, type SeedAutomation } from './seeds.js';
 import { cronSupported } from './schedule.js';
 import {
   ActionFailedError,
@@ -82,14 +80,6 @@ function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
-function recordString(value: unknown, key: string): string | null {
-  if (typeof value !== 'object' || value === null || !(key in value)) {
-    return null;
-  }
-  const found = (value as Record<string, unknown>)[key];
-  return typeof found === 'string' ? found : null;
-}
-
 function filterMatches(filter: Record<string, JsonValue> | null, data: unknown): boolean {
   if (filter == null) {
     return true;
@@ -128,6 +118,7 @@ function assertCatalogTriggers(triggers: string[], schedules: boolean): void {
 }
 
 const REMOVED_ACTIONS = new Set([
+  'notify',
   'publishDuePosts',
   'expireDueGrants',
   'sendDigest',
@@ -218,7 +209,6 @@ export type AutomationsServiceParams = {
   webhooks: WebhookSender;
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
-  desk: NotificationDesk;
   logger?: Logger;
 };
 
@@ -234,7 +224,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly webhooks: WebhookSender;
   private readonly mail: CommunityMailReads;
   private readonly grants: GrantWriter;
-  private readonly desk: NotificationDesk;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -253,7 +242,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         this.runsRepo.recentRecipients(orgId, automationId, chatId, since),
     };
     this.grants = params.grants;
-    this.desk = params.desk;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -262,7 +250,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (event.type.startsWith('automation.')) {
       return;
     }
-    await this.seedFor(event);
     const automations = await this.safeListByTrigger(event);
     for (const automation of automations) {
       const matches = filterMatches(automation.filter, event.data);
@@ -277,59 +264,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         continue;
       }
       await this.dispatchOne(automation, event);
-    }
-  }
-
-  private seedsFor(event: DomainEvent): SeedAutomation[] | null {
-    if (event.type === 'organization.created') {
-      return orgSeeds();
-    }
-    if (event.type !== 'content.community.created') {
-      return null;
-    }
-    const communityId = recordString(event.data, 'id');
-    if (!communityId) {
-      this.logger.error('community seed missing id', { orgId: event.orgId, eventId: event.id });
-      return null;
-    }
-    return communitySeeds(communityId);
-  }
-
-  private async seedFor(event: DomainEvent): Promise<void> {
-    const rows = this.seedsFor(event);
-    if (!rows) {
-      return;
-    }
-    const seeded = await this.uow.run(async ({ automations, outbox }) => {
-      const created = [];
-      for (const row of rows) {
-        const inserted = await automations.insertSeed(event.orgId, {
-          name: row.name,
-          description: row.description,
-          triggers: row.triggers,
-          actions: row.actions,
-          filter: row.filter,
-          kind: 'workflow',
-          source: 'system',
-        });
-        if (inserted) {
-          created.push(
-            automationEvents.automationCreated.make({ orgId: event.orgId, data: inserted }),
-          );
-        }
-      }
-      if (created.length > 0) {
-        await outbox.append(created);
-        this.logger.info('system automations seeded', {
-          orgId: event.orgId,
-          trigger: event.type,
-          count: created.length,
-        });
-      }
-      return created.length;
-    });
-    if (seeded > 0) {
-      await this.reconcileSchedules(event.orgId);
     }
   }
 
@@ -465,7 +399,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         webhooks: this.webhooks,
         mail: this.mail,
         grants: this.grants,
-        desk: this.desk,
         automationId: d.automationId,
         actionInput: action.input,
         logger: this.logger,
@@ -646,9 +579,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     if (existing.kind !== 'workflow') {
       throw new AutomationKindMismatchError(id, existing.kind);
-    }
-    if (existing.source === 'system') {
-      throw new ConflictError('A system automation cannot be deleted');
     }
     const deleted = await this.uow.run(async ({ automations, outbox }) => {
       const removed = await automations.delete(orgId, id);

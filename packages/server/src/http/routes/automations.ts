@@ -90,7 +90,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: 'Create a workflow automation (staff)',
       description:
-        'Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.',
+        'Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.',
       body: CreateAutomationBody,
       response: { 201: Automation, ...refusals(400, 403) },
     },
@@ -132,7 +132,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: 'Update a workflow automation (staff)',
       description:
-        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks.',
+        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.',
       params: AutomationIdParam,
       body: UpdateAutomationBody,
       response: { 200: Automation, ...refusals(400, 403, 404, 409) },
@@ -156,7 +156,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
       tags,
       summary: 'Delete a workflow automation (staff)',
       description:
-        'Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints, and system automations cannot be deleted (409). Its runs stay readable.',
+        'Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.',
       params: AutomationIdParam,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },

@@ -19529,7 +19529,6 @@ export type ListAutomationsResponses = {
     filter: {
       [key: string]: JsonValue;
     } | null;
-    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   }>;
@@ -19622,7 +19621,6 @@ export type CreateAutomationResponses = {
     filter: {
       [key: string]: JsonValue;
     } | null;
-    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };
@@ -19896,7 +19894,6 @@ export type GetAutomationResponses = {
     filter: {
       [key: string]: JsonValue;
     } | null;
-    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };
@@ -20008,7 +20005,6 @@ export type UpdateAutomationResponses = {
     filter: {
       [key: string]: JsonValue;
     } | null;
-    source: "system" | "user";
     createdAt: string;
     updatedAt: string;
   };

@@ -639,7 +639,6 @@ export async function buildContainer(
       new FetchWebhookSender({ allowPrivateNetwork: config.webhookAllowPrivateNetwork }),
     mail: wired.mail,
     grants: wired.grants,
-    desk: notifications,
     logger: automationsLogger,
   });
   automationEngine.register(automations);

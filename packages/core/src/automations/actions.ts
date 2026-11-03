@@ -5,24 +5,17 @@
 // which (trigger, template) pairings are derivable. A template with no entry
 // (e.g. courseCompleted) makes `executeAction` throw a named error, recorded
 // by the engine as a failed action.
-import type { EmailTemplateId, NotificationKind } from '../types/index.js';
-import { deliverWebhookInputSchema, notificationKindSchema } from '../types/schemas/index.js';
+import type { EmailTemplateId } from '../types/index.js';
+import { deliverWebhookInputSchema } from '../types/schemas/index.js';
 import { entitlementEvents } from '../entitlements/index.js';
-import type { NewNotification } from '../identity/index.js';
 import type { DomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { ActionFailedError, type AutomationAction } from './model.js';
 import type { WebhookResponse } from './ports.js';
-import {
-  ALL_EMAIL_TEMPLATE_IDS,
-  DELIVER_WEBHOOK_ACTION,
-  NOTIFY_ACTION,
-  publicDataSchema,
-} from './catalog.js';
+import { ALL_EMAIL_TEMPLATE_IDS, DELIVER_WEBHOOK_ACTION, publicDataSchema } from './catalog.js';
 import { webhookHeaders } from './webhook-signing.js';
 import { address, type ActionDeps, type EmailRecipient } from './community-mail.js';
 import { COMMUNITY_DERIVATIONS, type EmailDerivation } from './community-derivations.js';
-import { NOTIFICATION_PLACEMENTS } from './community-notifications.js';
 
 type SendEmailDerivations = { [K in EmailTemplateId]?: EmailDerivation<K> };
 
@@ -130,15 +123,6 @@ export async function executeAction(
       }
       return assertSomeDelivered('sendEmail', outcome);
     }
-    case NOTIFY_ACTION: {
-      const kind = notificationKindSchema.safeParse(action.input['kind']);
-      if (!kind.success) {
-        throw new ActionFailedError(
-          `${NOTIFY_ACTION}: unknown kind "${String(action.input['kind'])}"`,
-        );
-      }
-      return notify(kind.data, event, { ...deps, actionInput: action.input });
-    }
     case 'grantAccess': {
       await grantAccess(action, event, deps);
       return reachedNoOne();
@@ -173,66 +157,6 @@ async function send<K extends EmailTemplateId>(
     });
     return false;
   }
-}
-
-async function notify<K extends NotificationKind>(
-  kind: K,
-  event: DomainEvent,
-  deps: ActionDeps,
-): Promise<ActionOutcome> {
-  const derivation = SEND_EMAIL_DERIVATIONS[kind] as EmailDerivation<K> | undefined;
-  if (!derivation || !derivation.triggers.includes(event.type)) {
-    throw new ActionFailedError(
-      `${NOTIFY_ACTION}: kind "${kind}" cannot be derived from event "${event.type}"`,
-    );
-  }
-  const recipients = await derivation.derive(event, deps);
-  if (!recipients) {
-    throw new ActionFailedError(
-      `${NOTIFY_ACTION}: event "${event.type}" is missing the data required to derive kind "${kind}"`,
-    );
-  }
-  const preferences = await deps.desk.preferencesFor(
-    event.orgId,
-    recipients.map((recipient) => recipient.userId),
-    kind,
-  );
-  const placement = NOTIFICATION_PLACEMENTS[kind];
-  const notifications: NewNotification[] = [];
-  const outcome = reachedNoOne();
-  for (const recipient of recipients) {
-    const preference = preferences[recipient.userId];
-    const email = preference?.email !== false;
-    const inApp = preference?.inApp !== false;
-    const emailed = email && (await send(kind, recipient, event, deps));
-    let placed = false;
-    if (inApp) {
-      try {
-        const placements = await placement.place(event, recipient, deps);
-        notifications.push(
-          ...placements.map((spot) => ({ ...spot, userId: recipient.userId, kind })),
-        );
-        placed = true;
-      } catch (err) {
-        (deps.logger ?? noopLogger).warn('automation notification not placed', {
-          orgId: event.orgId,
-          automationId: deps.automationId,
-          trigger: event.type,
-          kind,
-          orgUserId: recipient.orgUserId,
-          err,
-        });
-      }
-    }
-    if (emailed || placed) {
-      outcome.recipients.push(recipient.orgUserId);
-    }
-    if ((email && !emailed) || (inApp && !placed)) {
-      outcome.failed.push(recipient.orgUserId);
-    }
-  }
-  await deps.desk.notify(event.orgId, notifications);
-  return assertSomeDelivered(NOTIFY_ACTION, outcome);
 }
 
 function grantRecipient(event: DomainEvent): string | undefined {

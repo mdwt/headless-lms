@@ -17,7 +17,6 @@ import type {
   AutomationRunsRepository,
   AutomationsRepository,
   AutomationsUnitOfWork,
-  NewAutomation,
   WebhookSender,
 } from './ports.js';
 import type {
@@ -33,7 +32,7 @@ import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
-import { emptyCommunityMail, emptyNotificationDesk } from './community-mail.js';
+import { emptyCommunityMail } from './community-mail.js';
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -86,7 +85,6 @@ const AUTOMATION: Automation = {
   actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
   enabled: true,
   filter: null,
-  source: 'user',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
@@ -110,7 +108,6 @@ const WEBHOOK_AUTOMATION: Automation = {
   ],
   enabled: true,
   filter: null,
-  source: 'user',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
@@ -133,7 +130,6 @@ const RUN: AutomationRun = {
 function fakeRepo(over?: Partial<AutomationsRepository>): AutomationsRepository {
   return {
     insert: vi.fn().mockResolvedValue(AUTOMATION),
-    insertSeed: vi.fn().mockResolvedValue(AUTOMATION),
     update: vi.fn().mockResolvedValue(AUTOMATION),
     delete: vi.fn().mockResolvedValue(AUTOMATION),
     findById: vi.fn().mockResolvedValue(AUTOMATION),
@@ -254,7 +250,6 @@ function build(
         throw new Error('grantAccess: no grant writer configured');
       },
     },
-    desk: emptyNotificationDesk,
     logger,
   });
   return {
@@ -298,50 +293,6 @@ describe('AutomationsService.handle', () => {
     const { svc, engine } = build(repo);
     await svc.handle(ENTITLEMENT_CREATED_EVENT);
     expect(engine.dispatch).toHaveBeenCalledTimes(1);
-  });
-
-  it('seeds the org automations once when the organization is created', async () => {
-    const stored: Automation[] = [];
-    const repo = fakeRepo({
-      listByTrigger: vi.fn().mockResolvedValue([]),
-      insertSeed: vi.fn(async (_orgId: string, input: NewAutomation) => {
-        const key = `${input.name}:${String(input.filter?.['communityId'] ?? '')}`;
-        if (
-          stored.some((row) => `${row.name}:${String(row.filter?.['communityId'] ?? '')}` === key)
-        ) {
-          return null;
-        }
-        const row: Automation = {
-          ...AUTOMATION,
-          id: `atm_${stored.length}`,
-          name: input.name,
-          description: input.description ?? null,
-          triggers: [...input.triggers],
-          actions: input.actions,
-          filter: input.filter ?? null,
-          source: input.source ?? 'user',
-        };
-        stored.push(row);
-        return row;
-      }),
-    });
-    const { svc, appended } = build(repo);
-    const created = {
-      type: 'organization.created',
-      version: 1,
-      id: 'evt_org',
-      orgId: 'org-1',
-      occurredAt: '2026-01-01T00:00:00Z',
-      data: { id: 'org-1' },
-    } as DomainEvent;
-    await svc.handle(created);
-    expect(stored).toHaveLength(5);
-    expect(stored.every((row) => row.source === 'system')).toBe(true);
-    expect(appended).toHaveLength(5);
-    await svc.handle(created);
-    expect(stored).toHaveLength(5);
-    expect(appended).toHaveLength(5);
-    expect(repo.insert).not.toHaveBeenCalled();
   });
 
   it("matches an enabled automation's trigger, opens a run, and dispatches it", async () => {
@@ -844,20 +795,23 @@ describe('AutomationsService CRUD', () => {
     expect(repo.insert).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['publishDuePosts', 'expireDueGrants', 'sendDigest', 'removeUnattachedUploads'])(
-    'rejects the removed %s action on create and update',
-    async (type) => {
-      const { svc, repo, append } = build();
-      const actions = [{ type, input: {} }];
-      await expect(
-        svc.create('org-1', { name: 'Old', triggers: ['schedule:0 * * * *'], actions }),
-      ).rejects.toThrow(InvalidInputError);
-      await expect(svc.update('org-1', 'atm_1', { actions })).rejects.toThrow(InvalidInputError);
-      expect(repo.insert).not.toHaveBeenCalled();
-      expect(repo.update).not.toHaveBeenCalled();
-      expect(append).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    'notify',
+    'publishDuePosts',
+    'expireDueGrants',
+    'sendDigest',
+    'removeUnattachedUploads',
+  ])('rejects the removed %s action on create and update', async (type) => {
+    const { svc, repo, append } = build();
+    const actions = [{ type, input: {} }];
+    await expect(
+      svc.create('org-1', { name: 'Old', triggers: ['schedule:0 * * * *'], actions }),
+    ).rejects.toThrow(InvalidInputError);
+    await expect(svc.update('org-1', 'atm_1', { actions })).rejects.toThrow(InvalidInputError);
+    expect(repo.insert).not.toHaveBeenCalled();
+    expect(repo.update).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
 
   it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
     const { svc, repo, append } = build();
@@ -925,15 +879,6 @@ describe('AutomationsService CRUD', () => {
         data: AUTOMATION,
       }),
     ]);
-  });
-
-  it('refuses to delete a system automation', async () => {
-    const repo = fakeRepo({
-      findById: vi.fn().mockResolvedValue({ ...AUTOMATION, source: 'system' }),
-    });
-    const { svc } = build(repo);
-    await expect(svc.delete('org-1', 'atm_1')).rejects.toBeInstanceOf(ConflictError);
-    expect(repo.delete).not.toHaveBeenCalled();
   });
 
   it('returns false and appends nothing when deleting a missing automation', async () => {
@@ -1079,7 +1024,6 @@ describe('AutomationsService.availableActions', () => {
         inputSchema: expect.objectContaining({ type: 'object', required: ['template'] }),
         source: 'system',
       },
-      expect.objectContaining({ type: 'notify', source: 'system' }),
       expect.objectContaining({ type: 'grantAccess', source: 'system' }),
       {
         type: 'slack.send-message',
@@ -1092,11 +1036,7 @@ describe('AutomationsService.availableActions', () => {
 
   it('returns only the built-ins when no integrations are loaded', () => {
     const { svc } = build();
-    expect(svc.availableActions().map((a) => a.type)).toEqual([
-      'sendEmail',
-      'notify',
-      'grantAccess',
-    ]);
+    expect(svc.availableActions().map((a) => a.type)).toEqual(['sendEmail', 'grantAccess']);
   });
 });
 
