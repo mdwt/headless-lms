@@ -62,7 +62,7 @@ async function membershipEnded(
     }
   }
   if (communities.length === 0) {
-    return [];
+    return null;
   }
   return listOf(
     {

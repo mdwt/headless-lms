@@ -288,11 +288,53 @@ describe('grant endings', () => {
         display: { communities: [{ communityId: 'cmy_2', communityTitle: 'Summer cohort' }] },
       }),
     ]);
-    expect(await run(deleted, { opened: ['cmy_1', 'cmy_2'], held: ['cmy_1', 'cmy_2'] })).toEqual(
-      [],
-    );
     const expired = ready(entitlementEvents.entitlementExpired.make({ orgId: ORG, data: GRANT }));
     expect(await run(expired, { opened: ['cmy_1'], held: ['cmy_1'] })).toEqual([]);
+  });
+
+  it('revokes access when every community a deleted grant opened is still held through another grant', async () => {
+    const bundle = { ...GRANT, contentId: null, bundleId: 'bnd_1' };
+    const lists = await run(
+      ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: bundle })),
+      { opened: ['cmy_1'], held: ['cmy_1'] },
+    );
+    expect(lists).toEqual([
+      expect.objectContaining({
+        type: 'access.revoked',
+        scope: 'org',
+        subject: { type: 'bundle', id: 'bnd_1' },
+        display: { contentTitle: 'All access' },
+      }),
+    ]);
+    expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
+  });
+
+  it('ends the membership, not access, when a deleted bundle opened a community no longer held', async () => {
+    const bundle = { ...GRANT, contentId: null, bundleId: 'bnd_1' };
+    const lists = await run(
+      ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: bundle })),
+      { opened: ['cmy_1'] },
+    );
+    expect(lists).toEqual([
+      expect.objectContaining({
+        type: 'community.membership_ended',
+        subject: { type: 'bundle', id: 'bnd_1' },
+        display: { communities: [{ communityId: 'cmy_1', communityTitle: 'Spring cohort' }] },
+      }),
+    ]);
+    expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
+  });
+
+  it('ends the membership in the lost community only, when a deleted bundle opened one still held and one lost', async () => {
+    const bundle = { ...GRANT, contentId: null, bundleId: 'bnd_1' };
+    const lists = await run(
+      ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: bundle })),
+      { opened: ['cmy_1', 'cmy_2'], held: ['cmy_1'] },
+    );
+    expect(lists.map((list) => list.type)).toEqual(['community.membership_ended']);
+    expect(lists[0]?.display).toEqual({
+      communities: [{ communityId: 'cmy_2', communityTitle: 'Summer cohort' }],
+    });
   });
 
   it('revokes access when a deleted grant opened no community', async () => {

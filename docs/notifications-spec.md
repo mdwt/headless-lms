@@ -286,7 +286,7 @@ Any content that emits events can produce notifications. A type's scope is where
 | `access.granted` | a grant is created | org | `subject` | the `accessGranted` email automation |
 | `access.revoked` | a grant is deleted | org | `subject` | the `accessRevoked` email automation |
 
-`community.membership_ended` is org-scoped because the person no longer holds the community. It lists only the communities the person holds through no other grant, as entitlements answers it; when they still hold every one, the event produces nothing.
+`community.membership_ended` is org-scoped because the person no longer holds the community. It lists only the communities the person holds through no other grant, as entitlements answers it. When they still hold every one, `entitlement.expired` produces nothing and `entitlement.deleted` produces `access.revoked`, as for a grant that opened no community.
 
 ### 5.3 Content events
 
@@ -442,7 +442,7 @@ Automations applies these rules when it files a recipient list:
 
 1. **First match with a channel on.** For each person, the notification is filed under the first category in list order that covers one of the person's type-and-reason pairs and has at least one channel on for the person after resolution (8.1). A category the person switched off on every channel is passed over, and the next matching category applies. The list order is the priority of reasons: a mention, then a reply to the person or their post, then a followed post or thread, as Discourse orders them. Placing `mentions` before `comments_on_my_posts` files a mention inside a comment on the person's own post as a mention; if the person switched `mentions` off, it is filed under `comments_on_my_posts`. The matched pair's type is the notification's type, and its `matched_reason` is the first reason, in the order of the matching cover's `reasons`, that the person has.
 2. **One per person per event per list.** The recipient rule returns all of an event's recipient lists together. Automations collects each person's pairs and files the person once in the community's list and, for lists with no community, once in the org's list. Each community counts separately: a bundle grant that opens two communities produces `community.welcome` in each.
-3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the first list the rule returned that resolves to at least one channel on for the person wins (rule 1), so a per-space setting or space default decides between lists in different spaces. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming in `communities` every community the grant opened that the person holds through no other grant, when the grant opened a community, and `access.revoked` otherwise.
+3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the first list the rule returned that resolves to at least one channel on for the person wins (rule 1), so a per-space setting or space default decides between lists in different spaces. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming in `communities` every community the grant opened that the person holds through no other grant, when there is at least one such community, and `access.revoked` otherwise: for a grant that opened no community, and for one whose communities the person still holds through another grant, such as a bundle of a course and a community the person also bought on its own.
 4. **No match, no notification.** A pair no category covers is not delivered. A community without a `digest` category sends no digest.
 5. **Offered channels only.** Delivery uses only the channels the category offers.
 6. **Locks.** A locked channel always uses its default. The settings endpoint rejects changes to it.
@@ -624,7 +624,7 @@ Returning all lists together is what allows one notification per person per even
 | entitlements | `entitlement.space_member.deleted` | `space.request_declined` | the previous status was `requested` |
 | entitlements | `entitlement.created` | `access.granted`, `community.welcome` | `community.welcome` per community the grant opens |
 | entitlements | `entitlement.ending_soon` | `community.ending_soon` | |
-| entitlements | `entitlement.deleted` | `access.revoked`, `community.membership_ended` | 7.2, rule 3; `communities` leaves out those the person holds through another grant, and nothing is produced when none is left |
+| entitlements | `entitlement.deleted` | `access.revoked`, `community.membership_ended` | 7.2, rule 3; `communities` leaves out those the person holds through another grant, and `access.revoked` is produced instead when none is left |
 | entitlements | `entitlement.expired` | `community.membership_ended` | the communities the grant opened that the person holds through no other grant; nothing when none is left |
 | content | `content.course.activity.published` | `course.activity_added` | |
 | organizations | `organization.user.updated` | `moderator.assigned` | `role` is `moderator`; the event fires only when the role changes |
