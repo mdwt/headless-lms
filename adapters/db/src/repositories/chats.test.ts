@@ -114,3 +114,35 @@ describe("DrizzleChatRepository.reactionsOf", () => {
     expect(statements).toHaveLength(0);
   });
 });
+
+describe("DrizzleChatRepository.unreadFor", () => {
+  it("counts others' standing messages after the person's read marker and reads the newest", async () => {
+    const { repo, statements } = sequencedClient([[[3, "msg_9", "ou_2", "Latest"]]]);
+    await expect(repo.unreadFor("org1", "cht_1", "ou_1")).resolves.toEqual({
+      count: 3,
+      latest: { messageId: "msg_9", senderOrgUserId: "ou_2", body: "Latest" },
+    });
+    expect(statements).toHaveLength(1);
+    const text = statements[0]!.text.replace(/\s+/g, " ");
+    expect(text).toMatch(
+      /^select cast\(count\(\*\) over \(\) as int\), "id", "org_user_id", "body" from "messages"/,
+    );
+    expect(text).toContain('"messages"."org_user_id" <> $');
+    expect(text).toContain('"messages"."deleted_at" is null');
+    expect(text).toContain(
+      "join messages lr on lr.org_id = cu.org_id and lr.id = cu.last_read_message_id",
+    );
+    expect(text).toContain("'-infinity'::timestamptz");
+    expect(text).toMatch(
+      /order by "messages"\."created_at" desc, "messages"\."id" desc limit \$\d+$/,
+    );
+  });
+
+  it("answers nothing unread when no message qualifies", async () => {
+    const { repo } = sequencedClient([[]]);
+    await expect(repo.unreadFor("org1", "cht_1", "ou_1")).resolves.toEqual({
+      count: 0,
+      latest: null,
+    });
+  });
+});

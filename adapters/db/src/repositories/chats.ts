@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ChatInboxRow,
   ChatRepository,
+  ChatUnread,
   FeedQuery,
   MessageReactions,
   PageQuery,
@@ -362,6 +363,42 @@ export class DrizzleChatRepository implements ChatRepository {
           eq(chatUsers.orgUserId, orgUserId),
         ),
       );
+  }
+
+  async unreadFor(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread> {
+    const readUpTo = sql`coalesce((
+      select lr.created_at
+      from chat_users cu
+      join messages lr on lr.org_id = cu.org_id and lr.id = cu.last_read_message_id
+      where cu.org_id = ${orgId}
+        and cu.chat_id = ${chatId}
+        and cu.org_user_id = ${orgUserId}
+    ), '-infinity'::timestamptz)`;
+    const [row] = await this.db
+      .select({
+        count: sql<number>`cast(count(*) over () as int)`,
+        id: messages.id,
+        orgUserId: messages.orgUserId,
+        body: messages.body,
+      })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.orgId, orgId),
+          eq(messages.chatId, chatId),
+          ne(messages.orgUserId, orgUserId),
+          isNull(messages.deletedAt),
+          gt(messages.createdAt, readUpTo),
+        ),
+      )
+      .orderBy(desc(messages.createdAt), desc(messages.id))
+      .limit(1);
+    return row
+      ? {
+          count: row.count,
+          latest: { messageId: row.id, senderOrgUserId: row.orgUserId, body: row.body },
+        }
+      : { count: 0, latest: null };
   }
 
   async insertMessage(orgId: string, message: Message): Promise<Message> {

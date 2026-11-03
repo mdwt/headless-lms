@@ -296,6 +296,28 @@ function harness(options?: {
         user.lastReadMessageId = messageId;
       }
     },
+    async unreadFor(orgId, chatId, orgUserId) {
+      const marker = users.find(
+        (row) => row.orgId === orgId && row.chatId === chatId && row.orgUserId === orgUserId,
+      )?.lastReadMessageId;
+      const readAt = messages.find((row) => row.id === marker)?.createdAt.getTime() ?? -Infinity;
+      const unread = messages
+        .filter(
+          (row) =>
+            row.chatId === chatId &&
+            row.orgUserId !== orgUserId &&
+            row.deletedAt === null &&
+            row.createdAt.getTime() > readAt,
+        )
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      const latest = unread[0];
+      return {
+        count: unread.length,
+        latest: latest
+          ? { messageId: latest.id, senderOrgUserId: latest.orgUserId, body: latest.body }
+          : null,
+      };
+    },
     async insertMessage(_orgId, message) {
       messages.push({ ...message });
       return { ...message };
@@ -1699,5 +1721,36 @@ describe('message events', () => {
     ).toEqual({ actorOrgUserId: member.id, chatStatus: 'open' });
     await h.svc.editMessage(ORG, member, sent.id, 'hi <@ou_third>');
     expect(dataOfLast(h.calls, 'discussion.message.updated')?.mentionedOrgUserIds).toEqual([]);
+  });
+});
+
+describe('unread in a chat', () => {
+  it('counts the messages after the read marker that others sent, with the latest', async () => {
+    const { svc, messages } = harness();
+    const chat = await svc.startGroup(ORG, member, {
+      communityId: COMMUNITY,
+      orgUserIds: [other.id, third.id],
+    });
+    const sent = [
+      await svc.send(ORG, other, chat.id, messageInput('one')),
+      await svc.send(ORG, member, chat.id, messageInput('mine')),
+      await svc.send(ORG, third, chat.id, messageInput('two')),
+      await svc.send(ORG, other, chat.id, messageInput('three')),
+    ];
+    sent.forEach((message, index) => {
+      messages.find((row) => row.id === message.id)!.createdAt = new Date(index * 60_000);
+    });
+    expect(await svc.unreadInChat(ORG, chat.id, member.id)).toEqual({
+      count: 3,
+      latest: { messageId: sent[3]!.id, senderOrgUserId: other.id, body: 'three' },
+    });
+    await svc.markRead(ORG, member, chat.id, sent[2]!.id);
+    expect(await svc.unreadInChat(ORG, chat.id, member.id)).toEqual({
+      count: 1,
+      latest: { messageId: sent[3]!.id, senderOrgUserId: other.id, body: 'three' },
+    });
+    await svc.markRead(ORG, member, chat.id, sent[3]!.id);
+    expect(await svc.unreadInChat(ORG, chat.id, member.id)).toEqual({ count: 0, latest: null });
+    expect((await svc.unreadInChat(ORG, chat.id, other.id)).count).toBe(2);
   });
 });

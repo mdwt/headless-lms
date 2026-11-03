@@ -47,6 +47,7 @@ export type {
   SendMessageInput,
   ChatListItem,
   ChatInboxRow,
+  ChatUnread,
   MessageQueue,
   ChatService,
   ChatRepository,

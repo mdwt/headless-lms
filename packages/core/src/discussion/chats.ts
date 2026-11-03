@@ -34,6 +34,7 @@ import type {
   ChatListItem,
   ChatRepository,
   ChatService,
+  ChatUnread,
   ChatUnitOfWork,
   MentionsRepository,
   MessageQueue,
@@ -753,6 +754,10 @@ export class ChatServiceImpl implements ChatService {
         return summary.chat.kind === 'group' ? [[summary.chat.id, 'Group chat']] : [];
       }),
     );
+  }
+
+  unreadInChat(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread> {
+    return this.repo.unreadFor(orgId, chatId, orgUserId);
   }
 
   async latestMessageBody(orgId: string, chatId: string): Promise<string | null> {

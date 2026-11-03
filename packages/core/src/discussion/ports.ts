@@ -470,6 +470,11 @@ export interface ChatListItem {
 
 export type ChatInboxRow = Omit<ChatListItem, 'subscription'>;
 
+export interface ChatUnread {
+  count: number;
+  latest: { messageId: string; senderOrgUserId: string; body: string } | null;
+}
+
 export interface MessageReactions {
   reactions: ReactionCounts;
   viewerReaction?: ReactionEmoji;
@@ -530,6 +535,7 @@ export interface ChatService {
     chatId: string,
   ): Promise<{ chat: Chat; participants: ChatUser[] } | null>;
   latestMessageBody(orgId: string, chatId: string): Promise<string | null>;
+  unreadInChat(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread>;
   isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
   titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>>;
   messages(
@@ -580,6 +586,7 @@ export interface ChatRepository {
   join(orgId: string, user: ChatUser): Promise<void>;
   markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
   setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
+  unreadFor(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread>;
   insertMessage(orgId: string, message: Message): Promise<Message>;
   updateMessage(
     orgId: string,
