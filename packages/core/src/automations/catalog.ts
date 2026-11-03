@@ -46,6 +46,16 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   joinRequest: true,
   somethingWasFlagged: true,
   messageWasFlagged: true,
+  postReacted: true,
+  commentReacted: true,
+  mention: true,
+  messageReacted: true,
+  courseActivityAdded: true,
+  activityCommentCreated: true,
+  activityCommentRemoved: true,
+  activityCommentReacted: true,
+  activityCommentFlagged: true,
+  activityMention: true,
 };
 
 export const DELIVER_WEBHOOK_ACTION = 'deliverWebhook';

@@ -2,11 +2,11 @@ import type { JSX } from "react";
 import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-function portal(ctx: TemplateContext, path: string): string {
+export function portal(ctx: TemplateContext, path: string): string {
   return `${ctx.studentPortalUrl}${path}`;
 }
 
-function defineEmail<K extends keyof EmailTemplateParams>(opts: {
+export function defineEmail<K extends keyof EmailTemplateParams>(opts: {
   subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;
   heading: (params: EmailTemplateParams[K]) => string;
   lines: (params: EmailTemplateParams[K]) => string[];
@@ -81,12 +81,25 @@ export const membershipEndingSoon = defineEmail<"membershipEndingSoon">({
   },
 });
 
+function communityTitles(params: EmailTemplateParams["membershipEnded"]): string {
+  return params.communities.map((item) => item.communityTitle).join(", ");
+}
+
 export const membershipEnded = defineEmail<"membershipEnded">({
-  subject: (_ctx, params) => `${params.communityTitle} has ended`,
-  heading: (params) => `${params.communityTitle} has ended`,
-  lines: () => ["Your access to this community has ended."],
-  button: (ctx, params) => ({ href: community(ctx, params.communityId), label: "Renew" }),
-  preview: { communityTitle: "Founders", communityId: "cmy_1" },
+  subject: (_ctx, params) => `${communityTitles(params)} has ended`,
+  heading: (params) => `${communityTitles(params)} has ended`,
+  lines: (params) => [
+    params.communities.length === 1
+      ? "Your access to this community has ended."
+      : "Your access to these communities has ended.",
+  ],
+  button: (ctx, params) => {
+    const [only] = params.communities;
+    return params.communities.length === 1 && only
+      ? { href: community(ctx, only.communityId), label: "Renew" }
+      : { href: portal(ctx, "/communities"), label: "Open communities" };
+  },
+  preview: { communities: [{ communityId: "cmy_1", communityTitle: "Founders" }] },
 });
 
 export const newPostInSpace = defineEmail<"newPostInSpace">({
@@ -341,4 +354,84 @@ export const messageWasFlagged = defineEmail<"messageWasFlagged">({
   lines: (params) => [params.reason],
   button: (ctx, params) => ({ href: community(ctx, params.communityId), label: "Review" }),
   preview: { reason: "Spam", communityId: "cmy_1" },
+});
+
+export const postReacted = defineEmail<"postReacted">({
+  subject: (_ctx, params) => `${params.reactorName} reacted to your post`,
+  heading: (params) => params.postTitle,
+  lines: (params) => [`${params.reactorName} reacted ${params.reaction} to your post.`],
+  button: (ctx, params) => ({
+    href: post(ctx, params.communityId, params.postId),
+    label: "View post",
+  }),
+  preview: {
+    postTitle: "Hello",
+    reactorName: "Sam",
+    reaction: "👍",
+    postId: "pst_1",
+    communityId: "cmy_1",
+  },
+});
+
+export const commentReacted = defineEmail<"commentReacted">({
+  subject: (_ctx, params) => `${params.reactorName} reacted to your comment`,
+  heading: (params) => params.postTitle,
+  lines: (params) => [`${params.reactorName} reacted ${params.reaction} to:`, params.excerpt],
+  button: (ctx, params) => ({
+    href: comment(ctx, params.communityId, params.postId, params.commentId),
+    label: "View comment",
+  }),
+  preview: {
+    postTitle: "Hello",
+    excerpt: "Nice",
+    reactorName: "Sam",
+    reaction: "👍",
+    commentId: "cmt_1",
+    postId: "pst_1",
+    communityId: "cmy_1",
+  },
+});
+
+function mentionedIn(params: EmailTemplateParams["mention"]): string {
+  return "postTitle" in params ? params.postTitle : params.chatTitle;
+}
+
+export const mention = defineEmail<"mention">({
+  subject: (_ctx, params) => `${params.authorName} mentioned you in ${mentionedIn(params)}`,
+  heading: (params) => mentionedIn(params),
+  lines: (params) => [params.authorName, params.excerpt],
+  button: (ctx, params) =>
+    "postTitle" in params
+      ? {
+          href: params.commentId
+            ? comment(ctx, params.communityId, params.postId, params.commentId)
+            : post(ctx, params.communityId, params.postId),
+          label: "View",
+        }
+      : { href: chat(ctx, params.communityId, params.chatId), label: "Open chat" },
+  preview: {
+    authorName: "Sam",
+    excerpt: "Thanks @Ann",
+    communityId: "cmy_1",
+    postTitle: "Hello",
+    postId: "pst_1",
+    commentId: "cmt_1",
+  },
+});
+
+export const messageReacted = defineEmail<"messageReacted">({
+  subject: (_ctx, params) => `${params.reactorName} reacted to your message`,
+  heading: () => "A reaction to your message",
+  lines: (params) => [`${params.reactorName} reacted ${params.reaction} to:`, params.excerpt],
+  button: (ctx, params) => ({
+    href: chat(ctx, params.communityId, params.chatId),
+    label: "Open chat",
+  }),
+  preview: {
+    excerpt: "Hello",
+    reactorName: "Sam",
+    reaction: "👍",
+    chatId: "cht_1",
+    communityId: "cmy_1",
+  },
 });

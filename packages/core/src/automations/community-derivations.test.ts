@@ -87,6 +87,21 @@ describe('community email derivations', () => {
     ]);
   });
 
+  it('tells a member whose grant expired that each community it opened has ended', async () => {
+    const event = ready(
+      entitlementEvents.entitlementExpired.make({ orgId: 'org-1', data: ENTITLEMENT }),
+    );
+    const mail = deps().mail;
+    const recipients = await COMMUNITY_DERIVATIONS.membershipEnded!.derive(
+      event,
+      deps({ mail: { ...mail, communitiesOpenedBy: vi.fn(async () => ['cmy_1', 'cmy_2']) } }),
+    );
+    expect(recipients?.map((recipient) => recipient.params)).toEqual([
+      { communities: [{ communityId: 'cmy_1', communityTitle: 'Founders' }] },
+      { communities: [{ communityId: 'cmy_2', communityTitle: 'Founders' }] },
+    ]);
+  });
+
   it('sends nothing when the grant does not open the community', async () => {
     const event = ready(
       entitlementEvents.entitlementCreated.make({ orgId: 'org-1', data: ENTITLEMENT }),

@@ -19,17 +19,21 @@ import AccessRevoked, { subject as accessRevoked } from "./emails/access-revoked
 import CourseCompleted, { subject as courseCompleted } from "./emails/course-completed.js";
 import {
   addedToGroupChat,
+  commentReacted,
   digest,
   invitedToSpace,
   joinRequest,
   membershipEnded,
   membershipEndingSoon,
+  mention,
+  messageReacted,
   messageRequest,
   messageWasFlagged,
   newCommentOnPost,
   newMessage,
   newPostInSpace,
   postAwaitingReview,
+  postReacted,
   replyToYourComment,
   requestApproved,
   requestDeclined,
@@ -40,6 +44,14 @@ import {
   yourPostWasPublished,
   yourPostWasRemoved,
 } from "./emails/community.js";
+import {
+  activityCommentCreated,
+  activityCommentFlagged,
+  activityCommentReacted,
+  activityCommentRemoved,
+  activityMention,
+  courseActivityAdded,
+} from "./emails/course-activity.js";
 
 interface Entry<K extends EmailTemplateId> {
   subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;
@@ -108,6 +120,31 @@ const registry: { [K in EmailTemplateId]: Entry<K> } = {
     subject: messageWasFlagged.subject,
     Component: messageWasFlagged.Component,
   },
+  postReacted: { subject: postReacted.subject, Component: postReacted.Component },
+  commentReacted: { subject: commentReacted.subject, Component: commentReacted.Component },
+  mention: { subject: mention.subject, Component: mention.Component },
+  messageReacted: { subject: messageReacted.subject, Component: messageReacted.Component },
+  courseActivityAdded: {
+    subject: courseActivityAdded.subject,
+    Component: courseActivityAdded.Component,
+  },
+  activityCommentCreated: {
+    subject: activityCommentCreated.subject,
+    Component: activityCommentCreated.Component,
+  },
+  activityCommentRemoved: {
+    subject: activityCommentRemoved.subject,
+    Component: activityCommentRemoved.Component,
+  },
+  activityCommentReacted: {
+    subject: activityCommentReacted.subject,
+    Component: activityCommentReacted.Component,
+  },
+  activityCommentFlagged: {
+    subject: activityCommentFlagged.subject,
+    Component: activityCommentFlagged.Component,
+  },
+  activityMention: { subject: activityMention.subject, Component: activityMention.Component },
 };
 
 export class ReactEmailTemplateRenderer implements TemplateRenderer {

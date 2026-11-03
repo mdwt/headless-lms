@@ -134,7 +134,7 @@ export const COMMUNITY_DERIVATIONS: {
           event,
           event.orgId,
           [grant.orgUserId],
-          { communityTitle: title, communityId },
+          { communities: [{ communityId, communityTitle: title }] },
         );
         if (!addressed) {
           return undefined;

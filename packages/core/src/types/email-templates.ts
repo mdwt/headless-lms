@@ -33,7 +33,7 @@ export interface EmailTemplateParams {
   courseCompleted: { courseTitle: string };
   welcomeToCommunity: { communityTitle: string; communityId: string; spaceNames: string[] };
   membershipEndingSoon: { communityTitle: string; communityId: string; expiresAt: string };
-  membershipEnded: { communityTitle: string; communityId: string };
+  membershipEnded: { communities: { communityId: string; communityTitle: string }[] };
   newPostInSpace: {
     spaceName: string;
     postTitle: string;
@@ -107,6 +107,81 @@ export interface EmailTemplateParams {
     communityId: string;
   };
   messageWasFlagged: { reason: string; communityId: string };
+  postReacted: {
+    postTitle: string;
+    reactorName: string;
+    reaction: string;
+    postId: string;
+    communityId: string;
+  };
+  commentReacted: {
+    postTitle: string;
+    excerpt: string;
+    reactorName: string;
+    reaction: string;
+    commentId: string;
+    postId: string;
+    communityId: string;
+  };
+  mention: { authorName: string; excerpt: string; communityId: string } & (
+    | { postTitle: string; postId: string; commentId: string | null }
+    | { chatTitle: string; chatId: string }
+  );
+  messageReacted: {
+    excerpt: string;
+    reactorName: string;
+    reaction: string;
+    chatId: string;
+    communityId: string;
+  };
+  courseActivityAdded: {
+    courseTitle: string;
+    moduleTitle: string;
+    activityTitle: string;
+    courseId: string;
+    activityId: string;
+  };
+  activityCommentCreated: {
+    activityTitle: string;
+    courseTitle: string;
+    commenterName: string;
+    excerpt: string;
+    courseId: string;
+    activityId: string;
+    commentId: string;
+  };
+  activityCommentRemoved: {
+    activityTitle: string;
+    courseTitle: string;
+    courseId: string;
+    activityId: string;
+  };
+  activityCommentReacted: {
+    activityTitle: string;
+    courseTitle: string;
+    excerpt: string;
+    reactorName: string;
+    reaction: string;
+    courseId: string;
+    activityId: string;
+    commentId: string;
+  };
+  activityCommentFlagged: {
+    activityTitle: string;
+    courseTitle: string;
+    excerpt: string;
+    reason: string;
+    courseId: string;
+    activityId: string;
+  };
+  activityMention: {
+    authorName: string;
+    excerpt: string;
+    activityTitle: string;
+    courseTitle: string;
+    courseId: string;
+    activityId: string;
+  };
 }
 
 export type EmailTemplateId = keyof EmailTemplateParams;

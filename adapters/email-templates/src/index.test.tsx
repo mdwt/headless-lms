@@ -36,7 +36,7 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     communityId: "cmy_1",
     expiresAt: "2026-10-28T00:00:00.000Z",
   },
-  membershipEnded: { communityTitle: "Founders", communityId: "cmy_1" },
+  membershipEnded: { communities: [{ communityId: "cmy_1", communityTitle: "Founders" }] },
   newPostInSpace: {
     spaceName: "Announcements",
     postTitle: "Hello",
@@ -115,6 +115,85 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     communityId: "cmy_1",
   },
   messageWasFlagged: { reason: "Spam", communityId: "cmy_1" },
+  postReacted: {
+    postTitle: "Hello",
+    reactorName: "Sam",
+    reaction: "👍",
+    postId: "pst_1",
+    communityId: "cmy_1",
+  },
+  commentReacted: {
+    postTitle: "Hello",
+    excerpt: "Nice",
+    reactorName: "Sam",
+    reaction: "👍",
+    commentId: "cmt_1",
+    postId: "pst_1",
+    communityId: "cmy_1",
+  },
+  mention: {
+    authorName: "Sam",
+    excerpt: "Thanks",
+    communityId: "cmy_1",
+    postTitle: "Hello",
+    postId: "pst_1",
+    commentId: null,
+  },
+  messageReacted: {
+    excerpt: "Hello",
+    reactorName: "Sam",
+    reaction: "👍",
+    chatId: "cht_1",
+    communityId: "cmy_1",
+  },
+  courseActivityAdded: {
+    courseTitle: "Fly Tying 101",
+    moduleTitle: "Basics",
+    activityTitle: "Choosing hooks",
+    courseId: "crs_1",
+    activityId: "act_1",
+  },
+  activityCommentCreated: {
+    activityTitle: "Choosing hooks",
+    courseTitle: "Fly Tying 101",
+    commenterName: "Sam",
+    excerpt: "Nice",
+    courseId: "crs_1",
+    activityId: "act_1",
+    commentId: "cmt_1",
+  },
+  activityCommentRemoved: {
+    activityTitle: "Choosing hooks",
+    courseTitle: "Fly Tying 101",
+    courseId: "crs_1",
+    activityId: "act_1",
+  },
+  activityCommentReacted: {
+    activityTitle: "Choosing hooks",
+    courseTitle: "Fly Tying 101",
+    excerpt: "Nice",
+    reactorName: "Sam",
+    reaction: "👍",
+    courseId: "crs_1",
+    activityId: "act_1",
+    commentId: "cmt_1",
+  },
+  activityCommentFlagged: {
+    activityTitle: "Choosing hooks",
+    courseTitle: "Fly Tying 101",
+    excerpt: "Hello",
+    reason: "Spam",
+    courseId: "crs_1",
+    activityId: "act_1",
+  },
+  activityMention: {
+    authorName: "Sam",
+    excerpt: "Thanks",
+    activityTitle: "Choosing hooks",
+    courseTitle: "Fly Tying 101",
+    courseId: "crs_1",
+    activityId: "act_1",
+  },
 };
 
 const ALL_IDS = Object.keys(SAMPLE_PARAMS) as EmailTemplateId[];
@@ -164,6 +243,50 @@ describe("ReactEmailTemplateRenderer", () => {
     });
     expect(content.html).toContain(url);
     expect(content.text).toContain(url);
+  });
+
+  it("names every community a membership ended in, and links one to its page", async () => {
+    const one = await renderer.render("membershipEnded", CTX, SAMPLE_PARAMS.membershipEnded);
+    expect(one.subject).toBe("Founders has ended");
+    expect(one.html).toContain("http://localhost:8002/communities/cmy_1");
+    const two = await renderer.render("membershipEnded", CTX, {
+      communities: [
+        { communityId: "cmy_1", communityTitle: "Founders" },
+        { communityId: "cmy_2", communityTitle: "Makers" },
+      ],
+    });
+    expect(two.subject).toBe("Founders, Makers has ended");
+    expect(two.html).toContain('href="http://localhost:8002/communities"');
+  });
+
+  it("links a mention in a chat to the chat, and one in a comment to the comment", async () => {
+    const inChat = await renderer.render("mention", CTX, {
+      authorName: "Sam",
+      excerpt: "Hi",
+      communityId: "cmy_1",
+      chatTitle: "Group chat",
+      chatId: "cht_1",
+    });
+    expect(inChat.subject).toBe("Sam mentioned you in Group chat");
+    expect(inChat.html).toContain("http://localhost:8002/communities/cmy_1/chats/cht_1");
+    const inComment = await renderer.render("mention", CTX, {
+      authorName: "Sam",
+      excerpt: "Hi",
+      communityId: "cmy_1",
+      postTitle: "Hello",
+      postId: "pst_1",
+      commentId: "cmt_1",
+    });
+    expect(inComment.html).toContain("http://localhost:8002/communities/cmy_1/posts/pst_1#cmt_1");
+  });
+
+  it("links a course activity email to the activity in its course", async () => {
+    const content = await renderer.render(
+      "courseActivityAdded",
+      CTX,
+      SAMPLE_PARAMS.courseActivityAdded,
+    );
+    expect(content.html).toContain("http://localhost:8002/courses/crs_1#act_1");
   });
 
   it("brands every email with the context brand name", async () => {
