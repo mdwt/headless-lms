@@ -9,10 +9,13 @@ import { CoursePlayer } from "@/components/player/course-player";
 
 export default async function CoursePlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ activity?: string | string[] }>;
 }) {
   const { courseId } = await params;
+  const { activity } = await searchParams;
   const session = await requireAuth();
   const [course, modules, activities, org, viewer, progress] = await Promise.all([
     memberApi.getCourse(courseId),
@@ -30,6 +33,8 @@ export default async function CoursePlayerPage({
   const completion = progress?.activities ?? {};
   const lessons = adapted.modules.flatMap((m) => m.lessons);
   const resumeLessonId = (lessons.find((l) => completion[l.id] !== "completed") ?? lessons[0])?.id;
+  const linkedLessonId =
+    typeof activity === "string" && lessons.some((l) => l.id === activity) ? activity : null;
   // Render each activity's Plate content on the server so the client player
   // receives ready-made nodes (no client re-execution → no hydration mismatch).
   // Media nodes take their URLs from the activity's `assetUrls`, served with it.
@@ -49,7 +54,7 @@ export default async function CoursePlayerPage({
       renderedContent={renderedContent}
       initialCompletion={completion}
       initialPositions={progress?.positions ?? {}}
-      initialLessonId={resumeLessonId}
+      initialLessonId={linkedLessonId ?? resumeLessonId}
     />
   );
 }

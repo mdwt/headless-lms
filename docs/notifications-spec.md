@@ -392,7 +392,7 @@ On a course activity, scope `org`:
 | `content.flagged` | `activityTitle`, `courseTitle`, `courseId`, `excerpt`, `reason` | `activityCommentFlagged` (new) |
 | `mention` | `authorName`, `excerpt`, `activityTitle`, `courseTitle`, `courseId` | `activityMention` (new) |
 
-The activity templates take `courseId` from `display` and `activityId` from the parent reference for their links, where the post templates take `postId` and `communityId`. The rule reads `courseId` with the titles through `NotificationReads.activity`.
+The activity templates take `courseId` from `display` and `activityId` from the parent reference for their links, where the post templates take `postId` and `communityId`. An activity link is `/courses/{courseId}?activity={activityId}` in the student portal, which opens the course at that activity. The rule reads `courseId` with the titles through `NotificationReads.activity`.
 
 A display value is a string or a list of strings; `digest.posts` and `community.membership_ended`'s `communities` are lists of objects. `excerpt` is the start of the body with mention tokens replaced by names. A `subject` type has one recipient per list, so its display can be specific to that person.
 

@@ -21,7 +21,8 @@ export function proxy(req: NextRequest) {
   if (!hasSession) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", req.nextUrl.pathname);
+    url.search = "";
+    url.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   return NextResponse.next();

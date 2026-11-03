@@ -326,7 +326,7 @@ describe("ReactEmailTemplateRenderer", () => {
       CTX,
       SAMPLE_PARAMS.courseActivityAdded,
     );
-    expect(content.html).toContain("http://localhost:8002/courses/crs_1#act_1");
+    expect(content.html).toContain("http://localhost:8002/courses/crs_1?activity=act_1");
   });
 
   it("brands every email with the context brand name", async () => {

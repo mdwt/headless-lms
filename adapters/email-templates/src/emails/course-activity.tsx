@@ -2,7 +2,7 @@ import type { TemplateContext } from "@headless-lms/core/types";
 import { defineEmail, portal } from "./community.js";
 
 const activity = (ctx: TemplateContext, courseId: string, activityId: string) =>
-  portal(ctx, `/courses/${courseId}#${activityId}`);
+  portal(ctx, `/courses/${courseId}?activity=${activityId}`);
 
 export const courseActivityAdded = defineEmail<"courseActivityAdded">({
   subject: (_ctx, params) => `New in ${params.courseTitle}: ${params.activityTitle}`,
