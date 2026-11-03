@@ -185,11 +185,14 @@ describe('org notification category routes', () => {
       },
     });
     expect(res.statusCode).toBe(422);
-    const body = res.json() as { error: string; issues: { message: string }[] };
+    const body = res.json() as { error: string; issues: { path: string; message: string }[] };
     expect(body.error).toBe('unprocessable');
-    expect(body.issues.map((issue) => issue.message)).toEqual([
-      'categories[0] (mentions): the channel push is not configured',
-      'categories[1] (chat).covers[0]: message.sent cannot be in the org list',
+    expect(body.issues).toEqual([
+      { path: 'body.categories[0].channels.push', message: 'the channel push is not configured' },
+      {
+        path: 'body.categories[1].covers[0].type',
+        message: 'message.sent cannot be in the org list',
+      },
     ]);
   });
 

@@ -1,6 +1,6 @@
 import type { NotificationCategory, NotificationTypeDeclaration, Scope } from '../types/index.js';
 import { notificationCategoryListSchema } from '../types/schemas/notifications.js';
-import { ValidationError } from './errors.js';
+import { ValidationError, type ValidationProblem } from './errors.js';
 import type { NotificationTypeRegistry } from './ports.js';
 
 export type CategoryListScope = 'org' | 'community';
@@ -29,14 +29,15 @@ export function categoryListProblems(
   listScope: CategoryListScope,
   types: Pick<NotificationTypeRegistry, 'get'>,
   configured: string[],
-): string[] {
-  const problems: string[] = [];
+): ValidationProblem[] {
+  const problems: ValidationProblem[] = [];
+  const problem = (path: string, message: string) => problems.push({ path, message });
   const keys = new Set<string>();
   const covered = new Set<string>();
   categories.forEach((category, index) => {
-    const at = `categories[${index}] (${category.key})`;
+    const at = `categories[${index}]`;
     if (keys.has(category.key)) {
-      problems.push(`${at}: the key is used by an earlier category`);
+      problem(`${at}.key`, `the key ${category.key} is used by an earlier category`);
     }
     keys.add(category.key);
     const pairs: string[] = [];
@@ -44,51 +45,56 @@ export function categoryListProblems(
       const coverAt = `${at}.covers[${coverIndex}]`;
       const declaration = types.get(cover.type);
       if (!declaration) {
-        problems.push(`${coverAt}: ${cover.type} is not a notification type`);
+        problem(`${coverAt}.type`, `${cover.type} is not a notification type`);
         return;
       }
       if (!coversListScope(declaration, listScope)) {
-        problems.push(`${coverAt}: ${cover.type} cannot be in the ${listScope} list`);
+        problem(`${coverAt}.type`, `${cover.type} cannot be in the ${listScope} list`);
       }
-      for (const reason of cover.reasons) {
+      cover.reasons.forEach((reason, reasonIndex) => {
         if (!declaration.reasons.includes(reason)) {
-          problems.push(`${coverAt}: ${cover.type} does not allow the reason ${reason}`);
+          problem(
+            `${coverAt}.reasons[${reasonIndex}]`,
+            `${cover.type} does not allow the reason ${reason}`,
+          );
         }
         pairs.push(`${cover.type}:${reason}`);
-      }
+      });
       if (category.perSpace === true && !declaration.scopes.includes('space')) {
-        problems.push(
-          `${coverAt}: ${cover.type} cannot occur in a space, so it cannot be per space`,
+        problem(
+          `${coverAt}.type`,
+          `${cover.type} cannot occur in a space, so it cannot be per space`,
         );
       }
     });
     if (Object.keys(category.channels).length === 0) {
-      problems.push(`${at}: the category offers no channel`);
+      problem(`${at}.channels`, 'the category offers no channel');
     }
     for (const channel of Object.keys(category.channels)) {
       if (!configured.includes(channel)) {
-        problems.push(`${at}: the channel ${channel} is not configured`);
+        problem(`${at}.channels.${channel}`, `the channel ${channel} is not configured`);
       }
     }
     if (category.perSpace === true && listScope === 'org') {
-      problems.push(`${at}: only a community list can have a per-space category`);
+      problem(`${at}.perSpace`, 'only a community list can have a per-space category');
     }
     if (category.spaceDefaults !== undefined) {
       if (category.perSpace !== true) {
-        problems.push(`${at}: spaceDefaults needs perSpace`);
+        problem(`${at}.spaceDefaults`, 'spaceDefaults needs perSpace');
       }
       for (const [spaceId, channels] of Object.entries(category.spaceDefaults)) {
         for (const channel of Object.keys(channels)) {
           if (!(channel in category.channels)) {
-            problems.push(
-              `${at}: spaceDefaults for ${spaceId} names the channel ${channel}, which the category does not offer`,
+            problem(
+              `${at}.spaceDefaults.${spaceId}.${channel}`,
+              `spaceDefaults for ${spaceId} names the channel ${channel}, which the category does not offer`,
             );
           }
         }
       }
     }
     if (pairs.length > 0 && pairs.every((pair) => covered.has(pair))) {
-      problems.push(`${at}: earlier categories already cover everything it covers`);
+      problem(`${at}.covers`, 'earlier categories already cover everything it covers');
     }
     for (const pair of pairs) {
       covered.add(pair);
@@ -105,7 +111,7 @@ export function assertValidCategoryList(
 ): void {
   const problems = categoryListProblems(categories, listScope, types, configured);
   if (problems.length > 0) {
-    throw new ValidationError(problems.join('; '), problems);
+    throw new ValidationError(problems);
   }
 }
 

@@ -13,20 +13,38 @@ class FakeApiError extends Error {
 }
 
 describe("listRefusal", () => {
-  it("keeps a 422's problems as the server words them", () => {
-    const problem = "categories[1] (mentions): the key is used by an earlier category";
-    expect(
-      listRefusal(new FakeApiError(422, problem, [{ path: "body", message: problem }])),
-    ).toEqual({ problems: [problem] });
+  it("keeps a 422's problems as the server words them, at the field it names", () => {
+    const err = new FakeApiError(422, "refused", [
+      {
+        path: "body.categories[1].key",
+        message: "the key mentions is used by an earlier category",
+      },
+      { path: "body", message: "the list is refused" },
+    ]);
+    expect(listRefusal(err)).toEqual({
+      problems: [
+        { path: "categories[1].key", message: "the key mentions is used by an earlier category" },
+        { path: "", message: "the list is refused" },
+      ],
+    });
   });
 
-  it("moves a 400's field into the message under its category", () => {
+  it("names a 400's field in the message", () => {
     const err = new FakeApiError(400, "invalid", [
       { path: "body.categories[2].key", message: "must match the key pattern" },
       { path: "body.categories", message: "must be an array" },
     ]);
     expect(listRefusal(err)).toEqual({
-      problems: ["categories[2]: key must match the key pattern", "categories: must be an array"],
+      problems: [
+        { path: "categories[2].key", message: "key must match the key pattern" },
+        { path: "categories", message: "must be an array" },
+      ],
+    });
+  });
+
+  it("falls back to the message of a refusal with no issues", () => {
+    expect(listRefusal(new FakeApiError(422, "refused"))).toEqual({
+      problems: [{ path: "", message: "refused" }],
     });
   });
 
@@ -38,14 +56,18 @@ describe("listRefusal", () => {
 });
 
 describe("problemsByCategory", () => {
-  it("files each problem under the category it names and keeps the rest general", () => {
+  it("files each problem under the category its path names and keeps the rest general", () => {
     const { general, byIndex } = problemsByCategory([
-      "categories[0] (about_you).covers[1]: digest does not allow the reason subject",
-      "categories[0] (about_you): the category offers no channel",
-      "categories[3]: key must match the key pattern",
-      "categories: must be an array",
+      {
+        path: "categories[0].covers[1].reasons[0]",
+        message: "digest does not allow the reason subject",
+      },
+      { path: "categories[0].channels", message: "the category offers no channel" },
+      { path: "categories[3].key", message: "key must match the key pattern" },
+      { path: "categories", message: "must be an array" },
+      { path: "", message: "the list is refused" },
     ]);
-    expect(general).toEqual(["categories: must be an array"]);
+    expect(general).toEqual(["categories: must be an array", "the list is refused"]);
     expect(byIndex.get(0)).toEqual([
       "digest does not allow the reason subject",
       "the category offers no channel",

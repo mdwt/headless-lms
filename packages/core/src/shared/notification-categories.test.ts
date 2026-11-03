@@ -87,7 +87,10 @@ describe('category list validation', () => {
       configured,
     );
     expect(problems).toEqual([
-      'categories[1] (comments_on_my_posts): the key is used by an earlier category',
+      {
+        path: 'categories[1].key',
+        message: 'the key comments_on_my_posts is used by an earlier category',
+      },
     ]);
   });
 
@@ -99,7 +102,12 @@ describe('category list validation', () => {
         types,
         configured,
       ),
-    ).toEqual(['categories[0] (access).covers[0]: access.granted cannot be in the community list']);
+    ).toEqual([
+      {
+        path: 'categories[0].covers[0].type',
+        message: 'access.granted cannot be in the community list',
+      },
+    ]);
     expect(
       categoryListProblems(
         [category({ key: 'chat', covers: [{ type: 'message.sent', reasons: ['participant'] }] })],
@@ -107,7 +115,9 @@ describe('category list validation', () => {
         types,
         configured,
       ),
-    ).toEqual(['categories[0] (chat).covers[0]: message.sent cannot be in the org list']);
+    ).toEqual([
+      { path: 'categories[0].covers[0].type', message: 'message.sent cannot be in the org list' },
+    ]);
     expect(
       categoryListProblems(
         [category({ covers: [{ type: 'post.liked', reasons: ['post_author'] }] })],
@@ -116,7 +126,7 @@ describe('category list validation', () => {
         configured,
       ),
     ).toEqual([
-      'categories[0] (comments_on_my_posts).covers[0]: post.liked is not a notification type',
+      { path: 'categories[0].covers[0].type', message: 'post.liked is not a notification type' },
     ]);
   });
 
@@ -134,7 +144,10 @@ describe('category list validation', () => {
         configured,
       ),
     ).toEqual([
-      'categories[0] (comments_on_my_posts).covers[0]: comment.created does not allow the reason mentioned',
+      {
+        path: 'categories[0].covers[0].reasons[0]',
+        message: 'comment.created does not allow the reason mentioned',
+      },
     ]);
   });
 
@@ -144,7 +157,9 @@ describe('category list validation', () => {
         'inApp',
         'email',
       ]),
-    ).toEqual(['categories[0] (comments_on_my_posts): the channel push is not configured']);
+    ).toEqual([
+      { path: 'categories[0].channels.push', message: 'the channel push is not configured' },
+    ]);
   });
 
   it('refuses perSpace on a type that cannot occur in a space, and on the org list', () => {
@@ -162,10 +177,16 @@ describe('category list validation', () => {
         configured,
       ),
     ).toEqual([
-      'categories[0] (digest).covers[0]: digest cannot occur in a space, so it cannot be per space',
+      {
+        path: 'categories[0].covers[0].type',
+        message: 'digest cannot occur in a space, so it cannot be per space',
+      },
     ]);
     expect(categoryListProblems([category({ perSpace: true })], 'org', types, configured)).toEqual([
-      'categories[0] (comments_on_my_posts): only a community list can have a per-space category',
+      {
+        path: 'categories[0].perSpace',
+        message: 'only a community list can have a per-space category',
+      },
     ]);
   });
 
@@ -177,7 +198,7 @@ describe('category list validation', () => {
         types,
         configured,
       ),
-    ).toEqual(['categories[0] (comments_on_my_posts): spaceDefaults needs perSpace']);
+    ).toEqual([{ path: 'categories[0].spaceDefaults', message: 'spaceDefaults needs perSpace' }]);
     expect(
       categoryListProblems(
         [
@@ -193,7 +214,11 @@ describe('category list validation', () => {
         configured,
       ),
     ).toEqual([
-      'categories[0] (new_posts): spaceDefaults for spc_unknown names the channel push, which the category does not offer',
+      {
+        path: 'categories[0].spaceDefaults.spc_unknown.push',
+        message:
+          'spaceDefaults for spc_unknown names the channel push, which the category does not offer',
+      },
     ]);
   });
 
@@ -215,7 +240,10 @@ describe('category list validation', () => {
       configured,
     );
     expect(problems).toEqual([
-      'categories[1] (followed): earlier categories already cover everything it covers',
+      {
+        path: 'categories[1].covers',
+        message: 'earlier categories already cover everything it covers',
+      },
     ]);
   });
 
@@ -275,7 +303,7 @@ describe('category list helpers', () => {
   it('refuses a category that offers no channel', () => {
     expect(
       categoryListProblems([category({ channels: {} })], 'community', types, configured),
-    ).toEqual(['categories[0] (comments_on_my_posts): the category offers no channel']);
+    ).toEqual([{ path: 'categories[0].channels', message: 'the category offers no channel' }]);
   });
 
   it('reads a stored list, null for none, and throws on a list that is not one', () => {

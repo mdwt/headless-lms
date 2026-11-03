@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, NotFoundError, UnavailableError } from '@headless-lms/core/shared/errors';
+import {
+  ConflictError,
+  NotFoundError,
+  UnavailableError,
+  ValidationError,
+} from '@headless-lms/core/shared/errors';
 import { classifyError } from './errors.js';
 
 describe('classifyError', () => {
@@ -25,6 +30,24 @@ describe('classifyError', () => {
       status: 503,
       error: 'unavailable',
       message: 'later',
+    });
+  });
+  it('names the body field of each validation problem, and the body when a problem has none', () => {
+    expect(
+      classifyError(
+        new ValidationError([
+          { path: 'categories[3].covers', message: 'earlier categories already cover it' },
+          { message: 'the list is refused' },
+        ]),
+      ),
+    ).toEqual({
+      status: 422,
+      error: 'unprocessable',
+      message: 'categories[3].covers: earlier categories already cover it; the list is refused',
+      issues: [
+        { path: 'body.categories[3].covers', message: 'earlier categories already cover it' },
+        { path: 'body', message: 'the list is refused' },
+      ],
     });
   });
   it('answers other 4xx errors without echoing their message', () => {

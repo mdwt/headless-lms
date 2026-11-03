@@ -103,26 +103,34 @@ describe('devices', () => {
   });
 
   it.each([
-    [{ ...iphone, appId: 'com.other.app' }, 'appId must be one of the configured iOS bundle ids'],
+    [
+      { ...iphone, appId: 'com.other.app' },
+      { path: 'appId', message: 'must be one of the configured iOS bundle ids' },
+    ],
     [
       { provider: 'apns' as const, token: 't' },
-      'appId must be one of the configured iOS bundle ids',
+      { path: 'appId', message: 'must be one of the configured iOS bundle ids' },
     ],
     [
       { provider: 'webpush' as const, token: 't' },
-      'a webpush device needs its p256dh and auth keys',
+      { path: 'keys', message: 'a webpush device needs its p256dh and auth keys' },
     ],
     [
       { provider: 'fcm' as const, token: 't', keys: { p256dh: 'p', auth: 'a' } },
-      'keys apply to webpush devices only',
+      { path: 'keys', message: 'apply to webpush devices only' },
     ],
     [
       { provider: 'fcm' as const, token: 't', environment: 'sandbox' as const },
-      'environment applies to apns devices only',
+      { path: 'environment', message: 'applies to apns devices only' },
     ],
-  ])('refuses %o with 422', async (input, message) => {
+  ])('refuses %o with 422, naming the field', async (input, problem) => {
     const { service, rows } = harness();
-    await expect(service.register('org_1', sarah, input)).rejects.toThrow(message);
+    await expect(service.register('org_1', sarah, input)).rejects.toThrow(
+      `${problem.path}: ${problem.message}`,
+    );
+    await expect(service.register('org_1', sarah, input)).rejects.toMatchObject({
+      problems: [problem],
+    });
     await expect(service.register('org_1', sarah, input)).rejects.toBeInstanceOf(ValidationError);
     expect(rows).toEqual([]);
   });

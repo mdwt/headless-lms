@@ -185,27 +185,31 @@ describe('notification settings', () => {
   });
 
   it.each([
-    [{ category: 'likes', channel: 'email', enabled: false }, 'there is no category likes'],
+    [
+      { category: 'likes', channel: 'email', enabled: false },
+      { path: 'settings[1].category', message: 'there is no category likes' },
+    ],
     [
       { category: 'new_posts', channel: 'email', enabled: true },
-      'new_posts does not offer the channel email',
+      { path: 'settings[1].channel', message: 'new_posts does not offer the channel email' },
     ],
     [
       { category: 'about_you', channel: 'inApp', enabled: false },
-      'the channel inApp of about_you is locked',
+      { path: 'settings[1].channel', message: 'the channel inApp of about_you is locked' },
     ],
     [
       { category: 'mentions', spaceId: 'spc_1', channel: 'push', enabled: true },
-      'mentions cannot be set per space',
+      { path: 'settings[1].spaceId', message: 'mentions cannot be set per space' },
     ],
-  ])('refuses %o with 422', async (change, message) => {
+  ])('refuses %o with 422, naming the field', async (change, problem) => {
     const { service, rows } = harness();
     const attempt = service.set('org_1', sarah, cohort, [
       { category: 'mentions', channel: 'email', enabled: false },
       change,
     ]);
     await expect(attempt).rejects.toBeInstanceOf(ValidationError);
-    await expect(attempt).rejects.toThrow(`settings[1]: ${message}`);
+    await expect(attempt).rejects.toThrow(`${problem.path}: ${problem.message}`);
+    await expect(attempt).rejects.toMatchObject({ problems: [problem] });
     expect(rows).toEqual([]);
   });
 

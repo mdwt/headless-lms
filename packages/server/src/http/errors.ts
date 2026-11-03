@@ -125,7 +125,10 @@ export function classifyError(error: unknown): Refusal | undefined {
       status: 422,
       error: 'unprocessable',
       message: error.message,
-      issues: error.problems.map((problem) => ({ path: 'body', message: problem })),
+      issues: error.problems.map((problem) => ({
+        path: problem.path ? `body.${problem.path}` : 'body',
+        message: problem.message,
+      })),
     };
   }
   if (error instanceof ConflictError || error instanceof OrganizationRuleError) {

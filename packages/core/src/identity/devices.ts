@@ -1,6 +1,6 @@
 import type { DeviceView, PushConfig, PushDevice } from '../types/index.js';
 import type { Logger } from '../shared/ports.js';
-import { NotFoundError, ValidationError } from '../shared/errors.js';
+import { NotFoundError, ValidationError, type ValidationProblem } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import type {
   DeviceRegistration,
@@ -45,7 +45,7 @@ export class DevicesServiceImpl implements DevicesService {
   ): Promise<PushDevice> {
     const problems = this.registrationProblems(input);
     if (problems.length > 0) {
-      throw new ValidationError(problems.join('; '), problems);
+      throw new ValidationError(problems);
     }
     const device = await this.repo.upsert(
       orgId,
@@ -97,26 +97,38 @@ export class DevicesServiceImpl implements DevicesService {
     return { vapidPublicKey: this.push.webpush?.publicKey ?? null };
   }
 
-  private registrationProblems(input: DeviceRegistration): string[] {
-    const problems: string[] = [];
+  private registrationProblems(input: DeviceRegistration): ValidationProblem[] {
+    const problems: ValidationProblem[] = [];
     if (!this.push[input.provider]) {
-      problems.push(`push through ${input.provider} is not configured`);
+      problems.push({
+        path: 'provider',
+        message: `push through ${input.provider} is not configured`,
+      });
       return problems;
     }
     if (input.provider === 'apns') {
       const bundleIds = this.push.apns?.bundleIds ?? [];
       if (!input.appId || !bundleIds.includes(input.appId)) {
-        problems.push('appId must be one of the configured iOS bundle ids');
+        problems.push({
+          path: 'appId',
+          message: 'must be one of the configured iOS bundle ids',
+        });
       }
     } else if (input.environment !== undefined) {
-      problems.push('environment applies to apns devices only');
+      problems.push({
+        path: 'environment',
+        message: 'applies to apns devices only',
+      });
     }
     if (input.provider === 'webpush') {
       if (!input.keys) {
-        problems.push('a webpush device needs its p256dh and auth keys');
+        problems.push({
+          path: 'keys',
+          message: 'a webpush device needs its p256dh and auth keys',
+        });
       }
     } else if (input.keys !== undefined) {
-      problems.push('keys apply to webpush devices only');
+      problems.push({ path: 'keys', message: 'apply to webpush devices only' });
     }
     return problems;
   }

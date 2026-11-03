@@ -53,12 +53,19 @@ export class UnavailableError extends Error {
   }
 }
 
+export type ValidationProblem = { path?: string; message: string };
+
 export class ValidationError extends Error {
-  constructor(
-    message: string,
-    readonly problems: string[] = [message],
-  ) {
-    super(message);
+  readonly problems: ValidationProblem[];
+
+  constructor(problems: string | ValidationProblem[]) {
+    const list = typeof problems === 'string' ? [{ message: problems }] : problems;
+    super(
+      list
+        .map((problem) => (problem.path ? `${problem.path}: ${problem.message}` : problem.message))
+        .join('; '),
+    );
+    this.problems = list;
     this.name = 'ValidationError';
   }
 }

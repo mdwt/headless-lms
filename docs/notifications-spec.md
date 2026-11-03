@@ -461,6 +461,8 @@ Automations applies these rules when it files a recipient list:
 - `spaceDefaults` appears without `perSpace` or names a channel the category doesn't offer;
 - earlier categories already cover every pair of a category.
 
+The 422 lists every problem in `issues`, each with the `path` of the field it is about, such as `body.categories[3].covers` for a category whose pairs earlier categories already cover or `body.categories[0].channels.push` for an unconfigured channel, and a message.
+
 ### 7.4 Effect on settings
 
 Changing a list writes nothing in identity. Resolution (8.1) reads only the categories and channels of the list in use:
@@ -1494,7 +1496,7 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
 ] }
 ```
 
-It answers 204, and the app reads the GET again. A channel the category offers but the deployment doesn't configure counts as not offered; when one request changes the same setting twice, the last change wins. It answers 404 when the caller can't open the community, and 422 when the category doesn't exist, doesn't offer the channel, the channel is locked, or `spaceId` is given for a category that isn't `perSpace`. The route calls identity's `NotificationSettingsService.set`, which checks access through its `CommunityAccessReader` port (entitlements), reads the list in use through its `NotificationCategoryReader` port and validates against it. Identity stores space settings without checking the space; a setting for a space the member can't open never matches.
+It answers 204, and the app reads the GET again. A channel the category offers but the deployment doesn't configure counts as not offered; when one request changes the same setting twice, the last change wins. It answers 404 when the caller can't open the community, and 422 when the category doesn't exist, doesn't offer the channel, the channel is locked, or `spaceId` is given for a category that isn't `perSpace`, each issue's `path` naming the field, such as `body.settings[1].channel`. The route calls identity's `NotificationSettingsService.set`, which checks access through its `CommunityAccessReader` port (entitlements), reads the list in use through its `NotificationCategoryReader` port and validates against it. Identity stores space settings without checking the space; a setting for a space the member can't open never matches.
 
 `GET` and `PATCH /api/member/settings/notifications` do the same for the org's categories, for anyone signed in to the org; the GET has no `digest` and no `spaces`.
 
@@ -1517,7 +1519,7 @@ It answers 204, and the app reads the GET again. A channel the category offers b
 | `DELETE /api/member/devices/:deviceId` | the device's owner | 204 |
 | `GET /api/member/push-config` | signed in | `{ vapidPublicKey: string \| null }`; `null` when Web Push is not configured |
 
-The device routes call identity's `DevicesService`; `push-config` reads the deployment's Web Push configuration through the same service. `POST` answers 422 for an unconfigured provider, an `apns` `appId` that isn't a configured bundle id (section 10), `webpush` without `keys`, `keys` on another provider, and `environment` on a provider other than `apns`.
+The device routes call identity's `DevicesService`; `push-config` reads the deployment's Web Push configuration through the same service. `POST` answers 422 for an unconfigured provider, an `apns` `appId` that isn't a configured bundle id (section 10), `webpush` without `keys`, `keys` on another provider, and `environment` on a provider other than `apns`, each issue's `path` naming the field, such as `body.appId`.
 
 ### 19.6 Scheduled posts
 

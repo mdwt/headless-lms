@@ -21,7 +21,7 @@ import {
 
 import { CategoryDialog, type CategorySpace } from "./category-dialog";
 import { categoryLabel, channelLabel, reasonLabel } from "./labels";
-import { problemsByCategory, type ListRefusal } from "./problems";
+import { problemsByCategory, type ListProblem, type ListRefusal } from "./problems";
 
 type Draft = { id: string; category: NotificationCategory };
 
@@ -106,7 +106,7 @@ export function CategoryListEditor({
   const router = useRouter();
   const [drafts, setDrafts] = useState(() => draftsOf(list.categories));
   const [server, setServer] = useState(list);
-  const [problems, setProblems] = useState<string[]>([]);
+  const [problems, setProblems] = useState<ListProblem[]>([]);
   const [editing, setEditing] = useState<{ id: string | null } | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [isPending, startTransition] = useTransition();

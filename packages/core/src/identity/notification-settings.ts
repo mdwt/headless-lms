@@ -1,6 +1,6 @@
 import type { NotificationCategory, SettingsScope, StoredSetting } from '../types/index.js';
 import type { ChannelRegistry, Logger } from '../shared/ports.js';
-import { NotFoundError, ValidationError } from '../shared/errors.js';
+import { NotFoundError, ValidationError, type ValidationProblem } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import type {
   CommunityAccessReader,
@@ -85,26 +85,38 @@ export class NotificationSettingsServiceImpl implements NotificationSettingsServ
       list = await this.categories.communityList(orgId, communityId);
     }
     const configured = this.channels.list();
-    const problems: string[] = [];
+    const problems: ValidationProblem[] = [];
     const byKey = new Map<string, { key: SettingKey; enabled: boolean | null }>();
     changes.forEach((change, index) => {
       const at = `settings[${index}]`;
       const category = list.find((candidate) => candidate.key === change.category);
       if (!category) {
-        problems.push(`${at}: there is no category ${change.category}`);
+        problems.push({
+          path: `${at}.category`,
+          message: `there is no category ${change.category}`,
+        });
         return;
       }
       const offered = category.channels[change.channel];
       if (!offered || !configured.includes(change.channel)) {
-        problems.push(`${at}: ${change.category} does not offer the channel ${change.channel}`);
+        problems.push({
+          path: `${at}.channel`,
+          message: `${change.category} does not offer the channel ${change.channel}`,
+        });
         return;
       }
       if (offered.locked) {
-        problems.push(`${at}: the channel ${change.channel} of ${change.category} is locked`);
+        problems.push({
+          path: `${at}.channel`,
+          message: `the channel ${change.channel} of ${change.category} is locked`,
+        });
         return;
       }
       if (change.spaceId !== undefined && category.perSpace !== true) {
-        problems.push(`${at}: ${change.category} cannot be set per space`);
+        problems.push({
+          path: `${at}.spaceId`,
+          message: `${change.category} cannot be set per space`,
+        });
         return;
       }
       const key: SettingKey = {
@@ -116,7 +128,7 @@ export class NotificationSettingsServiceImpl implements NotificationSettingsServ
       byKey.set(keyOf(key), { key, enabled: change.enabled });
     });
     if (problems.length > 0) {
-      throw new ValidationError(problems.join('; '), problems);
+      throw new ValidationError(problems);
     }
     const entries = [...byKey.values()];
     await this.repo.apply(
