@@ -1,7 +1,7 @@
 // automations context — public surface. Re-export only what other contexts may use.
 export { AutomationsServiceImpl } from './service.js';
 export { cronMatches } from './schedule.js';
-export type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
+export type { CommunityMailReads, GrantWriter } from './community-mail.js';
 export { automationEvents } from './events.js';
 export {
   ACTION_FAILED,

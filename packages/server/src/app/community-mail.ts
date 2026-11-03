@@ -1,9 +1,4 @@
-import type { AssetsService } from '@headless-lms/core/assets';
-import type {
-  CommunityMailReads,
-  GrantWriter,
-  ScheduledWork,
-} from '@headless-lms/core/automations';
+import type { CommunityMailReads, GrantWriter } from '@headless-lms/core/automations';
 import type { ContentService } from '@headless-lms/core/content';
 import type { ChatService, DiscussionService, PostService } from '@headless-lms/core/discussion';
 import type { EntitlementsService } from '@headless-lms/core/entitlements';
@@ -23,21 +18,17 @@ export type CommunityMailDeps = {
     | 'countActiveSpaceMembers'
     | 'communityIdsOpenedFor'
     | 'ensureGrant'
-    | 'expireDue'
-    | 'hasDueNotices'
   >;
   organizations: Pick<OrganizationService, 'getOrgUserById' | 'staffOrgUserIds'>;
   identity: Pick<IdentityService, 'displayName'>;
-  posts: Pick<PostService, 'followerIds' | 'find' | 'publishDue' | 'hasDue'>;
+  posts: Pick<PostService, 'followerIds' | 'find'>;
   discussion: Pick<DiscussionService, 'getComment'>;
   chats: Pick<ChatService, 'chatSummary' | 'latestMessageBody' | 'isBlocked'>;
-  assets: Pick<AssetsService, 'removeUnattached' | 'hasUnattached'>;
 };
 
 export function communityMail(deps: CommunityMailDeps): {
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
-  scheduledWork: ScheduledWork;
 } {
   const mail: Omit<CommunityMailReads, 'recentMessageRecipients'> = {
     async communityTitle(orgId, communityId) {
@@ -124,16 +115,6 @@ export function communityMail(deps: CommunityMailDeps): {
     mail,
     grants: {
       grant: (orgId, input) => deps.entitlements.ensureGrant(orgId, input),
-    },
-    scheduledWork: {
-      publishDuePosts: (orgId, now) => deps.posts.publishDue(orgId, now),
-      hasDuePosts: (orgId, now) => deps.posts.hasDue(orgId, now),
-      expireDueGrants: (orgId, now) => deps.entitlements.expireDue(orgId, now),
-      hasDueGrants: (orgId, now) => deps.entitlements.hasDueNotices(orgId, now),
-      removeUnattachedUploads: async (orgId, now) => {
-        await deps.assets.removeUnattached(orgId, now);
-      },
-      hasUnattachedUploads: (orgId, now) => deps.assets.hasUnattached(orgId, now),
     },
   };
 }

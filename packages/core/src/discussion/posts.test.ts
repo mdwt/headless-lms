@@ -200,29 +200,6 @@ function harness(options?: {
         .slice(0, limit)
         .map((row) => ({ ...row }));
     },
-    async listDue(orgId, now, limit, afterId) {
-      return rows
-        .filter(
-          (row) =>
-            row.orgId === orgId &&
-            row.status === 'scheduled' &&
-            row.scheduledAt !== null &&
-            row.scheduledAt <= now &&
-            (afterId === undefined || row.id > afterId),
-        )
-        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-        .slice(0, limit)
-        .map((row) => ({ ...row }));
-    },
-    async hasDue(orgId, now) {
-      return rows.some(
-        (row) =>
-          row.orgId === orgId &&
-          row.status === 'scheduled' &&
-          row.scheduledAt !== null &&
-          row.scheduledAt <= now,
-      );
-    },
     async reactionsOf(_orgId, postIds, viewerId) {
       const byPost: Record<string, PostReactions> = {};
       for (const reaction of reactions) {
@@ -736,73 +713,6 @@ describe('posts', () => {
     expect(hidden.rows).toHaveLength(0);
   });
 
-  it('answers whether a post is due without loading the due posts', async () => {
-    const { svc, repo } = harness({ roles: { ou_member: 'student' } });
-    const listDue = vi.spyOn(repo, 'listDue');
-    const when = new Date(Date.now() + 60 * 60_000);
-    await svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: when }));
-    await expect(svc.hasDue(ORG, new Date(when.getTime() - 60_000))).resolves.toBe(false);
-    await expect(svc.hasDue(ORG, new Date(when.getTime() + 60_000))).resolves.toBe(true);
-    expect(listDue).not.toHaveBeenCalled();
-  });
-
-  it('submits due posts in bounded batches, one transaction each', async () => {
-    const { svc, repo, calls } = harness({ roles: { ou_member: 'student' } });
-    const listDue = vi.spyOn(repo, 'listDue');
-    const when = new Date(Date.now() + 60 * 60_000);
-    for (let i = 0; i < 101; i++) {
-      await svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: when }));
-    }
-    calls.length = 0;
-    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
-    expect(listDue).toHaveBeenCalledTimes(2);
-    expect(listDue.mock.calls[0]?.[2]).toBe(100);
-    expect(listDue.mock.calls[0]?.[3]).toBeUndefined();
-    expect(listDue.mock.calls[1]?.[3]).toEqual(expect.any(String));
-    expect(calls.map((events) => events.length)).toEqual([100, 1]);
-    await expect(svc.hasDue(ORG, new Date(when.getTime() + 60_000))).resolves.toBe(false);
-  });
-
-  it('submits a due post as its author, with no actor, and applies review to a member', async () => {
-    const { svc, calls, setSpaces } = harness({
-      roles: { ou_staff: 'owner', ou_member: 'student' },
-    });
-    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const when = new Date(Date.now() + 60 * 60_000);
-    const scheduled = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
-    const staffPost = await svc.create(
-      ORG,
-      staff,
-      draftInput({ mode: 'schedule', scheduledAt: when, title: 'Staff' }),
-    );
-    calls.length = 0;
-    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
-    const events = calls[0] ?? [];
-    const idOf = (event: NewDomainEvent): string | undefined => {
-      const data = event.data;
-      if (data && typeof data === 'object' && 'id' in data && typeof data.id === 'string') {
-        return data.id;
-      }
-      return undefined;
-    };
-    const memberEvent = events.find((event) => idOf(event) === scheduled.id);
-    const staffEvent = events.find((event) => idOf(event) === staffPost.id);
-    expect(memberEvent).toMatchObject({
-      type: 'discussion.post.updated',
-      metadata: { previousStatus: 'scheduled' },
-    });
-    expect(memberEvent?.metadata).not.toHaveProperty('actorOrgUserId');
-    expect(staffEvent).toMatchObject({
-      type: 'discussion.post.published',
-      metadata: { previousStatus: 'scheduled' },
-    });
-    expect(staffEvent?.metadata).not.toHaveProperty('actorOrgUserId');
-  });
-
   it('flags a visible post once and lets a moderator resolve the flag without an event', async () => {
     const { svc, calls, flags } = harness();
     const created = await svc.create(ORG, member, draftInput());
@@ -936,48 +846,6 @@ describe('posts', () => {
     await expect(
       svc.update(ORG, created.id, member, { coverAssetId: 'ast_paid' }),
     ).rejects.toBeInstanceOf(NotFoundError);
-  });
-
-  it('moves a due post back to draft when its author can no longer open the space', async () => {
-    const { svc, calls, rows } = harness({ roles: { ou_member: 'student', ou_out: 'student' } });
-    const when = new Date(Date.now() + 60 * 60_000);
-    const scheduled = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
-    const row = rows.find((item) => item.id === scheduled.id);
-    if (row) {
-      row.orgUserId = outsider.id;
-    }
-    calls.length = 0;
-    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
-    expect(rows.find((item) => item.id === scheduled.id)).toMatchObject({
-      status: 'draft',
-      scheduledAt: null,
-      publishedAt: null,
-    });
-    expect(calls[0]).toEqual([
-      expect.objectContaining({
-        type: 'discussion.post.updated',
-        metadata: { previousStatus: 'scheduled' },
-      }),
-    ]);
-  });
-
-  it('moves a due post back to draft when its topic no longer fits the space', async () => {
-    const { svc, calls, rows, setSpaces } = harness({ roles: { ou_member: 'student' } });
-    const when = new Date(Date.now() + 60 * 60_000);
-    const scheduled = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
-    setSpaces([space({ topics: [topic('top_1')] })]);
-    calls.length = 0;
-    await svc.publishDue(ORG, new Date(when.getTime() + 60_000));
-    expect(rows.find((item) => item.id === scheduled.id)?.status).toBe('draft');
-    expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.updated']);
   });
 
   it('refuses to submit a draft whose topic the space no longer allows', async () => {

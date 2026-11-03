@@ -47,27 +47,6 @@ export function orgSeeds(): SeedAutomation[] {
       filter: null,
     },
     {
-      name: 'Publish due posts',
-      description: 'Submit scheduled posts whose time has passed.',
-      triggers: ['schedule:* * * * *'],
-      actions: [{ type: 'publishDuePosts', input: {} }],
-      filter: null,
-    },
-    {
-      name: 'Expire due grants',
-      description: 'Expire grants whose time has passed and remind those ending within a week.',
-      triggers: ['schedule:0 * * * *'],
-      actions: [{ type: 'expireDueGrants', input: {} }],
-      filter: null,
-    },
-    {
-      name: 'Remove unattached uploads',
-      description: 'Remove member uploads older than an hour that nothing references.',
-      triggers: ['schedule:0 * * * *'],
-      actions: [{ type: 'removeUnattachedUploads', input: {} }],
-      filter: null,
-    },
-    {
       name: 'Welcome to the community',
       description: 'Notify a person when a grant opens a community.',
       triggers: ['entitlement.created'],

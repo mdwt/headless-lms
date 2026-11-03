@@ -20,7 +20,7 @@ import {
   publicDataSchema,
 } from './catalog.js';
 import { webhookHeaders } from './webhook-signing.js';
-import { address, firedAtOf, type ActionDeps, type EmailRecipient } from './community-mail.js';
+import { address, type ActionDeps, type EmailRecipient } from './community-mail.js';
 import { COMMUNITY_DERIVATIONS, type EmailDerivation } from './community-derivations.js';
 import { NOTIFICATION_PLACEMENTS } from './community-notifications.js';
 
@@ -141,18 +141,6 @@ export async function executeAction(
     }
     case 'grantAccess': {
       await grantAccess(action, event, deps);
-      return reachedNoOne();
-    }
-    case 'publishDuePosts': {
-      await deps.scheduledWork.publishDuePosts(event.orgId, firedAtOf(event));
-      return reachedNoOne();
-    }
-    case 'expireDueGrants': {
-      await deps.scheduledWork.expireDueGrants(event.orgId, firedAtOf(event));
-      return reachedNoOne();
-    }
-    case 'removeUnattachedUploads': {
-      await deps.scheduledWork.removeUnattachedUploads(event.orgId, firedAtOf(event));
       return reachedNoOne();
     }
     case DELIVER_WEBHOOK_ACTION: {

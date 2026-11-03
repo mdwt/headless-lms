@@ -360,8 +360,6 @@ export interface PostService {
     communityId: string,
     spaceId: string,
   ): Promise<SpaceModerationQueue>;
-  publishDue(orgId: string, now: Date): Promise<void>;
-  hasDue(orgId: string, now: Date): Promise<boolean>;
 }
 
 export interface PostGuard {
@@ -390,9 +388,6 @@ export interface PostRepository {
     query: BookmarkQuery,
   ): Promise<Page<Post>>;
   listPending(orgId: string, spaceId: string, limit: number): Promise<Post[]>;
-  /** Due scheduled posts in id order, after `afterId` when given. */
-  listDue(orgId: string, now: Date, limit: number, afterId?: string): Promise<Post[]>;
-  hasDue(orgId: string, now: Date): Promise<boolean>;
   reactionsOf(
     orgId: string,
     postIds: string[],

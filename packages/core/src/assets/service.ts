@@ -292,13 +292,6 @@ export class AssetsServiceImpl implements AssetsService {
     return this.remove(orgId, id);
   }
 
-  async hasUnattached(orgId: string, now: Date): Promise<boolean> {
-    if (await this.repo.hasUnreferencedMemberUploads(orgId, graceCutoff(now))) {
-      return true;
-    }
-    return (await this.strayUploads(orgId, now)).length > 0;
-  }
-
   async removeUnattached(orgId: string, now: Date): Promise<number> {
     const stale = await this.repo.listUnreferencedMemberUploads(orgId, graceCutoff(now));
     let removed = 0;

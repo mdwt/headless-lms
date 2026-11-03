@@ -519,7 +519,6 @@ export async function buildContainer(
     posts,
     discussion,
     chats,
-    assets,
   });
   const automations = new AutomationsServiceImpl({
     repo: new DrizzleAutomationsRepository(db, automationsLogger),
@@ -536,7 +535,6 @@ export async function buildContainer(
     mail: wired.mail,
     grants: wired.grants,
     desk: notifications,
-    scheduledWork: wired.scheduledWork,
     logger: automationsLogger,
   });
   automationEngine.register(automations);

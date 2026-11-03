@@ -96,8 +96,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     activeSpaceIds: vi.fn().mockResolvedValue([]),
     listGrantsExpiredBy: vi.fn().mockResolvedValue([]),
     listGrantsEndingBetween: vi.fn().mockResolvedValue([]),
-    hasDueNotices: vi.fn().mockResolvedValue(false),
-    orgIdsWithDueNotices: vi.fn().mockResolvedValue([]),
+    orgIdsWithDueNotices: vi.fn().mockResolvedValue(['org-1']),
     claimNotice: vi.fn().mockResolvedValue(true),
     communityModeratorIds: vi.fn().mockResolvedValue([]),
     communityMemberIds: vi.fn().mockResolvedValue([]),
@@ -654,7 +653,7 @@ describe('expireDue', () => {
       claimNotice: vi.fn(async (_orgId, notice) => notice.entitlementId === 'ent_1'),
     });
     const { svc, appended } = build(repo);
-    await svc.expireDue('org-1', now);
+    await svc.expireDueGrants(now);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.expired',
@@ -687,7 +686,7 @@ describe('expireDue', () => {
       ),
     });
     const { svc, appended } = build(repo);
-    await svc.expireDue('org-1', now);
+    await svc.expireDueGrants(now);
     expect(repo.listGrantsEndingBetween).toHaveBeenCalledWith(
       'org-1',
       now,
@@ -729,7 +728,7 @@ describe('expireDue', () => {
       .mockResolvedValueOnce([{ ...grant, id: 'ent_100' }]);
     const repo = fakeRepo({ listGrantsExpiredBy });
     const { svc, appended } = build(repo);
-    await svc.expireDue('org-1', now);
+    await svc.expireDueGrants(now);
     expect(listGrantsExpiredBy).toHaveBeenCalledTimes(2);
     expect(listGrantsExpiredBy).toHaveBeenNthCalledWith(1, 'org-1', now, 100, undefined);
     expect(listGrantsExpiredBy).toHaveBeenNthCalledWith(2, 'org-1', now, 100, 'ent_099');
@@ -742,7 +741,7 @@ describe('expireDue', () => {
       claimNotice: vi.fn().mockResolvedValue(false),
     });
     const { svc, append } = build(repo);
-    await svc.expireDue('org-1', now);
+    await svc.expireDueGrants(now);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -777,13 +776,6 @@ describe('expireDue', () => {
       'due grants of 1 orgs could not be expired',
     );
     expect(appended.map((event) => event.orgId)).toEqual(['org-2']);
-  });
-
-  it('reports due notices over the seven-day window', async () => {
-    const repo = fakeRepo({ hasDueNotices: vi.fn().mockResolvedValue(true) });
-    const { svc } = build(repo);
-    await expect(svc.hasDueNotices('org-1', now)).resolves.toBe(true);
-    expect(repo.hasDueNotices).toHaveBeenCalledWith('org-1', now, new Date('2026-06-08T00:00:00Z'));
   });
 });
 

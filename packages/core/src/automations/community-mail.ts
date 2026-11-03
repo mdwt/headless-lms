@@ -81,15 +81,6 @@ export interface CommunityMailReads {
   ): Promise<string[]>;
 }
 
-export interface ScheduledWork {
-  publishDuePosts(orgId: string, now: Date): Promise<void>;
-  expireDueGrants(orgId: string, now: Date): Promise<void>;
-  hasDuePosts(orgId: string, now: Date): Promise<boolean>;
-  hasDueGrants(orgId: string, now: Date): Promise<boolean>;
-  removeUnattachedUploads(orgId: string, now: Date): Promise<void>;
-  hasUnattachedUploads(orgId: string, now: Date): Promise<boolean>;
-}
-
 export interface GrantWriter {
   grant(orgId: string, input: GrantEntitlementInput): Promise<unknown>;
 }
@@ -102,7 +93,6 @@ export interface ActionDeps {
   mail: CommunityMailReads;
   grants: GrantWriter;
   desk: NotificationDesk;
-  scheduledWork: ScheduledWork;
   automationId: string;
   actionInput: Record<string, JsonValue>;
   logger?: Logger;
@@ -135,15 +125,6 @@ export const emptyNotificationDesk: NotificationDesk = {
   preferencesFor: async () => ({}),
 };
 
-export const emptyScheduledWork: ScheduledWork = {
-  publishDuePosts: async () => {},
-  expireDueGrants: async () => {},
-  hasDuePosts: async () => false,
-  hasDueGrants: async () => false,
-  removeUnattachedUploads: async () => {},
-  hasUnattachedUploads: async () => false,
-};
-
 export function actorOf(event: DomainEvent): string | undefined {
   const value = event.metadata?.actorOrgUserId;
   return typeof value === 'string' ? value : undefined;
@@ -162,16 +143,6 @@ export function excerpt(value: string, max: number): string {
 export function seededCommunityId(deps: ActionDeps): string | null {
   const id = deps.actionInput['communityId'];
   return typeof id === 'string' ? id : null;
-}
-
-export function firedAtOf(event: DomainEvent): Date {
-  if (typeof event.data === 'object' && event.data !== null && 'firedAt' in event.data) {
-    const firedAt = (event.data as { firedAt?: unknown }).firedAt;
-    if (typeof firedAt === 'string') {
-      return new Date(firedAt);
-    }
-  }
-  return new Date(event.occurredAt);
 }
 
 export async function address<K extends EmailTemplateId>(

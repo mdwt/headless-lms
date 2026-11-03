@@ -90,24 +90,6 @@ export function catalogActions(): AvailableActions {
       },
       source: 'system',
     },
-    {
-      type: 'publishDuePosts',
-      description: 'Submit scheduled posts whose time has passed.',
-      inputSchema: { type: 'object' },
-      source: 'system',
-    },
-    {
-      type: 'expireDueGrants',
-      description: 'Expire grants whose time has passed.',
-      inputSchema: { type: 'object' },
-      source: 'system',
-    },
-    {
-      type: 'removeUnattachedUploads',
-      description: 'Remove member uploads older than an hour that nothing references.',
-      inputSchema: { type: 'object' },
-      source: 'system',
-    },
   ];
 }
 

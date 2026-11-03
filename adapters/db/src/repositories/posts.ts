@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   BookmarkQuery,
@@ -251,35 +251,6 @@ export class DrizzlePostRepository implements PostRepository {
       .orderBy(asc(posts.createdAt), asc(posts.id))
       .limit(limit);
     return rows.map(toPost);
-  }
-
-  async listDue(orgId: string, now: Date, limit: number, afterId?: string): Promise<Post[]> {
-    const rows = await this.db
-      .select()
-      .from(posts)
-      .where(
-        and(
-          eq(posts.orgId, orgId),
-          eq(posts.status, "scheduled"),
-          lte(posts.scheduledAt, now),
-          afterId === undefined ? undefined : gt(posts.id, afterId),
-        ),
-      )
-      .orderBy(asc(posts.id))
-      .limit(limit);
-    return rows.map(toPost);
-  }
-
-  async hasDue(orgId: string, now: Date): Promise<boolean> {
-    const due = this.db
-      .select({ id: posts.id })
-      .from(posts)
-      .where(
-        and(eq(posts.orgId, orgId), eq(posts.status, "scheduled"), lte(posts.scheduledAt, now)),
-      )
-      .limit(1);
-    const result = await this.db.execute<{ due: boolean }>(sql`select exists (${due}) as due`);
-    return result.rows[0]?.due === true;
   }
 
   async reactionsOf(

@@ -52,7 +52,6 @@ export type PostServiceParams = {
 };
 
 const PUBLISHED_ONLY: PostStatus[] = ['published'];
-const DUE_BATCH_SIZE = 100;
 const MODERATOR_VISIBLE: PostStatus[] = ['published', 'pending', 'removed'];
 const DRAFT = {
   status: 'draft' as const,
@@ -776,105 +775,6 @@ export class PostServiceImpl implements PostService {
 
   followerIds(orgId: string, postId: string): Promise<string[]> {
     return this.repo.followerIds(orgId, postId);
-  }
-
-  hasDue(orgId: string, now: Date): Promise<boolean> {
-    return this.repo.hasDue(orgId, now);
-  }
-
-  async publishDue(orgId: string, now: Date): Promise<void> {
-    let afterId: string | undefined;
-    let count = 0;
-    let refused = 0;
-    for (;;) {
-      const due = await this.repo.listDue(orgId, now, DUE_BATCH_SIZE, afterId);
-      if (due.length === 0) {
-        break;
-      }
-      const batch = await this.submitDue(orgId, now, due);
-      count += batch.count;
-      refused += batch.refused;
-      if (due.length < DUE_BATCH_SIZE) {
-        break;
-      }
-      afterId = due[due.length - 1]!.id;
-    }
-    if (count > 0) {
-      this.logger.info('due posts submitted', { orgId, count, refused });
-    } else {
-      this.logger.debug('no posts due', { orgId });
-    }
-  }
-
-  private async submitDue(
-    orgId: string,
-    now: Date,
-    due: Post[],
-  ): Promise<{ count: number; refused: number }> {
-    const spaces = new Map<string, SpaceDetail | null>();
-    const roles = new Map<string, Role | null>();
-    const refused = new Set<string>();
-    for (const post of due) {
-      if (!spaces.has(post.spaceId)) {
-        spaces.set(post.spaceId, await this.content.getSpace(orgId, post.spaceId));
-      }
-      if (!roles.has(post.orgUserId)) {
-        roles.set(post.orgUserId, await this.authors.roleOf(orgId, post.orgUserId));
-      }
-      const space = spaces.get(post.spaceId);
-      const role = roles.get(post.orgUserId) ?? null;
-      if (space && !(await this.submittable(orgId, post, space, role))) {
-        refused.add(post.id);
-      }
-    }
-    const count = await this.uow.run(async ({ posts, outbox }) => {
-      const events: NewDiscussionEvent[] = [];
-      for (const post of due) {
-        const current = await posts.find(orgId, post.id);
-        if (
-          !current ||
-          current.status !== 'scheduled' ||
-          current.scheduledAt === null ||
-          current.scheduledAt > now
-        ) {
-          continue;
-        }
-        const space = spaces.get(current.spaceId);
-        if (!space) {
-          this.logger.error('scheduled post has no space', {
-            orgId,
-            postId: current.id,
-            spaceId: current.spaceId,
-          });
-          continue;
-        }
-        const next = await posts.update(
-          orgId,
-          current.id,
-          refused.has(current.id)
-            ? { status: 'draft', scheduledAt: null, publishedAt: null, removedBy: null }
-            : this.submissionOf(
-                space.settings.requireReview,
-                roles.get(current.orgUserId) ?? null,
-                now,
-              ),
-        );
-        if (!next) {
-          continue;
-        }
-        const metadata = this.meta(null, current.status);
-        events.push(
-          next.status === 'published'
-            ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
-            : discussionEvents.postUpdated.make({ orgId, data: next, metadata }),
-        );
-      }
-      if (events.length > 0) {
-        await outbox.append(events);
-      }
-      return events.length;
-    });
-    return { count, refused: refused.size };
   }
 
   private async submittable(

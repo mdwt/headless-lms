@@ -693,19 +693,6 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     }));
   }
 
-  async hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean> {
-    const expired = this.db
-      .select({ id: entitlements.id })
-      .from(entitlements)
-      .where(this.expiredUnnoticed(orgId, now));
-    const ending = this.db
-      .select({ id: entitlements.id })
-      .from(entitlements)
-      .innerJoin(communities, opensPublishedCommunity)
-      .where(this.endingUnnoticed(orgId, now, until));
-    return this.holds(sql`(exists (${expired}) or exists (${ending}))`);
-  }
-
   async orgIdsWithDueNotices(now: Date, until: Date): Promise<string[]> {
     const expired = this.db
       .selectDistinct({ orgId: entitlements.orgId })

@@ -7,7 +7,6 @@ import { COMMUNITY_DERIVATIONS } from './community-derivations.js';
 import {
   emptyCommunityMail,
   emptyNotificationDesk,
-  emptyScheduledWork,
   type ActionDeps,
 } from './community-mail.js';
 import type { DomainEvent } from '../shared/ports.js';
@@ -54,7 +53,6 @@ function deps(over: Partial<ActionDeps> = {}): ActionDeps {
     },
     grants: { grant: vi.fn() },
     desk: emptyNotificationDesk,
-    scheduledWork: emptyScheduledWork,
     automationId: 'atm_1',
     actionInput: { template: 'welcomeToCommunity', communityId: 'cmy_1' },
     ...over,
@@ -493,23 +491,6 @@ describe('executeAction grant and schedule', () => {
       bundleId: null,
       expiresAt: new Date('2026-01-09T00:00:00.000Z'),
     });
-  });
-
-  it('publishes due posts from the schedule clock', async () => {
-    const publishDuePosts = vi.fn(async () => {});
-    await executeAction(
-      { type: 'publishDuePosts', input: {} },
-      {
-        type: 'automation.schedule.fired',
-        id: 'schedule_atm_1_2026-01-02T00:00:00.000Z',
-        orgId: 'org-1',
-        version: 1,
-        occurredAt: '2026-01-02T00:00:00.000Z',
-        data: { automationId: 'atm_1', firedAt: '2026-01-02T00:05:00.000Z' },
-      },
-      deps({ scheduledWork: { ...emptyScheduledWork, publishDuePosts } }),
-    );
-    expect(publishDuePosts).toHaveBeenCalledWith('org-1', new Date('2026-01-02T00:05:00.000Z'));
   });
 });
 

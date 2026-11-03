@@ -13,7 +13,7 @@ import {
 } from './catalog.js';
 import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
-import type { CommunityMailReads, GrantWriter, ScheduledWork } from './community-mail.js';
+import type { CommunityMailReads, GrantWriter } from './community-mail.js';
 import type { NotificationDesk } from '../identity/index.js';
 import { communitySeeds, orgSeeds, type SeedAutomation } from './seeds.js';
 import { cronSupported } from './schedule.js';
@@ -55,7 +55,7 @@ import type {
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
 import type { JsonValue, ScheduledAutomation } from '../types/index.js';
 import { deliverWebhookInputSchema } from '../types/schemas/index.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { IntegrationsService } from '../integrations/index.js';
@@ -127,10 +127,20 @@ function assertCatalogTriggers(triggers: string[], schedules: boolean): void {
   }
 }
 
+const REMOVED_ACTIONS = new Set([
+  'publishDuePosts',
+  'expireDueGrants',
+  'sendDigest',
+  'removeUnattachedUploads',
+]);
+
 function assertAuthorableActions(actions: AutomationAction[]): void {
   for (const action of actions) {
     if (action.type === DELIVER_WEBHOOK_ACTION) {
       throw new ReservedActionError(action.type);
+    }
+    if (REMOVED_ACTIONS.has(action.type)) {
+      throw new InvalidInputError(`The action "${action.type}" is no longer available`);
     }
   }
 }
@@ -209,7 +219,6 @@ export type AutomationsServiceParams = {
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
   desk: NotificationDesk;
-  scheduledWork: ScheduledWork;
   logger?: Logger;
 };
 
@@ -226,7 +235,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly mail: CommunityMailReads;
   private readonly grants: GrantWriter;
   private readonly desk: NotificationDesk;
-  private readonly scheduledWork: ScheduledWork;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -246,7 +254,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     };
     this.grants = params.grants;
     this.desk = params.desk;
-    this.scheduledWork = params.scheduledWork;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -459,7 +466,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         mail: this.mail,
         grants: this.grants,
         desk: this.desk,
-        scheduledWork: this.scheduledWork,
         automationId: d.automationId,
         actionInput: action.input,
         logger: this.logger,
@@ -507,10 +513,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       this.logger.debug('schedule skipped', { orgId, automationId });
       return;
     }
-    if (!(await this.scheduleHasWork(orgId, automation, firedAt))) {
-      this.logger.debug('schedule idle', { orgId, automationId });
-      return;
-    }
     const event: DomainEvent = {
       type: SCHEDULE_FIRED,
       id: `schedule_${automationId}_${firedAt.toISOString()}`,
@@ -520,37 +522,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       data: { automationId, firedAt: firedAt.toISOString() },
     };
     await this.dispatchOne(automation, event);
-  }
-
-  private async scheduleHasWork(
-    orgId: string,
-    automation: Automation,
-    firedAt: Date,
-  ): Promise<boolean> {
-    const checks = automation.actions.map((action) => this.pendingWork(action.type));
-    const known = checks.filter((check) => check !== null);
-    if (checks.length === 0 || known.length < checks.length) {
-      return true;
-    }
-    for (const check of known) {
-      if (await check(orgId, firedAt)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private pendingWork(type: string): ((orgId: string, now: Date) => Promise<boolean>) | null {
-    switch (type) {
-      case 'publishDuePosts':
-        return (orgId, now) => this.scheduledWork.hasDuePosts(orgId, now);
-      case 'expireDueGrants':
-        return (orgId, now) => this.scheduledWork.hasDueGrants(orgId, now);
-      case 'removeUnattachedUploads':
-        return (orgId, now) => this.scheduledWork.hasUnattachedUploads(orgId, now);
-      default:
-        return null;
-    }
   }
 
   async finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void> {

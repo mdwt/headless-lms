@@ -194,15 +194,6 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     }
   }
 
-  async hasUnreferencedMemberUploads(orgId: string, before: Date): Promise<boolean> {
-    const [row] = await this.db
-      .select({ id: assets.id })
-      .from(assets)
-      .where(unreferencedMemberUploads(orgId, before))
-      .limit(1);
-    return row !== undefined;
-  }
-
   async listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]> {
     const rows = await this.db
       .select()

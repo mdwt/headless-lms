@@ -105,14 +105,6 @@ describe("expiry notices", () => {
     expect(text).not.toMatch(/"entitlements"\."org_id" = \$/);
     expect(values).toEqual(expect.arrayContaining([now.toISOString(), until.toISOString()]));
   });
-
-  it("answers whether anything is due in one query", async () => {
-    const { repo, queries } = capturingDb([]);
-    await expect(repo.hasDueNotices("org-1", now, until)).resolves.toBe(false);
-    expect(queries).toHaveLength(1);
-    expect(queries[0]!.text).toContain("entitlement_expiry_notices");
-    expect(queries[0]!.text).toContain("entitlement_ending_soon_notices");
-  });
 });
 
 describe("community access", () => {

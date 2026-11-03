@@ -21,15 +21,12 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,
       ensureGrant: reject,
-      expireDue: reject,
-      hasDueNotices: reject,
     },
     organizations: { getOrgUserById: reject, staffOrgUserIds: reject },
     identity: { displayName: reject },
-    posts: { followerIds: reject, find: reject, publishDue: reject, hasDue: reject },
+    posts: { followerIds: reject, find: reject },
     discussion: { getComment: reject },
     chats: { chatSummary: reject, latestMessageBody: reject, isBlocked: reject },
-    assets: { removeUnattached: reject, hasUnattached: reject },
     ...over,
   };
 }
@@ -98,22 +95,13 @@ describe('communityMail', () => {
     expect(listCommunitiesById).toHaveBeenCalledWith('org_1', ['cmy_1']);
   });
 
-  it('grants through the idempotent grant and leaves the upload grace to assets', async () => {
+  it('grants through the idempotent grant', async () => {
     const ensureGrant = vi.fn(async () => ({}) as never);
-    const removeUnattached = vi.fn(async () => 0);
-    const { grants, scheduledWork } = communityMail(
-      deps({
-        entitlements: entitlements({ ensureGrant }),
-        assets: { removeUnattached, hasUnattached: reject },
-      }),
-    );
-    const now = new Date('2026-10-22T10:00:00Z');
+    const { grants } = communityMail(deps({ entitlements: entitlements({ ensureGrant }) }));
     const input = { orgUserId: 'ou_sarah', contentId: 'cmy_1', expiresAt: null };
 
     await grants.grant('org_1', input);
-    await scheduledWork.removeUnattachedUploads('org_1', now);
 
     expect(ensureGrant).toHaveBeenCalledWith('org_1', input);
-    expect(removeUnattached).toHaveBeenCalledWith('org_1', now);
   });
 });

@@ -65,11 +65,6 @@ function fakeRepo(referenced: Set<string> = new Set()) {
       assets.splice(i, 1);
       return true;
     },
-    async hasUnreferencedMemberUploads(_orgId, before) {
-      return assets.some(
-        (a) => a.source === 'member' && !referenced.has(a.id) && a.createdAt < before,
-      );
-    },
     async listUnreferencedMemberUploads(_orgId, before) {
       return assets.filter(
         (a) => a.source === 'member' && !referenced.has(a.id) && a.createdAt < before,
@@ -337,12 +332,11 @@ describe('AssetsService', () => {
       },
     );
 
-    expect(await svc.hasUnattached('org-1', now)).toBe(true);
     expect(await svc.removeUnattached('org-1', now)).toBe(1);
     expect(assets.map((a) => a.id)).toEqual(['asset_kept', 'asset_lib', 'asset_recent']);
     expect(storage.remove).toHaveBeenCalledTimes(1);
     expect(appended.map((e) => e.type)).toEqual(['asset.deleted']);
-    expect(await svc.hasUnattached('org-1', now)).toBe(false);
+    expect(await svc.removeUnattached('org-1', now)).toBe(0);
   });
 
   it('skips an upload that was attached after the sweep listed it', async () => {
@@ -691,7 +685,6 @@ describe('AssetsService', () => {
       { key: 'org/org-1/uploads/ast_undated/me.png', size: 10 },
     ]);
 
-    expect(await svc.hasUnattached('org-1', now)).toBe(true);
     expect(await svc.removeUnattached('org-1', now)).toBe(1);
 
     expect(storage.list).toHaveBeenCalledWith('org/org-1/uploads/');
@@ -712,7 +705,8 @@ describe('AssetsService', () => {
         lastModified: '2026-10-22T11:58:00Z',
       },
     ]);
-    expect(await svc.hasUnattached('org-1', new Date('2026-10-22T12:00:00Z'))).toBe(false);
+    expect(await svc.removeUnattached('org-1', new Date('2026-10-22T12:00:00Z'))).toBe(0);
+    expect(storage.remove).not.toHaveBeenCalled();
   });
 
   it('refuses a member image cap that is not a positive integer', () => {

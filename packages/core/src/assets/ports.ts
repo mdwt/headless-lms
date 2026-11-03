@@ -50,7 +50,6 @@ export interface AssetsService extends MemberImageReader, LibraryAssetReader, As
   ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null>;
   remove(orgId: string, id: string): Promise<boolean>;
   removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean>;
-  hasUnattached(orgId: string, now: Date): Promise<boolean>;
   removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 
@@ -69,7 +68,6 @@ export interface AssetsRepository {
     patch: Pick<Asset, 'key' | 'kind' | 'size' | 'contentType'>,
   ): Promise<Asset | null>;
   delete(orgId: string, id: string): Promise<boolean>;
-  hasUnreferencedMemberUploads(orgId: string, before: Date): Promise<boolean>;
   listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]>;
   heldKeys(orgId: string, keys: string[]): Promise<string[]>;
 }

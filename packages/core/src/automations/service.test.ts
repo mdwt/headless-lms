@@ -28,17 +28,12 @@ import type {
   OutboxAppender,
 } from '../shared/ports.js';
 import { createCapturingLogger, noopLogger } from '../shared/logger.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
-import {
-  emptyCommunityMail,
-  emptyNotificationDesk,
-  emptyScheduledWork,
-  type ScheduledWork,
-} from './community-mail.js';
+import { emptyCommunityMail, emptyNotificationDesk } from './community-mail.js';
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -240,7 +235,6 @@ function build(
   lookups = fakeLookups(),
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
-  scheduledWork: ScheduledWork = emptyScheduledWork,
   logger: Logger = noopLogger,
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
@@ -261,7 +255,6 @@ function build(
       },
     },
     desk: emptyNotificationDesk,
-    scheduledWork,
     logger,
   });
   return {
@@ -342,12 +335,12 @@ describe('AutomationsService.handle', () => {
       data: { id: 'org-1' },
     } as DomainEvent;
     await svc.handle(created);
-    expect(stored).toHaveLength(8);
+    expect(stored).toHaveLength(5);
     expect(stored.every((row) => row.source === 'system')).toBe(true);
-    expect(appended).toHaveLength(8);
+    expect(appended).toHaveLength(5);
     await svc.handle(created);
-    expect(stored).toHaveLength(8);
-    expect(appended).toHaveLength(8);
+    expect(stored).toHaveLength(5);
+    expect(appended).toHaveLength(5);
     expect(repo.insert).not.toHaveBeenCalled();
   });
 
@@ -523,7 +516,6 @@ describe('AutomationsService.runAction', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       logger,
     );
     const failure = svc.runAction(
@@ -565,7 +557,6 @@ describe('AutomationsService.runAction', () => {
       fakeRunsRepo(),
       fakeEngine(),
       mailer,
-      undefined,
       undefined,
       undefined,
       undefined,
@@ -709,7 +700,6 @@ describe('AutomationsService.finalize', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       logger,
     );
     await svc.finalize(dispatch, [
@@ -736,7 +726,6 @@ describe('AutomationsService.finalize', () => {
     const { svc } = build(
       fakeRepo(),
       fakeRunsRepo(),
-      undefined,
       undefined,
       undefined,
       undefined,
@@ -850,10 +839,25 @@ describe('AutomationsService CRUD', () => {
     await svc.create('org-1', {
       name: 'Hourly',
       triggers: ['schedule:0 * * * *', 'discussion.message.sent'],
-      actions: [{ type: 'publishDuePosts', input: {} }],
+      actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
     });
     expect(repo.insert).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['publishDuePosts', 'expireDueGrants', 'sendDigest', 'removeUnattachedUploads'])(
+    'rejects the removed %s action on create and update',
+    async (type) => {
+      const { svc, repo, append } = build();
+      const actions = [{ type, input: {} }];
+      await expect(
+        svc.create('org-1', { name: 'Old', triggers: ['schedule:0 * * * *'], actions }),
+      ).rejects.toThrow(InvalidInputError);
+      await expect(svc.update('org-1', 'atm_1', { actions })).rejects.toThrow(InvalidInputError);
+      expect(repo.insert).not.toHaveBeenCalled();
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(append).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
     const { svc, repo, append } = build();
@@ -1077,9 +1081,6 @@ describe('AutomationsService.availableActions', () => {
       },
       expect.objectContaining({ type: 'notify', source: 'system' }),
       expect.objectContaining({ type: 'grantAccess', source: 'system' }),
-      expect.objectContaining({ type: 'publishDuePosts', source: 'system' }),
-      expect.objectContaining({ type: 'expireDueGrants', source: 'system' }),
-      expect.objectContaining({ type: 'removeUnattachedUploads', source: 'system' }),
       {
         type: 'slack.send-message',
         description: 'Post a message to a channel.',
@@ -1095,9 +1096,6 @@ describe('AutomationsService.availableActions', () => {
       'sendEmail',
       'notify',
       'grantAccess',
-      'publishDuePosts',
-      'expireDueGrants',
-      'removeUnattachedUploads',
     ]);
   });
 });
@@ -1674,55 +1672,6 @@ describe('AutomationsService.runAction deliverWebhook', () => {
   });
 });
 
-describe('fireSchedule', () => {
-  const due = {
-    ...AUTOMATION,
-    triggers: ['schedule:* * * * *'],
-    actions: [{ type: 'publishDuePosts', input: {} }],
-  };
-
-  it('does not open a run when no post is due', async () => {
-    const hasDuePosts = vi.fn().mockResolvedValue(false);
-    const repo = fakeRepo({ findById: vi.fn().mockResolvedValue(due) });
-    const { svc, engine } = build(
-      repo,
-      fakeRunsRepo(),
-      fakeEngine(),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      { ...emptyScheduledWork, hasDuePosts },
-    );
-
-    await svc.fireSchedule('org-1', due.id, new Date('2026-01-02T00:05:00Z'));
-
-    expect(hasDuePosts).toHaveBeenCalledWith('org-1', new Date('2026-01-02T00:05:00Z'));
-    expect(engine.dispatch).not.toHaveBeenCalled();
-  });
-
-  it('opens a run when a post is due', async () => {
-    const hasDuePosts = vi.fn().mockResolvedValue(true);
-    const repo = fakeRepo({ findById: vi.fn().mockResolvedValue(due) });
-    const { svc, engine } = build(
-      repo,
-      fakeRunsRepo(),
-      fakeEngine(),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      { ...emptyScheduledWork, hasDuePosts },
-    );
-
-    await svc.fireSchedule('org-1', due.id, new Date('2026-01-02T00:05:00Z'));
-
-    expect(engine.dispatch).toHaveBeenCalledOnce();
-  });
-});
-
 describe('schedule reconcile after commit', () => {
   it('keeps a committed create when the engine cannot reconcile its schedules', async () => {
     const engine = fakeEngine({
@@ -1750,7 +1699,7 @@ describe('schedule reconcile after commit', () => {
   });
 });
 
-describe('fireSchedule work and slots', () => {
+describe('fireSchedule slots', () => {
   function scheduled(type: string, createdAt = new Date('2026-01-01T00:00:00Z')): Automation {
     return {
       ...AUTOMATION,
@@ -1760,63 +1709,18 @@ describe('fireSchedule work and slots', () => {
     };
   }
 
-  function withWork(automation: Automation, work: Partial<ScheduledWork>) {
-    return build(
-      fakeRepo({ findById: vi.fn().mockResolvedValue(automation) }),
-      fakeRunsRepo(),
-      fakeEngine(),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      { ...emptyScheduledWork, ...work },
-    );
+  function withWork(automation: Automation) {
+    return build(fakeRepo({ findById: vi.fn().mockResolvedValue(automation) }), fakeRunsRepo());
   }
 
-  it('opens no run when no grant is due', async () => {
-    const hasDueGrants = vi.fn().mockResolvedValue(false);
-    const { svc, engine, runsRepo } = withWork(scheduled('expireDueGrants'), { hasDueGrants });
-    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
-    expect(hasDueGrants).toHaveBeenCalledWith('org-1', new Date('2026-01-02T01:00:00Z'));
-    expect(runsRepo.insert).not.toHaveBeenCalled();
-    expect(engine.dispatch).not.toHaveBeenCalled();
-  });
-
-  it('opens a run when a grant is due', async () => {
-    const hasDueGrants = vi.fn().mockResolvedValue(true);
-    const { svc, engine } = withWork(scheduled('expireDueGrants'), { hasDueGrants });
-    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
-    expect(engine.dispatch).toHaveBeenCalledOnce();
-  });
-
-  it('opens no run when no upload is unattached', async () => {
-    const hasUnattachedUploads = vi.fn().mockResolvedValue(false);
-    const { svc, engine } = withWork(scheduled('removeUnattachedUploads'), {
-      hasUnattachedUploads,
-    });
-    await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
-    expect(hasUnattachedUploads).toHaveBeenCalledWith('org-1', new Date('2026-01-02T01:00:00Z'));
-    expect(engine.dispatch).not.toHaveBeenCalled();
-  });
-
-  it('always runs an automation with an action it cannot ask about', async () => {
-    const automation = {
-      ...scheduled('expireDueGrants'),
-      actions: [
-        { type: 'expireDueGrants', input: {} },
-        { type: 'sendEmail', input: {} },
-      ],
-    };
-    const { svc, engine } = withWork(automation, {
-      hasDueGrants: vi.fn().mockResolvedValue(false),
-    });
+  it('opens a run for every slot of an enabled schedule', async () => {
+    const { svc, engine } = withWork(scheduled('sendEmail'));
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T01:00:00Z'));
     expect(engine.dispatch).toHaveBeenCalledOnce();
   });
 
   it('keys the run on the slot minute so a late fire of a slot dedupes', async () => {
-    const { svc, runsRepo } = withWork(scheduled('sendEmail'), {});
+    const { svc, runsRepo } = withWork(scheduled('sendEmail'));
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:42.123Z'));
     expect(runsRepo.insert).toHaveBeenCalledWith(
       'org-1',
@@ -1843,10 +1747,7 @@ describe('fireSchedule work and slots', () => {
   });
 
   it('never fires a slot from before the automation existed', async () => {
-    const { svc, runsRepo } = withWork(
-      scheduled('sendEmail', new Date('2026-01-02T08:15:00Z')),
-      {},
-    );
+    const { svc, runsRepo } = withWork(scheduled('sendEmail', new Date('2026-01-02T08:15:00Z')));
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:00Z'));
     expect(runsRepo.insert).not.toHaveBeenCalled();
   });
