@@ -482,7 +482,7 @@ describe("HatchetAutomationEngine", () => {
 });
 
 describe("HatchetAutomationEngine as Scheduler", () => {
-  it("declares the scheduled-job task with three retries and one run per job and key", () => {
+  it("declares the scheduled-job task with three retries backing off 5s, 25s, 125s and one run per job and key", () => {
     const fake = fakeHatchetClient();
     // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
     new HatchetAutomationEngine(fake.client);
@@ -491,6 +491,7 @@ describe("HatchetAutomationEngine as Scheduler", () => {
       expect.objectContaining({
         name: "scheduled-job",
         retries: 3,
+        backoff: { factor: 5, maxSeconds: 300 },
         concurrency: {
           expression: "input.job + ':' + input.key",
           maxRuns: 1,
@@ -865,7 +866,7 @@ describe("HatchetAutomationEngine as Scheduler", () => {
 });
 
 describe("HatchetAutomationEngine deliveries", () => {
-  it("declares the notification-delivery task with the action retries and one run per delivery", () => {
+  it("declares the notification-delivery task with the action retries backing off 5s, 25s, 125s and one run per delivery", () => {
     const fake = fakeHatchetClient();
     // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
     new HatchetAutomationEngine(fake.client);
@@ -873,6 +874,7 @@ describe("HatchetAutomationEngine deliveries", () => {
       expect.objectContaining({
         name: "notification-delivery",
         retries: 3,
+        backoff: { factor: 5, maxSeconds: 300 },
         concurrency: {
           expression: "input.deliveryId",
           maxRuns: 1,

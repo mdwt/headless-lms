@@ -27,6 +27,7 @@ const JOB_CRON_PREFIX = "hlms-job:";
 const RECONCILE_EVERY_MS = 5 * 60_000;
 const ACTION_RETRIES = 3;
 const JOB_RETRIES = 3;
+const RETRY_BACKOFF = { factor: 5, maxSeconds: 300 };
 
 interface ActionTaskInput {
   dispatch: AutomationDispatch;
@@ -116,6 +117,7 @@ export interface HatchetClientLike {
   task<I>(opts: {
     name: string;
     retries?: number;
+    backoff?: { factor?: number; maxSeconds?: number };
     concurrency?: {
       expression: string;
       maxRuns?: number;
@@ -184,6 +186,7 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     this.jobTask = this.client.task<JobTaskInput>({
       name: JOB_TASK_NAME,
       retries: JOB_RETRIES,
+      backoff: RETRY_BACKOFF,
       concurrency: {
         expression: "input.job + ':' + input.key",
         maxRuns: 1,
@@ -195,6 +198,7 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     this.deliveryTask = this.client.task<DeliveryDispatch>({
       name: DELIVERY_TASK_NAME,
       retries: ACTION_RETRIES,
+      backoff: RETRY_BACKOFF,
       concurrency: {
         expression: "input.deliveryId",
         maxRuns: 1,
@@ -249,7 +253,12 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     return page.rows ?? [];
   }
 
-  private async scheduleJob(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void> {
+  private async scheduleJob(
+    job: string,
+    runAt: Date,
+    key: string,
+    payload: JsonValue,
+  ): Promise<void> {
     await this.jobTask.schedule(
       runAt,
       { job, key, payload },

@@ -17,11 +17,11 @@ The adapter declares one workflow, `automation-run`: a durable parent task that 
 
 ## How it runs notification deliveries
 
-Each email or push of a notification is one `notification-delivery` task with up to 3 retries. A failure on one channel is retried without repeating the others or the in-app notification. The task is keyed by the delivery, so two runs for the same delivery queue instead of overlapping; on the last attempt a failing delivery is marked failed.
+Each email or push of a notification is one `notification-delivery` task with up to 3 retries, 5, 25 and 125 seconds apart. A failure on one channel is retried without repeating the others or the in-app notification. The task is keyed by the delivery, so two runs for the same delivery queue instead of overlapping; on the last attempt a failing delivery is marked failed.
 
 ## How it runs scheduled jobs
 
-The contexts define timed product work as jobs: publishing a scheduled post at its time, sending a chat's notification once it has been quiet for two minutes, and, every hour, expiring grants, opening due community digests and sweeping unattached uploads. All of them run through one `scheduled-job` task with up to 3 retries, keyed by job and key so two firings of one key queue instead of overlapping.
+The contexts define timed product work as jobs: publishing a scheduled post at its time, sending a chat's notification once it has been quiet for two minutes, and, every hour, expiring grants, opening due community digests and sweeping unattached uploads. All of them run through one `scheduled-job` task with up to 3 retries, 5, 25 and 125 seconds apart, keyed by job and key so two firings of one key queue instead of overlapping.
 
 - A one-off job is a Hatchet scheduled run tagged with the job and its key. Scheduling the same key again moves it; cancelling deletes it.
 - A recurring job is a cron named `hlms-job:{job}`. `start()` creates the missing crons, replaces any whose schedule changed and removes those no longer registered.

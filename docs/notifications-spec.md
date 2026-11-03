@@ -674,7 +674,7 @@ The Hatchet adapter runs the delivery task with `concurrency: { expression: 'inp
 
 Processing runs in automations' event handler, which the outbox relay already calls. Retries belong to the engine:
 
-- **Hatchet** runs the delivery task with `retries: 3`, the setting automation actions use (`ACTION_RETRIES` in `adapters/workflow-hatchet`).
+- **Hatchet** runs the delivery task with `retries: 3`, the setting automation actions use (`ACTION_RETRIES` in `adapters/workflow-hatchet`), and `backoff: { factor: 5, maxSeconds: 300 }`: Hatchet waits `factor ^ retry` seconds before each retry, capped at 5 minutes, so a delivery that keeps failing is retried after 5 s, 25 s and 125 s and then marked `failed`.
 - **The `InlineAutomationEngine`** is for development and runs it once. Deployments run Hatchet.
 
 There is no recurring retry job and no polling of `notifications` or `notification_deliveries`.
@@ -788,7 +788,7 @@ When a timer fires, the handler reads the owner's state and acts only if the wor
 | `cancel` | `scheduled.bulkDelete` with that metadata filter |
 | fire | `scheduled-job` calls the handler registered for `job` with the payload and `fire = { id: ctx.workflowRunId(), startedAt: now }` |
 | `start` | creates the worker, which registers `scheduled-job` with Hatchet; then lists every `hlms-job:` cron of `scheduled-job`, deletes those whose job is no longer registered, extra copies of a name, and those whose expression changed, and creates the missing ones with the input `{ job, key: job, payload: null }`; then starts the worker |
-| retries | the task's retry policy, `retries: 3` |
+| retries | the task's retry policy, `retries: 3` with `backoff: { factor: 5, maxSeconds: 300 }`, the delivery task's: retries after 5 s, 25 s and 125 s |
 | concurrency | `scheduled-job` runs with `concurrency: { expression: "input.job + ':' + input.key", maxRuns: 1, limitStrategy: GROUP_ROUND_ROBIN }`, so two firings of one key queue instead of overlapping |
 
 `crons.list` and `scheduled.list` resolve `scheduled-job` by name, which Hatchet knows only after a worker has registered it. An `at` called before `start` has registered it fails, as an `at` failure (14.2); `cancel` deletes by metadata and needs no registration.
