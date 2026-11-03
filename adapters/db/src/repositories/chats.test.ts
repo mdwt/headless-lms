@@ -54,6 +54,19 @@ describe("DrizzleChatRepository.listForUser", () => {
     expect(statements[0]?.text).not.toMatch(/distinct on/);
   });
 
+  it("counts unread the way unreadFor does: others' standing messages after the read marker", async () => {
+    const chatRow = ["org1", "cht_1", "cmy_1", "direct", "open", "ou_1", null, null, at, at];
+    const { repo, statements } = sequencedClient([
+      [[...chatRow, null, 0, null, null, null, null, null]],
+      [[1]],
+      [],
+    ]);
+    await repo.listForUser("org1", "cmy_1", "ou_1", { page: 1, pageSize: 20 });
+    const text = statements[0]!.text.replace(/\s+/g, " ");
+    expect(text).toContain("and m.org_user_id <> $");
+    expect(text).toContain("and m.deleted_at is null");
+  });
+
   it("serves a null last message for a chat with no messages", async () => {
     const chatRow = ["org1", "cht_1", "cmy_1", "direct", "open", "ou_1", null, null, at, at];
     const { repo } = sequencedClient([

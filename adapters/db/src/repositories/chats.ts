@@ -208,6 +208,7 @@ export class DrizzleChatRepository implements ChatRepository {
       where m.org_id = ${chats.orgId}
         and m.chat_id = ${chats.id}
         and m.org_user_id <> ${orgUserId}
+        and m.deleted_at is null
         and (
           ${chatUsers.lastReadMessageId} is null
           or m.created_at > coalesce((
