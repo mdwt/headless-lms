@@ -95,6 +95,8 @@ import {
   NotificationProcessor,
   NotificationsServiceImpl,
   RECIPIENT_RULES,
+  SchedulerChatDebounce,
+  notificationJobs,
   type NotificationCategories,
 } from '@headless-lms/core/automations';
 import { buildNotificationRegistries } from './notification-channels.js';
@@ -647,6 +649,30 @@ export async function buildContainer(
     discussion,
     chats,
   });
+  const recipientReads = notificationReads({
+    content,
+    entitlements,
+    organizations,
+    identity,
+    posts,
+    subscriptions,
+    discussion,
+    chats,
+    settings: notificationSettings,
+  });
+  const notificationProcessor = new NotificationProcessor({
+    rules: RECIPIENT_RULES,
+    reads: recipientReads,
+    types: notificationRegistries.types,
+    channels: notificationRegistries.channels,
+    categories: notificationCategoryLists,
+    settings: notificationSettings,
+    devices,
+    repo: notificationsRepo,
+    engine: automationEngine,
+    debounce: new SchedulerChatDebounce(automationEngine),
+    logger: automationsLogger,
+  });
   const automations = new AutomationsServiceImpl({
     repo: new DrizzleAutomationsRepository(db, automationsLogger),
     runsRepo,
@@ -667,28 +693,7 @@ export async function buildContainer(
       devices,
       logger: automationsLogger,
     }),
-    processor: new NotificationProcessor({
-      rules: RECIPIENT_RULES,
-      reads: notificationReads({
-        content,
-        entitlements,
-        organizations,
-        identity,
-        posts,
-        subscriptions,
-        discussion,
-        chats,
-        settings: notificationSettings,
-      }),
-      types: notificationRegistries.types,
-      channels: notificationRegistries.channels,
-      categories: notificationCategoryLists,
-      settings: notificationSettings,
-      devices,
-      repo: notificationsRepo,
-      engine: automationEngine,
-      logger: automationsLogger,
-    }),
+    processor: notificationProcessor,
     logger: automationsLogger,
   });
   automationEngine.register(automations);
@@ -697,6 +702,11 @@ export async function buildContainer(
       ...discussionJobs({ posts, digests, logger: discussionLogger }),
       ...entitlementsJobs({ grants: entitlements }),
       ...assetsJobs({ assets, orgs: organizations, logger: assetsLogger }),
+      ...notificationJobs({
+        processor: notificationProcessor,
+        reads: recipientReads,
+        logger: automationsLogger,
+      }),
     ],
     [...discussionRecurringJobs, ...entitlementsRecurringJobs, ...assetsRecurringJobs],
   );

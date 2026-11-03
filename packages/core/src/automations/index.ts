@@ -15,6 +15,13 @@ export {
   PUSH,
   noChatDebounce,
 } from './notifications/processor.js';
+export {
+  CHAT_QUIET_MS,
+  FLUSH_JOB,
+  SchedulerChatDebounce,
+  flushKey,
+  notificationJobs,
+} from './notifications/debounce.js';
 export { RECIPIENT_RULES } from './notifications/rules/index.js';
 export { NOTIFICATION_TYPES } from './notifications/types.js';
 export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifications/defaults.js';

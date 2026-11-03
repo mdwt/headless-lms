@@ -81,7 +81,7 @@ function sameKeys(a: string[], b: string[]): boolean {
   return left.size === right.size && [...left].every((key) => right.has(key));
 }
 
-function chatOf(refs: Pick<RecipientList, 'subject' | 'parent'>): string | null {
+export function chatOf(refs: Pick<RecipientList, 'subject' | 'parent'>): string | null {
   if (refs.parent?.type === 'chat') {
     return refs.parent.id;
   }
