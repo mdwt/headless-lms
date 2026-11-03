@@ -31,23 +31,34 @@ function fakeHatchetClient() {
         ctx: { workflowRunId(): string },
       ) => Promise<unknown>)
     | undefined;
+  let deliveryFn:
+    ((input: { orgId: string; deliveryId: string }, ctx: unknown) => Promise<unknown>) | undefined;
   let actionTaskHandle: unknown;
   let jobTaskHandle: unknown;
+  const deliveryRunNoWait = vi.fn(async () => ({ workflowRunId: "delivery-run" }));
   const schedule = vi.fn(async () => ({ metadata: { id: "scheduled-new" } }));
 
   const client: HatchetClientLike = {
     task: vi.fn((opts) => {
       if (opts.name === "automation-schedule") {
         scheduleFn = opts.fn as typeof scheduleFn;
-        return { __task: opts.name, schedule: vi.fn() };
+        return { __task: opts.name, schedule: vi.fn(), runNoWait: vi.fn() };
+      }
+      if (opts.name === "notification-delivery") {
+        deliveryFn = opts.fn as typeof deliveryFn;
+        return {
+          __task: opts.name,
+          schedule: vi.fn(),
+          runNoWait: deliveryRunNoWait,
+        } as ReturnType<HatchetClientLike["task"]>;
       }
       if (opts.name === "scheduled-job") {
         jobFn = opts.fn as typeof jobFn;
-        jobTaskHandle = { __task: opts.name, schedule };
+        jobTaskHandle = { __task: opts.name, schedule, runNoWait: vi.fn() };
         return jobTaskHandle as ReturnType<HatchetClientLike["task"]>;
       }
       actionFn = opts.fn as typeof actionFn;
-      actionTaskHandle = { __task: opts.name, schedule: vi.fn() };
+      actionTaskHandle = { __task: opts.name, schedule: vi.fn(), runNoWait: vi.fn() };
       return actionTaskHandle as ReturnType<HatchetClientLike["task"]>;
     }),
     durableTask: vi.fn((opts) => {
@@ -77,6 +88,13 @@ function fakeHatchetClient() {
     workerStart,
     workerStop,
     schedule,
+    deliveryRunNoWait,
+    callDelivery: (input: { orgId: string; deliveryId: string }, retryCount = 0) => {
+      if (!deliveryFn) {
+        throw new Error("notification-delivery task not declared yet");
+      }
+      return deliveryFn(input, { retryCount: () => retryCount });
+    },
     getActionTaskHandle: () => actionTaskHandle,
     getJobTaskHandle: () => jobTaskHandle,
     callJob: (input: { job: string; key: string; payload: unknown }, runId = "wfr-1") => {
@@ -125,7 +143,7 @@ describe("HatchetAutomationEngine", () => {
     // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
     new HatchetAutomationEngine(fake.client);
 
-    expect(fake.client.task).toHaveBeenCalledTimes(3);
+    expect(fake.client.task).toHaveBeenCalledTimes(4);
     expect(fake.client.task).toHaveBeenCalledWith(
       expect.objectContaining({ name: "automation-run-action", retries: 3 }),
     );
@@ -325,7 +343,7 @@ describe("HatchetAutomationEngine", () => {
     expect(fake.client.worker).toHaveBeenCalledTimes(1);
     const [name, opts] = (fake.client.worker as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(name).toBe("automation-run-worker");
-    expect(opts.workflows).toHaveLength(4);
+    expect(opts.workflows).toHaveLength(5);
     expect(opts.workflows).toContain(fake.getJobTaskHandle());
     expect(fake.workerStart).toHaveBeenCalledTimes(1);
   });
@@ -806,5 +824,71 @@ describe("HatchetAutomationEngine as Scheduler", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(jobLists).toBe(2);
     vi.useRealTimers();
+  });
+});
+
+describe("HatchetAutomationEngine deliveries", () => {
+  it("declares the notification-delivery task with the action retries and one run per delivery", () => {
+    const fake = fakeHatchetClient();
+    // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
+    new HatchetAutomationEngine(fake.client);
+    expect(fake.client.task).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "notification-delivery",
+        retries: 3,
+        concurrency: {
+          expression: "input.deliveryId",
+          maxRuns: 1,
+          limitStrategy: ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN,
+        },
+      }),
+    );
+  });
+
+  it("deliver enqueues one task run for the delivery", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn(), runDelivery: vi.fn() });
+    await engine.deliver({ orgId: "org-1", deliveryId: "ndl_1" });
+    expect(fake.deliveryRunNoWait).toHaveBeenCalledWith({ orgId: "org-1", deliveryId: "ndl_1" });
+  });
+
+  it("deliver refuses before register", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    await expect(engine.deliver({ orgId: "org-1", deliveryId: "ndl_1" })).rejects.toThrow(
+      "before register()",
+    );
+    expect(fake.deliveryRunNoWait).not.toHaveBeenCalled();
+  });
+
+  it("runs the delivery as its last attempt only on the final retry", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runDelivery = vi.fn(async () => {});
+    engine.register({ runAction: vi.fn(), finalize: vi.fn(), runDelivery });
+    const input = { orgId: "org-1", deliveryId: "ndl_1" };
+    await fake.callDelivery(input, 0);
+    await fake.callDelivery(input, 2);
+    await fake.callDelivery(input, 3);
+    expect(runDelivery.mock.calls).toEqual([
+      [input, false],
+      [input, false],
+      [input, true],
+    ]);
+  });
+
+  it("lets a thrown delivery error reach Hatchet so it retries", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const error = new Error("smtp 451");
+    engine.register({
+      runAction: vi.fn(),
+      finalize: vi.fn(),
+      runDelivery: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    await expect(fake.callDelivery({ orgId: "org-1", deliveryId: "ndl_1" }, 1)).rejects.toBe(error);
   });
 });

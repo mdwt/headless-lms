@@ -32,6 +32,11 @@ export interface AutomationDispatch {
   event: DomainEvent;
 }
 
+export interface DeliveryDispatch {
+  orgId: string;
+  deliveryId: string;
+}
+
 export interface ScheduledAutomation {
   orgId: string;
   automationId: string;
@@ -41,6 +46,7 @@ export interface ScheduledAutomation {
 export interface AutomationExecutor {
   runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult>;
   finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void>;
+  runDelivery(d: DeliveryDispatch, lastAttempt: boolean): Promise<void>;
   listSchedules?(): Promise<ScheduledAutomation[]>;
   fireSchedule?(orgId: string, automationId: string, firedAt: Date): Promise<void>;
 }
@@ -48,6 +54,7 @@ export interface AutomationExecutor {
 export interface AutomationEngine {
   register(executor: AutomationExecutor): void;
   dispatch(d: AutomationDispatch): Promise<void>;
+  deliver(d: DeliveryDispatch): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
   syncSchedules?(): Promise<void>;

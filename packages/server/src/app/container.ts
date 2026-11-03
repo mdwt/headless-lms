@@ -91,6 +91,7 @@ import {
   DEFAULT_COMMUNITY_CATEGORIES,
   DEFAULT_ORG_CATEGORIES,
   NOTIFICATION_TYPES,
+  NotificationDelivery,
   NotificationsServiceImpl,
   type NotificationCategories,
 } from '@headless-lms/core/automations';
@@ -538,8 +539,9 @@ export async function buildContainer(
     logger: discussionLogger,
   });
 
+  const notificationsRepo = new DrizzleNotificationsRepository(db);
   const notificationList = new NotificationsServiceImpl({
-    repo: new DrizzleNotificationsRepository(db),
+    repo: notificationsRepo,
     logger: automationsLogger,
   });
   const itemTitles = {
@@ -656,6 +658,12 @@ export async function buildContainer(
       new FetchWebhookSender({ allowPrivateNetwork: config.webhookAllowPrivateNetwork }),
     mail: wired.mail,
     grants: wired.grants,
+    delivery: new NotificationDelivery({
+      repo: notificationsRepo,
+      channels: notificationRegistries.channels,
+      devices,
+      logger: automationsLogger,
+    }),
     logger: automationsLogger,
   });
   automationEngine.register(automations);

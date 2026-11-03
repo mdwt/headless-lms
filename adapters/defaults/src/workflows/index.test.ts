@@ -37,6 +37,7 @@ describe("InlineAutomationEngine", () => {
       { index: 1, type: "sendEmail", status: "completed" },
     ];
     const executor: AutomationExecutor = {
+      runDelivery: vi.fn(async () => {}),
       runAction: vi.fn(async (_d: AutomationDispatch, index: number) => {
         order.push(index);
         return results[index]!;
@@ -60,6 +61,7 @@ describe("InlineAutomationEngine", () => {
     const { logger, entries } = createCapturingLogger();
     const engine = new InlineAutomationEngine(logger);
     const executor: AutomationExecutor = {
+      runDelivery: vi.fn(async () => {}),
       runAction: vi.fn(
         async (_d: AutomationDispatch, index: number): Promise<AutomationActionResult> => {
           if (index === 0) {
@@ -106,6 +108,7 @@ describe("InlineAutomationEngine", () => {
   it("records the message of an ActionFailedError as is", async () => {
     const engine = new InlineAutomationEngine();
     const executor: AutomationExecutor = {
+      runDelivery: vi.fn(async () => {}),
       runAction: vi.fn(async (): Promise<AutomationActionResult> => {
         throw new ActionFailedError("deliverWebhook: endpoint responded 500");
       }),
@@ -128,6 +131,7 @@ describe("InlineAutomationEngine", () => {
     const engine = new InlineAutomationEngine();
     let seen: AutomationDispatch | undefined;
     const executor: AutomationExecutor = {
+      runDelivery: vi.fn(async () => {}),
       runAction: vi.fn(async (_d, index) => ({
         index,
         type: "sendEmail" as const,
@@ -154,5 +158,20 @@ describe("InlineAutomationEngine", () => {
     const engine = new InlineAutomationEngine();
     await expect(engine.start()).resolves.toBeUndefined();
     await expect(engine.stop()).resolves.toBeUndefined();
+  });
+
+  it("runs a delivery once, as its last attempt", async () => {
+    const engine = new InlineAutomationEngine();
+    const runDelivery = vi.fn(async () => {});
+    engine.register({ runAction: vi.fn(), finalize: vi.fn(), runDelivery });
+    await engine.deliver({ orgId: "org-1", deliveryId: "ndl_1" });
+    expect(runDelivery).toHaveBeenCalledTimes(1);
+    expect(runDelivery).toHaveBeenCalledWith({ orgId: "org-1", deliveryId: "ndl_1" }, true);
+  });
+
+  it("refuses a delivery before an executor is registered", async () => {
+    await expect(
+      new InlineAutomationEngine().deliver({ orgId: "org-1", deliveryId: "ndl_1" }),
+    ).rejects.toThrow("before register()");
   });
 });

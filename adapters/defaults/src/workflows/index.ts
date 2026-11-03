@@ -5,6 +5,7 @@ import type {
   AutomationDispatch,
   AutomationEngine,
   AutomationExecutor,
+  DeliveryDispatch,
   JsonValue,
   Logger,
 } from "@headless-lms/core/types";
@@ -71,6 +72,13 @@ export class InlineAutomationEngine implements AutomationEngine, Scheduler {
     }
 
     await executor.finalize(d, results);
+  }
+
+  async deliver(d: DeliveryDispatch): Promise<void> {
+    if (!this.executor) {
+      throw new Error("InlineAutomationEngine.deliver called before register()");
+    }
+    await this.executor.runDelivery(d, true);
   }
 
   async start(): Promise<void> {

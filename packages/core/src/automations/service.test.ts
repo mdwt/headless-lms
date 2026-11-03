@@ -160,6 +160,7 @@ function fakeEngine(over?: Partial<AutomationEngine>): AutomationEngine {
   return {
     register: vi.fn(),
     dispatch: vi.fn().mockResolvedValue(undefined),
+    deliver: vi.fn().mockResolvedValue(undefined),
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     ...over,
@@ -232,6 +233,7 @@ function build(
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
   logger: Logger = noopLogger,
+  delivery = { run: vi.fn(async () => {}) },
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
   const svc = new AutomationsServiceImpl({
@@ -250,6 +252,7 @@ function build(
         throw new Error('grantAccess: no grant writer configured');
       },
     },
+    delivery,
     logger,
   });
   return {
@@ -261,6 +264,7 @@ function build(
     integrations,
     credentials,
     webhooks,
+    delivery,
     append,
     appended,
   };
@@ -272,6 +276,14 @@ beforeAll(() => {
 });
 afterAll(() => {
   vi.useRealTimers();
+});
+
+describe('AutomationsService.runDelivery', () => {
+  it('runs the delivery task with the attempt flag the engine passes', async () => {
+    const { svc, delivery } = build();
+    await svc.runDelivery({ orgId: 'org-1', deliveryId: 'ndl_1' }, true);
+    expect(delivery.run).toHaveBeenCalledWith({ orgId: 'org-1', deliveryId: 'ndl_1' }, true);
+  });
 });
 
 describe('AutomationsService.handle', () => {

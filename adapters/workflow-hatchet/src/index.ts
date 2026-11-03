@@ -4,6 +4,7 @@ import type {
   AutomationExecutor,
   AutomationEngine,
   AutomationActionResult,
+  DeliveryDispatch,
   ScheduledAutomation,
   JsonValue,
 } from "@headless-lms/core/types";
@@ -19,6 +20,7 @@ const WORKFLOW_NAME = "automation-run";
 const ACTION_TASK_NAME = "automation-run-action";
 const SCHEDULE_TASK_NAME = "automation-schedule";
 const JOB_TASK_NAME = "scheduled-job";
+const DELIVERY_TASK_NAME = "notification-delivery";
 const WORKER_NAME = "automation-run-worker";
 const CRON_PREFIX = "hlms-schedule:";
 const JOB_CRON_PREFIX = "hlms-job:";
@@ -102,6 +104,7 @@ export interface HatchetScheduledClientLike {
 }
 
 export interface HatchetTaskLike<I> {
+  runNoWait(input: I): Promise<unknown>;
   schedule(
     enqueueAt: Date,
     input: I,
@@ -159,6 +162,7 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private readonly actionTask: unknown;
   private readonly scheduleTask: unknown;
   private readonly jobTask: HatchetTaskLike<JobTaskInput>;
+  private readonly deliveryTask: HatchetTaskLike<DeliveryDispatch>;
   private readonly automationRunTask: RunnableTask<AutomationDispatch>;
 
   constructor(
@@ -186,6 +190,17 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
         limitStrategy: ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN,
       },
       fn: async (input, ctx) => this.runJob(input, ctx as JobCtxLike),
+    });
+
+    this.deliveryTask = this.client.task<DeliveryDispatch>({
+      name: DELIVERY_TASK_NAME,
+      retries: ACTION_RETRIES,
+      concurrency: {
+        expression: "input.deliveryId",
+        maxRuns: 1,
+        limitStrategy: ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN,
+      },
+      fn: async (input, ctx) => this.runDelivery(input, ctx as TaskCtxLike | undefined),
     });
 
     this.automationRunTask = this.client.durableTask({
@@ -239,12 +254,25 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     await this.automationRunTask.runNoWait(d);
   }
 
+  async deliver(d: DeliveryDispatch): Promise<void> {
+    if (!this.executor) {
+      throw new Error("HatchetAutomationEngine.deliver called before register()");
+    }
+    await this.deliveryTask.runNoWait(d);
+  }
+
   async start(): Promise<void> {
     if (!this.executor) {
       throw new Error("HatchetAutomationEngine.start called before register()");
     }
     this.worker = await this.client.worker(WORKER_NAME, {
-      workflows: [this.actionTask, this.automationRunTask, this.scheduleTask, this.jobTask],
+      workflows: [
+        this.actionTask,
+        this.automationRunTask,
+        this.scheduleTask,
+        this.jobTask,
+        this.deliveryTask,
+      ],
     });
     await this.reconcileJobsLogged();
     void this.worker.start().catch((err: unknown) => {
@@ -390,6 +418,14 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
         return rows;
       }
     }
+  }
+
+  private async runDelivery(input: DeliveryDispatch, ctx: TaskCtxLike | undefined): Promise<void> {
+    if (!this.executor) {
+      throw new Error("HatchetAutomationEngine: notification-delivery invoked before register()");
+    }
+    const lastAttempt = (ctx?.retryCount?.() ?? 0) >= ACTION_RETRIES;
+    await this.executor.runDelivery(input, lastAttempt);
   }
 
   private async runSchedule(input: ScheduleTaskInput): Promise<void> {

@@ -2,6 +2,12 @@
 export { AutomationsServiceImpl } from './service.js';
 export { cronMatches } from './schedule.js';
 export { NotificationsServiceImpl } from './notifications/service.js';
+export {
+  CHANNEL_NOT_CONFIGURED,
+  EVERY_DEVICE_DEAD,
+  NO_ADDRESS,
+  NotificationDelivery,
+} from './notifications/delivery.js';
 export { NOTIFICATION_TYPES } from './notifications/types.js';
 export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifications/defaults.js';
 export type { CommunityMailReads, GrantWriter } from './community-mail.js';
@@ -22,6 +28,7 @@ export type {
   AutomationDispatch,
   AutomationExecutor,
   AutomationEngine,
+  DeliveryDispatch,
   NewAutomation,
   NewAutomationRun,
   NewDelivery,
