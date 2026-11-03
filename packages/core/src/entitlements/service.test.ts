@@ -97,6 +97,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     listGrantsExpiredBy: vi.fn().mockResolvedValue([]),
     listGrantsEndingBetween: vi.fn().mockResolvedValue([]),
     hasDueNotices: vi.fn().mockResolvedValue(false),
+    orgIdsWithDueNotices: vi.fn().mockResolvedValue([]),
     claimNotice: vi.fn().mockResolvedValue(true),
     communityModeratorIds: vi.fn().mockResolvedValue([]),
     communityMemberIds: vi.fn().mockResolvedValue([]),
@@ -743,6 +744,39 @@ describe('expireDue', () => {
     const { svc, append } = build(repo);
     await svc.expireDue('org-1', now);
     expect(append).not.toHaveBeenCalled();
+  });
+
+  it('expires due grants org by org across every org with due notices', async () => {
+    const repo = fakeRepo({
+      orgIdsWithDueNotices: vi.fn().mockResolvedValue(['org-1', 'org-2']),
+      listGrantsExpiredBy: vi.fn(async (orgId: string) =>
+        orgId === 'org-2' ? [{ ...grant, orgId, id: 'ent_2' }] : [grant],
+      ),
+    });
+    const { svc, appended } = build(repo);
+    await svc.expireDueGrants(now);
+    expect(repo.orgIdsWithDueNotices).toHaveBeenCalledWith(now, new Date('2026-06-08T00:00:00Z'));
+    expect(appended.map((event) => [event.type, event.orgId])).toEqual([
+      ['entitlement.expired', 'org-1'],
+      ['entitlement.expired', 'org-2'],
+    ]);
+  });
+
+  it('keeps going past an org that fails, then fails the run so it is retried', async () => {
+    const repo = fakeRepo({
+      orgIdsWithDueNotices: vi.fn().mockResolvedValue(['org-1', 'org-2']),
+      listGrantsExpiredBy: vi.fn(async (orgId: string) => {
+        if (orgId === 'org-1') {
+          throw new Error('db down');
+        }
+        return [{ ...grant, orgId, id: 'ent_2' }];
+      }),
+    });
+    const { svc, appended } = build(repo);
+    await expect(svc.expireDueGrants(now)).rejects.toThrow(
+      'due grants of 1 orgs could not be expired',
+    );
+    expect(appended.map((event) => event.orgId)).toEqual(['org-2']);
   });
 
   it('reports due notices over the seven-day window', async () => {

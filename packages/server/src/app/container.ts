@@ -43,7 +43,11 @@ import { StorageAdapter } from '@headless-lms/adapter-defaults/storage';
 import { BetterAuth } from '@headless-lms/adapter-auth';
 
 import { ContentService } from '@headless-lms/core/content';
-import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
+import {
+  EntitlementsServiceImpl,
+  entitlementsJobs,
+  entitlementsRecurringJobs,
+} from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import {
   ChatServiceImpl,
@@ -63,7 +67,12 @@ import {
   OrganizationServiceImpl,
   parseRole,
 } from '@headless-lms/core/organizations';
-import { AssetsServiceImpl, createFileUrls } from '@headless-lms/core/assets';
+import {
+  AssetsServiceImpl,
+  assetsJobs,
+  assetsRecurringJobs,
+  createFileUrls,
+} from '@headless-lms/core/assets';
 import { IntegrationsServiceImpl } from '@headless-lms/core/integrations';
 import { AutomationsServiceImpl } from '@headless-lms/core/automations';
 import { loadIntegrations } from './integrations.js';
@@ -532,8 +541,12 @@ export async function buildContainer(
   });
   automationEngine.register(automations);
   automationEngine.registerJobs(
-    [...discussionJobs({ posts, digests, logger: discussionLogger })],
-    [...discussionRecurringJobs],
+    [
+      ...discussionJobs({ posts, digests, logger: discussionLogger }),
+      ...entitlementsJobs({ grants: entitlements }),
+      ...assetsJobs({ assets, orgs: organizations, logger: assetsLogger }),
+    ],
+    [...discussionRecurringJobs, ...entitlementsRecurringJobs, ...assetsRecurringJobs],
   );
 
   const eventBus = new InMemoryEventBus();

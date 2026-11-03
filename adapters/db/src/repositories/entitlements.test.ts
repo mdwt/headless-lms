@@ -93,6 +93,19 @@ describe("expiry notices", () => {
     ]);
   });
 
+  it("lists the orgs with a due notice across every org in one query", async () => {
+    const { repo, queries } = capturingDb([["org-2"], ["org-1"]]);
+    await expect(repo.orgIdsWithDueNotices(now, until)).resolves.toEqual(["org-1", "org-2"]);
+    expect(queries).toHaveLength(1);
+    const { text, values } = queries[0]!;
+    expect(text).toMatch(/^\(select distinct "org_id" from "entitlements"/);
+    expect(text).toContain(") union (select distinct");
+    expect(text).toContain("entitlement_expiry_notices");
+    expect(text).toContain("entitlement_ending_soon_notices");
+    expect(text).not.toMatch(/"entitlements"\."org_id" = \$/);
+    expect(values).toEqual(expect.arrayContaining([now.toISOString(), until.toISOString()]));
+  });
+
   it("answers whether anything is due in one query", async () => {
     const { repo, queries } = capturingDb([]);
     await expect(repo.hasDueNotices("org-1", now, until)).resolves.toBe(false);

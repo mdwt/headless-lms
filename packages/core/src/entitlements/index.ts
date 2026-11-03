@@ -2,6 +2,7 @@
 export { EntitlementsServiceImpl } from './service.js';
 export { entitlementEvents } from './events.js';
 export { seesSpace } from './rules.js';
+export { GRANTS_EXPIRE_JOB, entitlementsJobs, entitlementsRecurringJobs } from './jobs.js';
 export type {
   AccessFacts,
   CommunityAccessReader,

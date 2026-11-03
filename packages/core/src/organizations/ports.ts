@@ -34,6 +34,7 @@ export interface OrganizationService {
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   getById(id: string): Promise<Organization | null>;
+  orgIds(): Promise<string[]>;
   // Mints a domain-owned invite (token + row + event, one transaction) and
   // emails the invite link. A student invite also adds the student. Throws
   // ConflictError when the person already belongs to the org.
@@ -103,6 +104,7 @@ export interface OrganizationsRepository {
   /** Drops the org row and its dependents; null when none matched. */
   delete(id: string): Promise<Organization>;
   findById(id: string): Promise<Organization | null>;
+  listIds(): Promise<string[]>;
   findByExternalId(externalId: string): Promise<Organization | null>;
   findBySlug(slug: string): Promise<Organization | null>;
   /** Inserts a pending invite, or re-issues the org's existing pending one

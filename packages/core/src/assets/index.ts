@@ -1,5 +1,6 @@
 export { AssetsServiceImpl, MEMBER_IMAGE_TYPE, isMemberImageType, kindOf } from './service.js';
 export { assetEvents } from './events.js';
+export { UPLOADS_REMOVE_UNATTACHED_JOB, assetsJobs, assetsRecurringJobs } from './jobs.js';
 export type {
   AssetFiles,
   AssetsService,
@@ -7,6 +8,7 @@ export type {
   LibraryAssetReader,
   MemberImageReader,
   MemberUploadInput,
+  OrgDirectory,
   ReadyFile,
 } from './ports.js';
 export { createFileUrls } from './file-urls.js';

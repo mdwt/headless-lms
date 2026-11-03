@@ -88,6 +88,7 @@ function fakeRepo(over?: Partial<OrganizationsRepository>): OrganizationsReposit
     update: vi.fn(),
     delete: vi.fn(),
     findById: vi.fn().mockResolvedValue(ORG),
+    listIds: vi.fn().mockResolvedValue([ORG.id]),
     findByExternalId: vi.fn().mockResolvedValue(ORG),
     findBySlug: vi.fn().mockResolvedValue(ORG),
     upsertPendingInvite: vi

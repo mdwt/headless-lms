@@ -474,6 +474,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findById(id);
   }
 
+  orgIds(): Promise<string[]> {
+    return this.repo.listIds();
+  }
+
   private async sendInviteEmail(invite: Invite, token: string): Promise<void> {
     if (!this.mailer || !this.inviteUrls) {
       throw new Error('invite delivery is not configured (mailer / invite urls missing)');

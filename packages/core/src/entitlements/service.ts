@@ -497,6 +497,25 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.hasDueNotices(orgId, now, new Date(now.getTime() + ENDING_SOON_MS));
   }
 
+  async expireDueGrants(now: Date): Promise<void> {
+    const orgIds = await this.repo.orgIdsWithDueNotices(
+      now,
+      new Date(now.getTime() + ENDING_SOON_MS),
+    );
+    let failed = 0;
+    for (const orgId of orgIds) {
+      try {
+        await this.expireDue(orgId, now);
+      } catch (err) {
+        failed += 1;
+        this.logger.error('due grants not expired', { orgId, err });
+      }
+    }
+    if (failed > 0) {
+      throw new Error(`due grants of ${failed} orgs could not be expired`);
+    }
+  }
+
   async expireDue(orgId: string, now: Date): Promise<void> {
     const until = new Date(now.getTime() + ENDING_SOON_MS);
     let appended = 0;

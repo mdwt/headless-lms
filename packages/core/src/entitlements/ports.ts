@@ -152,6 +152,7 @@ export interface EntitlementsService extends CommunityAccessReader {
     query: { page: number; pageSize: number },
   ): Promise<Page<SpaceMember>>;
   expireDue(orgId: string, now: Date): Promise<void>;
+  expireDueGrants(now: Date): Promise<void>;
   hasDueNotices(orgId: string, now: Date): Promise<boolean>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
@@ -214,6 +215,7 @@ export interface EntitlementsRepository {
     afterKey?: EndingGrantKey,
   ): Promise<EndingGrant[]>;
   hasDueNotices(orgId: string, now: Date, until: Date): Promise<boolean>;
+  orgIdsWithDueNotices(now: Date, until: Date): Promise<string[]>;
   claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityMemberIds(orgId: string, communityId: string): Promise<string[]>;

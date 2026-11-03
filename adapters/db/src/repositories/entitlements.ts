@@ -706,6 +706,20 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return this.holds(sql`(exists (${expired}) or exists (${ending}))`);
   }
 
+  async orgIdsWithDueNotices(now: Date, until: Date): Promise<string[]> {
+    const expired = this.db
+      .selectDistinct({ orgId: entitlements.orgId })
+      .from(entitlements)
+      .where(this.expiredUnnoticed(null, now));
+    const ending = this.db
+      .selectDistinct({ orgId: entitlements.orgId })
+      .from(entitlements)
+      .innerJoin(communities, opensPublishedCommunity)
+      .where(this.endingUnnoticed(null, now, until));
+    const rows = await expired.union(ending);
+    return rows.map((row) => row.orgId).sort();
+  }
+
   async claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean> {
     const statement =
       notice.kind === "expired"
@@ -722,18 +736,18 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.length > 0;
   }
 
-  private expiredUnnoticed(orgId: string, now: Date): SQL {
+  private expiredUnnoticed(orgId: string | null, now: Date): SQL {
     return and(
-      eq(entitlements.orgId, orgId),
+      orgId === null ? undefined : eq(entitlements.orgId, orgId),
       eq(entitlements.status, "active"),
       grantExpired(entitlements.expiresAt, at(now)),
       sql`not ${expiryNoticed}`,
     )!;
   }
 
-  private endingUnnoticed(orgId: string, after: Date, until: Date): SQL {
+  private endingUnnoticed(orgId: string | null, after: Date, until: Date): SQL {
     return and(
-      eq(entitlements.orgId, orgId),
+      orgId === null ? undefined : eq(entitlements.orgId, orgId),
       grantIsActive(entitlements, at(after)),
       grantExpired(entitlements.expiresAt, at(until)),
       sql`not ${endingSoonNoticed}`,

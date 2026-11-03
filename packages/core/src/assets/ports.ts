@@ -54,6 +54,10 @@ export interface AssetsService extends MemberImageReader, LibraryAssetReader, As
   removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 
+export interface OrgDirectory {
+  orgIds(): Promise<string[]>;
+}
+
 export interface AssetsRepository {
   insert(orgId: string, asset: Asset): Promise<Asset>;
   list(orgId: string, query: AssetsQuery): Promise<Page<Asset>>;

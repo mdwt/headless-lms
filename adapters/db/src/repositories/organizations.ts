@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   parseRole,
@@ -84,6 +84,14 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
   async findById(id: string): Promise<Organization | null> {
     const [row] = await this.db.select().from(organizations).where(eq(organizations.id, id));
     return row ?? null;
+  }
+
+  async listIds(): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .orderBy(asc(organizations.id));
+    return rows.map((row) => row.id);
   }
 
   async findByExternalId(externalId: string): Promise<Organization | null> {
