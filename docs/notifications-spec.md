@@ -780,7 +780,7 @@ When a timer fires, the handler reads the owner's state and acts only if the wor
 | retries | the task's retry policy, `retries: 3` |
 | concurrency | `scheduled-job` runs with `concurrency: { expression: "input.job + ':' + input.key", maxRuns: 1, limitStrategy: GROUP_ROUND_ROBIN }`, so two firings of one key queue instead of overlapping |
 
-`crons.list` and `scheduled.list` resolve `scheduled-job` by name, which Hatchet knows only after a worker has registered it. An `at` or `cancel` called before `start` has registered it fails, as an `at` failure (14.2).
+`crons.list` and `scheduled.list` resolve `scheduled-job` by name, which Hatchet knows only after a worker has registered it. An `at` called before `start` has registered it fails, as an `at` failure (14.2); `cancel` deletes by metadata and needs no registration.
 
 Hatchet triggers a run when it enqueues the task, so a job can start slightly after its time; handlers compare against the current time. The adapter stores nothing outside Hatchet, and nothing outside the adapter knows Hatchet. The adapter's existing `automation-schedule` crons, which run org `schedule:` triggers, are unchanged.
 
