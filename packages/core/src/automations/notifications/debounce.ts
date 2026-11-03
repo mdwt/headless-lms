@@ -7,7 +7,7 @@ import { MESSAGE_EXCERPT } from '../community-mail.js';
 import type { ChatDebounce, NotificationReads } from '../ports.js';
 import { chatOf, type NotificationProcessor } from './processor.js';
 import { messageSummary } from './rules/discussion.js';
-import { chatTitle, textExcerpt } from './rules/recipients.js';
+import { chatReach, chatTitle, Reasons, recipientsOf, textExcerpt } from './rules/recipients.js';
 
 export const FLUSH_JOB = 'automations.notifications.flush';
 export const CHAT_QUIET_MS = 2 * 60 * 1000;
@@ -61,7 +61,7 @@ export function notificationJobs(deps: NotificationJobDeps): ScheduledJob[] {
           logger.error('chat flush payload refused', { job: FLUSH_JOB, fireId: fire.id });
           return;
         }
-        const { orgId, userId, orgUserId, chatId } = parsed.data;
+        const { orgId, orgUserId, chatId } = parsed.data;
         const unread = await deps.reads.unreadInChat(orgId, chatId, orgUserId);
         if (unread.count === 0 || !unread.latest) {
           return;
@@ -71,6 +71,15 @@ export function notificationJobs(deps: NotificationJobDeps): ScheduledJob[] {
           return;
         }
         const latest = unread.latest;
+        const recipients = await recipientsOf(
+          deps.reads,
+          orgId,
+          new Reasons().add([orgUserId], 'participant'),
+          chatReach(deps.reads, orgId, chat, chatId, latest.senderOrgUserId, fire.startedAt),
+        );
+        if (recipients.length === 0) {
+          return;
+        }
         await deps.processor.file(
           orgId,
           `chat-flush:${chatId}:${latest.messageId}`,
@@ -90,7 +99,7 @@ export function notificationJobs(deps: NotificationJobDeps): ScheduledJob[] {
                 count: String(unread.count),
                 summary: messageSummary(unread.count),
               },
-              recipients: [{ orgUserId, userId, reasons: ['participant'] }],
+              recipients,
             },
           ],
           { occurredAt: fire.startedAt, debounce: false },

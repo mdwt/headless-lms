@@ -24,11 +24,16 @@ function fakeScheduler() {
   };
 }
 
-function fakeReads(unread: Awaited<ReturnType<NotificationReads['unreadInChat']>>) {
+function fakeReads(
+  unread: Awaited<ReturnType<NotificationReads['unreadInChat']>>,
+  over: { leftAt?: Date; muted?: boolean; blocked?: boolean; member?: boolean } = {},
+) {
   const reads: NotificationReads = {
     ...emptyCommunityMail,
+    communityMembersAmong: async (_o, _c, ids) => (over.member === false ? [] : ids),
+    pairBlocked: async () => over.blocked ?? false,
     threadParticipants: async () => [],
-    mutedAmong: async () => [],
+    mutedAmong: vi.fn(async (_o, _item, ids) => (over.muted ? ids : [])),
     communityMembers: async () => [],
     switchedOn: async () => [],
     courseHolders: async () => [],
@@ -46,7 +51,7 @@ function fakeReads(unread: Awaited<ReturnType<NotificationReads['unreadInChat']>
       createdBy: 'ou_emma',
       participants: [
         { orgUserId: 'ou_emma', muted: false, mutedUntil: null, leftAt: null },
-        { orgUserId: 'ou_sarah', muted: false, mutedUntil: null, leftAt: null },
+        { orgUserId: 'ou_sarah', muted: false, mutedUntil: null, leftAt: over.leftAt ?? null },
       ],
     }),
     unreadInChat: vi.fn(async () => unread),
@@ -230,6 +235,37 @@ describe('the automations.notifications.flush job', () => {
         },
       ],
       { occurredAt: fire.startedAt, debounce: false },
+    );
+  });
+
+  it.each([
+    ['has left the chat', { leftAt: new Date('2026-11-03T09:01:00Z') }],
+    ['muted the chat', { muted: true }],
+    ['is in a blocked pair with the latest sender', { blocked: true }],
+    ['can no longer open the community', { member: false }],
+  ])('stores nothing when the person %s', async (_case, over) => {
+    const reads = fakeReads(
+      { count: 2, latest: { messageId: 'msg_9', senderOrgUserId: 'ou_emma', body: 'Ready?' } },
+      over,
+    );
+    const file = vi.fn(async () => {});
+    const [job] = notificationJobs({ processor: { file }, reads });
+    await job!.run(payload, fire);
+    expect(file).not.toHaveBeenCalled();
+  });
+
+  it('reads the mute at the time the flush runs', async () => {
+    const reads = fakeReads({
+      count: 1,
+      latest: { messageId: 'msg_9', senderOrgUserId: 'ou_emma', body: 'Ready?' },
+    });
+    const [job] = notificationJobs({ processor: { file: vi.fn(async () => {}) }, reads });
+    await job!.run(payload, fire);
+    expect(reads.mutedAmong).toHaveBeenCalledWith(
+      ORG,
+      { type: 'chat', id: 'cht_1' },
+      ['ou_sarah'],
+      fire.startedAt,
     );
   });
 
