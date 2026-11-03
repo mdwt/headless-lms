@@ -161,6 +161,7 @@ function build(options: Options = {}) {
     communityMembers: async () => [],
     switchedOn: vi.fn(async () => options.switchedOn ?? []),
     courseHolders: async () => [],
+    contentLostBy: async () => [],
     activity: async () => null,
     userIdsOf: async (_o: string, ids: string[]) =>
       Object.fromEntries(ids.flatMap((id) => (PEOPLE[id] ? [[id, PEOPLE[id]!]] : []))),

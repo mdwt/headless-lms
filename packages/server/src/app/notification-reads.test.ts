@@ -17,6 +17,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       getCourse: reject,
       getDownload: reject,
       getBundle: reject,
+      listBundleItems: reject,
     },
     entitlements: {
       openSpacesFor: reject,
@@ -30,6 +31,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       ensureGrant: reject,
       communityMemberIds: reject,
       contentHolderIds: reject,
+      hasAccess: reject,
     },
     organizations: { getOrgUserById: reject, staffOrgUserIds: reject, getOrgUsersByIds: reject },
     identity: { displayName: reject, getUserById: reject },
@@ -49,6 +51,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
 }
 
 const base = deps();
+const T = new Date('2026-11-01T00:00:00Z');
 
 describe('notificationReads', () => {
   it('reads thread participants of a post or a course activity from discussion', async () => {
@@ -180,6 +183,32 @@ describe('notificationReads', () => {
       type: 'community',
     });
     await expect(reads.contentInfo('org_1', { contentId: 'x' })).resolves.toBeNull();
+  });
+
+  it('names the content a deleted grant opened that its person holds through no other grant', async () => {
+    const listBundleItems = vi.fn(async () => [
+      { orgId: 'org_1', bundleId: 'bnd_1', contentId: 'crs_1', createdAt: T, updatedAt: T },
+      { orgId: 'org_1', bundleId: 'bnd_1', contentId: 'cmy_1', createdAt: T, updatedAt: T },
+    ]);
+    const hasAccess = vi.fn(
+      async (_o: string, _u: string, contentId: string) => contentId === 'cmy_1',
+    );
+    const reads = notificationReads(
+      deps({
+        content: { ...base.content, listBundleItems },
+        entitlements: { ...base.entitlements, hasAccess },
+      }),
+    );
+    await expect(
+      reads.contentLostBy('org_1', { orgUserId: 'ou_sarah', contentId: null, bundleId: 'bnd_1' }),
+    ).resolves.toEqual(['crs_1']);
+    expect(hasAccess).toHaveBeenCalledWith('org_1', 'ou_sarah', 'cmy_1');
+    await expect(
+      reads.contentLostBy('org_1', { orgUserId: 'ou_sarah', contentId: 'cmy_1', bundleId: null }),
+    ).resolves.toEqual([]);
+    await expect(
+      reads.contentLostBy('org_1', { orgUserId: 'ou_sarah', contentId: null, bundleId: null }),
+    ).resolves.toEqual([]);
   });
 
   it('reads a message that still stands', async () => {

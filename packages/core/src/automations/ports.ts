@@ -61,6 +61,10 @@ export interface NotificationReads extends Omit<CommunityMailReads, 'recentMessa
     spaceId: string | null,
   ): Promise<string[]>;
   courseHolders(orgId: string, courseId: string): Promise<string[]>;
+  contentLostBy(
+    orgId: string,
+    grant: { orgUserId: string; contentId: string | null; bundleId: string | null },
+  ): Promise<string[]>;
   activity(
     orgId: string,
     activityId: string,

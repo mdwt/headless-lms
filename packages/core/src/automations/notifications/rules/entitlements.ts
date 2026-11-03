@@ -299,7 +299,7 @@ const entitlementDeleted: RecipientRule = async (event, reads) => {
   if (ended) {
     return ended;
   }
-  if (!target) {
+  if (!target || (await reads.contentLostBy(event.orgId, grant)).length === 0) {
     return [];
   }
   return listOf(

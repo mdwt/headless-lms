@@ -14,9 +14,9 @@ import { communityMail, type CommunityMailDeps } from './community-mail.js';
 export type NotificationReadsDeps = CommunityMailDeps & {
   content: Pick<
     ContentService,
-    'getActivity' | 'getModule' | 'getCourse' | 'getDownload' | 'getBundle'
+    'getActivity' | 'getModule' | 'getCourse' | 'getDownload' | 'getBundle' | 'listBundleItems'
   >;
-  entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'contentHolderIds'>;
+  entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'contentHolderIds' | 'hasAccess'>;
   organizations: Pick<OrganizationService, 'getOrgUsersByIds'>;
   identity: Pick<IdentityService, 'getUserById'>;
   posts: Pick<PostService, 'publishedBetween'>;
@@ -47,6 +47,17 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
     switchedOn: (orgId, communityId, category, spaceId) =>
       deps.settings.switchedOn(orgId, communityId, category, spaceId),
     courseHolders: (orgId, courseId) => deps.entitlements.contentHolderIds(orgId, courseId),
+    async contentLostBy(orgId, grant) {
+      const opened = grant.bundleId
+        ? (await deps.content.listBundleItems(orgId, grant.bundleId)).map((item) => item.contentId)
+        : grant.contentId
+          ? [grant.contentId]
+          : [];
+      const held = await Promise.all(
+        opened.map((contentId) => deps.entitlements.hasAccess(orgId, grant.orgUserId, contentId)),
+      );
+      return opened.filter((_, index) => !held[index]);
+    },
     async activity(orgId, activityId) {
       const activity = await deps.content.getActivity(orgId, activityId);
       if (!activity) {

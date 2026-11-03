@@ -38,7 +38,13 @@ const MEMBER = {
   updatedAt: T,
 };
 
-type World = { opened?: string[]; held?: string[]; capacity?: number | null; openers?: string[] };
+type World = {
+  opened?: string[];
+  held?: string[];
+  lost?: string[];
+  capacity?: number | null;
+  openers?: string[];
+};
 
 function fakeReads(world: World = {}): NotificationReads {
   return {
@@ -48,6 +54,7 @@ function fakeReads(world: World = {}): NotificationReads {
     communityMembers: async () => [],
     switchedOn: async () => [],
     courseHolders: async () => [],
+    contentLostBy: async () => world.lost ?? ['crs_1'],
     activity: async () => null,
     emailOf: async () => null,
     message: async () => null,
@@ -292,11 +299,20 @@ describe('grant endings', () => {
     expect(await run(expired, { opened: ['cmy_1'], held: ['cmy_1'] })).toEqual([]);
   });
 
-  it('revokes access when every community a deleted grant opened is still held through another grant', async () => {
+  it('says nothing when a deleted grant opened only communities still held through another grant', async () => {
     const bundle = { ...GRANT, contentId: null, bundleId: 'bnd_1' };
     const lists = await run(
       ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: bundle })),
-      { opened: ['cmy_1'], held: ['cmy_1'] },
+      { opened: ['cmy_1'], held: ['cmy_1'], lost: [] },
+    );
+    expect(lists).toEqual([]);
+  });
+
+  it('revokes access when a deleted bundle opened a course no longer held and a community still held', async () => {
+    const bundle = { ...GRANT, contentId: null, bundleId: 'bnd_1' };
+    const lists = await run(
+      ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: bundle })),
+      { opened: ['cmy_1'], held: ['cmy_1'], lost: ['crs_1'] },
     );
     expect(lists).toEqual([
       expect.objectContaining({
@@ -307,6 +323,14 @@ describe('grant endings', () => {
       }),
     ]);
     expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
+  });
+
+  it('says nothing when a deleted course grant leaves the course held through another grant', async () => {
+    const lists = await run(
+      ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: GRANT })),
+      { lost: [] },
+    );
+    expect(lists).toEqual([]);
   });
 
   it('ends the membership, not access, when a deleted bundle opened a community no longer held', async () => {

@@ -134,6 +134,7 @@ function fakeReads(world: World = {}) {
     contentInfo: async () => null,
     unreadInChat: async () => ({ count: 0, latest: null }),
     courseHolders: async () => world.holders ?? [],
+    contentLostBy: async () => [],
     pairBlocked: async (_o, _c, _a, b) => (world.blocked ?? []).includes(b),
     userIdsOf: async (_o, ids) =>
       Object.fromEntries(ids.filter((id) => NAMES[id]).map((id) => [id, `usr_${id.slice(3)}`])),

@@ -37,6 +37,7 @@ function fakeReads(
     communityMembers: async () => [],
     switchedOn: async () => [],
     courseHolders: async () => [],
+    contentLostBy: async () => [],
     activity: async () => null,
     emailOf: async () => null,
     contentInfo: async () => null,
