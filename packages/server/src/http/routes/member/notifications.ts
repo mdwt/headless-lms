@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { InvalidInputError, NotFoundError } from '@headless-lms/core/shared/errors';
 import { actorOf } from './actor.js';
 import {
   NotificationFilterQuery,
@@ -119,9 +119,14 @@ export async function memberNotificationRoutes(
       tags,
       summary: 'Mark your notifications matching the filters read',
       description:
-        'For any member of the organization. Takes the filters of the list, `includeOrg` included; with none, marks every notification read.',
+        'For any member of the organization. Takes the filters of the list in the query string, `includeOrg` included; with none, marks every notification read. 400 when the request has a body.',
       querystring: NotificationFilterQuery,
       response: { 204: z.void(), ...refusals(400, 403) },
+    },
+    preValidation: async (req) => {
+      if (req.body !== undefined) {
+        throw new InvalidInputError('Mark-read takes its filters in the query string, not in a body');
+      }
     },
     handler: async (req, reply) => {
       await actorOf(container, req.orgId, req.userId);

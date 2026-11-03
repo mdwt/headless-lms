@@ -246,4 +246,23 @@ describe('member notification routes', () => {
       { category: ['followed_posts', 'new_posts'] },
     ]);
   });
+
+  it('refuses a mark-read request with a body instead of marking everything read', async () => {
+    for (const payload of [{ category: ['followed_posts'] }, {}]) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/member/notifications/read',
+        payload,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ error: 'invalid_input' });
+    }
+    const withQuery = await app.inject({
+      method: 'POST',
+      url: '/api/member/notifications/read?category=followed_posts',
+      payload: { category: ['new_posts'] },
+    });
+    expect(withQuery.statusCode).toBe(400);
+    expect(calls).toEqual([]);
+  });
 });

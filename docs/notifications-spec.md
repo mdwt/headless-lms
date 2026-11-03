@@ -1537,7 +1537,7 @@ The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishi
 | `GET /api/member/notifications/unread-counts` | signed in | `reporting/member`; `{ org, communities: [{ communityId, unread }] }` |
 | `GET /api/member/notifications/:notificationId` | the recipient | `reporting/member`; one item in the shape below; 404 when it isn't the caller's or isn't in the app |
 | `POST /api/member/notifications/:notificationId/read` | the recipient | `NotificationsService.markRead` (automations) |
-| `POST /api/member/notifications/read` | signed in | `NotificationsService.markAllRead` (automations); marks notifications matching the same filters read |
+| `POST /api/member/notifications/read` | signed in | `NotificationsService.markAllRead` (automations); marks notifications matching the same filters read, taken in the query string; 400 when the request has a body |
 
 ```json
 {
