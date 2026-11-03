@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { PollingOutboxRelay, type PollingOutboxRelayConfig } from "./outbox-relay.js";
+import { PollingOutboxRelay, orderingKey, type PollingOutboxRelayConfig } from "./outbox-relay.js";
 import { InMemoryEventBus } from "./index.js";
 import type { Logger, OutboxMessage, OutboxStore } from "@headless-lms/core/shared/ports";
 
@@ -7,6 +7,7 @@ const CONFIG: PollingOutboxRelayConfig = {
   enabled: true,
   pollIntervalMs: 1000,
   batchSize: 10,
+  concurrency: 4,
 };
 
 function message(n: number, type = "entitlement.created", attempts = 0): OutboxMessage {
@@ -23,6 +24,19 @@ function message(n: number, type = "entitlement.created", attempts = 0): OutboxM
       data: {},
     },
   };
+}
+
+function event(n: number, type: string, data: Record<string, unknown>): OutboxMessage {
+  const base = message(n, type);
+  return { ...base, payload: { ...base.payload, data } };
+}
+
+function gate(): { promise: Promise<void>; open: () => void } {
+  let open = () => {};
+  const promise = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
 }
 
 /** Sequential batches: call N of fetchBatch returns batches[N-1] (then []). */
@@ -256,6 +270,183 @@ describe("PollingOutboxRelay logging baseline", () => {
       expect.objectContaining({ id: "evt_1", type: "boom.event", attempt: 10 }),
     );
     expect(logger.error).not.toHaveBeenCalled();
+    await relay.stop();
+  });
+});
+
+describe("orderingKey", () => {
+  it("keys chat events by chat, post and comment events by post, and the rest by their item", () => {
+    expect(
+      orderingKey(event(1, "discussion.message.sent", { id: "msg_1", chatId: "cht_1" }).payload),
+    ).toBe("org-1:cht_1");
+    expect(orderingKey(event(2, "discussion.chat.updated", { id: "cht_1" }).payload)).toBe(
+      "org-1:cht_1",
+    );
+    expect(orderingKey(event(3, "discussion.post.published", { id: "pst_1" }).payload)).toBe(
+      "org-1:pst_1",
+    );
+    expect(
+      orderingKey(
+        event(4, "discussion.comment.created", { id: "cmt_1", postId: "pst_1", activityId: null })
+          .payload,
+      ),
+    ).toBe("org-1:pst_1");
+    expect(
+      orderingKey(
+        event(5, "discussion.comment.created", { id: "cmt_2", postId: null, activityId: "act_1" })
+          .payload,
+      ),
+    ).toBe("org-1:act_1");
+    expect(orderingKey(event(6, "entitlement.created", { id: "ent_1" }).payload)).toBe(
+      "org-1:ent_1",
+    );
+    expect(orderingKey(event(7, "discussion.digest.due", { communityId: "cmy_1" }).payload)).toBe(
+      "org-1:evt_7",
+    );
+  });
+});
+
+describe("PollingOutboxRelay concurrency", () => {
+  it("keeps events of one key in order while other keys run alongside", async () => {
+    const first = gate();
+    const seen: string[] = [];
+    const store = fakeStore([
+      [
+        event(1, "discussion.message.sent", { chatId: "cht_a" }),
+        event(2, "discussion.message.sent", { chatId: "cht_a" }),
+        event(3, "discussion.message.sent", { chatId: "cht_b" }),
+      ],
+    ]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("discussion.message.sent", async (e) => {
+      seen.push(`start ${e.id}`);
+      if (e.id === "evt_1") {
+        await first.promise;
+      }
+      seen.push(`end ${e.id}`);
+    });
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(seen).toEqual(["start evt_1", "start evt_3", "end evt_3"]);
+    first.open();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(seen).toEqual([
+      "start evt_1",
+      "start evt_3",
+      "end evt_3",
+      "end evt_1",
+      "start evt_2",
+      "end evt_2",
+    ]);
+    expect(store.markProcessed).toHaveBeenCalledTimes(3);
+    await relay.stop();
+  });
+
+  it("dispatches no more than the configured number of events at once", async () => {
+    const release = gate();
+    let running = 0;
+    let most = 0;
+    const store = fakeStore([
+      Array.from({ length: 10 }, (_, i) =>
+        event(i + 1, "discussion.post.published", { id: `pst_${i}` }),
+      ),
+    ]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("discussion.post.published", async () => {
+      running++;
+      most = Math.max(most, running);
+      await release.promise;
+      running--;
+    });
+    const relay = new PollingOutboxRelay(store, bus, { ...CONFIG, concurrency: 3 }, fakeLogger());
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(running).toBe(3);
+    release.open();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(most).toBe(3);
+    expect(store.markProcessed).toHaveBeenCalledTimes(10);
+    await relay.stop();
+  });
+
+  it("waits for the whole batch before fetching the next one", async () => {
+    const release = gate();
+    const store = fakeStore([
+      [event(1, "discussion.post.published", { id: "pst_1" })],
+      [event(2, "discussion.post.published", { id: "pst_1" })],
+    ]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("discussion.post.published", async (e) => {
+      if (e.id === "evt_1") {
+        await release.promise;
+      }
+    });
+    const relay = new PollingOutboxRelay(store, bus, { ...CONFIG, batchSize: 1 }, fakeLogger());
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(store.fetchBatch).toHaveBeenCalledTimes(1);
+    release.open();
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(vi.mocked(store.markProcessed).mock.calls).toEqual([["evt_1"], ["evt_2"]]);
+    await relay.stop();
+  });
+
+  it("isolates a failure: the failed event backs off, the rest of its key and other keys go on", async () => {
+    const store = fakeStore([
+      [
+        event(1, "discussion.message.sent", { chatId: "cht_a" }),
+        event(2, "discussion.message.sent", { chatId: "cht_a" }),
+        event(3, "discussion.message.sent", { chatId: "cht_b" }),
+      ],
+    ]);
+    const bus = new InMemoryEventBus();
+    bus.subscribe("discussion.message.sent", async (e) => {
+      if (e.id === "evt_1") {
+        throw new Error("handler blew up");
+      }
+    });
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, fakeLogger());
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(store.markFailed).toHaveBeenCalledTimes(1);
+    expect(store.markFailed).toHaveBeenCalledWith(
+      "evt_1",
+      expect.stringContaining("handler blew up"),
+      new Date(Date.now() + 5_000),
+    );
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_2");
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_3");
+    await relay.stop();
+  });
+
+  it("keeps dispatching when recording a failure fails", async () => {
+    const store = fakeStore([
+      [
+        event(1, "boom.event", { id: "pst_1" }),
+        event(2, "boom.event", { id: "pst_1" }),
+        message(3),
+      ],
+    ]);
+    vi.mocked(store.markFailed).mockRejectedValueOnce(new Error("db down"));
+    const bus = new InMemoryEventBus();
+    bus.subscribe("boom.event", async (e) => {
+      if (e.id === "evt_1") {
+        throw new Error("handler blew up");
+      }
+    });
+    const logger = fakeLogger();
+    const relay = new PollingOutboxRelay(store, bus, CONFIG, logger);
+    relay.start();
+    await vi.advanceTimersByTimeAsync(CONFIG.pollIntervalMs);
+    expect(logger.error).toHaveBeenCalledWith(
+      "outbox failure not recorded",
+      expect.objectContaining({ id: "evt_1", markError: expect.stringContaining("db down") }),
+    );
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_2");
+    expect(store.markProcessed).toHaveBeenCalledWith("evt_3");
     await relay.stop();
   });
 });

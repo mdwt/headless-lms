@@ -1,13 +1,14 @@
 // Same-process outbox relay (implements the core OutboxRelay port). A
 // setTimeout-CHAINED poller (never setInterval — a slow batch must not overlap
 // the next tick): each tick fetches unprocessed rows in id order and publishes
-// them to the EventBus.
+// them to the EventBus, up to `concurrency` at once and in id order per ordering key.
 //
 // Delivery is at-least-once — handlers must be idempotent, keyed on event.id.
 // Ordering is skip-past-failures: a failing row is stamped with the error and
 // an exponential-backoff next_attempt_at (retried once due) while later rows
 // flow; the store stops fetching it after OUTBOX_MAX_ATTEMPTS failures.
 import type {
+  DomainEvent,
   EventBus,
   Logger,
   OutboxMessage,
@@ -34,6 +35,22 @@ export interface PollingOutboxRelayConfig {
   pollIntervalMs: number;
   /** Max rows fetched/dispatched per tick; a full batch re-polls immediately. */
   batchSize: number;
+  concurrency: number;
+}
+
+const ORDERING_FIELDS = ["chatId", "postId", "activityId", "commentId", "id"] as const;
+
+export function orderingKey(event: DomainEvent): string {
+  const data = event.data;
+  if (data !== null && typeof data === "object") {
+    for (const field of ORDERING_FIELDS) {
+      const value = (data as Record<string, unknown>)[field];
+      if (typeof value === "string" && value.length > 0) {
+        return `${event.orgId}:${value}`;
+      }
+    }
+  }
+  return `${event.orgId}:${event.id}`;
 }
 
 export class PollingOutboxRelay implements OutboxRelay {
@@ -57,6 +74,7 @@ export class PollingOutboxRelay implements OutboxRelay {
     this.logger.info("outbox relay started", {
       pollIntervalMs: this.config.pollIntervalMs,
       batchSize: this.config.batchSize,
+      concurrency: this.config.concurrency,
     });
   }
 
@@ -82,7 +100,7 @@ export class PollingOutboxRelay implements OutboxRelay {
     }, delayMs);
   }
 
-  /** One poll: fetch a batch, dispatch in order, reschedule — immediately when
+  /** One poll: fetch a batch, dispatch in order per ordering key, reschedule — immediately when
    *  the batch was full (drain bursts), else after the idle interval. Never
    *  throws: a poll failure is logged and retried next tick. */
   private async tick(): Promise<void> {
@@ -93,13 +111,35 @@ export class PollingOutboxRelay implements OutboxRelay {
       if (fetched > 0) {
         this.logger.debug("outbox batch fetched", { count: fetched });
       }
-      for (const message of batch) {
-        await this.dispatch(message);
-      }
+      await this.dispatchBatch(batch);
     } catch (err) {
       this.logger.error("outbox poll failed", { error: String(err) });
     }
     this.schedule(fetched >= this.config.batchSize ? 0 : this.config.pollIntervalMs);
+  }
+
+  private async dispatchBatch(batch: OutboxMessage[]): Promise<void> {
+    const lanes = new Map<string, OutboxMessage[]>();
+    for (const message of batch) {
+      const key = orderingKey(message.payload);
+      const lane = lanes.get(key);
+      if (lane) {
+        lane.push(message);
+      } else {
+        lanes.set(key, [message]);
+      }
+    }
+    const queue = [...lanes.values()];
+    const workers = Math.min(Math.max(1, this.config.concurrency), queue.length);
+    await Promise.all(
+      Array.from({ length: workers }, async () => {
+        for (let lane = queue.shift(); lane; lane = queue.shift()) {
+          for (const message of lane) {
+            await this.dispatch(message);
+          }
+        }
+      }),
+    );
   }
 
   private async dispatch(message: OutboxMessage): Promise<void> {
@@ -113,7 +153,17 @@ export class PollingOutboxRelay implements OutboxRelay {
     } catch (err) {
       const error = String(err);
       const nextAttemptAt = new Date(Date.now() + outboxBackoffMs(message.attempts));
-      await this.store.markFailed(message.id, error, nextAttemptAt);
+      try {
+        await this.store.markFailed(message.id, error, nextAttemptAt);
+      } catch (markErr) {
+        this.logger.error("outbox failure not recorded", {
+          id: message.id,
+          type: message.payload.type,
+          error,
+          markError: String(markErr),
+        });
+        return;
+      }
       const attempt = message.attempts + 1;
       const meta = {
         id: message.id,

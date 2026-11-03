@@ -12,6 +12,7 @@ describe('resolveOutboxConfig', () => {
       enabled: true,
       pollIntervalMs: 1000,
       batchSize: 100,
+      concurrency: 16,
     });
     expect(resolveOutboxConfig()).toEqual(OUTBOX_DEFAULTS);
   });

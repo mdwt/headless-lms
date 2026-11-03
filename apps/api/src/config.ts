@@ -149,6 +149,9 @@ function loadContainerConfig(): ContainerConfig {
     adminAppUrl,
     outbox: {
       enabled: (process.env.OUTBOX_ENABLED ?? "true") !== "false",
+      concurrency: process.env.OUTBOX_CONCURRENCY
+        ? Number(process.env.OUTBOX_CONCURRENCY)
+        : undefined,
     },
     logging: {
       level: parseLogLevel(),

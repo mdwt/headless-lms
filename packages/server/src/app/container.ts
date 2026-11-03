@@ -187,12 +187,14 @@ export interface OutboxConfig {
   pollIntervalMs?: number;
   /** Max rows fetched/dispatched per tick. Default 100. */
   batchSize?: number;
+  concurrency?: number;
 }
 
 export const OUTBOX_DEFAULTS: PollingOutboxRelayConfig = {
   enabled: true,
   pollIntervalMs: 1000,
   batchSize: 100,
+  concurrency: 16,
 };
 
 export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRelayConfig {
