@@ -23,7 +23,6 @@ import type { Community } from "@/lib/api/types";
 
 import { deleteCommunityAndRedirectAction, setCommunityPublishedAction } from "../../actions";
 import { CommunityTabsNav } from "./community-tabs-nav";
-import { NotificationsDialog } from "./notifications-dialog";
 
 export function CommunityHeader({
   community,
@@ -37,7 +36,6 @@ export function CommunityHeader({
   const canManage = can.manageCommunities(user);
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const published = community.status === "published";
 
   function onTogglePublish() {
@@ -110,9 +108,11 @@ export function CommunityHeader({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onSelect={() => setNotificationsOpen(true)}>
-                  <Bell />
-                  Notifications
+                <DropdownMenuItem asChild>
+                  <Link href={`/communities/${community.id}/settings/notifications`}>
+                    <Bell />
+                    Notifications
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="danger" onSelect={() => setConfirmingDelete(true)}>
@@ -126,14 +126,6 @@ export function CommunityHeader({
       </div>
 
       <CommunityTabsNav communityId={community.id} canManage={canManage} />
-
-      {canManage && (
-        <NotificationsDialog
-          communityId={community.id}
-          open={notificationsOpen}
-          onOpenChange={setNotificationsOpen}
-        />
-      )}
 
       <ConfirmDialog
         open={confirmingDelete}

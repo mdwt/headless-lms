@@ -2,15 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Automations, Communities } from "@headless-lms/sdk";
+import { Communities, Notifications } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
-import { serverApi } from "@/lib/api/server";
+import { listRefusal, type ListRefusal } from "@/components/notification-categories/problems";
 import type {
-  Automation,
   Community,
   CommunityStatus,
   DmSettings,
+  NotificationCategory,
   Space,
   SpaceAccessRule,
   SpaceSettings,
@@ -231,12 +231,25 @@ export async function setChatLockedAction(
   revalidateCommunity();
 }
 
-export async function listCommunityNotificationsAction(communityId: string): Promise<Automation[]> {
-  return await serverApi.communityAutomations(communityId);
+export async function replaceCommunityCategoriesAction(
+  communityId: string,
+  categories: NotificationCategory[],
+): Promise<ListRefusal | null> {
+  try {
+    await Notifications.replaceCommunityNotificationCategories(
+      { communityId, categories },
+      await authHeaders(),
+    );
+  } catch (err) {
+    const refusal = listRefusal(err);
+    if (refusal) return refusal;
+    throw err;
+  }
+  revalidateCommunity();
+  return null;
 }
 
-export async function setAutomationEnabledAction(id: string, enabled: boolean): Promise<void> {
-  await Automations.updateAutomation({ id, enabled }, await authHeaders());
+export async function resetCommunityCategoriesAction(communityId: string): Promise<void> {
+  await Notifications.resetCommunityNotificationCategories({ communityId }, await authHeaders());
   revalidateCommunity();
-  revalidatePath("/automations/workflows");
 }

@@ -15,6 +15,7 @@ import type {
   GetBundleResponse,
   GetCommunityAnalyticsResponse,
   GetCommunityMessageQueueResponse,
+  GetCommunityNotificationCategoriesResponse,
   GetCommunityResponse,
   GetCommunitySpaceQueueResponse,
   GetPostResponse,
@@ -41,6 +42,7 @@ import type {
   ListCommunityMembersResponse,
   ListCommunitySpaceMembersResponse,
   ListCommunitySpacesResponse,
+  ListNotificationTypesResponse,
   ListCoursesResponse,
   ListDownloadAssetsResponse,
   ListDownloadsResponse,
@@ -218,6 +220,7 @@ export type CommentSettings = NonNullable<CourseSettings["comments"]>;
 export type Community = GetCommunityResponse;
 export type CommunityStatus = Community["status"];
 export type DmSettings = Community["settings"]["dm"];
+export type DigestSchedule = NonNullable<Community["settings"]["digest"]>;
 export type CommunityAnalytics = GetCommunityAnalyticsResponse;
 export type CommunityMember = ListCommunityMembersResponse["rows"][number];
 
@@ -286,3 +289,11 @@ export interface Paginated<T> {
   page: number;
   pageSize: number;
 }
+
+// --- notification categories -------------------------------------------------
+
+export type NotificationCategoryList = GetCommunityNotificationCategoriesResponse;
+export type NotificationCategory = NotificationCategoryList["categories"][number];
+export type NotificationCover = NotificationCategory["covers"][number];
+export type NotificationReason = NotificationCover["reasons"][number];
+export type NotificationTypeInfo = ListNotificationTypesResponse[number];

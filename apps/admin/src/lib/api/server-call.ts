@@ -53,11 +53,18 @@ configureSdk({
     // The SDK hands back the parsed response body, which for this API is
     // `{ error, message? }` — prefer that over the bare status so the toast
     // says what actually went wrong.
-    const body = error as { message?: string; error?: string; requestId?: string } | undefined;
+    const body = error as
+      | {
+          message?: string;
+          error?: string;
+          requestId?: string;
+          issues?: { path: string; message: string }[];
+        }
+      | undefined;
     const status = response?.status ?? 500;
     const message =
       body?.message ?? body?.error ?? response?.statusText ?? `Request failed (${status})`;
-    return new ApiError(status, message, requestId ?? body?.requestId);
+    return new ApiError(status, message, requestId ?? body?.requestId, body?.issues ?? []);
   },
 });
 

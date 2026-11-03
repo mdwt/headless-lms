@@ -32,6 +32,7 @@ import {
   Discussion,
   Entitlements,
   Integrations,
+  Notifications,
   Organizations,
   Posts,
   Reporting,
@@ -62,6 +63,8 @@ import type {
   IntegrationConnection,
   ListParams,
   Member,
+  NotificationCategoryList,
+  NotificationTypeInfo,
   ModuleTree,
   OverviewStats,
   Paginated,
@@ -521,14 +524,23 @@ export const serverApi = {
       messages: messages.entries,
     };
   },
-  async communityAutomations(communityId: string): Promise<Automation[]> {
-    const automations = await Automations.listAutomations(
-      { kind: "workflow" },
+
+  // notification categories
+  async communityNotificationCategories(communityId: string): Promise<NotificationCategoryList> {
+    return await Notifications.getCommunityNotificationCategories(
+      { communityId },
       await authHeaders(),
     );
-    return automations
-      .filter((a) => a.filter?.communityId === communityId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+  async orgNotificationCategories(): Promise<NotificationCategoryList> {
+    return await Notifications.getOrgNotificationCategories(await authHeaders());
+  },
+  async notificationTypes(scope: "org" | "community"): Promise<NotificationTypeInfo[]> {
+    return await Notifications.listNotificationTypes({ scope }, await authHeaders());
+  },
+  async notificationChannels(): Promise<string[]> {
+    const channels = await Notifications.listNotificationChannels(await authHeaders());
+    return channels.map((c) => c.channel);
   },
 
   // media library (assets) — list only; uploads stay client-side

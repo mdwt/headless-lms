@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageCircle, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { Bell, MessageCircle, SlidersHorizontal, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const ITEMS: { segment: string; label: string; icon: LucideIcon }[] = [
   { segment: "", label: "General", icon: SlidersHorizontal },
   { segment: "messages", label: "Direct messages", icon: MessageCircle },
+  { segment: "notifications", label: "Notifications", icon: Bell },
 ];
 
 export function CommunitySettingsNav({ communityId }: { communityId: string }) {
