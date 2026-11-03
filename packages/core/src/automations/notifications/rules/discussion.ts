@@ -878,7 +878,13 @@ const digestDue: RecipientRule = async (event, reads) => {
   const spaceIds = [...new Set(posts.map((post) => post.spaceId))];
   const openers = new Map<string, Set<string>>();
   for (const spaceId of spaceIds) {
-    openers.set(spaceId, new Set(await reads.spaceOpeners(orgId, spaceId)));
+    const open = await reads.spaceOpeners(orgId, spaceId);
+    const muted = new Set(
+      open.length > 0
+        ? await reads.mutedAmong(orgId, { type: 'space', id: spaceId }, open, eventAt(event))
+        : [],
+    );
+    openers.set(spaceId, new Set(open.filter((orgUserId) => !muted.has(orgUserId))));
   }
   const groups = new Map<string, { spaceIds: string[]; members: Reasons }>();
   for (const orgUserId of await reads.communityMembers(orgId, communityId)) {

@@ -1034,6 +1034,32 @@ describe('discussion.digest.due', () => {
     expect(people(lists[1])).toEqual({ ou_emma: ['community_member'] });
   });
 
+  it('leaves out the posts in spaces a member muted, and the member when nothing is left', async () => {
+    const { lists, muted } = await run(due, {
+      members: ['ou_sarah', 'ou_james', 'ou_emma'],
+      openers: {
+        spc_news: ['ou_sarah', 'ou_james', 'ou_emma'],
+        spc_speaking: ['ou_sarah', 'ou_james'],
+      },
+      muted: { 'space:spc_speaking': ['ou_james'], 'space:spc_news': ['ou_emma'] },
+      posts: [
+        { postId: 'pst_1', spaceId: 'spc_news', title: 'Welcome' },
+        { postId: 'pst_2', spaceId: 'spc_speaking', title: 'Find a partner' },
+      ],
+    });
+    expect(lists).toHaveLength(2);
+    expect(people(lists[0])).toEqual({ ou_sarah: ['community_member'] });
+    expect(lists[0]?.display.posts).toHaveLength(2);
+    expect(people(lists[1])).toEqual({ ou_james: ['community_member'] });
+    expect(lists[1]?.display.posts).toEqual([expect.objectContaining({ postId: 'pst_1' })]);
+    expect(muted).toHaveBeenCalledWith(
+      ORG,
+      { type: 'space', id: 'spc_speaking' },
+      ['ou_sarah', 'ou_james'],
+      new Date(due.occurredAt),
+    );
+  });
+
   it('sends nothing for a window with no posts', async () => {
     expect((await run(due, { posts: [] })).lists).toEqual([]);
   });
