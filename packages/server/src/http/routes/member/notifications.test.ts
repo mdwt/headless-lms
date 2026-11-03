@@ -140,6 +140,25 @@ describe('member notification routes', () => {
     expect(calls).toEqual([]);
   });
 
+  it('refuses scope=org together with a community, on the list and on mark-read', async () => {
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/member/notifications?scope=org&communityId=cmy_1',
+    });
+    expect(list.statusCode).toBe(400);
+    const read = await app.inject({
+      method: 'POST',
+      url: '/api/member/notifications/read?scope=org&communityId=cmy_1',
+    });
+    expect(read.statusCode).toBe(400);
+    expect(calls).toEqual([]);
+    const community = await app.inject({
+      method: 'GET',
+      url: '/api/member/notifications?scope=community&communityId=cmy_1',
+    });
+    expect(community.statusCode).toBe(200);
+  });
+
   it('serves the unread counts', async () => {
     const res = await app.inject({
       method: 'GET',

@@ -8,7 +8,11 @@ import type {
 import { NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { SettingsNamespace, type SettingsService } from '../shared/settings.js';
-import { assertValidCategoryList, storedCategoryList } from '../shared/notification-categories.js';
+import {
+  assertValidCategoryList,
+  offeringConfigured,
+  storedCategoryList,
+} from '../shared/notification-categories.js';
 import type { ContentRepository } from './ports.js';
 
 export type CommunityNotificationCategoriesParams = {
@@ -46,7 +50,7 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     );
     const stored = storedCategoryList(value?.notificationCategories);
     return stored
-      ? { categories: stored, source: 'stored' }
+      ? { categories: offeringConfigured(stored, this.channels.list()), source: 'stored' }
       : { categories: this.defaults(), source: 'default' };
   }
 

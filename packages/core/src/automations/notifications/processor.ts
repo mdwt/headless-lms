@@ -365,61 +365,70 @@ export class NotificationProcessor {
   ): Promise<Filed | null> {
     let hasDevice: boolean | undefined;
     for (const category of categories) {
-      const found = this.firstPair(category, person.pairs);
-      if (!found) {
-        continue;
-      }
-      const { pair, cover } = found;
-      let on = resolveChannels(category, settings, pair.list.spaceId, configured)
-        .filter((channel) => channel.enabled)
-        .map((channel) => channel.channel);
-      if (on.includes(PUSH)) {
-        hasDevice ??= await this.hasActiveDevice(orgId, person.userId);
-        if (!hasDevice) {
-          on = on.filter((channel) => channel !== PUSH);
+      for (const { pair, cover } of this.coveredPairs(category, person.pairs)) {
+        let on = resolveChannels(category, settings, pair.list.spaceId, configured)
+          .filter((channel) => channel.enabled)
+          .map((channel) => channel.channel);
+        if (on.includes(PUSH)) {
+          hasDevice ??= await this.hasActiveDevice(orgId, person.userId);
+          if (!hasDevice) {
+            on = on.filter((channel) => channel !== PUSH);
+          }
+        }
+        if (on.length > 0) {
+          return this.filed(sourceEventId, communityId, person, category, pair, cover, on);
         }
       }
-      if (on.length === 0) {
-        continue;
-      }
-      const list = pair.list;
-      const notificationId = genId('notification');
-      const reasons = [...new Set(person.pairs.flatMap((candidate) => candidate.reasons))];
-      return {
-        notification: {
-          id: notificationId,
-          userId: person.userId,
-          sourceEventId,
-          type: pair.type,
-          scope: list.scope,
-          reasons,
-          matchedReason: cover.reasons.find((reason) => pair.reasons.includes(reason))!,
-          category: category.key,
-          communityId,
-          spaceId: list.spaceId,
-          actorOrgUserId: list.actorOrgUserId,
-          subject: list.subject,
-          parent: list.parent,
-          display: list.display,
-          inApp: on.includes(IN_APP),
-          createdAt: this.now(),
-        },
-        deliveries: on
-          .filter((channel) => channel !== IN_APP && this.channels.get(channel) !== undefined)
-          .map((channel) => ({
-            id: genId('notificationDelivery'),
-            notificationId,
-            channel,
-          })),
-      };
     }
     return null;
   }
 
-  private firstPair(
+  private filed(
+    sourceEventId: string,
+    communityId: string | null,
+    person: Person,
+    category: NotificationCategory,
+    pair: Pair,
+    cover: NotificationCategory['covers'][number],
+    on: string[],
+  ): Filed {
+    const list = pair.list;
+    const notificationId = genId('notification');
+    const reasons = [...new Set(person.pairs.flatMap((candidate) => candidate.reasons))];
+    return {
+      notification: {
+        id: notificationId,
+        userId: person.userId,
+        sourceEventId,
+        type: pair.type,
+        scope: list.scope,
+        reasons,
+        matchedReason: cover.reasons.find((reason) => pair.reasons.includes(reason))!,
+        category: category.key,
+        communityId,
+        spaceId: list.spaceId,
+        actorOrgUserId: list.actorOrgUserId,
+        subject: list.subject,
+        parent: list.parent,
+        display: list.display,
+        inApp: on.includes(IN_APP),
+        createdAt: this.now(),
+      },
+      deliveries: on
+        .filter((channel) => channel !== IN_APP && this.channels.get(channel) !== undefined)
+        .map((channel) => ({
+          id: genId('notificationDelivery'),
+          notificationId,
+          channel,
+        })),
+    };
+  }
+
+  private coveredPairs(
     category: NotificationCategory,
     pairs: Pair[],
-  ): { pair: Pair; cover: NotificationCategory['covers'][number] } | null {
+  ): { pair: Pair; cover: NotificationCategory['covers'][number] }[] {
+    const covered: { pair: Pair; cover: NotificationCategory['covers'][number] }[] = [];
     for (const pair of pairs) {
       if (category.perSpace === true && pair.list.spaceId === null) {
         continue;
@@ -430,10 +439,10 @@ export class NotificationProcessor {
           candidate.reasons.some((reason) => pair.reasons.includes(reason)),
       );
       if (cover) {
-        return { pair, cover };
+        covered.push({ pair, cover });
       }
     }
-    return null;
+    return covered;
   }
 
   private async hasActiveDevice(orgId: string, userId: string): Promise<boolean> {

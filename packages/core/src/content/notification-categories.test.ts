@@ -111,6 +111,27 @@ describe('community notification categories', () => {
     });
   });
 
+  it('reads a stored list without the channels the deployment no longer configures, so it writes back', async () => {
+    const { service, rows } = harness();
+    const on = { default: true, locked: false };
+    rows.set('org_1:content:cmy_1', {
+      notificationCategories: [
+        { ...replies, channels: { inApp: on, push: on } },
+        {
+          key: 'pushed',
+          covers: [{ type: 'comment.created', reasons: ['post_author'] }],
+          channels: { push: on },
+        },
+      ],
+    });
+    const read = await service.get('org_1', 'cmy_1');
+    expect(read).toEqual({
+      categories: [{ ...replies, channels: { inApp: on } }],
+      source: 'stored',
+    });
+    await expect(service.replace('org_1', 'cmy_1', read.categories)).resolves.toEqual(read);
+  });
+
   it('answers not found for a community the org does not have', async () => {
     const { service } = harness();
     await expect(service.get('org_1', 'cmy_x')).rejects.toBeInstanceOf(NotFoundError);

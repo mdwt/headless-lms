@@ -82,6 +82,18 @@ describe('org notification categories', () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('reads a stored list without the channels the deployment no longer configures', async () => {
+    const { service, rows } = harness();
+    rows.set('org_1:organizations:org_1', {
+      notificationCategories: [
+        { ...access, channels: { ...access.channels, push: { default: true, locked: false } } },
+      ],
+    });
+    const read = await service.get('org_1', 'org_1');
+    expect(read).toEqual({ categories: [access], source: 'stored' });
+    await expect(service.replace('org_1', 'org_1', read.categories)).resolves.toEqual(read);
+  });
+
   it('resets to the default by storing null', async () => {
     const { service, rows } = harness();
     await service.replace('org_1', 'org_1', [access]);

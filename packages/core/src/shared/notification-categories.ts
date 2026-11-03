@@ -62,6 +62,9 @@ export function categoryListProblems(
         );
       }
     });
+    if (Object.keys(category.channels).length === 0) {
+      problems.push(`${at}: the category offers no channel`);
+    }
     for (const channel of Object.keys(category.channels)) {
       if (!configured.includes(channel)) {
         problems.push(`${at}: the channel ${channel} is not configured`);
@@ -110,12 +113,29 @@ export function offeringConfigured(
   categories: NotificationCategory[],
   configured: string[],
 ): NotificationCategory[] {
-  return categories.map((category) => ({
-    ...category,
-    channels: Object.fromEntries(
+  return categories.flatMap((category) => {
+    const channels = Object.fromEntries(
       Object.entries(category.channels).filter(([channel]) => configured.includes(channel)),
-    ),
-  }));
+    );
+    if (Object.keys(channels).length === 0) {
+      return [];
+    }
+    const { spaceDefaults, ...rest } = category;
+    return [
+      {
+        ...rest,
+        channels,
+        ...(spaceDefaults !== undefined && {
+          spaceDefaults: Object.fromEntries(
+            Object.entries(spaceDefaults).map(([spaceId, values]) => [
+              spaceId,
+              Object.fromEntries(Object.entries(values).filter(([channel]) => channel in channels)),
+            ]),
+          ),
+        }),
+      },
+    ];
+  });
 }
 
 export function storedCategoryList(value: unknown): NotificationCategory[] | null {

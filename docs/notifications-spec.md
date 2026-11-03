@@ -442,7 +442,7 @@ Automations applies these rules when it files a recipient list:
 
 1. **First match with a channel on.** For each person, the notification is filed under the first category in list order that covers one of the person's type-and-reason pairs and has at least one channel on for the person after resolution (8.1). A category the person switched off on every channel is passed over, and the next matching category applies. The list order is the priority of reasons: a mention, then a reply to the person or their post, then a followed post or thread, as Discourse orders them. Placing `mentions` before `comments_on_my_posts` files a mention inside a comment on the person's own post as a mention; if the person switched `mentions` off, it is filed under `comments_on_my_posts`. The matched pair's type is the notification's type, and its `matched_reason` is the first reason, in the order of the matching cover's `reasons`, that the person has.
 2. **One per person per event per list.** The recipient rule returns all of an event's recipient lists together. Automations collects each person's pairs and files the person once in the community's list and, for lists with no community, once in the org's list. Each community counts separately: a bundle grant that opens two communities produces `community.welcome` in each.
-3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the list the rule returned first wins. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming every community the grant opened in `communities`, when the grant opened a community, and `access.revoked` otherwise.
+3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the first list the rule returned that resolves to at least one channel on for the person wins (rule 1), so a per-space setting or space default decides between lists in different spaces. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming every community the grant opened in `communities`, when the grant opened a community, and `access.revoked` otherwise.
 4. **No match, no notification.** A pair no category covers is not delivered. A community without a `digest` category sends no digest.
 5. **Offered channels only.** Delivery uses only the channels the category offers.
 6. **Locks.** A locked channel always uses its default. The settings endpoint rejects changes to it.
@@ -478,7 +478,7 @@ Automations defines the default lists for communities and for the org in code, n
 - The first `PUT` stores the whole list. From then on the stored list applies, and a type added to the server later reaches that community only when its list covers it.
 - `DELETE` restores the default. `SettingsRepository.patch` can't remove a key, so it writes `notificationCategories: null`; a `null` or absent key means the default.
 
-The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`, leaving out channels the deployment no longer configures, so a list read and written back validates.
+The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`, leaving out channels the deployment no longer configures, their `spaceDefaults` entries, and categories left with no configured channel, so a list read and written back validates.
 
 **Default community list.** It contains the community app's categories plus `about_you` and `review`, which the app's list doesn't have.
 
@@ -700,7 +700,7 @@ The app reads the list with `GET /api/member/notifications`. `reporting/member` 
 | Filter | Meaning |
 |---|---|
 | `scope` | `org`: the org's list, `community_id` is null; `community`: any community, `community_id` is not null |
-| `communityId` | notifications in this community; implies `scope=community` |
+| `communityId` | notifications in this community; implies `scope=community`, and `scope=org` with it answers 400 |
 | `category` | one or more category keys |
 | `reason` | one or more reasons; matches any |
 | `type` | one or more types |

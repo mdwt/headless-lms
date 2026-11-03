@@ -344,6 +344,35 @@ describe('NotificationProcessor', () => {
     ]);
   });
 
+  it('takes the first list of one category that resolves to a channel on for the person', async () => {
+    const perSpace: NotificationCategory = {
+      key: 'space_activity',
+      perSpace: true,
+      covers: [
+        { type: 'mention', reasons: ['mentioned'] },
+        { type: 'comment.created', reasons: ['post_author'] },
+      ],
+      channels: { inApp: { default: false, locked: false } },
+      spaceDefaults: { spc_news: { inApp: true } },
+    };
+    const { processor, repo } = build({
+      categories: { cmy_1: [perSpace] },
+      lists: [
+        commentList([who('ou_sarah', 'post_author')]),
+        mentionList([who('ou_sarah', 'mentioned')], { spaceId: 'spc_news' }),
+      ],
+    });
+    await processor.process(EVENT);
+    expect(stored(repo, 'usr_sarah')).toEqual([
+      expect.objectContaining({
+        type: 'mention',
+        category: 'space_activity',
+        spaceId: 'spc_news',
+        matchedReason: 'mentioned',
+      }),
+    ]);
+  });
+
   it('stores nothing for a person with no channel on in any matching category', async () => {
     const { processor, repo, deliver } = build({
       settings: {

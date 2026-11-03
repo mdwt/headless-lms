@@ -33,7 +33,20 @@ function commaSeparated<T extends string>(item: z.ZodType<T, string>, descriptio
     .describe(description);
 }
 
-export const NotificationFilterQuery = z
+function scopeMatchesCommunity(
+  filter: { scope?: 'org' | 'community'; communityId?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (filter.scope === 'org' && filter.communityId !== undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['communityId'],
+      message: '`communityId` implies `scope=community`; it cannot go with `scope=org`',
+    });
+  }
+}
+
+const notificationFilterShape = z
   .object({
     scope: z
       .enum(['org', 'community'])
@@ -61,7 +74,11 @@ export const NotificationFilterQuery = z
   })
   .strict();
 
-export const NotificationListQuery = PageQuery.extend(NotificationFilterQuery.shape).strict();
+export const NotificationFilterQuery = notificationFilterShape.superRefine(scopeMatchesCommunity);
+
+export const NotificationListQuery = PageQuery.extend(notificationFilterShape.shape)
+  .strict()
+  .superRefine(scopeMatchesCommunity);
 
 const NotificationItem = z.object({
   type: subjectTypeSchema,

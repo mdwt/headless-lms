@@ -256,6 +256,28 @@ describe('category list helpers', () => {
     ).toEqual([category({ channels: { inApp: on } })]);
   });
 
+  it('leaves out a category with no configured channel and space defaults for removed channels', () => {
+    const perSpace = category({
+      key: 'new_posts',
+      perSpace: true,
+      covers: [{ type: 'post.published', reasons: ['space_member'] }],
+      channels: { inApp: on, push: on },
+      spaceDefaults: { spc_1: { inApp: true, push: true } },
+    });
+    const pushOnly = category({ key: 'pushed', channels: { push: on } });
+    const kept = offeringConfigured([perSpace, pushOnly], ['inApp']);
+    expect(kept).toEqual([
+      { ...perSpace, channels: { inApp: on }, spaceDefaults: { spc_1: { inApp: true } } },
+    ]);
+    expect(categoryListProblems(kept, 'community', types, ['inApp'])).toEqual([]);
+  });
+
+  it('refuses a category that offers no channel', () => {
+    expect(
+      categoryListProblems([category({ channels: {} })], 'community', types, configured),
+    ).toEqual(['categories[0] (comments_on_my_posts): the category offers no channel']);
+  });
+
   it('reads a stored list, null for none, and throws on a list that is not one', () => {
     expect(storedCategoryList(null)).toBeNull();
     expect(storedCategoryList(undefined)).toBeNull();
