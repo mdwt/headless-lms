@@ -1605,6 +1605,41 @@ describe('comment mentions on an activity', () => {
     expect(data(appended.at(-1))?.mentionedOrgUserIds).toEqual([other.id]);
   });
 
+  it('names the actor on every event of a comment on an activity, the approving moderator included', async () => {
+    const { service, appended, settings } = await openCourse();
+    await setSettings(settings, 'c1', { requireReview: true });
+    const c = await service.postComment('o1', {
+      actor: learner,
+      activityId: 'a1',
+      parentId: null,
+      body: 'first',
+    });
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.created',
+      metadata: { actorOrgUserId: learner.id },
+    });
+    await service.approve('o1', c.id, staff);
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.published',
+      metadata: { actorOrgUserId: staff.id },
+    });
+    await service.edit('o1', c.id, learner, 'edited');
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.updated',
+      metadata: { actorOrgUserId: learner.id },
+    });
+    await service.reportComment('o1', c.id, other, 'spam');
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.reported',
+      metadata: { actorOrgUserId: other.id },
+    });
+    await service.remove('o1', c.id, staff);
+    expect(appended.at(-1)).toMatchObject({
+      type: 'discussion.comment.removed',
+      metadata: { actorOrgUserId: staff.id },
+    });
+  });
+
   it('serves a removed comment without its mentions', async () => {
     const { service } = await openCourse();
     const c = await service.postComment('o1', {

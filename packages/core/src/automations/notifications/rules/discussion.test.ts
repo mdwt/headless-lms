@@ -562,6 +562,25 @@ describe('discussion.comment.published and discussion.comment.updated', () => {
     });
   });
 
+  it('leaves out the moderator who approved the comment', async () => {
+    const { lists } = await run(
+      ready(
+        discussionEvents.commentPublished.make({
+          orgId: ORG,
+          data: { ...COMMENT, mentionedOrgUserIds: ['ou_mia', 'ou_noah'] },
+        }),
+        { actorOrgUserId: 'ou_mia' },
+      ),
+      { followers: ['ou_mia'], thread: ['ou_mia', 'ou_emma'] },
+    );
+    expect(byType(lists, 'comment.created')?.actorOrgUserId).toBe('ou_james');
+    expect(people(byType(lists, 'comment.created'))).toEqual({
+      ou_sarah: ['post_author'],
+      ou_emma: ['comment_author', 'thread_participant'],
+    });
+    expect(people(byType(lists, 'mention'))).toEqual({ ou_noah: ['mentioned'] });
+  });
+
   it('mentions the people an edit newly mentions, only for a published comment', async () => {
     const edited = (status: 'published' | 'pending') =>
       ready(
