@@ -282,11 +282,11 @@ Any content that emits events can produce notifications. A type's scope is where
 | `space.request_declined` | a moderator declines a join request | space | `subject` | `requestDeclined` |
 | `community.welcome` | a grant opens a community | community | `subject` | `welcomeToCommunity` |
 | `community.ending_soon` | a community grant ends within a week | community | `subject` | `membershipEndingSoon` |
-| `community.membership_ended` | a grant that opened a community expires or is deleted | org | `subject` | the `membershipEnded` email automation |
+| `community.membership_ended` | a grant that opened a community expires or is deleted, and the person holds that community through no other grant | org | `subject` | the `membershipEnded` email automation |
 | `access.granted` | a grant is created | org | `subject` | the `accessGranted` email automation |
 | `access.revoked` | a grant is deleted | org | `subject` | the `accessRevoked` email automation |
 
-`community.membership_ended` is org-scoped because the person no longer holds the community.
+`community.membership_ended` is org-scoped because the person no longer holds the community. It lists only the communities the person holds through no other grant, as entitlements answers it; when they still hold every one, the event produces nothing.
 
 ### 5.3 Content events
 
@@ -442,7 +442,7 @@ Automations applies these rules when it files a recipient list:
 
 1. **First match with a channel on.** For each person, the notification is filed under the first category in list order that covers one of the person's type-and-reason pairs and has at least one channel on for the person after resolution (8.1). A category the person switched off on every channel is passed over, and the next matching category applies. The list order is the priority of reasons: a mention, then a reply to the person or their post, then a followed post or thread, as Discourse orders them. Placing `mentions` before `comments_on_my_posts` files a mention inside a comment on the person's own post as a mention; if the person switched `mentions` off, it is filed under `comments_on_my_posts`. The matched pair's type is the notification's type, and its `matched_reason` is the first reason, in the order of the matching cover's `reasons`, that the person has.
 2. **One per person per event per list.** The recipient rule returns all of an event's recipient lists together. Automations collects each person's pairs and files the person once in the community's list and, for lists with no community, once in the org's list. Each community counts separately: a bundle grant that opens two communities produces `community.welcome` in each.
-3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the first list the rule returned that resolves to at least one channel on for the person wins (rule 1), so a per-space setting or space default decides between lists in different spaces. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming every community the grant opened in `communities`, when the grant opened a community, and `access.revoked` otherwise.
+3. **One list per person per category.** When one person has pairs from several lists of one event that match the same category in one group, the first list the rule returned that resolves to at least one channel on for the person wins (rule 1), so a per-space setting or space default decides between lists in different spaces. The `entitlement.deleted` rule returns `community.membership_ended`, one list naming in `communities` every community the grant opened that the person holds through no other grant, when the grant opened a community, and `access.revoked` otherwise.
 4. **No match, no notification.** A pair no category covers is not delivered. A community without a `digest` category sends no digest.
 5. **Offered channels only.** Delivery uses only the channels the category offers.
 6. **Locks.** A locked channel always uses its default. The settings endpoint rejects changes to it.
@@ -553,13 +553,14 @@ Discussion stores follows and mutes. Automations reads them through `Notificatio
 | Item | `following` | `muted` |
 |---|---|---|
 | Post | adds `follower` for `comment.created` on the post | removes activity on the post, including for its author |
-| Space | — | removes activity in the space |
+| Space | — | removes activity in the space, and its posts from the person's digest |
 | Chat | — | removes activity in the chat |
 
 A mute removes every reason the person has in the item except `subject`, `moderator`, `staff` and `mentioned`. Every reason a mute removes belongs to a discussion type; the entitlements space types carry only `subject` and `moderator`, so mutes never affect them.
 
 - A follow adds the person to `comment.created` on the post with `follower`.
 - Mutes are applied last: the rule removes the muted reasons and drops anyone left with none.
+- A space mute leaves the space's posts out of the person's digest (section 12); `community_member` stays.
 - A mute with `mutedUntil` stops applying at that time.
 - No row means neither following nor muted.
 - `subscriptions` replaces `post_follows`, `chat_users.muted` and `chat_users.muted_until`.
@@ -580,9 +581,11 @@ A native app built with Expo registers the native token from `getDevicePushToken
 - **Register.** The app calls `POST /api/member/devices` after sign-in and on every launch. Identity upserts by `(provider, token)`: a new token adds a device, a known token updates `last_seen_at`, and a token registered by another person moves to the caller. A browser first reads the VAPID public key from `GET /api/member/push-config` for `pushManager.subscribe({ applicationServerKey })`, and registers again with the new endpoint on `pushsubscriptionchange`. Registration answers 422 for a provider that isn't configured, and for an `apns` device whose `app_id` isn't one of the configured bundle ids.
 - **Sign out.** The app calls `DELETE /api/member/devices/:deviceId` before it signs out, so the next person on the device receives none of the previous person's pushes.
 - **Send.** The push channel gets the person's devices seen in the last 30 days from identity and passes them to `PushSender.send`, which sends to each. APNs uses the device's `app_id` as `apns-topic`. A device not seen for 30 days receives nothing until the app registers again. Old rows are not swept; they stay until the token is registered again, reported dead or deleted.
-- **Partial failure.** A delivery succeeds when at least one device accepts it; devices that failed are not retried. `PushSender.send` throws, so the engine retries, only when no device accepted and at least one failure was retryable (network error, 429, 5xx). A person with no device seen in the last 30 days at send time gets the delivery `failed` with `last_error: 'no address'`, not retried.
+- **Partial failure.** A delivery succeeds when at least one device accepts it; devices that failed are not retried. `PushSender.send` throws, so the engine retries, only when no device accepted and at least one failure was retryable (network error, 429, 5xx, an APNs `403 ExpiredProviderToken`, an FCM `401`). A person with no device seen in the last 30 days at send time gets the delivery `failed` with `last_error: 'no address'`, not retried.
 - **Dead tokens.** The push adapter reports the devices the provider answered as dead. The delivery task asks identity to delete them. The adapter writes nothing.
-- **Configuration.** APNs: team id, key id, the `.p8` key, and the bundle ids of the apps it serves; one key serves every app of the team. FCM: the service account of the Firebase project the apps belong to; a token from another project is answered `403 SENDER_ID_MISMATCH` and reported dead. Web Push: the VAPID key pair, the same on every server instance, and the VAPID subject, a `mailto:` or `https:` contact. With no provider configured, the `push` channel is not registered.
+- **Provider auth.** The adapter signs the APNs provider token (ES256, the team id and key id) and reuses it for 50 minutes; it exchanges a signed service-account assertion (RS256) for an FCM access token and reuses it until a minute before it expires. Either is dropped when the provider rejects it as expired.
+- **Payload.** APNs gets `{ aps: { alert: { title, body } }, data }`; FCM gets `notification: { title, body }` and `data` with string values, `subject` and `parent` JSON-encoded and left out when null; Web Push gets the JSON `{ title, body, data }`, encrypted with `aes128gcm`.
+- **Configuration.** APNs: team id, key id, the `.p8` key, and the bundle ids of the apps it serves; one key serves every app of the team. FCM: the service account of the Firebase project the apps belong to; a token from another project is answered `403 SENDER_ID_MISMATCH` and reported dead. Web Push: the VAPID key pair, the same on every server instance, and the VAPID subject, a `mailto:` or `https:` contact. The installation passes the configuration as `adapters.push` and the adapter as `adapters.pushSender`; with no provider configured, the `push` channel is not registered.
 
 ## 11. Processing
 
@@ -621,8 +624,8 @@ Returning all lists together is what allows one notification per person per even
 | entitlements | `entitlement.space_member.deleted` | `space.request_declined` | the previous status was `requested` |
 | entitlements | `entitlement.created` | `access.granted`, `community.welcome` | `community.welcome` per community the grant opens |
 | entitlements | `entitlement.ending_soon` | `community.ending_soon` | |
-| entitlements | `entitlement.deleted` | `access.revoked`, `community.membership_ended` | 7.2, rule 3 |
-| entitlements | `entitlement.expired` | `community.membership_ended` | |
+| entitlements | `entitlement.deleted` | `access.revoked`, `community.membership_ended` | 7.2, rule 3; `communities` leaves out those the person holds through another grant, and nothing is produced when none is left |
+| entitlements | `entitlement.expired` | `community.membership_ended` | the communities the grant opened that the person holds through no other grant; nothing when none is left |
 | content | `content.course.activity.published` | `course.activity_added` | |
 | organizations | `organization.user.updated` | `moderator.assigned` | `role` is `moderator`; the event fires only when the role changes |
 
@@ -650,7 +653,7 @@ For each event's recipient lists, automations:
 
 1. **Arm.** For each recipient left on the `message.sent` list after mutes and blocks, automations calls `scheduler.at('automations.notifications.flush', occurredAt + 2 min, '{userId}:{chatId}', { orgId, userId, orgUserId, chatId })`. A later message in the chat calls it again with the same key, which moves the timer (14.1).
 2. **Mention.** When the same event, or a later one, files a `mention` for that person in that chat, automations stores and delivers the mention at once and calls `cancel('automations.notifications.flush', '{userId}:{chatId}')`. Messages after it arm a new timer.
-3. **Flush.** When the timer fires, the job reads `NotificationReads.unreadInChat(orgId, chatId, orgUserId)`. A count of 0, because the person read the chat, ends it. Otherwise it builds one `message.sent` recipient list for the person: subject the latest unread message, parent the chat, `display` with `senderName`, `chatTitle`, `excerpt`, `count` and `summary`; and runs it through 11.2 steps 4 to 7 like any other list. Its `source_event_id` is `chat-flush:{chatId}:{latest message id}`.
+3. **Flush.** When the timer fires, the job reads `NotificationReads.unreadInChat(orgId, chatId, orgUserId)`. A count of 0, because the person read the chat, ends it. So does a person who left the chat, can no longer open it, has muted it (`mutedAmong` at the time the job runs) or is in a blocked pair with the sender of the latest unread message: the job stores nothing. Otherwise it builds one `message.sent` recipient list for the person: subject the latest unread message, parent the chat, `display` with `senderName`, `chatTitle`, `excerpt`, `count` and `summary`; and runs it through 11.2 steps 4 to 7 like any other list. Its `source_event_id` is `chat-flush:{chatId}:{latest message id}`.
 
 ### 11.4 Delivery task
 
@@ -690,7 +693,7 @@ The `digest` type is produced on a schedule instead of by a member's action.
 - **Once only:** the job moves the row with `INSERT … ON CONFLICT (org_id, community_id) DO UPDATE SET last_due_at = excluded.last_due_at WHERE digest_runs.last_due_at < excluded.last_due_at RETURNING`, and appends the event in the same transaction only when a row comes back, so two concurrent or retried runs never emit a digest twice.
 - **Window:** `discussion.digest.due` carries `{ communityId, from, to }`. `to` is the due time; `from` is the previous `last_due_at`.
 - **Reads:** the job reads the schedule of every published community across orgs through content's `communitiesWithDigest()`, wired in the composition root; the rule reads the window's posts through `NotificationReads.postsPublished` and who can open each of their spaces through `spaceOpeners`.
-- **Recipients:** every member of the community, with `community_member`, sees only posts in spaces they can open. The rule returns one list per distinct set of spaces, each with `display.posts` filtered to those spaces, and no list for members with no post in the window. A window with no posts sends nothing.
+- **Recipients:** every member of the community, with `community_member`, sees only posts in spaces they can open and have not muted (`mutedAmong` at the due time). The rule returns one list per distinct set of such spaces, each with `display.posts` filtered to those spaces, and no list for members with no post in the window. A window with no posts sends nothing.
 - **Delivery:** categories and settings apply as for any type.
 
 ## 13. Notification list
@@ -1367,6 +1370,7 @@ Each joins the trigger catalog (15.3). A reaction event fires when a person's re
 | Event | Change |
 |---|---|
 | `discussion.post.published`, `discussion.post.updated`, `discussion.comment.created`, `discussion.comment.published`, `discussion.message.sent` | `data` gains `mentionedOrgUserIds`; `publicData`, which webhooks receive, does not |
+| `discussion.comment.published`; `discussion.comment.created`, `discussion.comment.updated`, `discussion.comment.removed`, `discussion.comment.reported` on a course activity | `metadata.actorOrgUserId` names the actor, as on comments on posts: the approving moderator for `discussion.comment.published` |
 | `discussion.digest.due` | version 2: `data` and `publicData` become `{ communityId, from, to }`, replacing `{ communityId, period }`; it fires per community with a digest schedule, at its time, not daily for every community. An org automation or webhook on this trigger sees the new shape and timing; this is the one exception to requirement 19 |
 
 ### 18.3 Mentions
