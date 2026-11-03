@@ -14,6 +14,14 @@ import type {
   EventDefinition,
   TemplateContext,
   TemplateRenderer,
+  JsonValue,
+  NotificationTypeDeclaration,
+  NotificationCategory,
+  StoredNotification,
+  ChannelRecipient,
+  DeliveryResult,
+  PushDevice,
+  PushMessage,
 } from '../types/index.js';
 
 export type {
@@ -32,6 +40,14 @@ export type {
   EventDefinition,
   TemplateContext,
   TemplateRenderer,
+  JsonValue,
+  NotificationTypeDeclaration,
+  NotificationCategory,
+  StoredNotification,
+  ChannelRecipient,
+  DeliveryResult,
+  PushDevice,
+  PushMessage,
 };
 export {
   InvalidDomainEventError,
@@ -118,4 +134,41 @@ export interface CredentialStore {
   update(orgId: string, ref: string, secrets: Record<string, unknown>): Promise<void>;
   /** Permanently delete stored secrets (e.g. disconnect). */
   destroy(orgId: string, ref: string): Promise<void>;
+}
+
+export interface NotificationTypeRegistry {
+  list(): Pick<NotificationTypeDeclaration, 'type' | 'scopes' | 'reasons'>[];
+  get(type: string): NotificationTypeDeclaration | undefined;
+  defaults(scope: 'org' | 'community'): NotificationCategory[];
+}
+
+export interface NotificationChannel {
+  key: string;
+  recipient(orgId: string, userId: string): Promise<ChannelRecipient | null>;
+  deliver(notification: StoredNotification, to: ChannelRecipient): Promise<DeliveryResult>;
+}
+
+export interface ChannelRegistry {
+  list(): string[];
+  get(key: string): NotificationChannel | undefined;
+}
+
+export interface PushSender {
+  send(devices: PushDevice[], message: PushMessage): Promise<DeliveryResult>;
+}
+
+export interface ScheduledJob {
+  job: string;
+  run(payload: JsonValue, fire: { id: string; startedAt: Date }): Promise<void>;
+}
+
+export interface RecurringJob {
+  job: string;
+  cron: string;
+}
+
+export interface Scheduler {
+  registerJobs(handlers: ScheduledJob[], recurring: RecurringJob[]): void;
+  at(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void>;
+  cancel(job: string, key: string): Promise<void>;
 }

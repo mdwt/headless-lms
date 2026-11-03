@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { APIContracts, ConcurrencyLimitStrategy } from "@hatchet-dev/typescript-sdk";
 import type { AutomationActionResult, AutomationDispatch, Logger } from "@headless-lms/core/types";
 import { ActionFailedError } from "@headless-lms/core/automations";
 import { createCapturingLogger } from "@headless-lms/core/shared/logger";
@@ -24,17 +25,30 @@ function fakeHatchetClient() {
   let scheduleFn:
     | ((input: { orgId: string; automationId: string }, ctx: unknown) => Promise<unknown>)
     | undefined;
+  let jobFn:
+    | ((
+        input: { job: string; key: string; payload: unknown },
+        ctx: { workflowRunId(): string },
+      ) => Promise<unknown>)
+    | undefined;
   let actionTaskHandle: unknown;
+  let jobTaskHandle: unknown;
+  const schedule = vi.fn(async () => ({ metadata: { id: "scheduled-new" } }));
 
   const client: HatchetClientLike = {
     task: vi.fn((opts) => {
       if (opts.name === "automation-schedule") {
         scheduleFn = opts.fn as typeof scheduleFn;
-        return { __task: opts.name };
+        return { __task: opts.name, schedule: vi.fn() };
+      }
+      if (opts.name === "scheduled-job") {
+        jobFn = opts.fn as typeof jobFn;
+        jobTaskHandle = { __task: opts.name, schedule };
+        return jobTaskHandle as ReturnType<HatchetClientLike["task"]>;
       }
       actionFn = opts.fn as typeof actionFn;
-      actionTaskHandle = { __task: opts.name };
-      return actionTaskHandle;
+      actionTaskHandle = { __task: opts.name, schedule: vi.fn() };
+      return actionTaskHandle as ReturnType<HatchetClientLike["task"]>;
     }),
     durableTask: vi.fn((opts) => {
       runDispatchFn = opts.fn;
@@ -50,6 +64,11 @@ function fakeHatchetClient() {
       delete: vi.fn(async () => {}),
       list: vi.fn(async () => ({ rows: [] })),
     },
+    scheduled: {
+      list: vi.fn(async () => ({ rows: [] })),
+      update: vi.fn(async () => ({})),
+      bulkDelete: vi.fn(async () => ({ deletedIds: [], errors: [] })),
+    },
   };
 
   return {
@@ -57,7 +76,15 @@ function fakeHatchetClient() {
     runNoWait,
     workerStart,
     workerStop,
+    schedule,
     getActionTaskHandle: () => actionTaskHandle,
+    getJobTaskHandle: () => jobTaskHandle,
+    callJob: (input: { job: string; key: string; payload: unknown }, runId = "wfr-1") => {
+      if (!jobFn) {
+        throw new Error("scheduled-job task not declared yet");
+      }
+      return jobFn(input, { workflowRunId: () => runId });
+    },
     callSchedule: (input: { orgId: string; automationId: string }) => {
       if (!scheduleFn) {
         throw new Error("schedule task not declared yet");
@@ -98,7 +125,7 @@ describe("HatchetAutomationEngine", () => {
     // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
     new HatchetAutomationEngine(fake.client);
 
-    expect(fake.client.task).toHaveBeenCalledTimes(2);
+    expect(fake.client.task).toHaveBeenCalledTimes(3);
     expect(fake.client.task).toHaveBeenCalledWith(
       expect.objectContaining({ name: "automation-run-action", retries: 3 }),
     );
@@ -298,7 +325,8 @@ describe("HatchetAutomationEngine", () => {
     expect(fake.client.worker).toHaveBeenCalledTimes(1);
     const [name, opts] = (fake.client.worker as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(name).toBe("automation-run-worker");
-    expect(opts.workflows).toHaveLength(3);
+    expect(opts.workflows).toHaveLength(4);
+    expect(opts.workflows).toContain(fake.getJobTaskHandle());
     expect(fake.workerStart).toHaveBeenCalledTimes(1);
   });
 
@@ -385,7 +413,17 @@ describe("HatchetAutomationEngine", () => {
     vi.useFakeTimers();
     const fake = fakeHatchetClient();
     const list = fake.client.crons.list as ReturnType<typeof vi.fn>;
-    list.mockRejectedValueOnce(new Error("hatchet down"));
+    let scheduleLists = 0;
+    list.mockImplementation(async (query: { workflow: unknown }) => {
+      if (query.workflow === fake.getJobTaskHandle()) {
+        return { rows: [] };
+      }
+      scheduleLists++;
+      if (scheduleLists === 1) {
+        throw new Error("hatchet down");
+      }
+      return { rows: [] };
+    });
     const error = vi.fn();
     const logger: Logger = {
       debug: vi.fn(),
@@ -413,7 +451,7 @@ describe("HatchetAutomationEngine", () => {
 
     await engine.stop();
     await vi.advanceTimersByTimeAsync(5000);
-    expect(list).toHaveBeenCalledTimes(2);
+    expect(scheduleLists).toBe(2);
     vi.useRealTimers();
   });
 
@@ -422,5 +460,268 @@ describe("HatchetAutomationEngine", () => {
     const engine = new HatchetAutomationEngine(fake.client);
     await expect(engine.stop()).resolves.toBeUndefined();
     expect(fake.workerStop).not.toHaveBeenCalled();
+  });
+});
+
+describe("HatchetAutomationEngine as Scheduler", () => {
+  it("declares the scheduled-job task with three retries and one run per job and key", () => {
+    const fake = fakeHatchetClient();
+    // eslint-disable-next-line no-new -- constructing for its side effect of declaring tasks
+    new HatchetAutomationEngine(fake.client);
+
+    expect(fake.client.task).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "scheduled-job",
+        retries: 3,
+        concurrency: {
+          expression: "input.job + ':' + input.key",
+          maxRuns: 1,
+          limitStrategy: ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN,
+        },
+      }),
+    );
+  });
+
+  it("at schedules a new run with the job and key as metadata when none is pending", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runAt = new Date("2026-11-03T10:05:00.000Z");
+
+    await engine.at("discussion.post.publish", runAt, "pst_1", { orgId: "org_1", postId: "pst_1" });
+
+    expect(fake.client.scheduled.list).toHaveBeenCalledWith({
+      workflow: fake.getJobTaskHandle(),
+      additionalMetadata: ["job:discussion.post.publish", "key:pst_1"],
+      statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
+    });
+    expect(fake.schedule).toHaveBeenCalledWith(
+      runAt,
+      {
+        job: "discussion.post.publish",
+        key: "pst_1",
+        payload: { orgId: "org_1", postId: "pst_1" },
+      },
+      { additionalMetadata: { job: "discussion.post.publish", key: "pst_1" } },
+    );
+    expect(fake.client.scheduled.update).not.toHaveBeenCalled();
+  });
+
+  it("at moves the pending run of the same job and key instead of adding one", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.scheduled.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      rows: [{ metadata: { id: "scheduled-1" } }],
+    });
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runAt = new Date("2026-11-03T10:07:00.000Z");
+
+    await engine.at("automations.notifications.flush", runAt, "usr_1:cht_1", { chatId: "cht_1" });
+
+    expect(fake.client.scheduled.update).toHaveBeenCalledWith("scheduled-1", { triggerAt: runAt });
+    expect(fake.schedule).not.toHaveBeenCalled();
+  });
+
+  it("at fails when Hatchet refuses the lookup", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.scheduled.list as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("workflow not found"),
+    );
+    const engine = new HatchetAutomationEngine(fake.client);
+
+    await expect(engine.at("discussion.post.publish", new Date(), "pst_1", null)).rejects.toThrow(
+      "workflow not found",
+    );
+    expect(fake.schedule).not.toHaveBeenCalled();
+  });
+
+  it("cancel bulk-deletes the scheduled runs of the job and key", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+
+    await engine.cancel("automations.notifications.flush", "usr_1:cht_1");
+
+    expect(fake.client.scheduled.bulkDelete).toHaveBeenCalledWith({
+      filter: { additionalMetadata: ["job:automations.notifications.flush", "key:usr_1:cht_1"] },
+    });
+  });
+
+  it("the scheduled-job task calls the registered handler with the payload and the fire", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const run = vi.fn(async () => {});
+    engine.registerJobs([{ job: "discussion.post.publish", run }], []);
+
+    await fake.callJob(
+      { job: "discussion.post.publish", key: "pst_1", payload: { postId: "pst_1" } },
+      "wfr-9",
+    );
+
+    expect(run).toHaveBeenCalledTimes(1);
+    const [payload, fire] = run.mock.calls[0]! as unknown as [
+      unknown,
+      { id: string; startedAt: Date },
+    ];
+    expect(payload).toEqual({ postId: "pst_1" });
+    expect(fire.id).toBe("wfr-9");
+    expect(fire.startedAt).toBeInstanceOf(Date);
+  });
+
+  it("the scheduled-job task rethrows a handler error so Hatchet retries", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    engine.registerJobs(
+      [
+        {
+          job: "discussion.post.publish",
+          run: vi.fn(async () => {
+            throw new Error("db down");
+          }),
+        },
+      ],
+      [],
+    );
+
+    await expect(
+      fake.callJob({ job: "discussion.post.publish", key: "pst_1", payload: null }),
+    ).rejects.toThrow("db down");
+  });
+
+  it("the scheduled-job task logs and drops a job with no handler", async () => {
+    const fake = fakeHatchetClient();
+    const { logger, entries } = createCapturingLogger();
+    const engine = new HatchetAutomationEngine(fake.client, logger);
+    engine.registerJobs([], []);
+
+    await expect(
+      fake.callJob({ job: "unknown.job", key: "k", payload: null }),
+    ).resolves.toBeUndefined();
+    expect(entries).toContainEqual({
+      level: "error",
+      msg: "scheduled job has no handler",
+      meta: { job: "unknown.job", key: "k" },
+    });
+  });
+
+  it("start registers the worker, then reconciles the job crons, then starts the worker", async () => {
+    const fake = fakeHatchetClient();
+    const order: string[] = [];
+    (fake.client.worker as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      order.push("worker");
+      return {
+        start: vi.fn(async () => {
+          order.push("start");
+        }),
+        stop: vi.fn(async () => {}),
+      };
+    });
+    (fake.client.crons.list as ReturnType<typeof vi.fn>).mockImplementation(
+      async (query: { workflow: unknown }) => {
+        order.push(query.workflow === fake.getJobTaskHandle() ? "list jobs" : "list schedules");
+        if (query.workflow !== fake.getJobTaskHandle()) {
+          return { rows: [] };
+        }
+        return {
+          rows: [
+            {
+              metadata: { id: "keep" },
+              name: "hlms-job:entitlements.grants.expire",
+              cron: "0 * * * *",
+            },
+            {
+              metadata: { id: "copy" },
+              name: "hlms-job:entitlements.grants.expire",
+              cron: "0 * * * *",
+            },
+            {
+              metadata: { id: "changed" },
+              name: "hlms-job:discussion.digest.open",
+              cron: "5 * * * *",
+            },
+            { metadata: { id: "gone" }, name: "hlms-job:retired.job", cron: "0 0 * * *" },
+            { metadata: { id: "foreign" }, name: "someone-else", cron: "* * * * *" },
+          ],
+        };
+      },
+    );
+    const engine = new HatchetAutomationEngine(fake.client);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn() });
+    engine.registerJobs(
+      [],
+      [
+        { job: "entitlements.grants.expire", cron: "0 * * * *" },
+        { job: "discussion.digest.open", cron: "0 * * * *" },
+        { job: "assets.uploads.removeUnattached", cron: "30 * * * *" },
+      ],
+    );
+
+    await engine.start();
+
+    expect(order.slice(0, 3)).toEqual(["worker", "list jobs", "start"]);
+    const deleted = (fake.client.crons.delete as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([cron]) => (cron as { metadata: { id: string } }).metadata.id,
+    );
+    expect(deleted).toEqual(["copy", "changed", "gone"]);
+    expect(fake.client.crons.create).toHaveBeenCalledTimes(2);
+    expect(fake.client.crons.create).toHaveBeenCalledWith(fake.getJobTaskHandle(), {
+      name: "hlms-job:discussion.digest.open",
+      expression: "0 * * * *",
+      input: { job: "discussion.digest.open", key: "discussion.digest.open", payload: null },
+    });
+    expect(fake.client.crons.create).toHaveBeenCalledWith(fake.getJobTaskHandle(), {
+      name: "hlms-job:assets.uploads.removeUnattached",
+      expression: "30 * * * *",
+      input: {
+        job: "assets.uploads.removeUnattached",
+        key: "assets.uploads.removeUnattached",
+        payload: null,
+      },
+    });
+    await engine.stop();
+  });
+
+  it("start removes every job cron when no recurring job is registered", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.crons.list as ReturnType<typeof vi.fn>).mockImplementation(
+      async (query: { workflow: unknown }) =>
+        query.workflow === fake.getJobTaskHandle()
+          ? { rows: [{ metadata: { id: "old" }, name: "hlms-job:old", cron: "0 * * * *" }] }
+          : { rows: [] },
+    );
+    const engine = new HatchetAutomationEngine(fake.client);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn() });
+    engine.registerJobs([], []);
+
+    await engine.start();
+
+    expect(fake.client.crons.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: { id: "old" } }),
+    );
+    expect(fake.client.crons.create).not.toHaveBeenCalled();
+    await engine.stop();
+  });
+
+  it("start logs a failed job cron reconcile and still starts the worker", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.crons.list as ReturnType<typeof vi.fn>).mockImplementation(
+      async (query: { workflow: unknown }) => {
+        if (query.workflow === fake.getJobTaskHandle()) {
+          throw new Error("hatchet down");
+        }
+        return { rows: [] };
+      },
+    );
+    const { logger, entries } = createCapturingLogger();
+    const engine = new HatchetAutomationEngine(fake.client, logger);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn() });
+    engine.registerJobs([], [{ job: "entitlements.grants.expire", cron: "0 * * * *" }]);
+
+    await expect(engine.start()).resolves.toBeUndefined();
+
+    expect(fake.workerStart).toHaveBeenCalledTimes(1);
+    expect(entries).toContainEqual({
+      level: "error",
+      msg: "hatchet job crons not reconciled",
+      meta: { err: expect.objectContaining({ message: "hatchet down" }) },
+    });
+    await engine.stop();
   });
 });

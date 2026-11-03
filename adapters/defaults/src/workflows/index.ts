@@ -5,21 +5,39 @@ import type {
   AutomationDispatch,
   AutomationEngine,
   AutomationExecutor,
+  JsonValue,
   Logger,
 } from "@headless-lms/core/types";
+import type { RecurringJob, ScheduledJob, Scheduler } from "@headless-lms/core/shared/ports";
 import { ActionFailedError, actionFailureMessage } from "@headless-lms/core/automations";
 import { startScheduleLoop } from "./schedule.js";
+import { InlineJobs } from "./jobs.js";
 
 export { startScheduleLoop };
 
-export class InlineAutomationEngine implements AutomationEngine {
+export class InlineAutomationEngine implements AutomationEngine, Scheduler {
   private executor: AutomationExecutor | undefined;
   private schedule: { stop(): void } | undefined;
+  private readonly jobs: InlineJobs;
 
-  constructor(private readonly logger?: Logger) {}
+  constructor(private readonly logger?: Logger) {
+    this.jobs = new InlineJobs(logger);
+  }
 
   register(executor: AutomationExecutor): void {
     this.executor = executor;
+  }
+
+  registerJobs(handlers: ScheduledJob[], recurring: RecurringJob[]): void {
+    this.jobs.register(handlers, recurring);
+  }
+
+  async at(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void> {
+    this.jobs.at(job, runAt, key, payload);
+  }
+
+  async cancel(job: string, key: string): Promise<void> {
+    this.jobs.cancel(job, key);
   }
 
   async dispatch(d: AutomationDispatch): Promise<void> {
@@ -58,10 +76,12 @@ export class InlineAutomationEngine implements AutomationEngine {
   async start(): Promise<void> {
     this.schedule?.stop();
     this.schedule = startScheduleLoop(() => this.executor, this.logger);
+    this.jobs.start();
   }
 
   async stop(): Promise<void> {
     this.schedule?.stop();
     this.schedule = undefined;
+    this.jobs.stop();
   }
 }

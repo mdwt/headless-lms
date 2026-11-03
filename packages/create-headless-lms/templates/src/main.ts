@@ -16,7 +16,16 @@ const container = await createContainer(config, {
 });
 const app = await buildServer(config, container);
 
-app.listen({ port: config.port, host: config.host }).catch((err) => {
+try {
+  await app.listen({ port: config.port, host: config.host });
+} catch (err) {
   app.log.error(err);
   process.exit(1);
+}
+
+container.outboxRelay.start();
+container.automationEngine.start().catch((err) => {
+  container.logger.error("automation engine failed to start", {
+    err: err instanceof Error ? err : new Error(String(err)),
+  });
 });

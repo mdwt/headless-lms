@@ -1,0 +1,137 @@
+import type { EmailTemplateId } from './email-templates.js';
+import type { JsonValue } from './shared.js';
+
+export type Reason =
+  | 'subject'
+  | 'post_author'
+  | 'comment_author'
+  | 'message_author'
+  | 'follower'
+  | 'thread_participant'
+  | 'mentioned'
+  | 'participant'
+  | 'space_member'
+  | 'community_member'
+  | 'course_member'
+  | 'moderator'
+  | 'staff';
+
+export type Scope = 'org' | 'community' | 'space' | 'chat';
+
+export interface SubjectRef {
+  type:
+    | 'post'
+    | 'comment'
+    | 'chat'
+    | 'message'
+    | 'space'
+    | 'community'
+    | 'course'
+    | 'download'
+    | 'bundle'
+    | 'activity';
+  id: string;
+}
+
+export interface NotificationTypeDeclaration {
+  type: string;
+  scopes: Scope[];
+  reasons: Reason[];
+  display: Partial<Record<Scope, string[]>>;
+  email?: Partial<
+    Record<
+      Scope,
+      { template: EmailTemplateId; byReason?: Partial<Record<Reason, EmailTemplateId>> }
+    >
+  >;
+  push?: Partial<Record<Scope, { title: string; body: string }>>;
+}
+
+export interface NotificationCategory {
+  key: string;
+  covers: { type: string; reasons: Reason[] }[];
+  channels: Record<string, { default: boolean; locked: boolean }>;
+  perSpace?: boolean;
+  spaceDefaults?: Record<string, Record<string, boolean>>;
+}
+
+export interface StoredNotification {
+  id: string;
+  orgId: string;
+  userId: string;
+  type: string;
+  scope: Scope;
+  reasons: Reason[];
+  matchedReason: Reason;
+  category: string;
+  communityId: string | null;
+  spaceId: string | null;
+  actorOrgUserId: string | null;
+  subject: SubjectRef | null;
+  parent: SubjectRef | null;
+  display: Record<string, JsonValue>;
+  createdAt: Date;
+}
+
+export interface StoredSetting {
+  communityId: string | null;
+  spaceId: string | null;
+  category: string;
+  channel: string;
+  enabled: boolean;
+}
+
+export type SettingsScope = { communityId: string } | 'org';
+
+export interface PushDevice {
+  id: string;
+  provider: 'apns' | 'fcm' | 'webpush';
+  token: string;
+  p256dh: string | null;
+  auth: string | null;
+  appId: string | null;
+  environment: 'production' | 'sandbox' | null;
+}
+
+export interface PushMessage {
+  title: string;
+  body: string;
+  data: {
+    notificationId: string;
+    type: string;
+    subject: SubjectRef | null;
+    parent: SubjectRef | null;
+  };
+}
+
+export interface ChannelRecipient {
+  email?: string;
+  devices?: PushDevice[];
+  address?: JsonValue;
+}
+
+export interface DeliveryResult {
+  deadDeviceIds: string[];
+}
+
+export interface NotificationFilter {
+  scope?: 'org' | 'community';
+  communityId?: string;
+  category?: string[];
+  reason?: Reason[];
+  type?: string[];
+  unread?: boolean;
+}
+
+export interface RecipientList {
+  type: string;
+  scope: Scope;
+  actorOrgUserId: string | null;
+  communityId: string | null;
+  spaceId: string | null;
+  subject: SubjectRef | null;
+  parent: SubjectRef | null;
+  display: Record<string, JsonValue>;
+  recipients?: { orgUserId: string; userId: string; reasons: Reason[] }[];
+  audience?: { reason: 'space_member'; spaceId: string; exclude: string[] };
+}

@@ -76,6 +76,7 @@ import type {
   Logger,
   ObjectStorage,
   OutboxRelay,
+  Scheduler,
   TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/core/shared/ports';
@@ -88,7 +89,7 @@ export interface AdapterOverrides {
   /** Resolves email templates to rendered content. Absent → fail-loudly stub. */
   templates?: TemplateRenderer;
   /** Durable automation engine, or a factory given the automations logger. Absent → InlineAutomationEngine (in-process, one attempt per action). */
-  workflows?: AutomationEngine | ((logger: Logger) => AutomationEngine);
+  workflows?: (AutomationEngine & Scheduler) | ((logger: Logger) => AutomationEngine & Scheduler);
   /** Outbound HTTP for webhook deliveries. Absent → FetchWebhookSender (public addresses only, 10s timeout). */
   webhooks?: WebhookSender;
 }
@@ -204,6 +205,7 @@ export interface Container {
    *  the installation's entry point starts it after listen (gen-openapi must
    *  not run a worker). buildServer stops it onClose. */
   automationEngine: AutomationEngine;
+  scheduler: Scheduler;
   /** Root logger port — components receive children bound with { name }. */
   logger: Logger;
   /** The raw pino root; buildServer hands it to Fastify so HTTP shares the stream. */
@@ -241,7 +243,7 @@ export async function buildContainer(
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
   const workflows = options?.adapters?.workflows;
-  const automationEngine: AutomationEngine =
+  const automationEngine: AutomationEngine & Scheduler =
     typeof workflows === 'function'
       ? workflows(automationsLogger)
       : (workflows ?? new InlineAutomationEngine(automationsLogger));
@@ -515,6 +517,7 @@ export async function buildContainer(
     logger: automationsLogger,
   });
   automationEngine.register(automations);
+  automationEngine.registerJobs([], []);
 
   const eventBus = new InMemoryEventBus();
   eventBus.subscribeAll((event) => automations.handle(event));
@@ -675,6 +678,7 @@ export async function buildContainer(
     credentials: credentialStore,
     outboxRelay,
     automationEngine,
+    scheduler: automationEngine,
     logger,
     loggerInstance,
     requestContext: requestLogContext,

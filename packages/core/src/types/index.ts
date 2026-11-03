@@ -15,3 +15,4 @@ export * from './assets.js';
 export * from './integrations.js';
 export * from './automations.js';
 export * from './discussion.js';
+export * from './notifications.js';

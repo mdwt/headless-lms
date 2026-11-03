@@ -5,8 +5,10 @@ import type {
   AutomationEngine,
   AutomationActionResult,
   ScheduledAutomation,
+  JsonValue,
 } from "@headless-lms/core/types";
-import { Hatchet } from "@hatchet-dev/typescript-sdk";
+import type { RecurringJob, ScheduledJob, Scheduler } from "@headless-lms/core/shared/ports";
+import { APIContracts, ConcurrencyLimitStrategy, Hatchet } from "@hatchet-dev/typescript-sdk";
 import {
   ACTION_FAILED,
   ActionFailedError,
@@ -16,10 +18,13 @@ import {
 const WORKFLOW_NAME = "automation-run";
 const ACTION_TASK_NAME = "automation-run-action";
 const SCHEDULE_TASK_NAME = "automation-schedule";
+const JOB_TASK_NAME = "scheduled-job";
 const WORKER_NAME = "automation-run-worker";
 const CRON_PREFIX = "hlms-schedule:";
+const JOB_CRON_PREFIX = "hlms-job:";
 const RECONCILE_EVERY_MS = 5 * 60_000;
 const ACTION_RETRIES = 3;
+const JOB_RETRIES = 3;
 
 interface ActionTaskInput {
   dispatch: AutomationDispatch;
@@ -31,8 +36,18 @@ interface ScheduleTaskInput {
   automationId: string;
 }
 
+interface JobTaskInput {
+  job: string;
+  key: string;
+  payload: JsonValue;
+}
+
 interface TaskCtxLike {
   retryCount?(): number;
+}
+
+interface JobCtxLike {
+  workflowRunId(): string;
 }
 
 interface DurableCtxLike {
@@ -69,18 +84,46 @@ export interface HatchetCronClientLike {
   }>;
 }
 
+export interface HatchetScheduledRunLike {
+  metadata: { id: string };
+}
+
+export interface HatchetScheduledClientLike {
+  list(query: {
+    workflow?: unknown;
+    additionalMetadata?: string[];
+    statuses?: APIContracts.ScheduledRunStatus[];
+  }): Promise<{ rows?: HatchetScheduledRunLike[] }>;
+  update(scheduledRun: string, update: { triggerAt: Date }): Promise<unknown>;
+  bulkDelete(opts: { filter?: { additionalMetadata?: string[] } }): Promise<unknown>;
+}
+
+export interface HatchetTaskLike<I> {
+  schedule(
+    enqueueAt: Date,
+    input: I,
+    options?: { additionalMetadata?: Record<string, string> },
+  ): Promise<unknown>;
+}
+
 export interface HatchetClientLike {
   task<I>(opts: {
     name: string;
     retries?: number;
+    concurrency?: {
+      expression: string;
+      maxRuns?: number;
+      limitStrategy?: ConcurrencyLimitStrategy;
+    };
     fn: (input: I, ctx: unknown) => Promise<unknown> | unknown;
-  }): unknown;
+  }): HatchetTaskLike<I>;
   durableTask(opts: {
     name: string;
     fn: (input: AutomationDispatch, ctx: DurableCtxLike) => Promise<void>;
   }): RunnableTask<AutomationDispatch>;
   worker(name: string, opts: { workflows: any[] }): Promise<HatchetWorkerLike>; // eslint-disable-line @typescript-eslint/no-explicit-any -- bridges to the SDK's own workflow union type without importing it
   crons: HatchetCronClientLike;
+  scheduled: HatchetScheduledClientLike;
 }
 
 function floorMinute(at: Date): Date {
@@ -93,13 +136,20 @@ export function cronName(schedule: ScheduledAutomation): string {
   return `${CRON_PREFIX}${schedule.orgId}:${schedule.automationId}:${schedule.cron}`;
 }
 
-export class HatchetAutomationEngine implements AutomationEngine {
+function jobMetadataFilter(job: string, key: string): string[] {
+  return [`job:${job}`, `key:${key}`];
+}
+
+export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private executor: AutomationExecutor | undefined;
+  private jobs = new Map<string, ScheduledJob>();
+  private recurring: RecurringJob[] = [];
   private worker: HatchetWorkerLike | undefined;
   private syncing: Promise<void> | undefined;
   private reconcileTimer: ReturnType<typeof setInterval> | undefined;
   private readonly actionTask: unknown;
   private readonly scheduleTask: unknown;
+  private readonly jobTask: HatchetTaskLike<JobTaskInput>;
   private readonly automationRunTask: RunnableTask<AutomationDispatch>;
 
   constructor(
@@ -118,6 +168,17 @@ export class HatchetAutomationEngine implements AutomationEngine {
       fn: async (input) => this.runSchedule(input),
     });
 
+    this.jobTask = this.client.task<JobTaskInput>({
+      name: JOB_TASK_NAME,
+      retries: JOB_RETRIES,
+      concurrency: {
+        expression: "input.job + ':' + input.key",
+        maxRuns: 1,
+        limitStrategy: ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN,
+      },
+      fn: async (input, ctx) => this.runJob(input, ctx as JobCtxLike),
+    });
+
     this.automationRunTask = this.client.durableTask({
       name: WORKFLOW_NAME,
       fn: async (dispatch, ctx) => this.runDispatch(dispatch, ctx),
@@ -126,6 +187,31 @@ export class HatchetAutomationEngine implements AutomationEngine {
 
   register(executor: AutomationExecutor): void {
     this.executor = executor;
+  }
+
+  registerJobs(handlers: ScheduledJob[], recurring: RecurringJob[]): void {
+    this.jobs = new Map(handlers.map((handler) => [handler.job, handler]));
+    this.recurring = [...recurring];
+  }
+
+  async at(job: string, runAt: Date, key: string, payload: JsonValue): Promise<void> {
+    const page = await this.client.scheduled.list({
+      workflow: this.jobTask,
+      additionalMetadata: jobMetadataFilter(job, key),
+      statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
+    });
+    const found = page.rows?.[0];
+    if (found) {
+      await this.client.scheduled.update(found.metadata.id, { triggerAt: runAt });
+      return;
+    }
+    await this.jobTask.schedule(runAt, { job, key, payload }, { additionalMetadata: { job, key } });
+  }
+
+  async cancel(job: string, key: string): Promise<void> {
+    await this.client.scheduled.bulkDelete({
+      filter: { additionalMetadata: jobMetadataFilter(job, key) },
+    });
   }
 
   async dispatch(d: AutomationDispatch): Promise<void> {
@@ -140,8 +226,13 @@ export class HatchetAutomationEngine implements AutomationEngine {
       throw new Error("HatchetAutomationEngine.start called before register()");
     }
     this.worker = await this.client.worker(WORKER_NAME, {
-      workflows: [this.actionTask, this.automationRunTask, this.scheduleTask],
+      workflows: [this.actionTask, this.automationRunTask, this.scheduleTask, this.jobTask],
     });
+    try {
+      await this.reconcileJobs();
+    } catch (err) {
+      this.logger?.error("hatchet job crons not reconciled", { err });
+    }
     void this.worker.start().catch((err: unknown) => {
       this.logger?.error("hatchet worker stopped unexpectedly", { err });
     });
@@ -189,7 +280,7 @@ export class HatchetAutomationEngine implements AutomationEngine {
     for (const schedule of await this.executor.listSchedules()) {
       wanted.set(cronName(schedule), schedule);
     }
-    const existing = await this.listCrons();
+    const existing = await this.listCrons(this.scheduleTask);
     const seen = new Set<string>();
     for (const cron of existing) {
       if (!cron.name?.startsWith(CRON_PREFIX)) {
@@ -215,11 +306,51 @@ export class HatchetAutomationEngine implements AutomationEngine {
     this.logger?.info("hatchet schedules synced", { count: wanted.size });
   }
 
-  private async listCrons(): Promise<HatchetCronLike[]> {
+  private async reconcileJobs(): Promise<void> {
+    const wanted = new Map<string, RecurringJob>();
+    for (const recurring of this.recurring) {
+      wanted.set(`${JOB_CRON_PREFIX}${recurring.job}`, recurring);
+    }
+    const existing = await this.listCrons(this.jobTask);
+    const seen = new Set<string>();
+    for (const cron of existing) {
+      if (!cron.name?.startsWith(JOB_CRON_PREFIX)) {
+        continue;
+      }
+      const recurring = wanted.get(cron.name);
+      if (recurring && recurring.cron === cron.cron && !seen.has(cron.name)) {
+        seen.add(cron.name);
+        continue;
+      }
+      await this.client.crons.delete(cron);
+    }
+    for (const [name, recurring] of wanted) {
+      if (seen.has(name)) {
+        continue;
+      }
+      await this.client.crons.create(this.jobTask, {
+        name,
+        expression: recurring.cron,
+        input: { job: recurring.job, key: recurring.job, payload: null },
+      });
+    }
+    this.logger?.info("hatchet job crons synced", { count: wanted.size });
+  }
+
+  private async runJob(input: JobTaskInput, ctx: JobCtxLike): Promise<void> {
+    const handler = this.jobs.get(input.job);
+    if (!handler) {
+      this.logger?.error("scheduled job has no handler", { job: input.job, key: input.key });
+      return;
+    }
+    await handler.run(input.payload, { id: ctx.workflowRunId(), startedAt: new Date() });
+  }
+
+  private async listCrons(workflow: unknown): Promise<HatchetCronLike[]> {
     const rows: HatchetCronLike[] = [];
     const limit = 100;
     for (let offset = 0; ; offset += limit) {
-      const page = await this.client.crons.list({ workflow: this.scheduleTask, limit, offset });
+      const page = await this.client.crons.list({ workflow, limit, offset });
       const batch = page.rows ?? [];
       rows.push(...batch);
       if (batch.length < limit) {
