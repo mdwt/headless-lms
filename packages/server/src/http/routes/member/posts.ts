@@ -146,10 +146,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Create a post',
       description:
-        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.',
+        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.',
       params: CommunitySpaceParam,
       body: CreatePost,
-      response: { 201: PostView, ...refusals(403, 404, 409, 503) },
+      response: { 201: PostView, ...refusals(400, 403, 404, 409, 503) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);

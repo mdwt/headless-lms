@@ -4732,7 +4732,7 @@ export class Posts {
   /**
    * Create a post
    *
-   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.
+   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.
    */
   public static createPost<ThrowOnError extends boolean = false>(
     parameters: {

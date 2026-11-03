@@ -688,7 +688,7 @@ The `digest` type is produced on a schedule instead of by a member's action.
   - otherwise: nothing to do.
 - **Once only:** the job moves the row with `INSERT … ON CONFLICT (org_id, community_id) DO UPDATE SET last_due_at = excluded.last_due_at WHERE digest_runs.last_due_at < excluded.last_due_at RETURNING`, and appends the event in the same transaction only when a row comes back, so two concurrent or retried runs never emit a digest twice.
 - **Window:** `discussion.digest.due` carries `{ communityId, from, to }`. `to` is the due time; `from` is the previous `last_due_at`.
-- **Reads:** the job reads every community's schedule across orgs through content's `communitiesWithDigest()`, wired in the composition root; the rule reads the window's posts through `NotificationReads.postsPublished` and who can open each of their spaces through `spaceOpeners`.
+- **Reads:** the job reads the schedule of every published community across orgs through content's `communitiesWithDigest()`, wired in the composition root; the rule reads the window's posts through `NotificationReads.postsPublished` and who can open each of their spaces through `spaceOpeners`.
 - **Recipients:** every member of the community, with `community_member`, sees only posts in spaces they can open. The rule returns one list per distinct set of spaces, each with `display.posts` filtered to those spaces, and no list for members with no post in the window. A window with no posts sends nothing.
 - **Delivery:** categories and settings apply as for any type.
 
@@ -762,6 +762,8 @@ The context that asks for a job keeps the state the job acts on. The scheduler h
   - If `at` fails, discussion reverts in a second transaction, emits `discussion.post.updated` with the reverted post, and the request fails with 503: a new post or a scheduled draft becomes a `draft` with no `scheduled_at`; a moved post gets its previous `scheduled_at` back, which its existing timer still holds.
   - Cancelling is `PostService.unschedule`, `POST /api/member/posts/:postId/unschedule`, for the author: the post becomes a `draft` with no `scheduled_at`, discussion emits `discussion.post.updated`, then calls `cancel`.
   - Publishing it now is the existing `PostService.submit`, which then calls `cancel`.
+  - A `cancel` that fails after `unschedule` or `submit` is logged and the request succeeds: the timer's handler finds the post no longer `scheduled` and stops.
+  - `submit`, `schedule` and the publish job write with a guarded update on the status they read, so a timer firing in between can't publish twice or reschedule a published post; the losing request answers 409.
   - `remove` refuses a scheduled post, as today; the author unschedules it first.
 - **Product jobs** have no state of their own; `start` arms them.
 
@@ -773,7 +775,7 @@ When a timer fires, the handler reads the owner's state and acts only if the wor
 
 | Call | Hatchet |
 |---|---|
-| `at` | `scheduled.list` for runs of `scheduled-job` with metadata `job:{job}` and `key:{key}` and `statuses: [SCHEDULED]`; updates the trigger time of one found (`scheduled.update(id, { triggerAt })`), otherwise creates one with `schedule(runAt, input, { additionalMetadata: { job, key } })` |
+| `at` | `scheduled.list` for runs of `scheduled-job` with metadata `job` and `key`, each URL-encoded because Hatchet's filter is `name:value` and keys contain colons, and `statuses: [SCHEDULED]`; updates the trigger time of the first found (`scheduled.update(id, { triggerAt })`) and deletes any others, otherwise creates one with `schedule(runAt, input, { additionalMetadata: { job, key } })` |
 | `cancel` | `scheduled.bulkDelete` with that metadata filter |
 | fire | `scheduled-job` calls the handler registered for `job` with the payload and `fire = { id: ctx.workflowRunId(), startedAt: now }` |
 | `start` | creates the worker, which registers `scheduled-job` with Hatchet; then lists every `hlms-job:` cron of `scheduled-job`, deletes those whose job is no longer registered, extra copies of a name, and those whose expression changed, and creates the missing ones with the input `{ job, key: job, payload: null }`; then starts the worker |
