@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Mailer } from './mailer.js';
+import { EmailRenderError, isEmailRenderError, Mailer } from './mailer.js';
 import type {
   EmailContent,
   EmailMessage,
@@ -47,6 +47,27 @@ describe('Mailer', () => {
         html: '<p>magicLink</p>',
       },
     ]);
+  });
+
+  it('names a template that failed to render, and sends nothing', async () => {
+    const { sent, email } = fakes();
+    const templates: TemplateRenderer = {
+      async render() {
+        throw new Error('digest.posts is not an array');
+      },
+    };
+    const mailer = new Mailer(templates, email, CTX);
+
+    const failure = await mailer
+      .send('s@e.com', 'magicLink', { url: 'http://x/y' })
+      .catch((e) => e);
+
+    expect(failure).toBeInstanceOf(EmailRenderError);
+    expect(isEmailRenderError(failure)).toBe(true);
+    expect((failure as Error).message).toBe(
+      'email template magicLink failed to render: digest.posts is not an array',
+    );
+    expect(sent).toEqual([]);
   });
 
   it('merges a per-send context override over the default', async () => {

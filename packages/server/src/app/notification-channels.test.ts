@@ -5,7 +5,7 @@ import {
   NOTIFICATION_TYPES,
 } from '@headless-lms/core/automations';
 import { categoryListProblems } from '@headless-lms/core/shared/notification-categories';
-import { EmailRejectedError } from '@headless-lms/core/shared/mailer';
+import { EmailRejectedError, EmailRenderError } from '@headless-lms/core/shared/mailer';
 import type {
   NotificationChannel,
   PushDevice,
@@ -192,6 +192,36 @@ describe('email channel', () => {
     await expect(email.deliver(notification(), { email: 'sarah@example.com' })).rejects.toThrow(
       'resend responded 503',
     );
+  });
+
+  it('answers not accepted, for good, for a type with no email template in its scope or a template that fails to render', async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new EmailRenderError('replyToYourComment', new Error('bad params')));
+    const { channels } = buildNotificationRegistries({
+      declarations: NOTIFICATION_TYPES,
+      defaults,
+      mailer: { send },
+      emailOf: async () => 'sarah@example.com',
+      push: null,
+      channels: [],
+    });
+    const email = channels.get('email')!;
+    await expect(email.deliver(notification(), { email: 'sarah@example.com' })).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: [],
+      error: 'email template replyToYourComment failed to render: bad params',
+    });
+    await expect(
+      email.deliver(notification({ type: 'message.sent', scope: 'space' }), {
+        email: 'sarah@example.com',
+      }),
+    ).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: [],
+      error: 'no email template for message.sent in space',
+    });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('takes the content id from a content subject', () => {

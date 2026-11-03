@@ -14,7 +14,7 @@ import type {
 import { DEVICE_WINDOW_MS, PUSH } from '@headless-lms/core/automations';
 import type { PushConfig } from '@headless-lms/core/types';
 import { offeringConfigured } from '@headless-lms/core/shared/notification-categories';
-import { isEmailRejected, type Mailer } from '@headless-lms/core/shared/mailer';
+import { isEmailRejected, isEmailRenderError, type Mailer } from '@headless-lms/core/shared/mailer';
 
 export const IN_APP = 'inApp';
 export const EMAIL = 'email';
@@ -108,8 +108,15 @@ export function emailChannel(deps: {
     deliver: async (notification, to) => {
       const declaration = deps.types.get(notification.type);
       const template = declaration ? emailTemplateFor(declaration, notification) : null;
-      if (!template || !to.email) {
-        throw new Error(`no email template for ${notification.type} in ${notification.scope}`);
+      if (!to.email) {
+        return { accepted: false, deadDeviceIds: [], error: 'no address' };
+      }
+      if (!template) {
+        return {
+          accepted: false,
+          deadDeviceIds: [],
+          error: `no email template for ${notification.type} in ${notification.scope}`,
+        };
       }
       try {
         await deps.mailer.send(
@@ -118,7 +125,7 @@ export function emailChannel(deps: {
           emailParams(notification) as unknown as EmailTemplateParams[typeof template],
         );
       } catch (err) {
-        if (isEmailRejected(err)) {
+        if (isEmailRejected(err) || isEmailRenderError(err)) {
           return { accepted: false, deadDeviceIds: [], error: err.message };
         }
         throw err;
