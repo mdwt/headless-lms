@@ -847,6 +847,8 @@ Feed reads, directory reads, analytics reads, settings reads. Progress emits not
 
 ## Automations
 
+> **Superseded** by [`docs/notifications-spec.md`](notifications-spec.md). Nothing is seeded: the default automations, the `notify` action and the scheduled seeds below are gone. Notifications are automations' system process in code, filed under each community's and the org's notification categories, and timed product work runs as jobs on the scheduler. This section is kept as the record of the seeded model.
+
 This section specifies the changes to the automations context and the automations the feature uses. The community's notifications and the workflows in the use cases run as automations on the events listed in the previous section. Three changes to the automations context are required: a trigger filter, a grant access action, and default automations. The engine is unchanged: it runs an ordered list of actions once per automation and event.
 
 ### What exists today
@@ -916,6 +918,8 @@ Integration actions throwing in `executeAction` is an existing gap outside this 
 Automations does not perform the timed work itself. A schedule trigger starts a run whose action calls the context that owns the work: publishing due posts in discussion, expiring due grants in entitlements, sending the digest in discussion. The context performs the work and emits ordinary events, and automations reacts to those events as to any other.
 
 ## Emails
+
+> **Superseded** by [`docs/notifications-spec.md`](notifications-spec.md). Notification emails are sent by the email channel of the notification process, not by the `sendEmail` action of a seeded automation; the templates listed here are still the ones it renders. Org automations keep `sendEmail` for their own emails. This section is kept as the record of the seeded model.
 
 This section lists the emails the system sends for the community. Every email is sent by the `sendEmail` action of an automation in response to a domain event, through the existing `Mailer`, `TemplateRenderer` and `EmailSender` ports. No service sends community email directly. The event and the automation determine that an email is sent; the template determines its content.
 

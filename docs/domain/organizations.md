@@ -20,6 +20,7 @@ Better Auth's **organization plugin** is the source of truth for organizations a
 - **Organization** — the tenant. The root every org-scoped record belongs to. Mirrors a Better Auth org.
 - **Org user** — links a person to an org and carries their role. Never exists without a person behind it. Staff and moderators mirror a Better Auth member. A learner has no Better Auth membership, so nothing to mirror, until they are given another role, which creates the membership and updates the existing org user row. Carries a **status**: `invited` for a learner an admin has added who has not yet accepted, `active` once they have.
 - **Invite** — a pending invite to join an org. Domain-owned, carrying the role the invitee will hold.
+- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and an owner can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings.
 
 ## Roles
 

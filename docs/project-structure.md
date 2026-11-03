@@ -29,7 +29,7 @@ adapters/
   email-templates/   @headless-lms/adapter-email-templates — TemplateRenderer via React Email
   push/              @headless-lms/adapter-push — PushSender via APNs, FCM and Web Push
   storage-minio/     @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
-  workflow-hatchet/  @headless-lms/adapter-workflow-hatchet — AutomationEngine via Hatchet
+  workflow-hatchet/  @headless-lms/adapter-workflow-hatchet — AutomationEngine and Scheduler via Hatchet
 ```
 
 `@headless-lms/adapter-db` owns `drizzle.config.ts`, the generated `drizzle/`

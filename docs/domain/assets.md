@@ -51,7 +51,7 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 - **Browse the library** — list and read assets, scoped to the org. The list is the library unless `source=member` is asked for.
 - **Remove an asset** — delete the registry entry, then the stored object. An asset still referenced by content, a post, a message or a profile cannot be removed: the references refuse the delete, and storage is not touched. Nothing that removes the referencing record removes the asset.
 - **Remove own upload** — the uploader removes their own member file while nothing references it. Staff may remove it too, under the same rule.
-- **Sweep unattached uploads** — a system automation runs hourly and removes member files older than an hour that nothing references. The hour is the assets domain's rule. A file attached while the sweep runs is kept. An upload link keeps working until it expires, even after its upload is confirmed or refused, so the sweep also removes any object in the org's member upload location that no asset holds and that was last written longer ago than an upload link lives.
+- **Sweep unattached uploads** — an hourly job removes member files older than an hour that nothing references. The hour is the assets domain's rule. A file attached while the sweep runs is kept. An upload link keeps working until it expires, even after its upload is confirmed or refused, so the sweep also removes any object in the org's member upload location that no asset holds and that was last written longer ago than an upload link lives.
 
 ## Boundaries
 
@@ -60,7 +60,7 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 3. **assets ↔ discussion** — a post references its cover and a message references its attachments. Both must be member images the author uploaded. They are fetched through a stable link per file, which checks on every request that the reader can open the post, takes part in the chat, or is staff reading a flagged message.
 4. **assets ↔ identity** — a profile references its photo, which must be a member image the person uploaded. A profile is global and a photo belongs to an org, so the reference names the org as well as the asset. The photo is served only inside that org, to its org users.
 5. **assets ↔ reporting** — `reporting/member` composes the courses, activities and downloads a member opens and the photos in the community directory; it hands out each file's stable link, never a signed one.
-6. **assets ↔ automations** — the hourly sweep is a system automation whose action calls assets.
+6. **assets ↔ the scheduler** — the hourly sweep is a job assets defines and the scheduler runs, not a system automation; no org can switch it off.
 7. **assets ↔ entitlements** — assets never decides who may fetch a file. A member is handed a file only after entitlements has confirmed access to the content that uses it.
 
 ## Build state

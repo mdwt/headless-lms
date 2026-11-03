@@ -4,7 +4,7 @@ Automations is where the system reacts to things that happen. An automation bind
 
 An automation is one of two kinds:
 
-- A **workflow** is authored step by step: "when someone is granted this course, tag them and send a welcome sequence." Users build their own in the dashboard, and the system ships standard ones that encode the expected consequences of an action — granting access isn't just a grant; it's the grant plus the welcome email plus whatever tags belong on that learner.
+- A **workflow** is authored step by step: "when someone is granted this course, tag them and send a welcome sequence." Users build their own in the dashboard.
 - A **webhook** is an org's subscription to its own events: a URL and the events to send there. It is an automation with exactly one action — deliver the event to the URL — and it is managed as a URL and a set of events, never as steps.
 
 The domain owns the automations themselves — what they are, what triggers them, what they do, and whether they're on. It does not run them. Running an automation durably — retrying a failed step, waiting days between actions, surviving restarts — is carried out by execution infrastructure the domain hands off to and does not own.
@@ -17,7 +17,14 @@ The domain owns the automations themselves — what they are, what triggers them
 
 An automation's triggers are events or schedules. A schedule fires at the times a cron expression names, in UTC; one the system cannot match is refused when the automation is saved. A trigger can carry a filter, an equality match on fields of the event, so "a post was published in this community" differs from "a post was published anywhere".
 
-An automation is the org's own or a system one. System automations are seeded for every org and every community and encode what the product does by default: the access emails, the community emails, and the timed work — publishing due posts, expiring due grants, sending the digest, removing member uploads nothing uses. A system automation can be turned off or have its actions changed, and cannot be deleted. Timed work runs only when there is something to do, so an idle schedule leaves no run behind.
+Every automation is the org's own, and product behaviour is not an automation. Nothing is seeded when an org or a community is created, and no org can switch product behaviour off. Timed product work — publishing a scheduled post, expiring grants, opening a community's digest, removing member uploads nothing uses — is a job that the context owning the work defines and the scheduler runs, at a time or on a recurring schedule. The scheduler is carried out by the same execution infrastructure that runs automations; no system automation remains. An org's own scheduled automations run as before.
+
+## Notifications
+
+Automations also runs the notification process, in code. It is not an automation: it has no definition an org authors and none can edit or turn it off. When an event happens, automations works out who the event concerns and why, from the data of the context that owns it: the author of the post, the people following it, the members of the space, the person whose grant changed. It files each person's notification under the first matching category of the community, or of the org for what happens outside any community, applies the person's own settings to decide the channels, and stores one notification per person: the in-app notification, and a delivery for each other channel that is on. Each delivery runs on the execution infrastructure, which retries a failed one without repeating the others. A run of chat messages notifies each participant once the chat has been quiet for two minutes, and not at all if they read it by then. A community's digest goes out on the community's own schedule.
+
+- **Notification** — the message for one person about one event: what kind it is, why the person got it, the category it was filed under, the community and space it happened in, who acted, what it is about, the text it showed when sent, and when the person read it.
+- **Delivery** — one send of a notification on one channel other than in-app, by email or by push: pending, sent or failed, with the last error.
 
 The domain stores what an automation is and the history of every time it ran. What it does not hold is the live state of a run still in progress — where a paused drip currently sits, how long is left on its wait — which lives with the execution infrastructure until the run completes and its outcome is recorded here.
 
@@ -37,8 +44,9 @@ The domain stores what an automation is and the history of every time it ran. Wh
 
 1. **automations ↔ the contexts that act** — a workflow's actions are operations owned by other contexts. Automations doesn't grant access, add tags, or send email itself — it runs the action list in order and calls the context that owns each operation. Delivering a webhook is the one action automations owns: it sends the event, signed, to the webhook's URL.
 2. **automations ↔ the contexts that trigger** — automations listens for the events other contexts emit and resolves which automations each event runs. The emitting context doesn't know automations exists. It does decide which of its events' fields may leave the system, and a webhook delivers only those. Automations' own events never trigger an automation, so a webhook can't subscribe to them.
-3. **automations ↔ execution infrastructure** — automations hands a definition off to be run; the infrastructure orders the steps, retries failures, waits between actions, and resumes after a restart. A webhook delivery is a run like any other and is retried the same way. Automations keeps the definition and none of the running state.
-4. **automations ↔ secure credential store** — a webhook's signing secret is held in the shared secure store, scoped to the org. Automations resolves it only to sign a delivery or when asked to reveal it.
+3. **automations ↔ execution infrastructure** — automations hands a definition off to be run; the infrastructure orders the steps, retries failures, waits between actions, and resumes after a restart. A webhook delivery is a run like any other and is retried the same way. Automations keeps the definition and none of the running state. It also stores the notifications it sent and the status of each delivery; the infrastructure runs and retries each delivery, and holds the timers of the scheduled jobs and the chat quiet period.
+4. **automations ↔ notification inputs** — the categories are content's for a community and organizations' for the org; each person's settings and devices are identity's; follows, mutes and mentions are discussion's; who can open what is entitlements'. Automations reads them and owns none of them.
+5. **automations ↔ secure credential store** — a webhook's signing secret is held in the shared secure store, scoped to the org. Automations resolves it only to sign a delivery or when asked to reveal it.
 
 ## Events
 

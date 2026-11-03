@@ -51,6 +51,7 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 1. **entitlements ↔ organizations** — entitlements references the _org user_ it grants access to, not the person: a grant is access within one organization, and the same person entitled in two organizations holds two independent grants. Organizations owns that record.
 2. **entitlements ↔ content** — entitlements references the content or bundle it grants, reads a bundle's items and the content's gating rules during access resolution; content owns the content, the bundle and those rules. Deleting content or a bundle removes the grants to it. A space member references the space. Entitlements reads the space's access rule and capacity through content, and asks content to lock the space row when it checks capacity. Entitlements does not write the space.
 3. **entitlements ↔ progress** — entitlements reads completion during access resolution but never owns or stores it; progress owns completion.
+4. **entitlements → automations** — automations reads who can open a space or a community, who holds a course or a community, and who moderates a community, to decide who a notification concerns. Entitlements answers; it sends nothing itself.
 
 ## Events
 

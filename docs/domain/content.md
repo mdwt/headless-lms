@@ -30,7 +30,7 @@ Types are not forced into a common structure — a course is a tree of modules a
 
 - Owns the content types and, within each, its own structure and authoring rules.
 - Owns the gating **rules** a type defines on its structure (e.g. a course's drip and unlock-on-completion).
-- Owns the **settings other contexts apply**: a course's discussion settings, a space's access rule, capacity and post defaults, a community's DM settings. Content is their only writer; entitlements and discussion read them.
+- Owns the **settings other contexts apply**: a course's discussion settings, a space's access rule, capacity and post defaults, a community's DM settings, notification categories and digest schedule. Content is their only writer; entitlements, discussion and automations read them.
 - References the assets content uses. Does **not** own access (entitlements), per-learner progress (progress), or how content is sold (offers).
 
 ## Capabilities
@@ -40,7 +40,7 @@ Shared across all content types:
 - **Author** — create, update, and structure content of any type (a course's modules and activities, a community's spaces, a podcast's episodes, a newsletter's issues).
 - **Publish** — move content between draft and published.
 - **Define gating** — where a type supports it, set the rules on its structure (a course's drip and unlock-on-completion, a space's access rule and capacity).
-- **Define what others apply** — set a course's discussion settings, a space's post defaults and topics, and a community's DM settings. Discussion and entitlements read them; only content writes them.
+- **Define what others apply** — set a course's discussion settings, a space's post defaults and topics, and a community's DM settings, notification categories and digest schedule. Discussion, entitlements and automations read them; only content writes them.
 
 ## Model
 
@@ -60,13 +60,15 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 
 ### Community type — entities
 
-- **Community** — the root: title, description, thumbnail, status (draft/published), an ordered list of spaces, and its DM settings.
+- **Community** — the root: title, description, thumbnail, status (draft/published), an ordered list of spaces, its DM settings, its notification categories and its digest schedule.
 - **Space** — a place inside the community: name, description, order within the community, an access rule (`all members | by request | by invite`), an optional capacity for a by-request or by-invite space, its topics, its links, and the defaults for its posts (comments on, reactions on, review before publishing). A community holds a flat list of spaces; there are no spaces inside spaces.
 - **Topic** — a subject defined on a space. Where a space defines topics, each post in it carries one. A topic cannot be deleted while a post references it.
 - **Link** — a space pointing at a course, a download or a community. A link shows the resource in the space and never grants access; opening it needs a grant. A link is removed when its space or its resource is deleted.
 - **DM settings** — per community: whether DMs are on, who may message whom by role, whether a first message is a request, whether group chats are allowed and how many people one holds.
+- **Notification categories** — per community: the ordered switches on a member's notification settings in that community. Each covers kinds of notification for people with given reasons, offers channels with a default and an optional lock, and can be set per space, with a default per space. A community without its own list uses the default list, and an owner can go back to it.
+- **Digest schedule** — per community: daily or weekly, the weekday for a weekly digest, the hour and the time zone. A community without one sends no digest.
 
-A space's access rule, capacity and post defaults and the community's DM settings are content's definition. Entitlements reads the access rule and capacity to answer who can open a space; discussion reads the post defaults, topics and DM settings to decide what it accepts. Neither writes them. The posts in a space, and the chats in a community, are discussion's.
+A space's access rule, capacity and post defaults and the community's DM settings, notification categories and digest schedule are content's definition. Entitlements reads the access rule and capacity to answer who can open a space; discussion reads the post defaults, topics and DM settings to decide what it accepts, and the digest schedule to know when a digest is due; automations reads the notification categories to file each notification and identity reads them to check a member's settings. None of them writes them. The posts in a space, and the chats in a community, are discussion's.
 
 ### Other types
 
@@ -90,10 +92,11 @@ Per type. For the course type:
 - `course.created`, `course.updated`, `course.published`, `course.unpublished`, `course.deleted`
 - `module.created`, `module.updated`, `module.deleted`
 - `activity.created`, `activity.updated`, `activity.deleted`
+- `course.activity.published` — an activity of a published course went live: it was created live, or its draft mark was cleared. It is the first activity publish event; an activity in a draft course, or a draft activity, emits none.
 
 For the community type:
 
-- `community.created`, `community.updated`, `community.deleted` — publishing and unpublishing are an `updated` carrying the new status; a change to the DM settings is an `updated` too.
+- `community.created`, `community.updated`, `community.deleted` — publishing and unpublishing are an `updated` carrying the new status; a change to the DM settings or the digest schedule is an `updated` too.
 - `community.space.created`, `community.space.updated`, `community.space.deleted` — a change to a space's topics or links is an `updated` on the space.
 - `community.spaces.reordered`
 

@@ -20,6 +20,10 @@ the author made.
 - References the activity its comments attach to (content), the person who
   wrote each comment (identity), and access to the content (entitlements).
   Does **not** own content, access, identity, or notification delivery.
+- Owns a member's **follows and mutes** on posts, spaces and chats, the
+  **mentions** in what members write, and the **digest ledger**.
+- Defines the timed work that publishes a scheduled post and that opens a
+  community's digest when it is due.
 
 ## Capabilities
 
@@ -102,7 +106,8 @@ community posts and comments. It is not staff, and it does not moderate course
 comments.
 
 An author has full control of their own comments: read, revise, remove, with no
-time limit and regardless of replies. Edits are neither versioned nor evented.
+time limit and regardless of replies. Edits are not versioned. An edit is
+evented, naming the people it newly mentions.
 A locked activity still lets an author withdraw their own comment; it refuses a
 revision.
 
@@ -159,8 +164,10 @@ flags scope to the community.
    and accepts nothing for content a person cannot open. Entitlements decides
    access; discussion decides moderation.
 4. **discussion → automations** — discussion emits events; automations decides
-   what follows. Notification fan-out and auto-removal of a heavily reported
-   comment are configured automations, not behaviour of this domain.
+   what follows. Notifications are automations' system process: it reads
+   authors, followers, thread participants, chat participants and mutes from
+   discussion to decide who an event concerns. Auto-removal of a heavily
+   reported comment is a configured automation, not behaviour of this domain.
 
 ## Events
 
@@ -169,10 +176,14 @@ flags scope to the community.
 - `comment.reported` — a comment was flagged.
 - `comment.removed` — a comment's body stopped being served; names who removed
   it, so an author's removal and a moderator's are distinguishable.
+- `comment.updated` — a comment was edited; names the people it newly mentions.
+- `comment.reaction.added` — a comment got its first reaction of a kind from a
+  person.
 
 Each names the comment, its author, and the activity or post it attaches to. A
-comment on a post also carries the community id. Reactions, edits and comments
-state changes are not evented.
+comment on a post also carries the community id. A publish names everyone the
+comment mentions. Later reactions of the same kind and comments state changes
+are not evented.
 
 ## Community
 
@@ -187,18 +198,33 @@ Discussion also owns what members write inside a community.
 - **Comment on a post** — the same comment, targeting the post, storing the
   community id, created `published`. Flags and removal moderate it.
   `requireReview` applies to posts.
-- **Follow, bookmark, reaction, flag** — a member's state on a post. A flag
-  does not change the post.
+- **Follow, mute, bookmark, reaction, flag** — a member's state on a post. A
+  flag does not change the post. A space can be muted too.
+- **Subscription** — a member's follow or mute on a post, space or chat. A
+  post can be followed or muted; a space or chat only muted. A mute can end at
+  a given time. A follow brings the member the post's new comments; a mute
+  stops activity in the item from reaching them, except mentions, actions on
+  them and moderation work.
+- **Mention** — a person named in a post, comment or message, recorded when
+  they are first mentioned there.
 - **Feed** — the space's published posts, or the posts from every space a
   person can open. Pinned first, then newest.
 - **Chat** — a private thread in one community. Every chat table carries the
   community id: the chat, its participants, its messages, attachments,
   reactions, flags, and blocks. A DM is two people, at most one per community.
   A group chat is three or more and is created open. A message request is a
-  direct chat awaiting acceptance. A mute is per participant per chat.
+  direct chat awaiting acceptance. A mute is a subscription state on the chat,
+  as on a post or space, with an optional end time.
 - **Block** — two people inside one community. It closes their direct chat
   there and rejects their sends in that community, including in a group chat.
   The other participants can still send. Another community is untouched.
+
+- **Scheduled post** — a post with a time to publish. At that time it is
+  published, or sent to review when the space requires it. Until then the
+  author can move it, publish it now, or unschedule it back to a draft.
+- **Digest ledger** — per community, the latest digest time already handled,
+  so a digest goes out once per slot of the community's schedule and never for
+  a slot already past.
 
 A post's topic is a topic of its own space. A topic cannot be deleted while a
 post references it.
@@ -208,10 +234,15 @@ they hold a grant to and is not staff.
 
 Events, in addition to the comment events: `post.created`, `post.updated`,
 `post.published`, `post.removed`, `post.reported`, `chat.created`,
-`chat.updated`, `chat.participant.added`, `message.sent`, `message.deleted`,
-`message.reported`. A transition the row does not store, such as the status a
-post had before it published, is `metadata.previousStatus`. A comment on a
-post emits `comment.created` only.
+`chat.updated`, `chat.participant.added`, `message.sent`, `message.updated`,
+`message.deleted`, `message.reported`, `post.reaction.added`,
+`message.reaction.added` and `digest.due`. A publish names everyone a post or
+message mentions, an edit only the people it newly mentions, and a reaction
+event fires for a person's first reaction of a kind. `digest.due` fires when a
+community's digest schedule comes round. A transition the row does not store,
+such as the status a post had before it published, is
+`metadata.previousStatus`. A comment on a post is created published, so of the
+publishing events it emits `comment.created` only.
 
 ## How comments accrue
 
