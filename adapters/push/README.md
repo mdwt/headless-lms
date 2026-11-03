@@ -20,7 +20,7 @@ const push = loadPushConfig();
 const container = await createContainer(config, {
   adapters: {
     push,
-    pushSender: Object.keys(push).length > 0 ? new PushAdapter(push) : undefined,
+    pushSender: new PushAdapter(push),
   },
 });
 ```

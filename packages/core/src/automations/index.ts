@@ -9,6 +9,7 @@ export {
   NotificationDelivery,
 } from './notifications/delivery.js';
 export {
+  DEVICE_WINDOW_MS,
   IN_APP,
   MESSAGE_SENT,
   NotificationProcessor,

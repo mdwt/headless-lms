@@ -7,8 +7,12 @@ import type {
   NotificationChannel,
   NotificationTypeDeclaration,
   NotificationTypeRegistry,
+  PushDevice,
+  PushSender,
   StoredNotification,
 } from '@headless-lms/core/shared/ports';
+import { DEVICE_WINDOW_MS, PUSH } from '@headless-lms/core/automations';
+import type { PushConfig } from '@headless-lms/core/types';
 import { offeringConfigured } from '@headless-lms/core/shared/notification-categories';
 import type { Mailer } from '@headless-lms/core/shared/mailer';
 
@@ -117,21 +121,80 @@ export function emailChannel(deps: {
   };
 }
 
+export function renderPushText(template: string, display: Record<string, JsonValue>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_placeholder, key: string) => {
+    const value = display[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      return value.join(', ');
+    }
+    return '';
+  });
+}
+
+export function configuredPushSender(
+  config: PushConfig,
+  sender: PushSender | undefined,
+): PushSender | null {
+  const configured = Object.values(config).some((provider) => provider !== undefined);
+  return configured && sender ? sender : null;
+}
+
+export type ActiveDevices = (orgId: string, userId: string, since: Date) => Promise<PushDevice[]>;
+
+export function pushChannel(deps: {
+  sender: PushSender;
+  types: NotificationTypeRegistry;
+  activeDevices: ActiveDevices;
+  now?: () => Date;
+}): NotificationChannel {
+  const now = deps.now ?? (() => new Date());
+  return {
+    key: PUSH,
+    recipient: async (orgId, userId) => {
+      const since = new Date(now().getTime() - DEVICE_WINDOW_MS);
+      const devices = await deps.activeDevices(orgId, userId, since);
+      return devices.length > 0 ? { devices } : null;
+    },
+    deliver: async (notification, to) => {
+      const text = deps.types.get(notification.type)?.push?.[notification.scope];
+      if (!text || !to.devices) {
+        throw new Error(`no push text for ${notification.type} in ${notification.scope}`);
+      }
+      return deps.sender.send(to.devices, {
+        title: renderPushText(text.title, notification.display),
+        body: renderPushText(text.body, notification.display),
+        data: {
+          notificationId: notification.id,
+          type: notification.type,
+          subject: notification.subject,
+          parent: notification.parent,
+        },
+      });
+    },
+  };
+}
+
 export function buildNotificationRegistries(deps: {
   declarations: NotificationTypeDeclaration[];
   defaults: { community: NotificationCategory[]; org: NotificationCategory[] };
   mailer: Pick<Mailer, 'send'> | null;
   emailOf: (orgId: string, userId: string) => Promise<string | null>;
+  push: { sender: PushSender; activeDevices: ActiveDevices } | null;
   channels: NotificationChannel[];
 }): { types: NotificationTypeRegistry; channels: ChannelRegistry } {
   const configured = [
     IN_APP,
     ...(deps.mailer ? [EMAIL] : []),
+    ...(deps.push ? [PUSH] : []),
     ...deps.channels.map((channel) => channel.key),
   ];
   const types = buildNotificationTypeRegistry(deps.declarations, deps.defaults, configured);
   const channels = buildChannelRegistry([
     ...(deps.mailer ? [emailChannel({ mailer: deps.mailer, types, emailOf: deps.emailOf })] : []),
+    ...(deps.push ? [pushChannel({ ...deps.push, types })] : []),
     ...deps.channels,
   ]);
   return { types, channels };

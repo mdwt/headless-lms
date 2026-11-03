@@ -38,6 +38,7 @@ const registries = buildNotificationRegistries({
   defaults: { community: DEFAULT_COMMUNITY_CATEGORIES, org: DEFAULT_ORG_CATEGORIES },
   mailer: { send: async () => {} },
   emailOf: async () => null,
+  push: null,
   channels: [],
 });
 const settings = new SettingsService(settingsRepo);

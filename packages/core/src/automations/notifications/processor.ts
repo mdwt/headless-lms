@@ -29,7 +29,7 @@ import type {
 export const IN_APP = 'inApp';
 export const PUSH = 'push';
 export const MESSAGE_SENT = 'message.sent';
-const DEVICE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export const DEVICE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const noChatDebounce: ChatDebounce = {
   arm: async () => {},

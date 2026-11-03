@@ -438,6 +438,9 @@ importers:
       '@headless-lms/adapter-email-templates':
         specifier: workspace:*
         version: link:../../adapters/email-templates
+      '@headless-lms/adapter-push':
+        specifier: workspace:*
+        version: link:../../adapters/push
       '@headless-lms/adapter-storage-minio':
         specifier: workspace:*
         version: link:../../adapters/storage-minio

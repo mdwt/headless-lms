@@ -5,12 +5,18 @@ import {
   NOTIFICATION_TYPES,
 } from '@headless-lms/core/automations';
 import { categoryListProblems } from '@headless-lms/core/shared/notification-categories';
-import type { NotificationChannel, StoredNotification } from '@headless-lms/core/shared/ports';
+import type {
+  NotificationChannel,
+  PushDevice,
+  StoredNotification,
+} from '@headless-lms/core/shared/ports';
 import {
   buildChannelRegistry,
   buildNotificationRegistries,
   buildNotificationTypeRegistry,
+  configuredPushSender,
   emailParams,
+  renderPushText,
 } from './notification-channels.js';
 
 const defaults = { community: DEFAULT_COMMUNITY_CATEGORIES, org: DEFAULT_ORG_CATEGORIES };
@@ -102,6 +108,7 @@ describe('channel registry', () => {
       defaults,
       mailer: null,
       emailOf: async () => null,
+      push: null,
       channels: [],
     });
     expect(without.channels.list()).toEqual(['inApp']);
@@ -113,6 +120,7 @@ describe('channel registry', () => {
       defaults,
       mailer: { send: vi.fn() },
       emailOf: async () => null,
+      push: null,
       channels: [channel('sms')],
     });
     expect(withMailer.channels.list()).toEqual(['inApp', 'email', 'sms']);
@@ -127,6 +135,7 @@ describe('email channel', () => {
       defaults,
       mailer: { send },
       emailOf: async (_orgId, userId) => (userId === 'usr_sarah' ? 'sarah@example.com' : null),
+      push: null,
       channels: [],
     });
     const email = channels.get('email')!;
@@ -170,5 +179,112 @@ describe('email channel', () => {
       contentTitle: 'Spanish in 90 Days',
       contentType: 'course',
     });
+  });
+});
+
+describe('push channel', () => {
+  const iphone: PushDevice = {
+    id: 'dev_1',
+    provider: 'apns',
+    token: 'apns-token',
+    p256dh: null,
+    auth: null,
+    appId: 'com.spanishin90days.app',
+    environment: 'production',
+  };
+
+  function registries(devices: PushDevice[], send = vi.fn(async () => ({ deadDeviceIds: [] }))) {
+    const activeDevices = vi.fn(async () => devices);
+    const built = buildNotificationRegistries({
+      declarations: NOTIFICATION_TYPES,
+      defaults,
+      mailer: { send: vi.fn() },
+      emailOf: async () => null,
+      push: { sender: { send }, activeDevices },
+      channels: [channel('sms')],
+    });
+    return { ...built, send, activeDevices };
+  }
+
+  it('is registered after email when push is configured, and the defaults offer it', () => {
+    const { channels, types } = registries([]);
+    expect(channels.list()).toEqual(['inApp', 'email', 'push', 'sms']);
+    expect(types.defaults('community').find((c) => c.key === 'mentions')?.channels).toEqual({
+      inApp: { default: true, locked: false },
+      email: { default: true, locked: false },
+      push: { default: true, locked: false },
+    });
+  });
+
+  it('addresses the devices seen in the last 30 days, and nobody without one', async () => {
+    const { channels, activeDevices } = registries([iphone]);
+    const push = channels.get('push')!;
+    const before = Date.now();
+    await expect(push.recipient('org_1', 'usr_sarah')).resolves.toEqual({ devices: [iphone] });
+    const since = (activeDevices.mock.calls[0] as unknown as [string, string, Date])[2];
+    expect(activeDevices).toHaveBeenCalledWith('org_1', 'usr_sarah', since);
+    expect(before - since.getTime()).toBeGreaterThanOrEqual(30 * 24 * 60 * 60 * 1000 - 1000);
+    expect(before - since.getTime()).toBeLessThanOrEqual(30 * 24 * 60 * 60 * 1000 + 1000);
+    const { channels: none } = registries([]);
+    await expect(none.get('push')!.recipient('org_1', 'usr_sarah')).resolves.toBeNull();
+  });
+
+  it("renders the type's push text from display and sends it with the notification's references", async () => {
+    const send = vi.fn(async () => ({ deadDeviceIds: ['dev_2'] }));
+    const { channels } = registries([iphone], send);
+    const push = channels.get('push')!;
+    await expect(
+      push.deliver(
+        notification({
+          type: 'mention',
+          scope: 'space',
+          matchedReason: 'mentioned',
+          display: { authorName: 'James', excerpt: 'See you at practice', postTitle: 'Week 3' },
+        }),
+        { devices: [iphone] },
+      ),
+    ).resolves.toEqual({ deadDeviceIds: ['dev_2'] });
+    expect(send).toHaveBeenCalledWith([iphone], {
+      title: 'James mentioned you in Week 3',
+      body: 'See you at practice',
+      data: {
+        notificationId: 'ntf_1',
+        type: 'mention',
+        subject: { type: 'comment', id: 'cmt_1' },
+        parent: { type: 'post', id: 'pst_1' },
+      },
+    });
+  });
+
+  it('throws for a type with no push text in the scope', async () => {
+    const { channels } = registries([iphone]);
+    await expect(
+      channels.get('push')!.deliver(notification({ type: 'post.liked' }), { devices: [iphone] }),
+    ).rejects.toThrow('no push text for post.liked in space');
+  });
+
+  it('is used only when at least one provider is configured', () => {
+    const sender = { send: vi.fn() };
+    expect(configuredPushSender({}, sender)).toBeNull();
+    expect(configuredPushSender({ apns: undefined }, sender)).toBeNull();
+    expect(
+      configuredPushSender({ webpush: { publicKey: 'p', privateKey: 'k', subject: 's' } }, sender),
+    ).toBe(sender);
+    expect(
+      configuredPushSender(
+        { webpush: { publicKey: 'p', privateKey: 'k', subject: 's' } },
+        undefined,
+      ),
+    ).toBeNull();
+  });
+
+  it('joins a list of strings and leaves out what is not text', () => {
+    expect(
+      renderPushText('{{adderName}} added you with {{participantNames}}{{posts}}{{missing}}', {
+        adderName: 'Emma',
+        participantNames: ['Sarah', 'James'],
+        posts: [{ postId: 'pst_1' }],
+      }),
+    ).toBe('Emma added you with Sarah, James');
   });
 });

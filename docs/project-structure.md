@@ -27,6 +27,7 @@ adapters/
                      email/storage/template stubs
   email-resend/      @headless-lms/adapter-email-resend — EmailSender via Resend
   email-templates/   @headless-lms/adapter-email-templates — TemplateRenderer via React Email
+  push/              @headless-lms/adapter-push — PushSender via APNs, FCM and Web Push
   storage-minio/     @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
   workflow-hatchet/  @headless-lms/adapter-workflow-hatchet — AutomationEngine via Hatchet
 ```
@@ -46,7 +47,7 @@ Everything with a build step builds with **tsdown** (`tsdown.config.ts` per
 workspace). Two shapes:
 
 - **Bundled per entry**, to `dist/` with `.d.ts` — `utils`, `editor`, `plugins/slack`,
-  and the four leaf adapters (`email-resend`, `email-templates`, `storage-minio`,
+  and the leaf adapters (`email-resend`, `email-templates`, `push`, `storage-minio`,
   `workflow-hatchet`). The cli bundles to a single bin.
 - **Transpiled file-for-file** (`unbundle: true`) — `core`, the three db-backed
   adapters (`db`, `auth`, `defaults`), the server, the api installation and the
@@ -112,7 +113,7 @@ const container = await createContainer(config, {
 A slot left absent falls back to the default from `@headless-lms/adapter-defaults`
 — for email, storage and templates, a stub that fails loudly on use; for workflows,
 the in-process `InlineAutomationEngine`; for webhooks, `FetchWebhookSender`. `apps/api/src/config.ts` is the only file
-on the backend that touches `process.env`; `adapters/email-resend`,
+on the backend that touches `process.env`; `adapters/email-resend`, `push`,
 `storage-minio` and `workflow-hatchet` each carry a README for the env they expect.
 
 `@headless-lms/core/integrations` holds the code that must exist at runtime — the

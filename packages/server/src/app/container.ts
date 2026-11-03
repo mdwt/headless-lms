@@ -99,7 +99,7 @@ import {
   notificationJobs,
   type NotificationCategories,
 } from '@headless-lms/core/automations';
-import { buildNotificationRegistries } from './notification-channels.js';
+import { buildNotificationRegistries, configuredPushSender } from './notification-channels.js';
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
@@ -118,6 +118,7 @@ import type {
   NotificationTypeRegistry,
   ObjectStorage,
   OutboxRelay,
+  PushSender,
   Scheduler,
   TemplateContext,
   TemplateRenderer,
@@ -138,6 +139,7 @@ export interface AdapterOverrides {
   notificationChannels?: NotificationChannel[];
   /** Push credentials per provider. Absent → no provider is configured and devices cannot register. */
   push?: PushConfig;
+  pushSender?: PushSender;
 }
 
 export interface BuildContainerOptions {
@@ -382,11 +384,19 @@ export async function buildContainer(
     fileUrls,
     logger: contentLogger,
   });
+  const pushConfig = options?.adapters?.push ?? {};
+  const pushSender = configuredPushSender(pushConfig, options?.adapters?.pushSender);
   const notificationRegistries = buildNotificationRegistries({
     declarations: NOTIFICATION_TYPES,
     defaults: { community: DEFAULT_COMMUNITY_CATEGORIES, org: DEFAULT_ORG_CATEGORIES },
     mailer: options?.adapters?.email ? mailer : null,
     emailOf: async (_orgId, userId) => (await identity.getUserById(userId))?.email ?? null,
+    push: pushSender
+      ? {
+          sender: pushSender,
+          activeDevices: (orgId, userId, since) => devices.activeDevices(orgId, userId, since),
+        }
+      : null,
     channels: options?.adapters?.notificationChannels ?? [],
   });
   const notificationCategories = {
@@ -451,7 +461,7 @@ export async function buildContainer(
   });
   const devices = new DevicesServiceImpl({
     repo: new DrizzleDevicesRepository(db, identityLogger),
-    push: options?.adapters?.push ?? {},
+    push: pushConfig,
     logger: identityLogger,
   });
   // Progress: report writes + outbox append in one tx; content supplies the
