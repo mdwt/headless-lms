@@ -15,6 +15,17 @@ export function mentionTokens(...texts: string[]): string[] {
   return [...found];
 }
 
+export async function nameMentions(
+  text: string,
+  nameOf: (orgUserId: string) => Promise<string>,
+): Promise<string> {
+  const names = new Map<string, string>();
+  for (const orgUserId of mentionTokens(text)) {
+    names.set(orgUserId, await nameOf(orgUserId));
+  }
+  return text.replace(TOKEN, (_token, orgUserId: string) => names.get(orgUserId) ?? UNNAMED);
+}
+
 export function keepAllowed(tokens: string[], allowed: string[]): string[] {
   const kept = new Set(allowed);
   return tokens.filter((token) => kept.has(token));

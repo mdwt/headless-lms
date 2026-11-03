@@ -168,9 +168,9 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     type: 'message.sent',
     scopes: ['chat'],
     reasons: ['participant'],
-    display: { chat: ['senderName', 'chatTitle', 'excerpt', 'count'] },
+    display: { chat: ['senderName', 'chatTitle', 'excerpt', 'count', 'summary'] },
     email: { chat: { template: 'newMessage' } },
-    push: { chat: { title: '{{chatTitle}}', body: '{{senderName}}: {{excerpt}}' } },
+    push: { chat: { title: '{{chatTitle}}', body: '{{senderName}}: {{summary}}' } },
   },
   {
     type: 'message.reacted',

@@ -364,7 +364,7 @@ Each recipient list carries `display`, the text a channel needs. Each type decla
 | `comment.reacted` | `postTitle`, `excerpt`, `reactorName`, `reaction` | `commentReacted` (new) |
 | `content.flagged` | `spaceName`, `excerpt`, `reason` | `somethingWasFlagged` |
 | `mention` | `authorName`, `excerpt`, and `postTitle` or `chatTitle` | `mention` (new) |
-| `message.sent` | `senderName`, `chatTitle`, `excerpt`, `count` | `newMessage` |
+| `message.sent` | `senderName`, `chatTitle`, `excerpt`, `count`, `summary` ("3 new messages", which the push body shows) | `newMessage` |
 | `message.reacted` | `excerpt`, `reactorName`, `reaction` | `messageReacted` (new) |
 | `message.flagged` | `reason` | `messageWasFlagged` |
 | `chat.request` | `senderName`, `excerpt` | `messageRequest` |
@@ -650,7 +650,7 @@ For each event's recipient lists, automations:
 
 1. **Arm.** For each recipient left on the `message.sent` list after mutes and blocks, automations calls `scheduler.at('automations.notifications.flush', occurredAt + 2 min, '{userId}:{chatId}', { orgId, userId, orgUserId, chatId })`. A later message in the chat calls it again with the same key, which moves the timer (14.1).
 2. **Mention.** When the same event, or a later one, files a `mention` for that person in that chat, automations stores and delivers the mention at once and calls `cancel('automations.notifications.flush', '{userId}:{chatId}')`. Messages after it arm a new timer.
-3. **Flush.** When the timer fires, the job reads `NotificationReads.unreadInChat(orgId, chatId, orgUserId)`. A count of 0, because the person read the chat, ends it. Otherwise it builds one `message.sent` recipient list for the person: subject the latest unread message, parent the chat, `display` with `senderName`, `chatTitle`, `excerpt` and `count`; and runs it through 11.2 steps 4 to 7 like any other list. Its `source_event_id` is `chat-flush:{chatId}:{latest message id}`.
+3. **Flush.** When the timer fires, the job reads `NotificationReads.unreadInChat(orgId, chatId, orgUserId)`. A count of 0, because the person read the chat, ends it. Otherwise it builds one `message.sent` recipient list for the person: subject the latest unread message, parent the chat, `display` with `senderName`, `chatTitle`, `excerpt`, `count` and `summary`; and runs it through 11.2 steps 4 to 7 like any other list. Its `source_event_id` is `chat-flush:{chatId}:{latest message id}`.
 
 ### 11.4 Delivery task
 

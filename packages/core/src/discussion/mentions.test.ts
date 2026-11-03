@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { AuthorRecord } from './ports.js';
-import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
+import { keepAllowed, mentionTokens, mentionViews, nameMentions } from './mentions.js';
 
 function record(id: string, over: Partial<AuthorRecord> = {}): AuthorRecord {
   return {
@@ -35,6 +35,16 @@ describe('keepAllowed', () => {
   it('keeps the tokens in their order that the allowed list holds', () => {
     expect(keepAllowed(['ou_3', 'ou_1', 'ou_2'], ['ou_1', 'ou_3'])).toEqual(['ou_3', 'ou_1']);
     expect(keepAllowed(['ou_1'], [])).toEqual([]);
+  });
+});
+
+describe('nameMentions', () => {
+  it('replaces each token with the person name, once per person', async () => {
+    const nameOf = vi.fn(async (id: string) => (id === 'ou_1' ? 'Sarah' : 'James'));
+    await expect(nameMentions('Hi <@ou_1> and <@ou_2>, <@ou_1>', nameOf)).resolves.toBe(
+      'Hi Sarah and James, Sarah',
+    );
+    expect(nameOf).toHaveBeenCalledTimes(2);
   });
 });
 

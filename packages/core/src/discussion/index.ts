@@ -5,6 +5,7 @@ export { DigestServiceImpl, latestDueAt } from './digests.js';
 export { ChatServiceImpl } from './chats.js';
 export { SubscriptionServiceImpl, activeSubscription } from './subscriptions.js';
 export { authorView } from './authors.js';
+export { nameMentions } from './mentions.js';
 export { DiscussionItemTitles } from './titles.js';
 export { discussionEvents } from './events.js';
 export {
