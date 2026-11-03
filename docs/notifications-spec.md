@@ -370,10 +370,10 @@ Each recipient list carries `display`, the text a channel needs. Each type decla
 | `chat.request` | `senderName`, `excerpt` | `messageRequest` |
 | `chat.added` | `adderName`, `participantNames` | `addedToGroupChat` |
 | `digest` | `communityTitle`, `from`, `to`, `posts: [{ postId, title, authorName, spaceName, commentCount }]` | `digest`, extended with the posts |
-| `space.join_requested` | `spaceName`, `memberName`, `seatsLeft` | `joinRequest` |
-| `space.invited` | `spaceName`, `inviterName` | `invitedToSpace` |
-| `space.request_approved` | `spaceName` | `requestApproved` |
-| `space.request_declined` | `spaceName` | `requestDeclined` |
+| `space.join_requested` | `spaceName`, `spaceId`, `memberName`, `seatsLeft` | `joinRequest` |
+| `space.invited` | `spaceName`, `spaceId`, `inviterName` | `invitedToSpace` |
+| `space.request_approved` | `spaceName`, `spaceId` | `requestApproved` |
+| `space.request_declined` | `spaceName`, `spaceId` | `requestDeclined` |
 | `community.welcome` | `communityTitle`, `spaceNames` | `welcomeToCommunity` |
 | `community.ending_soon` | `communityTitle`, `expiresAt` | `membershipEndingSoon` |
 | `community.membership_ended` | `communities: [{ communityId, communityTitle }]` | `membershipEnded`, changed: params `{ communities: { communityId: string; communityTitle: string }[] }` replace `{ communityTitle, communityId }`; its `SEND_EMAIL_DERIVATIONS` entry passes one community |
@@ -394,7 +394,7 @@ On a course activity, scope `org`:
 
 The activity templates take `courseId` from `display` and `activityId` from the parent reference for their links, where the post templates take `postId` and `communityId`. An activity link is `/courses/{courseId}?activity={activityId}` in the student portal, which opens the course at that activity. The rule reads `courseId` with the titles through `NotificationReads.activity`.
 
-A display value is a string or a list of strings; `digest.posts` and `community.membership_ended`'s `communities` are lists of objects. `excerpt` is the start of the body with mention tokens replaced by names. A `subject` type has one recipient per list, so its display can be specific to that person.
+A display value is a string or a list of strings; `digest.posts` and `community.membership_ended`'s `communities` are lists of objects. `excerpt` is the start of the body with mention tokens replaced by names. The `space.*` types carry `spaceId` in `display`, so a client can link to the space even when the notification list can no longer resolve it and answers `space: null`. A `subject` type has one recipient per list, so its display can be specific to that person.
 
 ## 7. Categories
 

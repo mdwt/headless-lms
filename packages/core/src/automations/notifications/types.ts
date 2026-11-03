@@ -228,7 +228,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     type: 'space.join_requested',
     scopes: ['space'],
     reasons: ['moderator'],
-    display: { space: ['spaceName', 'memberName', 'seatsLeft'] },
+    display: { space: ['spaceName', 'spaceId', 'memberName', 'seatsLeft'] },
     email: { space: { template: 'joinRequest' } },
     push: {
       space: {
@@ -241,7 +241,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     type: 'space.invited',
     scopes: ['space'],
     reasons: ['subject'],
-    display: { space: ['spaceName', 'inviterName'] },
+    display: { space: ['spaceName', 'spaceId', 'inviterName'] },
     email: { space: { template: 'invitedToSpace' } },
     push: {
       space: {
@@ -254,7 +254,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     type: 'space.request_approved',
     scopes: ['space'],
     reasons: ['subject'],
-    display: { space: ['spaceName'] },
+    display: { space: ['spaceName', 'spaceId'] },
     email: { space: { template: 'requestApproved' } },
     push: {
       space: {
@@ -267,7 +267,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     type: 'space.request_declined',
     scopes: ['space'],
     reasons: ['subject'],
-    display: { space: ['spaceName'] },
+    display: { space: ['spaceName', 'spaceId'] },
     email: { space: { template: 'requestDeclined' } },
     push: {
       space: {

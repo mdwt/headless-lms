@@ -121,6 +121,7 @@ const spaceMemberCreated: RecipientRule = async (event, reads) => {
         ...found.base,
         display: {
           spaceName: found.space.name,
+          spaceId: member.spaceId,
           memberName: await reads.displayName(orgId, member.orgUserId),
           seatsLeft: seatsLeft(found.space.capacity, active),
         },
@@ -148,6 +149,7 @@ const spaceMemberCreated: RecipientRule = async (event, reads) => {
         ...found.base,
         display: {
           spaceName: found.space.name,
+          spaceId: member.spaceId,
           inviterName: inviter ? await reads.displayName(orgId, inviter) : 'A member',
         },
       },
@@ -175,7 +177,7 @@ const spaceMemberUpdated: RecipientRule = async (event, reads) => {
   );
   return found
     ? listOf(
-        { ...found.base, display: { spaceName: found.space.name } },
+        { ...found.base, display: { spaceName: found.space.name, spaceId: member.spaceId } },
         await subjectOnly(event, reads, member.orgUserId),
       )
     : [];
@@ -196,7 +198,7 @@ const spaceMemberDeleted: RecipientRule = async (event, reads) => {
   );
   return found
     ? listOf(
-        { ...found.base, display: { spaceName: found.space.name } },
+        { ...found.base, display: { spaceName: found.space.name, spaceId: member.spaceId } },
         await subjectOnly(event, reads, member.orgUserId),
       )
     : [];

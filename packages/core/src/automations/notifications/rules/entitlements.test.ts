@@ -135,7 +135,12 @@ describe('entitlement.space_member.created', () => {
         communityId: 'cmy_1',
         spaceId: 'spc_speaking',
         subject: { type: 'space', id: 'spc_speaking' },
-        display: { spaceName: 'Speaking partners', memberName: 'Sarah', seatsLeft: '3' },
+        display: {
+          spaceName: 'Speaking partners',
+          spaceId: 'spc_speaking',
+          memberName: 'Sarah',
+          seatsLeft: '3',
+        },
       }),
     ]);
     expect(people(lists[0])).toEqual({ ou_mia: ['moderator'], ou_olivia: ['moderator'] });
@@ -151,7 +156,7 @@ describe('entitlement.space_member.created', () => {
       expect.objectContaining({
         type: 'space.invited',
         actorOrgUserId: 'ou_mia',
-        display: { spaceName: 'Speaking partners', inviterName: 'Mia' },
+        display: { spaceName: 'Speaking partners', spaceId: 'spc_speaking', inviterName: 'Mia' },
       }),
     ]);
     expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
@@ -176,7 +181,7 @@ describe('entitlement.space_member.updated and deleted', () => {
     const lists = await run(updated('active', 'requested'));
     expect(lists[0]).toMatchObject({
       type: 'space.request_approved',
-      display: { spaceName: 'Speaking partners' },
+      display: { spaceName: 'Speaking partners', spaceId: 'spc_speaking' },
     });
     expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
     expect(await run(updated('active', 'invited'))).toEqual([]);
@@ -192,7 +197,7 @@ describe('entitlement.space_member.updated and deleted', () => {
     const lists = await run(deleted('requested', 'ou_mia'));
     expect(lists[0]).toMatchObject({
       type: 'space.request_declined',
-      display: { spaceName: 'Speaking partners' },
+      display: { spaceName: 'Speaking partners', spaceId: 'spc_speaking' },
     });
     expect(people(lists[0])).toEqual({ ou_sarah: ['subject'] });
     expect(await run(deleted('active', 'ou_mia'))).toEqual([]);
