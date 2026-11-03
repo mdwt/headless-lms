@@ -6312,7 +6312,7 @@
     },
     "/api/communities/{communityId}/settings": {
       "patch": {
-        "operationId": "patchCommunityDmSettings",
+        "operationId": "patchCommunitySettings",
         "summary": "Change the direct-message and digest settings of a community (staff)",
         "tags": [
           "Communities"

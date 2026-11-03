@@ -143,7 +143,7 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
     method: 'PATCH',
     url: '/api/communities/:communityId/settings',
     schema: {
-      operationId: 'patchCommunityDmSettings',
+      operationId: 'patchCommunitySettings',
       tags,
       summary: 'Change the direct-message and digest settings of a community (staff)',
       description:

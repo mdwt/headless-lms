@@ -74,7 +74,7 @@ export async function patchDmSettingsAction(
   communityId: string,
   patch: Partial<DmSettings>,
 ): Promise<DmSettings> {
-  const community = await Communities.patchCommunityDmSettings(
+  const community = await Communities.patchCommunitySettings(
     { communityId, ...patch },
     await authHeaders(),
   );
@@ -86,7 +86,7 @@ export async function patchDigestScheduleAction(
   communityId: string,
   digest: DigestSchedule | null,
 ): Promise<DigestSchedule | null> {
-  const community = await Communities.patchCommunityDmSettings(
+  const community = await Communities.patchCommunitySettings(
     { communityId, digest },
     await authHeaders(),
   );

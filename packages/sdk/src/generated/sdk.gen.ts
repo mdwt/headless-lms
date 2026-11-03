@@ -334,8 +334,8 @@ import type {
   ModerateRemoveCommentResponses,
   OpenPostCommentsErrors,
   OpenPostCommentsResponses,
-  PatchCommunityDmSettingsErrors,
-  PatchCommunityDmSettingsResponses,
+  PatchCommunitySettingsErrors,
+  PatchCommunitySettingsResponses,
   PinPostErrors,
   PinPostResponses,
   PostCommentErrors,
@@ -3433,7 +3433,7 @@ export class Communities {
    *
    * Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.
    */
-  public static patchCommunityDmSettings<ThrowOnError extends boolean = false>(
+  public static patchCommunitySettings<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
       enabled?: boolean;
@@ -3461,8 +3461,8 @@ export class Communities {
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
-    PatchCommunityDmSettingsResponses,
-    PatchCommunityDmSettingsErrors,
+    PatchCommunitySettingsResponses,
+    PatchCommunitySettingsErrors,
     ThrowOnError,
     "data"
   > {
@@ -3485,8 +3485,8 @@ export class Communities {
       ],
     );
     return (options?.client ?? client).patch<
-      PatchCommunityDmSettingsResponses,
-      PatchCommunityDmSettingsErrors,
+      PatchCommunitySettingsResponses,
+      PatchCommunitySettingsErrors,
       ThrowOnError,
       "data"
     >({

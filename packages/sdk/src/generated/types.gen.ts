@@ -2180,7 +2180,7 @@ export type UpdateCommunityResponses = {
 
 export type UpdateCommunityResponse = UpdateCommunityResponses[keyof UpdateCommunityResponses];
 
-export type PatchCommunityDmSettingsData = {
+export type PatchCommunitySettingsData = {
   body: {
     enabled?: boolean;
     memberToMember?: boolean;
@@ -2218,7 +2218,7 @@ export type PatchCommunityDmSettingsData = {
   url: "/api/communities/{communityId}/settings";
 };
 
-export type PatchCommunityDmSettingsErrors = {
+export type PatchCommunitySettingsErrors = {
   /**
    * Default Response
    */
@@ -2268,10 +2268,10 @@ export type PatchCommunityDmSettingsErrors = {
   };
 };
 
-export type PatchCommunityDmSettingsError =
-  PatchCommunityDmSettingsErrors[keyof PatchCommunityDmSettingsErrors];
+export type PatchCommunitySettingsError =
+  PatchCommunitySettingsErrors[keyof PatchCommunitySettingsErrors];
 
-export type PatchCommunityDmSettingsResponses = {
+export type PatchCommunitySettingsResponses = {
   /**
    * Default Response
    */
@@ -2316,8 +2316,8 @@ export type PatchCommunityDmSettingsResponses = {
   };
 };
 
-export type PatchCommunityDmSettingsResponse =
-  PatchCommunityDmSettingsResponses[keyof PatchCommunityDmSettingsResponses];
+export type PatchCommunitySettingsResponse =
+  PatchCommunitySettingsResponses[keyof PatchCommunitySettingsResponses];
 
 export type ResetCommunityNotificationCategoriesData = {
   body?: never;

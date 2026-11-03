@@ -107,4 +107,10 @@ describe('the OpenAPI contract', () => {
     const body = createPost.requestBody!.content['application/json']!.schema as JsonSchema;
     expect(body.properties!.scheduledAt).toMatchObject({ format: 'date-time' });
   });
+
+  it('names the community settings change for what it changes', () => {
+    const ids = operations.map((op) => op.operationId);
+    expect(ids).toContain('patchCommunitySettings');
+    expect(ids).not.toContain('patchCommunityDmSettings');
+  });
 });

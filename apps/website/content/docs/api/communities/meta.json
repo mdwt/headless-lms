@@ -7,7 +7,7 @@
     "getCommunity",
     "updateCommunity",
     "deleteCommunity",
-    "patchCommunityDmSettings",
+    "patchCommunitySettings",
     "publishCommunity",
     "unpublishCommunity",
     "getCommunityAnalytics",
