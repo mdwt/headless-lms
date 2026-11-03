@@ -215,7 +215,11 @@ function build(options: Options = {}) {
       list: () => configured,
       get: (key) =>
         key !== 'inApp' && configured.includes(key)
-          ? { key, recipient: async () => null, deliver: async () => ({ deadDeviceIds: [] }) }
+          ? {
+              key,
+              recipient: async () => null,
+              deliver: async () => ({ accepted: true, deadDeviceIds: [] }),
+            }
           : undefined,
     },
     categories: { listFor },

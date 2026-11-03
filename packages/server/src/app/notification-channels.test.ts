@@ -5,6 +5,7 @@ import {
   NOTIFICATION_TYPES,
 } from '@headless-lms/core/automations';
 import { categoryListProblems } from '@headless-lms/core/shared/notification-categories';
+import { EmailRejectedError } from '@headless-lms/core/shared/mailer';
 import type {
   NotificationChannel,
   PushDevice,
@@ -22,7 +23,11 @@ import {
 const defaults = { community: DEFAULT_COMMUNITY_CATEGORIES, org: DEFAULT_ORG_CATEGORIES };
 
 function channel(key: string): NotificationChannel {
-  return { key, recipient: async () => null, deliver: async () => ({ deadDeviceIds: [] }) };
+  return {
+    key,
+    recipient: async () => null,
+    deliver: async () => ({ accepted: true, deadDeviceIds: [] }),
+  };
 }
 
 function notification(over: Partial<StoredNotification> = {}): StoredNotification {
@@ -142,7 +147,10 @@ describe('email channel', () => {
     await expect(email.recipient('org_1', 'usr_nobody')).resolves.toBeNull();
     const to = await email.recipient('org_1', 'usr_sarah');
     expect(to).toEqual({ email: 'sarah@example.com' });
-    await expect(email.deliver(notification(), to!)).resolves.toEqual({ deadDeviceIds: [] });
+    await expect(email.deliver(notification(), to!)).resolves.toEqual({
+      accepted: true,
+      deadDeviceIds: [],
+    });
     expect(send).toHaveBeenCalledWith('sarah@example.com', 'replyToYourComment', {
       commentId: 'cmt_1',
       postId: 'pst_1',
@@ -157,6 +165,32 @@ describe('email channel', () => {
       'sarah@example.com',
       'newCommentOnPost',
       expect.anything(),
+    );
+  });
+
+  it('answers not accepted for an email the provider rejects, and throws for a failure worth retrying', async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new EmailRejectedError('resend responded 422: Invalid `to` field', 422),
+      )
+      .mockRejectedValueOnce(new Error('resend responded 503'));
+    const { channels } = buildNotificationRegistries({
+      declarations: NOTIFICATION_TYPES,
+      defaults,
+      mailer: { send },
+      emailOf: async () => 'sarah@example.com',
+      push: null,
+      channels: [],
+    });
+    const email = channels.get('email')!;
+    await expect(email.deliver(notification(), { email: 'sarah@example.com' })).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: [],
+      error: 'resend responded 422: Invalid `to` field',
+    });
+    await expect(email.deliver(notification(), { email: 'sarah@example.com' })).rejects.toThrow(
+      'resend responded 503',
     );
   });
 
@@ -193,7 +227,10 @@ describe('push channel', () => {
     environment: 'production',
   };
 
-  function registries(devices: PushDevice[], send = vi.fn(async () => ({ deadDeviceIds: [] }))) {
+  function registries(
+    devices: PushDevice[],
+    send = vi.fn(async () => ({ accepted: true, deadDeviceIds: [] as string[] })),
+  ) {
     const activeDevices = vi.fn(async () => devices);
     const built = buildNotificationRegistries({
       declarations: NOTIFICATION_TYPES,
@@ -230,7 +267,7 @@ describe('push channel', () => {
   });
 
   it("renders the type's push text from display and sends it with the notification's references", async () => {
-    const send = vi.fn(async () => ({ deadDeviceIds: ['dev_2'] }));
+    const send = vi.fn(async () => ({ accepted: true, deadDeviceIds: ['dev_2'] }));
     const { channels } = registries([iphone], send);
     const push = channels.get('push')!;
     await expect(
@@ -243,7 +280,7 @@ describe('push channel', () => {
         }),
         { devices: [iphone] },
       ),
-    ).resolves.toEqual({ deadDeviceIds: ['dev_2'] });
+    ).resolves.toEqual({ accepted: true, deadDeviceIds: ['dev_2'] });
     expect(send).toHaveBeenCalledWith([iphone], {
       title: 'James mentioned you in Week 3',
       body: 'See you at practice',

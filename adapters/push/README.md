@@ -38,8 +38,9 @@ null for a notification outside a community or a space.
 
 ## Results
 
-`send(devices, message)` sends to every device and returns `{ deadDeviceIds }`, the devices the
-provider answered as gone; the caller deletes them.
+`send(devices, message)` sends to every device and returns `{ accepted, deadDeviceIds, error? }`:
+`accepted` is true when at least one device accepted; `deadDeviceIds` are the devices the provider
+answered as gone, which the caller deletes; `error` names each device's answer when none accepted.
 
 | Provider  | Dead when the provider answers                                             |
 | --------- | -------------------------------------------------------------------------- |
@@ -49,6 +50,8 @@ provider answered as gone; the caller deletes them.
 
 `send` succeeds when at least one device accepted. It throws, so the delivery is retried, only when
 no device accepted and at least one failure was worth retrying: a network error, `429` or `5xx`.
+When no device accepted and none of the failures is worth retrying, it returns `accepted: false`,
+and the delivery is failed with `error` without a retry.
 An APNs `403 ExpiredProviderToken` or an FCM `401` also drops the cached token and counts as
 retryable.
 

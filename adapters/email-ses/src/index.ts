@@ -1,6 +1,7 @@
 // AWS SES implementation of the EmailSender port.
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import type { EmailSender, EmailMessage, Logger } from "@headless-lms/core/types";
+import { EmailRejectedError } from "@headless-lms/core/shared/mailer";
 
 export interface SesEmailConfig {
   region: string;
@@ -11,6 +12,37 @@ export interface SesEmailConfig {
   secretAccessKey?: string;
   /** SES configuration set to send through. */
   configurationSetName?: string;
+}
+
+const THROTTLED = new Set([
+  "TooManyRequestsException",
+  "LimitExceededException",
+  "ThrottlingException",
+]);
+
+interface SesFailure {
+  name?: string;
+  message?: string;
+  $fault?: "client" | "server";
+  $retryable?: unknown;
+  $metadata?: { httpStatusCode?: number };
+}
+
+function rejected(err: unknown): EmailRejectedError | null {
+  const failure = (err ?? {}) as SesFailure;
+  const status = failure.$metadata?.httpStatusCode;
+  if (
+    failure.$fault !== "client" ||
+    failure.$retryable ||
+    status === 429 ||
+    THROTTLED.has(failure.name ?? "")
+  ) {
+    return null;
+  }
+  return new EmailRejectedError(
+    `ses ${failure.name ?? "error"}${status ? ` ${status}` : ""}: ${failure.message ?? ""}`,
+    status,
+  );
 }
 
 interface SesClient {
@@ -63,7 +95,7 @@ export class SesEmailAdapter implements EmailSender {
       await this.client.send(command);
     } catch (err) {
       this.logger?.error("email send failed", { err });
-      throw err;
+      throw rejected(err) ?? err;
     }
   }
 }

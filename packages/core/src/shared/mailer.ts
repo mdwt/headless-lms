@@ -22,6 +22,20 @@ export interface MailerLookups {
   ): Promise<{ id: string; title: string; type: ContentType } | null>;
 }
 
+export class EmailRejectedError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'EmailRejectedError';
+  }
+}
+
+export function isEmailRejected(err: unknown): err is EmailRejectedError {
+  return err instanceof Error && err.name === 'EmailRejectedError';
+}
+
 export class Mailer {
   constructor(
     private readonly templates: TemplateRenderer,

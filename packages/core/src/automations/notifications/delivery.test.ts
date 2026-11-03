@@ -3,7 +3,7 @@ import type { NotificationChannel } from '../../shared/ports.js';
 import type { Delivery, PushDevice, StoredNotification } from '../../types/index.js';
 import {
   CHANNEL_NOT_CONFIGURED,
-  EVERY_DEVICE_DEAD,
+  NOT_ACCEPTED,
   NO_ADDRESS,
   NotificationDelivery,
 } from './delivery.js';
@@ -71,7 +71,7 @@ function build(options: {
       : {
           key: 'push',
           recipient: vi.fn(async () => ({ devices: [device('dev_1'), device('dev_2')] })),
-          deliver: vi.fn(async () => ({ deadDeviceIds: [] })),
+          deliver: vi.fn(async () => ({ accepted: true, deadDeviceIds: [] })),
           ...options.channel,
         };
   const devices = { removeDead: vi.fn(async () => {}) };
@@ -150,20 +150,48 @@ describe('NotificationDelivery', () => {
 
   it('removes the devices reported dead and keeps the delivery sent when another accepted', async () => {
     const { repo, devices, task } = build({
-      channel: { deliver: vi.fn(async () => ({ deadDeviceIds: ['dev_1'] })) },
+      channel: { deliver: vi.fn(async () => ({ accepted: true, deadDeviceIds: ['dev_1'] })) },
     });
     await task.run(D, false);
     expect(devices.removeDead).toHaveBeenCalledWith('org_1', ['dev_1']);
     expect(repo.markSent).toHaveBeenCalled();
   });
 
-  it('fails the delivery when every device was dead', async () => {
+  it('fails the delivery with the provider answers when every device was dead', async () => {
+    const error =
+      'push accepted by no device: dev_1: apns 410 Unregistered; dev_2: apns 410 Unregistered';
     const { repo, devices, task } = build({
-      channel: { deliver: vi.fn(async () => ({ deadDeviceIds: ['dev_1', 'dev_2'] })) },
+      channel: {
+        deliver: vi.fn(async () => ({
+          accepted: false,
+          deadDeviceIds: ['dev_1', 'dev_2'],
+          error,
+        })),
+      },
     });
     await task.run(D, false);
     expect(devices.removeDead).toHaveBeenCalledWith('org_1', ['dev_1', 'dev_2']);
-    expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', EVERY_DEVICE_DEAD);
+    expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', error);
     expect(repo.markSent).not.toHaveBeenCalled();
+  });
+
+  it('fails without retrying when no device accepted and no failure was dead or retryable', async () => {
+    const error = 'push accepted by no device: dev_1: apns 400 BadTopic; dev_2: apns 400 BadTopic';
+    const { repo, devices, task } = build({
+      channel: { deliver: vi.fn(async () => ({ accepted: false, deadDeviceIds: [], error })) },
+    });
+    await expect(task.run(D, false)).resolves.toBeUndefined();
+    expect(devices.removeDead).not.toHaveBeenCalled();
+    expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', error);
+    expect(repo.recordError).not.toHaveBeenCalled();
+    expect(repo.markSent).not.toHaveBeenCalled();
+  });
+
+  it('names no answer when a channel refuses without one', async () => {
+    const { repo, task } = build({
+      channel: { deliver: vi.fn(async () => ({ accepted: false, deadDeviceIds: [] })) },
+    });
+    await task.run(D, false);
+    expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', NOT_ACCEPTED);
   });
 });

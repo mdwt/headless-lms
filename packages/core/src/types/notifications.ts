@@ -125,7 +125,9 @@ export interface ChannelRecipient {
 }
 
 export interface DeliveryResult {
+  accepted: boolean;
   deadDeviceIds: string[];
+  error?: string;
 }
 
 export interface NotificationFilter {

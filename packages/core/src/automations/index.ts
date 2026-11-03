@@ -4,7 +4,7 @@ export { cronMatches } from './schedule.js';
 export { NotificationsServiceImpl } from './notifications/service.js';
 export {
   CHANNEL_NOT_CONFIGURED,
-  EVERY_DEVICE_DEAD,
+  NOT_ACCEPTED,
   NO_ADDRESS,
   NotificationDelivery,
 } from './notifications/delivery.js';

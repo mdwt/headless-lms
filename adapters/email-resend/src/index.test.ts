@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isEmailRejected } from "@headless-lms/core/shared/mailer";
 import { ResendEmailAdapter } from "./index.js";
 
 /** Fake fetch capturing the request and returning a canned response. */
@@ -47,6 +48,24 @@ describe("ResendEmailAdapter", () => {
     await expect(
       adapter.send({ to: "student@example.com", subject: "Welcome", text: "Hi" }),
     ).rejects.toThrow(/422.*Invalid `from` field/);
+  });
+
+  it("rejects permanently on a 4xx other than 408 and 429, and plainly otherwise", async () => {
+    const failure = async (status: number) => {
+      const { fetchFn } = fakeFetch(status, { message: "no" });
+      const adapter = new ResendEmailAdapter({ apiKey: "k", from: "a@b.c" }, undefined, fetchFn);
+      return adapter.send({ to: "s@e.com", subject: "Hi", text: "Hi" }).catch((err) => err);
+    };
+    for (const status of [400, 401, 403, 422]) {
+      const err = await failure(status);
+      expect(isEmailRejected(err)).toBe(true);
+      expect(err).toMatchObject({ status, message: `resend responded ${status}: no` });
+    }
+    for (const status of [408, 429, 500, 503]) {
+      const err = await failure(status);
+      expect(err).toBeInstanceOf(Error);
+      expect(isEmailRejected(err)).toBe(false);
+    }
   });
 
   it("throws a status-only error when the error body is not JSON", async () => {

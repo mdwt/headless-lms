@@ -174,7 +174,7 @@ describe("PushAdapter with APNs", () => {
 
     const result = await adapter.send([apnsDevice("dev_1")], MESSAGE);
 
-    expect(result).toEqual({ deadDeviceIds: [] });
+    expect(result).toEqual({ accepted: true, deadDeviceIds: [] });
     expect(calls).toHaveLength(1);
     const [call] = calls;
     expect(call!.origin).toBe(APNS_PRODUCTION);
@@ -236,7 +236,9 @@ describe("PushAdapter with APNs", () => {
     const adapter = new PushAdapter({ apns: APNS }, { http2: transport });
 
     await expect(adapter.send([apnsDevice("dev_1")], MESSAGE)).resolves.toEqual({
+      accepted: false,
       deadDeviceIds: ["dev_1"],
+      error: `push accepted by no device: dev_1: apns ${status} ${reason}`,
     });
   });
 
@@ -265,7 +267,9 @@ describe("PushAdapter with APNs", () => {
     const adapter = new PushAdapter({ apns: APNS }, { http2: transport });
 
     await expect(adapter.send([apnsDevice("dev_1")], MESSAGE)).resolves.toEqual({
+      accepted: false,
       deadDeviceIds: [],
+      error: "push accepted by no device: dev_1: apns 400 BadTopic",
     });
   });
 
@@ -290,9 +294,9 @@ describe("PushAdapter with APNs", () => {
     const { calls, transport } = fakeHttp2({ status: 200 });
     const adapter = new PushAdapter({ apns: APNS }, { http2: transport });
 
-    await expect(adapter.send([apnsDevice("dev_1", { appId: null })], MESSAGE)).resolves.toEqual({
-      deadDeviceIds: [],
-    });
+    await expect(
+      adapter.send([apnsDevice("dev_1", { appId: null })], MESSAGE),
+    ).resolves.toMatchObject({ accepted: false, deadDeviceIds: [] });
     expect(calls).toHaveLength(0);
   });
 });
@@ -305,6 +309,7 @@ describe("PushAdapter with FCM", () => {
     const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn, now: () => 1_700_000_000_000 });
 
     await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toEqual({
+      accepted: true,
       deadDeviceIds: [],
     });
 
@@ -378,7 +383,8 @@ describe("PushAdapter with FCM", () => {
     const { fetchFn } = fakeFetch(fcmRoutes(fcmFailure(status, statusText, errorCode)));
     const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn });
 
-    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toEqual({
+    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toMatchObject({
+      accepted: false,
       deadDeviceIds: ["dev_1"],
     });
   });
@@ -421,8 +427,10 @@ describe("PushAdapter with FCM", () => {
     const { fetchFn } = fakeFetch(fcmRoutes(fcmFailure(403, "PERMISSION_DENIED")));
     const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn });
 
-    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toEqual({
+    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toMatchObject({
+      accepted: false,
       deadDeviceIds: [],
+      error: expect.stringContaining("dev_1: fcm 403"),
     });
   });
 
@@ -441,7 +449,8 @@ describe("PushAdapter with FCM", () => {
     );
     const adapter = new PushAdapter({ fcm: FCM }, { fetch: fetchFn });
 
-    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toEqual({
+    await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toMatchObject({
+      accepted: false,
       deadDeviceIds: [],
     });
   });
@@ -459,7 +468,10 @@ describe("PushAdapter with Web Push", () => {
     const adapter = new PushAdapter({ webpush: WEBPUSH }, { fetch: fetchFn });
     const device = webpushDevice("dev_1");
 
-    await expect(adapter.send([device], MESSAGE)).resolves.toEqual({ deadDeviceIds: [] });
+    await expect(adapter.send([device], MESSAGE)).resolves.toEqual({
+      accepted: true,
+      deadDeviceIds: [],
+    });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe(device.token);
@@ -482,7 +494,9 @@ describe("PushAdapter with Web Push", () => {
     const adapter = new PushAdapter({ webpush: WEBPUSH }, { fetch: fetchFn });
 
     await expect(adapter.send([webpushDevice("dev_1")], MESSAGE)).resolves.toEqual({
+      accepted: false,
       deadDeviceIds: ["dev_1"],
+      error: `push accepted by no device: dev_1: webpush ${status}`,
     });
   });
 
@@ -506,8 +520,10 @@ describe("PushAdapter with Web Push", () => {
     const { fetchFn } = fakeFetch(new Response(null, { status }));
     const adapter = new PushAdapter({ webpush: WEBPUSH }, { fetch: fetchFn });
 
-    await expect(adapter.send([webpushDevice("dev_1")], MESSAGE)).resolves.toEqual({
+    await expect(adapter.send([webpushDevice("dev_1")], MESSAGE)).resolves.toMatchObject({
+      accepted: false,
       deadDeviceIds: [],
+      error: expect.stringContaining(`dev_1: webpush ${status}`),
     });
   });
 
@@ -517,7 +533,7 @@ describe("PushAdapter with Web Push", () => {
 
     await expect(
       adapter.send([webpushDevice("dev_1", { p256dh: null, auth: null })], MESSAGE),
-    ).resolves.toEqual({ deadDeviceIds: [] });
+    ).resolves.toMatchObject({ accepted: false, deadDeviceIds: [] });
     expect(calls).toHaveLength(0);
   });
 });
@@ -535,7 +551,7 @@ describe("PushAdapter across devices", () => {
 
     await expect(
       adapter.send([webpushDevice("dev_1"), webpushDevice("dev_2")], MESSAGE),
-    ).resolves.toEqual({ deadDeviceIds: [] });
+    ).resolves.toEqual({ accepted: true, deadDeviceIds: [] });
   });
 
   it("reports the dead devices when another device accepted", async () => {
@@ -544,16 +560,20 @@ describe("PushAdapter across devices", () => {
 
     await expect(
       adapter.send([webpushDevice("dev_1"), webpushDevice("dev_2")], MESSAGE),
-    ).resolves.toEqual({ deadDeviceIds: ["dev_2"] });
+    ).resolves.toEqual({ accepted: true, deadDeviceIds: ["dev_2"] });
   });
 
-  it("reports every device dead without throwing when all were dead", async () => {
+  it("reports every device dead and not accepted, without throwing, when all were dead", async () => {
     const { fetchFn } = webpushStatus({ dev_1: 404, dev_2: 410 });
     const adapter = new PushAdapter({ webpush: WEBPUSH }, { fetch: fetchFn });
 
     await expect(
       adapter.send([webpushDevice("dev_1"), webpushDevice("dev_2")], MESSAGE),
-    ).resolves.toEqual({ deadDeviceIds: ["dev_1", "dev_2"] });
+    ).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: ["dev_1", "dev_2"],
+      error: "push accepted by no device: dev_1: webpush 404; dev_2: webpush 410",
+    });
   });
 
   it("throws when none accepted and one failure was retryable, although another was dead", async () => {
@@ -590,7 +610,9 @@ describe("PushAdapter across devices", () => {
     const adapter = new PushAdapter({ webpush: WEBPUSH }, { fetch: fetchFn });
 
     await expect(adapter.send([fcmDevice("dev_1")], MESSAGE)).resolves.toEqual({
+      accepted: false,
       deadDeviceIds: [],
+      error: "push accepted by no device: dev_1: push through fcm is not configured",
     });
     expect(calls).toHaveLength(0);
   });
@@ -598,6 +620,10 @@ describe("PushAdapter across devices", () => {
   it("sends nothing for no devices", async () => {
     const adapter = new PushAdapter({ webpush: WEBPUSH });
 
-    await expect(adapter.send([], MESSAGE)).resolves.toEqual({ deadDeviceIds: [] });
+    await expect(adapter.send([], MESSAGE)).resolves.toEqual({
+      accepted: false,
+      deadDeviceIds: [],
+      error: "no device to send to",
+    });
   });
 });

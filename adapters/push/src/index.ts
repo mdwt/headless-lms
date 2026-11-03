@@ -72,7 +72,17 @@ export class PushAdapter implements PushSender {
     if (!anyAccepted && anyRetryable) {
       throw new Error(`push accepted by no device: ${errors.join("; ")}`);
     }
-    return { deadDeviceIds };
+    if (anyAccepted) {
+      return { accepted: true, deadDeviceIds };
+    }
+    return {
+      accepted: false,
+      deadDeviceIds,
+      error:
+        errors.length > 0
+          ? `push accepted by no device: ${errors.join("; ")}`
+          : "no device to send to",
+    };
   }
 
   private async sendOne(device: PushDevice, message: PushMessage): Promise<Outcome> {

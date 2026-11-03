@@ -99,7 +99,7 @@ James comments on Sarah's post in Practice and mentions her. Emma follows the po
 | 6 | automations | resolves channels. Sarah's `mentions`: in-app and push. Emma's `followed_posts`: in-app. | `notification_settings` | |
 | 7 | automations, one transaction | inserts the notifications and deliveries. A redelivered event inserts nothing, because of the unique key. | | `notifications`: Sarah `mention`, Emma `comment.created`; `notification_deliveries`: Sarah `push`, `pending` |
 | 8 | automations | dispatches one engine task for Sarah's push delivery | | |
-| 9 | engine task | loads the delivery, gets Sarah's devices from identity, calls the push adapter and marks the delivery `sent`. On failure it records the error and throws; the engine retries. | `notification_deliveries`; `devices` through identity | `notification_deliveries` |
+| 9 | engine task | loads the delivery, gets Sarah's devices from identity, calls the push adapter and marks the delivery `sent` when a device accepted it, `failed` with the provider's answers when none did and none is worth retrying. On a retryable failure it records the error and throws; the engine retries. | `notification_deliveries`; `devices` through identity | `notification_deliveries` |
 | 10 | `reporting/member` | serves both notifications on `GET /api/member/notifications`, through `NotificationsService.list` | `notifications` | |
 | 11 | automations | `POST /api/member/notifications/:notificationId/read` marks Sarah's notification read | | `notifications.read_at` |
 
@@ -581,7 +581,7 @@ A native app built with Expo registers the native token from `getDevicePushToken
 - **Register.** The app calls `POST /api/member/devices` after sign-in and on every launch. Identity upserts by `(provider, token)`: a new token adds a device, a known token updates `last_seen_at`, and a token registered by another person moves to the caller. A browser first reads the VAPID public key from `GET /api/member/push-config` for `pushManager.subscribe({ applicationServerKey })`, and registers again with the new endpoint on `pushsubscriptionchange`. Registration answers 422 for a provider that isn't configured, and for an `apns` device whose `app_id` isn't one of the configured bundle ids.
 - **Sign out.** The app calls `DELETE /api/member/devices/:deviceId` before it signs out, so the next person on the device receives none of the previous person's pushes.
 - **Send.** The push channel gets the person's devices seen in the last 30 days from identity and passes them to `PushSender.send`, which sends to each. APNs uses the device's `app_id` as `apns-topic`. A device not seen for 30 days receives nothing until the app registers again. Old rows are not swept; they stay until the token is registered again, reported dead or deleted.
-- **Partial failure.** A delivery succeeds when at least one device accepts it; devices that failed are not retried. `PushSender.send` throws, so the engine retries, only when no device accepted and at least one failure was retryable (network error, 429, 5xx, an APNs `403 ExpiredProviderToken`, an FCM `401`). A person with no device seen in the last 30 days at send time gets the delivery `failed` with `last_error: 'no address'`, not retried.
+- **Partial failure.** A delivery succeeds when at least one device accepts it; devices that failed are not retried. `PushSender.send` throws, so the engine retries, only when no device accepted and at least one failure was retryable (network error, 429, 5xx, an APNs `403 ExpiredProviderToken`, an FCM `401`). When no device accepted and no failure was retryable, because every device was dead or answered a failure not worth retrying such as an APNs `400 BadTopic`, it returns `accepted: false` with `error` naming each device's answer, `push accepted by no device: dev_1: apns 400 BadTopic`; the delivery is `failed` with that `last_error`, not retried. A person with no device seen in the last 30 days at send time gets the delivery `failed` with `last_error: 'no address'`, not retried.
 - **Dead tokens.** The push adapter reports the devices the provider answered as dead. The delivery task asks identity to delete them. The adapter writes nothing.
 - **Provider auth.** The adapter signs the APNs provider token (ES256, the team id and key id) and reuses it for 50 minutes; it exchanges a signed service-account assertion (RS256) for an FCM access token and reuses it until a minute before it expires. Either is dropped when the provider rejects it as expired.
 - **Payload.** APNs gets `{ aps: { alert: { title, body } }, data }`; FCM gets `notification: { title, body }` and `data` with string values, `subject` and `parent` JSON-encoded, and `subject`, `parent`, `communityId` and `spaceId` left out when null; Web Push gets the JSON `{ title, body, data }`, encrypted with `aes128gcm`.
@@ -661,8 +661,8 @@ The delivery task runs on the `AutomationEngine` adapter. For one delivery it:
 
 1. **Loads** the delivery and stops if it is not `pending`. A channel no longer configured marks it `failed` with `last_error: 'channel not configured'`.
 2. **Loads** the notification and the recipient's address through the channel's `recipient(orgId, userId)`: the email channel reads the email address through identity, the push channel the devices seen in the last 30 days. `null` marks the delivery `failed` with `last_error: 'no address'`, not retried.
-3. **Sends** through the channel's `deliver`.
-4. **On success** sets `status = sent` and `sent_at`. For push it asks identity to delete the devices the adapter reported dead; if every device was dead, it sets `status = failed` with `last_error` instead.
+3. **Sends** through the channel's `deliver`, which returns `{ accepted, deadDeviceIds, error? }`.
+4. **On a result** asks identity to delete the devices the adapter reported dead. When `accepted` is true it sets `status = sent` and `sent_at`; otherwise it sets `status = failed` with `last_error` the result's `error`, the provider's answers (`not accepted` when the channel gives none), and does not retry. Push answers not accepted when no device accepted and no failure was retryable (section 10); email when the mailer rejects the message for good.
 5. **On a thrown error** sets `last_error` and rethrows, so the engine retries the task.
 6. **On the engine's last attempt** sets `status = failed` instead of rethrowing.
 
@@ -1201,7 +1201,9 @@ interface ChannelRecipient {
 }
 
 interface DeliveryResult {
+  accepted: boolean;
   deadDeviceIds: string[];
+  error?: string;
 }
 
 interface ChannelRegistry {
@@ -1354,7 +1356,7 @@ The composition root refuses to start when two declarations share a type key. Au
 
 `NotificationReads` is today's `CommunityMailReads` plus the methods above. `comment()` gains `activityId` and `parentId`. Followers (`followerIds`), moderators (`moderationAudience`), staff (`staffIds`) and space openers (`spaceOpeners`) exist already. Every mute, on a post, space or chat, comes from `subscriptions` through `mutedAmong`; `chat()` keeps its participants' `muted` and `mutedUntil` for the `sendEmail` derivations, read from `subscriptions`. `NotificationReads` omits `recentMessageRecipients`, because the chat debounce replaces it; it stays in `CommunityMailReads` for the `sendEmail` derivations. A recipient list has either `recipients` or an `audience` (section 11.1).
 
-A channel throws for a failure worth retrying, such as a network error, a 429 or a 5xx, and returns normally otherwise; `PushSender.send` throws only as section 10 says for partial failure. `runDelivery` with `lastAttempt` true marks a failed delivery `failed` instead of throwing; Hatchet passes it on the last retry, the inline engine always. Product jobs run on the `Scheduler` port (section 14); `syncSchedules`, `listSchedules` and `fireSchedule` stay for org schedules.
+A channel throws for a failure worth retrying, such as a network error, a 429 or a 5xx, and otherwise returns a `DeliveryResult`: `accepted: true` when the provider took it, `accepted: false` with `error` naming the provider's answer when it refused it for good; `PushSender.send` throws only as section 10 says for partial failure. The email channel answers `accepted: false` for an `EmailRejectedError` (`shared/mailer`), which the mailers throw for a permanent refusal: the Resend adapter for a 4xx other than 408 and 429, such as a 422; the SES adapter for a client fault that is not throttling. Every other mailer error stays a plain error and is retried. `Mailer.send` passes the error through, so account emails and the `sendEmail` action see a thrown error as before. `runDelivery` with `lastAttempt` true marks a failed delivery `failed` instead of throwing; Hatchet passes it on the last retry, the inline engine always. Product jobs run on the `Scheduler` port (section 14); `syncSchedules`, `listSchedules` and `fireSchedule` stay for org schedules.
 
 ## 18. Domain events
 
@@ -1631,7 +1633,7 @@ Each tab is one `GET /api/member/notifications` call with a filter (section 13).
 
 ### 20.16 Email provider failure
 
-Sarah's notification is inserted with an `email` delivery, `pending`. The email adapter fails; the delivery task records the error and throws. Hatchet retries the task three times; if the last attempt fails, the delivery is `failed`. The inline engine makes one attempt. The in-app notification and other channels are unaffected. If the insert or the dispatch fails, the outbox redelivers the event; the unique key prevents a second notification and automations dispatches the deliveries still `pending`.
+Sarah's notification is inserted with an `email` delivery, `pending`. The email adapter fails with a 503; the delivery task records the error and throws. Hatchet retries the task three times; if the last attempt fails, the delivery is `failed`. Had the provider refused the message for good, such as Resend's 422 for an invalid address, the delivery would be `failed` at once with the provider's answer, not retried. The inline engine makes one attempt. The in-app notification and other channels are unaffected. If the insert or the dispatch fails, the outbox redelivers the event; the unique key prevents a second notification and automations dispatches the deliveries still `pending`.
 
 ### 20.17 A reply on a lesson
 

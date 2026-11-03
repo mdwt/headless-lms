@@ -1,5 +1,6 @@
 // Resend implementation of the EmailSender port.
 import type { EmailSender, EmailMessage, Logger } from "@headless-lms/core/types";
+import { EmailRejectedError } from "@headless-lms/core/shared/mailer";
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
@@ -7,6 +8,10 @@ export interface ResendEmailConfig {
   apiKey: string;
   /** Sender, e.g. "Acme LMS <noreply@acme.com>". Must be on a verified Resend domain. */
   from: string;
+}
+
+function permanent(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 408 && status !== 429;
 }
 
 export class ResendEmailAdapter implements EmailSender {
@@ -39,7 +44,11 @@ export class ResendEmailAdapter implements EmailSender {
         )
         .catch(() => "");
       this.logger?.error("email send failed", { status: response.status, detail });
-      throw new Error(`resend responded ${response.status}${detail ? `: ${detail}` : ""}`);
+      const message = `resend responded ${response.status}${detail ? `: ${detail}` : ""}`;
+      if (permanent(response.status)) {
+        throw new EmailRejectedError(message, response.status);
+      }
+      throw new Error(message);
     }
   }
 }

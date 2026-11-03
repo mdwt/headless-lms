@@ -1,12 +1,12 @@
 import type { DevicesService } from '../../identity/index.js';
 import { noopLogger } from '../../shared/logger.js';
 import type { ChannelRegistry, Logger } from '../../shared/ports.js';
-import type { ChannelRecipient, DeliveryDispatch } from '../../types/index.js';
+import type { ChannelRecipient, DeliveryDispatch, DeliveryResult } from '../../types/index.js';
 import type { NotificationsRepository } from '../ports.js';
 
 export const CHANNEL_NOT_CONFIGURED = 'channel not configured';
 export const NO_ADDRESS = 'no address';
-export const EVERY_DEVICE_DEAD = 'every device was dead';
+export const NOT_ACCEPTED = 'not accepted';
 
 export type NotificationDeliveryParams = {
   repo: Pick<NotificationsRepository, 'findDelivery' | 'markSent' | 'recordError' | 'markFailed'>;
@@ -17,14 +17,6 @@ export type NotificationDeliveryParams = {
 
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-function everyDeviceDead(to: ChannelRecipient, dead: string[]): boolean {
-  if (!to.devices || to.devices.length === 0 || dead.length === 0) {
-    return false;
-  }
-  const gone = new Set(dead);
-  return to.devices.every((device) => gone.has(device.id));
 }
 
 export class NotificationDelivery {
@@ -65,7 +57,7 @@ export class NotificationDelivery {
       return;
     }
     let to: ChannelRecipient | null;
-    let dead: string[];
+    let result: DeliveryResult;
     try {
       to = await channel.recipient(d.orgId, notification.userId);
       if (!to) {
@@ -73,7 +65,7 @@ export class NotificationDelivery {
         this.logger.info('notification delivery failed: no address', log);
         return;
       }
-      dead = (await channel.deliver(notification, to)).deadDeviceIds;
+      result = await channel.deliver(notification, to);
     } catch (err) {
       const error = messageOf(err);
       if (lastAttempt) {
@@ -85,12 +77,13 @@ export class NotificationDelivery {
       this.logger.warn('notification delivery attempt failed', { ...log, err });
       throw err;
     }
-    if (dead.length > 0) {
-      await this.devices.removeDead(d.orgId, dead);
+    if (result.deadDeviceIds.length > 0) {
+      await this.devices.removeDead(d.orgId, result.deadDeviceIds);
     }
-    if (everyDeviceDead(to, dead)) {
-      await this.repo.markFailed(d.orgId, d.deliveryId, EVERY_DEVICE_DEAD);
-      this.logger.info('notification delivery failed: every device was dead', log);
+    if (!result.accepted) {
+      const error = result.error ?? NOT_ACCEPTED;
+      await this.repo.markFailed(d.orgId, d.deliveryId, error);
+      this.logger.info('notification delivery failed: not accepted', { ...log, error });
       return;
     }
     await this.repo.markSent(d.orgId, d.deliveryId, new Date());
