@@ -14,7 +14,6 @@ export {
   MESSAGE_SENT,
   NotificationProcessor,
   PUSH,
-  noChatDebounce,
 } from './notifications/processor.js';
 export {
   CHAT_QUIET_MS,

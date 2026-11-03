@@ -31,7 +31,7 @@ export const PUSH = 'push';
 export const MESSAGE_SENT = 'message.sent';
 export const DEVICE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-export const noChatDebounce: ChatDebounce = {
+const noChatDebounce: ChatDebounce = {
   arm: async () => {},
   mentioned: async () => {},
 };
