@@ -597,7 +597,7 @@ Returning all lists together is what allows one notification per person per even
 
 | Event from | Event | Types | Condition |
 |---|---|---|---|
-| discussion | `discussion.post.published` | `post.published`, `mention`; `post.approved` | `post.approved` only when the previous status was `pending` |
+| discussion | `discussion.post.published` | `post.published`, `mention`; `post.approved` | nothing when the previous status was `removed` (a restore); `post.approved` only when the previous status was `pending` |
 | discussion | `discussion.post.created` | `post.awaiting_review` | `status` is `pending` |
 | discussion | `discussion.post.updated` | `post.awaiting_review`, `mention` | `post.awaiting_review` only when `status` is `pending` and the previous status was not |
 | discussion | `discussion.post.removed` | `post.removed` | removed by someone other than the author |
@@ -1039,7 +1039,7 @@ Written by discussion from the subscription routes. Read by discussion for item 
 | `muted_until` | timestamptz, null | with `muted` only |
 | `created_at` | timestamptz | |
 
-Primary key `(org_id, org_user_id, item_type, item_id)`. Index `(org_id, item_type, item_id, state)`. Foreign key `(org_id, org_user_id)` → `org_users`, on delete cascade. `item_*` refers to several tables and has no foreign key: when discussion deletes a post or chat it deletes the item's rows in the same transaction; rows left by a cascade from a deleted space or community are never read, because reads go by item.
+Primary key `(org_id, org_user_id, item_type, item_id)`. Index `(org_id, item_type, item_id, state)`. Foreign key `(org_id, org_user_id)` → `org_users`, on delete cascade. `item_*` refers to several tables and has no foreign key: discussion never hard-deletes posts, comments or chats (removal is a status), so rows stay with their item; rows left by a cascade from a deleted space or community are never read, because reads go by item.
 
 ### 16.7 mentions (new)
 
@@ -1053,7 +1053,7 @@ Written by discussion on create and edit of an item. Read by discussion for item
 | `org_user_id` | text | the person mentioned |
 | `created_at` | timestamptz | first mention |
 
-Primary key `(org_id, item_type, item_id, org_user_id)`. Foreign key `(org_id, org_user_id)` → `org_users`, on delete cascade. `item_*` has no foreign key; deletes follow `subscriptions`. On an edit, discussion inserts the new mentions, deletes the removed ones and keeps the rest, so `created_at` stays the first mention (18.3).
+Primary key `(org_id, item_type, item_id, org_user_id)`. Foreign key `(org_id, org_user_id)` → `org_users`, on delete cascade. `item_*` has no foreign key; rows stay with their item, as for `subscriptions`, except that deleting a message deletes its mention rows. On an edit, discussion inserts the new mentions, deletes the removed ones and keeps the rest, so `created_at` stays the first mention (18.3).
 
 ### 16.8 digest_runs (new)
 
@@ -1358,7 +1358,7 @@ A channel throws for a failure worth retrying, such as a network error, a 429 or
 | `discussion.comment.updated` | discussion | the comment, `mentionedOrgUserIds` | the comment's public fields, as `discussion.comment.created` has them |
 | `discussion.message.updated` | discussion | the message, `mentionedOrgUserIds` | the message's public fields, as `discussion.message.sent` has them |
 
-Each joins the trigger catalog (15.3). A reaction event fires only for a person's first reaction to an item. Changing the emoji replaces the reaction and emits nothing; removing it emits nothing.
+Each joins the trigger catalog (15.3). A reaction event fires when a person's reaction row is inserted. Changing the emoji replaces the reaction and emits nothing; removing it emits nothing; reacting again after removing emits again.
 
 ### 18.2 Changed events
 
@@ -1383,7 +1383,7 @@ Discussion, on create and edit of a post, comment or message:
 3. Inserts the new mentions, deletes the ones no longer in the body, and keeps the rest. A person is newly mentioned when they are in the new set and had no row before.
 4. Sets `mentionedOrgUserIds` on the item's event. A publish event carries every person the item mentions. An edit of a published item carries only the people it newly mentions. An edit of a draft, scheduled or pending item carries none, and neither does `discussion.comment.created` for a `pending` comment. Removing a token notifies no one; removing it and adding it back in a later edit notifies again.
 
-The publish events are `discussion.post.published`, `discussion.comment.created` for a published comment, `discussion.comment.published` and `discussion.message.sent`. Every path that publishes an item fills them: create, `submit`, the publish job (14.4), approving a post (`approve`) and approving a comment. Each reads the item's `mentions` rows and keeps the people who can open the item at that moment.
+The publish events are `discussion.post.published`, `discussion.comment.created` for a published comment, `discussion.comment.published` and `discussion.message.sent`. Every path that publishes an item fills them: create, `submit`, the publish job (14.4), approving a post (`approve`) and approving a comment. Each reads the item's `mentions` rows and keeps the people who can open the item at that moment. Restoring a removed post emits `discussion.post.published` with no `mentionedOrgUserIds`, and its rule produces nothing (11.1), so a restore notifies no one.
 
 Mentions travel on the item's own event. The recipient rule for the event returns the `comment.created` and `mention` lists together, so automations files a person who qualifies for both once.
 
@@ -1486,11 +1486,11 @@ It answers 204, and the app reads the GET again. It answers 404 when the caller 
 
 | Method and path | Access | Body |
 |---|---|---|
-| `PUT /api/member/posts/:postId/subscription` | can open the post | `{ "state": "following" \| "muted" \| "none", "mutedUntil"?: date }` |
+| `PUT /api/member/posts/:postId/subscription` | can open the post | `{ "state": "following" \| "none" }` or `{ "state": "muted", "mutedUntil"?: date }` |
 | `PUT /api/member/spaces/:spaceId/subscription` | can open the space | `{ "state": "muted" \| "none", "mutedUntil"?: date }` |
 | `PUT /api/member/chats/:chatId/subscription` | chat participant | `{ "state": "muted" \| "none", "mutedUntil"?: date }` |
 
-`none` deletes the row. Post, space and chat views include the caller's `subscription`. The subscription routes call discussion.
+`mutedUntil` goes with `muted` only; any other combination answers 400. The routes answer 204. `none` deletes the row. Post, space and chat views include the caller's `subscription`, `{ state, mutedUntil } | null`; a mute past its `mutedUntil` reads as `null`. The subscription routes call discussion.
 
 ### 19.5 Devices
 
