@@ -456,7 +456,8 @@ Automations applies these rules when it files a recipient list:
 - a type has no scope the list covers: `org` for the org list; `community`, `space` or `chat` for a community list;
 - a reason is not allowed for the type;
 - a channel is not configured;
-- `perSpace` is set and a covered type can't occur in a space;
+- a category offers no channel;
+- `perSpace` is set and a covered type can't occur in a space, or `perSpace` is set on the org list;
 - `spaceDefaults` appears without `perSpace` or names a channel the category doesn't offer;
 - earlier categories already cover every pair of a category.
 
@@ -477,7 +478,7 @@ Automations defines the default lists for communities and for the org in code, n
 - The first `PUT` stores the whole list. From then on the stored list applies, and a type added to the server later reaches that community only when its list covers it.
 - `DELETE` restores the default. `SettingsRepository.patch` can't remove a key, so it writes `notificationCategories: null`; a `null` or absent key means the default.
 
-The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`.
+The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`, leaving out channels the deployment no longer configures, so a list read and written back validates.
 
 **Default community list.** It contains the community app's categories plus `about_you` and `review`, which the app's list doesn't have.
 
@@ -1335,6 +1336,7 @@ Notes on the signatures:
 - The flush notification's `source_event_id` is `chat-flush:{chatId}:{latest message id}`, so a retried flush inserts nothing twice.
 - `NotificationsService.markRead` throws `NotFoundError` (404) when the notification isn't the caller's; the read routes answer 204.
 - `ItemTitles.titlesFor` keys its result `"{type}:{id}"` and returns only the refs the actor can open, with excerpts for comments and messages. Discussion builds it from today's `posts.visibleTitles` and `chats.titlesFor`.
+- `Actor` here is the member actor with the person's `userId` beside the org-user id, because `notification_settings` and `devices` are keyed by `user_id`. `NotificationCategoryService` takes no actor: the category routes check owner or admin.
 - `NotificationSettingsService.set` throws `NotFoundError` (404) when `CommunityAccessReader.canOpen` says no, and a validation error (422) for the cases in 19.3. `getMany` and `switchedOn` serve automations: `getMany` is keyed by user id; `switchedOn` returns org-user ids.
 - `NotificationCategoryService` is implemented by content (`scopeId` = community id) and by organizations (`scopeId` = org id). `replace` validates (7.3) and throws a validation error (422); `reset` stores `null` (7.5).
 - `NotificationTypeRegistry.list()` returns each declaration's `{ type, scopes, reasons }`.
@@ -1478,7 +1480,7 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
 ] }
 ```
 
-It answers 204, and the app reads the GET again. It answers 404 when the caller can't open the community, and 422 when the category doesn't exist, doesn't offer the channel, the channel is locked, or `spaceId` is given for a category that isn't `perSpace`. The route calls identity's `NotificationSettingsService.set`, which checks access through its `CommunityAccessReader` port (entitlements), reads the list in use through its `NotificationCategoryReader` port and validates against it. Identity stores space settings without checking the space; a setting for a space the member can't open never matches.
+It answers 204, and the app reads the GET again. A channel the category offers but the deployment doesn't configure counts as not offered; when one request changes the same setting twice, the last change wins. It answers 404 when the caller can't open the community, and 422 when the category doesn't exist, doesn't offer the channel, the channel is locked, or `spaceId` is given for a category that isn't `perSpace`. The route calls identity's `NotificationSettingsService.set`, which checks access through its `CommunityAccessReader` port (entitlements), reads the list in use through its `NotificationCategoryReader` port and validates against it. Identity stores space settings without checking the space; a setting for a space the member can't open never matches.
 
 `GET` and `PATCH /api/member/settings/notifications` do the same for the org's categories, for anyone signed in to the org.
 
@@ -1501,7 +1503,7 @@ It answers 204, and the app reads the GET again. It answers 404 when the caller 
 | `DELETE /api/member/devices/:deviceId` | the device's owner | 204 |
 | `GET /api/member/push-config` | signed in | `{ vapidPublicKey: string \| null }`; `null` when Web Push is not configured |
 
-The device routes call identity's `DevicesService`; `push-config` reads the deployment's Web Push configuration through the same service. `POST` answers 422 for an unconfigured provider or an `apns` `appId` that isn't a configured bundle id (section 10).
+The device routes call identity's `DevicesService`; `push-config` reads the deployment's Web Push configuration through the same service. `POST` answers 422 for an unconfigured provider, an `apns` `appId` that isn't a configured bundle id (section 10), `webpush` without `keys`, `keys` on another provider, and `environment` on a provider other than `apns`.
 
 ### 19.6 Scheduled posts
 
