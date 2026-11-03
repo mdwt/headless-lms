@@ -4,8 +4,9 @@ import {
   ForbiddenError,
   InvalidInputError,
   NotFoundError,
+  UnavailableError,
 } from '../shared/errors.js';
-import type { Logger } from '../shared/ports.js';
+import type { Logger, Scheduler } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Role } from '../organizations/index.js';
@@ -17,6 +18,7 @@ import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
 import { authorView } from './authors.js';
+import { POST_PUBLISH_JOB } from './jobs.js';
 import type {
   AuthorProfileReader,
   AuthorRoleReader,
@@ -45,12 +47,19 @@ export type PostServiceParams = {
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: PostUnitOfWork;
+  scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
 };
 
 const PUBLISHED_ONLY: PostStatus[] = ['published'];
 const DUE_BATCH_SIZE = 100;
 const MODERATOR_VISIBLE: PostStatus[] = ['published', 'pending', 'removed'];
+const DRAFT = {
+  status: 'draft' as const,
+  scheduledAt: null,
+  publishedAt: null,
+  removedBy: null,
+};
 
 export class PostServiceImpl implements PostService {
   private readonly repo: PostRepository;
@@ -62,6 +71,7 @@ export class PostServiceImpl implements PostService {
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: PostUnitOfWork;
+  private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
 
   constructor(params: PostServiceParams) {
@@ -74,6 +84,7 @@ export class PostServiceImpl implements PostService {
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
+    this.scheduler = params.scheduler;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -149,6 +160,9 @@ export class PostServiceImpl implements PostService {
       status: saved.status,
       actorId: actor.id,
     });
+    if (saved.status === 'scheduled') {
+      await this.arm(orgId, actor, saved, null);
+    }
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -201,6 +215,9 @@ export class PostServiceImpl implements PostService {
     this.assertTopic(space, post.topicId);
     const saved = await this.commitSubmission(orgId, post, space, actor.role, actor, new Date());
     this.logger.info('post submitted', { orgId, postId, status: saved.status, actorId: actor.id });
+    if (post.status === 'scheduled') {
+      await this.disarm(orgId, postId);
+    }
     return this.viewOf(orgId, actor, saved);
   }
 
@@ -219,12 +236,15 @@ export class PostServiceImpl implements PostService {
       throw new InvalidInputError('A scheduled time must be in the future');
     }
     const updated = await this.uow.run(async ({ posts, outbox }) => {
-      const next = await this.mustUpdate(posts, orgId, postId, {
-        status: 'scheduled',
-        scheduledAt,
-        publishedAt: null,
-        removedBy: null,
-      });
+      const next = await posts.updateIf(
+        orgId,
+        postId,
+        { status: post.status },
+        { status: 'scheduled', scheduledAt, publishedAt: null, removedBy: null },
+      );
+      if (!next) {
+        throw new ConflictError('This post cannot be scheduled');
+      }
       await outbox.append([
         discussionEvents.postUpdated.make({
           orgId,
@@ -240,7 +260,123 @@ export class PostServiceImpl implements PostService {
       scheduledAt: scheduledAt.toISOString(),
       actorId: actor.id,
     });
+    await this.arm(orgId, actor, updated, post.status === 'scheduled' ? post.scheduledAt : null);
     return this.viewOf(orgId, actor, updated);
+  }
+
+  async unschedule(orgId: string, postId: string, actor: Actor): Promise<PostView> {
+    const { post } = await this.loadVisible(orgId, actor, postId);
+    this.assertAuthor(actor, post);
+    if (post.status !== 'scheduled') {
+      throw new ConflictError('This post is not scheduled');
+    }
+    const updated = await this.uow.run(async ({ posts, outbox }) => {
+      const next = await posts.updateIf(orgId, postId, { status: 'scheduled' }, DRAFT);
+      if (!next) {
+        throw new ConflictError('This post is not scheduled');
+      }
+      await outbox.append([
+        discussionEvents.postUpdated.make({
+          orgId,
+          data: next,
+          metadata: this.meta(actor, post.status),
+        }),
+      ]);
+      return next;
+    });
+    this.logger.info('post unscheduled', { orgId, postId, actorId: actor.id });
+    await this.disarm(orgId, postId);
+    return this.viewOf(orgId, actor, updated);
+  }
+
+  async publishScheduled(orgId: string, postId: string, now: Date): Promise<void> {
+    const post = await this.repo.find(orgId, postId);
+    if (!post || post.status !== 'scheduled' || post.scheduledAt === null) {
+      this.logger.debug('scheduled post no longer scheduled', { orgId, postId });
+      return;
+    }
+    if (post.scheduledAt > now) {
+      await this.scheduler.at(POST_PUBLISH_JOB, post.scheduledAt, postId, { orgId, postId });
+      this.logger.info('scheduled post timer moved', {
+        orgId,
+        postId,
+        scheduledAt: post.scheduledAt.toISOString(),
+      });
+      return;
+    }
+    const space = await this.content.getSpace(orgId, post.spaceId);
+    if (!space) {
+      this.logger.error('scheduled post has no space', { orgId, postId, spaceId: post.spaceId });
+      return;
+    }
+    const role = await this.authors.roleOf(orgId, post.orgUserId);
+    const refused = !(await this.submittable(orgId, post, space, role));
+    const patch = refused ? DRAFT : this.submissionOf(space.settings.requireReview, role, now);
+    const saved = await this.uow.run(async ({ posts, outbox }) => {
+      const next = await posts.updateIf(orgId, postId, { status: 'scheduled', dueBy: now }, patch);
+      if (!next) {
+        return null;
+      }
+      const metadata = this.meta(null, post.status);
+      await outbox.append([
+        next.status === 'published'
+          ? discussionEvents.postPublished.make({ orgId, data: next, metadata })
+          : discussionEvents.postUpdated.make({ orgId, data: next, metadata }),
+      ]);
+      return next;
+    });
+    if (!saved) {
+      this.logger.debug('scheduled post already handled', { orgId, postId });
+      return;
+    }
+    this.logger.info('scheduled post submitted', { orgId, postId, status: saved.status, refused });
+  }
+
+  private async arm(
+    orgId: string,
+    actor: Actor,
+    post: Post,
+    previousScheduledAt: Date | null,
+  ): Promise<void> {
+    if (post.scheduledAt === null) {
+      return;
+    }
+    try {
+      await this.scheduler.at(POST_PUBLISH_JOB, post.scheduledAt, post.id, {
+        orgId,
+        postId: post.id,
+      });
+      return;
+    } catch (err) {
+      this.logger.error('post timer not set', { orgId, postId: post.id, err });
+    }
+    await this.uow.run(async ({ posts, outbox }) => {
+      const reverted = await posts.updateIf(
+        orgId,
+        post.id,
+        { status: 'scheduled', scheduledAt: post.scheduledAt! },
+        previousScheduledAt ? { scheduledAt: previousScheduledAt } : DRAFT,
+      );
+      if (!reverted) {
+        return;
+      }
+      await outbox.append([
+        discussionEvents.postUpdated.make({
+          orgId,
+          data: reverted,
+          metadata: this.meta(actor, reverted.status === 'draft' ? post.status : undefined),
+        }),
+      ]);
+    });
+    throw new UnavailableError('The post could not be scheduled; try again');
+  }
+
+  private async disarm(orgId: string, postId: string): Promise<void> {
+    try {
+      await this.scheduler.cancel(POST_PUBLISH_JOB, postId);
+    } catch (err) {
+      this.logger.warn('post timer not cancelled', { orgId, postId, err });
+    }
   }
 
   async approve(
@@ -810,12 +946,15 @@ export class PostServiceImpl implements PostService {
     now: Date,
   ): Promise<Post> {
     return this.uow.run(async ({ posts, outbox }) => {
-      const next = await this.mustUpdate(
-        posts,
+      const next = await posts.updateIf(
         orgId,
         post.id,
+        { status: post.status },
         this.submissionOf(space.settings.requireReview, role, now),
       );
+      if (!next) {
+        throw new ConflictError('This post cannot be submitted');
+      }
       const metadata = this.meta(actor, post.status);
       const event =
         next.status === 'published'

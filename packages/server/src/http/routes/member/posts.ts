@@ -146,10 +146,10 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Create a post',
       description:
-        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past.',
+        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.',
       params: CommunitySpaceParam,
       body: CreatePost,
-      response: { 201: PostView, ...refusals(403, 404, 409) },
+      response: { 201: PostView, ...refusals(403, 404, 409, 503) },
     },
     handler: async (req, reply) => {
       const actor = await actorOf(container, req.orgId, req.userId);
@@ -211,7 +211,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Submit your draft or scheduled post',
       description:
-        'Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled.',
+        'Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.',
       params: PostIdParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
@@ -230,14 +230,33 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Schedule your post',
       description:
-        'Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future.',
+        'Author only. Schedules a draft, or moves a scheduled post to a new time; the post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future. 503 when the time could not be set; a draft stays a draft and a moved post keeps its previous time.',
       params: PostIdParam,
       body: SchedulePost,
-      response: { 200: PostView, ...refusals(403, 404, 409) },
+      response: { 200: PostView, ...refusals(403, 404, 409, 503) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
       return posts.schedule(req.orgId, req.params.postId, actor, req.body.scheduledAt);
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/member/posts/:postId/unschedule',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'unschedulePost',
+      tags,
+      summary: 'Unschedule your post',
+      description:
+        'Author only. The scheduled post becomes a draft and is not submitted at its time. 409 when the post is not scheduled.',
+      params: PostIdParam,
+      response: { 200: PostView, ...refusals(403, 404, 409) },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      return posts.unschedule(req.orgId, req.params.postId, actor);
     },
   });
 

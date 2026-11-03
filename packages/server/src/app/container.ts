@@ -48,6 +48,8 @@ import {
   ChatServiceImpl,
   DiscussionServiceImpl,
   PostServiceImpl,
+  discussionJobs,
+  discussionRecurringJobs,
 } from '@headless-lms/core/discussion';
 import {
   IdentityServiceImpl,
@@ -383,6 +385,7 @@ export async function buildContainer(
       posts: new DrizzlePostRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
+    scheduler: automationEngine,
     logger: discussionLogger,
   });
   const chats = new ChatServiceImpl({
@@ -517,7 +520,10 @@ export async function buildContainer(
     logger: automationsLogger,
   });
   automationEngine.register(automations);
-  automationEngine.registerJobs([], []);
+  automationEngine.registerJobs(
+    [...discussionJobs({ posts, logger: discussionLogger })],
+    [...discussionRecurringJobs],
+  );
 
   const eventBus = new InMemoryEventBus();
   eventBus.subscribeAll((event) => automations.handle(event));

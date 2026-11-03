@@ -4,6 +4,7 @@ import type {
   BookmarkQuery,
   FeedQuery,
   PageQuery,
+  PostGuard,
   PostReactions,
   PostRepository,
   PostPatch,
@@ -102,6 +103,28 @@ export class DrizzlePostRepository implements PostRepository {
       .update(posts)
       .set({ ...patch, updatedAt: new Date() })
       .where(and(eq(posts.orgId, orgId), eq(posts.id, id)))
+      .returning();
+    return row ? toPost(row) : null;
+  }
+
+  async updateIf(
+    orgId: string,
+    id: string,
+    guard: PostGuard,
+    patch: PostPatch,
+  ): Promise<Post | null> {
+    const [row] = await this.db
+      .update(posts)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(
+        and(
+          eq(posts.orgId, orgId),
+          eq(posts.id, id),
+          eq(posts.status, guard.status),
+          guard.scheduledAt === undefined ? undefined : eq(posts.scheduledAt, guard.scheduledAt),
+          guard.dueBy === undefined ? undefined : lte(posts.scheduledAt, guard.dueBy),
+        ),
+      )
       .returning();
     return row ? toPost(row) : null;
   }

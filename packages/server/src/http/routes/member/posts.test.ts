@@ -7,6 +7,7 @@ import { errorHandler } from '../../plugins/error-handler.js';
 import { memberCommentsRoutes } from './comments.js';
 import { memberPostRoutes } from './posts.js';
 import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
+import { ConflictError, UnavailableError } from '@headless-lms/core/shared/errors';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const ORG_USER = { id: 'ou_mod', role: 'moderator' };
@@ -43,6 +44,14 @@ const container = {
     listOwn: record('listOwn', { rows: [], total: 0, page: 2, pageSize: 5 }),
     listBookmarked: record('listBookmarked', { rows: [], total: 0, page: 1, pageSize: 20 }),
     setReaction: record('setPostReaction', { reactions: {} }),
+    unschedule: async (...args: unknown[]) => {
+      calls.push({ method: 'unschedule', args });
+      throw new ConflictError('This post is not scheduled');
+    },
+    schedule: async (...args: unknown[]) => {
+      calls.push({ method: 'schedule', args });
+      throw new UnavailableError('The post could not be scheduled; try again');
+    },
   },
 } as unknown as Container;
 
@@ -114,6 +123,24 @@ describe('member post and comment routes', () => {
     expect(saved.json()).toEqual({ rows: [], total: 0, page: 1, pageSize: 20 });
     expect(last('listOwn')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 2, pageSize: 5 }]);
     expect(last('listBookmarked')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 1, pageSize: 20 }]);
+  });
+
+  it('unschedules a post for its author and answers 409 when it is not scheduled', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/member/posts/pst_1/unschedule' });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: 'conflict', message: 'This post is not scheduled' });
+    expect(last('unschedule')).toEqual([ORG.id, 'pst_1', ORG_USER]);
+  });
+
+  it('answers 503 when the scheduled time could not be set', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/member/posts/pst_1/schedule',
+      payload: { scheduledAt: '2030-01-01T09:00:00Z' },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toMatchObject({ error: 'unavailable' });
+    expect(last('schedule')).toEqual([ORG.id, 'pst_1', ORG_USER, new Date('2030-01-01T09:00:00Z')]);
   });
 
   it('accepts only a dismissal when resolving post flags', async () => {

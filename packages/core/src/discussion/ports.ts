@@ -296,6 +296,8 @@ export interface PostService {
   update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
   submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
   schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<PostView>;
+  unschedule(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  publishScheduled(orgId: string, postId: string, now: Date): Promise<void>;
   approve(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
   remove(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
   restore(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
@@ -363,9 +365,16 @@ export interface PostService {
   hasDue(orgId: string, now: Date): Promise<boolean>;
 }
 
+export interface PostGuard {
+  status: PostStatus;
+  scheduledAt?: Date;
+  dueBy?: Date;
+}
+
 export interface PostRepository {
   insert(orgId: string, post: Post): Promise<Post>;
   update(orgId: string, id: string, patch: PostPatch): Promise<Post | null>;
+  updateIf(orgId: string, id: string, guard: PostGuard, patch: PostPatch): Promise<Post | null>;
   find(orgId: string, id: string): Promise<Post | null>;
   findMany(orgId: string, ids: string[]): Promise<Post[]>;
   listPublished(orgId: string, spaceIds: string[], query: FeedQuery): Promise<Page<Post>>;

@@ -440,6 +440,8 @@ import type {
   UnpinPostResponses,
   UnpublishCommunityErrors,
   UnpublishCommunityResponses,
+  UnschedulePostErrors,
+  UnschedulePostResponses,
   UpdateActivityErrors,
   UpdateActivityResponses,
   UpdateAutomationErrors,
@@ -4714,7 +4716,7 @@ export class Posts {
   /**
    * Create a post
    *
-   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past.
+   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.
    */
   public static createPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4838,7 +4840,7 @@ export class Posts {
   /**
    * Submit your draft or scheduled post
    *
-   * Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled.
+   * Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.
    */
   public static submitPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4863,7 +4865,7 @@ export class Posts {
   /**
    * Schedule your post
    *
-   * Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future.
+   * Author only. Schedules a draft, or moves a scheduled post to a new time; the post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future. 503 when the time could not be set; a draft stays a draft and a moved post keeps its previous time.
    */
   public static schedulePost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4898,6 +4900,31 @@ export class Posts {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * Unschedule your post
+   *
+   * Author only. The scheduled post becomes a draft and is not submitted at its time. 409 when the post is not scheduled.
+   */
+  public static unschedulePost<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnschedulePostResponses, UnschedulePostErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
+    return (options?.client ?? client).post<
+      UnschedulePostResponses,
+      UnschedulePostErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/unschedule",
+      ...options,
+      ...params,
     });
   }
 

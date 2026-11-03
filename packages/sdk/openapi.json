@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "API documentation for the Headless LMS platform",
     "license": {
       "name": "MIT",
@@ -27141,7 +27141,7 @@
         "tags": [
           "Posts"
         ],
-        "description": "For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past.",
+        "description": "For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given, or a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.",
         "requestBody": {
           "required": true,
           "content": {
@@ -27584,6 +27584,31 @@
             }
           },
           "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -28436,7 +28461,7 @@
         "tags": [
           "Posts"
         ],
-        "description": "Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. 409 when the post is not a draft or scheduled.",
+        "description": "Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.",
         "parameters": [
           {
             "schema": {
@@ -28839,7 +28864,7 @@
         "tags": [
           "Posts"
         ],
-        "description": "Author only. The post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future.",
+        "description": "Author only. Schedules a draft, or moves a scheduled post to a new time; the post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future. 503 when the time could not be set; a draft stays a draft and a moved post keeps its previous time.",
         "requestBody": {
           "required": true,
           "content": {
@@ -28862,6 +28887,434 @@
             }
           }
         },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "postId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "communityId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "spaceId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "orgUserId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "topicId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "extra": {
+                      "$ref": "#/components/schemas/JsonValue"
+                    },
+                    "coverAssetId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "scheduled",
+                        "pending",
+                        "published",
+                        "removed"
+                      ]
+                    },
+                    "scheduledAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "removedBy": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pinned": {
+                      "type": "boolean"
+                    },
+                    "commentsClosed": {
+                      "nullable": true,
+                      "type": "boolean"
+                    },
+                    "reactionsEnabled": {
+                      "nullable": true,
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "coverUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firstName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "displayName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "headline": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "image": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageAssetId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "instructor",
+                            "moderator",
+                            "student"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "firstName",
+                        "lastName",
+                        "displayName",
+                        "headline",
+                        "image",
+                        "imageAssetId",
+                        "imageUrl",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "reactions": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "viewerReaction": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "commentCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "following": {
+                      "type": "boolean"
+                    },
+                    "bookmarked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "communityId",
+                    "spaceId",
+                    "orgUserId",
+                    "topicId",
+                    "title",
+                    "body",
+                    "extra",
+                    "coverAssetId",
+                    "status",
+                    "scheduledAt",
+                    "publishedAt",
+                    "removedBy",
+                    "pinned",
+                    "commentsClosed",
+                    "reactionsEnabled",
+                    "createdAt",
+                    "updatedAt",
+                    "coverUrl",
+                    "author",
+                    "reactions",
+                    "viewerReaction",
+                    "commentCount",
+                    "following",
+                    "bookmarked"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/posts/{postId}/unschedule": {
+      "post": {
+        "operationId": "unschedulePost",
+        "summary": "Unschedule your post",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Author only. The scheduled post becomes a draft and is not submitted at its time. 409 when the post is not scheduled.",
         "parameters": [
           {
             "schema": {

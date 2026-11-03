@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { NotFoundError, ConflictError, InvalidInputError } from '@headless-lms/core/shared/errors';
+import {
+  NotFoundError,
+  ConflictError,
+  InvalidInputError,
+  UnavailableError,
+} from '@headless-lms/core/shared/errors';
 import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
   ActionInvocationError,
@@ -62,6 +67,9 @@ beforeAll(async () => {
     'kind-mismatch': () => {
       throw new AutomationKindMismatchError('atm_1', 'webhook');
     },
+    unavailable: () => {
+      throw new UnavailableError('The post could not be scheduled; try again');
+    },
     unhandled: () => {
       throw new Error('boom');
     },
@@ -92,6 +100,15 @@ describe('central error handler', () => {
     expect(res.json()).toEqual({
       error: 'kind_mismatch',
       message: 'automation "atm_1" is a webhook and can\'t be changed through this operation',
+    });
+  });
+
+  it('maps UnavailableError to 503 unavailable', async () => {
+    const res = await app.inject({ method: 'GET', url: '/unavailable' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      error: 'unavailable',
+      message: 'The post could not be scheduled; try again',
     });
   });
 

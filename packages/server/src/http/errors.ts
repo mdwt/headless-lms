@@ -3,6 +3,7 @@ import {
   ForbiddenError,
   InvalidInputError,
   NotFoundError,
+  UnavailableError,
 } from '@headless-lms/core/shared/errors';
 import { InviteError, OrganizationRuleError } from '@headless-lms/core/organizations';
 import {
@@ -122,6 +123,9 @@ export function classifyError(error: unknown): Refusal | undefined {
   }
   if (error instanceof ForbiddenError || error instanceof NoActiveOrgError) {
     return { status: 403, error: 'forbidden', message: error.message };
+  }
+  if (error instanceof UnavailableError) {
+    return { status: 503, error: 'unavailable', message: error.message };
   }
   if (error instanceof UnauthorizedError) {
     return { status: 401, error: 'unauthorized', message: error.message };

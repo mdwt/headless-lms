@@ -26,7 +26,7 @@ export const ValidationErrorBody = ErrorBody.extend({
 });
 export type ValidationErrorBody = z.infer<typeof ValidationErrorBody>;
 
-type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 502;
+type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 502 | 503;
 type RefusalBodies<S extends RefusalStatus> = {
   [K in S]: K extends 400 ? typeof ValidationErrorBody : typeof ErrorBody;
 };

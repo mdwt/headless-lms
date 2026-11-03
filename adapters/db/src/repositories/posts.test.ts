@@ -169,6 +169,37 @@ describe("DrizzlePostRepository viewer state", () => {
   });
 });
 
+describe("DrizzlePostRepository.updateIf", () => {
+  it("updates only a post still in the guarded state, and returns null when none matched", async () => {
+    const { repo, statements } = capture();
+    const now = new Date("2026-10-21T09:00:00.000Z");
+    await expect(
+      repo.updateIf("org1", "pst_1", { status: "scheduled", dueBy: now }, { status: "published" }),
+    ).resolves.toBeNull();
+    expect(statements[0]?.text).toMatch(
+      /^update "posts" set .* where \("posts"\."org_id" = \$\d+ and "posts"\."id" = \$\d+ and "posts"\."status" = \$\d+ and "posts"\."scheduled_at" <= \$\d+\) returning /,
+    );
+    expect(statements[0]?.params).toEqual(
+      expect.arrayContaining(["published", "org1", "pst_1", "scheduled", now.toISOString()]),
+    );
+  });
+
+  it("matches the exact scheduled time when the guard names one", async () => {
+    const { repo, statements } = capture();
+    const at = new Date("2026-10-22T09:00:00.000Z");
+    await repo.updateIf(
+      "org1",
+      "pst_1",
+      { status: "scheduled", scheduledAt: at },
+      { status: "draft" },
+    );
+    expect(statements[0]?.text).toMatch(
+      /"posts"\."status" = \$\d+ and "posts"\."scheduled_at" = \$\d+\)/,
+    );
+    expect(statements[0]?.params).toEqual(expect.arrayContaining([at.toISOString()]));
+  });
+});
+
 describe("DrizzlePostRepository.hasDue", () => {
   it("asks for the existence of one due post instead of loading them", async () => {
     const statements: { text: string; params: unknown[] }[] = [];

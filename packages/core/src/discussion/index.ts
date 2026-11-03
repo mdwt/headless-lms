@@ -4,6 +4,7 @@ export { PostServiceImpl } from './posts.js';
 export { ChatServiceImpl } from './chats.js';
 export { authorView } from './authors.js';
 export { discussionEvents } from './events.js';
+export { POST_PUBLISH_JOB, discussionJobs, discussionRecurringJobs } from './jobs.js';
 export type {
   DiscussionService,
   DiscussionRepository,
@@ -21,6 +22,7 @@ export type {
   CreatePostInput,
   UpdatePostInput,
   PostPatch,
+  PostGuard,
   FeedQuery,
   PageQuery,
   PostThreadsQuery,

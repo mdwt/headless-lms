@@ -4,10 +4,11 @@ import {
   ForbiddenError,
   InvalidInputError,
   NotFoundError,
+  UnavailableError,
 } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { SpaceDetail } from '../content/index.js';
-import type { NewDomainEvent } from '../shared/ports.js';
+import type { NewDomainEvent, Scheduler } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
 import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { AssetFiles, MemberImageReader } from '../assets/index.js';
@@ -93,6 +94,7 @@ function harness(options?: {
   roles?: Record<string, Role>;
   images?: MemberImageReader & Partial<Pick<AssetFiles, 'signFile'>>;
   profiles?: Record<string, Partial<AuthorRecord>>;
+  scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
 }) {
   const rows: Post[] = [];
   const bookmarks: { postId: string; orgUserId: string }[] = [];
@@ -112,6 +114,20 @@ function harness(options?: {
     async update(orgId, id, patch) {
       const post = rows.find((row) => row.orgId === orgId && row.id === id);
       if (!post) {
+        return null;
+      }
+      Object.assign(post, patch, { updatedAt: new Date() });
+      return { ...post };
+    },
+    async updateIf(orgId, id, guard, patch) {
+      const post = rows.find((row) => row.orgId === orgId && row.id === id);
+      if (
+        !post ||
+        post.status !== guard.status ||
+        (guard.scheduledAt !== undefined &&
+          post.scheduledAt?.getTime() !== guard.scheduledAt.getTime()) ||
+        (guard.dueBy !== undefined && (post.scheduledAt === null || post.scheduledAt > guard.dueBy))
+      ) {
         return null;
       }
       Object.assign(post, patch, { updatedAt: new Date() });
@@ -401,6 +417,11 @@ function harness(options?: {
       }),
   };
 
+  const scheduler = {
+    at: vi.fn(options?.scheduler?.at ?? (async () => {})),
+    cancel: vi.fn(options?.scheduler?.cancel ?? (async () => {})),
+  };
+
   const svc = new PostServiceImpl({
     repo,
     access,
@@ -424,11 +445,13 @@ function harness(options?: {
     },
     fileUrls,
     uow,
+    scheduler,
   });
 
   return {
     svc,
     repo,
+    scheduler,
     rows,
     flags,
     commentFlagRows,
@@ -1252,5 +1275,330 @@ describe('posts', () => {
     );
     expect(await svc.coverFile(ORG, other, draft.id)).toBeNull();
     expect(await svc.coverFile(ORG, member, draft.id)).toBe('https://signed');
+  });
+});
+
+describe('scheduled posts', () => {
+  const later = () => new Date(Date.now() + 60 * 60_000);
+  const payloadOf = (id: string) => ({ orgId: ORG, postId: id });
+
+  it('arms the publish job at the scheduled time when a post is created scheduled', async () => {
+    const { svc, scheduler } = harness();
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    expect(created.status).toBe('scheduled');
+    expect(scheduler.at).toHaveBeenCalledWith(
+      'discussion.post.publish',
+      when,
+      created.id,
+      payloadOf(created.id),
+    );
+  });
+
+  it('reverts a new scheduled post to a draft and fails with UnavailableError when the timer is refused', async () => {
+    const { svc, rows, calls } = harness({
+      scheduler: {
+        at: async () => {
+          throw new Error('hatchet down');
+        },
+      },
+    });
+    await expect(
+      svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: later() })),
+    ).rejects.toBeInstanceOf(UnavailableError);
+    expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null });
+    expect(calls.map((events) => events.map((event) => event.type))).toEqual([
+      ['discussion.post.created'],
+      ['discussion.post.updated'],
+    ]);
+    expect(calls[1]?.[0]).toMatchObject({
+      data: { status: 'draft', scheduledAt: null },
+      metadata: { actorOrgUserId: member.id, previousStatus: 'scheduled' },
+    });
+  });
+
+  it('reverts a scheduled draft to a draft when the timer is refused', async () => {
+    const { svc, rows, calls } = harness({
+      scheduler: {
+        at: async () => {
+          throw new Error('hatchet down');
+        },
+      },
+    });
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    calls.length = 0;
+    await expect(svc.schedule(ORG, draft.id, member, later())).rejects.toBeInstanceOf(
+      UnavailableError,
+    );
+    expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null });
+    expect(calls.at(-1)?.[0]).toMatchObject({
+      type: 'discussion.post.updated',
+      data: { status: 'draft', scheduledAt: null },
+    });
+  });
+
+  it('moves a scheduled post and its timer, and restores the old time when the timer is refused', async () => {
+    const { svc, rows, calls, scheduler } = harness();
+    const first = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: first }),
+    );
+    const second = new Date(first.getTime() + 60 * 60_000);
+    await svc.schedule(ORG, created.id, member, second);
+    expect(scheduler.at).toHaveBeenLastCalledWith(
+      'discussion.post.publish',
+      second,
+      created.id,
+      payloadOf(created.id),
+    );
+    expect(rows[0]?.scheduledAt).toEqual(second);
+
+    scheduler.at.mockRejectedValueOnce(new Error('hatchet down'));
+    calls.length = 0;
+    const third = new Date(second.getTime() + 60 * 60_000);
+    await expect(svc.schedule(ORG, created.id, member, third)).rejects.toBeInstanceOf(
+      UnavailableError,
+    );
+    expect(rows[0]).toMatchObject({ status: 'scheduled', scheduledAt: second });
+    expect(calls.map((events) => events[0]?.type)).toEqual([
+      'discussion.post.updated',
+      'discussion.post.updated',
+    ]);
+    expect(calls[1]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
+  });
+
+  it('refuses to move a post the timer published meanwhile', async () => {
+    const { svc, repo, rows } = harness();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: later() }),
+    );
+    const find = repo.find.bind(repo);
+    vi.spyOn(repo, 'find').mockImplementationOnce(async (orgId, id) => {
+      const post = await find(orgId, id);
+      Object.assign(rows[0]!, { status: 'published', scheduledAt: null, publishedAt: new Date() });
+      return post;
+    });
+    await expect(svc.schedule(ORG, created.id, member, later())).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    expect(rows[0]?.status).toBe('published');
+  });
+
+  it('unschedules the author’s post to a draft, emits the update, then cancels the timer', async () => {
+    const { svc, calls, scheduler } = harness();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: later() }),
+    );
+    calls.length = 0;
+    const view = await svc.unschedule(ORG, created.id, member);
+    expect(view).toMatchObject({ status: 'draft', scheduledAt: null });
+    expect(calls).toEqual([
+      [
+        expect.objectContaining({
+          type: 'discussion.post.updated',
+          data: expect.objectContaining({ status: 'draft', scheduledAt: null }),
+          metadata: { actorOrgUserId: member.id, previousStatus: 'scheduled' },
+        }),
+      ],
+    ]);
+    expect(scheduler.cancel).toHaveBeenCalledWith('discussion.post.publish', created.id);
+  });
+
+  it('refuses to unschedule a post that is not scheduled, or someone else’s', async () => {
+    const { svc, scheduler } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    await expect(svc.unschedule(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: later() }),
+    );
+    await expect(svc.unschedule(ORG, scheduled.id, moderator)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(scheduler.cancel).not.toHaveBeenCalled();
+  });
+
+  it('unschedules even when the timer cannot be cancelled', async () => {
+    const { svc } = harness({
+      scheduler: {
+        cancel: async () => {
+          throw new Error('hatchet down');
+        },
+      },
+    });
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: later() }),
+    );
+    await expect(svc.unschedule(ORG, created.id, member)).resolves.toMatchObject({
+      status: 'draft',
+    });
+  });
+
+  it('cancels the timer when a scheduled post is published now, and not for a draft', async () => {
+    const { svc, scheduler } = harness();
+    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    await svc.submit(ORG, draft.id, member);
+    expect(scheduler.cancel).not.toHaveBeenCalled();
+    const scheduled = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: later() }),
+    );
+    await expect(svc.submit(ORG, scheduled.id, member)).resolves.toMatchObject({
+      status: 'published',
+    });
+    expect(scheduler.cancel).toHaveBeenCalledWith('discussion.post.publish', scheduled.id);
+  });
+
+  it('publishes a due post once through the conditional update, as its author with no actor', async () => {
+    const { svc, calls, rows } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    calls.length = 0;
+    const now = new Date(when.getTime() + 1000);
+    await svc.publishScheduled(ORG, created.id, now);
+    await svc.publishScheduled(ORG, created.id, now);
+    expect(rows[0]).toMatchObject({ status: 'published', publishedAt: now, scheduledAt: null });
+    expect(calls).toEqual([
+      [
+        expect.objectContaining({
+          type: 'discussion.post.published',
+          metadata: { previousStatus: 'scheduled' },
+        }),
+      ],
+    ]);
+  });
+
+  it('emits nothing when another firing moved the post between the read and the write', async () => {
+    const { svc, calls, rows, repo } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    calls.length = 0;
+    const find = repo.find.bind(repo);
+    vi.spyOn(repo, 'find').mockImplementationOnce(async (orgId, id) => {
+      const post = await find(orgId, id);
+      Object.assign(rows[0]!, { status: 'published', scheduledAt: null });
+      return post;
+    });
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(calls).toEqual([]);
+  });
+
+  it('sends a due member post to review where the space requires it', async () => {
+    const { svc, calls, setSpaces } = harness({ roles: { ou_member: 'student' } });
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    calls.length = 0;
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(calls).toEqual([
+      [
+        expect.objectContaining({
+          type: 'discussion.post.updated',
+          data: expect.objectContaining({ status: 'pending' }),
+          metadata: { previousStatus: 'scheduled' },
+        }),
+      ],
+    ]);
+  });
+
+  it('re-arms the timer instead of publishing when the post was moved later', async () => {
+    const { svc, calls, rows, scheduler } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    calls.length = 0;
+    scheduler.at.mockClear();
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() - 1000));
+    expect(rows[0]?.status).toBe('scheduled');
+    expect(calls).toEqual([]);
+    expect(scheduler.at).toHaveBeenCalledWith(
+      'discussion.post.publish',
+      when,
+      created.id,
+      payloadOf(created.id),
+    );
+  });
+
+  it('reverts a due post to a draft when its author can no longer open the space', async () => {
+    const { svc, calls, rows } = harness({ roles: { ou_member: 'student', ou_out: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    rows[0]!.orgUserId = outsider.id;
+    calls.length = 0;
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null, publishedAt: null });
+    expect(calls).toEqual([
+      [
+        expect.objectContaining({
+          type: 'discussion.post.updated',
+          metadata: { previousStatus: 'scheduled' },
+        }),
+      ],
+    ]);
+  });
+
+  it('reverts a due post to a draft when its topic no longer fits the space', async () => {
+    const { svc, calls, rows, setSpaces } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    setSpaces([space({ topics: [topic('top_1')] })]);
+    calls.length = 0;
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(rows[0]?.status).toBe('draft');
+    expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.updated']);
+  });
+
+  it('does nothing for a post that was unscheduled or is gone', async () => {
+    const { svc, calls, scheduler } = harness({ roles: { ou_member: 'student' } });
+    const when = later();
+    const created = await svc.create(
+      ORG,
+      member,
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+    );
+    await svc.unschedule(ORG, created.id, member);
+    calls.length = 0;
+    scheduler.at.mockClear();
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    await svc.publishScheduled(ORG, 'pst_missing', new Date(when.getTime() + 1000));
+    expect(calls).toEqual([]);
+    expect(scheduler.at).not.toHaveBeenCalled();
   });
 });
