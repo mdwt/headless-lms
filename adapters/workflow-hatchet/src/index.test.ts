@@ -517,7 +517,49 @@ describe("HatchetAutomationEngine as Scheduler", () => {
     await engine.at("automations.notifications.flush", runAt, "usr_1:cht_1", { chatId: "cht_1" });
 
     expect(fake.client.scheduled.update).toHaveBeenCalledWith("scheduled-1", { triggerAt: runAt });
+    expect(fake.client.scheduled.bulkDelete).not.toHaveBeenCalled();
     expect(fake.schedule).not.toHaveBeenCalled();
+  });
+
+  it("at moves the first pending run and deletes the others of the same job and key", async () => {
+    const fake = fakeHatchetClient();
+    (fake.client.scheduled.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      rows: [
+        { metadata: { id: "scheduled-1" } },
+        { metadata: { id: "scheduled-2" } },
+        { metadata: { id: "scheduled-3" } },
+      ],
+    });
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runAt = new Date("2026-11-03T10:07:00.000Z");
+
+    await engine.at("discussion.post.publish", runAt, "pst_1", { orgId: "org_1", postId: "pst_1" });
+
+    expect(fake.client.scheduled.update).toHaveBeenCalledTimes(1);
+    expect(fake.client.scheduled.update).toHaveBeenCalledWith("scheduled-1", { triggerAt: runAt });
+    expect(fake.client.scheduled.bulkDelete).toHaveBeenCalledWith({
+      scheduledRuns: ["scheduled-2", "scheduled-3"],
+    });
+    expect(fake.schedule).not.toHaveBeenCalled();
+  });
+
+  it("at encodes a key holding colons in the metadata and its filter, and keeps it raw in the input", async () => {
+    const fake = fakeHatchetClient();
+    const engine = new HatchetAutomationEngine(fake.client);
+    const runAt = new Date("2026-11-03T10:07:00.000Z");
+
+    await engine.at("automations.notifications.flush", runAt, "usr_1:cht_1", { chatId: "cht_1" });
+
+    expect(fake.client.scheduled.list).toHaveBeenCalledWith({
+      workflow: fake.getJobTaskHandle(),
+      additionalMetadata: ["job:automations.notifications.flush", "key:usr_1%3Acht_1"],
+      statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
+    });
+    expect(fake.schedule).toHaveBeenCalledWith(
+      runAt,
+      { job: "automations.notifications.flush", key: "usr_1:cht_1", payload: { chatId: "cht_1" } },
+      { additionalMetadata: { job: "automations.notifications.flush", key: "usr_1%3Acht_1" } },
+    );
   });
 
   it("at fails when Hatchet refuses the lookup", async () => {
@@ -540,7 +582,7 @@ describe("HatchetAutomationEngine as Scheduler", () => {
     await engine.cancel("automations.notifications.flush", "usr_1:cht_1");
 
     expect(fake.client.scheduled.bulkDelete).toHaveBeenCalledWith({
-      filter: { additionalMetadata: ["job:automations.notifications.flush", "key:usr_1:cht_1"] },
+      filter: { additionalMetadata: ["job:automations.notifications.flush", "key:usr_1%3Acht_1"] },
     });
   });
 
@@ -723,5 +765,46 @@ describe("HatchetAutomationEngine as Scheduler", () => {
       meta: { err: expect.objectContaining({ message: "hatchet down" }) },
     });
     await engine.stop();
+  });
+
+  it("reconciles the job crons again on the interval after a failed start", async () => {
+    vi.useFakeTimers();
+    const fake = fakeHatchetClient();
+    let jobLists = 0;
+    (fake.client.crons.list as ReturnType<typeof vi.fn>).mockImplementation(
+      async (query: { workflow: unknown }) => {
+        if (query.workflow !== fake.getJobTaskHandle()) {
+          return { rows: [] };
+        }
+        jobLists++;
+        if (jobLists === 1) {
+          throw new Error("hatchet down");
+        }
+        return { rows: [] };
+      },
+    );
+    const engine = new HatchetAutomationEngine(fake.client, undefined, 1000);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn() });
+    engine.registerJobs([], [{ job: "entitlements.grants.expire", cron: "0 * * * *" }]);
+
+    await engine.start();
+    expect(fake.client.crons.create).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fake.client.crons.create).toHaveBeenCalledTimes(1);
+    expect(fake.client.crons.create).toHaveBeenCalledWith(fake.getJobTaskHandle(), {
+      name: "hlms-job:entitlements.grants.expire",
+      expression: "0 * * * *",
+      input: {
+        job: "entitlements.grants.expire",
+        key: "entitlements.grants.expire",
+        payload: null,
+      },
+    });
+
+    await engine.stop();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(jobLists).toBe(2);
+    vi.useRealTimers();
   });
 });

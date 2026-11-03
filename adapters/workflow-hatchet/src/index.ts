@@ -95,7 +95,10 @@ export interface HatchetScheduledClientLike {
     statuses?: APIContracts.ScheduledRunStatus[];
   }): Promise<{ rows?: HatchetScheduledRunLike[] }>;
   update(scheduledRun: string, update: { triggerAt: Date }): Promise<unknown>;
-  bulkDelete(opts: { filter?: { additionalMetadata?: string[] } }): Promise<unknown>;
+  bulkDelete(opts: {
+    scheduledRuns?: string[];
+    filter?: { additionalMetadata?: string[] };
+  }): Promise<unknown>;
 }
 
 export interface HatchetTaskLike<I> {
@@ -136,8 +139,13 @@ export function cronName(schedule: ScheduledAutomation): string {
   return `${CRON_PREFIX}${schedule.orgId}:${schedule.automationId}:${schedule.cron}`;
 }
 
+function jobMetadata(job: string, key: string): { job: string; key: string } {
+  return { job: encodeURIComponent(job), key: encodeURIComponent(key) };
+}
+
 function jobMetadataFilter(job: string, key: string): string[] {
-  return [`job:${job}`, `key:${key}`];
+  const metadata = jobMetadata(job, key);
+  return [`job:${metadata.job}`, `key:${metadata.key}`];
 }
 
 export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
@@ -146,6 +154,7 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private recurring: RecurringJob[] = [];
   private worker: HatchetWorkerLike | undefined;
   private syncing: Promise<void> | undefined;
+  private syncingJobs: Promise<void> | undefined;
   private reconcileTimer: ReturnType<typeof setInterval> | undefined;
   private readonly actionTask: unknown;
   private readonly scheduleTask: unknown;
@@ -200,12 +209,21 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
       additionalMetadata: jobMetadataFilter(job, key),
       statuses: [APIContracts.ScheduledRunStatus.SCHEDULED],
     });
-    const found = page.rows?.[0];
-    if (found) {
-      await this.client.scheduled.update(found.metadata.id, { triggerAt: runAt });
+    const [found, ...extra] = page.rows ?? [];
+    if (!found) {
+      await this.jobTask.schedule(
+        runAt,
+        { job, key, payload },
+        { additionalMetadata: jobMetadata(job, key) },
+      );
       return;
     }
-    await this.jobTask.schedule(runAt, { job, key, payload }, { additionalMetadata: { job, key } });
+    await this.client.scheduled.update(found.metadata.id, { triggerAt: runAt });
+    if (extra.length > 0) {
+      await this.client.scheduled.bulkDelete({
+        scheduledRuns: extra.map((run) => run.metadata.id),
+      });
+    }
   }
 
   async cancel(job: string, key: string): Promise<void> {
@@ -228,18 +246,14 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     this.worker = await this.client.worker(WORKER_NAME, {
       workflows: [this.actionTask, this.automationRunTask, this.scheduleTask, this.jobTask],
     });
-    try {
-      await this.reconcileJobs();
-    } catch (err) {
-      this.logger?.error("hatchet job crons not reconciled", { err });
-    }
+    await this.reconcileJobsLogged();
     void this.worker.start().catch((err: unknown) => {
       this.logger?.error("hatchet worker stopped unexpectedly", { err });
     });
     if (this.reconcileTimer) {
       clearInterval(this.reconcileTimer);
     }
-    this.reconcileTimer = setInterval(() => void this.syncLogged(), this.reconcileEveryMs);
+    this.reconcileTimer = setInterval(() => void this.reconcileAll(), this.reconcileEveryMs);
     this.reconcileTimer.unref?.();
     await this.syncLogged();
   }
@@ -251,6 +265,25 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     this.reconcileTimer = undefined;
     await this.worker?.stop();
     this.worker = undefined;
+  }
+
+  private async reconcileAll(): Promise<void> {
+    await this.reconcileJobsLogged();
+    await this.syncLogged();
+  }
+
+  private async reconcileJobsLogged(): Promise<void> {
+    if (this.syncingJobs) {
+      return this.syncingJobs;
+    }
+    this.syncingJobs = this.reconcileJobs()
+      .catch((err: unknown) => {
+        this.logger?.error("hatchet job crons not reconciled", { err });
+      })
+      .finally(() => {
+        this.syncingJobs = undefined;
+      });
+    return this.syncingJobs;
   }
 
   private async syncLogged(): Promise<void> {
