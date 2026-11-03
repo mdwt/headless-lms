@@ -60,16 +60,18 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     categories: NotificationCategory[],
   ): Promise<{ categories: NotificationCategory[]; source: 'stored' }> {
     await this.assertCommunity(orgId, communityId);
-    assertValidCategoryList(categories, 'community', this.types, this.channels.list());
+    const configured = this.channels.list();
+    assertValidCategoryList(categories, 'community', this.types, configured);
+    const ordered = offeringConfigured(categories, configured);
     await this.settings.patch(orgId, SettingsNamespace.content, communityId, {
-      notificationCategories: categories,
+      notificationCategories: ordered,
     });
     this.logger.info('community notification categories replaced', {
       orgId,
       communityId,
       keys: categories.map((category) => category.key),
     });
-    return { categories, source: 'stored' };
+    return { categories: ordered, source: 'stored' };
   }
 
   async reset(orgId: string, communityId: string): Promise<void> {

@@ -115,14 +115,28 @@ export function assertValidCategoryList(
   }
 }
 
+const LEADING_CHANNELS = ['inApp', 'email', 'push'];
+
+export function channelOrder(configured: string[]): string[] {
+  return [
+    ...LEADING_CHANNELS.filter((channel) => configured.includes(channel)),
+    ...configured.filter((channel) => !LEADING_CHANNELS.includes(channel)),
+  ];
+}
+
+function inOrder<T>(values: Record<string, T>, order: string[]): Record<string, T> {
+  return Object.fromEntries(
+    order.filter((channel) => channel in values).map((channel) => [channel, values[channel]!]),
+  );
+}
+
 export function offeringConfigured(
   categories: NotificationCategory[],
   configured: string[],
 ): NotificationCategory[] {
+  const order = channelOrder(configured);
   return categories.flatMap((category) => {
-    const channels = Object.fromEntries(
-      Object.entries(category.channels).filter(([channel]) => configured.includes(channel)),
-    );
+    const channels = inOrder(category.channels, order);
     if (Object.keys(channels).length === 0) {
       return [];
     }
@@ -135,7 +149,7 @@ export function offeringConfigured(
           spaceDefaults: Object.fromEntries(
             Object.entries(spaceDefaults).map(([spaceId, values]) => [
               spaceId,
-              Object.fromEntries(Object.entries(values).filter(([channel]) => channel in channels)),
+              inOrder(values, Object.keys(channels)),
             ]),
           ),
         }),

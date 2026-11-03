@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertValidCategoryList,
   categoryListProblems,
+  channelOrder,
   offeringConfigured,
   storedCategoryList,
   typesForList,
@@ -298,6 +299,31 @@ describe('category list helpers', () => {
       { ...perSpace, channels: { inApp: on }, spaceDefaults: { spc_1: { inApp: true } } },
     ]);
     expect(categoryListProblems(kept, 'community', types, ['inApp'])).toEqual([]);
+  });
+
+  it('orders channels inApp, email, push, then the rest in registry order', () => {
+    expect(channelOrder(['inApp', 'sms', 'push', 'slack', 'email'])).toEqual([
+      'inApp',
+      'email',
+      'push',
+      'sms',
+      'slack',
+    ]);
+    expect(channelOrder(['sms', 'push'])).toEqual(['push', 'sms']);
+    const [ordered] = offeringConfigured(
+      [
+        category({
+          key: 'new_posts',
+          perSpace: true,
+          covers: [{ type: 'post.published', reasons: ['space_member'] }],
+          channels: { sms: on, push: on, email: on, inApp: on },
+          spaceDefaults: { spc_1: { sms: true, push: true, inApp: true } },
+        }),
+      ],
+      ['inApp', 'sms', 'push', 'email'],
+    );
+    expect(Object.keys(ordered!.channels)).toEqual(['inApp', 'email', 'push', 'sms']);
+    expect(Object.keys(ordered!.spaceDefaults!.spc_1!)).toEqual(['inApp', 'push', 'sms']);
   });
 
   it('refuses a category that offers no channel', () => {

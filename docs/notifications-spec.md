@@ -480,7 +480,7 @@ Automations defines the default lists for communities and for the org in code, n
 - The first `PUT` stores the whole list. From then on the stored list applies, and a type added to the server later reaches that community only when its list covers it.
 - `DELETE` restores the default. `SettingsRepository.patch` can't remove a key, so it writes `notificationCategories: null`; a `null` or absent key means the default.
 
-The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`, leaving out channels the deployment no longer configures, their `spaceDefaults` entries, and categories left with no configured channel, so a list read and written back validates.
+The defaults offer only configured channels. `GET` returns the list in use with `source: "default" | "stored"`, leaving out channels the deployment no longer configures, their `spaceDefaults` entries, and categories left with no configured channel, so a list read and written back validates. Each category's `channels`, and each `spaceDefaults` entry, list `inApp`, `email` and `push` first, in that order, then other channels in the order of `ChannelRegistry.list()`; a stored list is stored and returned in that order too, whatever the order of the `PUT` body.
 
 **Default community list.** It contains the community app's categories plus `about_you` and `review`, which the app's list doesn't have.
 
@@ -1468,8 +1468,8 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
       "key": "mentions",
       "perSpace": false,
       "channels": [
-        { "channel": "push", "enabled": true, "default": true, "source": "default", "locked": false },
-        { "channel": "email", "enabled": false, "default": true, "source": "community", "locked": false }
+        { "channel": "email", "enabled": false, "default": true, "source": "community", "locked": false },
+        { "channel": "push", "enabled": true, "default": true, "source": "default", "locked": false }
       ]
     },
     {
@@ -1484,7 +1484,7 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
 }
 ```
 
-`spaces` lists every space the member can open, with its name. `default` is what the channel resolves to without the member's own setting at that level, the community level or the space (8.1): what `enabled: null` would give. `digest` is the community's digest schedule (section 12), `null` when it sends none, so the app can label the `digest` category.
+`channels` lists `inApp`, `email` and `push` first, in that order, then other channels in registry order. `spaces` lists every space the member can open, with its name. `default` is what the channel resolves to without the member's own setting at that level, the community level or the space (8.1): what `enabled: null` would give. `digest` is the community's digest schedule (section 12), `null` when it sends none, so the app can label the `digest` category.
 
 `PATCH` on the same path, for the same people:
 

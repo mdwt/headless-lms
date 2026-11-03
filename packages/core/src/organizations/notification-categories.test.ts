@@ -17,7 +17,7 @@ const DEFAULT: NotificationCategory[] = [
   },
 ];
 
-function harness() {
+function harness(configured = ['inApp', 'email']) {
   const rows = new Map<string, Record<string, unknown>>();
   const repo: SettingsRepository = {
     find: async (orgId, scopeId, namespace) => {
@@ -38,7 +38,7 @@ function harness() {
       get: (type) => DECLARATIONS.find((declaration) => declaration.type === type),
       defaults: (scope) => (scope === 'org' ? DEFAULT : []),
     },
-    channels: { list: () => ['inApp', 'email'], get: () => undefined },
+    channels: { list: () => configured, get: () => undefined },
   });
   return { service, rows };
 }
@@ -92,6 +92,27 @@ describe('org notification categories', () => {
     const read = await service.get('org_1', 'org_1');
     expect(read).toEqual({ categories: [access], source: 'stored' });
     await expect(service.replace('org_1', 'org_1', read.categories)).resolves.toEqual(read);
+  });
+
+  it('stores and serves channels inApp, email, push, then the rest', async () => {
+    const { service, rows } = harness(['inApp', 'sms', 'push', 'email']);
+    const shuffled: NotificationCategory = {
+      ...access,
+      channels: {
+        sms: { default: false, locked: false },
+        email: { default: true, locked: true },
+        push: { default: true, locked: false },
+        inApp: { default: true, locked: false },
+      },
+    };
+    const saved = await service.replace('org_1', 'org_1', [shuffled]);
+    expect(Object.keys(saved.categories[0]!.channels)).toEqual(['inApp', 'email', 'push', 'sms']);
+    const stored = rows.get('org_1:organizations:org_1')!
+      .notificationCategories as NotificationCategory[];
+    expect(Object.keys(stored[0]!.channels)).toEqual(['inApp', 'email', 'push', 'sms']);
+    rows.set('org_1:organizations:org_1', { notificationCategories: [shuffled] });
+    const read = await service.get('org_1', 'org_1');
+    expect(Object.keys(read.categories[0]!.channels)).toEqual(['inApp', 'email', 'push', 'sms']);
   });
 
   it('resets to the default by storing null', async () => {

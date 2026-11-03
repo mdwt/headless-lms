@@ -53,15 +53,17 @@ export class OrgNotificationCategories implements NotificationCategoryService {
     scopeId: string,
     categories: NotificationCategory[],
   ): Promise<{ categories: NotificationCategory[]; source: 'stored' }> {
-    assertValidCategoryList(categories, 'org', this.types, this.channels.list());
+    const configured = this.channels.list();
+    assertValidCategoryList(categories, 'org', this.types, configured);
+    const ordered = offeringConfigured(categories, configured);
     await this.settings.patch(orgId, SettingsNamespace.organizations, scopeId, {
-      notificationCategories: categories,
+      notificationCategories: ordered,
     });
     this.logger.info('org notification categories replaced', {
       orgId,
       keys: categories.map((category) => category.key),
     });
-    return { categories, source: 'stored' };
+    return { categories: ordered, source: 'stored' };
   }
 
   async reset(orgId: string, scopeId: string): Promise<void> {

@@ -235,6 +235,20 @@ describe('member notification settings view', () => {
     ]);
   });
 
+  it('lists channels inApp, email, push, then the rest, whatever the registry order', async () => {
+    const { svc } = build({ configured: ['inApp', 'sms', 'push', 'email'] });
+    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    expect(view?.categories.map((c) => c.channels.map((r) => r.channel))).toEqual([
+      ['inApp', 'email'],
+      ['inApp', 'email', 'push'],
+      ['inApp', 'push'],
+    ]);
+    expect(view?.categories[2]?.spaces?.[0]?.channels.map((r) => r.channel)).toEqual([
+      'inApp',
+      'push',
+    ]);
+  });
+
   it('lists no spaces when the member can open none', async () => {
     const { svc } = build({ openSpaces: [] });
     const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');

@@ -12,6 +12,7 @@ import type { NotificationSettingsService } from '../../identity/index.js';
 import type { ListedNotification, NotificationsService } from '../../automations/index.js';
 import type { ChannelRegistry, NotificationCategoryService } from '../../shared/ports.js';
 import { resolveChannels } from '../../shared/notification-settings.js';
+import { channelOrder } from '../../shared/notification-categories.js';
 import type {
   NotificationCategory,
   NotificationFilter,
@@ -167,7 +168,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     settings: StoredSetting[],
     spaces: { spaceId: string; name: string }[],
   ): NotificationSettingsCategoryView[] {
-    const configured = this.channels.list();
+    const configured = channelOrder(this.channels.list());
     const channelsAt = (
       category: NotificationCategory,
       spaceId: string | null,
