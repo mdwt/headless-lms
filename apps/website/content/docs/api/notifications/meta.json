@@ -2,10 +2,27 @@
   "title": "Notifications",
   "description": "What happened to the signed-in member, and how they want to be told",
   "pages": [
+    "listNotificationTypes",
+    "listNotificationChannels",
+    "getOrgNotificationCategories",
+    "resetOrgNotificationCategories",
+    "replaceOrgNotificationCategories",
+    "getDefaultNotificationCategories",
+    "getCommunityNotificationCategories",
+    "resetCommunityNotificationCategories",
+    "replaceCommunityNotificationCategories",
     "listMemberNotifications",
+    "getMemberNotificationUnreadCounts",
+    "getMemberNotification",
     "markMemberNotificationRead",
     "markAllMemberNotificationsRead",
-    "getMemberNotificationPreferences",
-    "setMemberNotificationPreferences"
+    "getMemberCommunityNotificationSettings",
+    "setMemberCommunityNotificationSettings",
+    "getMemberNotificationSettings",
+    "setMemberNotificationSettings",
+    "listMemberDevices",
+    "registerMemberDevice",
+    "removeMemberDevice",
+    "getMemberPushConfig"
   ]
 }

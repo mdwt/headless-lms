@@ -1,0 +1,61 @@
+---
+title: APNs, FCM and Web Push
+description: Send push notifications to iOS apps, Android apps and browsers with the push adapter.
+---
+
+`@headless-lms/adapter-push` implements the `PushSender` port. It sends straight to each platform's push service, with no third-party push service in between:
+
+| Provider  | Platform | Sent through                                                                                                                        |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `apns`    | iOS      | HTTP/2 to Apple, or Apple's sandbox for a development build; token auth with the team's `.p8` key; the topic is the app's bundle id |
+| `fcm`     | Android  | FCM HTTP v1 with the Firebase project's service account                                                                             |
+| `webpush` | browsers | the subscription's endpoint, signed with your VAPID key pair and encrypted with the subscription's keys                             |
+
+When at least one provider is configured, the server registers the `push` notification channel: categories can offer it, members can switch it on and off, and each notification a member gets by push goes to every device they registered and used in the last 30 days. Without the adapter, or with no provider configured, there is no `push` channel and devices can't register.
+
+## Setup
+
+The adapter reads no environment itself. Your installation parses env into a `PushConfig` and passes both the config and the adapter:
+
+```ts title="main.ts"
+import { PushAdapter } from "@headless-lms/adapter-push";
+
+const push = loadPushConfig();
+const container = await createContainer(config, {
+  adapters: {
+    push,
+    pushSender: new PushAdapter(push),
+  },
+});
+```
+
+`push` tells the server which providers exist (the device routes refuse an unconfigured provider, and a browser reads the VAPID public key from `GET /api/member/push-config`); `pushSender` does the sending.
+
+## Registering devices
+
+An app registers its push address after sign-in and on every launch with `POST /api/member/devices`, and removes it with `DELETE /api/member/devices/:deviceId` before it signs out.
+
+- **iOS:** the APNs device token, with `appId` the app's bundle id (one of `APNS_BUNDLE_IDS`) and `environment` `production` or `sandbox`. An app built with Expo registers the native token from `getDevicePushTokenAsync`, not an Expo push token.
+- **Android:** the FCM registration token.
+- **Browser:** subscribe with `pushManager.subscribe({ applicationServerKey })` using the key from `push-config`, then register the subscription's endpoint as the token with its `p256dh` and `auth` keys. Register again on `pushsubscriptionchange`.
+
+## What a push carries
+
+Every push has a title and body, rendered from the notification, and `data`: `{ notificationId, type, subject, parent, communityId, spaceId }`, so the app can open the item and mark the notification read. On FCM every `data` value is a string, with `subject` and `parent` JSON-encoded.
+
+A delivery is sent when at least one device accepts it. A network error, a `429` or a `5xx` from every device is retried by the workflow engine; an answer that won't change on a retry fails the delivery at once. Devices the provider reports as gone are removed.
+
+## Environment variables
+
+These are the variables the reference installation (`apps/api`) maps to `PushConfig`. A provider is configured when all of its variables are set; setting only some of them stops the server at startup.
+
+| Variable              | Provider | Notes                                                             |
+| --------------------- | -------- | ----------------------------------------------------------------- |
+| `APNS_TEAM_ID`        | APNs     | Apple developer team id                                           |
+| `APNS_KEY_ID`         | APNs     | id of the `.p8` key                                               |
+| `APNS_KEY`            | APNs     | the `.p8` key, `\n` for newlines                                  |
+| `APNS_BUNDLE_IDS`     | APNs     | comma-separated bundle ids of the apps the key serves             |
+| `FCM_SERVICE_ACCOUNT` | FCM      | the Firebase project's service account JSON                       |
+| `VAPID_PUBLIC_KEY`    | Web Push | from `npx web-push generate-vapid-keys`; the same on every server |
+| `VAPID_PRIVATE_KEY`   | Web Push |                                                                   |
+| `VAPID_SUBJECT`       | Web Push | a `mailto:` or `https:` contact                                   |

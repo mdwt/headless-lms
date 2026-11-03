@@ -21,8 +21,7 @@ description: Direct and group chats inside one community
 <Card href="/docs/api/chats/flagMessage" title="Flag a message for the moderators" description="For a participant of the chat. Flagging it again while your flag is open returns that flag." />
 <Card href="/docs/api/chats/resolveMessageFlags" title="Dismiss the open flags on a message in a community you moderate" description="For a moderator who is a member of the community. Closes every open flag and leaves the message up." />
 <Card href="/docs/api/chats/markChatRead" title="Mark a chat read up to a message" description="For a participant. The message must be in the chat (404 otherwise)." />
-<Card href="/docs/api/chats/muteChat" title="Mute a chat until a time, or until unmuted" description="For a participant. Without `until` the chat stays muted until you unmute it." />
-<Card href="/docs/api/chats/unmuteChat" title="Unmute a chat" description="For a participant." />
+<Card href="/docs/api/chats/setChatSubscription" title="Mute a chat, or clear your mute" description="For a participant. `muted` stops its messages notifying you, until `mutedUntil` when given; a mention still notifies you. `none` clears the mute." />
 <Card href="/docs/api/chats/lockChat" title="Lock a chat in a community you moderate" description="For a moderator who is a member of the community. Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged." />
 <Card href="/docs/api/chats/unlockChat" title="Unlock a chat in a community you moderate" description="For a moderator who is a member of the community. Unlocking an unlocked chat returns it unchanged." />
 <Card href="/docs/api/chats/unblockMember" title="Unblock a person in a community" description="For a member of the community. A direct chat closed by the block reopens unless a moderator locked it. 409 when you unblock yourself." />

@@ -52,6 +52,7 @@
     "declineSpaceRequest",
     "refuseSpaceInvite",
     "leaveSpace",
-    "removeSpaceMember"
+    "removeSpaceMember",
+    "setSpaceSubscription"
   ]
 }

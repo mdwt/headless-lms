@@ -4,6 +4,7 @@
   "pages": [
     "index",
     "organizations",
+    "notifications",
     "content",
     "communities",
     "profile",
@@ -13,7 +14,6 @@
     "discussion",
     "assets",
     "files",
-    "notifications",
     "reporting",
     "entitlements",
     "automations",
