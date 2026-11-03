@@ -73,7 +73,8 @@ function makeRepo(): ContentRepository {
     findCommunitiesByIds: vi.fn(),
     createCommunity: vi.fn(),
     updateCommunity: vi.fn(),
-    patchDmSettings: vi.fn(),
+    patchCommunitySettings: vi.fn(),
+    communitiesWithDigest: vi.fn(),
     deleteCommunity: vi.fn(),
     deleteCommunitySettings: vi.fn(),
     listSpaces: vi.fn(),
@@ -983,6 +984,7 @@ function makeCommunity(over: Partial<Community> = {}): Community {
         groupChats: true,
         groupSize: 8,
       },
+      digest: null,
     },
     createdAt: AT,
     updatedAt: AT,
@@ -1035,6 +1037,54 @@ describe('communities', () => {
       type: 'content.community.deleted',
       metadata: { actorOrgUserId: 'ou_owner' },
     });
+  });
+
+  it('stores a digest schedule beside the direct-message settings, for an owner or admin only', async () => {
+    const repo = makeRepo();
+    const digest = {
+      cadence: 'weekly' as const,
+      weekday: 4,
+      hour: 7,
+      timeZone: 'Europe/Madrid',
+    };
+    const community = makeCommunity({ settings: { ...makeCommunity().settings, digest } });
+    vi.mocked(repo.patchCommunitySettings).mockResolvedValue(community);
+    const { svc, appended } = build(repo);
+
+    await expect(
+      svc.patchCommunitySettings('org1', community.id, { digest, groupSize: 6 }, owner),
+    ).resolves.toMatchObject({ settings: { digest } });
+    expect(repo.patchCommunitySettings).toHaveBeenCalledWith('org1', community.id, {
+      digest,
+      groupSize: 6,
+    });
+    expect(appended[0]).toMatchObject({
+      type: 'content.community.updated',
+      data: { settings: { digest } },
+    });
+    await expect(
+      svc.patchCommunitySettings(
+        'org1',
+        community.id,
+        { digest: null },
+        { id: 'ou_i', role: 'instructor' },
+      ),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('reads every published community with a digest schedule through the repository', async () => {
+    const repo = makeRepo();
+    const rows = [
+      {
+        orgId: 'org1',
+        communityId: 'cmy_1',
+        digest: { cadence: 'daily' as const, weekday: 0, hour: 7, timeZone: 'UTC' },
+      },
+    ];
+    vi.mocked(repo.communitiesWithDigest).mockResolvedValue(rows);
+    const { svc } = build(repo);
+
+    await expect(svc.communitiesWithDigest()).resolves.toEqual(rows);
   });
 
   it('lists the ids of published communities only through the repository', async () => {

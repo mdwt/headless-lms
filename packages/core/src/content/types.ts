@@ -16,6 +16,7 @@ export type {
   CreateCommunityInput,
   UpdateCommunityInput,
   PatchDmSettingsInput,
+  PatchCommunitySettingsInput,
   CreateSpaceInput,
   UpdateSpaceInput,
   SetSpaceTopicsInput,

@@ -29,7 +29,7 @@ export type CommunityMailDeps = {
   organizations: Pick<OrganizationService, 'getOrgUserById' | 'staffOrgUserIds'>;
   identity: Pick<IdentityService, 'displayName'>;
   posts: Pick<PostService, 'followerIds' | 'find' | 'publishDue' | 'hasDue'>;
-  discussion: Pick<DiscussionService, 'getComment' | 'sendDigest'>;
+  discussion: Pick<DiscussionService, 'getComment'>;
   chats: Pick<ChatService, 'chatSummary' | 'latestMessageBody' | 'isBlocked'>;
   assets: Pick<AssetsService, 'removeUnattached' | 'hasUnattached'>;
 };
@@ -130,7 +130,6 @@ export function communityMail(deps: CommunityMailDeps): {
       hasDuePosts: (orgId, now) => deps.posts.hasDue(orgId, now),
       expireDueGrants: (orgId, now) => deps.entitlements.expireDue(orgId, now),
       hasDueGrants: (orgId, now) => deps.entitlements.hasDueNotices(orgId, now),
-      sendDigest: (orgId, now) => deps.discussion.sendDigest(orgId, now),
       removeUnattachedUploads: async (orgId, now) => {
         await deps.assets.removeUnattached(orgId, now);
       },

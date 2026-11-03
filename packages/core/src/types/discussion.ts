@@ -8,6 +8,7 @@ export type {
   ChatUser,
   CommentFlagResolution,
   CommentStatus,
+  DigestRun,
   FlaggedComment,
   Message,
   MessageAttachment,

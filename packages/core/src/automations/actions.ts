@@ -151,10 +151,6 @@ export async function executeAction(
       await deps.scheduledWork.expireDueGrants(event.orgId, firedAtOf(event));
       return reachedNoOne();
     }
-    case 'sendDigest': {
-      await deps.scheduledWork.sendDigest(event.orgId, firedAtOf(event));
-      return reachedNoOne();
-    }
     case 'removeUnattachedUploads': {
       await deps.scheduledWork.removeUnattachedUploads(event.orgId, firedAtOf(event));
       return reachedNoOne();

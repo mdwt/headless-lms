@@ -61,13 +61,6 @@ export function orgSeeds(): SeedAutomation[] {
       filter: null,
     },
     {
-      name: 'Send digest',
-      description: 'Open the daily digest for every community.',
-      triggers: ['schedule:0 7 * * *'],
-      actions: [{ type: 'sendDigest', input: {} }],
-      filter: null,
-    },
-    {
       name: 'Remove unattached uploads',
       description: 'Remove member uploads older than an hour that nothing references.',
       triggers: ['schedule:0 * * * *'],

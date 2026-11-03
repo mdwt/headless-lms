@@ -24,6 +24,7 @@ import type {
   Bundle,
   BundleItem,
   Community,
+  CommunityDigest,
   CommunityStatus,
   ContentRepository,
   Course,
@@ -34,6 +35,7 @@ import type {
   CreateCourseInput,
   CreateDownloadInput,
   CreateSpaceInput,
+  DigestSchedule,
   Download,
   DownloadAsset,
   DownloadStatus,
@@ -43,7 +45,7 @@ import type {
   ListDownloadsQuery,
   Module,
   Page,
-  PatchDmSettingsInput,
+  PatchCommunitySettingsInput,
   SaveActivityInput,
   SetSpaceTopicsInput,
   Space,
@@ -58,6 +60,7 @@ import type {
 import {
   communitySettingsDefaults,
   courseSettingsDefaults,
+  digestScheduleSchema,
   spaceSettingsDefaults,
   type Setting,
 } from "@headless-lms/core/schemas";
@@ -115,6 +118,11 @@ const communitySettingsJoin = and(
   eq(settings.scopeId, communities.id),
 );
 
+function storedDigest(value: unknown): DigestSchedule | null {
+  const parsed = digestScheduleSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 function toCommunity(
   row: typeof communities.$inferSelect,
   storedSettings: Record<string, unknown> | null,
@@ -125,7 +133,10 @@ function toCommunity(
   return {
     ...row,
     status: row.status as CommunityStatus,
-    settings: { dm: { ...communitySettingsDefaults.dm, ...stored } as Community["settings"]["dm"] },
+    settings: {
+      dm: { ...communitySettingsDefaults.dm, ...stored } as Community["settings"]["dm"],
+      digest: storedDigest(storedSettings?.digest),
+    },
   };
 }
 
@@ -1246,15 +1257,39 @@ export class DrizzleContentRepository implements ContentRepository {
     return this.findCommunityById(orgId, id);
   }
 
-  async patchDmSettings(
+  async communitiesWithDigest(): Promise<CommunityDigest[]> {
+    const rows = await this.db
+      .select({
+        orgId: communities.orgId,
+        communityId: communities.id,
+        digest: sql<unknown>`${settings.value} -> 'digest'`,
+      })
+      .from(communities)
+      .innerJoin(settings, communitySettingsJoin)
+      .where(
+        and(
+          eq(communities.status, "published"),
+          sql`jsonb_typeof(${settings.value} -> 'digest') = 'object'`,
+        ),
+      )
+      .orderBy(asc(communities.orgId), asc(communities.id));
+    return rows.flatMap((row) => {
+      const digest = storedDigest(row.digest);
+      return digest ? [{ orgId: row.orgId, communityId: row.communityId, digest }] : [];
+    });
+  }
+
+  async patchCommunitySettings(
     orgId: string,
     id: string,
-    patch: PatchDmSettingsInput,
+    input: PatchCommunitySettingsInput,
   ): Promise<Community | null> {
     const community = await this.findCommunityById(orgId, id);
     if (!community) {
       return null;
     }
+    const { digest, ...dm } = input;
+    const patch = digest === undefined ? { dm } : { dm, digest };
     const key = and(
       eq(settings.orgId, orgId),
       eq(settings.namespace, SETTINGS_NAMESPACE),
@@ -1262,7 +1297,7 @@ export class DrizzleContentRepository implements ContentRepository {
     );
     await this.tx(async (tx) => {
       let [existing] = await tx.select().from(settings).where(key).for("update");
-      const value = { dm: patch } as Setting["value"];
+      const value = patch as Setting["value"];
       if (!existing) {
         const [inserted] = await tx
           .insert(settings)
@@ -1280,7 +1315,7 @@ export class DrizzleContentRepository implements ContentRepository {
       await tx
         .update(settings)
         .set({
-          value: deepMerge(existing.value, { dm: patch }) as Setting["value"],
+          value: deepMerge(existing.value, patch) as Setting["value"],
           updatedAt: new Date(),
         })
         .where(key);

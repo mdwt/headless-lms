@@ -35,7 +35,10 @@ function sample(schema: unknown, depth = 0): unknown {
     case 'object': {
       const shape = def.shape as Record<string, unknown>;
       return Object.fromEntries(
-        Object.entries(shape).map(([key, value]) => [key, sample(value, depth + 1)]),
+        Object.entries(shape).map(([key, value]) => [
+          key,
+          key === 'timeZone' ? 'UTC' : sample(value, depth + 1),
+        ]),
       );
     }
     case 'string': {

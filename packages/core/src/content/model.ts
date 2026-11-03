@@ -16,6 +16,7 @@ export type {
   CourseSettings,
   CourseStatus,
   CourseView,
+  DigestSchedule,
   DmSettings,
   Download,
   DownloadAsset,

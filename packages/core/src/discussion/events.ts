@@ -75,6 +75,10 @@ const participantAddedSchema = z
   .strict();
 
 const publicMessage = messageSchema.omit({ body: true }).strip();
+
+const digestDueSchema = z
+  .object({ communityId: idSchema, from: z.coerce.date(), to: z.coerce.date() })
+  .strict();
 const publicMessageFlag = messageFlagSchema.omit({ reason: true }).strip();
 
 export const discussionEvents = {
@@ -170,9 +174,9 @@ export const discussionEvents = {
   }),
   digestDue: defineEvent({
     type: 'discussion.digest.due',
-    version: 1,
-    data: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
-    publicData: z.object({ communityId: idSchema, period: z.string().min(1) }).strict(),
+    version: 2,
+    data: digestDueSchema,
+    publicData: digestDueSchema,
   }),
 };
 
@@ -192,4 +196,5 @@ export type ChatParticipantAdded = EventOf<typeof discussionEvents.chatParticipa
 export type MessageSent = EventOf<typeof discussionEvents.messageSent>;
 export type MessageDeleted = EventOf<typeof discussionEvents.messageDeleted>;
 export type MessageReported = EventOf<typeof discussionEvents.messageReported>;
+export type DigestDue = EventOf<typeof discussionEvents.digestDue>;
 export type NewDiscussionEvent = NewDomainEvent<DiscussionEvent>;

@@ -322,14 +322,48 @@ export const dmSettingsDefaults: DmSettings = {
   groupSize: 8,
 };
 
+function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const digestCadenceSchema = z.enum(['daily', 'weekly']);
+export type DigestCadence = z.infer<typeof digestCadenceSchema>;
+
+export const digestScheduleSchema = z
+  .object({
+    cadence: digestCadenceSchema,
+    weekday: z
+      .number()
+      .int()
+      .min(0)
+      .max(6)
+      .describe('The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it'),
+    hour: z.number().int().min(0).max(23).describe('The hour of the day it goes out, 0–23'),
+    timeZone: z
+      .string()
+      .refine(isTimeZone, { message: 'must be an IANA time zone' })
+      .describe('The IANA time zone the weekday and hour are in, such as `Europe/Madrid`'),
+  })
+  .strict();
+export type DigestSchedule = z.infer<typeof digestScheduleSchema>;
+
 export const communitySettingsSchema = z
   .object({
     dm: dmSettingsSchema,
+    digest: digestScheduleSchema.nullable(),
   })
   .strict();
 export type CommunitySettings = z.infer<typeof communitySettingsSchema>;
 
-export const communitySettingsDefaults: CommunitySettings = { dm: dmSettingsDefaults };
+export const communitySettingsDefaults: CommunitySettings = {
+  dm: dmSettingsDefaults,
+  digest: null,
+};
 
 export const communitySchema = z
   .object({
@@ -460,6 +494,14 @@ export const patchDmSettingsInputSchema = dmSettingsSchema
   })
   .partial();
 export type PatchDmSettingsInput = z.infer<typeof patchDmSettingsInputSchema>;
+
+export const patchCommunitySettingsInputSchema = patchDmSettingsInputSchema.extend({
+  digest: digestScheduleSchema
+    .nullable()
+    .optional()
+    .describe('When the community digest goes out; null stops it'),
+});
+export type PatchCommunitySettingsInput = z.infer<typeof patchCommunitySettingsInputSchema>;
 
 export const createSpaceInputSchema = z
   .object({

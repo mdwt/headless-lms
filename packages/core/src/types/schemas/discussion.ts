@@ -400,3 +400,12 @@ export const blockedUserSchema = z
   })
   .strict();
 export type BlockedUser = z.output<typeof blockedUserSchema>;
+
+export const digestRunSchema = z
+  .object({
+    orgId: idSchema,
+    communityId: idSchema,
+    lastDueAt: z.coerce.date(),
+  })
+  .strict();
+export type DigestRun = z.output<typeof digestRunSchema>;

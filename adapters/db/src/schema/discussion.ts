@@ -32,6 +32,7 @@ import type {
   Comment,
   CommentReaction,
   CommentReport,
+  DigestRun,
   Message,
   MessageAttachment,
   MessageFlag,
@@ -640,6 +641,22 @@ export const blockedUsers = pgTable(
   }),
 );
 
+export const digestRuns = pgTable(
+  "digest_runs",
+  {
+    orgId: text("org_id").notNull(),
+    communityId: text("community_id").notNull(),
+    lastDueAt: timestamp("last_due_at", { withTimezone: true }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.communityId] }),
+    communityFk: foreignKey({
+      columns: [t.orgId, t.communityId],
+      foreignColumns: [communities.orgId, communities.id],
+    }).onDelete("cascade"),
+  }),
+);
+
 type _PostsDrift = Expect<NoDrift<typeof posts.$inferSelect, Post>>;
 type _PostReactionsDrift = Expect<NoDrift<typeof postReactions.$inferSelect, PostReaction>>;
 type _PostFollowsDrift = Expect<NoDrift<typeof postFollows.$inferSelect, PostFollow>>;
@@ -661,3 +678,4 @@ type _MessageReactionsDrift = Expect<
 >;
 type _MessageFlagsDrift = Expect<NoDrift<typeof messageFlags.$inferSelect, MessageFlag>>;
 type _BlockedUsersDrift = Expect<NoDrift<typeof blockedUsers.$inferSelect, BlockedUser>>;
+type _DigestRunsDrift = Expect<NoDrift<typeof digestRuns.$inferSelect, DigestRun>>;

@@ -6,6 +6,7 @@ import type {
   Chat,
   ChatLastMessage,
   ChatUser,
+  DigestRun,
   FlaggedComment,
   JsonValue,
   Message,
@@ -18,7 +19,7 @@ import type {
   PostStatus,
   PostView,
 } from '../types/index.js';
-import type { SpaceDetail } from '../content/index.js';
+import type { CommunityDigest, SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { Role } from '../organizations/index.js';
@@ -148,8 +149,6 @@ export interface DiscussionService {
 
   /** Plain read of one comment — no rules applied. */
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
-
-  sendDigest(orgId: string, now: Date): Promise<void>;
 }
 
 export interface ContentAccessReader {
@@ -427,6 +426,25 @@ export interface PostWriteScope {
   outbox: OutboxAppender;
 }
 export type PostUnitOfWork = UnitOfWork<PostWriteScope>;
+
+export interface DigestScheduleReader {
+  communitiesWithDigest(): Promise<CommunityDigest[]>;
+}
+
+export interface DigestRunRepository {
+  listRuns(): Promise<DigestRun[]>;
+  advance(orgId: string, communityId: string, dueAt: Date): Promise<boolean>;
+}
+
+export interface DigestWriteScope {
+  digests: DigestRunRepository;
+  outbox: OutboxAppender;
+}
+export type DigestUnitOfWork = UnitOfWork<DigestWriteScope>;
+
+export interface DigestService {
+  openDue(now: Date): Promise<void>;
+}
 
 export interface StartDirectInput {
   communityId: string;

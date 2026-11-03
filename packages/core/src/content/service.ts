@@ -21,6 +21,7 @@ import type {
 import type {
   BundlesService,
   CommunitiesService,
+  CommunityDigest,
   CourseManagementService,
   ContentRepository,
   ContentUnitOfWork,
@@ -38,7 +39,7 @@ import type {
   ListCoursesQuery,
   ListDownloadsQuery,
   Page,
-  PatchDmSettingsInput,
+  PatchCommunitySettingsInput,
   SetSpaceTopicsInput,
   UpdateBundleInput,
   UpdateCommunityInput,
@@ -757,6 +758,10 @@ export class ContentService
     return this.repo.listPublishedCommunityIds(orgId);
   }
 
+  communitiesWithDigest(): Promise<CommunityDigest[]> {
+    return this.repo.communitiesWithDigest();
+  }
+
   listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]> {
     return ids.length ? this.repo.findCommunitiesByIds(orgId, ids) : Promise.resolve([]);
   }
@@ -880,17 +885,17 @@ export class ContentService
     this.logger.info('community deleted', { orgId, communityId: id, actorId: actor.id });
   }
 
-  async patchDmSettings(
+  async patchCommunitySettings(
     orgId: string,
     id: string,
-    patch: PatchDmSettingsInput,
+    patch: PatchCommunitySettingsInput,
     actor: Actor,
   ): Promise<CommunityView> {
     assertConfigurator(actor);
     const community = await this.uow.run(async ({ content, outbox }) => {
-      const updated = await content.patchDmSettings(orgId, id, patch);
+      const updated = await content.patchCommunitySettings(orgId, id, patch);
       if (!updated) {
-        this.logger.warn('community dm settings patch rejected — not found', {
+        this.logger.warn('community settings patch rejected — not found', {
           orgId,
           communityId: id,
           actorId: actor.id,
@@ -906,7 +911,7 @@ export class ContentService
       ]);
       return updated;
     });
-    this.logger.info('community dm settings patched', {
+    this.logger.info('community settings patched', {
       orgId,
       communityId: id,
       actorId: actor.id,

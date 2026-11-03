@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EditMessage, SendMessage, StartDirectChat, StartGroupChat } from './chats.js';
-import { CreateCommunity, PatchDmSettings, SetSpaceTopics } from './community.js';
+import {
+  CreateCommunity,
+  PatchCommunitySettings,
+  PatchDmSettings,
+  SetSpaceTopics,
+} from './community.js';
 import { SetNotificationPreferences } from './notifications.js';
 import { CreatePost, SchedulePost } from './posts.js';
 import { UpdateProfile, UserProfile } from './profile.js';
@@ -35,6 +40,31 @@ describe('request limits', () => {
     expect(SetSpaceTopics.safeParse({ topics: [{ name: 'x'.repeat(61) }] }).success).toBe(false);
     expect(PatchDmSettings.safeParse({ groupSize: 101 }).success).toBe(false);
     expect(PatchDmSettings.safeParse({ groupSize: 8 }).success).toBe(true);
+  });
+
+  it('accepts a digest schedule in a valid IANA zone, or null, beside the direct-message settings', () => {
+    const digest = { cadence: 'weekly', weekday: 4, hour: 7, timeZone: 'Europe/Madrid' };
+    expect(PatchCommunitySettings.parse({ digest, groupSize: 8 })).toEqual({
+      digest,
+      groupSize: 8,
+    });
+    expect(PatchCommunitySettings.parse({ digest: null })).toEqual({ digest: null });
+    expect(PatchCommunitySettings.parse({ digest: { ...digest, cadence: 'daily' } })).toEqual({
+      digest: { ...digest, cadence: 'daily' },
+    });
+    for (const bad of [
+      { ...digest, cadence: 'monthly' },
+      { ...digest, weekday: 7 },
+      { ...digest, weekday: -1 },
+      { ...digest, hour: 24 },
+      { ...digest, hour: 7.5 },
+      { ...digest, timeZone: 'Mars/Olympus' },
+      { ...digest, timeZone: '' },
+      { cadence: 'daily', hour: 7, timeZone: 'UTC' },
+      { ...digest, extra: true },
+    ]) {
+      expect(PatchCommunitySettings.safeParse({ digest: bad }).success).toBe(false);
+    }
   });
 
   it('reads post dates as RFC 3339 date-times only', () => {

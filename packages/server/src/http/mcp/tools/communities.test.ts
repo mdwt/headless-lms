@@ -33,7 +33,7 @@ const cases: ToolCase[] = [
   {
     tool: 'update_community_messaging',
     args: { communityId: 'cmy_1', memberToMember: false },
-    service: 'content.patchDmSettings',
+    service: 'content.patchCommunitySettings',
     expected: ['org_1', 'cmy_1', { memberToMember: false }, actor],
   },
   {

@@ -1236,6 +1236,21 @@ export type ListCommunitiesResponses = {
           groupChats: boolean;
           groupSize: number;
         };
+        digest: {
+          cadence: "daily" | "weekly";
+          /**
+           * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+           */
+          weekday: number;
+          /**
+           * The hour of the day it goes out, 0–23
+           */
+          hour: number;
+          /**
+           * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+           */
+          timeZone: string;
+        } | null;
       };
       createdAt: string;
       updatedAt: string;
@@ -1334,6 +1349,21 @@ export type CreateCommunityResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -1495,6 +1525,21 @@ export type GetCommunityResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -1601,6 +1646,21 @@ export type UpdateCommunityResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -1622,6 +1682,24 @@ export type PatchCommunityDmSettingsData = {
      * The most people a group chat may hold, its creator included
      */
     groupSize?: number;
+    /**
+     * When the community digest goes out; null stops it
+     */
+    digest?: {
+      cadence: "daily" | "weekly";
+      /**
+       * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+       */
+      weekday: number;
+      /**
+       * The hour of the day it goes out, 0–23
+       */
+      hour: number;
+      /**
+       * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+       */
+      timeZone: string;
+    } | null;
   };
   path: {
     communityId: string;
@@ -1706,6 +1784,21 @@ export type PatchCommunityDmSettingsResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -1808,6 +1901,21 @@ export type PublishCommunityResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;
@@ -1909,6 +2017,21 @@ export type UnpublishCommunityResponses = {
         groupChats: boolean;
         groupSize: number;
       };
+      digest: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     };
     createdAt: string;
     updatedAt: string;

@@ -84,7 +84,6 @@ export interface CommunityMailReads {
 export interface ScheduledWork {
   publishDuePosts(orgId: string, now: Date): Promise<void>;
   expireDueGrants(orgId: string, now: Date): Promise<void>;
-  sendDigest(orgId: string, now: Date): Promise<void>;
   hasDuePosts(orgId: string, now: Date): Promise<boolean>;
   hasDueGrants(orgId: string, now: Date): Promise<boolean>;
   removeUnattachedUploads(orgId: string, now: Date): Promise<void>;
@@ -139,7 +138,6 @@ export const emptyNotificationDesk: NotificationDesk = {
 export const emptyScheduledWork: ScheduledWork = {
   publishDuePosts: async () => {},
   expireDueGrants: async () => {},
-  sendDigest: async () => {},
   hasDuePosts: async () => false,
   hasDueGrants: async () => false,
   removeUnattachedUploads: async () => {},

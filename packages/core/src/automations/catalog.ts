@@ -103,12 +103,6 @@ export function catalogActions(): AvailableActions {
       source: 'system',
     },
     {
-      type: 'sendDigest',
-      description: 'Open the daily digest for every community.',
-      inputSchema: { type: 'object' },
-      source: 'system',
-    },
-    {
       type: 'removeUnattachedUploads',
       description: 'Remove member uploads older than an hour that nothing references.',
       inputSchema: { type: 'object' },
@@ -525,7 +519,7 @@ const TRIGGERS: CatalogTrigger[] = [
     event: discussionEvents.digestDue,
     label: 'Digest due',
     category: 'Discussion',
-    description: 'a community digest period opened',
+    description: "a community's digest came due on its schedule",
   },
   {
     event: assetEvents.assetCreated,

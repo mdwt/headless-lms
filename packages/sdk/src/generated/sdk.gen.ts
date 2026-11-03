@@ -2577,9 +2577,9 @@ export class Communities {
   }
 
   /**
-   * Change direct-message settings for a community (staff)
+   * Change the direct-message and digest settings of a community (staff)
    *
-   * Owner or admin only. Changes only the settings sent; the rest keep their values. They decide who may message whom from then on.
+   * Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.
    */
   public static patchCommunityDmSettings<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2591,6 +2591,21 @@ export class Communities {
       firstMessageIsRequest?: boolean;
       groupChats?: boolean;
       groupSize?: number;
+      digest?: {
+        cadence: "daily" | "weekly";
+        /**
+         * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+         */
+        weekday: number;
+        /**
+         * The hour of the day it goes out, 0–23
+         */
+        hour: number;
+        /**
+         * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+         */
+        timeZone: string;
+      } | null;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
@@ -2612,6 +2627,7 @@ export class Communities {
             { in: "body", key: "firstMessageIsRequest" },
             { in: "body", key: "groupChats" },
             { in: "body", key: "groupSize" },
+            { in: "body", key: "digest" },
           ],
         },
       ],

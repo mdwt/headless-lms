@@ -3,6 +3,7 @@ export { ContentService } from './service.js';
 export type {
   BundlesService,
   CommunitiesService,
+  CommunityDigest,
   CommunityReader,
   CourseManagementService,
   ContentRepository,
@@ -30,6 +31,7 @@ export type {
   Community,
   CommunityStatus,
   CommunityView,
+  DigestSchedule,
   DmSettings,
   Space,
   SpaceAccessRule,
@@ -56,6 +58,7 @@ export type {
   UpdateSpaceInput,
   ListCommunitiesQuery,
   PatchDmSettingsInput,
+  PatchCommunitySettingsInput,
   SetSpaceTopicsInput,
 } from './types.js';
 export { contentEvents } from './events.js';

@@ -77,7 +77,7 @@ export const communityTools: Tool[] = [
     openWorld: false,
     input: PatchDmSettings.extend(CommunityIdParam.shape),
     call: ({ communityId, ...input }, { container, scope }) =>
-      container.content.patchDmSettings(scope.orgId, communityId, input, actor(scope)),
+      container.content.patchCommunitySettings(scope.orgId, communityId, input, actor(scope)),
   }),
   defineTool({
     name: 'create_space',

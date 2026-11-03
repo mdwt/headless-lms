@@ -8,6 +8,7 @@ import {
   DrizzleContentRepository,
   DrizzleCredentialStore,
   DrizzleAdminRepository,
+  DrizzleDigestRunRepository,
   DrizzleDiscussionRepository,
   DrizzlePostRepository,
   DrizzleChatRepository,
@@ -46,6 +47,7 @@ import { EntitlementsServiceImpl } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import {
   ChatServiceImpl,
+  DigestServiceImpl,
   DiscussionServiceImpl,
   PostServiceImpl,
   discussionJobs,
@@ -407,13 +409,22 @@ export async function buildContainer(
     access: entitlements,
     content: content,
     posts,
-    communities: { listIds: (orgId) => content.listPublishedCommunityIds(orgId) },
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     settings,
+    logger: discussionLogger,
+  });
+
+  const digests = new DigestServiceImpl({
+    schedules: { communitiesWithDigest: () => content.communitiesWithDigest() },
+    runs: new DrizzleDigestRunRepository(db, discussionLogger),
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      digests: new DrizzleDigestRunRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
     logger: discussionLogger,
   });
 
@@ -521,7 +532,7 @@ export async function buildContainer(
   });
   automationEngine.register(automations);
   automationEngine.registerJobs(
-    [...discussionJobs({ posts, logger: discussionLogger })],
+    [...discussionJobs({ posts, digests, logger: discussionLogger })],
     [...discussionRecurringJobs],
   );
 

@@ -342,12 +342,12 @@ describe('AutomationsService.handle', () => {
       data: { id: 'org-1' },
     } as DomainEvent;
     await svc.handle(created);
-    expect(stored).toHaveLength(9);
+    expect(stored).toHaveLength(8);
     expect(stored.every((row) => row.source === 'system')).toBe(true);
-    expect(appended).toHaveLength(9);
+    expect(appended).toHaveLength(8);
     await svc.handle(created);
-    expect(stored).toHaveLength(9);
-    expect(appended).toHaveLength(9);
+    expect(stored).toHaveLength(8);
+    expect(appended).toHaveLength(8);
     expect(repo.insert).not.toHaveBeenCalled();
   });
 
@@ -1079,7 +1079,6 @@ describe('AutomationsService.availableActions', () => {
       expect.objectContaining({ type: 'grantAccess', source: 'system' }),
       expect.objectContaining({ type: 'publishDuePosts', source: 'system' }),
       expect.objectContaining({ type: 'expireDueGrants', source: 'system' }),
-      expect.objectContaining({ type: 'sendDigest', source: 'system' }),
       expect.objectContaining({ type: 'removeUnattachedUploads', source: 'system' }),
       {
         type: 'slack.send-message',
@@ -1098,7 +1097,6 @@ describe('AutomationsService.availableActions', () => {
       'grantAccess',
       'publishDuePosts',
       'expireDueGrants',
-      'sendDigest',
       'removeUnattachedUploads',
     ]);
   });
@@ -1735,7 +1733,7 @@ describe('schedule reconcile after commit', () => {
       svc.create('org-1', {
         name: 'Daily',
         triggers: ['schedule:0 7 * * *'],
-        actions: [{ type: 'sendDigest', input: {} }],
+        actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
       }),
     ).resolves.toEqual(AUTOMATION);
     expect(engine.syncSchedules).toHaveBeenCalledOnce();
@@ -1807,7 +1805,7 @@ describe('fireSchedule work and slots', () => {
       ...scheduled('expireDueGrants'),
       actions: [
         { type: 'expireDueGrants', input: {} },
-        { type: 'sendDigest', input: {} },
+        { type: 'sendEmail', input: {} },
       ],
     };
     const { svc, engine } = withWork(automation, {
@@ -1818,7 +1816,7 @@ describe('fireSchedule work and slots', () => {
   });
 
   it('keys the run on the slot minute so a late fire of a slot dedupes', async () => {
-    const { svc, runsRepo } = withWork(scheduled('sendDigest'), {});
+    const { svc, runsRepo } = withWork(scheduled('sendEmail'), {});
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:42.123Z'));
     expect(runsRepo.insert).toHaveBeenCalledWith(
       'org-1',
@@ -1833,7 +1831,7 @@ describe('fireSchedule work and slots', () => {
 
   it('opens no second run for a slot that already ran', async () => {
     const insert = vi.fn().mockResolvedValueOnce(RUN).mockResolvedValue(null);
-    const automation = scheduled('sendDigest');
+    const automation = scheduled('sendEmail');
     const { svc, engine } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(automation) }),
       fakeRunsRepo({ insert }),
@@ -1846,7 +1844,7 @@ describe('fireSchedule work and slots', () => {
 
   it('never fires a slot from before the automation existed', async () => {
     const { svc, runsRepo } = withWork(
-      scheduled('sendDigest', new Date('2026-01-02T08:15:00Z')),
+      scheduled('sendEmail', new Date('2026-01-02T08:15:00Z')),
       {},
     );
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:00Z'));

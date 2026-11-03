@@ -1,10 +1,16 @@
 // discussion context — public surface. Re-export only what other layers may use.
 export { DiscussionServiceImpl, DEFAULT_SETTINGS } from './service.js';
 export { PostServiceImpl } from './posts.js';
+export { DigestServiceImpl, latestDueAt } from './digests.js';
 export { ChatServiceImpl } from './chats.js';
 export { authorView } from './authors.js';
 export { discussionEvents } from './events.js';
-export { POST_PUBLISH_JOB, discussionJobs, discussionRecurringJobs } from './jobs.js';
+export {
+  DIGEST_OPEN_JOB,
+  POST_PUBLISH_JOB,
+  discussionJobs,
+  discussionRecurringJobs,
+} from './jobs.js';
 export type {
   DiscussionService,
   DiscussionRepository,
@@ -44,6 +50,11 @@ export type {
   ChatRepository,
   ChatWriteScope,
   ChatUnitOfWork,
+  DigestRunRepository,
+  DigestScheduleReader,
+  DigestService,
+  DigestUnitOfWork,
+  DigestWriteScope,
 } from './ports.js';
 export type {
   Comment,

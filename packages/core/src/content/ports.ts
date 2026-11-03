@@ -9,6 +9,7 @@ import type {
   Course,
   CourseSettings,
   CourseView,
+  DigestSchedule,
   DmSettings,
   Download,
   DownloadAsset,
@@ -31,7 +32,7 @@ import type {
   ListCoursesQuery,
   ListDownloadsQuery,
   Page,
-  PatchDmSettingsInput,
+  PatchCommunitySettingsInput,
   SetSpaceTopicsInput,
   UpdateBundleInput,
   UpdateCommunityInput,
@@ -55,10 +56,17 @@ export interface SpaceRowLock {
   lockSpace(orgId: string, spaceId: string): Promise<Space | null>;
 }
 
+export interface CommunityDigest {
+  orgId: string;
+  communityId: string;
+  digest: DigestSchedule;
+}
+
 export interface CommunitiesService extends CommunityReader {
   listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>>;
   getCommunity(orgId: string, id: string): Promise<CommunityView | null>;
   listPublishedCommunityIds(orgId: string): Promise<string[]>;
+  communitiesWithDigest(): Promise<CommunityDigest[]>;
   listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]>;
   getCommunitySpace(
     orgId: string,
@@ -75,10 +83,10 @@ export interface CommunitiesService extends CommunityReader {
   publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
   unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
   deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void>;
-  patchDmSettings(
+  patchCommunitySettings(
     orgId: string,
     id: string,
-    patch: PatchDmSettingsInput,
+    patch: PatchCommunitySettingsInput,
     actor: Actor,
   ): Promise<CommunityView>;
 
@@ -312,12 +320,17 @@ export interface ContentRepository {
   findCommunityById(orgId: string, id: string): Promise<Community | null>;
   findCommunitiesByIds(orgId: string, ids: string[]): Promise<Community[]>;
   listPublishedCommunityIds(orgId: string): Promise<string[]>;
+  communitiesWithDigest(): Promise<CommunityDigest[]>;
   createCommunity(orgId: string, input: CreateCommunityInput, slug: string): Promise<Community>;
-  updateCommunity(orgId: string, id: string, patch: UpdateCommunityInput): Promise<Community | null>;
-  patchDmSettings(
+  updateCommunity(
     orgId: string,
     id: string,
-    patch: PatchDmSettingsInput,
+    patch: UpdateCommunityInput,
+  ): Promise<Community | null>;
+  patchCommunitySettings(
+    orgId: string,
+    id: string,
+    patch: PatchCommunitySettingsInput,
   ): Promise<Community | null>;
   deleteCommunity(orgId: string, id: string): Promise<boolean>;
   deleteCommunitySettings(orgId: string, id: string): Promise<void>;

@@ -37,6 +37,36 @@ function fakeClient(existingTopicIds: string[]) {
   return { client, statements };
 }
 
+describe("DrizzleContentRepository.communitiesWithDigest", () => {
+  it("reads every published community's stored digest across orgs and drops one that no longer parses", async () => {
+    const statements: Statement[] = [];
+    const weekly = { cadence: "weekly", weekday: 4, hour: 7, timeZone: "Europe/Madrid" };
+    const client = {
+      async query(config: string | { text: string }, params: unknown[] = []) {
+        statements.push({ text: typeof config === "string" ? config : config.text, params });
+        return {
+          rows: [
+            ["org1", "cmy_1", weekly],
+            ["org2", "cmy_2", { cadence: "hourly" }],
+          ],
+          rowCount: 2,
+        };
+      },
+    };
+    const repo = new DrizzleContentRepository(drizzle({ client: client as never }));
+    await expect(repo.communitiesWithDigest()).resolves.toEqual([
+      { orgId: "org1", communityId: "cmy_1", digest: weekly },
+    ]);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.text).toMatch(/inner join "settings" on/);
+    expect(statements[0]?.text).toMatch(
+      /jsonb_typeof\("settings"\."value" -> 'digest'\) = 'object'/,
+    );
+    expect(statements[0]?.text).not.toMatch(/"communities"\."org_id" = \$/);
+    expect(statements[0]?.params).toEqual(expect.arrayContaining(["content", "published"]));
+  });
+});
+
 function repoOver(existingTopicIds: string[]) {
   const { client, statements } = fakeClient(existingTopicIds);
   const db = drizzle({ client: client as never });

@@ -27,7 +27,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
     organizations: { getOrgUserById: reject, staffOrgUserIds: reject },
     identity: { displayName: reject },
     posts: { followerIds: reject, find: reject, publishDue: reject, hasDue: reject },
-    discussion: { getComment: reject, sendDigest: reject },
+    discussion: { getComment: reject },
     chats: { chatSummary: reject, latestMessageBody: reject, isBlocked: reject },
     assets: { removeUnattached: reject, hasUnattached: reject },
     ...over,

@@ -15,7 +15,7 @@ import {
   CreateSpace,
   MessageQueue,
   OrderedIds,
-  PatchDmSettings,
+  PatchCommunitySettings,
   SetSpaceTopics,
   SpaceDetail,
   SpaceLinkBody,
@@ -143,16 +143,16 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
     schema: {
       operationId: 'patchCommunityDmSettings',
       tags,
-      summary: 'Change direct-message settings for a community (staff)',
+      summary: 'Change the direct-message and digest settings of a community (staff)',
       description:
-        'Owner or admin only. Changes only the settings sent; the rest keep their values. They decide who may message whom from then on.',
+        'Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.',
       params: CommunityIdParam,
-      body: PatchDmSettings,
+      body: PatchCommunitySettings,
       response: { 200: Community, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const scope = await resolveScope(container, req);
-      return content.patchDmSettings(scope.orgId, req.params.communityId, req.body, {
+      return content.patchCommunitySettings(scope.orgId, req.params.communityId, req.body, {
         id: scope.orgUserId,
         role: scope.role,
       });

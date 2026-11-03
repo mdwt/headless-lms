@@ -325,7 +325,6 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
     },
     uow,
     settings,
-    communities: { listIds: async () => [] },
     fileUrls,
   });
   return {
@@ -1286,7 +1285,6 @@ describe('comments on a post', () => {
       },
       uow,
       settings,
-      communities: { listIds: async () => [] },
       fileUrls,
     });
     return { service, appended, ...fake };

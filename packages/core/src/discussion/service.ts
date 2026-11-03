@@ -50,7 +50,6 @@ export type DiscussionServiceParams = {
   posts: Pick<PostService, 'visible'>;
   uow: DiscussionUnitOfWork;
   settings: SettingsService;
-  communities: { listIds(orgId: string): Promise<string[]> };
   fileUrls: FileUrls;
   logger?: Logger;
 };
@@ -62,7 +61,6 @@ export class DiscussionServiceImpl implements DiscussionService {
   private readonly posts: Pick<PostService, 'visible'>;
   private readonly uow: DiscussionUnitOfWork;
   private readonly settings: SettingsService;
-  private readonly communities: { listIds(orgId: string): Promise<string[]> };
   private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
 
@@ -73,7 +71,6 @@ export class DiscussionServiceImpl implements DiscussionService {
     this.posts = params.posts;
     this.uow = params.uow;
     this.settings = params.settings;
-    this.communities = params.communities;
     this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
   }
@@ -846,25 +843,5 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   getComment(orgId: string, commentId: string): Promise<Comment | null> {
     return this.repo.findComment(orgId, commentId);
-  }
-
-  async sendDigest(orgId: string, now: Date): Promise<void> {
-    const communityIds = await this.communities.listIds(orgId);
-    if (communityIds.length === 0) {
-      this.logger.debug('no communities for digest', { orgId });
-      return;
-    }
-    const period = now.toISOString().slice(0, 10);
-    await this.uow.run(async ({ outbox }) => {
-      await outbox.append(
-        communityIds.map((communityId) =>
-          discussionEvents.digestDue.make({
-            orgId,
-            data: { communityId, period },
-          }),
-        ),
-      );
-    });
-    this.logger.info('digest due', { orgId, communities: communityIds.length, period });
   }
 }

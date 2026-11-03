@@ -3607,10 +3607,47 @@
                                   "groupSize"
                                 ],
                                 "additionalProperties": false
+                              },
+                              "digest": {
+                                "nullable": true,
+                                "type": "object",
+                                "properties": {
+                                  "cadence": {
+                                    "type": "string",
+                                    "enum": [
+                                      "daily",
+                                      "weekly"
+                                    ]
+                                  },
+                                  "weekday": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 6,
+                                    "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                                  },
+                                  "hour": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 23,
+                                    "description": "The hour of the day it goes out, 0–23"
+                                  },
+                                  "timeZone": {
+                                    "type": "string",
+                                    "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                                  }
+                                },
+                                "required": [
+                                  "cadence",
+                                  "weekday",
+                                  "hour",
+                                  "timeZone"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
-                              "dm"
+                              "dm",
+                              "digest"
                             ],
                             "additionalProperties": false
                           },
@@ -3908,10 +3945,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },
@@ -4196,10 +4270,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },
@@ -4516,10 +4627,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },
@@ -4904,11 +5052,11 @@
     "/api/communities/{communityId}/settings": {
       "patch": {
         "operationId": "patchCommunityDmSettings",
-        "summary": "Change direct-message settings for a community (staff)",
+        "summary": "Change the direct-message and digest settings of a community (staff)",
         "tags": [
           "Communities"
         ],
-        "description": "Owner or admin only. Changes only the settings sent; the rest keep their values. They decide who may message whom from then on.",
+        "description": "Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4939,6 +5087,43 @@
                     "minimum": 3,
                     "maximum": 100,
                     "description": "The most people a group chat may hold, its creator included"
+                  },
+                  "digest": {
+                    "description": "When the community digest goes out; null stops it",
+                    "nullable": true,
+                    "type": "object",
+                    "properties": {
+                      "cadence": {
+                        "type": "string",
+                        "enum": [
+                          "daily",
+                          "weekly"
+                        ]
+                      },
+                      "weekday": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                      },
+                      "hour": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 23,
+                        "description": "The hour of the day it goes out, 0–23"
+                      },
+                      "timeZone": {
+                        "type": "string",
+                        "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                      }
+                    },
+                    "required": [
+                      "cadence",
+                      "weekday",
+                      "hour",
+                      "timeZone"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "additionalProperties": false
@@ -5039,10 +5224,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },
@@ -5327,10 +5549,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },
@@ -5640,10 +5899,47 @@
                             "groupSize"
                           ],
                           "additionalProperties": false
+                        },
+                        "digest": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "cadence": {
+                              "type": "string",
+                              "enum": [
+                                "daily",
+                                "weekly"
+                              ]
+                            },
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it"
+                            },
+                            "hour": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 23,
+                              "description": "The hour of the day it goes out, 0–23"
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "description": "The IANA time zone the weekday and hour are in, such as `Europe/Madrid`"
+                            }
+                          },
+                          "required": [
+                            "cadence",
+                            "weekday",
+                            "hour",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
-                        "dm"
+                        "dm",
+                        "digest"
                       ],
                       "additionalProperties": false
                     },

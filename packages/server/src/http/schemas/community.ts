@@ -8,6 +8,7 @@ import {
   dmSettingsSchema,
   idSchema,
   patchDmSettingsInputSchema,
+  patchCommunitySettingsInputSchema,
   setSpaceTopicsInputSchema,
   spaceDetailSchema,
   spaceMemberSchema,
@@ -33,6 +34,7 @@ export const CommunitiesPage = paginated(Community);
 export const CreateCommunity = createCommunityInputSchema;
 export const UpdateCommunity = updateCommunityInputSchema;
 export const PatchDmSettings = patchDmSettingsInputSchema;
+export const PatchCommunitySettings = patchCommunitySettingsInputSchema;
 export const DmSettings = dmSettingsSchema;
 export const SpaceDetail = spaceDetailSchema;
 export const SpaceMember = spaceMemberSchema;
