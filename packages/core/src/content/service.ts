@@ -77,6 +77,10 @@ export type ContentServiceParams = {
   logger?: Logger;
 };
 
+function isPublishedActivity(settings: unknown): boolean {
+  return (settings as { published?: unknown } | null)?.published !== false;
+}
+
 function actorMetadata(actor: Actor): { actorOrgUserId: string } {
   return { actorOrgUserId: actor.id };
 }
@@ -378,6 +382,7 @@ export class ContentService
   ): Promise<Module[]> {
     await this.assertLibraryAssets(orgId, input.assetIds ?? []);
     const { modules, activity } = await this.uow.run(async ({ content, outbox }) => {
+      let wasPublished = false;
       if (activityId) {
         const existing = await content.findActivity(orgId, activityId);
         if (!existing || existing.moduleId !== moduleId || existing.courseId !== courseId) {
@@ -389,6 +394,7 @@ export class ContentService
           });
           throw new NotFoundError('Activity', activityId);
         }
+        wasPublished = isPublishedActivity(existing.settings);
       } else {
         const module = await content.findModule(orgId, moduleId);
         if (!module || module.courseId !== courseId) {
@@ -408,11 +414,23 @@ export class ContentService
         input,
         activityId,
       );
-      await outbox.append([
+      const events: NewDomainEvent[] = [
         activityId
           ? contentEvents.activityUpdated.make({ orgId, data: saved })
           : contentEvents.activityCreated.make({ orgId, data: saved }),
-      ]);
+      ];
+      if (!wasPublished && isPublishedActivity(saved.settings)) {
+        const course = await content.findCourseById(orgId, courseId);
+        if (course?.status === 'published') {
+          events.push(
+            contentEvents.activityPublished.make({
+              orgId,
+              data: { activityId: saved.id, moduleId, courseId },
+            }),
+          );
+        }
+      }
+      await outbox.append(events);
       return { modules: all, activity: saved };
     });
     this.logger.info(activityId ? 'activity updated' : 'activity created', {

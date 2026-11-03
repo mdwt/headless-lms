@@ -497,6 +497,83 @@ describe('activities', () => {
     ]);
   });
 
+  describe('content.course.activity.published', () => {
+    const published = (activityId: string) => ({
+      type: 'content.course.activity.published',
+      version: 1,
+      orgId: 'org1',
+      data: { activityId, moduleId: 'm1', courseId: 'c1' },
+    });
+
+    function scenario(options: {
+      status: 'draft' | 'published';
+      before?: unknown;
+      after: unknown;
+    }) {
+      const repo = makeRepo();
+      vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ status: options.status }));
+      vi.mocked(repo.findModule).mockResolvedValue(makeModule());
+      if (options.before !== undefined) {
+        vi.mocked(repo.findActivity).mockResolvedValue(
+          makeActivity({ settings: options.before as Activity['settings'] }),
+        );
+      }
+      vi.mocked(repo.saveActivity).mockResolvedValue({
+        modules: [makeModule()],
+        activity: makeActivity({ settings: options.after as Activity['settings'] }),
+      });
+      return build(repo);
+    }
+
+    it('is emitted when an update publishes a draft activity of a published course', async () => {
+      const { svc, appended } = scenario({
+        status: 'published',
+        before: { title: 'A', published: false },
+        after: { title: 'A', published: true },
+      });
+      await svc.saveActivity('org1', 'c1', 'm1', { settings: {} }, 'act1');
+      expect(appended.map((event) => event.type)).toEqual([
+        'content.course.activity.updated',
+        'content.course.activity.published',
+      ]);
+      expect(appended[1]).toEqual(published('act1'));
+    });
+
+    it('is emitted when an activity is created published, a missing key counting as published', async () => {
+      for (const after of [{ title: 'A', published: true }, { title: 'A' }, null]) {
+        const { svc, appended } = scenario({ status: 'published', after });
+        await svc.saveActivity('org1', 'c1', 'm1', { settings: {} });
+        expect(appended).toEqual([
+          expect.objectContaining({ type: 'content.course.activity.created' }),
+          published('act1'),
+        ]);
+      }
+    });
+
+    it('is not emitted for a draft activity, an already published one, or a draft course', async () => {
+      const cases = [
+        { status: 'published' as const, after: { published: false } },
+        { status: 'published' as const, before: { published: false }, after: { published: false } },
+        { status: 'published' as const, before: { published: true }, after: { published: true } },
+        { status: 'published' as const, before: {}, after: { published: true } },
+        { status: 'published' as const, before: { published: true }, after: { published: false } },
+        { status: 'draft' as const, before: { published: false }, after: { published: true } },
+        { status: 'draft' as const, after: { published: true } },
+      ];
+      for (const options of cases) {
+        const { svc, appended } = scenario(options);
+        await svc.saveActivity(
+          'org1',
+          'c1',
+          'm1',
+          { settings: {} },
+          options.before === undefined ? undefined : 'act1',
+        );
+        expect(appended).toHaveLength(1);
+      }
+    });
+  });
+
   it('refuses activity assets that are not ready library files of the org', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity());

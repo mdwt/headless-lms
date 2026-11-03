@@ -13,6 +13,10 @@ import {
 } from '../types/schemas/index.js';
 import { defineEvent, type EventOf, type EventOfValues } from '../shared/ports.js';
 
+const activityPublishedSchema = z
+  .object({ activityId: idSchema, moduleId: idSchema, courseId: idSchema })
+  .strict();
+
 const downloadAssetsEventSchema = z
   .object({
     downloadId: idSchema,
@@ -165,6 +169,12 @@ export const contentEvents = {
     data: activitySchema,
     publicData: publicActivity,
   }),
+  activityPublished: defineEvent({
+    type: 'content.course.activity.published',
+    version: 1,
+    data: activityPublishedSchema,
+    publicData: activityPublishedSchema,
+  }),
   activitiesReordered: defineEvent({
     type: 'content.course.activities.reordered',
     version: 1,
@@ -292,6 +302,7 @@ export type CourseModulesReordered = EventOf<typeof contentEvents.modulesReorder
 export type CourseActivityCreated = EventOf<typeof contentEvents.activityCreated>;
 export type CourseActivityUpdated = EventOf<typeof contentEvents.activityUpdated>;
 export type CourseActivityDeleted = EventOf<typeof contentEvents.activityDeleted>;
+export type CourseActivityPublished = EventOf<typeof contentEvents.activityPublished>;
 export type CourseActivitiesReordered = EventOf<typeof contentEvents.activitiesReordered>;
 export type DownloadCreated = EventOf<typeof contentEvents.downloadCreated>;
 export type DownloadUpdated = EventOf<typeof contentEvents.downloadUpdated>;

@@ -74,6 +74,7 @@ export type {
   CourseActivityCreated,
   CourseActivityUpdated,
   CourseActivityDeleted,
+  CourseActivityPublished,
   CourseActivitiesReordered,
   DownloadCreated,
   DownloadUpdated,

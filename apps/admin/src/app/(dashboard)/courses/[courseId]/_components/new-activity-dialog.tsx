@@ -60,7 +60,7 @@ export function NewActivityDialog({
   }, [open]);
 
   function onValid(values: FormValues) {
-    const settings: ActivitySettings = { title: values.title };
+    const settings: ActivitySettings = { title: values.title, published: false };
 
     startTransition(async () => {
       try {

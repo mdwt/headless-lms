@@ -250,6 +250,12 @@ const TRIGGERS: CatalogTrigger[] = [
     description: 'a course activity was deleted',
   },
   {
+    event: contentEvents.activityPublished,
+    label: 'Activity published',
+    category: 'Courses',
+    description: 'an activity of a published course was published',
+  },
+  {
     event: contentEvents.activitiesReordered,
     label: 'Activities reordered',
     category: 'Courses',
