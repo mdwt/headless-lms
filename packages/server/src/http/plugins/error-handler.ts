@@ -26,6 +26,7 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
         error: refusal.error,
         message: refusal.message,
         ...(refusal.issues && { issues: refusal.issues }),
+        ...(refusal.details && { details: refusal.details }),
         ...(refusal.error === 'bad_request' && { cause: (error as Error).message }),
       },
       `${routeOf(request)} refused`,
@@ -34,6 +35,7 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
       error: refusal.error,
       message: refusal.message,
       ...(refusal.issues && { issues: refusal.issues }),
+      ...(refusal.details && { details: refusal.details }),
     });
   }
   if (isResponseSerializationError(error)) {

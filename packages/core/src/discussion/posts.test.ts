@@ -1289,10 +1289,12 @@ describe('scheduled posts', () => {
         },
       },
     });
-    await expect(
-      svc.create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: later() })),
-    ).rejects.toBeInstanceOf(UnavailableError);
+    const refused = await svc
+      .create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: later() }))
+      .catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(UnavailableError);
     expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null });
+    expect((refused as UnavailableError).details).toEqual({ postId: rows[0]?.id });
     expect(calls.map((events) => events.map((event) => event.type))).toEqual([
       ['discussion.post.created'],
       ['discussion.post.updated'],

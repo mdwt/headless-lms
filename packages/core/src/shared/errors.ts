@@ -44,7 +44,10 @@ export class InvalidInputError extends Error {
 }
 
 export class UnavailableError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly details?: Record<string, string>,
+  ) {
     super(message);
     this.name = 'UnavailableError';
   }

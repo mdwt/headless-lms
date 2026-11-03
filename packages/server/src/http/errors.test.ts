@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConflictError, NotFoundError } from '@headless-lms/core/shared/errors';
+import { ConflictError, NotFoundError, UnavailableError } from '@headless-lms/core/shared/errors';
 import { classifyError } from './errors.js';
 
 describe('classifyError', () => {
@@ -12,6 +12,19 @@ describe('classifyError', () => {
       status: 409,
       error: 'conflict',
       message: 'taken',
+    });
+  });
+  it('carries the details of an unavailable refusal', () => {
+    expect(classifyError(new UnavailableError('later', { postId: 'pst_1' }))).toEqual({
+      status: 503,
+      error: 'unavailable',
+      message: 'later',
+      details: { postId: 'pst_1' },
+    });
+    expect(classifyError(new UnavailableError('later'))).toEqual({
+      status: 503,
+      error: 'unavailable',
+      message: 'later',
     });
   });
   it('answers other 4xx errors without echoing their message', () => {

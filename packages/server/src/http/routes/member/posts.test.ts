@@ -50,7 +50,9 @@ const container = {
     },
     schedule: async (...args: unknown[]) => {
       calls.push({ method: 'schedule', args });
-      throw new UnavailableError('The post could not be scheduled; try again');
+      throw new UnavailableError('The post could not be scheduled; try again', {
+        postId: 'pst_1',
+      });
     },
   },
 } as unknown as Container;
@@ -139,7 +141,11 @@ describe('member post and comment routes', () => {
       payload: { scheduledAt: '2030-01-01T09:00:00Z' },
     });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({ error: 'unavailable' });
+    expect(res.json()).toEqual({
+      error: 'unavailable',
+      message: 'The post could not be scheduled; try again',
+      details: { postId: 'pst_1' },
+    });
     expect(last('schedule')).toEqual([ORG.id, 'pst_1', ORG_USER, new Date('2030-01-01T09:00:00Z')]);
   });
 

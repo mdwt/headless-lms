@@ -26,9 +26,21 @@ export const ValidationErrorBody = ErrorBody.extend({
 });
 export type ValidationErrorBody = z.infer<typeof ValidationErrorBody>;
 
+export const UnavailableErrorBody = ErrorBody.extend({
+  details: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('Ids of what the request left behind, such as the post kept as a draft'),
+});
+export type UnavailableErrorBody = z.infer<typeof UnavailableErrorBody>;
+
 type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 422 | 502 | 503;
 type RefusalBodies<S extends RefusalStatus> = {
-  [K in S]: K extends 400 | 422 ? typeof ValidationErrorBody : typeof ErrorBody;
+  [K in S]: K extends 400 | 422
+    ? typeof ValidationErrorBody
+    : K extends 503
+      ? typeof UnavailableErrorBody
+      : typeof ErrorBody;
 };
 
 /** Response schemas for the refusals a route can answer. A 400 keeps the validation `issues`. */
@@ -36,7 +48,11 @@ export function refusals<S extends RefusalStatus>(...statuses: S[]): RefusalBodi
   return Object.fromEntries(
     statuses.map((status) => [
       status,
-      status === 400 || status === 422 ? ValidationErrorBody : ErrorBody,
+      status === 400 || status === 422
+        ? ValidationErrorBody
+        : status === 503
+          ? UnavailableErrorBody
+          : ErrorBody,
     ]),
   ) as RefusalBodies<S>;
 }

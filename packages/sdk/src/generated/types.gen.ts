@@ -9798,6 +9798,12 @@ export type CreatePostErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    /**
+     * Ids of what the request left behind, such as the post kept as a draft
+     */
+    details?: {
+      [key: string]: string;
+    };
   };
 };
 
@@ -10305,6 +10311,12 @@ export type SchedulePostErrors = {
     error: string;
     message?: string;
     requestId?: string;
+    /**
+     * Ids of what the request left behind, such as the post kept as a draft
+     */
+    details?: {
+      [key: string]: string;
+    };
   };
 };
 

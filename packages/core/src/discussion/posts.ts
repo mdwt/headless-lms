@@ -381,7 +381,7 @@ export class PostServiceImpl implements PostService {
         ),
       ]);
     });
-    throw new UnavailableError('The post could not be scheduled; try again');
+    throw new UnavailableError('The post could not be scheduled; try again', { postId: post.id });
   }
 
   private async disarm(orgId: string, postId: string): Promise<void> {

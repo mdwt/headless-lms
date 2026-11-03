@@ -766,7 +766,7 @@ The context that asks for a job keeps the state the job acts on. The scheduler h
 
 - **A scheduled post** is a row in discussion's `posts` with `status = 'scheduled'` and `scheduled_at`. Listing a member's scheduled posts reads `posts`.
   - Creating a post with `scheduledAt`, scheduling a draft and moving a scheduled post commit the change, then call `at(…, scheduled_at, postId, { orgId, postId })`.
-  - If `at` fails, discussion reverts in a second transaction, emits `discussion.post.updated` with the reverted post, and the request fails with 503: a new post or a scheduled draft becomes a `draft` with no `scheduled_at`; a moved post gets its previous `scheduled_at` back, which its existing timer still holds.
+  - If `at` fails, discussion reverts in a second transaction, emits `discussion.post.updated` with the reverted post, and the request fails with 503 whose body carries `details: { postId }`: a new post or a scheduled draft becomes a `draft` with no `scheduled_at`; a moved post gets its previous `scheduled_at` back, which its existing timer still holds. A client opens that draft instead of creating the post again. `UnavailableError` carries the details, and every 503 body may have `details`, ids of what the request left behind.
   - Cancelling is `PostService.unschedule`, `POST /api/member/posts/:postId/unschedule`, for the author: the post becomes a `draft` with no `scheduled_at`, discussion emits `discussion.post.updated`, then calls `cancel`.
   - Publishing it now is the existing `PostService.submit`, which then calls `cancel`.
   - A `cancel` that fails after `unschedule` or `submit` is logged and the request succeeds: the timer's handler finds the post no longer `scheduled` and stops.
@@ -1522,7 +1522,7 @@ The device routes call identity's `DevicesService`; `push-config` reads the depl
 |---|---|---|
 | `POST /api/member/posts/:postId/unschedule` | the post's author | → the post as a `draft`; 409 when the post isn't `scheduled` |
 
-The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishing now use the existing post routes; a failed `at` answers 503.
+The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishing now use the existing post routes; a failed `at` answers 503 with `details: { postId }`. Only `POST /api/member/communities/:communityId/spaces/:spaceId/posts` in schedule mode and `POST /api/member/posts/:postId/schedule` set or move a timer, so only they answer 503; `PATCH /api/member/posts/:postId` takes no `scheduledAt`.
 
 ### 19.7 Notifications
 

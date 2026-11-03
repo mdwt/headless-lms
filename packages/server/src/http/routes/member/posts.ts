@@ -147,7 +147,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Create a post',
       description:
-        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft.',
+        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft, and `details.postId` names it, so open that draft instead of creating the post again.',
       params: CommunitySpaceParam,
       body: CreatePost,
       response: { 201: PostView, ...refusals(400, 403, 404, 409, 503) },
@@ -231,7 +231,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Schedule your post',
       description:
-        'Author only. Schedules a draft, or moves a scheduled post to a new time; the post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future. 503 when the time could not be set; a draft stays a draft and a moved post keeps its previous time.',
+        'Author only. Schedules a draft, or moves a scheduled post to a new time; the post is submitted at `scheduledAt`. 409 when it is already submitted or removed, or the time is not in the future. 503 when the time could not be set; a draft stays a draft and a moved post keeps its previous time, and `details.postId` names the post.',
       params: PostIdParam,
       body: SchedulePost,
       response: { 200: PostView, ...refusals(403, 404, 409, 503) },

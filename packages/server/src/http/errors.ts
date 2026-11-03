@@ -27,6 +27,7 @@ export type Refusal = {
   error: string;
   message: string;
   issues?: { path: string; message: string }[];
+  details?: Record<string, string>;
 };
 
 const BODY_ERRORS: Record<string, Refusal> = {
@@ -134,7 +135,12 @@ export function classifyError(error: unknown): Refusal | undefined {
     return { status: 403, error: 'forbidden', message: error.message };
   }
   if (error instanceof UnavailableError) {
-    return { status: 503, error: 'unavailable', message: error.message };
+    return {
+      status: 503,
+      error: 'unavailable',
+      message: error.message,
+      ...(error.details && { details: error.details }),
+    };
   }
   if (error instanceof UnauthorizedError) {
     return { status: 401, error: 'unauthorized', message: error.message };
