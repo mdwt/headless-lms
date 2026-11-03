@@ -17,6 +17,7 @@ export type {
   NotificationsView,
   NotificationUnreadCounts,
   NotificationSettingsCategoryView,
+  SettingsChannelView,
   CommunityNotificationSettingsView,
   OrgNotificationSettingsView,
 } from './model.js';

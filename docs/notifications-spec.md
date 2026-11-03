@@ -1452,33 +1452,34 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
 
 ### 19.3 Member settings
 
-`GET /api/member/communities/:communityId/settings/notifications`, for people who can open the community, staff included, and 404 for anyone else, is served by `reporting/member` from content's categories, identity's settings and the spaces the member can open (entitlements):
+`GET /api/member/communities/:communityId/settings/notifications`, for people who can open the community, staff included, and 404 for anyone else, is served by `reporting/member` from content's categories, spaces and digest schedule, identity's settings and the spaces the member can open (entitlements):
 
 ```json
 {
   "communityId": "cmy_1",
+  "digest": { "cadence": "weekly", "weekday": 1, "hour": 8, "timeZone": "Europe/Madrid" },
   "categories": [
     {
       "key": "mentions",
       "perSpace": false,
       "channels": [
-        { "channel": "push", "enabled": true, "source": "default", "locked": false },
-        { "channel": "email", "enabled": false, "source": "community", "locked": false }
+        { "channel": "push", "enabled": true, "default": true, "source": "default", "locked": false },
+        { "channel": "email", "enabled": false, "default": true, "source": "community", "locked": false }
       ]
     },
     {
       "key": "new_posts",
       "perSpace": true,
-      "channels": [{ "channel": "push", "enabled": false, "source": "default", "locked": false }],
+      "channels": [{ "channel": "push", "enabled": false, "default": false, "source": "default", "locked": false }],
       "spaces": [
-        { "spaceId": "spc_1", "channels": [{ "channel": "push", "enabled": true, "source": "space", "locked": false }] }
+        { "spaceId": "spc_1", "name": "Practice", "channels": [{ "channel": "push", "enabled": true, "default": false, "source": "space", "locked": false }] }
       ]
     }
   ]
 }
 ```
 
-`spaces` lists every space the member can open.
+`spaces` lists every space the member can open, with its name. `default` is what the channel resolves to without the member's own setting at that level, the community level or the space (8.1): what `enabled: null` would give. `digest` is the community's digest schedule (section 12), `null` when it sends none, so the app can label the `digest` category.
 
 `PATCH` on the same path, for the same people:
 
@@ -1492,7 +1493,7 @@ All routes are schema-first, appear in the OpenAPI spec and the generated SDK, a
 
 It answers 204, and the app reads the GET again. A channel the category offers but the deployment doesn't configure counts as not offered; when one request changes the same setting twice, the last change wins. It answers 404 when the caller can't open the community, and 422 when the category doesn't exist, doesn't offer the channel, the channel is locked, or `spaceId` is given for a category that isn't `perSpace`. The route calls identity's `NotificationSettingsService.set`, which checks access through its `CommunityAccessReader` port (entitlements), reads the list in use through its `NotificationCategoryReader` port and validates against it. Identity stores space settings without checking the space; a setting for a space the member can't open never matches.
 
-`GET` and `PATCH /api/member/settings/notifications` do the same for the org's categories, for anyone signed in to the org.
+`GET` and `PATCH /api/member/settings/notifications` do the same for the org's categories, for anyone signed in to the org; the GET has no `digest` and no `spaces`.
 
 ### 19.4 Subscriptions
 

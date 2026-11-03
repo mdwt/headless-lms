@@ -39,6 +39,7 @@ import type {
   CommunityNotificationSettingsView,
   NotificationSettingsCategoryView,
   OrgNotificationSettingsView,
+  SettingsChannelView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
 
@@ -129,14 +130,24 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
       return null;
     }
-    const [list, settings, spaceIds] = await Promise.all([
+    const [list, settings, spaceIds, spaces, community] = await Promise.all([
       this.notificationCategories.community.get(orgId, communityId),
       this.notificationSettings.get(orgId, userId, { communityId }),
       this.access.openSpaceIds(orgId, actor, communityId),
+      this.content.listSpaces(orgId, communityId),
+      this.content.getCommunity(orgId, communityId),
     ]);
+    const open = new Set(spaceIds);
     return {
       communityId,
-      categories: this.settingsView(list.categories, settings, spaceIds),
+      digest: community?.settings.digest ?? null,
+      categories: this.settingsView(
+        list.categories,
+        settings,
+        spaces
+          .filter((space) => open.has(space.id))
+          .map((space) => ({ spaceId: space.id, name: space.name })),
+      ),
     };
   }
 
@@ -154,20 +165,39 @@ export class MemberReportServiceImpl implements MemberReportService {
   private settingsView(
     categories: NotificationCategory[],
     settings: StoredSetting[],
-    spaceIds: string[],
+    spaces: { spaceId: string; name: string }[],
   ): NotificationSettingsCategoryView[] {
     const configured = this.channels.list();
+    const channelsAt = (
+      category: NotificationCategory,
+      spaceId: string | null,
+    ): SettingsChannelView[] => {
+      const withoutLevel = settings.filter(
+        (setting) => setting.category !== category.key || setting.spaceId !== spaceId,
+      );
+      const fallback = new Map(
+        resolveChannels(category, withoutLevel, spaceId, configured).map((resolved) => [
+          resolved.channel,
+          resolved.enabled,
+        ]),
+      );
+      return resolveChannels(category, settings, spaceId, configured).map((resolved) => ({
+        ...resolved,
+        default: fallback.get(resolved.channel) ?? resolved.enabled,
+      }));
+    };
     return categories.map((category) => {
       const perSpace = category.perSpace === true;
       const view: NotificationSettingsCategoryView = {
         key: category.key,
         perSpace,
-        channels: resolveChannels(category, settings, null, configured),
+        channels: channelsAt(category, null),
       };
       if (perSpace) {
-        view.spaces = spaceIds.map((spaceId) => ({
+        view.spaces = spaces.map(({ spaceId, name }) => ({
           spaceId,
-          channels: resolveChannels(category, settings, spaceId, configured),
+          name,
+          channels: channelsAt(category, spaceId),
         }));
       }
       return view;

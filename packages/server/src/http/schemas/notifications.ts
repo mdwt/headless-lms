@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  digestScheduleSchema,
   jsonValueSchema,
   notificationCategoryKeySchema,
   notificationChannelKeySchema,
@@ -188,6 +189,11 @@ export const NotificationChannelInfos = z.array(z.object({ channel: z.string() }
 const ResolvedChannel = z.object({
   channel: z.string(),
   enabled: z.boolean(),
+  default: z
+    .boolean()
+    .describe(
+      'What the channel would be without your own setting at this level: what `enabled: null` gives',
+    ),
   source: z
     .enum(['locked', 'space', 'community', 'spaceDefault', 'default'])
     .describe(
@@ -201,13 +207,16 @@ const NotificationSettingsCategory = z.object({
   perSpace: z.boolean(),
   channels: z.array(ResolvedChannel),
   spaces: z
-    .array(z.object({ spaceId: z.string(), channels: z.array(ResolvedChannel) }))
+    .array(z.object({ spaceId: z.string(), name: z.string(), channels: z.array(ResolvedChannel) }))
     .optional()
     .describe('Per-space categories only: every space you can open'),
 });
 
 export const CommunityNotificationSettings = z.object({
   communityId: z.string(),
+  digest: digestScheduleSchema
+    .nullable()
+    .describe("The community's digest schedule; null when it sends no digest"),
   categories: z.array(NotificationSettingsCategory),
 });
 type _CommunityNotificationSettingsMatches = Matches<

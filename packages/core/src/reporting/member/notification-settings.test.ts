@@ -35,11 +35,20 @@ const ORG: NotificationCategory[] = [
   },
 ];
 
+const SPACES = [
+  { id: 'spc_announcements', name: 'Announcements' },
+  { id: 'spc_practice', name: 'Practice' },
+  { id: 'spc_staff', name: 'Staff room' },
+];
+
+const WEEKLY = { cadence: 'weekly' as const, weekday: 1, hour: 8, timeZone: 'Europe/Madrid' };
+
 function build(options: {
   member?: boolean;
   settings?: StoredSetting[];
   configured?: string[];
   openSpaces?: string[];
+  digest?: typeof WEEKLY | null;
 }) {
   const asked: unknown[][] = [];
   const svc = new MemberReportServiceImpl({
@@ -48,7 +57,10 @@ function build(options: {
       spaceMemberCounts: async () => ({}),
       people: async () => [],
     },
-    content: {} as ContentServicePort,
+    content: {
+      listSpaces: async () => SPACES,
+      getCommunity: async () => ({ settings: { digest: options.digest ?? null } }),
+    } as unknown as ContentServicePort,
     progress: {} as never,
     files: { signFile: async () => null },
     fileUrls: createFileUrls('https://api.test'),
@@ -111,50 +123,106 @@ describe('member notification settings view', () => {
     expect(asked).toEqual([['org_1', 'usr_sarah', { communityId: 'cmy_1' }]]);
     expect(view).toEqual({
       communityId: 'cmy_1',
+      digest: null,
       categories: [
         {
           key: 'about_you',
           perSpace: false,
           channels: [
-            { channel: 'inApp', enabled: true, source: 'locked', locked: true },
-            { channel: 'email', enabled: true, source: 'default', locked: false },
+            { channel: 'inApp', enabled: true, source: 'locked', locked: true, default: true },
+            { channel: 'email', enabled: true, source: 'default', locked: false, default: true },
           ],
         },
         {
           key: 'mentions',
           perSpace: false,
           channels: [
-            { channel: 'inApp', enabled: true, source: 'default', locked: false },
-            { channel: 'email', enabled: false, source: 'community', locked: false },
-            { channel: 'push', enabled: true, source: 'default', locked: false },
+            { channel: 'inApp', enabled: true, source: 'default', locked: false, default: true },
+            { channel: 'email', enabled: false, source: 'community', locked: false, default: true },
+            { channel: 'push', enabled: true, source: 'default', locked: false, default: true },
           ],
         },
         {
           key: 'new_posts',
           perSpace: true,
           channels: [
-            { channel: 'inApp', enabled: true, source: 'community', locked: false },
-            { channel: 'push', enabled: false, source: 'default', locked: false },
+            { channel: 'inApp', enabled: true, source: 'community', locked: false, default: false },
+            { channel: 'push', enabled: false, source: 'default', locked: false, default: false },
           ],
           spaces: [
             {
               spaceId: 'spc_announcements',
+              name: 'Announcements',
               channels: [
-                { channel: 'inApp', enabled: true, source: 'community', locked: false },
-                { channel: 'push', enabled: true, source: 'spaceDefault', locked: false },
+                {
+                  channel: 'inApp',
+                  enabled: true,
+                  source: 'community',
+                  locked: false,
+                  default: true,
+                },
+                {
+                  channel: 'push',
+                  enabled: true,
+                  source: 'spaceDefault',
+                  locked: false,
+                  default: true,
+                },
               ],
             },
             {
               spaceId: 'spc_practice',
+              name: 'Practice',
               channels: [
-                { channel: 'inApp', enabled: true, source: 'community', locked: false },
-                { channel: 'push', enabled: true, source: 'space', locked: false },
+                {
+                  channel: 'inApp',
+                  enabled: true,
+                  source: 'community',
+                  locked: false,
+                  default: true,
+                },
+                { channel: 'push', enabled: true, source: 'space', locked: false, default: false },
               ],
             },
           ],
         },
       ],
     });
+  });
+
+  it('gives a space setting the value the community setting or space default would give without it', async () => {
+    const { svc } = build({
+      settings: [
+        setting({ category: 'new_posts', channel: 'push', enabled: false }),
+        setting({
+          category: 'new_posts',
+          spaceId: 'spc_announcements',
+          channel: 'push',
+          enabled: false,
+        }),
+        setting({ category: 'new_posts', spaceId: 'spc_practice', channel: 'push', enabled: true }),
+      ],
+      openSpaces: ['spc_announcements', 'spc_practice'],
+    });
+    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const push = (spaceId: string) =>
+      view?.categories
+        .find((c) => c.key === 'new_posts')
+        ?.spaces?.find((space) => space.spaceId === spaceId)
+        ?.channels.find((c) => c.channel === 'push');
+    expect(push('spc_announcements')).toMatchObject({ enabled: false, default: false });
+    expect(push('spc_practice')).toMatchObject({ enabled: true, default: false });
+  });
+
+  it('carries the digest schedule of the community, and lists only open spaces with their names', async () => {
+    const { svc } = build({ digest: WEEKLY, openSpaces: ['spc_practice'] });
+    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    expect(view?.digest).toEqual(WEEKLY);
+    expect(
+      view?.categories
+        .find((c) => c.key === 'new_posts')
+        ?.spaces?.map(({ spaceId, name }) => ({ spaceId, name })),
+    ).toEqual([{ spaceId: 'spc_practice', name: 'Practice' }]);
   });
 
   it('omits a channel the deployment does not have', async () => {
@@ -191,8 +259,8 @@ describe('member notification settings view', () => {
           key: 'access',
           perSpace: false,
           channels: [
-            { channel: 'inApp', enabled: false, source: 'community', locked: false },
-            { channel: 'email', enabled: true, source: 'locked', locked: true },
+            { channel: 'inApp', enabled: false, source: 'community', locked: false, default: true },
+            { channel: 'email', enabled: true, source: 'locked', locked: true, default: true },
           ],
         },
       ],

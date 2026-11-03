@@ -16981,12 +16981,34 @@ export type GetMemberCommunityNotificationSettingsResponses = {
    */
   200: {
     communityId: string;
+    /**
+     * The community's digest schedule; null when it sends no digest
+     */
+    digest: {
+      cadence: "daily" | "weekly";
+      /**
+       * The day a weekly digest goes out, 0 is Sunday; a daily digest ignores it
+       */
+      weekday: number;
+      /**
+       * The hour of the day it goes out, 0–23
+       */
+      hour: number;
+      /**
+       * The IANA time zone the weekday and hour are in, such as `Europe/Madrid`
+       */
+      timeZone: string;
+    } | null;
     categories: Array<{
       key: string;
       perSpace: boolean;
       channels: Array<{
         channel: string;
         enabled: boolean;
+        /**
+         * What the channel would be without your own setting at this level: what `enabled: null` gives
+         */
+        default: boolean;
         /**
          * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
          */
@@ -16998,9 +17020,14 @@ export type GetMemberCommunityNotificationSettingsResponses = {
        */
       spaces?: Array<{
         spaceId: string;
+        name: string;
         channels: Array<{
           channel: string;
           enabled: boolean;
+          /**
+           * What the channel would be without your own setting at this level: what `enabled: null` gives
+           */
+          default: boolean;
           /**
            * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
            */
@@ -17158,6 +17185,10 @@ export type GetMemberNotificationSettingsResponses = {
         channel: string;
         enabled: boolean;
         /**
+         * What the channel would be without your own setting at this level: what `enabled: null` gives
+         */
+        default: boolean;
+        /**
          * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
          */
         source: "locked" | "space" | "community" | "spaceDefault" | "default";
@@ -17168,9 +17199,14 @@ export type GetMemberNotificationSettingsResponses = {
        */
       spaces?: Array<{
         spaceId: string;
+        name: string;
         channels: Array<{
           channel: string;
           enabled: boolean;
+          /**
+           * What the channel would be without your own setting at this level: what `enabled: null` gives
+           */
+          default: boolean;
           /**
            * Why the channel is on or off: locked by the category, your setting for the space, your setting for the whole community (or the org), the default for the space, or the category default
            */

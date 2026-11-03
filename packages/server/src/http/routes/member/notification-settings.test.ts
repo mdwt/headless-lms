@@ -16,15 +16,21 @@ let failWith: Error | null = null;
 
 const view = {
   communityId: 'cmy_1',
+  digest: { cadence: 'weekly', weekday: 1, hour: 8, timeZone: 'Europe/Madrid' },
   categories: [
     {
       key: 'new_posts',
       perSpace: true,
-      channels: [{ channel: 'push', enabled: false, source: 'default', locked: false }],
+      channels: [
+        { channel: 'push', enabled: false, default: false, source: 'default', locked: false },
+      ],
       spaces: [
         {
           spaceId: 'spc_1',
-          channels: [{ channel: 'push', enabled: true, source: 'space', locked: false }],
+          name: 'Practice',
+          channels: [
+            { channel: 'push', enabled: true, default: false, source: 'space', locked: false },
+          ],
         },
       ],
     },

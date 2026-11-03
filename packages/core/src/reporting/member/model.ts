@@ -2,7 +2,14 @@ import type { ResolvedChannel } from '../../shared/notification-settings.js';
 // reporting/member — read model. Reuses the content domain's Course/Module
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
-import type { JsonValue, Reason, Scope, SubjectRef, SubscriptionView } from '../../types/index.js';
+import type {
+  DigestSchedule,
+  JsonValue,
+  Reason,
+  Scope,
+  SubjectRef,
+  SubscriptionView,
+} from '../../types/index.js';
 
 export type {
   ActivityView,
@@ -131,15 +138,20 @@ export interface NotificationsView {
   unreadCount: number;
 }
 
+export interface SettingsChannelView extends ResolvedChannel {
+  default: boolean;
+}
+
 export interface NotificationSettingsCategoryView {
   key: string;
   perSpace: boolean;
-  channels: ResolvedChannel[];
-  spaces?: { spaceId: string; channels: ResolvedChannel[] }[];
+  channels: SettingsChannelView[];
+  spaces?: { spaceId: string; name: string; channels: SettingsChannelView[] }[];
 }
 
 export interface CommunityNotificationSettingsView {
   communityId: string;
+  digest: DigestSchedule | null;
   categories: NotificationSettingsCategoryView[];
 }
 

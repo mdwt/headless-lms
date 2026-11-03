@@ -28,7 +28,7 @@ export async function memberNotificationSettingsRoutes(
       tags,
       summary: 'Read how you are told about each notification category in a community',
       description:
-        'For anyone who can open the community, staff included. One entry per category of the list in use, each with the channels it offers on this deployment, whether each is on for you and why (`locked`, `space`, `community`, `spaceDefault` or `default`). A per-space category also lists every space you can open. 404 when you cannot open the community.',
+        'For anyone who can open the community, staff included. One entry per category of the list in use, each with the channels it offers on this deployment, whether each is on for you and why (`locked`, `space`, `community`, `spaceDefault` or `default`), and `default`, what the channel would be without your own setting at that level. A per-space category also lists every space you can open, with its name. `digest` is the digest schedule of the community, null when it sends none. 404 when you cannot open the community.',
       params: CommunityParam,
       response: { 200: CommunityNotificationSettings, ...refusals(403, 404) },
     },
@@ -82,7 +82,7 @@ export async function memberNotificationSettingsRoutes(
       tags,
       summary: 'Read how you are told about notifications outside any community',
       description:
-        "For anyone signed in to the organization. The organization's categories, such as access and course content, each with the channels it offers and whether each is on for you.",
+        "For anyone signed in to the organization. The organization's categories, such as access and course content, each with the channels it offers, whether each is on for you, and `default`, what it would be without your own setting.",
       response: { 200: OrgNotificationSettings, ...refusals(403) },
     },
     handler: async (req) => {
