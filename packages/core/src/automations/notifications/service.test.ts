@@ -12,6 +12,7 @@ function fakeRepo(over: Partial<NotificationsRepository> = {}): NotificationsRep
     recordError: vi.fn(async () => {}),
     markFailed: vi.fn(async () => {}),
     page: vi.fn(async () => ({ items: [], total: 0, unreadCount: 0 })),
+    find: vi.fn(async () => null),
     unreadCounts: vi.fn(async () => ({ org: 0, communities: [] })),
     markRead: vi.fn(async () => true),
     markAllRead: vi.fn(async () => 0),
@@ -30,6 +31,13 @@ describe('NotificationsService', () => {
       { category: ['mentions'] },
       { page: 1, pageSize: 20 },
     );
+  });
+
+  it('reads one notification of the person through the repository', async () => {
+    const repo = fakeRepo();
+    const svc = new NotificationsServiceImpl({ repo });
+    await expect(svc.get('org_1', 'usr_1', 'ntf_1')).resolves.toBeNull();
+    expect(repo.find).toHaveBeenCalledWith('org_1', 'usr_1', 'ntf_1');
   });
 
   it('answers a count for every community asked, zero when none is unread', async () => {

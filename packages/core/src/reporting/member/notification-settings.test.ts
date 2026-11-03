@@ -62,6 +62,7 @@ function build(options: {
     },
     notifications: {
       list: async () => ({ items: [], total: 0, unreadCount: 0 }),
+      get: async () => null,
       unreadCounts: async () => ({ org: 0, communities: [] }),
     },
     titles: {

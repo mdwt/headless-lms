@@ -16352,6 +16352,10 @@ export type ListMemberNotificationsData = {
      */
     communityId?: string;
     /**
+     * With `communityId`, `true` adds the org list (notifications in no community); not with `scope`
+     */
+    includeOrg?: string;
+    /**
      * One or more category keys, comma separated
      */
     category?: string;
@@ -16440,6 +16444,23 @@ export type ListMemberNotificationsResponses = {
         | "moderator"
         | "staff"
       >;
+      /**
+       * The reason of the pair the category matched, which picks the wording, such as a reply to your comment
+       */
+      matchedReason:
+        | "subject"
+        | "post_author"
+        | "comment_author"
+        | "message_author"
+        | "follower"
+        | "thread_participant"
+        | "mentioned"
+        | "participant"
+        | "space_member"
+        | "community_member"
+        | "course_member"
+        | "moderator"
+        | "staff";
       category: string;
       /**
        * The text stored when the notification was sent
@@ -16567,6 +16588,174 @@ export type GetMemberNotificationUnreadCountsResponses = {
 export type GetMemberNotificationUnreadCountsResponse =
   GetMemberNotificationUnreadCountsResponses[keyof GetMemberNotificationUnreadCountsResponses];
 
+export type GetMemberNotificationData = {
+  body?: never;
+  path: {
+    notificationId: string;
+  };
+  query?: never;
+  url: "/api/member/notifications/{notificationId}";
+};
+
+export type GetMemberNotificationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberNotificationError =
+  GetMemberNotificationErrors[keyof GetMemberNotificationErrors];
+
+export type GetMemberNotificationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    type: string;
+    scope: "org" | "community" | "space" | "chat";
+    reasons: Array<
+      | "subject"
+      | "post_author"
+      | "comment_author"
+      | "message_author"
+      | "follower"
+      | "thread_participant"
+      | "mentioned"
+      | "participant"
+      | "space_member"
+      | "community_member"
+      | "course_member"
+      | "moderator"
+      | "staff"
+    >;
+    /**
+     * The reason of the pair the category matched, which picks the wording, such as a reply to your comment
+     */
+    matchedReason:
+      | "subject"
+      | "post_author"
+      | "comment_author"
+      | "message_author"
+      | "follower"
+      | "thread_participant"
+      | "mentioned"
+      | "participant"
+      | "space_member"
+      | "community_member"
+      | "course_member"
+      | "moderator"
+      | "staff";
+    category: string;
+    /**
+     * The text stored when the notification was sent
+     */
+    display: {
+      [key: string]: JsonValue;
+    };
+    community: {
+      id: string;
+      title: string;
+    } | null;
+    space: {
+      id: string;
+      name: string;
+    } | null;
+    actor: {
+      orgUserId: string;
+      name: string | null;
+      imageUrl: string | null;
+    } | null;
+    /**
+     * What the notification is about, with its current title or excerpt; null when you can no longer open it or it was deleted
+     */
+    subject: {
+      type:
+        | "post"
+        | "comment"
+        | "chat"
+        | "message"
+        | "space"
+        | "community"
+        | "course"
+        | "download"
+        | "bundle"
+        | "activity";
+      id: string;
+      title?: string;
+      excerpt?: string;
+    } | null;
+    /**
+     * The subject's container, such as a comment's post; null when you can no longer open it or it was deleted
+     */
+    parent: {
+      type:
+        | "post"
+        | "comment"
+        | "chat"
+        | "message"
+        | "space"
+        | "community"
+        | "course"
+        | "download"
+        | "bundle"
+        | "activity";
+      id: string;
+      title?: string;
+      excerpt?: string;
+    } | null;
+    createdAt: string;
+    readAt: string | null;
+  };
+};
+
+export type GetMemberNotificationResponse =
+  GetMemberNotificationResponses[keyof GetMemberNotificationResponses];
+
 export type MarkMemberNotificationReadData = {
   body?: never;
   path: {
@@ -16648,6 +16837,10 @@ export type MarkAllMemberNotificationsReadData = {
      * Notifications in this community; implies `scope=community`
      */
     communityId?: string;
+    /**
+     * With `communityId`, `true` adds the org list (notifications in no community); not with `scope`
+     */
+    includeOrg?: string;
     /**
      * One or more category keys, comma separated
      */

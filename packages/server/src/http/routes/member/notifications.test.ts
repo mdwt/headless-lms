@@ -17,6 +17,7 @@ const item = {
   type: 'comment.created',
   scope: 'space',
   reasons: ['post_author', 'thread_participant'],
+  matchedReason: 'post_author',
   category: 'comments_on_my_posts',
   display: { postTitle: 'My first recording', commenterName: 'James', excerpt: 'Nice' },
   community: { id: 'cmy_1', title: 'Spring cohort' },
@@ -61,6 +62,9 @@ const container = {
         pageSize: 20,
         unreadCount: 1,
       })),
+      notification: record('notification', (_orgId, _actor, _userId, id) =>
+        id === 'ntf_1' ? item : null,
+      ),
       notificationUnreadCounts: record('unreadCounts', () => ({
         org: 2,
         communities: [{ communityId: 'cmy_1', unread: 1 }],
@@ -157,6 +161,53 @@ describe('member notification routes', () => {
       url: '/api/member/notifications?scope=community&communityId=cmy_1',
     });
     expect(community.statusCode).toBe(200);
+  });
+
+  it('adds the org list to a community with includeOrg, and refuses it without a community or with a scope', async () => {
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/member/notifications?communityId=cmy_1&includeOrg=true&unread=true',
+    });
+    expect(list.statusCode).toBe(200);
+    expect(last('notifications')?.[3]).toEqual({
+      communityId: 'cmy_1',
+      includeOrg: true,
+      unread: true,
+    });
+    const read = await app.inject({
+      method: 'POST',
+      url: '/api/member/notifications/read?communityId=cmy_1&includeOrg=true',
+    });
+    expect(read.statusCode).toBe(204);
+    expect(last('markAllRead')).toEqual([
+      'org_1',
+      'usr_1',
+      { communityId: 'cmy_1', includeOrg: true },
+    ]);
+    calls.length = 0;
+    for (const url of [
+      '/api/member/notifications?includeOrg=true',
+      '/api/member/notifications?scope=org&communityId=cmy_1&includeOrg=true',
+      '/api/member/notifications?scope=community&communityId=cmy_1&includeOrg=true',
+    ]) {
+      const refused = await app.inject({ method: 'GET', url });
+      expect(refused.statusCode).toBe(400);
+    }
+    const refusedRead = await app.inject({
+      method: 'POST',
+      url: '/api/member/notifications/read?scope=org&communityId=cmy_1&includeOrg=true',
+    });
+    expect(refusedRead.statusCode).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
+  it('reads one notification in the list shape, and 404 when it is not yours', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/member/notifications/ntf_1' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(item);
+    expect(last('notification')).toEqual(['org_1', ORG_USER, 'usr_1', 'ntf_1']);
+    const missing = await app.inject({ method: 'GET', url: '/api/member/notifications/ntf_x' });
+    expect(missing.statusCode).toBe(404);
   });
 
   it('serves the unread counts', async () => {

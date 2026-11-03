@@ -141,6 +141,7 @@ export interface NotificationsService {
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
   ): Promise<NotificationPage>;
+  get(orgId: string, userId: string, notificationId: string): Promise<ListedNotification | null>;
   unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts>;
   markRead(orgId: string, userId: string, notificationId: string): Promise<void>;
   markAllRead(
@@ -166,6 +167,7 @@ export interface NotificationsRepository {
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
   ): Promise<NotificationPage>;
+  find(orgId: string, userId: string, notificationId: string): Promise<ListedNotification | null>;
   unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts>;
   markRead(orgId: string, userId: string, notificationId: string, at: Date): Promise<boolean>;
   markAllRead(orgId: string, userId: string, filter: NotificationFilter, at: Date): Promise<number>;

@@ -3,6 +3,7 @@ import { noopLogger } from '../../shared/logger.js';
 import type { Logger } from '../../shared/ports.js';
 import type { NotificationFilter } from '../../types/index.js';
 import type {
+  ListedNotification,
   NotificationPage,
   NotificationsRepository,
   NotificationsService,
@@ -25,6 +26,10 @@ export class NotificationsServiceImpl implements NotificationsService {
     page: { page: number; pageSize: number },
   ): Promise<NotificationPage> {
     return this.repo.page(orgId, userId, filter, page);
+  }
+
+  get(orgId: string, userId: string, notificationId: string): Promise<ListedNotification | null> {
+    return this.repo.find(orgId, userId, notificationId);
   }
 
   async unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts> {

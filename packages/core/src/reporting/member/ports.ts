@@ -12,6 +12,7 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationView,
   NotificationsView,
   NotificationUnreadCounts,
   CommunityNotificationSettingsView,
@@ -82,6 +83,12 @@ export interface MemberReportService {
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
   ): Promise<NotificationsView>;
+  notification(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    notificationId: string,
+  ): Promise<NotificationView | null>;
   notificationUnreadCounts(
     orgId: string,
     actor: Actor,

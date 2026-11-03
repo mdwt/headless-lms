@@ -6,10 +6,12 @@ import {
   inArray,
   isNotNull,
   isNull,
+  or,
   sql,
   type SQL,
 } from "drizzle-orm";
 import type {
+  ListedNotification,
   NewDelivery,
   NewNotification,
   NotificationPage,
@@ -77,7 +79,8 @@ function listed(orgId: string, userId: string, filter: NotificationFilter): SQL[
     conditions.push(isNotNull(n.communityId));
   }
   if (filter.communityId !== undefined) {
-    conditions.push(eq(n.communityId, filter.communityId));
+    const community = eq(n.communityId, filter.communityId);
+    conditions.push(filter.includeOrg ? or(community, isNull(n.communityId))! : community);
   }
   if (filter.category && filter.category.length > 0) {
     conditions.push(inArray(n.category, filter.category));
@@ -222,6 +225,21 @@ export class DrizzleNotificationsRepository implements NotificationsRepository {
       total: Number(counts[0]?.total ?? 0),
       unreadCount: Number(counts[0]?.unread ?? 0),
     };
+  }
+
+  async find(
+    orgId: string,
+    userId: string,
+    notificationId: string,
+  ): Promise<ListedNotification | null> {
+    const [row] = await this.db
+      .select()
+      .from(n)
+      .where(
+        and(eq(n.orgId, orgId), eq(n.userId, userId), eq(n.id, notificationId), eq(n.inApp, true)),
+      )
+      .limit(1);
+    return row ? { ...toStored(row), readAt: row.readAt } : null;
   }
 
   async unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts> {

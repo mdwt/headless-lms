@@ -119,6 +119,7 @@ const readers: Pick<
 > = {
   notifications: {
     list: async () => ({ items: [], total: 0, unreadCount: 0 }),
+    get: async () => null,
     unreadCounts: async () => ({ org: 0, communities: [] }),
   },
   titles: {
@@ -606,6 +607,7 @@ describe('file URLs', () => {
       type: 'comment.created',
       scope: 'space',
       reasons: ['post_author', 'thread_participant'],
+      matchedReason: 'post_author',
       category: 'comments_on_my_posts',
       display: { postTitle: 'Launch week', commenterName: 'Sarah', excerpt: 'Nice' },
       community: { id: 'cmy_1', title: 'Founders' },
@@ -617,6 +619,61 @@ describe('file URLs', () => {
       readAt: null,
     });
     expect(view.rows[1]).toMatchObject({ space: null, subject: null, parent: null });
+  });
+
+  it('reads one notification in the list shape, and null when it is not the person’s', async () => {
+    const stored = {
+      id: 'ntf_1',
+      orgId: 'o1',
+      userId: 'usr_james',
+      type: 'access.granted',
+      scope: 'org' as const,
+      reasons: ['subject' as const],
+      matchedReason: 'subject' as const,
+      category: 'access',
+      communityId: null,
+      spaceId: null,
+      actorOrgUserId: null,
+      subject: { type: 'course' as const, id: 'crs_1' },
+      parent: null,
+      display: { contentTitle: 'Spanish basics', contentType: 'course' },
+      createdAt: AT,
+      readAt: AT,
+    };
+    const get = vi.fn(async (_o: string, _u: string, id: string) =>
+      id === 'ntf_1' ? stored : null,
+    );
+    const svc = new MemberReportServiceImpl({
+      repo: fakeEntitlementReader(),
+      content: fakeContentService(),
+      progress: fakeProgress([]),
+      ...deps,
+      notifications: { ...deps.notifications, get },
+      titles: {
+        discussion: { titlesFor: async () => ({}) },
+        content: { titlesFor: async () => ({ 'course:crs_1': { title: 'Spanish basics' } }) },
+      },
+    });
+    const james = { id: 'ou_james', role: 'student' as const };
+
+    await expect(svc.notification('o1', james, 'usr_james', 'ntf_1')).resolves.toEqual({
+      id: 'ntf_1',
+      type: 'access.granted',
+      scope: 'org',
+      reasons: ['subject'],
+      matchedReason: 'subject',
+      category: 'access',
+      display: { contentTitle: 'Spanish basics', contentType: 'course' },
+      community: null,
+      space: null,
+      actor: null,
+      subject: { type: 'course', id: 'crs_1', title: 'Spanish basics' },
+      parent: null,
+      createdAt: AT,
+      readAt: AT,
+    });
+    expect(get).toHaveBeenCalledWith('o1', 'usr_james', 'ntf_1');
+    await expect(svc.notification('o1', james, 'usr_james', 'ntf_x')).resolves.toBeNull();
   });
 
   it('counts unread notifications for the org and every community the person can open', async () => {

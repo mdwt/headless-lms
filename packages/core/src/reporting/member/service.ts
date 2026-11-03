@@ -80,7 +80,7 @@ export type MemberReportServiceParams = {
   files: Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   access: MemberAccess;
-  notifications: Pick<NotificationsService, 'list' | 'unreadCounts'>;
+  notifications: Pick<NotificationsService, 'list' | 'get' | 'unreadCounts'>;
   titles: { discussion: DiscussionItemTitles; content: ContentItemTitles };
   subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
   notificationCategories: {
@@ -98,7 +98,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly files: Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly access: MemberAccess;
-  private readonly notificationList: Pick<NotificationsService, 'list' | 'unreadCounts'>;
+  private readonly notificationList: Pick<NotificationsService, 'list' | 'get' | 'unreadCounts'>;
   private readonly titles: MemberReportServiceParams['titles'];
   private readonly subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
@@ -191,6 +191,20 @@ export class MemberReportServiceImpl implements MemberReportService {
     };
   }
 
+  async notification(
+    orgId: string,
+    actor: Actor,
+    userId: string,
+    notificationId: string,
+  ): Promise<NotificationView | null> {
+    const found = await this.notificationList.get(orgId, userId, notificationId);
+    if (!found) {
+      return null;
+    }
+    const [view] = await this.describeNotifications(orgId, actor, [found]);
+    return view ?? null;
+  }
+
   async notificationUnreadCounts(
     orgId: string,
     actor: Actor,
@@ -228,6 +242,7 @@ export class MemberReportServiceImpl implements MemberReportService {
         type: row.type,
         scope: row.scope,
         reasons: row.reasons,
+        matchedReason: row.matchedReason,
         category: row.category,
         display: row.display,
         community:

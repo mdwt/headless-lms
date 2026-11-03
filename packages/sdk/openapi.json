@@ -51327,7 +51327,7 @@
         "tags": [
           "Notifications"
         ],
-        "description": "For any member of the organization. Filters combine with AND; the values of one filter combine with OR. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.",
+        "description": "For any member of the organization. Filters combine with AND; the values of one filter combine with OR, and `includeOrg=true` with `communityId` adds the org list, so one query reads a community with the course and account notifications. 400 for `includeOrg` without `communityId` or with `scope`. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.",
         "parameters": [
           {
             "schema": {
@@ -51374,6 +51374,15 @@
             "name": "communityId",
             "required": false,
             "description": "Notifications in this community; implies `scope=community`"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "includeOrg",
+            "required": false,
+            "description": "With `communityId`, `true` adds the org list (notifications in no community); not with `scope`"
           },
           {
             "schema": {
@@ -51463,6 +51472,25 @@
                                 "staff"
                               ]
                             }
+                          },
+                          "matchedReason": {
+                            "type": "string",
+                            "enum": [
+                              "subject",
+                              "post_author",
+                              "comment_author",
+                              "message_author",
+                              "follower",
+                              "thread_participant",
+                              "mentioned",
+                              "participant",
+                              "space_member",
+                              "community_member",
+                              "course_member",
+                              "moderator",
+                              "staff"
+                            ],
+                            "description": "The reason of the pair the category matched, which picks the wording, such as a reply to your comment"
                           },
                           "category": {
                             "type": "string"
@@ -51618,6 +51646,7 @@
                           "type",
                           "scope",
                           "reasons",
+                          "matchedReason",
                           "category",
                           "display",
                           "community",
@@ -51918,6 +51947,405 @@
         }
       }
     },
+    "/api/member/notifications/{notificationId}": {
+      "get": {
+        "operationId": "getMemberNotification",
+        "summary": "Read one of your notifications",
+        "tags": [
+          "Notifications"
+        ],
+        "description": "For any member of the organization. The notification as the list shows it, with current titles, names and excerpts; reading it does not mark it read. 404 when it is not yours or was not shown in the app.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "notificationId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "org",
+                        "community",
+                        "space",
+                        "chat"
+                      ]
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "subject",
+                          "post_author",
+                          "comment_author",
+                          "message_author",
+                          "follower",
+                          "thread_participant",
+                          "mentioned",
+                          "participant",
+                          "space_member",
+                          "community_member",
+                          "course_member",
+                          "moderator",
+                          "staff"
+                        ]
+                      }
+                    },
+                    "matchedReason": {
+                      "type": "string",
+                      "enum": [
+                        "subject",
+                        "post_author",
+                        "comment_author",
+                        "message_author",
+                        "follower",
+                        "thread_participant",
+                        "mentioned",
+                        "participant",
+                        "space_member",
+                        "community_member",
+                        "course_member",
+                        "moderator",
+                        "staff"
+                      ],
+                      "description": "The reason of the pair the category matched, which picks the wording, such as a reply to your comment"
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "display": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "$ref": "#/components/schemas/JsonValue"
+                      },
+                      "description": "The text stored when the notification was sent"
+                    },
+                    "community": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "space": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "actor": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "orgUserId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "imageUrl": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "orgUserId",
+                        "name",
+                        "imageUrl"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "subject": {
+                      "nullable": true,
+                      "description": "What the notification is about, with its current title or excerpt; null when you can no longer open it or it was deleted",
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "post",
+                            "comment",
+                            "chat",
+                            "message",
+                            "space",
+                            "community",
+                            "course",
+                            "download",
+                            "bundle",
+                            "activity"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "excerpt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "parent": {
+                      "nullable": true,
+                      "description": "The subject's container, such as a comment's post; null when you can no longer open it or it was deleted",
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "post",
+                            "comment",
+                            "chat",
+                            "message",
+                            "space",
+                            "community",
+                            "course",
+                            "download",
+                            "bundle",
+                            "activity"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "excerpt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "readAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "scope",
+                    "reasons",
+                    "matchedReason",
+                    "category",
+                    "display",
+                    "community",
+                    "space",
+                    "actor",
+                    "subject",
+                    "parent",
+                    "createdAt",
+                    "readAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/member/notifications/{notificationId}/read": {
       "post": {
         "operationId": "markMemberNotificationRead",
@@ -52100,7 +52528,7 @@
         "tags": [
           "Notifications"
         ],
-        "description": "For any member of the organization. Takes the filters of the list; with none, marks every notification read.",
+        "description": "For any member of the organization. Takes the filters of the list, `includeOrg` included; with none, marks every notification read.",
         "parameters": [
           {
             "schema": {
@@ -52125,6 +52553,15 @@
             "name": "communityId",
             "required": false,
             "description": "Notifications in this community; implies `scope=community`"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "includeOrg",
+            "required": false,
+            "description": "With `communityId`, `true` adds the org list (notifications in no community); not with `scope`"
           },
           {
             "schema": {

@@ -131,7 +131,7 @@ sequenceDiagram
 | `NotificationProcessor` | `automations/notifications/processor.ts`, called by `AutomationsServiceImpl.handle` | automations |
 | Chat debounce and the `automations.notifications.flush` job | `automations/notifications/debounce.ts` | automations |
 | Delivery task | `automations/notifications/delivery.ts`, called by `AutomationsServiceImpl.runDelivery` | automations |
-| `NotificationsService`: `list`, `unreadCounts`, `markRead`, `markAllRead` | `automations/notifications/service.ts`, exported from `@headless-lms/core/automations` | automations |
+| `NotificationsService`: `list`, `get`, `unreadCounts`, `markRead`, `markAllRead` | `automations/notifications/service.ts`, exported from `@headless-lms/core/automations` | automations |
 | `NotificationReads`, `NotificationCategories`, `NotificationsRepository` ports | `automations/ports.ts` | automations |
 | `NotificationReads` implementation | `packages/server/src/app/notification-reads.ts`, built on `community-mail.ts`, which stays for the `sendEmail` action | composition root |
 | `NotificationTypeRegistry`, `ChannelRegistry`, `NotificationChannel`, `PushSender`, `Scheduler` interfaces | `packages/core/src/shared/ports.ts` | shared |
@@ -704,18 +704,21 @@ The app reads the list with `GET /api/member/notifications`. `reporting/member` 
 |---|---|
 | `scope` | `org`: the org's list, `community_id` is null; `community`: any community, `community_id` is not null |
 | `communityId` | notifications in this community; implies `scope=community`, and `scope=org` with it answers 400 |
+| `includeOrg` | with `communityId`, `true` adds the org list (`community_id` is null): the community plus courses and account in one query. 400 without `communityId` or with `scope` |
 | `category` | one or more category keys |
 | `reason` | one or more reasons; matches any |
 | `type` | one or more types |
 | `unread` | `true` for unread only |
 
-Different filters combine with AND; values of one filter combine with OR. `unreadCount` in the response uses the same filters. With the default categories, the app's tabs map to:
+Different filters combine with AND; values of one filter combine with OR. `unreadCount` in the response uses the same filters, and `POST /api/member/notifications/read` takes them. With the default categories, the app's tabs map to:
 
 - Mentions: `category=mentions`
 - Threads: `reason=comment_author,thread_participant`
 - Following: `category=followed_posts,new_posts`
 
 `GET /api/member/notifications/unread-counts` returns the unread count for the org scope and for each community the person can open, staff included (5.5).
+
+`GET /api/member/notifications/:notificationId` returns one notification in the list's item shape, for a push or email link to open; reading it does not mark it read. It answers 404 when the notification isn't the caller's or isn't in the app (`in_app` false).
 
 ## 14. Scheduled jobs
 
@@ -1104,7 +1107,7 @@ The schema migration creates the tables and columns in this section, changes `no
 | `NotificationCategoryReader { communityList(orgId, communityId); orgList(orgId) }` | identity | composition root, from content and organizations | identity, to validate a settings change |
 | `CommunityAccessReader { canOpen(orgId, actor, communityId) }` | identity | composition root, from entitlements | identity, to check a community settings change |
 | `DevicesService { register; list; remove; activeDevices; removeDead }` | identity | identity | the push channel, automations, device routes |
-| `NotificationsService { list; unreadCounts; markRead; markAllRead }` | automations | automations | `reporting/member`, notification routes |
+| `NotificationsService { list; get; unreadCounts; markRead; markAllRead }` | automations | automations | `reporting/member`, notification routes |
 | `ItemTitles { titlesFor(orgId, actor, refs) }` | discussion and content, one each | discussion: posts, comments, chats, messages; content: courses, activities, downloads, bundles, spaces, communities | `reporting/member` |
 | content's and organizations' category services: `get`, `replace`, `reset`, `defaults` | content, organizations | content, organizations | category routes |
 | `NotificationSettingsRepository`, `DevicesRepository` | identity | db adapter | identity |
@@ -1249,6 +1252,7 @@ interface DevicesService {
 interface NotificationFilter {
   scope?: 'org' | 'community';
   communityId?: string;
+  includeOrg?: boolean;
   category?: string[];
   reason?: Reason[];
   type?: string[];
@@ -1257,6 +1261,7 @@ interface NotificationFilter {
 
 interface NotificationsService {
   list(orgId: string, userId: string, filter: NotificationFilter, page: { page: number; pageSize: number }): Promise<{ items: (StoredNotification & { readAt: Date | null })[]; total: number; unreadCount: number }>;
+  get(orgId: string, userId: string, notificationId: string): Promise<(StoredNotification & { readAt: Date | null }) | null>;
   unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<{ org: number; communities: { communityId: string; unread: number }[] }>;
   markRead(orgId: string, userId: string, notificationId: string): Promise<void>;
   markAllRead(orgId: string, userId: string, filter: NotificationFilter): Promise<{ marked: number }>;
@@ -1270,6 +1275,7 @@ interface NotificationsRepository {
   recordError(orgId: string, deliveryId: string, error: string): Promise<void>;
   markFailed(orgId: string, deliveryId: string, error: string): Promise<void>;
   page(orgId: string, userId: string, filter: NotificationFilter, page: { page: number; pageSize: number }): Promise<{ items: (StoredNotification & { readAt: Date | null })[]; total: number; unreadCount: number }>;
+  find(orgId: string, userId: string, notificationId: string): Promise<(StoredNotification & { readAt: Date | null }) | null>;
   unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<{ org: number; communities: { communityId: string; unread: number }[] }>;
   markRead(orgId: string, userId: string, notificationId: string, at: Date): Promise<boolean>;
   markAllRead(orgId: string, userId: string, filter: NotificationFilter, at: Date): Promise<number>;
@@ -1337,7 +1343,7 @@ Notes on the signatures:
 - `pendingDeliveriesForEvent` returns the `pending` deliveries of every notification with that `source_event_id` (11.2, step 7).
 - `unreadInChat` answers from `chat_users.last_read_message_id`, the marker `ChatService.markRead` sets and `ChatListItem.unread` is counted from today: the messages after it that the person didn't send, their count and the latest.
 - The flush notification's `source_event_id` is `chat-flush:{chatId}:{latest message id}`, so a retried flush inserts nothing twice.
-- `NotificationsService.markRead` throws `NotFoundError` (404) when the notification isn't the caller's; the read routes answer 204.
+- `NotificationsService.markRead` throws `NotFoundError` (404) when the notification isn't the caller's; the read routes answer 204. `get` and `find` answer `null` for a notification that isn't the caller's or isn't in the app.
 - `ItemTitles.titlesFor` keys its result `"{type}:{id}"` and returns only the refs the actor can open, with excerpts for comments and messages. Discussion builds it from today's `posts.visibleTitles` and `chats.titlesFor`.
 - `Actor` here is the member actor with the person's `userId` beside the org-user id, because `notification_settings` and `devices` are keyed by `user_id`. `NotificationCategoryService` takes no actor: the category routes check owner or admin.
 - `NotificationSettingsService.set` throws `NotFoundError` (404) when `CommunityAccessReader.canOpen` says no, and a validation error (422) for the cases in 19.3. `getMany` and `switchedOn` serve automations: `getMany` is keyed by user id; `switchedOn` returns org-user ids.
@@ -1521,8 +1527,9 @@ The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishi
 
 | Method and path | Access | Calls; notes |
 |---|---|---|
-| `GET /api/member/notifications` | signed in | `reporting/member`; filters `scope`, `communityId`, `category`, `reason`, `type`, `unread`; `page`, `pageSize` |
+| `GET /api/member/notifications` | signed in | `reporting/member`; filters `scope`, `communityId`, `includeOrg`, `category`, `reason`, `type`, `unread`; `page`, `pageSize` |
 | `GET /api/member/notifications/unread-counts` | signed in | `reporting/member`; `{ org, communities: [{ communityId, unread }] }` |
+| `GET /api/member/notifications/:notificationId` | the recipient | `reporting/member`; one item in the shape below; 404 when it isn't the caller's or isn't in the app |
 | `POST /api/member/notifications/:notificationId/read` | the recipient | `NotificationsService.markRead` (automations) |
 | `POST /api/member/notifications/read` | signed in | `NotificationsService.markAllRead` (automations); marks notifications matching the same filters read |
 
@@ -1532,6 +1539,7 @@ The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishi
   "type": "comment.created",
   "scope": "space",
   "reasons": ["post_author", "thread_participant"],
+  "matchedReason": "post_author",
   "category": "comments_on_my_posts",
   "display": { "postTitle": "My first recording", "commenterName": "James", "excerpt": "Your rolled r is much better" },
   "community": { "id": "cmy_1", "title": "Spring cohort" },
@@ -1544,7 +1552,7 @@ The route calls `PostService.unschedule` (14.2). Scheduling, moving and publishi
 }
 ```
 
-`community`, `space`, `actor`, `subject` and `parent` carry current titles, names and excerpts, as `NotificationView` does today. A subject or parent the person can no longer open, or that was deleted, is `null`. `display` is the text stored at send time; the app uses it for what the references don't carry, such as `expiresAt`, `reason`, `seatsLeft`, `participantNames`, `contentType`, `communities` and `posts`.
+`matchedReason` is the reason the category matched (7.2, rule 1), which picks the wording as it picks the email template. `community`, `space`, `actor`, `subject` and `parent` carry current titles, names and excerpts, as `NotificationView` does today. A subject or parent the person can no longer open, or that was deleted, is `null`. `display` is the text stored at send time; the app uses it for what the references don't carry, such as `expiresAt`, `reason`, `seatsLeft`, `participantNames`, `contentType`, `communities` and `posts`.
 
 ### 19.8 Removed
 

@@ -156,6 +156,35 @@ describe("DrizzleNotificationsRepository list", () => {
     expect(statements[0]?.text).not.toContain('"notifications"."read_at" is null');
   });
 
+  it("adds the org list to a community with includeOrg", async () => {
+    const { repo, statements } = capture();
+    await repo.page(
+      "org_1",
+      "usr_1",
+      { communityId: "cmy_1", includeOrg: true },
+      { page: 1, pageSize: 20 },
+    );
+    await repo.markAllRead("org_1", "usr_1", { communityId: "cmy_1", includeOrg: true }, at);
+    for (const statement of statements) {
+      expect(statement.text).toMatch(
+        /\("notifications"\."community_id" = \$\d+ or "notifications"\."community_id" is null\)/,
+      );
+    }
+    const { repo: plain, statements: only } = capture();
+    await plain.page("org_1", "usr_1", { communityId: "cmy_1" }, { page: 1, pageSize: 20 });
+    expect(only[0]?.text).not.toContain('"notifications"."community_id" is null');
+  });
+
+  it("finds one in-app notification of the person", async () => {
+    const { repo, statements } = capture();
+    await expect(repo.find("org_1", "usr_1", "ntf_x")).resolves.toBeNull();
+    expect(statements[0]?.text).toContain('"notifications"."user_id" = $');
+    expect(statements[0]?.text).toContain('"notifications"."in_app" = $');
+    expect(statements[0]?.params).toEqual(
+      expect.arrayContaining(["org_1", "usr_1", "ntf_x", true]),
+    );
+  });
+
   it("maps a row to its subject and parent", async () => {
     const { repo } = capture((text) =>
       text.includes("order by")

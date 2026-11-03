@@ -129,6 +129,7 @@ export interface DeliveryResult {
 export interface NotificationFilter {
   scope?: 'org' | 'community';
   communityId?: string;
+  includeOrg?: boolean;
   category?: string[];
   reason?: Reason[];
   type?: string[];

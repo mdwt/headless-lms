@@ -183,6 +183,8 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
+  GetMemberNotificationErrors,
+  GetMemberNotificationResponses,
   GetMemberNotificationSettingsErrors,
   GetMemberNotificationSettingsResponses,
   GetMemberNotificationUnreadCountsErrors,
@@ -1321,7 +1323,7 @@ export class Notifications {
   /**
    * List your notifications, newest first, with the unread count of the same filters
    *
-   * For any member of the organization. Filters combine with AND; the values of one filter combine with OR. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.
+   * For any member of the organization. Filters combine with AND; the values of one filter combine with OR, and `includeOrg=true` with `communityId` adds the org list, so one query reads a community with the course and account notifications. 400 for `includeOrg` without `communityId` or with `scope`. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.
    */
   public static listMemberNotifications<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1329,6 +1331,7 @@ export class Notifications {
       pageSize?: number;
       scope?: "org" | "community";
       communityId?: string;
+      includeOrg?: string;
       category?: string;
       reason?: string;
       type?: string;
@@ -1350,6 +1353,7 @@ export class Notifications {
             { in: "query", key: "pageSize" },
             { in: "query", key: "scope" },
             { in: "query", key: "communityId" },
+            { in: "query", key: "includeOrg" },
             { in: "query", key: "category" },
             { in: "query", key: "reason" },
             { in: "query", key: "type" },
@@ -1397,6 +1401,39 @@ export class Notifications {
   }
 
   /**
+   * Read one of your notifications
+   *
+   * For any member of the organization. The notification as the list shows it, with current titles, names and excerpts; reading it does not mark it read. 404 when it is not yours or was not shown in the app.
+   */
+  public static getMemberNotification<ThrowOnError extends boolean = false>(
+    parameters: {
+      notificationId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationResponses,
+    GetMemberNotificationErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "notificationId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetMemberNotificationResponses,
+      GetMemberNotificationErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/{notificationId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Mark one of your notifications read
    *
    * For any member of the organization. Marking a read notification keeps its first read time. 404 when it is not yours.
@@ -1432,12 +1469,13 @@ export class Notifications {
   /**
    * Mark your notifications matching the filters read
    *
-   * For any member of the organization. Takes the filters of the list; with none, marks every notification read.
+   * For any member of the organization. Takes the filters of the list, `includeOrg` included; with none, marks every notification read.
    */
   public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
     parameters?: {
       scope?: "org" | "community";
       communityId?: string;
+      includeOrg?: string;
       category?: string;
       reason?: string;
       type?: string;
@@ -1457,6 +1495,7 @@ export class Notifications {
           args: [
             { in: "query", key: "scope" },
             { in: "query", key: "communityId" },
+            { in: "query", key: "includeOrg" },
             { in: "query", key: "category" },
             { in: "query", key: "reason" },
             { in: "query", key: "type" },

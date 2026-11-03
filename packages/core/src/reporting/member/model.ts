@@ -106,6 +106,7 @@ export interface NotificationView {
   type: string;
   scope: Scope;
   reasons: Reason[];
+  matchedReason: Reason;
   category: string;
   display: Record<string, JsonValue>;
   community: { id: string; title: string } | null;

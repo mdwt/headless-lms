@@ -34,7 +34,7 @@ function commaSeparated<T extends string>(item: z.ZodType<T, string>, descriptio
 }
 
 function scopeMatchesCommunity(
-  filter: { scope?: 'org' | 'community'; communityId?: string },
+  filter: { scope?: 'org' | 'community'; communityId?: string; includeOrg?: boolean },
   ctx: z.RefinementCtx,
 ): void {
   if (filter.scope === 'org' && filter.communityId !== undefined) {
@@ -42,6 +42,20 @@ function scopeMatchesCommunity(
       code: 'custom',
       path: ['communityId'],
       message: '`communityId` implies `scope=community`; it cannot go with `scope=org`',
+    });
+  }
+  if (filter.includeOrg === true && filter.communityId === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['includeOrg'],
+      message: '`includeOrg` goes with `communityId`',
+    });
+  }
+  if (filter.includeOrg === true && filter.scope !== undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['includeOrg'],
+      message: '`includeOrg` cannot go with `scope`',
     });
   }
 }
@@ -58,6 +72,12 @@ const notificationFilterShape = z
       .max(64)
       .optional()
       .describe('Notifications in this community; implies `scope=community`'),
+    includeOrg: z
+      .stringbool()
+      .optional()
+      .describe(
+        'With `communityId`, `true` adds the org list (notifications in no community); not with `scope`',
+      ),
     category: commaSeparated(
       notificationCategoryKeySchema,
       'One or more category keys, comma separated',
@@ -92,6 +112,9 @@ export const NotificationView = z.object({
   type: z.string(),
   scope: notificationScopeSchema,
   reasons: z.array(reasonSchema),
+  matchedReason: reasonSchema.describe(
+    'The reason of the pair the category matched, which picks the wording, such as a reply to your comment',
+  ),
   category: z.string(),
   display: z
     .record(z.string(), jsonValueSchema)
