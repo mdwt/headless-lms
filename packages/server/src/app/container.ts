@@ -46,7 +46,11 @@ import {
 import { StorageAdapter } from '@headless-lms/adapter-defaults/storage';
 import { BetterAuth } from '@headless-lms/adapter-auth';
 
-import { CommunityNotificationCategories, ContentService } from '@headless-lms/core/content';
+import {
+  CommunityNotificationCategories,
+  ContentItemTitles,
+  ContentService,
+} from '@headless-lms/core/content';
 import {
   EntitlementsServiceImpl,
   entitlementsJobs,
@@ -56,6 +60,7 @@ import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import {
   ChatServiceImpl,
   DigestServiceImpl,
+  DiscussionItemTitles,
   DiscussionServiceImpl,
   PostServiceImpl,
   SubscriptionServiceImpl,
@@ -65,7 +70,6 @@ import {
 import {
   DevicesServiceImpl,
   IdentityServiceImpl,
-  NotificationServiceImpl,
   NotificationSettingsServiceImpl,
   type SessionAdmin,
 } from '@headless-lms/core/identity';
@@ -87,6 +91,7 @@ import {
   DEFAULT_COMMUNITY_CATEGORIES,
   DEFAULT_ORG_CATEGORIES,
   NOTIFICATION_TYPES,
+  NotificationsServiceImpl,
   type NotificationCategories,
 } from '@headless-lms/core/automations';
 import { buildNotificationRegistries } from './notification-channels.js';
@@ -209,7 +214,6 @@ export interface Container {
 
   // Domains
   identity: IdentityServiceImpl;
-  notifications: NotificationServiceImpl;
   organizations: OrganizationServiceImpl;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
@@ -230,6 +234,7 @@ export interface Container {
   notificationCategoryLists: NotificationCategories;
   notificationSettings: NotificationSettingsServiceImpl;
   devices: DevicesServiceImpl;
+  notificationList: NotificationsServiceImpl;
   /** Cross-cutting settings store. Not a context — a leaf every context may use;
    *  inject `settings.for('<namespace>')` into a service, never the service itself. */
   settings: SettingsService;
@@ -325,10 +330,6 @@ export async function buildContainer(
     mailer,
     images: assets,
     fileUrls,
-  });
-  const notifications = new NotificationServiceImpl({
-    repo: new DrizzleNotificationsRepository(db),
-    logger: logger.child({ name: 'notifications' }),
   });
 
   /*
@@ -537,6 +538,23 @@ export async function buildContainer(
     logger: discussionLogger,
   });
 
+  const notificationList = new NotificationsServiceImpl({
+    repo: new DrizzleNotificationsRepository(db),
+    logger: automationsLogger,
+  });
+  const itemTitles = {
+    discussion: new DiscussionItemTitles({
+      posts,
+      chats,
+      comments: discussionReads,
+      messages: chatReads,
+      profiles: discussionReads,
+      activities: content,
+      access: entitlements,
+    }),
+    content: new ContentItemTitles({ content, access: entitlements }),
+  };
+
   const reporting = {
     admin: new AdminReportServiceImpl({
       repo: new DrizzleAdminRepository(db, reportingLogger),
@@ -548,9 +566,8 @@ export async function buildContainer(
       files: assets,
       fileUrls,
       access: entitlements,
-      notifications,
-      posts,
-      chats,
+      notifications: notificationList,
+      titles: itemTitles,
       subscriptions,
       notificationCategories,
       notificationSettings,
@@ -790,7 +807,6 @@ export async function buildContainer(
     auth,
     mcp,
     identity,
-    notifications,
     organizations,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.
     orgProvider: auth,
@@ -810,6 +826,7 @@ export async function buildContainer(
     notificationCategoryLists,
     notificationSettings,
     devices,
+    notificationList,
     settings,
     reporting,
     storage,

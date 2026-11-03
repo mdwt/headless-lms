@@ -42,9 +42,25 @@ import type {
 } from './types.js';
 import type { Actor } from '../shared/actor.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { SubjectRef } from '../types/index.js';
 
 export interface ContentService
   extends DownloadablesService, CourseManagementService, CommunitiesService {}
+
+export interface ItemTitle {
+  title: string;
+  excerpt?: string;
+}
+
+export interface ItemTitles {
+  titlesFor(orgId: string, actor: Actor, refs: SubjectRef[]): Promise<Record<string, ItemTitle>>;
+}
+
+export interface ItemTitleAccess {
+  hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
+  isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
+  canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
+}
 
 export interface CommunityReader {
   getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null>;

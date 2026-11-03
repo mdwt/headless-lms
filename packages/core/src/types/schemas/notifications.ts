@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { NotificationCategory, Reason } from '../notifications.js';
+import type { NotificationCategory, Reason, SubjectRef } from '../notifications.js';
 
 export const reasonSchema = z.enum([
   'subject',
@@ -18,6 +18,19 @@ export const reasonSchema = z.enum([
 ]) satisfies z.ZodType<Reason>;
 
 export const notificationScopeSchema = z.enum(['org', 'community', 'space', 'chat']);
+
+export const subjectTypeSchema = z.enum([
+  'post',
+  'comment',
+  'chat',
+  'message',
+  'space',
+  'community',
+  'course',
+  'download',
+  'bundle',
+  'activity',
+]) satisfies z.ZodType<SubjectRef['type']>;
 
 export const notificationCategoryKeySchema = z
   .string()

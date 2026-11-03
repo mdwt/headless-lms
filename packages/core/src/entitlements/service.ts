@@ -253,6 +253,10 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.communityIdsOpenedFor(orgId, orgUserId);
   }
 
+  openCommunityIds(orgId: string, actor: Actor): Promise<string[]> {
+    return this.repo.openCommunityIds(orgId, actor.id);
+  }
+
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number> {
     return this.repo.countActiveSpaceMembers(orgId, spaceId);
   }

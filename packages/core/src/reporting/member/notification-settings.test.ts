@@ -58,18 +58,16 @@ function build(options: {
       spaceStandings: async () => ({}),
       hasAccess: async () => false,
       listAccessibleContent: async () => [],
+      openCommunityIds: async () => [],
     },
     notifications: {
-      listNotifications: async () => ({
-        rows: [],
-        total: 0,
-        page: 1,
-        pageSize: 20,
-        unreadCount: 0,
-      }),
+      list: async () => ({ items: [], total: 0, unreadCount: 0 }),
+      unreadCounts: async () => ({ org: 0, communities: [] }),
     },
-    posts: { visibleTitles: async () => ({}) },
-    chats: { titlesFor: async () => ({}) },
+    titles: {
+      discussion: { titlesFor: async () => ({}) },
+      content: { titlesFor: async () => ({}) },
+    },
     subscriptions: { viewerSubscriptions: async () => ({}) },
     notificationCategories: {
       community: { get: async () => ({ categories: COMMUNITY, source: 'stored' }) },

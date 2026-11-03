@@ -793,6 +793,26 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .orderBy(asc(communities.id));
     return rows.map((row) => row.id);
   }
+
+  async openCommunityIds(orgId: string, orgUserId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: communities.id })
+      .from(communities)
+      .innerJoin(orgUsers, and(eq(orgUsers.orgId, communities.orgId), eq(orgUsers.id, orgUserId)))
+      .where(
+        and(
+          eq(communities.orgId, orgId),
+          communityMember(
+            sql`${communities.orgId}`,
+            sql`${orgUsers.id}`,
+            sql`${orgUsers.role}`,
+            sql`${communities.id}`,
+          ),
+        ),
+      )
+      .orderBy(asc(communities.id));
+    return rows.map((row) => row.id);
+  }
 }
 
 function toSpaceMember(row: {

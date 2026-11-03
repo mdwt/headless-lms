@@ -43,6 +43,7 @@ export const ID_PREFIXES = {
   messageFlag: 'mfl',
   notification: 'ntf',
   notificationSetting: 'nst',
+  notificationDelivery: 'ndl',
   device: 'dev',
 } as const;
 

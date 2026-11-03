@@ -7,9 +7,6 @@
 
 export type {
   CreateUserInput,
-  Notification,
-  NotificationKind,
-  NotificationPreference,
   ProvisionUserInput,
   UpdateUserInput,
   UserProfile,

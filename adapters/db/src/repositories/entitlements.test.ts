@@ -157,6 +157,18 @@ describe("community access", () => {
     );
     expect(values).not.toContain("student");
   });
+
+  it("lists every community a staff member or a holder of a published community can open", async () => {
+    const { repo, queries } = capturingDb([["cmy_1"], ["cmy_2"]]);
+    await expect(repo.openCommunityIds("org-1", "ou_1")).resolves.toEqual(["cmy_1", "cmy_2"]);
+    const { text, values } = queries[0]!;
+    expect(text).toContain('inner join "org_users"');
+    expect(text).toContain('"org_users"."role" in ($');
+    expect(text).toContain("pc.status = 'published'");
+    expect(values).toEqual(
+      expect.arrayContaining(["org-1", "ou_1", "owner", "admin", "instructor"]),
+    );
+  });
 });
 
 describe("transitions", () => {

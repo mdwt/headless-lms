@@ -27,9 +27,6 @@ const STAFFLESS = new Set([
   'getInvite',
   'acceptInvite',
   'getMemberOrg',
-  'markAllMemberNotificationsRead',
-  'getMemberNotificationPreferences',
-  'setMemberNotificationPreferences',
   'getMemberProfile',
 ]);
 

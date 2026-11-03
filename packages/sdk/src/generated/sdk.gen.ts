@@ -183,10 +183,10 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
-  GetMemberNotificationPreferencesErrors,
-  GetMemberNotificationPreferencesResponses,
   GetMemberNotificationSettingsErrors,
   GetMemberNotificationSettingsResponses,
+  GetMemberNotificationUnreadCountsErrors,
+  GetMemberNotificationUnreadCountsResponses,
   GetMemberOrgErrors,
   GetMemberOrgResponses,
   GetMemberProfileErrors,
@@ -438,8 +438,6 @@ import type {
   SetEntitlementStatusResponses,
   SetMemberCommunityNotificationSettingsErrors,
   SetMemberCommunityNotificationSettingsResponses,
-  SetMemberNotificationPreferencesErrors,
-  SetMemberNotificationPreferencesResponses,
   SetMemberNotificationSettingsErrors,
   SetMemberNotificationSettingsResponses,
   SetMessageReactionErrors,
@@ -1321,14 +1319,20 @@ export class Notifications {
   }
 
   /**
-   * List your notifications, newest first, with your unread count
+   * List your notifications, newest first, with the unread count of the same filters
    *
-   * For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.
+   * For any member of the organization. Filters combine with AND; the values of one filter combine with OR. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.
    */
   public static listMemberNotifications<ThrowOnError extends boolean = false>(
     parameters?: {
       page?: number;
       pageSize?: number;
+      scope?: "org" | "community";
+      communityId?: string;
+      category?: string;
+      reason?: string;
+      type?: string;
+      unread?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
@@ -1344,6 +1348,12 @@ export class Notifications {
           args: [
             { in: "query", key: "page" },
             { in: "query", key: "pageSize" },
+            { in: "query", key: "scope" },
+            { in: "query", key: "communityId" },
+            { in: "query", key: "category" },
+            { in: "query", key: "reason" },
+            { in: "query", key: "type" },
+            { in: "query", key: "unread" },
           ],
         },
       ],
@@ -1362,9 +1372,34 @@ export class Notifications {
   }
 
   /**
+   * Count your unread notifications in the org list and in each community
+   *
+   * For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open, staff included.
+   */
+  public static getMemberNotificationUnreadCounts<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberNotificationUnreadCountsResponses,
+    GetMemberNotificationUnreadCountsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetMemberNotificationUnreadCountsResponses,
+      GetMemberNotificationUnreadCountsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/notifications/unread-counts",
+      ...options,
+    });
+  }
+
+  /**
    * Mark one of your notifications read
    *
-   * For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.
+   * For any member of the organization. Marking a read notification keeps its first read time. 404 when it is not yours.
    */
   public static markMemberNotificationRead<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1395,11 +1430,19 @@ export class Notifications {
   }
 
   /**
-   * Mark all your notifications read
+   * Mark your notifications matching the filters read
    *
-   * For any signed-in person in the organization. Returns how many were unread.
+   * For any member of the organization. Takes the filters of the list; with none, marks every notification read.
    */
   public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
+    parameters?: {
+      scope?: "org" | "community";
+      communityId?: string;
+      category?: string;
+      reason?: string;
+      type?: string;
+      unread?: string;
+    },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
     MarkAllMemberNotificationsReadResponses,
@@ -1407,6 +1450,21 @@ export class Notifications {
     ThrowOnError,
     "data"
   > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "scope" },
+            { in: "query", key: "communityId" },
+            { in: "query", key: "category" },
+            { in: "query", key: "reason" },
+            { in: "query", key: "type" },
+            { in: "query", key: "unread" },
+          ],
+        },
+      ],
+    );
     return (options?.client ?? client).post<
       MarkAllMemberNotificationsReadResponses,
       MarkAllMemberNotificationsReadErrors,
@@ -1416,92 +1474,7 @@ export class Notifications {
       responseStyle: "data",
       url: "/api/member/notifications/read",
       ...options,
-    });
-  }
-
-  /**
-   * Read how you are told about each kind of notification
-   *
-   * For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.
-   */
-  public static getMemberNotificationPreferences<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    GetMemberNotificationPreferencesResponses,
-    GetMemberNotificationPreferencesErrors,
-    ThrowOnError,
-    "data"
-  > {
-    return (options?.client ?? client).get<
-      GetMemberNotificationPreferencesResponses,
-      GetMemberNotificationPreferencesErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notification-preferences",
-      ...options,
-    });
-  }
-
-  /**
-   * Set how you are told about the given kinds of notification
-   *
-   * For any signed-in person in the organization. Changes only the kinds sent and returns every kind.
-   */
-  public static setMemberNotificationPreferences<ThrowOnError extends boolean = false>(
-    parameters: {
-      preferences: Array<{
-        kind:
-          | "newPostInSpace"
-          | "newCommentOnPost"
-          | "replyToYourComment"
-          | "yourPostWasPublished"
-          | "yourPostWasRemoved"
-          | "yourCommentWasRemoved"
-          | "requestApproved"
-          | "requestDeclined"
-          | "invitedToSpace"
-          | "newMessage"
-          | "messageRequest"
-          | "addedToGroupChat"
-          | "youAreNowAModerator"
-          | "membershipEndingSoon"
-          | "welcomeToCommunity"
-          | "postAwaitingReview"
-          | "joinRequest"
-          | "somethingWasFlagged"
-          | "messageWasFlagged";
-        inApp: boolean;
-        email: boolean;
-      }>;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    SetMemberNotificationPreferencesResponses,
-    SetMemberNotificationPreferencesErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [{ args: [{ in: "body", key: "preferences" }] }],
-    );
-    return (options?.client ?? client).put<
-      SetMemberNotificationPreferencesResponses,
-      SetMemberNotificationPreferencesErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/notification-preferences",
-      ...options,
       ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
     });
   }
 

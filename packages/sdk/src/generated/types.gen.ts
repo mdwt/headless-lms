@@ -16343,6 +16343,30 @@ export type ListMemberNotificationsData = {
   query?: {
     page?: number;
     pageSize?: number;
+    /**
+     * `org`: the org list only; `community`: notifications in any community
+     */
+    scope?: "org" | "community";
+    /**
+     * Notifications in this community; implies `scope=community`
+     */
+    communityId?: string;
+    /**
+     * One or more category keys, comma separated
+     */
+    category?: string;
+    /**
+     * One or more reasons, comma separated; matches any
+     */
+    reason?: string;
+    /**
+     * One or more types, comma separated
+     */
+    type?: string;
+    /**
+     * `true` for unread notifications only
+     */
+    unread?: string;
   };
   url: "/api/member/notifications";
 };
@@ -16399,33 +16423,30 @@ export type ListMemberNotificationsResponses = {
   200: {
     rows: Array<{
       id: string;
-      kind:
-        | "newPostInSpace"
-        | "newCommentOnPost"
-        | "replyToYourComment"
-        | "yourPostWasPublished"
-        | "yourPostWasRemoved"
-        | "yourCommentWasRemoved"
-        | "requestApproved"
-        | "requestDeclined"
-        | "invitedToSpace"
-        | "newMessage"
-        | "messageRequest"
-        | "addedToGroupChat"
-        | "youAreNowAModerator"
-        | "membershipEndingSoon"
-        | "welcomeToCommunity"
-        | "postAwaitingReview"
-        | "joinRequest"
-        | "somethingWasFlagged"
-        | "messageWasFlagged";
-      createdAt: string;
-      readAt: string | null;
-      actor: {
-        orgUserId: string;
-        displayName: string | null;
-        imageUrl: string | null;
-      } | null;
+      type: string;
+      scope: "org" | "community" | "space" | "chat";
+      reasons: Array<
+        | "subject"
+        | "post_author"
+        | "comment_author"
+        | "message_author"
+        | "follower"
+        | "thread_participant"
+        | "mentioned"
+        | "participant"
+        | "space_member"
+        | "community_member"
+        | "course_member"
+        | "moderator"
+        | "staff"
+      >;
+      category: string;
+      /**
+       * The text stored when the notification was sent
+       */
+      display: {
+        [key: string]: JsonValue;
+      };
       community: {
         id: string;
         title: string;
@@ -16434,32 +16455,117 @@ export type ListMemberNotificationsResponses = {
         id: string;
         name: string;
       } | null;
-      /**
-       * Null when the viewer can no longer see the post
-       */
-      post: {
-        id: string;
-        title: string;
+      actor: {
+        orgUserId: string;
+        name: string | null;
+        imageUrl: string | null;
       } | null;
-      commentId: string | null;
       /**
-       * Null when the viewer is not in the chat
+       * What the notification is about, with its current title or excerpt; null when you can no longer open it or it was deleted
        */
-      chat: {
+      subject: {
+        type:
+          | "post"
+          | "comment"
+          | "chat"
+          | "message"
+          | "space"
+          | "community"
+          | "course"
+          | "download"
+          | "bundle"
+          | "activity";
         id: string;
-        title: string;
+        title?: string;
+        excerpt?: string;
       } | null;
-      messageId: string | null;
+      /**
+       * The subject's container, such as a comment's post; null when you can no longer open it or it was deleted
+       */
+      parent: {
+        type:
+          | "post"
+          | "comment"
+          | "chat"
+          | "message"
+          | "space"
+          | "community"
+          | "course"
+          | "download"
+          | "bundle"
+          | "activity";
+        id: string;
+        title?: string;
+        excerpt?: string;
+      } | null;
+      createdAt: string;
+      readAt: string | null;
     }>;
     total: number;
     page: number;
     pageSize: number;
+    /**
+     * Unread notifications matching the same filters
+     */
     unreadCount: number;
   };
 };
 
 export type ListMemberNotificationsResponse =
   ListMemberNotificationsResponses[keyof ListMemberNotificationsResponses];
+
+export type GetMemberNotificationUnreadCountsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/member/notifications/unread-counts";
+};
+
+export type GetMemberNotificationUnreadCountsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberNotificationUnreadCountsError =
+  GetMemberNotificationUnreadCountsErrors[keyof GetMemberNotificationUnreadCountsErrors];
+
+export type GetMemberNotificationUnreadCountsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    org: number;
+    communities: Array<{
+      communityId: string;
+      unread: number;
+    }>;
+  };
+};
+
+export type GetMemberNotificationUnreadCountsResponse =
+  GetMemberNotificationUnreadCountsResponses[keyof GetMemberNotificationUnreadCountsResponses];
 
 export type MarkMemberNotificationReadData = {
   body?: never;
@@ -16527,204 +16633,42 @@ export type MarkMemberNotificationReadResponses = {
   /**
    * Default Response
    */
-  200: {
-    id: string;
-    kind:
-      | "newPostInSpace"
-      | "newCommentOnPost"
-      | "replyToYourComment"
-      | "yourPostWasPublished"
-      | "yourPostWasRemoved"
-      | "yourCommentWasRemoved"
-      | "requestApproved"
-      | "requestDeclined"
-      | "invitedToSpace"
-      | "newMessage"
-      | "messageRequest"
-      | "addedToGroupChat"
-      | "youAreNowAModerator"
-      | "membershipEndingSoon"
-      | "welcomeToCommunity"
-      | "postAwaitingReview"
-      | "joinRequest"
-      | "somethingWasFlagged"
-      | "messageWasFlagged";
-    createdAt: string;
-    readAt: string | null;
-    actor: {
-      orgUserId: string;
-      displayName: string | null;
-      imageUrl: string | null;
-    } | null;
-    community: {
-      id: string;
-      title: string;
-    } | null;
-    space: {
-      id: string;
-      name: string;
-    } | null;
-    /**
-     * Null when the viewer can no longer see the post
-     */
-    post: {
-      id: string;
-      title: string;
-    } | null;
-    commentId: string | null;
-    /**
-     * Null when the viewer is not in the chat
-     */
-    chat: {
-      id: string;
-      title: string;
-    } | null;
-    messageId: string | null;
-  };
+  204: unknown;
 };
-
-export type MarkMemberNotificationReadResponse =
-  MarkMemberNotificationReadResponses[keyof MarkMemberNotificationReadResponses];
 
 export type MarkAllMemberNotificationsReadData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * `org`: the org list only; `community`: notifications in any community
+     */
+    scope?: "org" | "community";
+    /**
+     * Notifications in this community; implies `scope=community`
+     */
+    communityId?: string;
+    /**
+     * One or more category keys, comma separated
+     */
+    category?: string;
+    /**
+     * One or more reasons, comma separated; matches any
+     */
+    reason?: string;
+    /**
+     * One or more types, comma separated
+     */
+    type?: string;
+    /**
+     * `true` for unread notifications only
+     */
+    unread?: string;
+  };
   url: "/api/member/notifications/read";
 };
 
 export type MarkAllMemberNotificationsReadErrors = {
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type MarkAllMemberNotificationsReadError =
-  MarkAllMemberNotificationsReadErrors[keyof MarkAllMemberNotificationsReadErrors];
-
-export type MarkAllMemberNotificationsReadResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    updated: number;
-  };
-};
-
-export type MarkAllMemberNotificationsReadResponse =
-  MarkAllMemberNotificationsReadResponses[keyof MarkAllMemberNotificationsReadResponses];
-
-export type GetMemberNotificationPreferencesData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/api/member/notification-preferences";
-};
-
-export type GetMemberNotificationPreferencesErrors = {
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type GetMemberNotificationPreferencesError =
-  GetMemberNotificationPreferencesErrors[keyof GetMemberNotificationPreferencesErrors];
-
-export type GetMemberNotificationPreferencesResponses = {
-  /**
-   * Default Response
-   */
-  200: Array<{
-    kind:
-      | "newPostInSpace"
-      | "newCommentOnPost"
-      | "replyToYourComment"
-      | "yourPostWasPublished"
-      | "yourPostWasRemoved"
-      | "yourCommentWasRemoved"
-      | "requestApproved"
-      | "requestDeclined"
-      | "invitedToSpace"
-      | "newMessage"
-      | "messageRequest"
-      | "addedToGroupChat"
-      | "youAreNowAModerator"
-      | "membershipEndingSoon"
-      | "welcomeToCommunity"
-      | "postAwaitingReview"
-      | "joinRequest"
-      | "somethingWasFlagged"
-      | "messageWasFlagged";
-    inApp: boolean;
-    email: boolean;
-  }>;
-};
-
-export type GetMemberNotificationPreferencesResponse =
-  GetMemberNotificationPreferencesResponses[keyof GetMemberNotificationPreferencesResponses];
-
-export type SetMemberNotificationPreferencesData = {
-  body: {
-    /**
-     * One entry per kind to change, each kind at most once; kinds left out keep theirs
-     */
-    preferences: Array<{
-      kind:
-        | "newPostInSpace"
-        | "newCommentOnPost"
-        | "replyToYourComment"
-        | "yourPostWasPublished"
-        | "yourPostWasRemoved"
-        | "yourCommentWasRemoved"
-        | "requestApproved"
-        | "requestDeclined"
-        | "invitedToSpace"
-        | "newMessage"
-        | "messageRequest"
-        | "addedToGroupChat"
-        | "youAreNowAModerator"
-        | "membershipEndingSoon"
-        | "welcomeToCommunity"
-        | "postAwaitingReview"
-        | "joinRequest"
-        | "somethingWasFlagged"
-        | "messageWasFlagged";
-      inApp: boolean;
-      email: boolean;
-    }>;
-  };
-  path?: never;
-  query?: never;
-  url: "/api/member/notification-preferences";
-};
-
-export type SetMemberNotificationPreferencesErrors = {
   /**
    * Default Response
    */
@@ -16751,6 +16695,14 @@ export type SetMemberNotificationPreferencesErrors = {
   /**
    * Default Response
    */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -16758,41 +16710,15 @@ export type SetMemberNotificationPreferencesErrors = {
   };
 };
 
-export type SetMemberNotificationPreferencesError =
-  SetMemberNotificationPreferencesErrors[keyof SetMemberNotificationPreferencesErrors];
+export type MarkAllMemberNotificationsReadError =
+  MarkAllMemberNotificationsReadErrors[keyof MarkAllMemberNotificationsReadErrors];
 
-export type SetMemberNotificationPreferencesResponses = {
+export type MarkAllMemberNotificationsReadResponses = {
   /**
    * Default Response
    */
-  200: Array<{
-    kind:
-      | "newPostInSpace"
-      | "newCommentOnPost"
-      | "replyToYourComment"
-      | "yourPostWasPublished"
-      | "yourPostWasRemoved"
-      | "yourCommentWasRemoved"
-      | "requestApproved"
-      | "requestDeclined"
-      | "invitedToSpace"
-      | "newMessage"
-      | "messageRequest"
-      | "addedToGroupChat"
-      | "youAreNowAModerator"
-      | "membershipEndingSoon"
-      | "welcomeToCommunity"
-      | "postAwaitingReview"
-      | "joinRequest"
-      | "somethingWasFlagged"
-      | "messageWasFlagged";
-    inApp: boolean;
-    email: boolean;
-  }>;
+  204: unknown;
 };
-
-export type SetMemberNotificationPreferencesResponse =
-  SetMemberNotificationPreferencesResponses[keyof SetMemberNotificationPreferencesResponses];
 
 export type GetMemberCommunityNotificationSettingsData = {
   body?: never;

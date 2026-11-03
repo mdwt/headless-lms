@@ -79,6 +79,15 @@ export interface AuthorRecord {
   imageAssetId: string | null;
 }
 
+export interface ItemTitle {
+  title: string;
+  excerpt?: string;
+}
+
+export interface ItemTitles {
+  titlesFor(orgId: string, actor: Actor, refs: SubjectRef[]): Promise<Record<string, ItemTitle>>;
+}
+
 export interface AuthorProfileReader {
   authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>>;
 }

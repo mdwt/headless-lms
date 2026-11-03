@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemberReportServiceImpl, type MemberReportServiceParams } from './service.js';
 import type { MemberReportRepository } from './index.js';
 import type {
@@ -111,24 +111,20 @@ const files = { signFile: async (_orgId: string, assetId: string) => `https://si
 const readers: Pick<
   MemberReportServiceParams,
   | 'notifications'
-  | 'posts'
-  | 'chats'
+  | 'titles'
   | 'subscriptions'
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
 > = {
   notifications: {
-    listNotifications: async (_orgId, _userId, query) => ({
-      rows: [],
-      total: 0,
-      page: query.page,
-      pageSize: query.pageSize,
-      unreadCount: 0,
-    }),
+    list: async () => ({ items: [], total: 0, unreadCount: 0 }),
+    unreadCounts: async () => ({ org: 0, communities: [] }),
   },
-  posts: { visibleTitles: async () => ({}) },
-  chats: { titlesFor: async () => ({}) },
+  titles: {
+    discussion: { titlesFor: async () => ({}) },
+    content: { titlesFor: async () => ({}) },
+  },
   subscriptions: { viewerSubscriptions: async () => ({}) },
   notificationCategories: {
     community: { get: async () => ({ categories: [], source: 'default' }) },
@@ -144,8 +140,7 @@ const deps: Pick<
   | 'fileUrls'
   | 'access'
   | 'notifications'
-  | 'posts'
-  | 'chats'
+  | 'titles'
   | 'subscriptions'
   | 'notificationCategories'
   | 'notificationSettings'
@@ -159,6 +154,7 @@ const deps: Pick<
     spaceStandings: async () => ({}),
     hasAccess: async () => false,
     listAccessibleContent: async () => [],
+    openCommunityIds: async () => [],
   },
   ...readers,
 };
@@ -515,14 +511,48 @@ describe('file URLs', () => {
   });
 
   it('names what each notification refers to and leaves out what the viewer cannot see', async () => {
-    const row = {
+    const stored = {
       orgId: 'o1',
       userId: 'usr_james',
+      type: 'comment.created',
+      scope: 'space' as const,
+      reasons: ['post_author' as const, 'thread_participant' as const],
+      matchedReason: 'post_author' as const,
+      category: 'comments_on_my_posts',
+      communityId: 'cmy_1',
+      spaceId: 'spc_1',
+      actorOrgUserId: 'ou_sarah',
+      display: { postTitle: 'Launch week', commenterName: 'Sarah', excerpt: 'Nice' },
       createdAt: AT,
       readAt: null,
-      commentId: null,
-      messageId: null,
     };
+    const list = vi.fn(async () => ({
+      items: [
+        {
+          ...stored,
+          id: 'ntf_1',
+          subject: { type: 'comment' as const, id: 'cmt_1' },
+          parent: { type: 'post' as const, id: 'pst_seen' },
+        },
+        {
+          ...stored,
+          id: 'ntf_2',
+          spaceId: 'spc_hidden',
+          subject: { type: 'comment' as const, id: 'cmt_2' },
+          parent: { type: 'post' as const, id: 'pst_hidden' },
+        },
+      ],
+      total: 2,
+      unreadCount: 2,
+    }));
+    const discussionTitles = vi.fn(async () => ({
+      'comment:cmt_1': { title: 'Launch week', excerpt: 'Nice' },
+      'post:pst_seen': { title: 'Launch week' },
+    }));
+    const contentTitles = vi.fn(async () => ({
+      'community:cmy_1': { title: 'Founders' },
+      'space:spc_1': { title: 'Announcements' },
+    }));
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader({
         people: async () => [
@@ -537,78 +567,83 @@ describe('file URLs', () => {
           },
         ],
       }),
-      content: fakeContentService({
-        getCommunity: async () => ({ id: 'cmy_1', title: 'Founders' }) as never,
-        getSpace: async () => ({ id: 'spc_1', name: 'Announcements' }) as never,
-      }),
+      content: fakeContentService(),
       progress: fakeProgress([]),
       ...deps,
-      notifications: {
-        listNotifications: async (_orgId, _userId, query) => ({
-          rows: [
-            {
-              ...row,
-              id: 'ntf_1',
-              kind: 'newPostInSpace',
-              actorOrgUserId: 'ou_sarah',
-              communityId: 'cmy_1',
-              spaceId: 'spc_1',
-              postId: 'pst_seen',
-              chatId: null,
-            },
-            {
-              ...row,
-              id: 'ntf_2',
-              kind: 'newMessage',
-              actorOrgUserId: 'ou_sarah',
-              communityId: 'cmy_1',
-              spaceId: null,
-              postId: 'pst_hidden',
-              chatId: 'cht_other',
-            },
-          ],
-          total: 2,
-          page: query.page,
-          pageSize: query.pageSize,
-          unreadCount: 2,
-        }),
+      notifications: { ...deps.notifications, list },
+      titles: {
+        discussion: { titlesFor: discussionTitles },
+        content: { titlesFor: contentTitles },
       },
-      posts: { visibleTitles: async () => ({ pst_seen: 'Launch week' }) },
     });
+    const james = { id: 'ou_james', role: 'student' as const };
 
-    const view = await svc.notifications('o1', { id: 'ou_james', role: 'student' }, 'usr_james', {
-      page: 1,
-      pageSize: 20,
-    });
+    const view = await svc.notifications(
+      'o1',
+      james,
+      'usr_james',
+      { communityId: 'cmy_1', unread: true },
+      { page: 2, pageSize: 10 },
+    );
 
-    expect(view.unreadCount).toBe(2);
-    expect(view.rows[0]).toMatchObject({
-      actor: {
-        orgUserId: 'ou_sarah',
-        displayName: 'Sarah',
-        imageUrl: fileUrls.personImage('ou_sarah'),
-      },
+    expect(list).toHaveBeenCalledWith(
+      'o1',
+      'usr_james',
+      { communityId: 'cmy_1', unread: true },
+      { page: 2, pageSize: 10 },
+    );
+    expect(discussionTitles).toHaveBeenCalledWith(
+      'o1',
+      james,
+      expect.arrayContaining([
+        { type: 'comment', id: 'cmt_1' },
+        { type: 'post', id: 'pst_hidden' },
+      ]),
+    );
+    expect(view).toMatchObject({ total: 2, page: 2, pageSize: 10, unreadCount: 2 });
+    expect(view.rows[0]).toEqual({
+      id: 'ntf_1',
+      type: 'comment.created',
+      scope: 'space',
+      reasons: ['post_author', 'thread_participant'],
+      category: 'comments_on_my_posts',
+      display: { postTitle: 'Launch week', commenterName: 'Sarah', excerpt: 'Nice' },
       community: { id: 'cmy_1', title: 'Founders' },
       space: { id: 'spc_1', name: 'Announcements' },
-      post: { id: 'pst_seen', title: 'Launch week' },
-      chat: null,
+      actor: { orgUserId: 'ou_sarah', name: 'Sarah', imageUrl: fileUrls.personImage('ou_sarah') },
+      subject: { type: 'comment', id: 'cmt_1', excerpt: 'Nice' },
+      parent: { type: 'post', id: 'pst_seen', title: 'Launch week' },
+      createdAt: AT,
+      readAt: null,
     });
-    expect(view.rows[1]).toMatchObject({ post: null, chat: null, space: null });
-    const one = await svc.notificationView(
-      'o1',
-      { id: 'ou_james', role: 'student' },
-      {
-        ...row,
-        id: 'ntf_1',
-        kind: 'newPostInSpace',
-        actorOrgUserId: 'ou_sarah',
-        communityId: 'cmy_1',
-        spaceId: 'spc_1',
-        postId: 'pst_seen',
-        chatId: null,
-      },
-    );
-    expect(one).toEqual(view.rows[0]);
+    expect(view.rows[1]).toMatchObject({ space: null, subject: null, parent: null });
+  });
+
+  it('counts unread notifications for the org and every community the person can open', async () => {
+    const unreadCounts = vi.fn(async (_o: string, _u: string, ids: string[]) => ({
+      org: 3,
+      communities: ids.map((communityId) => ({ communityId, unread: 1 })),
+    }));
+    const openCommunityIds = vi.fn(async () => ['cmy_1', 'cmy_2']);
+    const svc = new MemberReportServiceImpl({
+      repo: fakeEntitlementReader(),
+      content: fakeContentService(),
+      progress: fakeProgress([]),
+      ...deps,
+      access: { ...deps.access, openCommunityIds },
+      notifications: { ...deps.notifications, unreadCounts },
+    });
+    const owner = { id: 'ou_owner', role: 'owner' as const };
+
+    await expect(svc.notificationUnreadCounts('o1', owner, 'usr_owner')).resolves.toEqual({
+      org: 3,
+      communities: [
+        { communityId: 'cmy_1', unread: 1 },
+        { communityId: 'cmy_2', unread: 1 },
+      ],
+    });
+    expect(openCommunityIds).toHaveBeenCalledWith('o1', owner);
+    expect(unreadCounts).toHaveBeenCalledWith('o1', 'usr_owner', ['cmy_1', 'cmy_2']);
   });
 });
 

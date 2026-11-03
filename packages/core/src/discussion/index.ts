@@ -5,6 +5,7 @@ export { DigestServiceImpl, latestDueAt } from './digests.js';
 export { ChatServiceImpl } from './chats.js';
 export { SubscriptionServiceImpl, activeSubscription } from './subscriptions.js';
 export { authorView } from './authors.js';
+export { DiscussionItemTitles } from './titles.js';
 export { discussionEvents } from './events.js';
 export {
   DIGEST_OPEN_JOB,
@@ -31,6 +32,8 @@ export type {
   PostPatch,
   PostGuard,
   FeedQuery,
+  ItemTitle,
+  ItemTitles,
   PageQuery,
   PostThreadsQuery,
   BookmarkQuery,

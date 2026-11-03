@@ -73,6 +73,18 @@ export interface StoredNotification {
   createdAt: Date;
 }
 
+export type DeliveryStatus = 'pending' | 'sent' | 'failed';
+
+export interface Delivery {
+  id: string;
+  notificationId: string;
+  channel: string;
+  status: DeliveryStatus;
+  lastError: string | null;
+  createdAt: Date;
+  sentAt: Date | null;
+}
+
 export interface StoredSetting {
   communityId: string | null;
   spaceId: string | null;

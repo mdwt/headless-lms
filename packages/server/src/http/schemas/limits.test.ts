@@ -6,7 +6,6 @@ import {
   PatchDmSettings,
   SetSpaceTopics,
 } from './community.js';
-import { SetNotificationPreferences } from './notifications.js';
 import { CreatePost, SchedulePost } from './posts.js';
 import { UpdateProfile, UserProfile } from './profile.js';
 import { RequestMemberUpload } from './assets.js';
@@ -96,12 +95,6 @@ describe('request limits', () => {
         extra: big,
       }).success,
     ).toBe(false);
-  });
-
-  it('names each notification kind at most once', () => {
-    const pref = { kind: 'newMessage', inApp: true, email: false };
-    expect(SetNotificationPreferences.safeParse({ preferences: [pref] }).success).toBe(true);
-    expect(SetNotificationPreferences.safeParse({ preferences: [pref, pref] }).success).toBe(false);
   });
 
   it('caps upload filenames', () => {

@@ -51323,11 +51323,11 @@
     "/api/member/notifications": {
       "get": {
         "operationId": "listMemberNotifications",
-        "summary": "List your notifications, newest first, with your unread count",
+        "summary": "List your notifications, newest first, with the unread count of the same filters",
         "tags": [
           "Notifications"
         ],
-        "description": "For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.",
+        "description": "For any member of the organization. Filters combine with AND; the values of one filter combine with OR. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.",
         "parameters": [
           {
             "schema": {
@@ -51350,6 +51350,69 @@
             "in": "query",
             "name": "pageSize",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "org",
+                "community"
+              ]
+            },
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "description": "`org`: the org list only; `community`: notifications in any community"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "communityId",
+            "required": false,
+            "description": "Notifications in this community; implies `scope=community`"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "description": "One or more category keys, comma separated"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "description": "One or more reasons, comma separated; matches any"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "description": "One or more types, comma separated"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "unread",
+            "required": false,
+            "description": "`true` for unread notifications only"
           }
         ],
         "responses": {
@@ -51368,61 +51431,48 @@
                           "id": {
                             "type": "string"
                           },
-                          "kind": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "scope": {
                             "type": "string",
                             "enum": [
-                              "newPostInSpace",
-                              "newCommentOnPost",
-                              "replyToYourComment",
-                              "yourPostWasPublished",
-                              "yourPostWasRemoved",
-                              "yourCommentWasRemoved",
-                              "requestApproved",
-                              "requestDeclined",
-                              "invitedToSpace",
-                              "newMessage",
-                              "messageRequest",
-                              "addedToGroupChat",
-                              "youAreNowAModerator",
-                              "membershipEndingSoon",
-                              "welcomeToCommunity",
-                              "postAwaitingReview",
-                              "joinRequest",
-                              "somethingWasFlagged",
-                              "messageWasFlagged"
+                              "org",
+                              "community",
+                              "space",
+                              "chat"
                             ]
                           },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "subject",
+                                "post_author",
+                                "comment_author",
+                                "message_author",
+                                "follower",
+                                "thread_participant",
+                                "mentioned",
+                                "participant",
+                                "space_member",
+                                "community_member",
+                                "course_member",
+                                "moderator",
+                                "staff"
+                              ]
+                            }
                           },
-                          "readAt": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time"
+                          "category": {
+                            "type": "string"
                           },
-                          "actor": {
-                            "nullable": true,
+                          "display": {
                             "type": "object",
-                            "properties": {
-                              "orgUserId": {
-                                "type": "string"
-                              },
-                              "displayName": {
-                                "nullable": true,
-                                "type": "string"
-                              },
-                              "imageUrl": {
-                                "nullable": true,
-                                "type": "string"
-                              }
+                            "additionalProperties": {
+                              "$ref": "#/components/schemas/JsonValue"
                             },
-                            "required": [
-                              "orgUserId",
-                              "displayName",
-                              "imageUrl"
-                            ],
-                            "additionalProperties": false
+                            "description": "The text stored when the notification was sent"
                           },
                           "community": {
                             "nullable": true,
@@ -51458,63 +51508,125 @@
                             ],
                             "additionalProperties": false
                           },
-                          "post": {
+                          "actor": {
                             "nullable": true,
-                            "description": "Null when the viewer can no longer see the post",
                             "type": "object",
                             "properties": {
+                              "orgUserId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "orgUserId",
+                              "name",
+                              "imageUrl"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "subject": {
+                            "nullable": true,
+                            "description": "What the notification is about, with its current title or excerpt; null when you can no longer open it or it was deleted",
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "post",
+                                  "comment",
+                                  "chat",
+                                  "message",
+                                  "space",
+                                  "community",
+                                  "course",
+                                  "download",
+                                  "bundle",
+                                  "activity"
+                                ]
+                              },
                               "id": {
                                 "type": "string"
                               },
                               "title": {
                                 "type": "string"
+                              },
+                              "excerpt": {
+                                "type": "string"
                               }
                             },
                             "required": [
-                              "id",
-                              "title"
+                              "type",
+                              "id"
                             ],
                             "additionalProperties": false
                           },
-                          "commentId": {
+                          "parent": {
                             "nullable": true,
-                            "type": "string"
-                          },
-                          "chat": {
-                            "nullable": true,
-                            "description": "Null when the viewer is not in the chat",
+                            "description": "The subject's container, such as a comment's post; null when you can no longer open it or it was deleted",
                             "type": "object",
                             "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "post",
+                                  "comment",
+                                  "chat",
+                                  "message",
+                                  "space",
+                                  "community",
+                                  "course",
+                                  "download",
+                                  "bundle",
+                                  "activity"
+                                ]
+                              },
                               "id": {
                                 "type": "string"
                               },
                               "title": {
                                 "type": "string"
+                              },
+                              "excerpt": {
+                                "type": "string"
                               }
                             },
                             "required": [
-                              "id",
-                              "title"
+                              "type",
+                              "id"
                             ],
                             "additionalProperties": false
                           },
-                          "messageId": {
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "readAt": {
                             "nullable": true,
-                            "type": "string"
+                            "type": "string",
+                            "format": "date-time"
                           }
                         },
                         "required": [
                           "id",
-                          "kind",
-                          "createdAt",
-                          "readAt",
-                          "actor",
+                          "type",
+                          "scope",
+                          "reasons",
+                          "category",
+                          "display",
                           "community",
                           "space",
-                          "post",
-                          "commentId",
-                          "chat",
-                          "messageId"
+                          "actor",
+                          "subject",
+                          "parent",
+                          "createdAt",
+                          "readAt"
                         ],
                         "additionalProperties": false
                       }
@@ -51537,7 +51649,8 @@
                     "unreadCount": {
                       "type": "integer",
                       "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                      "maximum": 9007199254740991,
+                      "description": "Unread notifications matching the same filters"
                     }
                   },
                   "required": [
@@ -51675,6 +51788,136 @@
         }
       }
     },
+    "/api/member/notifications/unread-counts": {
+      "get": {
+        "operationId": "getMemberNotificationUnreadCounts",
+        "summary": "Count your unread notifications in the org list and in each community",
+        "tags": [
+          "Notifications"
+        ],
+        "description": "For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open, staff included.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "org": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "communities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "communityId": {
+                            "type": "string"
+                          },
+                          "unread": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "communityId",
+                          "unread"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "org",
+                    "communities"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/member/notifications/{notificationId}/read": {
       "post": {
         "operationId": "markMemberNotificationRead",
@@ -51682,7 +51925,7 @@
         "tags": [
           "Notifications"
         ],
-        "description": "For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.",
+        "description": "For any member of the organization. Marking a read notification keeps its first read time. 404 when it is not yours.",
         "parameters": [
           {
             "schema": {
@@ -51694,166 +51937,11 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "enum": [
-                        "newPostInSpace",
-                        "newCommentOnPost",
-                        "replyToYourComment",
-                        "yourPostWasPublished",
-                        "yourPostWasRemoved",
-                        "yourCommentWasRemoved",
-                        "requestApproved",
-                        "requestDeclined",
-                        "invitedToSpace",
-                        "newMessage",
-                        "messageRequest",
-                        "addedToGroupChat",
-                        "youAreNowAModerator",
-                        "membershipEndingSoon",
-                        "welcomeToCommunity",
-                        "postAwaitingReview",
-                        "joinRequest",
-                        "somethingWasFlagged",
-                        "messageWasFlagged"
-                      ]
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "readAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "actor": {
-                      "nullable": true,
-                      "type": "object",
-                      "properties": {
-                        "orgUserId": {
-                          "type": "string"
-                        },
-                        "displayName": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "imageUrl": {
-                          "nullable": true,
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "orgUserId",
-                        "displayName",
-                        "imageUrl"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "community": {
-                      "nullable": true,
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "title"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "space": {
-                      "nullable": true,
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "name"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "post": {
-                      "nullable": true,
-                      "description": "Null when the viewer can no longer see the post",
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "title"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "commentId": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "chat": {
-                      "nullable": true,
-                      "description": "Null when the viewer is not in the chat",
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "title"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "messageId": {
-                      "nullable": true,
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "kind",
-                    "createdAt",
-                    "readAt",
-                    "actor",
-                    "community",
-                    "space",
-                    "post",
-                    "commentId",
-                    "chat",
-                    "messageId"
-                  ],
-                  "additionalProperties": false
-                }
+                "schema": {}
               }
             }
           },
@@ -52008,317 +52096,82 @@
     "/api/member/notifications/read": {
       "post": {
         "operationId": "markAllMemberNotificationsRead",
-        "summary": "Mark all your notifications read",
+        "summary": "Mark your notifications matching the filters read",
         "tags": [
           "Notifications"
         ],
-        "description": "For any signed-in person in the organization. Returns how many were unread.",
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "updated": {
-                      "type": "integer",
-                      "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
-                    }
-                  },
-                  "required": [
-                    "updated"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
+        "description": "For any member of the organization. Takes the filters of the list; with none, marks every notification read.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "org",
+                "community"
+              ]
+            },
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "description": "`org`: the org list only; `community`: notifications in any community"
           },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "communityId",
+            "required": false,
+            "description": "Notifications in this community; implies `scope=community`"
           },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "description": "One or more category keys, comma separated"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "description": "One or more reasons, comma separated; matches any"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "description": "One or more types, comma separated"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "unread",
+            "required": false,
+            "description": "`true` for unread notifications only"
           }
-        }
-      }
-    },
-    "/api/member/notification-preferences": {
-      "get": {
-        "operationId": "getMemberNotificationPreferences",
-        "summary": "Read how you are told about each kind of notification",
-        "tags": [
-          "Notifications"
         ],
-        "description": "For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.",
         "responses": {
-          "200": {
+          "204": {
             "description": "Default Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "enum": [
-                          "newPostInSpace",
-                          "newCommentOnPost",
-                          "replyToYourComment",
-                          "yourPostWasPublished",
-                          "yourPostWasRemoved",
-                          "yourCommentWasRemoved",
-                          "requestApproved",
-                          "requestDeclined",
-                          "invitedToSpace",
-                          "newMessage",
-                          "messageRequest",
-                          "addedToGroupChat",
-                          "youAreNowAModerator",
-                          "membershipEndingSoon",
-                          "welcomeToCommunity",
-                          "postAwaitingReview",
-                          "joinRequest",
-                          "somethingWasFlagged",
-                          "messageWasFlagged"
-                        ]
-                      },
-                      "inApp": {
-                        "type": "boolean"
-                      },
-                      "email": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "inApp",
-                      "email"
-                    ],
-                    "additionalProperties": false
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "operationId": "setMemberNotificationPreferences",
-        "summary": "Set how you are told about the given kinds of notification",
-        "tags": [
-          "Notifications"
-        ],
-        "description": "For any signed-in person in the organization. Changes only the kinds sent and returns every kind.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "preferences": {
-                    "minItems": 1,
-                    "maxItems": 19,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "kind": {
-                          "type": "string",
-                          "enum": [
-                            "newPostInSpace",
-                            "newCommentOnPost",
-                            "replyToYourComment",
-                            "yourPostWasPublished",
-                            "yourPostWasRemoved",
-                            "yourCommentWasRemoved",
-                            "requestApproved",
-                            "requestDeclined",
-                            "invitedToSpace",
-                            "newMessage",
-                            "messageRequest",
-                            "addedToGroupChat",
-                            "youAreNowAModerator",
-                            "membershipEndingSoon",
-                            "welcomeToCommunity",
-                            "postAwaitingReview",
-                            "joinRequest",
-                            "somethingWasFlagged",
-                            "messageWasFlagged"
-                          ]
-                        },
-                        "inApp": {
-                          "type": "boolean"
-                        },
-                        "email": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "kind",
-                        "inApp",
-                        "email"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "description": "One entry per kind to change, each kind at most once; kinds left out keep theirs"
-                  }
-                },
-                "required": [
-                  "preferences"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "enum": [
-                          "newPostInSpace",
-                          "newCommentOnPost",
-                          "replyToYourComment",
-                          "yourPostWasPublished",
-                          "yourPostWasRemoved",
-                          "yourCommentWasRemoved",
-                          "requestApproved",
-                          "requestDeclined",
-                          "invitedToSpace",
-                          "newMessage",
-                          "messageRequest",
-                          "addedToGroupChat",
-                          "youAreNowAModerator",
-                          "membershipEndingSoon",
-                          "welcomeToCommunity",
-                          "postAwaitingReview",
-                          "joinRequest",
-                          "somethingWasFlagged",
-                          "messageWasFlagged"
-                        ]
-                      },
-                      "inApp": {
-                        "type": "boolean"
-                      },
-                      "email": {
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "inApp",
-                      "email"
-                    ],
-                    "additionalProperties": false
-                  }
-                }
+                "schema": {}
               }
             }
           },
@@ -52368,6 +52221,31 @@
             }
           },
           "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
             "description": "Default Response",
             "content": {
               "application/json": {

@@ -1,6 +1,7 @@
 // content context — public surface. Re-export only what other contexts may use.
 export { ContentService } from './service.js';
 export { CommunityNotificationCategories } from './notification-categories.js';
+export { ContentItemTitles, activityTitle } from './titles.js';
 export type {
   BundlesService,
   CommunitiesService,
@@ -10,6 +11,9 @@ export type {
   ContentRepository,
   ContentService as ContentServicePort,
   DownloadablesService,
+  ItemTitle,
+  ItemTitleAccess,
+  ItemTitles,
   SpaceRowLock,
 } from './ports.js';
 export type {

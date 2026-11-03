@@ -3,15 +3,21 @@ import { seesSpace, type EntitlementsService, type SpaceMember } from '../../ent
 import type { ProgressService } from '../../progress/index.js';
 import type { AssetFiles, FileUrls } from '../../assets/index.js';
 import { isStaffRole } from '../../organizations/index.js';
-import type { ChatService, PostService, SubscriptionService } from '../../discussion/index.js';
 import type {
-  Notification,
-  NotificationInbox,
-  NotificationSettingsService,
-} from '../../identity/index.js';
+  ItemTitles as DiscussionItemTitles,
+  SubscriptionService,
+} from '../../discussion/index.js';
+import type { ItemTitles as ContentItemTitles } from '../../content/index.js';
+import type { NotificationSettingsService } from '../../identity/index.js';
+import type { ListedNotification, NotificationsService } from '../../automations/index.js';
 import type { ChannelRegistry, NotificationCategoryService } from '../../shared/ports.js';
 import { resolveChannels } from '../../shared/notification-settings.js';
-import type { NotificationCategory, StoredSetting } from '../../types/index.js';
+import type {
+  NotificationCategory,
+  NotificationFilter,
+  StoredSetting,
+  SubjectRef,
+} from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
 import type { Page } from '../../types/index.js';
 import type {
@@ -26,20 +32,31 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
+  NotificationItemView,
   NotificationView,
   NotificationsView,
+  NotificationUnreadCounts,
   CommunityNotificationSettingsView,
   NotificationSettingsCategoryView,
   OrgNotificationSettingsView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
 
-function ref(
-  id: string | null,
-  names: ReadonlyMap<string, string>,
-): { id: string; name: string } | null {
-  const name = id ? names.get(id) : undefined;
-  return id && name !== undefined ? { id, name } : null;
+function refKey(ref: SubjectRef): string {
+  return `${ref.type}:${ref.id}`;
+}
+
+function itemView(
+  ref: SubjectRef | null,
+  titles: Record<string, { title: string; excerpt?: string }>,
+): NotificationItemView | null {
+  const found = ref ? titles[refKey(ref)] : undefined;
+  if (!ref || !found) {
+    return null;
+  }
+  return found.excerpt !== undefined
+    ? { type: ref.type, id: ref.id, excerpt: found.excerpt }
+    : { type: ref.type, id: ref.id, title: found.title };
 }
 
 function isActivityPublished(settings: unknown): boolean {
@@ -48,7 +65,12 @@ function isActivityPublished(settings: unknown): boolean {
 
 type MemberAccess = Pick<
   EntitlementsService,
-  'isCommunityMember' | 'openSpaceIds' | 'spaceStandings' | 'hasAccess' | 'listAccessibleContent'
+  | 'isCommunityMember'
+  | 'openSpaceIds'
+  | 'spaceStandings'
+  | 'hasAccess'
+  | 'listAccessibleContent'
+  | 'openCommunityIds'
 >;
 
 export type MemberReportServiceParams = {
@@ -58,9 +80,8 @@ export type MemberReportServiceParams = {
   files: Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   access: MemberAccess;
-  notifications: Pick<NotificationInbox, 'listNotifications'>;
-  posts: Pick<PostService, 'visibleTitles'>;
-  chats: Pick<ChatService, 'titlesFor'>;
+  notifications: Pick<NotificationsService, 'list' | 'unreadCounts'>;
+  titles: { discussion: DiscussionItemTitles; content: ContentItemTitles };
   subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
   notificationCategories: {
     community: Pick<NotificationCategoryService, 'get'>;
@@ -77,9 +98,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly files: Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly access: MemberAccess;
-  private readonly inbox: Pick<NotificationInbox, 'listNotifications'>;
-  private readonly posts: Pick<PostService, 'visibleTitles'>;
-  private readonly chats: Pick<ChatService, 'titlesFor'>;
+  private readonly notificationList: Pick<NotificationsService, 'list' | 'unreadCounts'>;
+  private readonly titles: MemberReportServiceParams['titles'];
   private readonly subscriptions: Pick<SubscriptionService, 'viewerSubscriptions'>;
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
@@ -92,9 +112,8 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.files = params.files;
     this.fileUrls = params.fileUrls;
     this.access = params.access;
-    this.inbox = params.notifications;
-    this.posts = params.posts;
-    this.chats = params.chats;
+    this.notificationList = params.notifications;
+    this.titles = params.titles;
     this.subscriptions = params.subscriptions;
     this.notificationCategories = params.notificationCategories;
     this.notificationSettings = params.notificationSettings;
@@ -159,84 +178,72 @@ export class MemberReportServiceImpl implements MemberReportService {
     orgId: string,
     actor: Actor,
     userId: string,
-    query: { page: number; pageSize: number },
+    filter: NotificationFilter,
+    page: { page: number; pageSize: number },
   ): Promise<NotificationsView> {
-    const page = await this.inbox.listNotifications(orgId, userId, query);
+    const listed = await this.notificationList.list(orgId, userId, filter, page);
     return {
-      rows: await this.describeNotifications(orgId, actor, page.rows),
-      total: page.total,
+      rows: await this.describeNotifications(orgId, actor, listed.items),
+      total: listed.total,
       page: page.page,
       pageSize: page.pageSize,
-      unreadCount: page.unreadCount,
+      unreadCount: listed.unreadCount,
     };
   }
 
-  async notificationView(
+  async notificationUnreadCounts(
     orgId: string,
     actor: Actor,
-    notification: Notification,
-  ): Promise<NotificationView> {
-    const [view] = await this.describeNotifications(orgId, actor, [notification]);
-    return view!;
+    userId: string,
+  ): Promise<NotificationUnreadCounts> {
+    const communityIds = await this.access.openCommunityIds(orgId, actor);
+    return this.notificationList.unreadCounts(orgId, userId, communityIds);
   }
 
   private async describeNotifications(
     orgId: string,
     actor: Actor,
-    rows: Notification[],
+    rows: ListedNotification[],
   ): Promise<NotificationView[]> {
-    const ids = (pick: (row: Notification) => string | null): string[] => [
-      ...new Set(rows.flatMap((row) => pick(row) ?? [])),
-    ];
-    const [people, postTitles, chatTitles, spaces, communities] = await Promise.all([
-      this.repo.people(
-        orgId,
-        ids((row) => row.actorOrgUserId),
-      ),
-      this.posts.visibleTitles(
-        orgId,
-        actor,
-        ids((row) => row.postId),
-      ),
-      this.chats.titlesFor(
-        orgId,
-        actor,
-        ids((row) => row.chatId),
-      ),
-      Promise.all(ids((row) => row.spaceId).map((id) => this.content.getSpace(orgId, id))),
-      Promise.all(ids((row) => row.communityId).map((id) => this.content.getCommunity(orgId, id))),
+    const refs = rows.flatMap((row) => [
+      ...(row.subject ? [row.subject] : []),
+      ...(row.parent ? [row.parent] : []),
+      ...(row.communityId ? [{ type: 'community' as const, id: row.communityId }] : []),
+      ...(row.spaceId ? [{ type: 'space' as const, id: row.spaceId }] : []),
     ]);
+    const actorIds = [...new Set(rows.flatMap((row) => row.actorOrgUserId ?? []))];
+    const [people, discussionTitles, contentTitles] = await Promise.all([
+      this.repo.people(orgId, actorIds),
+      this.titles.discussion.titlesFor(orgId, actor, refs),
+      this.titles.content.titlesFor(orgId, actor, refs),
+    ]);
+    const titles = { ...contentTitles, ...discussionTitles };
     const personById = new Map(people.map((person) => [person.orgUserId, person]));
-    const spaceById = new Map(spaces.flatMap((space) => (space ? [[space.id, space.name]] : [])));
-    const communityById = new Map(
-      communities.flatMap((community) => (community ? [[community.id, community.title]] : [])),
-    );
-    const postById = new Map(Object.entries(postTitles));
-    const chatById = new Map(Object.entries(chatTitles));
     return rows.map((row) => {
       const person = row.actorOrgUserId ? personById.get(row.actorOrgUserId) : undefined;
-      const community = ref(row.communityId, communityById);
-      const space = ref(row.spaceId, spaceById);
-      const post = ref(row.postId, postById);
-      const chat = ref(row.chatId, chatById);
+      const community = row.communityId ? titles[`community:${row.communityId}`] : undefined;
+      const space = row.spaceId ? titles[`space:${row.spaceId}`] : undefined;
       return {
         id: row.id,
-        kind: row.kind,
-        createdAt: row.createdAt,
-        readAt: row.readAt,
+        type: row.type,
+        scope: row.scope,
+        reasons: row.reasons,
+        category: row.category,
+        display: row.display,
+        community:
+          row.communityId && community ? { id: row.communityId, title: community.title } : null,
+        space: row.spaceId && space ? { id: row.spaceId, name: space.title } : null,
         actor: person
           ? {
               orgUserId: person.orgUserId,
-              displayName: person.displayName,
+              name: person.displayName,
               imageUrl: person.imageAssetId ? this.fileUrls.personImage(person.orgUserId) : null,
             }
           : null,
-        community: community && { id: community.id, title: community.name },
-        space: space && { id: space.id, name: space.name },
-        post: post && { id: post.id, title: post.name },
-        commentId: row.commentId,
-        chat: chat && { id: chat.id, title: chat.name },
-        messageId: row.messageId,
+        subject: itemView(row.subject, titles),
+        parent: itemView(row.parent, titles),
+        createdAt: row.createdAt,
+        readAt: row.readAt,
       };
     });
   }

@@ -21,7 +21,13 @@ import type {
   UpdateWebhookInput,
 } from './types.js';
 import type { CredentialStore, DomainEvent, OutboxAppender, UnitOfWork } from '../shared/ports.js';
-import type { NotificationCategory, ScheduledAutomation } from '../types/index.js';
+import type {
+  Delivery,
+  NotificationCategory,
+  NotificationFilter,
+  ScheduledAutomation,
+  StoredNotification,
+} from '../types/index.js';
 
 export type {
   AutomationDispatch,
@@ -38,6 +44,67 @@ export type NewAutomation = CreateAutomationInput & {
 
 export interface NotificationCategories {
   listFor(orgId: string, communityId: string | null): Promise<NotificationCategory[]>;
+}
+
+export interface NewNotification extends Omit<StoredNotification, 'orgId'> {
+  sourceEventId: string | null;
+  inApp: boolean;
+}
+
+export interface NewDelivery {
+  id: string;
+  notificationId: string;
+  channel: string;
+}
+
+export type ListedNotification = StoredNotification & { readAt: Date | null };
+
+export interface NotificationPage {
+  items: ListedNotification[];
+  total: number;
+  unreadCount: number;
+}
+
+export interface UnreadCounts {
+  org: number;
+  communities: { communityId: string; unread: number }[];
+}
+
+export interface NotificationsService {
+  list(
+    orgId: string,
+    userId: string,
+    filter: NotificationFilter,
+    page: { page: number; pageSize: number },
+  ): Promise<NotificationPage>;
+  unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts>;
+  markRead(orgId: string, userId: string, notificationId: string): Promise<void>;
+  markAllRead(
+    orgId: string,
+    userId: string,
+    filter: NotificationFilter,
+  ): Promise<{ marked: number }>;
+}
+
+export interface NotificationsRepository {
+  insert(orgId: string, rows: NewNotification[], deliveries: NewDelivery[]): Promise<void>;
+  pendingDeliveriesForEvent(orgId: string, sourceEventId: string): Promise<{ id: string }[]>;
+  findDelivery(
+    orgId: string,
+    deliveryId: string,
+  ): Promise<{ delivery: Delivery; notification: StoredNotification } | null>;
+  markSent(orgId: string, deliveryId: string, at: Date): Promise<void>;
+  recordError(orgId: string, deliveryId: string, error: string): Promise<void>;
+  markFailed(orgId: string, deliveryId: string, error: string): Promise<void>;
+  page(
+    orgId: string,
+    userId: string,
+    filter: NotificationFilter,
+    page: { page: number; pageSize: number },
+  ): Promise<NotificationPage>;
+  unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts>;
+  markRead(orgId: string, userId: string, notificationId: string, at: Date): Promise<boolean>;
+  markAllRead(orgId: string, userId: string, filter: NotificationFilter, at: Date): Promise<number>;
 }
 
 /** A run row before persistence assigns its id and event_id. */

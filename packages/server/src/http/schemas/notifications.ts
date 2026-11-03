@@ -1,73 +1,117 @@
 import { z } from 'zod';
 import {
+  jsonValueSchema,
   notificationCategoryKeySchema,
   notificationChannelKeySchema,
   notificationCategoryListSchema,
   notificationCategorySchema,
-  notificationKindSchema,
-  notificationPreferenceSchema,
   notificationScopeSchema,
-  notificationSchema,
+  notificationTypeKeySchema,
   reasonSchema,
+  subjectTypeSchema,
 } from '@headless-lms/core/schemas';
 import type {
   CommunityNotificationSettingsView as DomainCommunityNotificationSettingsView,
+  NotificationUnreadCounts as DomainNotificationUnreadCounts,
   NotificationView as DomainNotificationView,
 } from '@headless-lms/core/reporting/member';
-import { paginated, type Matches } from './shared.js';
+import { PageQuery, paginated, type Matches } from './shared.js';
 
-export const Notification = notificationSchema;
 export const NotificationIdParam = z.object({ notificationId: z.string() });
+
+function commaSeparated<T extends string>(item: z.ZodType<T, string>, description: string) {
+  return z
+    .string()
+    .max(2000)
+    .transform((value) =>
+      value
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    )
+    .pipe(z.array(item).min(1).max(50))
+    .describe(description);
+}
+
+export const NotificationFilterQuery = z
+  .object({
+    scope: z
+      .enum(['org', 'community'])
+      .optional()
+      .describe('`org`: the org list only; `community`: notifications in any community'),
+    communityId: z
+      .string()
+      .min(1)
+      .max(64)
+      .optional()
+      .describe('Notifications in this community; implies `scope=community`'),
+    category: commaSeparated(
+      notificationCategoryKeySchema,
+      'One or more category keys, comma separated',
+    ).optional(),
+    reason: commaSeparated(
+      reasonSchema,
+      'One or more reasons, comma separated; matches any',
+    ).optional(),
+    type: commaSeparated(
+      notificationTypeKeySchema,
+      'One or more types, comma separated',
+    ).optional(),
+    unread: z.stringbool().optional().describe('`true` for unread notifications only'),
+  })
+  .strict();
+
+export const NotificationListQuery = PageQuery.extend(NotificationFilterQuery.shape).strict();
+
+const NotificationItem = z.object({
+  type: subjectTypeSchema,
+  id: z.string(),
+  title: z.string().optional(),
+  excerpt: z.string().optional(),
+});
 
 export const NotificationView = z.object({
   id: z.string(),
-  kind: notificationKindSchema,
-  createdAt: z.coerce.date(),
-  readAt: z.coerce.date().nullable(),
+  type: z.string(),
+  scope: notificationScopeSchema,
+  reasons: z.array(reasonSchema),
+  category: z.string(),
+  display: z
+    .record(z.string(), jsonValueSchema)
+    .describe('The text stored when the notification was sent'),
+  community: z.object({ id: z.string(), title: z.string() }).nullable(),
+  space: z.object({ id: z.string(), name: z.string() }).nullable(),
   actor: z
     .object({
       orgUserId: z.string(),
-      displayName: z.string().nullable(),
+      name: z.string().nullable(),
       imageUrl: z.string().nullable(),
     })
     .nullable(),
-  community: z.object({ id: z.string(), title: z.string() }).nullable(),
-  space: z.object({ id: z.string(), name: z.string() }).nullable(),
-  post: z
-    .object({ id: z.string(), title: z.string() })
-    .nullable()
-    .describe('Null when the viewer can no longer see the post'),
-  commentId: z.string().nullable(),
-  chat: z
-    .object({ id: z.string(), title: z.string() })
-    .nullable()
-    .describe('Null when the viewer is not in the chat'),
-  messageId: z.string().nullable(),
+  subject: NotificationItem.nullable().describe(
+    'What the notification is about, with its current title or excerpt; null when you can no longer open it or it was deleted',
+  ),
+  parent: NotificationItem.nullable().describe(
+    "The subject's container, such as a comment's post; null when you can no longer open it or it was deleted",
+  ),
+  createdAt: z.coerce.date(),
+  readAt: z.coerce.date().nullable(),
 });
 type _NotificationViewMatches = Matches<DomainNotificationView, z.infer<typeof NotificationView>> &
   Matches<z.infer<typeof NotificationView>, DomainNotificationView>;
 
 export const NotificationsPage = paginated(NotificationView).extend({
-  unreadCount: z.number().int(),
+  unreadCount: z.number().int().describe('Unread notifications matching the same filters'),
 });
 
-export const MarkedRead = z.object({ updated: z.number().int() });
-
-export const NotificationPreference = notificationPreferenceSchema;
-export const NotificationPreferences = z.array(NotificationPreference);
-export const SetNotificationPreferences = z
-  .object({
-    preferences: z
-      .array(NotificationPreference)
-      .min(1)
-      .max(notificationKindSchema.options.length)
-      .refine(
-        (preferences) => new Set(preferences.map((p) => p.kind)).size === preferences.length,
-        { message: 'must name each kind at most once' },
-      )
-      .describe('One entry per kind to change, each kind at most once; kinds left out keep theirs'),
-  })
-  .strict();
+export const NotificationUnreadCounts = z.object({
+  org: z.number().int(),
+  communities: z.array(z.object({ communityId: z.string(), unread: z.number().int() })),
+});
+type _NotificationUnreadCountsMatches = Matches<
+  DomainNotificationUnreadCounts,
+  z.infer<typeof NotificationUnreadCounts>
+>;
 
 export const NotificationCategory = notificationCategorySchema;
 

@@ -1,15 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
 import { actorOf } from './actor.js';
 import {
-  MarkedRead,
+  NotificationFilterQuery,
   NotificationIdParam,
-  NotificationPreferences,
-  NotificationView,
+  NotificationListQuery,
+  NotificationUnreadCounts,
   NotificationsPage,
-  PageQuery,
-  SetNotificationPreferences,
   refusals,
 } from '../../schemas/index.js';
 
@@ -18,7 +17,6 @@ export async function memberNotificationRoutes(
   container: Container,
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
-  const notifications = container.notifications;
   const tags = ['Notifications'];
 
   r.route({
@@ -28,15 +26,37 @@ export async function memberNotificationRoutes(
     schema: {
       operationId: 'listMemberNotifications',
       tags,
-      summary: 'List your notifications, newest first, with your unread count',
+      summary: 'List your notifications, newest first, with the unread count of the same filters',
       description:
-        'For any member of the organization. Each notification names what it refers to; a post or chat you can no longer see is null.',
-      querystring: PageQuery,
-      response: { 200: NotificationsPage, ...refusals(403) },
+        'For any member of the organization. Filters combine with AND; the values of one filter combine with OR. Each notification carries the current titles, names and excerpts of what it refers to; a subject or parent you can no longer open, or that was deleted, is null. `display` is the text stored when it was sent.',
+      querystring: NotificationListQuery,
+      response: { 200: NotificationsPage, ...refusals(400, 403) },
     },
     handler: async (req) => {
       const actor = await actorOf(container, req.orgId, req.userId);
-      return container.reporting.member.notifications(req.orgId, actor, req.userId, req.query);
+      const { page, pageSize, ...filter } = req.query;
+      return container.reporting.member.notifications(req.orgId, actor, req.userId, filter, {
+        page,
+        pageSize,
+      });
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/notifications/unread-counts',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getMemberNotificationUnreadCounts',
+      tags,
+      summary: 'Count your unread notifications in the org list and in each community',
+      description:
+        'For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open, staff included.',
+      response: { 200: NotificationUnreadCounts, ...refusals(403) },
+    },
+    handler: async (req) => {
+      const actor = await actorOf(container, req.orgId, req.userId);
+      return container.reporting.member.notificationUnreadCounts(req.orgId, actor, req.userId);
     },
   });
 
@@ -49,18 +69,14 @@ export async function memberNotificationRoutes(
       tags,
       summary: 'Mark one of your notifications read',
       description:
-        'For any member of the organization. Returns the notification the way the list shows it. Marking a read notification keeps its first read time. 404 when it is not yours.',
+        'For any member of the organization. Marking a read notification keeps its first read time. 404 when it is not yours.',
       params: NotificationIdParam,
-      response: { 200: NotificationView, ...refusals(403, 404) },
+      response: { 204: z.void(), ...refusals(403, 404) },
     },
-    handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const notification = await notifications.markNotificationRead(
-        req.orgId,
-        req.userId,
-        req.params.notificationId,
-      );
-      return container.reporting.member.notificationView(req.orgId, actor, notification);
+    handler: async (req, reply) => {
+      await actorOf(container, req.orgId, req.userId);
+      await container.notificationList.markRead(req.orgId, req.userId, req.params.notificationId);
+      return reply.code(204).send();
     },
   });
 
@@ -71,47 +87,16 @@ export async function memberNotificationRoutes(
     schema: {
       operationId: 'markAllMemberNotificationsRead',
       tags,
-      summary: 'Mark all your notifications read',
-      description: 'For any signed-in person in the organization. Returns how many were unread.',
-      response: { 200: MarkedRead },
-    },
-    handler: async (req) => {
-      return notifications.markAllNotificationsRead(req.orgId, req.userId);
-    },
-  });
-
-  r.route({
-    method: 'GET',
-    url: '/api/member/notification-preferences',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'getMemberNotificationPreferences',
-      tags,
-      summary: 'Read how you are told about each kind of notification',
+      summary: 'Mark your notifications matching the filters read',
       description:
-        'For any signed-in person in the organization. One entry per kind; a kind you never set is on in the app and by email.',
-      response: { 200: NotificationPreferences },
+        'For any member of the organization. Takes the filters of the list; with none, marks every notification read.',
+      querystring: NotificationFilterQuery,
+      response: { 204: z.void(), ...refusals(400, 403) },
     },
-    handler: async (req) => {
-      return notifications.notificationPreferences(req.orgId, req.userId);
-    },
-  });
-
-  r.route({
-    method: 'PUT',
-    url: '/api/member/notification-preferences',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'setMemberNotificationPreferences',
-      tags,
-      summary: 'Set how you are told about the given kinds of notification',
-      description:
-        'For any signed-in person in the organization. Changes only the kinds sent and returns every kind.',
-      body: SetNotificationPreferences,
-      response: { 200: NotificationPreferences },
-    },
-    handler: async (req) => {
-      return notifications.setNotificationPreferences(req.orgId, req.userId, req.body.preferences);
+    handler: async (req, reply) => {
+      await actorOf(container, req.orgId, req.userId);
+      await container.notificationList.markAllRead(req.orgId, req.userId, req.query);
+      return reply.code(204).send();
     },
   });
 }

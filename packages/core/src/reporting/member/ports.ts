@@ -12,12 +12,12 @@ import type {
   DownloadFile,
   DownloadView,
   Module,
-  NotificationView,
   NotificationsView,
+  NotificationUnreadCounts,
   CommunityNotificationSettingsView,
   OrgNotificationSettingsView,
 } from './model.js';
-import type { Notification } from '../../identity/index.js';
+import type { NotificationFilter } from '../../types/index.js';
 
 export interface MemberReportService {
   listCourses(orgId: string, orgUserId: string): Promise<CourseView[]>;
@@ -79,14 +79,14 @@ export interface MemberReportService {
     orgId: string,
     actor: Actor,
     userId: string,
-    query: { page: number; pageSize: number },
+    filter: NotificationFilter,
+    page: { page: number; pageSize: number },
   ): Promise<NotificationsView>;
-  /** One notification the way `notifications` lists it. */
-  notificationView(
+  notificationUnreadCounts(
     orgId: string,
     actor: Actor,
-    notification: Notification,
-  ): Promise<NotificationView>;
+    userId: string,
+  ): Promise<NotificationUnreadCounts>;
   /** The person's notification settings in a community they can open, resolved per channel. */
   communityNotificationSettings(
     orgId: string,
