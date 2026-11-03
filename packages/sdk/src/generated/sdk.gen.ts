@@ -1469,7 +1469,7 @@ export class Notifications {
   /**
    * Mark your notifications matching the filters read
    *
-   * For any member of the organization. Takes the filters of the list, `includeOrg` included; with none, marks every notification read.
+   * For any member of the organization. Takes the filters of the list in the query string, `includeOrg` included; with none, marks every notification read. 400 when the request has a body.
    */
   public static markAllMemberNotificationsRead<ThrowOnError extends boolean = false>(
     parameters?: {
