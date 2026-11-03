@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 
 import { ModuleComposer } from "@/app/(dashboard)/courses/[courseId]/_components/module-list";
 import { NewActivityDialog } from "@/app/(dashboard)/courses/[courseId]/_components/new-activity-dialog";
+import { activityPublished } from "@/lib/api/compose";
 import type { ActivitySettings, ModuleTree } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,7 @@ export function CurriculumPanel({
                     <span className="min-w-0 flex-1 truncate">
                       {settings.title?.trim() || "Untitled activity"}
                     </span>
-                    {settings.published ? null : (
+                    {activityPublished(settings) ? null : (
                       <span className="shrink-0 text-xs text-ink-4">Draft</span>
                     )}
                   </Link>

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Content, type JsonValueInput } from "@headless-lms/sdk";
 
 import editorModule from "@/editor.config";
+import { activityPublished } from "@/lib/api/compose";
 import { authHeaders } from "@/lib/api/server-call";
 import type {
   ActivitySettings,
@@ -214,11 +215,13 @@ export async function duplicateCourseAction(courseId: string): Promise<Course> {
       .sort((a, b) => a.seq - b.seq);
     for (const activity of moduleActivities) {
       const assetIds = links.filter((l) => l.activityId === activity.id).map((l) => l.assetId);
+      const original = (activity.settings ?? {}) as ActivitySettings;
+      const settings: ActivitySettings = { ...original, published: activityPublished(original) };
       await Content.createActivity(
         {
           courseId: copy.id,
           moduleId: newModule.id,
-          settings: activity.settings as JsonValueInput,
+          settings: settings as JsonValueInput,
           assetIds,
         },
         headers,

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { activityPublished } from "@/lib/api/compose";
 import type { Activity, ActivitySettings } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -49,10 +50,11 @@ export function ItemRow({
   });
 
   const settings = settingsOf(item);
+  const published = activityPublished(settings);
   const title = settings.title?.trim() || "Untitled activity";
 
   function onTogglePublish() {
-    const next = !settings.published;
+    const next = !published;
     startTransition(async () => {
       try {
         await setActivityPublishedAction(courseId, moduleId, item.id, next);
@@ -103,7 +105,7 @@ export function ItemRow({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm font-medium text-ink">{title}</span>
         <div className="flex items-center gap-1.5 text-xs text-ink-4">
-          <span>{settings.published ? "Published" : "Draft"}</span>
+          <span>{published ? "Published" : "Draft"}</span>
         </div>
       </div>
 
@@ -122,8 +124,8 @@ export function ItemRow({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onTogglePublish} disabled={isPending}>
-            {settings.published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            {settings.published ? "Unpublish" : "Publish"}
+            {published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {published ? "Unpublish" : "Publish"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="danger" onClick={() => setConfirmOpen(true)}>

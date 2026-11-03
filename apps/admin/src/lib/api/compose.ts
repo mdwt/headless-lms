@@ -9,6 +9,7 @@ import type {
   Activity,
   ActivityAssetLink,
   ActivityNode,
+  ActivitySettings,
   Course,
   ContentType,
   CourseSettings,
@@ -42,6 +43,10 @@ export function buildModuleTree(
 /** A course's settings — served complete, defaults filled server-side. */
 export function courseSettingsOf(course: Course): CourseSettings {
   return course.settings;
+}
+
+export function activityPublished(settings: Pick<ActivitySettings, "published">): boolean {
+  return settings.published !== false;
 }
 
 /** active|expired|revoked — revoked wins; an elapsed expiry reads as expired. */

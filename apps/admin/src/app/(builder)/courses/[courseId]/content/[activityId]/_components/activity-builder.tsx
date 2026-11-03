@@ -35,6 +35,7 @@ import {
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { activityPublished } from "@/lib/api/compose";
 import type { ActivityNode, ActivitySettings, ModuleTree } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +66,7 @@ export type ActivityFormValues = z.infer<typeof schema>;
 function toDefaults(settings: ActivitySettings): ActivityFormValues {
   return {
     title: settings.title ?? "",
-    published: settings.published ?? false,
+    published: activityPublished(settings),
     completion: settings.completion ?? "view",
     transcriptDownloads: settings.transcriptDownloads ?? "inherit",
     comments: settings.comments ?? "inherit",

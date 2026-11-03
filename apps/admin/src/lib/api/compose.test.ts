@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { contentTypeOf, entitlementStatusOf } from "./compose";
+import { activityPublished, contentTypeOf, entitlementStatusOf } from "./compose";
 import type { EntitlementGrant } from "./types";
 
 const NOW = new Date("2026-06-01T00:00:00.000Z");
@@ -32,5 +32,13 @@ describe("contentTypeOf", () => {
     expect(contentTypeOf("cmy_2QZ4mK")).toBe("community");
     expect(contentTypeOf("bun_2QZ4mK")).toBeNull();
     expect(contentTypeOf("crs")).toBeNull();
+  });
+});
+
+describe("activityPublished", () => {
+  it("reads a missing published flag as published, as the server and students do", () => {
+    expect(activityPublished({})).toBe(true);
+    expect(activityPublished({ published: true })).toBe(true);
+    expect(activityPublished({ published: false })).toBe(false);
   });
 });
