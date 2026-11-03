@@ -180,7 +180,6 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     reorderDownloadAssets: rejectMutation,
     listCommunities: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     getCommunity: async () => null,
-    listPublishedCommunityIds: async () => [],
     listCommunitiesById: async () => [],
     communitiesWithDigest: async () => [],
     createCommunity: rejectMutation,

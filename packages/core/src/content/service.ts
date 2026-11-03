@@ -754,10 +754,6 @@ export class ContentService
     return community ? this.withThumbnail(community) : null;
   }
 
-  listPublishedCommunityIds(orgId: string): Promise<string[]> {
-    return this.repo.listPublishedCommunityIds(orgId);
-  }
-
   communitiesWithDigest(): Promise<CommunityDigest[]> {
     return this.repo.communitiesWithDigest();
   }

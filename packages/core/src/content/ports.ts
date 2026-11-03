@@ -65,7 +65,6 @@ export interface CommunityDigest {
 export interface CommunitiesService extends CommunityReader {
   listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>>;
   getCommunity(orgId: string, id: string): Promise<CommunityView | null>;
-  listPublishedCommunityIds(orgId: string): Promise<string[]>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
   listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]>;
   getCommunitySpace(
@@ -319,7 +318,6 @@ export interface ContentRepository {
   listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>>;
   findCommunityById(orgId: string, id: string): Promise<Community | null>;
   findCommunitiesByIds(orgId: string, ids: string[]): Promise<Community[]>;
-  listPublishedCommunityIds(orgId: string): Promise<string[]>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
   createCommunity(orgId: string, input: CreateCommunityInput, slug: string): Promise<Community>;
   updateCommunity(

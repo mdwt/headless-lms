@@ -69,7 +69,6 @@ function makeRepo(): ContentRepository {
     removeBundleItem: vi.fn(),
     listCommunities: vi.fn(),
     findCommunityById: vi.fn(),
-    listPublishedCommunityIds: vi.fn(),
     findCommunitiesByIds: vi.fn(),
     createCommunity: vi.fn(),
     updateCommunity: vi.fn(),
@@ -1085,15 +1084,6 @@ describe('communities', () => {
     const { svc } = build(repo);
 
     await expect(svc.communitiesWithDigest()).resolves.toEqual(rows);
-  });
-
-  it('lists the ids of published communities only through the repository', async () => {
-    const repo = makeRepo();
-    vi.mocked(repo.listPublishedCommunityIds).mockResolvedValue(['cmy_1', 'cmy_2']);
-    const { svc } = build(repo);
-
-    await expect(svc.listPublishedCommunityIds('org1')).resolves.toEqual(['cmy_1', 'cmy_2']);
-    expect(repo.listPublishedCommunityIds).toHaveBeenCalledWith('org1');
   });
 
   it('reads many communities in one repository call and asks nothing for none', async () => {

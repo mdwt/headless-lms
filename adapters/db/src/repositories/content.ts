@@ -1192,15 +1192,6 @@ export class DrizzleContentRepository implements ContentRepository {
     return rows.map((row) => toCommunity(row.community, row.settingsValue));
   }
 
-  async listPublishedCommunityIds(orgId: string): Promise<string[]> {
-    const rows = await this.db
-      .select({ id: communities.id })
-      .from(communities)
-      .where(and(eq(communities.orgId, orgId), eq(communities.status, "published")))
-      .orderBy(asc(communities.createdAt), asc(communities.id));
-    return rows.map((row) => row.id);
-  }
-
   async createCommunity(
     orgId: string,
     input: CreateCommunityInput,
