@@ -171,6 +171,8 @@ export function pushChannel(deps: {
           type: notification.type,
           subject: notification.subject,
           parent: notification.parent,
+          communityId: notification.communityId,
+          spaceId: notification.spaceId,
         },
       });
     },

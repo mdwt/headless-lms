@@ -82,6 +82,12 @@ function data(message: PushMessage): Record<string, string> {
   if (message.data.parent) {
     values.parent = JSON.stringify(message.data.parent);
   }
+  if (message.data.communityId) {
+    values.communityId = message.data.communityId;
+  }
+  if (message.data.spaceId) {
+    values.spaceId = message.data.spaceId;
+  }
   return values;
 }
 

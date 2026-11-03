@@ -113,6 +113,8 @@ export interface PushMessage {
     type: string;
     subject: SubjectRef | null;
     parent: SubjectRef | null;
+    communityId: string | null;
+    spaceId: string | null;
   };
 }
 

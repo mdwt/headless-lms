@@ -252,6 +252,8 @@ describe('push channel', () => {
         type: 'mention',
         subject: { type: 'comment', id: 'cmt_1' },
         parent: { type: 'post', id: 'pst_1' },
+        communityId: 'cmy_1',
+        spaceId: 'spc_2',
       },
     });
   });

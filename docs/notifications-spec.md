@@ -349,7 +349,7 @@ The email and push channels implement `NotificationChannel`. A deployment adds a
 Each recipient list carries `display`, the text a channel needs. Each type declares its display keys per scope, because an item outside a community has no post or space: a comment on a course activity carries `activityTitle` and `courseTitle` instead. The recipient rule fills them through `NotificationReads`: post, comment, chat and author names from discussion, space, community and course titles from content, and names from identity. Automations validates the keys and stores `display` on the notification.
 
 - **Email:** each type declaration names its `email-templates` template per scope, and a template per reason where they differ. The notification's `matched_reason`, the reason of the pair its category matched, selects it. Params come from `display`, the subject references and the deployment's `TemplateContext`.
-- **Push:** each type declaration gives a title and body per scope, with `{{key}}` placeholders filled from `display`; a list of strings joins with `, `, and a list of objects is not a placeholder. The push channel in the composition root renders them from `NotificationTypeRegistry.get(type).push[scope]` and calls `PushSender.send(devices, { title, body, data: { notificationId, type, subject, parent } })`, so the app can open the item and mark the notification read. The push adapter renders nothing.
+- **Push:** each type declaration gives a title and body per scope, with `{{key}}` placeholders filled from `display`; a list of strings joins with `, `, and a list of objects is not a placeholder. The push channel in the composition root renders them from `NotificationTypeRegistry.get(type).push[scope]` and calls `PushSender.send(devices, { title, body, data: { notificationId, type, subject, parent, communityId, spaceId } })`, so the app can open the item in its community and mark the notification read; `communityId` and `spaceId` are null for a notification outside a community or a space. The push adapter renders nothing.
 - **In-app:** nothing is rendered on send. The list resolves current names and titles when it is read.
 
 | Type | Display keys | Email template |
@@ -584,7 +584,7 @@ A native app built with Expo registers the native token from `getDevicePushToken
 - **Partial failure.** A delivery succeeds when at least one device accepts it; devices that failed are not retried. `PushSender.send` throws, so the engine retries, only when no device accepted and at least one failure was retryable (network error, 429, 5xx, an APNs `403 ExpiredProviderToken`, an FCM `401`). A person with no device seen in the last 30 days at send time gets the delivery `failed` with `last_error: 'no address'`, not retried.
 - **Dead tokens.** The push adapter reports the devices the provider answered as dead. The delivery task asks identity to delete them. The adapter writes nothing.
 - **Provider auth.** The adapter signs the APNs provider token (ES256, the team id and key id) and reuses it for 50 minutes; it exchanges a signed service-account assertion (RS256) for an FCM access token and reuses it until a minute before it expires. Either is dropped when the provider rejects it as expired.
-- **Payload.** APNs gets `{ aps: { alert: { title, body } }, data }`; FCM gets `notification: { title, body }` and `data` with string values, `subject` and `parent` JSON-encoded and left out when null; Web Push gets the JSON `{ title, body, data }`, encrypted with `aes128gcm`.
+- **Payload.** APNs gets `{ aps: { alert: { title, body } }, data }`; FCM gets `notification: { title, body }` and `data` with string values, `subject` and `parent` JSON-encoded, and `subject`, `parent`, `communityId` and `spaceId` left out when null; Web Push gets the JSON `{ title, body, data }`, encrypted with `aes128gcm`.
 - **Configuration.** APNs: team id, key id, the `.p8` key, and the bundle ids of the apps it serves; one key serves every app of the team. FCM: the service account of the Firebase project the apps belong to; a token from another project is answered `403 SENDER_ID_MISMATCH` and reported dead. Web Push: the VAPID key pair, the same on every server instance, and the VAPID subject, a `mailto:` or `https:` contact. The installation passes the configuration as `adapters.push` and the adapter as `adapters.pushSender`; with no provider configured, the `push` channel is not registered.
 
 ## 11. Processing
@@ -1212,7 +1212,7 @@ interface ChannelRegistry {
 interface PushMessage {
   title: string;
   body: string;
-  data: { notificationId: string; type: string; subject: SubjectRef | null; parent: SubjectRef | null };
+  data: { notificationId: string; type: string; subject: SubjectRef | null; parent: SubjectRef | null; communityId: string | null; spaceId: string | null };
 }
 
 interface PushSender {
