@@ -51,8 +51,11 @@ async function membershipEnded(
   if (communityIds.length === 0) {
     return null;
   }
+  const held = new Set(
+    (await reads.memberCommunityTitles(orgId, grant.orgUserId)).map((community) => community.id),
+  );
   const communities: { communityId: string; communityTitle: string }[] = [];
-  for (const communityId of communityIds) {
+  for (const communityId of communityIds.filter((id) => !held.has(id))) {
     const title = await reads.communityTitle(orgId, communityId);
     if (title !== null) {
       communities.push({ communityId, communityTitle: title });

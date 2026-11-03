@@ -38,7 +38,7 @@ const MEMBER = {
   updatedAt: T,
 };
 
-type World = { opened?: string[]; capacity?: number | null; openers?: string[] };
+type World = { opened?: string[]; held?: string[]; capacity?: number | null; openers?: string[] };
 
 function fakeReads(world: World = {}): NotificationReads {
   return {
@@ -66,6 +66,8 @@ function fakeReads(world: World = {}): NotificationReads {
     spaceOpenersAmong: async (_o, _s, ids) =>
       ids.filter((id) => (world.openers ?? ['ou_mia', 'ou_olivia']).includes(id)),
     communitiesOpenedBy: async () => world.opened ?? [],
+    memberCommunityTitles: async () =>
+      (world.held ?? []).map((id) => ({ id, title: TITLES[id] ?? '' })),
     communityTitle: async (_o, id) => TITLES[id] ?? null,
     openSpaceNames: async (_o, _u, communityId) =>
       communityId === 'cmy_1' ? ['Announcements', 'Practice'] : ['Lobby'],
@@ -275,6 +277,22 @@ describe('grant endings', () => {
         },
       }),
     ]);
+  });
+
+  it('names only the communities the person holds through no other grant', async () => {
+    const deleted = ready(entitlementEvents.entitlementDeleted.make({ orgId: ORG, data: GRANT }));
+    const lists = await run(deleted, { opened: ['cmy_1', 'cmy_2'], held: ['cmy_1'] });
+    expect(lists).toEqual([
+      expect.objectContaining({
+        type: 'community.membership_ended',
+        display: { communities: [{ communityId: 'cmy_2', communityTitle: 'Summer cohort' }] },
+      }),
+    ]);
+    expect(await run(deleted, { opened: ['cmy_1', 'cmy_2'], held: ['cmy_1', 'cmy_2'] })).toEqual(
+      [],
+    );
+    const expired = ready(entitlementEvents.entitlementExpired.make({ orgId: ORG, data: GRANT }));
+    expect(await run(expired, { opened: ['cmy_1'], held: ['cmy_1'] })).toEqual([]);
   });
 
   it('revokes access when a deleted grant opened no community', async () => {
