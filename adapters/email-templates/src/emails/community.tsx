@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
+import { Link, Section, Text } from "@react-email/components";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
 export function portal(ctx: TemplateContext, path: string): string {
@@ -289,13 +290,57 @@ export const youAreNowAModerator = defineEmail<"youAreNowAModerator">({
   preview: { communityTitles: ["Founders"] },
 });
 
-export const digest = defineEmail<"digest">({
-  subject: (_ctx, params) => `${params.communityTitle} digest`,
-  heading: (params) => `${params.communityTitle} digest`,
-  lines: () => ["Here's what you haven't seen."],
-  button: (ctx, params) => ({ href: community(ctx, params.communityId), label: "Open community" }),
-  preview: { communityTitle: "Founders", communityId: "cmy_1" },
-});
+type DigestParams = EmailTemplateParams["digest"];
+
+function commentsLabel(count: number): string {
+  return count === 1 ? "1 comment" : `${count} comments`;
+}
+
+function Digest({ ctx, params }: { ctx: TemplateContext; params: DigestParams }) {
+  return (
+    <Layout ctx={ctx} heading={`${params.communityTitle} digest`}>
+      <Paragraph>{"Here's what you haven't seen."}</Paragraph>
+      {params.posts.map((item) => (
+        <Section key={item.postId} className="my-[12px]">
+          <Link
+            href={post(ctx, params.communityId, item.postId)}
+            className="text-[16px] font-semibold text-[#18181b]"
+          >
+            {item.title}
+          </Link>
+          <Text className="my-[2px] text-[14px] leading-[1.4] text-[#6b7280]">
+            {`${item.authorName} in ${item.spaceName} · ${commentsLabel(item.commentCount)}`}
+          </Text>
+        </Section>
+      ))}
+      <EmailButton href={community(ctx, params.communityId)}>Open community</EmailButton>
+    </Layout>
+  );
+}
+
+Digest.PreviewProps = {
+  ctx: PREVIEW_CTX,
+  params: {
+    communityTitle: "Founders",
+    communityId: "cmy_1",
+    from: "2026-10-29T07:00:00.000Z",
+    to: "2026-11-05T07:00:00.000Z",
+    posts: [
+      {
+        postId: "pst_1",
+        title: "Welcome, everyone",
+        authorName: "Sam",
+        spaceName: "Announcements",
+        commentCount: 4,
+      },
+    ],
+  },
+};
+
+export const digest = {
+  subject: (_ctx: TemplateContext, params: DigestParams) => `${params.communityTitle} digest`,
+  Component: Digest,
+};
 
 export const postAwaitingReview = defineEmail<"postAwaitingReview">({
   subject: (_ctx, params) => `Post awaiting review in ${params.spaceName}`,

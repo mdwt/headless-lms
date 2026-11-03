@@ -377,7 +377,7 @@ Each recipient list carries `display`, the text a channel needs. Each type decla
 | `community.welcome` | `communityTitle`, `spaceNames` | `welcomeToCommunity` |
 | `community.ending_soon` | `communityTitle`, `expiresAt` | `membershipEndingSoon` |
 | `community.membership_ended` | `communities: [{ communityId, communityTitle }]` | `membershipEnded`, changed: params `{ communities: { communityId: string; communityTitle: string }[] }` replace `{ communityTitle, communityId }`; its `SEND_EMAIL_DERIVATIONS` entry passes one community |
-| `access.granted` | `contentTitle`, `contentType` | `accessGranted` |
+| `access.granted` | `contentTitle`, `contentType` (`course`, `download`, `community` or `bundle`) | `accessGranted`, whose `contentType` param adds `bundle`, linked to the portal home |
 | `access.revoked` | `contentTitle` | `accessRevoked` |
 | `course.activity_added` | `courseTitle`, `moduleTitle`, `activityTitle` | `courseActivityAdded` (new) |
 | `moderator.assigned` | `communityTitles` | `youAreNowAModerator` |

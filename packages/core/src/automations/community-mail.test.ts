@@ -4,7 +4,7 @@ import { noopLogger } from '../shared/logger.js';
 import { address, type ActionDeps } from './community-mail.js';
 
 const event = { metadata: {} } as DomainEvent;
-const params = { communityTitle: 'Founders', communityId: 'cmy_1' };
+const params = { communityTitle: 'Founders', communityId: 'cmy_1', spaceNames: [] as string[] };
 
 function deps(emails: Record<string, string | null>, warn = vi.fn()): ActionDeps {
   return {

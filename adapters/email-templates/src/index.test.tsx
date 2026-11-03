@@ -92,7 +92,28 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     communityId: "cmy_1",
   },
   youAreNowAModerator: { communityTitles: ["Founders"] },
-  digest: { communityTitle: "Founders", communityId: "cmy_1" },
+  digest: {
+    communityTitle: "Founders",
+    communityId: "cmy_1",
+    from: "2026-10-29T07:00:00.000Z",
+    to: "2026-11-05T07:00:00.000Z",
+    posts: [
+      {
+        postId: "pst_1",
+        title: "Welcome, everyone",
+        authorName: "Sam",
+        spaceName: "Announcements",
+        commentCount: 1,
+      },
+      {
+        postId: "pst_2",
+        title: "Find a partner",
+        authorName: "Ana",
+        spaceName: "Speaking partners",
+        commentCount: 3,
+      },
+    ],
+  },
   postAwaitingReview: {
     spaceName: "Announcements",
     postTitle: "Hello",
@@ -242,6 +263,26 @@ describe("ReactEmailTemplateRenderer", () => {
     });
     expect(content.html).toContain(url);
     expect(content.text).toContain(url);
+  });
+
+  it("links a bundle accessGranted to the portal", async () => {
+    const content = await renderer.render("accessGranted", CTX, {
+      contentTitle: "All access",
+      contentId: "bnd_1",
+      contentType: "bundle",
+    });
+    expect(content.html).toContain('href="http://localhost:8002"');
+    expect(content.text).toContain("Open your library");
+  });
+
+  it("lists each digest post with its author, space and comments, linked to the post", async () => {
+    const content = await renderer.render("digest", CTX, SAMPLE_PARAMS.digest);
+    expect(content.subject).toBe("Founders digest");
+    expect(content.html).toContain("http://localhost:8002/communities/cmy_1/posts/pst_1");
+    expect(content.html).toContain("http://localhost:8002/communities/cmy_1/posts/pst_2");
+    expect(content.text).toContain("Welcome, everyone");
+    expect(content.text).toContain("Sam in Announcements · 1 comment");
+    expect(content.text).toContain("Ana in Speaking partners · 3 comments");
   });
 
   it("names every community a membership ended in, and links one to its page", async () => {

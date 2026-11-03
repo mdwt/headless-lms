@@ -28,7 +28,7 @@ export interface EmailTemplateParams {
   passwordReset: { resetUrl: string };
   passwordChanged: Record<string, never>;
   emailVerification: { verifyUrl: string };
-  accessGranted: { contentTitle: string; contentId: string; contentType: ContentType };
+  accessGranted: { contentTitle: string; contentId: string; contentType: ContentType | 'bundle' };
   accessRevoked: { contentTitle: string };
   courseCompleted: { courseTitle: string };
   welcomeToCommunity: { communityTitle: string; communityId: string; spaceNames: string[] };
@@ -89,7 +89,19 @@ export interface EmailTemplateParams {
     communityId: string;
   };
   youAreNowAModerator: { communityTitles: string[] };
-  digest: { communityTitle: string; communityId: string };
+  digest: {
+    communityTitle: string;
+    communityId: string;
+    from: string;
+    to: string;
+    posts: {
+      postId: string;
+      title: string;
+      authorName: string;
+      spaceName: string;
+      commentCount: number;
+    }[];
+  };
   postAwaitingReview: {
     spaceName: string;
     postTitle: string;
