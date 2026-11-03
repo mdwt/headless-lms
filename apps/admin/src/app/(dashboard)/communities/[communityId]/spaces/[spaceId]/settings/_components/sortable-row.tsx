@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -36,6 +36,7 @@ export function SortableList<T>({
   onReorder: (next: T[]) => void;
   children: ReactNode;
 }) {
+  const id = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -51,6 +52,7 @@ export function SortableList<T>({
 
   return (
     <DndContext
+      id={id}
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={MODIFIERS}
