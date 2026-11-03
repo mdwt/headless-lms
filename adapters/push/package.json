@@ -1,0 +1,46 @@
+{
+  "name": "@headless-lms/adapter-push",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@headless-lms/core": "workspace:*",
+    "web-push": "3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/web-push": "3.6.4",
+    "tsdown": "^0.22.9",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "description": "APNs, FCM and Web Push adapter for the headless LMS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mdwt/headless-lms.git",
+    "directory": "adapters/push"
+  },
+  "homepage": "https://github.com/mdwt/headless-lms#readme",
+  "bugs": {
+    "url": "https://github.com/mdwt/headless-lms/issues"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
