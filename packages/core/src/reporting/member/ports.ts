@@ -11,6 +11,7 @@ import type {
   DirectoryRow,
   DownloadFile,
   DownloadView,
+  MemberViewer,
   Module,
   NotificationView,
   NotificationsView,
@@ -21,92 +22,74 @@ import type {
 import type { NotificationFilter } from '../../types/index.js';
 
 export interface MemberReportService {
-  listCourses(orgId: string, orgUserId: string): Promise<CourseView[]>;
-  getCourse(orgId: string, orgUserId: string, courseId: string): Promise<CourseView | null>;
-  listModules(orgId: string, orgUserId: string, courseId: string): Promise<Module[] | null>;
-  listActivities(
-    orgId: string,
-    orgUserId: string,
-    courseId: string,
-  ): Promise<ActivityView[] | null>;
-  courseProgress(
-    orgId: string,
-    orgUserId: string,
-    courseId: string,
-  ): Promise<CourseProgressView | null>;
-  listDownloads(orgId: string, orgUserId: string): Promise<DownloadView[]>;
+  /** Who the caller is in the org, and the permissions they hold. */
+  viewer(actor: Actor): MemberViewer;
+  listCourses(actor: Actor): Promise<CourseView[]>;
+  getCourse(courseId: string, actor: Actor): Promise<CourseView | null>;
+  listModules(courseId: string, actor: Actor): Promise<Module[] | null>;
+  listActivities(courseId: string, actor: Actor): Promise<ActivityView[] | null>;
+  courseProgress(courseId: string, actor: Actor): Promise<CourseProgressView | null>;
+  listDownloads(actor: Actor): Promise<DownloadView[]>;
   getDownload(
-    orgId: string,
-    orgUserId: string,
     downloadId: string,
-  ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null>;
-  /** Signed URL of a course, download or community thumbnail: published, or staff. */
-  thumbnailFile(
-    orgId: string,
     actor: Actor,
+  ): Promise<{ download: DownloadView; assets: DownloadFile[] } | null>;
+  /** Signed URL of a course, download or community thumbnail: published, or the item's read permission. */
+  thumbnailFile(
     owner: 'course' | 'download' | 'community',
     id: string,
-  ): Promise<string | null>;
-  /** Signed URL of an asset the activity links, for a student who can open its course. */
-  activityFile(
-    orgId: string,
     actor: Actor,
-    activityId: string,
-    assetId: string,
   ): Promise<string | null>;
-  /** Signed download URL of a file in a download the student can open. */
-  downloadFile(
-    orgId: string,
-    actor: Actor,
-    downloadId: string,
-    assetId: string,
-  ): Promise<string | null>;
+  /** Signed URL of an asset the activity links, for a person who can open its course. */
+  activityFile(activityId: string, assetId: string, actor: Actor): Promise<string | null>;
+  /** Signed download URL of a file in a download the person can open. */
+  downloadFile(downloadId: string, assetId: string, actor: Actor): Promise<string | null>;
   /** Signed URL of an org user's profile photo, when it belongs to this org. */
-  personImage(orgId: string, orgUserId: string): Promise<string | null>;
+  personImage(orgUserId: string, actor: Actor): Promise<string | null>;
   directory(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     query: DirectoryQuery,
-  ): Promise<Page<DirectoryEntry> | null>;
-  communityHome(orgId: string, actor: Actor, communityId: string): Promise<CommunityHome | null>;
-  communitySpace(
-    orgId: string,
     actor: Actor,
+  ): Promise<Page<DirectoryEntry> | null>;
+  communityHome(communityId: string, actor: Actor): Promise<CommunityHome | null>;
+  communitySpace(
     communityId: string,
     spaceId: string,
+    actor: Actor,
   ): Promise<CommunityHomeSpace | null>;
   notifications(
-    orgId: string,
-    actor: Actor,
     userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
+    actor: Actor,
   ): Promise<NotificationsView>;
   notification(
-    orgId: string,
-    actor: Actor,
     userId: string,
     notificationId: string,
-  ): Promise<NotificationView | null>;
-  notificationUnreadCounts(
-    orgId: string,
     actor: Actor,
-    userId: string,
-  ): Promise<NotificationUnreadCounts>;
+  ): Promise<NotificationView | null>;
+  notificationUnreadCounts(userId: string, actor: Actor): Promise<NotificationUnreadCounts>;
   /** The person's notification settings in a community they can open, resolved per channel. */
   communityNotificationSettings(
-    orgId: string,
-    actor: Actor,
     userId: string,
     communityId: string,
+    actor: Actor,
   ): Promise<CommunityNotificationSettingsView | null>;
   /** The person's notification settings for the org's categories. */
-  orgNotificationSettings(orgId: string, userId: string): Promise<OrgNotificationSettingsView>;
+  orgNotificationSettings(userId: string, actor: Actor): Promise<OrgNotificationSettingsView>;
 }
 
 export interface MemberReportRepository {
-  directory(orgId: string, communityId: string, query: DirectoryQuery): Promise<Page<DirectoryRow>>;
-  spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>>;
+  directory(
+    orgId: string,
+    communityId: string,
+    query: DirectoryQuery,
+    readerIds: string[],
+  ): Promise<Page<DirectoryRow>>;
+  spaceMemberCounts(
+    orgId: string,
+    communityId: string,
+    excluding: string[],
+  ): Promise<Record<string, number>>;
   people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]>;
 }

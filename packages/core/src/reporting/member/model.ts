@@ -5,6 +5,7 @@ import type { ResolvedChannel } from '../../shared/notification-settings.js';
 import type {
   DigestSchedule,
   JsonValue,
+  Permission,
   Reason,
   Scope,
   SubjectRef,
@@ -24,7 +25,6 @@ export type {
 export interface DirectoryRow {
   orgUserId: string;
   userId: string;
-  role: string;
   displayName: string | null;
   headline: string | null;
   bio: string | null;
@@ -39,6 +39,23 @@ export interface DirectoryQuery {
 
 export interface DirectoryEntry extends DirectoryRow {
   imageUrl: string | null;
+  team: boolean;
+  roleName: string | null;
+  opensEverySpace: boolean;
+}
+
+export interface MemberViewer {
+  orgUserId: string;
+  orgRole: { key: string; name: string };
+  permissions: Permission[];
+  orgPermissions: Permission[];
+}
+
+export interface CommunityViewer {
+  permissions: Permission[];
+  opensEverySpace: boolean;
+  team: boolean;
+  roleName: string;
 }
 
 export interface CommunityHomeLink {
@@ -88,6 +105,7 @@ export interface CommunityHome {
     groupSize: number;
   };
   spaces: CommunityHomeSpace[];
+  viewer: CommunityViewer;
 }
 
 export interface CourseProgressView {

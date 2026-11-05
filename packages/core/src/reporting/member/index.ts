@@ -1,5 +1,6 @@
 // reporting/member — public surface.
 export { MemberReportServiceImpl } from './service.js';
+export { memberReportDeclarations } from './declarations.js';
 export type { MemberReportService, MemberReportRepository } from './ports.js';
 export type {
   CourseView,
@@ -10,6 +11,8 @@ export type {
   DirectoryRow,
   CommunityHome,
   CommunityHomeSpace,
+  CommunityViewer,
+  MemberViewer,
   LockedCommunitySpace,
   OpenCommunitySpace,
   NotificationItemView,

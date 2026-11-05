@@ -13,6 +13,23 @@ import type {
 import type { SpaceMember } from '../../entitlements/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
 import { createFileUrls } from '../../assets/index.js';
+import { actorWith } from '../../organizations/index.js';
+import type { Actor } from '../../shared/actor.js';
+
+const SYSTEM: Actor = actorWith({ id: 'system', orgId: 'o1', owner: true });
+const stu: Actor = actorWith({ id: 'stu_1', orgId: 'o1' });
+const ownerActor: Actor = actorWith({ id: 'ou_owner', orgId: 'o1', owner: true });
+const modActor: Actor = actorWith({
+  id: 'ou_mod',
+  orgId: 'o1',
+  content: { cmy_1: ['communities:moderate'] },
+});
+const people: MemberReportServiceParams['people'] = {
+  systemActor: () => SYSTEM,
+  holders: async () => [],
+  permissionsOfMany: async (_orgId, ids) =>
+    new Map(ids.map((id) => [id, actorWith({ id, orgId: 'o1' }).permissions])),
+};
 
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
@@ -97,10 +114,10 @@ function fakeContent(
   activities: Record<string, Activity[]> = {},
 ): ContentServicePort {
   return {
-    getCourse: async (_org: string, id: string) => courses[id] ?? null,
-    listCourseModules: async (_org: string, courseId: string) => modules[courseId] ?? [],
-    listCourseActivities: async (_org: string, courseId: string) => activities[courseId] ?? [],
-    listCourseActivityViews: async (_org: string, courseId: string) =>
+    getCourse: async (id: string) => courses[id] ?? null,
+    listCourseModules: async (courseId: string) => modules[courseId] ?? [],
+    listCourseActivities: async (courseId: string) => activities[courseId] ?? [],
+    listCourseActivityViews: async (courseId: string) =>
       (activities[courseId] ?? []).map((a) => ({ ...a, assetUrls: {} })),
   } as unknown as ContentServicePort;
 }
@@ -140,6 +157,7 @@ const deps: Pick<
   | 'files'
   | 'fileUrls'
   | 'access'
+  | 'people'
   | 'notifications'
   | 'titles'
   | 'subscriptions'
@@ -156,7 +174,10 @@ const deps: Pick<
     hasAccess: async () => false,
     listAccessibleContent: async () => [],
     openCommunityIds: async () => [],
+    opensEverySpace: async () => false,
+    everySpaceOpeners: async () => [],
   },
+  people,
   ...readers,
 };
 
@@ -219,7 +240,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     removeSpaceLink: rejectMutation,
     reorderSpaceLinks: rejectMutation,
     ...over,
-  };
+  } as unknown as ContentServicePort;
 }
 
 // Full-surface MemberReportRepository fake.
@@ -244,7 +265,7 @@ describe('MemberReportServiceImpl', () => {
         { orgId: 'o1', contentId: 'c2' },
       ]),
     });
-    const rows = await svc.listCourses('o1', 'stu_1');
+    const rows = await svc.listCourses(stu);
     expect(rows.map((c) => c.id)).toEqual(['c1']);
   });
 
@@ -256,8 +277,8 @@ describe('MemberReportServiceImpl', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
-    expect(await svc.getCourse('o1', 'stu_1', 'cX')).toBeNull();
-    expect(await svc.listModules('o1', 'stu_1', 'cX')).toBeNull();
+    expect(await svc.getCourse('cX', stu)).toBeNull();
+    expect(await svc.listModules('cX', stu)).toBeNull();
   });
 
   it('does not return a course enrolled in another org', async () => {
@@ -268,8 +289,8 @@ describe('MemberReportServiceImpl', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o2', contentId: 'c1' }]),
     });
-    expect(await svc.listCourses('o1', 'stu_1')).toEqual([]);
-    expect(await svc.getCourse('o1', 'stu_1', 'c1')).toBeNull();
+    expect(await svc.listCourses(stu)).toEqual([]);
+    expect(await svc.getCourse('c1', stu)).toBeNull();
   });
 });
 
@@ -296,7 +317,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ...deps,
       access: grantedAccess([]),
     });
-    expect(await svc.courseProgress('o1', 'stu_1', 'c1')).toBeNull();
+    expect(await svc.courseProgress('c1', stu)).toBeNull();
   });
 
   it('maps records to statuses and derives percent from published activities only', async () => {
@@ -323,7 +344,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
-    const view = await svc.courseProgress('o1', 'stu_1', 'c1');
+    const view = await svc.courseProgress('c1', stu);
     // a3 is a draft — absent from the map and the denominator
     expect(view).toEqual({
       activities: { a1: 'completed', a2: 'in-progress' },
@@ -361,7 +382,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
-    const view = await svc.courseProgress('o1', 'stu_1', 'c1');
+    const view = await svc.courseProgress('c1', stu);
     expect(view).toMatchObject({ percent: 100, completed: true });
   });
 
@@ -384,7 +405,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
-    const view = await svc.courseProgress('o1', 'stu_1', 'c1');
+    const view = await svc.courseProgress('c1', stu);
     expect(view?.positions).toEqual({
       a1: { vid_1: { seconds: 612, furthest: 700, duration: 1475 } },
     });
@@ -408,7 +429,7 @@ describe('file URLs', () => {
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
 
-    expect(await svc.listActivities('o1', 'stu_1', 'c1')).toEqual([views[0]]);
+    expect(await svc.listActivities('c1', stu)).toEqual([views[0]]);
   });
 
   it('returns no activities for a course the student is not enrolled in', async () => {
@@ -419,7 +440,7 @@ describe('file URLs', () => {
       ...deps,
     });
 
-    expect(await svc.listActivities('o1', 'stu_1', 'c1')).toBeNull();
+    expect(await svc.listActivities('c1', stu)).toBeNull();
   });
 
   it('serves an entitled download with the files content signed', async () => {
@@ -451,7 +472,7 @@ describe('file URLs', () => {
       access: grantedAccess([{ orgId: 'o1', contentId: 'd1' }]),
     });
 
-    expect(await svc.getDownload('o1', 'stu_1', 'd1')).toEqual({ download, assets: files });
+    expect(await svc.getDownload('d1', stu)).toEqual({ download, assets: files });
   });
 
   it('serves no download the student is not entitled to', async () => {
@@ -462,14 +483,13 @@ describe('file URLs', () => {
       ...deps,
     });
 
-    expect(await svc.getDownload('o1', 'stu_1', 'd1')).toBeNull();
+    expect(await svc.getDownload('d1', stu)).toBeNull();
   });
 
   it('adds the signed photo URL to each directory entry', async () => {
     const row = {
       orgUserId: 'ou_sarah',
       userId: 'usr_sarah',
-      role: 'student',
       displayName: 'Sarah',
       headline: null,
       bio: null,
@@ -490,6 +510,7 @@ describe('file URLs', () => {
       progress: fakeProgress([]),
       files,
       fileUrls,
+      people,
       access: {
         ...deps.access,
         isCommunityMember: async () => true,
@@ -499,10 +520,14 @@ describe('file URLs', () => {
       ...readers,
     });
 
-    const entries = await svc.directory('o1', { id: 'ou_sarah', role: 'student' }, 'cmy_1', {
-      page: 1,
-      pageSize: 20,
-    });
+    const entries = await svc.directory(
+      'cmy_1',
+      {
+        page: 1,
+        pageSize: 20,
+      },
+      actorWith({ id: 'ou_sarah', orgId: 'o1' }),
+    );
 
     expect(entries).toMatchObject({ total: 2, page: 1, pageSize: 20 });
     expect(entries?.rows.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
@@ -560,7 +585,6 @@ describe('file URLs', () => {
           {
             orgUserId: 'ou_sarah',
             userId: 'usr_sarah',
-            role: 'student',
             displayName: 'Sarah',
             headline: null,
             bio: null,
@@ -577,29 +601,27 @@ describe('file URLs', () => {
         content: { titlesFor: contentTitles },
       },
     });
-    const james = { id: 'ou_james', role: 'student' as const };
+    const james = actorWith({ id: 'ou_james', orgId: 'o1' });
 
     const view = await svc.notifications(
-      'o1',
-      james,
       'usr_james',
       { communityId: 'cmy_1', unread: true },
       { page: 2, pageSize: 10 },
+      james,
     );
 
     expect(list).toHaveBeenCalledWith(
-      'o1',
       'usr_james',
       { communityId: 'cmy_1', unread: true },
       { page: 2, pageSize: 10 },
+      james,
     );
     expect(discussionTitles).toHaveBeenCalledWith(
-      'o1',
-      james,
       expect.arrayContaining([
         { type: 'comment', id: 'cmt_1' },
         { type: 'post', id: 'pst_hidden' },
       ]),
+      james,
     );
     expect(view).toMatchObject({ total: 2, page: 2, pageSize: 10, unreadCount: 2 });
     expect(view.rows[0]).toEqual({
@@ -640,9 +662,7 @@ describe('file URLs', () => {
       createdAt: AT,
       readAt: AT,
     };
-    const get = vi.fn(async (_o: string, _u: string, id: string) =>
-      id === 'ntf_1' ? stored : null,
-    );
+    const get = vi.fn(async (_u: string, id: string) => (id === 'ntf_1' ? stored : null));
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService(),
@@ -654,9 +674,9 @@ describe('file URLs', () => {
         content: { titlesFor: async () => ({ 'course:crs_1': { title: 'Spanish basics' } }) },
       },
     });
-    const james = { id: 'ou_james', role: 'student' as const };
+    const james = actorWith({ id: 'ou_james', orgId: 'o1' });
 
-    await expect(svc.notification('o1', james, 'usr_james', 'ntf_1')).resolves.toEqual({
+    await expect(svc.notification('usr_james', 'ntf_1', james)).resolves.toEqual({
       id: 'ntf_1',
       type: 'access.granted',
       scope: 'org',
@@ -672,12 +692,12 @@ describe('file URLs', () => {
       createdAt: AT,
       readAt: AT,
     });
-    expect(get).toHaveBeenCalledWith('o1', 'usr_james', 'ntf_1');
-    await expect(svc.notification('o1', james, 'usr_james', 'ntf_x')).resolves.toBeNull();
+    expect(get).toHaveBeenCalledWith('usr_james', 'ntf_1', james);
+    await expect(svc.notification('usr_james', 'ntf_x', james)).resolves.toBeNull();
   });
 
   it('counts unread notifications for the org and every community the person can open', async () => {
-    const unreadCounts = vi.fn(async (_o: string, _u: string, ids: string[]) => ({
+    const unreadCounts = vi.fn(async (_u: string, ids: string[]) => ({
       org: 3,
       communities: ids.map((communityId) => ({ communityId, unread: 1 })),
     }));
@@ -690,23 +710,23 @@ describe('file URLs', () => {
       access: { ...deps.access, openCommunityIds },
       notifications: { ...deps.notifications, unreadCounts },
     });
-    const owner = { id: 'ou_owner', role: 'owner' as const };
+    const owner = ownerActor;
 
-    await expect(svc.notificationUnreadCounts('o1', owner, 'usr_owner')).resolves.toEqual({
+    await expect(svc.notificationUnreadCounts('usr_owner', owner)).resolves.toEqual({
       org: 3,
       communities: [
         { communityId: 'cmy_1', unread: 1 },
         { communityId: 'cmy_2', unread: 1 },
       ],
     });
-    expect(openCommunityIds).toHaveBeenCalledWith('o1', owner);
-    expect(unreadCounts).toHaveBeenCalledWith('o1', 'usr_owner', ['cmy_1', 'cmy_2']);
+    expect(openCommunityIds).toHaveBeenCalledWith(owner);
+    expect(unreadCounts).toHaveBeenCalledWith('usr_owner', ['cmy_1', 'cmy_2'], owner);
   });
 });
 
 describe('serving files', () => {
-  const student = { id: 'stu_1', role: 'student' as const };
-  const owner = { id: 'ou_owner', role: 'owner' as const };
+  const student = stu;
+  const owner = ownerActor;
   const link = (activityId: string, assetId: string) => ({
     orgId: 'o1',
     id: `aa_${activityId}_${assetId}`,
@@ -741,8 +761,8 @@ describe('serving files', () => {
     const svc = new MemberReportServiceImpl({
       repo: { ...fakeRepo(), ...over.repo },
       content: fakeContentService({
-        getCourse: async (_o, id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
-        getActivity: async (_o, id) => (id === 'a1' ? activity('a1', 0) : null),
+        getCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
+        getActivity: async (id) => (id === 'a1' ? activity('a1', 0) : null),
         listCourseActivityAssets: async () => [link('a1', 'ast_video')],
         getDownload: async () =>
           ({ id: 'd1', status: 'published', thumbnailAssetId: 'ast_thumb' }) as never,
@@ -769,50 +789,42 @@ describe('serving files', () => {
 
   it('serves a lesson file the activity links to a student who can open the course', async () => {
     const { svc, signed } = build();
-    expect(await svc.activityFile('o1', student, 'a1', 'ast_video')).toBe(
-      'https://signed/ast_video',
-    );
+    expect(await svc.activityFile('a1', 'ast_video', student)).toBe('https://signed/ast_video');
     expect(signed).toEqual([{ assetId: 'ast_video' }]);
   });
 
   it('refuses a lesson file without access, unlinked, in a draft lesson or course, but lets staff through', async () => {
-    expect(
-      await build({ grants: [] }).svc.activityFile('o1', student, 'a1', 'ast_video'),
-    ).toBeNull();
-    expect(await build().svc.activityFile('o1', student, 'a1', 'ast_other')).toBeNull();
+    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_video', student)).toBeNull();
+    expect(await build().svc.activityFile('a1', 'ast_other', student)).toBeNull();
     const draftLesson = build({
       content: { getActivity: async () => activity('a1', 0, { published: false }) },
     });
-    expect(await draftLesson.svc.activityFile('o1', student, 'a1', 'ast_video')).toBeNull();
+    expect(await draftLesson.svc.activityFile('a1', 'ast_video', student)).toBeNull();
     const draftCourse = build({
       content: { getCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
     });
-    expect(await draftCourse.svc.activityFile('o1', student, 'a1', 'ast_video')).toBeNull();
-    expect(await build({ grants: [] }).svc.activityFile('o1', owner, 'a1', 'ast_video')).toBe(
+    expect(await draftCourse.svc.activityFile('a1', 'ast_video', student)).toBeNull();
+    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_video', owner)).toBe(
       'https://signed/ast_video',
     );
-    expect(await build({ grants: [] }).svc.activityFile('o1', owner, 'a1', 'ast_other')).toBeNull();
+    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_other', owner)).toBeNull();
   });
 
   it('serves a download file saved under its display name, or its filename', async () => {
     const { svc, signed } = build();
-    expect(await svc.downloadFile('o1', student, 'd1', 'ast_pdf')).toBe('https://signed/ast_pdf');
-    expect(await svc.downloadFile('o1', student, 'd1', 'ast_notes')).toBe(
-      'https://signed/ast_notes',
-    );
-    expect(await svc.downloadFile('o1', student, 'd1', 'ast_missing')).toBeNull();
+    expect(await svc.downloadFile('d1', 'ast_pdf', student)).toBe('https://signed/ast_pdf');
+    expect(await svc.downloadFile('d1', 'ast_notes', student)).toBe('https://signed/ast_notes');
+    expect(await svc.downloadFile('d1', 'ast_missing', student)).toBeNull();
     expect(signed).toEqual([
       { assetId: 'ast_pdf', saveAs: 'Workbook.pdf' },
       { assetId: 'ast_notes', saveAs: 'ast_notes.pdf' },
     ]);
-    expect(await build({ grants: [] }).svc.downloadFile('o1', student, 'd1', 'ast_pdf')).toBeNull();
+    expect(await build({ grants: [] }).svc.downloadFile('d1', 'ast_pdf', student)).toBeNull();
   });
 
   it('serves the thumbnail of a published item to anyone, and of a draft only to staff', async () => {
     const { svc } = build({ grants: [] });
-    expect(await svc.thumbnailFile('o1', student, 'download', 'd1')).toBe(
-      'https://signed/ast_thumb',
-    );
+    expect(await svc.thumbnailFile('download', 'd1', student)).toBe('https://signed/ast_thumb');
     const draft = build({
       content: {
         getCourse: async () =>
@@ -823,18 +835,15 @@ describe('serving files', () => {
           }) as never,
       },
     });
-    expect(await draft.svc.thumbnailFile('o1', student, 'course', 'c1')).toBeNull();
-    expect(await draft.svc.thumbnailFile('o1', owner, 'course', 'c1')).toBe(
-      'https://signed/ast_cover',
-    );
-    expect(await svc.thumbnailFile('o1', student, 'course', 'c1')).toBeNull();
+    expect(await draft.svc.thumbnailFile('course', 'c1', student)).toBeNull();
+    expect(await draft.svc.thumbnailFile('course', 'c1', owner)).toBe('https://signed/ast_cover');
+    expect(await svc.thumbnailFile('course', 'c1', student)).toBeNull();
   });
 
   it("serves an org user's photo only when it belongs to this org", async () => {
     const row = {
       orgUserId: 'ou_sarah',
       userId: 'usr_sarah',
-      role: 'student',
       displayName: 'Sarah',
       headline: null,
       bio: null,
@@ -842,16 +851,19 @@ describe('serving files', () => {
     const withPhoto = build({
       repo: { people: async () => [{ ...row, imageAssetId: 'ast_photo' }] },
     });
-    expect(await withPhoto.svc.personImage('o1', 'ou_sarah')).toBe('https://signed/ast_photo');
+    expect(await withPhoto.svc.personImage('ou_sarah', stu)).toBe('https://signed/ast_photo');
     const without = build({ repo: { people: async () => [{ ...row, imageAssetId: null }] } });
-    expect(await without.svc.personImage('o1', 'ou_sarah')).toBeNull();
+    expect(await without.svc.personImage('ou_sarah', stu)).toBeNull();
   });
 });
 
 describe('community home', () => {
-  const student = { id: 'stu_1', role: 'student' as const };
-  const moderator = { id: 'ou_mod', role: 'moderator' as const };
-  const owner = { id: 'ou_owner', role: 'owner' as const };
+  const student = stu;
+  const moderator = modActor;
+  const owner = ownerActor;
+  const everySpace = (actor: Actor) =>
+    actor.permissions.has('communities:read', 'cmy_1') ||
+    actor.permissions.has('communities:moderate', 'cmy_1');
   const settings = { comments: true, reactions: true, requireReview: false };
   const topic = (spaceId: string) => ({
     orgId: 'o1',
@@ -907,7 +919,7 @@ describe('community home', () => {
     new MemberReportServiceImpl({
       repo: fakeEntitlementReader({ spaceMemberCounts: async () => ({ spc_request: 4 }) }),
       content: fakeContentService({
-        getCommunity: async (_o, id) =>
+        getCommunity: async (id) =>
           id === 'cmy_1'
             ? ({
                 id,
@@ -919,12 +931,12 @@ describe('community home', () => {
               } as never)
             : null,
         listSpaces: async () => spaces,
-        getSpace: async (_o, id) => spaces.find((row) => row.id === id) ?? null,
-        getCourse: async (_o, id) =>
+        getSpace: async (id) => spaces.find((row) => row.id === id) ?? null,
+        getCourse: async (id) =>
           id === 'c1' || id === 'c_draft'
             ? { ...course(id, id === 'c1' ? 'published' : 'draft'), thumbnailUrl: null }
             : null,
-        getDownload: async (_o, id) =>
+        getDownload: async (id) =>
           id === 'd_draft' ? ({ id, title: 'Draft pack', status: 'draft' } as never) : null,
       }),
       progress: fakeProgress([]),
@@ -938,19 +950,20 @@ describe('community home', () => {
       access: {
         ...deps.access,
         isCommunityMember: async () => true,
-        openSpaceIds: async (_o, actor) =>
-          actor.role === 'student'
+        opensEverySpace: async (actor) => everySpace(actor),
+        openSpaceIds: async (_c, actor) =>
+          !everySpace(actor)
             ? spaces
                 .filter((row) => row.accessRule === 'all_members' || standings[row.id] === 'active')
                 .map((row) => row.id)
             : spaces.map((row) => row.id),
-        spaceStandings: async (_o, actor) => (actor.role === 'student' ? standings : {}),
+        spaceStandings: async (_c, actor) => (everySpace(actor) ? {} : standings),
       },
     });
 
   it('hides an uninvited by-invite space and locks a space the member cannot open', async () => {
     const svc = build({ spc_invited: 'invited', spc_joined: 'active' });
-    const home = await svc.communityHome('o1', student, 'cmy_1');
+    const home = await svc.communityHome('cmy_1', student);
     expect(home?.spaces.map((row) => row.id)).toEqual([
       'spc_all',
       'spc_request',
@@ -991,29 +1004,29 @@ describe('community home', () => {
         spc_request: { state: 'muted', mutedUntil: null },
       },
     );
-    const home = await svc.communityHome('o1', student, 'cmy_1');
+    const home = await svc.communityHome('cmy_1', student);
     const byId = new Map(home!.spaces.map((row) => [row.id, row]));
     expect(byId.get('spc_all')).toMatchObject({
       locked: false,
       subscription: { state: 'muted', mutedUntil: until },
     });
     expect(byId.get('spc_request')).not.toHaveProperty('subscription');
-    expect(await svc.communitySpace('o1', moderator, 'cmy_1', 'spc_all')).toMatchObject({
+    expect(await svc.communitySpace('cmy_1', 'spc_all', moderator)).toMatchObject({
       subscription: null,
     });
   });
 
   it('serves a locked space by id as its landing view and a hidden one as missing', async () => {
     const svc = build({ spc_invited: 'invited', spc_secret: 'revoked' });
-    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_secret')).toBeNull();
-    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_missing')).toBeNull();
-    const locked = await svc.communitySpace('o1', student, 'cmy_1', 'spc_request');
+    expect(await svc.communitySpace('cmy_1', 'spc_secret', student)).toBeNull();
+    expect(await svc.communitySpace('cmy_1', 'spc_missing', student)).toBeNull();
+    const locked = await svc.communitySpace('cmy_1', 'spc_request', student);
     expect(locked).toMatchObject({ locked: true });
     expect(locked).not.toHaveProperty('description');
     expect(locked).not.toHaveProperty('topics');
     expect(locked).not.toHaveProperty('links');
     expect(locked).not.toHaveProperty('settings');
-    expect(await svc.communitySpace('o1', student, 'cmy_1', 'spc_invited')).toMatchObject({
+    expect(await svc.communitySpace('cmy_1', 'spc_invited', student)).toMatchObject({
       locked: true,
       standing: 'invited',
     });
@@ -1022,7 +1035,7 @@ describe('community home', () => {
   it('shows every space unlocked to a moderator and to staff', async () => {
     const svc = build();
     for (const actor of [moderator, owner]) {
-      const home = await svc.communityHome('o1', actor, 'cmy_1');
+      const home = await svc.communityHome('cmy_1', actor);
       expect(home?.spaces.map((row) => [row.id, row.locked])).toEqual(
         spaces.map((row) => [row.id, false]),
       );
@@ -1031,12 +1044,229 @@ describe('community home', () => {
 
   it('leaves out links to unpublished content for members, but not for staff', async () => {
     const svc = build();
-    const linked = async (actor: { id: string; role: 'student' | 'moderator' | 'owner' }) => {
-      const view = await svc.communitySpace('o1', actor, 'cmy_1', 'spc_all');
+    const linked = async (actor: Actor) => {
+      const view = await svc.communitySpace('cmy_1', 'spc_all', actor);
       return view && !view.locked ? view.links.map((row) => row.contentId) : null;
     };
     expect(await linked(student)).toEqual(['c1']);
     expect(await linked(moderator)).toEqual(['c1']);
     expect(await linked(owner)).toEqual(['c1', 'c_draft', 'd_draft']);
+  });
+});
+
+describe('read permissions open content without a grant', () => {
+  const james = actorWith({
+    id: 'ou_james',
+    orgId: 'o1',
+    content: { c1: ['courses:read'], d1: ['downloads:read'], cmy_1: ['communities:read'] },
+  });
+  const draftCourse = {
+    ...course('c1', 'draft'),
+    thumbnailAssetId: 'ast_cover',
+    thumbnailUrl: null,
+  };
+  const build = () =>
+    new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService({
+        getCourse: async (id) => (id === 'c1' || id === 'c2' ? { ...draftCourse, id } : null),
+        listCourseModules: async () => progressModules,
+        getDownload: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_dl' }) as never,
+        listDownloadAssets: async () => [],
+        getCommunity: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_cmy' }) as never,
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+    });
+
+  it('opens an unpublished course and its modules with courses:read on it', async () => {
+    const svc = build();
+    expect(await svc.getCourse('c1', james)).toMatchObject({ id: 'c1' });
+    expect(await svc.listModules('c1', james)).toEqual(progressModules);
+    expect(await svc.getCourse('c2', james)).toBeNull();
+    expect(await svc.getCourse('c1', stu)).toBeNull();
+  });
+
+  it('opens an unpublished download with downloads:read on it', async () => {
+    const svc = build();
+    expect(await svc.getDownload('d1', james)).toMatchObject({ download: { id: 'd1' } });
+    expect(await svc.getDownload('d2', james)).toBeNull();
+  });
+
+  it("serves an unpublished item's thumbnail with its read permission only", async () => {
+    const svc = build();
+    expect(await svc.thumbnailFile('course', 'c1', james)).toBe('https://signed/ast_cover');
+    expect(await svc.thumbnailFile('download', 'd1', james)).toBe('https://signed/ast_dl');
+    expect(await svc.thumbnailFile('community', 'cmy_1', james)).toBe('https://signed/ast_cmy');
+    expect(await svc.thumbnailFile('community', 'cmy_2', james)).toBeNull();
+    expect(await svc.thumbnailFile('course', 'c1', stu)).toBeNull();
+  });
+});
+
+describe('a learner with a grant', () => {
+  it('opens their course and its lessons, with every content read passing the system actor', async () => {
+    const seen: Actor[] = [];
+    const record = <T>(actor: Actor, value: T) => {
+      seen.push(actor);
+      return value;
+    };
+    const svc = new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService({
+        getCourse: async (id, actor) =>
+          record(actor, id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
+        listCourseModules: async (_id, actor) => record(actor, progressModules),
+        listCourseActivityViews: async (_id, actor) =>
+          record(
+            actor,
+            progressActivities.map((a) => ({ ...a, assetUrls: {} })),
+          ),
+        listCourseActivities: async (_id, actor) => record(actor, progressActivities),
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
+    });
+    expect((await svc.listCourses(stu)).map((c) => c.id)).toEqual(['c1']);
+    expect(await svc.getCourse('c1', stu)).toMatchObject({ id: 'c1' });
+    expect(await svc.listModules('c1', stu)).toEqual(progressModules);
+    expect((await svc.listActivities('c1', stu))?.map((a) => a.id)).toEqual(['a1', 'a2']);
+    expect(await svc.courseProgress('c1', stu)).toMatchObject({ percent: 0 });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((actor) => actor === SYSTEM)).toBe(true);
+  });
+
+  it('opens their community home, with the viewer it sees there', async () => {
+    const getCommunity = vi.fn(async () => ({
+      id: 'cmy_1',
+      title: 'Spring cohort',
+      description: '',
+      thumbnailUrl: null,
+      status: 'published',
+      settings: { dm: {} },
+    }));
+    const svc = new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService({
+        getCommunity: getCommunity as never,
+        listSpaces: async () => [],
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      access: { ...deps.access, isCommunityMember: async () => true },
+    });
+    const home = await svc.communityHome('cmy_1', stu);
+    expect(home?.viewer).toEqual({
+      permissions: [],
+      opensEverySpace: false,
+      team: false,
+      roleName: 'Member',
+    });
+    expect(getCommunity).toHaveBeenCalledWith('cmy_1', SYSTEM);
+    const emma = actorWith({
+      id: 'ou_emma',
+      orgId: 'o1',
+      content: { cmy_1: ['communities:moderate'] },
+      contentRoles: { cmy_1: { key: 'moderator', name: 'Moderator', team: true } },
+    });
+    const moderated = new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService({
+        getCommunity: getCommunity as never,
+        listSpaces: async () => [],
+      }),
+      progress: fakeProgress([]),
+      ...deps,
+      access: {
+        ...deps.access,
+        isCommunityMember: async () => true,
+        opensEverySpace: async () => true,
+      },
+    });
+    expect((await moderated.communityHome('cmy_1', emma))?.viewer).toEqual({
+      permissions: ['communities:moderate'],
+      opensEverySpace: true,
+      team: true,
+      roleName: 'Moderator',
+    });
+  });
+
+  it('refuses a community home to someone who is not a member', async () => {
+    const svc = new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService(),
+      progress: fakeProgress([]),
+      ...deps,
+    });
+    expect(await svc.communityHome('cmy_1', stu)).toBeNull();
+  });
+});
+
+describe('directory and viewer', () => {
+  it('marks team and who opens every space, resolved on the community', async () => {
+    const row = {
+      orgUserId: 'ou_emma',
+      userId: 'usr_emma',
+      displayName: 'Emma',
+      headline: null,
+      bio: null,
+      imageAssetId: null,
+    };
+    const directory = vi.fn(async () => ({
+      rows: [row, { ...row, orgUserId: 'ou_oliver', userId: 'usr_oliver' }],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    }));
+    const holders = vi.fn(async () => ['ou_sarah']);
+    const svc = new MemberReportServiceImpl({
+      repo: { ...fakeRepo(), directory },
+      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      progress: fakeProgress([]),
+      ...deps,
+      access: { ...deps.access, isCommunityMember: async () => true },
+      people: {
+        ...people,
+        holders,
+        permissionsOfMany: async (_o, ids) =>
+          new Map(
+            ids.map((id) => [
+              id,
+              (id === 'ou_emma'
+                ? actorWith({
+                    id,
+                    orgId: 'o1',
+                    content: { cmy_1: ['communities:moderate'] },
+                    contentRoles: { cmy_1: { key: 'moderator', name: 'Moderator', team: true } },
+                  })
+                : actorWith({ id, orgId: 'o1' })
+              ).permissions,
+            ]),
+          ),
+      },
+    });
+    const page = await svc.directory('cmy_1', { page: 1, pageSize: 20 }, stu);
+    expect(holders).toHaveBeenCalledWith('o1', 'communities:read', 'cmy_1');
+    expect(directory).toHaveBeenCalledWith('o1', 'cmy_1', { page: 1, pageSize: 20 }, ['ou_sarah']);
+    expect(page?.rows.map((r) => [r.orgUserId, r.team, r.roleName, r.opensEverySpace])).toEqual([
+      ['ou_emma', true, 'Moderator', true],
+      ['ou_oliver', false, null, false],
+    ]);
+  });
+
+  it("names the viewer's org role and the permissions they hold", () => {
+    const svc = new MemberReportServiceImpl({
+      repo: fakeRepo(),
+      content: fakeContentService(),
+      progress: fakeProgress([]),
+      ...deps,
+    });
+    const james = actorWith({ id: 'ou_james', orgId: 'o1', content: { c1: ['courses:write'] } });
+    expect(svc.viewer(james)).toEqual({
+      orgUserId: 'ou_james',
+      orgRole: { key: 'member', name: 'Member' },
+      permissions: ['courses:read', 'courses:write'],
+      orgPermissions: [],
+    });
   });
 });

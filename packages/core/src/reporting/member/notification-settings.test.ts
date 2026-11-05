@@ -3,6 +3,7 @@ import { MemberReportServiceImpl } from './service.js';
 import type { NotificationCategory, StoredSetting } from '../../types/index.js';
 import type { ContentServicePort } from '../../content/index.js';
 import { createFileUrls } from '../../assets/index.js';
+import { actorWith } from '../../organizations/index.js';
 
 const on = { default: true, locked: false };
 const off = { default: false, locked: false };
@@ -71,6 +72,13 @@ function build(options: {
       hasAccess: async () => false,
       listAccessibleContent: async () => [],
       openCommunityIds: async () => [],
+      opensEverySpace: async () => false,
+      everySpaceOpeners: async () => [],
+    },
+    people: {
+      systemActor: (orgId) => actorWith({ id: 'system', orgId, owner: true }),
+      holders: async () => [],
+      permissionsOfMany: async () => new Map(),
     },
     notifications: {
       list: async () => ({ items: [], total: 0, unreadCount: 0 }),
@@ -97,7 +105,7 @@ function build(options: {
   return { svc, asked };
 }
 
-const sarah = { id: 'ou_sarah', role: 'student' as const };
+const sarah = actorWith({ id: 'ou_sarah', orgId: 'org_1' });
 
 function setting(over: Partial<StoredSetting>): StoredSetting {
   return {
@@ -119,7 +127,7 @@ describe('member notification settings view', () => {
         setting({ category: 'new_posts', channel: 'inApp', enabled: true }),
       ],
     });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     expect(asked).toEqual([['org_1', 'usr_sarah', { communityId: 'cmy_1' }]]);
     expect(view).toEqual({
       communityId: 'cmy_1',
@@ -204,7 +212,7 @@ describe('member notification settings view', () => {
       ],
       openSpaces: ['spc_announcements', 'spc_practice'],
     });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     const push = (spaceId: string) =>
       view?.categories
         .find((c) => c.key === 'new_posts')
@@ -216,7 +224,7 @@ describe('member notification settings view', () => {
 
   it('carries the digest schedule of the community, and lists only open spaces with their names', async () => {
     const { svc } = build({ digest: WEEKLY, openSpaces: ['spc_practice'] });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     expect(view?.digest).toEqual(WEEKLY);
     expect(
       view?.categories
@@ -227,7 +235,7 @@ describe('member notification settings view', () => {
 
   it('omits a channel the deployment does not have', async () => {
     const { svc } = build({ configured: ['inApp'] });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     expect(view?.categories.map((c) => c.channels.map((r) => r.channel))).toEqual([
       ['inApp'],
       ['inApp'],
@@ -237,7 +245,7 @@ describe('member notification settings view', () => {
 
   it('lists channels inApp, email, push, then the rest, whatever the registry order', async () => {
     const { svc } = build({ configured: ['inApp', 'sms', 'push', 'email'] });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     expect(view?.categories.map((c) => c.channels.map((r) => r.channel))).toEqual([
       ['inApp', 'email'],
       ['inApp', 'email', 'push'],
@@ -251,14 +259,14 @@ describe('member notification settings view', () => {
 
   it('lists no spaces when the member can open none', async () => {
     const { svc } = build({ openSpaces: [] });
-    const view = await svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1');
+    const view = await svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah);
     expect(view?.categories.find((c) => c.key === 'new_posts')?.spaces).toEqual([]);
   });
 
   it('answers null for someone who cannot open the community', async () => {
     const { svc, asked } = build({ member: false });
     await expect(
-      svc.communityNotificationSettings('org_1', sarah, 'usr_sarah', 'cmy_1'),
+      svc.communityNotificationSettings('usr_sarah', 'cmy_1', sarah),
     ).resolves.toBeNull();
     expect(asked).toEqual([]);
   });
@@ -267,7 +275,7 @@ describe('member notification settings view', () => {
     const { svc, asked } = build({
       settings: [setting({ communityId: null, category: 'access', channel: 'inApp' })],
     });
-    await expect(svc.orgNotificationSettings('org_1', 'usr_sarah')).resolves.toEqual({
+    await expect(svc.orgNotificationSettings('usr_sarah', sarah)).resolves.toEqual({
       categories: [
         {
           key: 'access',
