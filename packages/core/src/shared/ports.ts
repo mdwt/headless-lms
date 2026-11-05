@@ -73,6 +73,22 @@ export interface EventBus {
   subscribeAll(handler: (event: DomainEvent) => Promise<void>): void;
 }
 
+/** Messages published on any instance, delivered to every subscriber on every
+ *  instance, the publisher's included. Best effort: a subscriber can miss
+ *  messages while its instance is disconnected; `onReset` fires after every
+ *  reconnect. No ordering is promised. `start` never fails on connectivity:
+ *  it keeps reconnecting and fires `onReset` once connected. */
+export interface PubSub {
+  publish(channel: string, message: JsonValue): Promise<void>;
+  subscribe(
+    channel: string,
+    handler: (message: JsonValue) => void,
+    onReset: () => void,
+  ): () => void;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
 // --- Transactional outbox ----------------------------------------------------
 // Producer side: services append events inside a UnitOfWork — the append and
 // the domain write commit in ONE transaction. Relay side: the poller drains
