@@ -1778,3 +1778,109 @@ describe('permissions', () => {
     await expect(svc.createCommunity({ title: 'New' }, host)).rejects.toThrow(ForbiddenError);
   });
 });
+
+describe('a moderator reads the community', () => {
+  const MODERATOR = actorWith({
+    orgId: 'org1',
+    id: 'ou_emma',
+    content: { cmy_1: ['communities:moderate'] },
+  });
+
+  it('refuses the community, its spaces and the list without communities:read or communities:moderate', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    const nobody = actorWith({ orgId: 'org1' });
+
+    await expect(svc.getCommunity('cmy_1', nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.listSpaces('cmy_1', nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.listCommunities({ page: 1, pageSize: 20 }, nobody)).rejects.toThrow(
+      ForbiddenError,
+    );
+    expect(repo.findCommunityById).not.toHaveBeenCalled();
+    expect(repo.listCommunities).not.toHaveBeenCalled();
+  });
+
+  it('reads the community and its spaces with communities:moderate on it', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity({ id: 'cmy_1' }));
+    vi.mocked(repo.listSpaces).mockResolvedValue([]);
+    const { svc } = build(repo);
+
+    await expect(svc.getCommunity('cmy_1', MODERATOR)).resolves.toMatchObject({ id: 'cmy_1' });
+    await expect(svc.listSpaces('cmy_1', MODERATOR)).resolves.toEqual([]);
+  });
+
+  it('refuses another community to a moderator of one', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+
+    await expect(svc.getCommunity('cmy_2', MODERATOR)).rejects.toThrow(ForbiddenError);
+    await expect(svc.listSpaces('cmy_2', MODERATOR)).rejects.toThrow(ForbiddenError);
+    await expect(svc.updateCommunity('cmy_1', { title: 'Spring' }, MODERATOR)).rejects.toThrow(
+      ForbiddenError,
+    );
+    expect(repo.findCommunityById).not.toHaveBeenCalled();
+  });
+
+  it('lists the union of the communities a person reads and moderates', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listCommunities).mockResolvedValue({
+      rows: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+    const { svc } = build(repo);
+    const both = actorWith({
+      orgId: 'org1',
+      content: { cmy_1: ['communities:moderate'], cmy_2: ['communities:read'] },
+    });
+    const moderatesOnOrg = actorWith({
+      orgId: 'org1',
+      org: ['communities:moderate'],
+      content: { cmy_2: ['communities:read'] },
+    });
+
+    await svc.listCommunities({ page: 1, pageSize: 20 }, MODERATOR);
+    await svc.listCommunities({ page: 1, pageSize: 20 }, both);
+    await svc.listCommunities({ page: 1, pageSize: 20 }, moderatesOnOrg);
+
+    expect(vi.mocked(repo.listCommunities).mock.calls.map((call) => call[2])).toEqual([
+      ['cmy_1'],
+      ['cmy_2', 'cmy_1'],
+      undefined,
+    ]);
+  });
+});
+
+describe('item reads', () => {
+  it('throws NotFoundError for a missing course, download, bundle or community', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCourseById).mockResolvedValue(null);
+    vi.mocked(repo.getDownload).mockResolvedValue(null);
+    vi.mocked(repo.findBundleById).mockResolvedValue(null);
+    vi.mocked(repo.findCommunityById).mockResolvedValue(null);
+    const { svc } = build(repo);
+    const owner = ownerIn('org1');
+
+    await expect(svc.getCourse('crs_x', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.getDownload('dl_x', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.getBundle('bnd_x', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.getCommunity('cmy_x', owner)).rejects.toThrow(NotFoundError);
+  });
+
+  it('answers null for a missing item on the find reads', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCourseById).mockResolvedValue(null);
+    vi.mocked(repo.getDownload).mockResolvedValue(null);
+    vi.mocked(repo.findBundleById).mockResolvedValue(null);
+    vi.mocked(repo.findCommunityById).mockResolvedValue(null);
+    const { svc } = build(repo);
+    const owner = ownerIn('org1');
+
+    await expect(svc.findCourse('crs_x', owner)).resolves.toBeNull();
+    await expect(svc.findDownload('dl_x', owner)).resolves.toBeNull();
+    await expect(svc.findBundle('bnd_x', owner)).resolves.toBeNull();
+    await expect(svc.findCommunity('cmy_x', owner)).resolves.toBeNull();
+  });
+});

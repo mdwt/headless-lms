@@ -61,7 +61,7 @@ function build(options: {
     },
     content: {
       listSpaces: async () => SPACES,
-      getCommunity: async () => ({ settings: { digest: options.digest ?? null } }),
+      findCommunity: async () => ({ settings: { digest: options.digest ?? null } }),
     } as unknown as ContentServicePort,
     progress: {} as never,
     files: { signFile: async () => null },

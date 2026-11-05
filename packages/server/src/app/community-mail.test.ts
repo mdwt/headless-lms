@@ -14,12 +14,12 @@ const reject = async (): Promise<never> => {
 function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
   return {
     content: {
-      getCommunity: reject,
+      findCommunity: reject,
       getSpace: reject,
       listCommunitiesById: reject,
-      getCourse: reject,
-      getDownload: reject,
-      getBundle: reject,
+      findCourse: reject,
+      findDownload: reject,
+      findBundle: reject,
     },
     entitlements: {
       openSpacesFor: reject,
@@ -200,7 +200,9 @@ describe('communityMail', () => {
     const getSpace = vi.fn(
       async () => ({ name: 'Practice', communityId: 'cmy_1', capacity: null }) as never,
     );
-    const { mail } = communityMail(deps({ content: content({ getCommunity, getSpace }) }));
+    const { mail } = communityMail(
+      deps({ content: content({ findCommunity: getCommunity, getSpace }) }),
+    );
 
     await expect(mail.communityTitle('org_1', 'cmy_1')).resolves.toBe('Spring cohort');
     await expect(mail.space('org_1', 'spc_1')).resolves.toEqual({
@@ -216,10 +218,10 @@ describe('communityMail', () => {
     const { mail } = communityMail(
       deps({
         content: content({
-          getBundle: async () => ({ name: 'All access' }) as never,
-          getCourse: async () => null,
-          getDownload: async () => null,
-          getCommunity: async () => ({ title: 'Spring cohort', type: 'community' }) as never,
+          findBundle: async () => ({ name: 'All access' }) as never,
+          findCourse: async () => null,
+          findDownload: async () => null,
+          findCommunity: async () => ({ title: 'Spring cohort', type: 'community' }) as never,
         }),
       }),
     );

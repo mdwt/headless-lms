@@ -49,7 +49,7 @@ export interface ContentAccessReader {
 
 export type CourseReader = Pick<
   CourseManagementService,
-  'getActivity' | 'getCourse' | 'listCourseModules' | 'listCourseActivities'
+  'getActivity' | 'findCourse' | 'listCourseModules' | 'listCourseActivities'
 >;
 
 export interface SystemActors {

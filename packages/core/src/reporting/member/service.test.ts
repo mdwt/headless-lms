@@ -115,7 +115,7 @@ function fakeContent(
   activities: Record<string, Activity[]> = {},
 ): ContentServicePort {
   return {
-    getCourse: async (id: string) => courses[id] ?? null,
+    findCourse: async (id: string) => courses[id] ?? null,
     listCourseModules: async (courseId: string) => modules[courseId] ?? [],
     listCourseActivities: async (courseId: string) => activities[courseId] ?? [],
     listCourseActivityViews: async (courseId: string) =>
@@ -190,7 +190,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
   };
   return {
     listCourses: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getCourse: async () => null,
+    findCourse: async () => null,
     createCourse: rejectMutation,
     updateCourse: rejectMutation,
     patchCourseSettings: rejectMutation,
@@ -209,7 +209,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     saveActivity: rejectMutation,
     deleteActivity: rejectMutation,
     listDownloads: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getDownload: async () => null,
+    findDownload: async () => null,
     createDownload: rejectMutation,
     updateDownload: rejectMutation,
     removeDownload: rejectMutation,
@@ -219,7 +219,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     renameDownloadAsset: rejectMutation,
     reorderDownloadAssets: rejectMutation,
     listCommunities: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getCommunity: async () => null,
+    findCommunity: async () => null,
     listCommunitiesById: async () => [],
     communitiesWithDigest: async () => [],
     createCommunity: rejectMutation,
@@ -422,7 +422,7 @@ describe('file URLs', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService({
-        getCourse: async () => ({ ...course('c1'), thumbnailUrl: null }),
+        findCourse: async () => ({ ...course('c1'), thumbnailUrl: null }),
         listCourseActivityViews: async () => views,
       }),
       progress: fakeProgress([]),
@@ -465,7 +465,7 @@ describe('file URLs', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService({
-        getDownload: async () => download,
+        findDownload: async () => download,
         listDownloadAssets: async () => files,
       }),
       progress: fakeProgress([]),
@@ -479,7 +479,7 @@ describe('file URLs', () => {
   it('serves no download the student is not entitled to', async () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
-      content: fakeContentService({ getDownload: async () => ({ status: 'published' }) as never }),
+      content: fakeContentService({ findDownload: async () => ({ status: 'published' }) as never }),
       progress: fakeProgress([]),
       ...deps,
     });
@@ -507,7 +507,7 @@ describe('file URLs', () => {
           pageSize: query.pageSize,
         }),
       }),
-      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      content: fakeContentService({ findCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
       files,
       fileUrls,
@@ -760,10 +760,10 @@ describe('serving files', () => {
     const svc = new MemberReportServiceImpl({
       repo: { ...fakeRepo(), ...over.repo },
       content: fakeContentService({
-        getCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
+        findCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
         getActivity: async (id) => (id === 'a1' ? activity('a1', 0) : null),
         listCourseActivityAssets: async () => [link('a1', 'ast_video')],
-        getDownload: async () =>
+        findDownload: async () =>
           ({ id: 'd1', status: 'published', thumbnailAssetId: 'ast_thumb' }) as never,
         listDownloadAssets: async () => [file('ast_pdf', 'Workbook.pdf'), file('ast_notes', null)],
         ...over.content,
@@ -806,7 +806,7 @@ describe('serving files', () => {
       NotFoundError,
     );
     const draftCourse = build({
-      content: { getCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
+      content: { findCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
     });
     await expect(draftCourse.svc.activityFile('a1', 'ast_video', student)).rejects.toThrow(
       NotFoundError,
@@ -838,7 +838,7 @@ describe('serving files', () => {
     expect(await svc.thumbnailFile('download', 'd1', student)).toBe('https://signed/ast_thumb');
     const draft = build({
       content: {
-        getCourse: async () =>
+        findCourse: async () =>
           ({
             ...course('c1', 'draft'),
             thumbnailAssetId: 'ast_cover',
@@ -930,7 +930,7 @@ describe('community home', () => {
     new MemberReportServiceImpl({
       repo: fakeEntitlementReader({ spaceMemberCounts: async () => ({ spc_request: 4 }) }),
       content: fakeContentService({
-        getCommunity: async (id) =>
+        findCommunity: async (id) =>
           id === 'cmy_1'
             ? ({
                 id,
@@ -943,11 +943,11 @@ describe('community home', () => {
             : null,
         listSpaces: async () => spaces,
         getSpace: async (id) => spaces.find((row) => row.id === id) ?? null,
-        getCourse: async (id) =>
+        findCourse: async (id) =>
           id === 'c1' || id === 'c_draft'
             ? { ...course(id, id === 'c1' ? 'published' : 'draft'), thumbnailUrl: null }
             : null,
-        getDownload: async (id) =>
+        findDownload: async (id) =>
           id === 'd_draft' ? ({ id, title: 'Draft pack', status: 'draft' } as never) : null,
       }),
       progress: fakeProgress([]),
@@ -1082,11 +1082,12 @@ describe('read permissions open content without a grant', () => {
     new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCourse: async (id) => (id === 'c1' || id === 'c2' ? { ...draftCourse, id } : null),
+        findCourse: async (id) => (id === 'c1' || id === 'c2' ? { ...draftCourse, id } : null),
         listCourseModules: async () => progressModules,
-        getDownload: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_dl' }) as never,
+        findDownload: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_dl' }) as never,
         listDownloadAssets: async () => [],
-        getCommunity: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_cmy' }) as never,
+        findCommunity: async (id) =>
+          ({ id, status: 'draft', thumbnailAssetId: 'ast_cmy' }) as never,
       }),
       progress: fakeProgress([]),
       ...deps,
@@ -1126,7 +1127,7 @@ describe('a learner with a grant', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCourse: async (id, actor) =>
+        findCourse: async (id, actor) =>
           record(actor, id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
         listCourseModules: async (_id, actor) => record(actor, progressModules),
         listCourseActivityViews: async (_id, actor) =>
@@ -1161,7 +1162,7 @@ describe('a learner with a grant', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCommunity: getCommunity as never,
+        findCommunity: getCommunity as never,
         listSpaces: async () => [],
       }),
       progress: fakeProgress([]),
@@ -1185,7 +1186,7 @@ describe('a learner with a grant', () => {
     const moderated = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCommunity: getCommunity as never,
+        findCommunity: getCommunity as never,
         listSpaces: async () => [],
       }),
       progress: fakeProgress([]),
@@ -1234,7 +1235,7 @@ describe('directory and viewer', () => {
     const holders = vi.fn(async () => ['ou_sarah']);
     const svc = new MemberReportServiceImpl({
       repo: { ...fakeRepo(), directory },
-      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      content: fakeContentService({ findCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
       ...deps,
       access: { ...deps.access, isCommunityMember: async () => true },

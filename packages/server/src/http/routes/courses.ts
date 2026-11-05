@@ -16,7 +16,6 @@ import {
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
 
@@ -58,11 +57,7 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const course = await courses.getCourse(req.params.id, actor);
-      if (!course) {
-        throw new NotFoundError('Course', req.params.id);
-      }
-      return course;
+      return courses.getCourse(req.params.id, actor);
     },
   });
 

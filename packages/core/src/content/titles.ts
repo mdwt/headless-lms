@@ -13,7 +13,7 @@ function isPublishedActivity(activity: Pick<Activity, 'settings'>): boolean {
 
 type TitleReads = Pick<
   ContentService,
-  'getCourse' | 'getActivity' | 'getDownload' | 'getSpace' | 'getCommunity' | 'getBundle'
+  'findCourse' | 'getActivity' | 'findDownload' | 'getSpace' | 'findCommunity' | 'findBundle'
 > &
   Pick<ContentService, 'listBundleItems'>;
 
@@ -44,7 +44,7 @@ export class ContentItemTitles implements ItemTitles {
     const can = actor.permissions;
     switch (ref.type) {
       case 'course': {
-        const course = await this.deps.content.getCourse(ref.id, system);
+        const course = await this.deps.content.findCourse(ref.id, system);
         return course &&
           (can.has('courses:read', course.id) || (await this.opensCourse(actor, course)))
           ? course.title
@@ -58,13 +58,13 @@ export class ContentItemTitles implements ItemTitles {
         if (can.has('courses:read', activity.courseId)) {
           return activityTitle(activity);
         }
-        const course = await this.deps.content.getCourse(activity.courseId, system);
+        const course = await this.deps.content.findCourse(activity.courseId, system);
         return course && isPublishedActivity(activity) && (await this.opensCourse(actor, course))
           ? activityTitle(activity)
           : null;
       }
       case 'download': {
-        const download = await this.deps.content.getDownload(ref.id, system);
+        const download = await this.deps.content.findDownload(ref.id, system);
         if (!download) {
           return null;
         }
@@ -75,7 +75,7 @@ export class ContentItemTitles implements ItemTitles {
           : null;
       }
       case 'bundle': {
-        const bundle = await this.deps.content.getBundle(ref.id, system);
+        const bundle = await this.deps.content.findBundle(ref.id, system);
         if (!bundle) {
           return null;
         }
@@ -84,7 +84,7 @@ export class ContentItemTitles implements ItemTitles {
           : null;
       }
       case 'community': {
-        const community = await this.deps.content.getCommunity(ref.id, system);
+        const community = await this.deps.content.findCommunity(ref.id, system);
         return community && (await this.deps.access.isCommunityMember(ref.id, actor))
           ? community.title
           : null;

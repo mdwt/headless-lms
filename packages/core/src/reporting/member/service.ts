@@ -86,15 +86,15 @@ type MemberAccess = Pick<
 
 type MemberContent = Pick<
   ContentServicePort,
-  | 'getCourse'
+  | 'findCourse'
   | 'listCourseModules'
   | 'listCourseActivityViews'
   | 'listCourseActivities'
   | 'listCourseActivityAssets'
   | 'getActivity'
-  | 'getDownload'
+  | 'findDownload'
   | 'listDownloadAssets'
-  | 'getCommunity'
+  | 'findCommunity'
   | 'listSpaces'
   | 'getSpace'
 >;
@@ -191,7 +191,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       this.notificationSettings.get(orgId, actor.userId, { communityId }),
       this.access.openSpaceIds(communityId, actor),
       this.content.listSpaces(communityId, system),
-      this.content.getCommunity(communityId, system),
+      this.content.findCommunity(communityId, system),
     ]);
     const open = new Set(spaceIds);
     return {
@@ -347,7 +347,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!reads && !(await this.access.hasAccess(actor.orgId, actor.id, courseId))) {
       return null;
     }
-    const course = await this.content.getCourse(courseId, this.system(actor));
+    const course = await this.content.findCourse(courseId, this.system(actor));
     return course && (reads || course.status === 'published') ? course : null;
   }
 
@@ -356,14 +356,14 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!reads && !(await this.access.hasAccess(actor.orgId, actor.id, downloadId))) {
       return null;
     }
-    const download = await this.content.getDownload(downloadId, this.system(actor));
+    const download = await this.content.findDownload(downloadId, this.system(actor));
     return download && (reads || download.status === 'published') ? download : null;
   }
 
   async listCourses(actor: Actor): Promise<CourseView[]> {
     const ids = await this.access.listAccessibleContent(actor.orgId, actor.id, 'course');
     const system = this.system(actor);
-    const courses = await Promise.all(ids.map((id) => this.content.getCourse(id, system)));
+    const courses = await Promise.all(ids.map((id) => this.content.findCourse(id, system)));
     return courses.filter((c): c is CourseView => c !== null && c.status === 'published');
   }
 
@@ -427,7 +427,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   async listDownloads(actor: Actor): Promise<DownloadView[]> {
     const ids = await this.access.listAccessibleContent(actor.orgId, actor.id, 'download');
     const system = this.system(actor);
-    const rows = await Promise.all(ids.map((id) => this.content.getDownload(id, system)));
+    const rows = await Promise.all(ids.map((id) => this.content.findDownload(id, system)));
     return rows.filter((d): d is DownloadView => d !== null && d.status === 'published');
   }
 
@@ -451,10 +451,10 @@ export class MemberReportServiceImpl implements MemberReportService {
     const system = this.system(actor);
     const item =
       owner === 'course'
-        ? await this.content.getCourse(id, system)
+        ? await this.content.findCourse(id, system)
         : owner === 'download'
-          ? await this.content.getDownload(id, system)
-          : await this.content.getCommunity(id, system);
+          ? await this.content.findDownload(id, system)
+          : await this.content.findCommunity(id, system);
     if (
       !item?.thumbnailAssetId ||
       (item.status !== 'published' && !actor.permissions.has(READ_OF[owner], id))
@@ -528,7 +528,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       throw new NotFoundError('Community', communityId);
     }
     const orgId = actor.orgId;
-    const community = await this.content.getCommunity(communityId, this.system(actor));
+    const community = await this.content.findCommunity(communityId, this.system(actor));
     if (!community) {
       throw new NotFoundError('Community', communityId);
     }
@@ -563,7 +563,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       throw new NotFoundError('Community', communityId);
     }
     const system = this.system(actor);
-    const community = await this.content.getCommunity(communityId, system);
+    const community = await this.content.findCommunity(communityId, system);
     if (!community) {
       throw new NotFoundError('Community', communityId);
     }
@@ -667,19 +667,19 @@ export class MemberReportServiceImpl implements MemberReportService {
       status === 'published' || actor.permissions.has(READ_OF[type], id);
     const views = await Promise.all(
       links.map(async (link): Promise<CommunityHomeLink | null> => {
-        const course = await this.content.getCourse(link.contentId, system);
+        const course = await this.content.findCourse(link.contentId, system);
         if (course) {
           return shown('course', link.contentId, course.status)
             ? { id: link.id, contentId: link.contentId, type: 'course', title: course.title }
             : null;
         }
-        const download = await this.content.getDownload(link.contentId, system);
+        const download = await this.content.findDownload(link.contentId, system);
         if (download) {
           return shown('download', link.contentId, download.status)
             ? { id: link.id, contentId: link.contentId, type: 'download', title: download.title }
             : null;
         }
-        const community = await this.content.getCommunity(link.contentId, system);
+        const community = await this.content.findCommunity(link.contentId, system);
         if (community) {
           return shown('community', link.contentId, community.status)
             ? { id: link.id, contentId: link.contentId, type: 'community', title: community.title }

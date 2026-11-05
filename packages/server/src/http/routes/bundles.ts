@@ -18,7 +18,6 @@ import {
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
 
@@ -60,11 +59,7 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const bundle = await content.getBundle(req.params.bundleId, actor);
-      if (!bundle) {
-        throw new NotFoundError('Bundle', req.params.bundleId);
-      }
-      return bundle;
+      return content.getBundle(req.params.bundleId, actor);
     },
   });
 

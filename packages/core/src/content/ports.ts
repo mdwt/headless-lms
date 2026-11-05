@@ -89,7 +89,8 @@ export interface CommunityDigest {
 
 export interface CommunitiesService extends CommunityReader {
   listCommunities(query: ListCommunitiesQuery, actor: Actor): Promise<Page<CommunityView>>;
-  getCommunity(id: string, actor: Actor): Promise<CommunityView | null>;
+  getCommunity(id: string, actor: Actor): Promise<CommunityView>;
+  findCommunity(id: string, actor: Actor): Promise<CommunityView | null>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
   listCommunitiesById(ids: string[], actor: Actor): Promise<Community[]>;
   getCommunitySpace(communityId: string, spaceId: string, actor: Actor): Promise<SpaceDetail>;
@@ -141,7 +142,8 @@ export interface CommunitiesService extends CommunityReader {
 
 export interface CourseManagementService {
   listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>>;
-  getCourse(id: string, actor: Actor): Promise<CourseView | null>;
+  getCourse(id: string, actor: Actor): Promise<CourseView>;
+  findCourse(id: string, actor: Actor): Promise<CourseView | null>;
   createCourse(input: CreateCourseInput, actor: Actor): Promise<CourseView>;
   /** @throws NotFoundError when no course with this id exists in the org. */
   updateCourse(id: string, patch: UpdateCourseInput, actor: Actor): Promise<CourseView>;
@@ -192,7 +194,8 @@ export interface CourseManagementService {
 
 export interface DownloadablesService {
   listDownloads(query: ListDownloadsQuery, actor: Actor): Promise<Page<DownloadView>>;
-  getDownload(id: string, actor: Actor): Promise<DownloadView | null>;
+  getDownload(id: string, actor: Actor): Promise<DownloadView>;
+  findDownload(id: string, actor: Actor): Promise<DownloadView | null>;
   createDownload(input: CreateDownloadInput, actor: Actor): Promise<DownloadView>;
   /** @throws NotFoundError when no download with this id exists in the org. */
   updateDownload(id: string, patch: UpdateDownloadInput, actor: Actor): Promise<DownloadView>;
@@ -222,7 +225,8 @@ export interface DownloadablesService {
 
 export interface BundlesService {
   listBundles(query: ListBundlesQuery, actor: Actor): Promise<Page<Bundle>>;
-  getBundle(id: string, actor: Actor): Promise<Bundle | null>;
+  getBundle(id: string, actor: Actor): Promise<Bundle>;
+  findBundle(id: string, actor: Actor): Promise<Bundle | null>;
   /** Bundle and its initial items are created together, or not at all.
    *  @throws NotFoundError when an initial content id does not exist in the org. */
   createBundle(input: CreateBundleInput, actor: Actor): Promise<Bundle>;

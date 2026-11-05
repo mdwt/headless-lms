@@ -14,7 +14,12 @@ import { NotFoundError } from '@headless-lms/core/shared/errors';
 export type CommunityMailDeps = {
   content: Pick<
     ContentService,
-    'getCommunity' | 'getSpace' | 'listCommunitiesById' | 'getCourse' | 'getDownload' | 'getBundle'
+    | 'findCommunity'
+    | 'getSpace'
+    | 'listCommunitiesById'
+    | 'findCourse'
+    | 'findDownload'
+    | 'findBundle'
   >;
   entitlements: Pick<
     EntitlementsService,
@@ -51,7 +56,7 @@ export function communityMail(deps: CommunityMailDeps): {
   const system = (orgId: string) => deps.organizations.systemActor(orgId);
   const mail: Omit<CommunityMailReads, 'recentMessageRecipients'> = {
     async communityTitle(orgId, communityId) {
-      return (await deps.content.getCommunity(communityId, system(orgId)))?.title ?? null;
+      return (await deps.content.findCommunity(communityId, system(orgId)))?.title ?? null;
     },
     async space(orgId, spaceId) {
       const space = await deps.content.getSpace(spaceId, system(orgId));
@@ -95,18 +100,18 @@ export function communityMail(deps: CommunityMailDeps): {
     async contentInfo(orgId, item) {
       const actor = system(orgId);
       if ('bundleId' in item) {
-        const bundle = await deps.content.getBundle(item.bundleId, actor);
+        const bundle = await deps.content.findBundle(item.bundleId, actor);
         return bundle ? { title: bundle.name, type: 'bundle' } : null;
       }
-      const course = await deps.content.getCourse(item.contentId, actor);
+      const course = await deps.content.findCourse(item.contentId, actor);
       if (course) {
         return { title: course.title, type: course.type };
       }
-      const download = await deps.content.getDownload(item.contentId, actor);
+      const download = await deps.content.findDownload(item.contentId, actor);
       if (download) {
         return { title: download.title, type: download.type };
       }
-      const community = await deps.content.getCommunity(item.contentId, actor);
+      const community = await deps.content.findCommunity(item.contentId, actor);
       return community ? { title: community.title, type: community.type } : null;
     },
     async displayName(orgId, orgUserId) {
