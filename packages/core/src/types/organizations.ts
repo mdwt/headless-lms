@@ -15,7 +15,12 @@ export type {
   UpdateOrgUserInput,
   CreateInviteInput,
   AcceptInviteInput,
+  Level,
+  Permission,
+  RoleKey,
 } from './schemas/organizations.js';
+
+export type ContentId = string;
 
 export type OrganizationId = string;
 export type OrgUserId = string;

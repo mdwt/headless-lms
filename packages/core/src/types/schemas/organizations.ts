@@ -1,5 +1,63 @@
 import { z } from 'zod';
 import { idSchema, emailSchema } from './shared.js';
+import { contentTypeSchema } from './content.js';
+
+export const levelSchema = z.union([z.literal('org'), z.lazy(() => contentTypeSchema)]);
+export type Level = z.infer<typeof levelSchema>;
+
+export const PERMISSION_KEYS = [
+  'organizations:read',
+  'organizations:write',
+  'api_keys:read',
+  'api_keys:write',
+  'api_keys:delete',
+  'notification_categories:read',
+  'notification_categories:write',
+  'integrations:read',
+  'integrations:write',
+  'integrations:delete',
+  'analytics:read',
+  'people:read',
+  'people:write',
+  'people:delete',
+  'roles:read',
+  'roles:write',
+  'roles:delete',
+  'access:read',
+  'access:write',
+  'bundles:read',
+  'bundles:write',
+  'bundles:delete',
+  'media:read',
+  'media:write',
+  'media:delete',
+  'courses:read',
+  'courses:write',
+  'courses:delete',
+  'courses:moderate',
+  'progress:read',
+  'downloads:read',
+  'downloads:write',
+  'downloads:delete',
+  'communities:read',
+  'communities:write',
+  'communities:delete',
+  'communities:moderate',
+  'automations:read',
+  'automations:write',
+  'automations:delete',
+] as const;
+
+export const permissionSchema = z.enum(PERMISSION_KEYS);
+export type Permission = z.infer<typeof permissionSchema>;
+
+export const roleKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z][a-z0-9_]*$/, 'A role key is lowercase letters, digits and underscores');
+export type RoleKey = z.infer<typeof roleKeySchema>;
 
 export const roleSchema = z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']);
 export type Role = z.infer<typeof roleSchema>;
