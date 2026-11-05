@@ -24,10 +24,9 @@ import type {
   SubscriptionItemType,
   SubscriptionView,
 } from '../types/index.js';
-import type { CommunityDigest, SpaceDetail } from '../content/index.js';
+import type { CommunityDigest, DmSettings, SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
-import type { Actor } from '../shared/actor.js';
-import type { Role } from '../organizations/index.js';
+import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type { Comment, CommentReport } from './model.js';
 import type {
   CommentsConfig,
@@ -59,20 +58,18 @@ export interface CommentWithContext {
 
 export type { Actor } from '../shared/actor.js';
 export type PostCommentInput = {
-  actor: Actor;
   parentId: string | null;
   body: string;
 } & ({ activityId: string; postId?: undefined } | { postId: string; activityId?: undefined });
 
 /** A profile row as the repository loads it, keyed by `org_users.id`. `email`
- *  is stripped before comments are served and kept only for the staff list. */
+ *  is stripped before comments are served and kept only for the moderation list. */
 export interface AuthorRecord {
   id: string;
   firstName: string | null;
   lastName: string | null;
   email: string;
   image: string | null;
-  role: Role;
   displayName: string | null;
   headline: string | null;
   imageAssetOrgId: string | null;
@@ -85,7 +82,7 @@ export interface ItemTitle {
 }
 
 export interface ItemTitles {
-  titlesFor(orgId: string, actor: Actor, refs: SubjectRef[]): Promise<Record<string, ItemTitle>>;
+  titlesFor(refs: SubjectRef[], actor: Actor): Promise<Record<string, ItemTitle>>;
 }
 
 export interface AuthorProfileReader {
@@ -94,72 +91,44 @@ export interface AuthorProfileReader {
 
 export interface DiscussionService {
   /** Post a root comment or a reply. Lands pending where review is required and
-   *  the poster is not staff. */
-  postComment(orgId: string, input: PostCommentInput): Promise<CommentView>;
-  /** Author-only. Throws ForbiddenError for anyone else, staff included. */
-  edit(orgId: string, commentId: string, actor: Actor, body: string): Promise<CommentView>;
-  /** The author, or anyone whose role is staff. */
-  remove(
-    orgId: string,
-    commentId: string,
-    actor: Actor,
-    communityId?: string,
-  ): Promise<CommentView>;
-  /** Staff only. Returns the comment to published. */
-  restore(
-    orgId: string,
-    commentId: string,
-    actor: Actor,
-    communityId?: string,
-  ): Promise<CommentView>;
-  /** Staff only. Publishes a pending comment. */
-  approve(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
-  /** Make a comment published, whichever state it is in. Staff only. */
-  publish(orgId: string, commentId: string, actor: Actor): Promise<Comment>;
+   *  the poster does not skip review. */
+  postComment(input: PostCommentInput, actor: Actor): Promise<CommentView>;
+  /** Reply to a lesson comment as a moderator of its course; a reply to a reply
+   *  attaches to its root. */
+  replyToComment(commentId: string, body: string, actor: Actor): Promise<CommentView>;
+  /** Author-only. Throws ForbiddenError for anyone else, moderators included. */
+  edit(commentId: string, body: string, actor: Actor): Promise<CommentView>;
+  /** The author, or a moderator of where the comment is. */
+  remove(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView>;
+  /** A moderator of where the comment is. Returns the comment to published. */
+  restore(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView>;
+  /** A moderator of where the comment is. Publishes a pending comment. */
+  approve(commentId: string, actor: Actor): Promise<Comment>;
+  /** Make a comment published, whichever state it is in. A moderator of where
+   *  the comment is. */
+  publish(commentId: string, communityId: string | null, actor: Actor): Promise<Comment>;
 
   /** The activity's comments as this reader may see them. */
-  activityComments(orgId: string, activityId: string, actor: Actor): Promise<ActivityComments>;
+  activityComments(activityId: string, actor: Actor): Promise<ActivityComments>;
 
   /** One page of top-level comments, oldest first, each with its replies. */
-  postComments(
-    orgId: string,
-    postId: string,
-    actor: Actor,
-    query: PageQuery,
-  ): Promise<Page<CommentView>>;
+  postComments(postId: string, query: PageQuery, actor: Actor): Promise<Page<CommentView>>;
 
-  /**
-   * The org's comments, filtered. Staff-scoped: rows carry the author's email
-   * and a removed comment's body, neither of which a learner may see, so the
-   * edge admits only staff.
-   *
-   * No rule is applied beyond the filters — this is what exists, not what
-   * someone is allowed to read.
-   */
-  listComments(orgId: string, query: ListCommentsQuery): Promise<Page<CommentListItem>>;
+  /** The lesson comments of the courses the actor moderates, filtered. Rows
+   *  carry the author's email and a removed comment's body. */
+  listComments(query: ListCommentsQuery, actor: Actor): Promise<Page<CommentListItem>>;
 
   setReaction(
-    orgId: string,
     commentId: string,
-    actor: Actor,
     emoji: ReactionEmoji | null,
+    actor: Actor,
   ): Promise<CommentReactions>;
 
-  resolveReports(
-    orgId: string,
-    commentId: string,
-    actor: Actor,
-    communityId?: string,
-  ): Promise<void>;
+  resolveReports(commentId: string, communityId: string | null, actor: Actor): Promise<void>;
 
   /** Accepted even on locked comments — a locked activity can still hold
    *  something a moderator needs to see. */
-  reportComment(
-    orgId: string,
-    commentId: string,
-    actor: Actor,
-    reason: string,
-  ): Promise<CommentReport>;
+  reportComment(commentId: string, reason: string, actor: Actor): Promise<CommentReport>;
 
   /** Plain read of one comment — no rules applied. */
   getComment(orgId: string, commentId: string): Promise<Comment | null>;
@@ -174,7 +143,31 @@ export interface ContentAccessReader {
 }
 
 export interface ActivityGetter {
-  getActivity(orgId: string, activityId: string): Promise<Activity | null>;
+  getActivity(activityId: string, actor: Actor): Promise<Activity | null>;
+}
+
+export interface SpaceReader {
+  getSpace(spaceId: string, actor: Actor): Promise<SpaceDetail | null>;
+  getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null>;
+}
+
+export interface OpenableSpace {
+  id: string;
+  communityId: string;
+  accessRule: SpaceDetail['accessRule'];
+}
+
+export interface CommunityAccess {
+  isCommunityMember(communityId: string, actor: Actor): Promise<boolean>;
+  canOpenSpace(spaceId: string, actor: Actor): Promise<boolean>;
+  canOpen(space: OpenableSpace, actor: Actor): Promise<boolean>;
+  openSpaceIds(communityId: string, actor: Actor): Promise<string[]>;
+  communityMembersAmong(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<string[]>;
+  spaceOpenersAmong(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]>;
 }
 
 export interface DiscussionRepository extends PostCommentReader, AuthorProfileReader {
@@ -220,7 +213,12 @@ export interface DiscussionRepository extends PostCommentReader, AuthorProfileRe
     },
   ): Promise<void>;
 
-  listComments(orgId: string, query: ListCommentsQuery): Promise<Page<CommentWithContext>>;
+  /** `courseIds` limits the rows to those courses; undefined means every course. */
+  listComments(
+    orgId: string,
+    query: ListCommentsQuery,
+    courseIds?: string[],
+  ): Promise<Page<CommentWithContext>>;
 }
 
 /** Writes that emit events run through this scope so the row and the outbox
@@ -232,9 +230,13 @@ export interface DiscussionWriteScope {
 }
 export type DiscussionUnitOfWork = UnitOfWork<DiscussionWriteScope>;
 
-export interface AuthorRoleReader {
-  roleOf(orgId: string, orgUserId: string): Promise<Role | null>;
-  rolesOf(orgId: string, orgUserIds: string[]): Promise<Record<string, Role>>;
+export interface AuthorPermissionReader {
+  permissionsOfMany(
+    orgId: string,
+    orgUserIds: string[],
+  ): Promise<Map<string, EffectivePermissions>>;
+  actorFor(orgId: string, orgUserId: string): Promise<Actor | null>;
+  systemActor(orgId: string): Actor;
 }
 
 export type PostMode = 'draft' | 'submit' | 'schedule';
@@ -321,78 +323,59 @@ export interface PublishedPost {
 }
 
 export interface PostService {
-  visibleTitles(orgId: string, actor: Actor, postIds: string[]): Promise<Record<string, string>>;
+  visibleTitles(postIds: string[], actor: Actor): Promise<Record<string, string>>;
   publishedBetween(
     orgId: string,
     communityId: string,
     from: Date,
     to: Date,
   ): Promise<PublishedPost[]>;
-  create(orgId: string, actor: Actor, input: CreatePostInput): Promise<PostView>;
-  update(orgId: string, postId: string, actor: Actor, patch: UpdatePostInput): Promise<PostView>;
-  submit(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  schedule(orgId: string, postId: string, actor: Actor, scheduledAt: Date): Promise<PostView>;
-  unschedule(orgId: string, postId: string, actor: Actor): Promise<PostView>;
+  create(input: CreatePostInput, actor: Actor): Promise<PostView>;
+  update(postId: string, patch: UpdatePostInput, actor: Actor): Promise<PostView>;
+  submit(postId: string, actor: Actor): Promise<PostView>;
+  schedule(postId: string, scheduledAt: Date, actor: Actor): Promise<PostView>;
+  unschedule(postId: string, actor: Actor): Promise<PostView>;
   publishScheduled(orgId: string, postId: string, now: Date): Promise<void>;
-  approve(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
-  remove(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
-  restore(orgId: string, postId: string, actor: Actor, communityId?: string): Promise<PostView>;
-  pin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  unpin(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  closeComments(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  openComments(orgId: string, postId: string, actor: Actor): Promise<PostView>;
-  setReactions(orgId: string, postId: string, actor: Actor, enabled: boolean): Promise<PostView>;
-  setReaction(
-    orgId: string,
-    postId: string,
-    actor: Actor,
-    emoji: ReactionEmoji | null,
-  ): Promise<PostReactions>;
-  bookmark(orgId: string, postId: string, actor: Actor): Promise<void>;
-  unbookmark(orgId: string, postId: string, actor: Actor): Promise<void>;
-  flag(orgId: string, postId: string, actor: Actor, reason: string): Promise<PostFlag>;
+  approve(postId: string, communityId: string | null, actor: Actor): Promise<PostView>;
+  remove(postId: string, communityId: string | null, actor: Actor): Promise<PostView>;
+  restore(postId: string, communityId: string | null, actor: Actor): Promise<PostView>;
+  pin(postId: string, actor: Actor): Promise<PostView>;
+  unpin(postId: string, actor: Actor): Promise<PostView>;
+  closeComments(postId: string, actor: Actor): Promise<PostView>;
+  openComments(postId: string, actor: Actor): Promise<PostView>;
+  setReactions(postId: string, enabled: boolean, actor: Actor): Promise<PostView>;
+  setReaction(postId: string, emoji: ReactionEmoji | null, actor: Actor): Promise<PostReactions>;
+  bookmark(postId: string, actor: Actor): Promise<void>;
+  unbookmark(postId: string, actor: Actor): Promise<void>;
+  flag(postId: string, reason: string, actor: Actor): Promise<PostFlag>;
   resolveFlags(
-    orgId: string,
     postId: string,
-    actor: Actor,
     resolution: Extract<PostFlagResolution, 'dismissed'>,
-    communityId?: string,
+    communityId: string | null,
+    actor: Actor,
   ): Promise<void>;
   spaceFeed(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     query: FeedQuery,
+    actor: Actor,
   ): Promise<Page<PostView>>;
   memberFeed(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
-  ): Promise<Page<PostView>>;
-  listOwn(
-    orgId: string,
     actor: Actor,
-    communityId: string,
-    query: PageQuery,
   ): Promise<Page<PostView>>;
-  listBookmarked(
-    orgId: string,
-    actor: Actor,
-    communityId: string,
-    query: PageQuery,
-  ): Promise<Page<PostView>>;
+  listOwn(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
+  listBookmarked(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   /** Signed URL of the post's cover, for whoever can read the post. */
-  coverFile(orgId: string, actor: Actor, postId: string): Promise<string | null>;
-  getPost(orgId: string, actor: Actor, postId: string): Promise<PostView>;
-  visible(orgId: string, actor: Actor, postId: string): Promise<{ post: Post; space: SpaceDetail }>;
+  coverFile(postId: string, actor: Actor): Promise<string | null>;
+  getPost(postId: string, actor: Actor): Promise<PostView>;
+  visible(postId: string, actor: Actor): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
   moderationQueue(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
+    actor: Actor,
   ): Promise<SpaceModerationQueue>;
 }
 
@@ -534,39 +517,32 @@ export interface MessageQueue {
 }
 
 export interface ChatService {
-  startDirect(orgId: string, actor: Actor, input: StartDirectInput): Promise<Chat>;
-  startGroup(orgId: string, actor: Actor, input: StartGroupInput): Promise<Chat>;
-  addParticipant(orgId: string, actor: Actor, chatId: string, orgUserId: string): Promise<Chat>;
-  leave(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
-  accept(orgId: string, actor: Actor, chatId: string): Promise<Chat>;
-  send(orgId: string, actor: Actor, chatId: string, input: SendMessageInput): Promise<MessageView>;
-  editMessage(orgId: string, actor: Actor, messageId: string, body: string): Promise<MessageView>;
-  deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView>;
+  startDirect(input: StartDirectInput, actor: Actor): Promise<Chat>;
+  startGroup(input: StartGroupInput, actor: Actor): Promise<Chat>;
+  addParticipant(chatId: string, orgUserId: string, actor: Actor): Promise<Chat>;
+  leave(chatId: string, actor: Actor): Promise<Chat>;
+  accept(chatId: string, actor: Actor): Promise<Chat>;
+  send(chatId: string, input: SendMessageInput, actor: Actor): Promise<MessageView>;
+  editMessage(messageId: string, body: string, actor: Actor): Promise<MessageView>;
+  deleteMessage(messageId: string, actor: Actor): Promise<MessageView>;
   setReaction(
-    orgId: string,
-    actor: Actor,
     messageId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<MessageReactions>;
-  markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void>;
-  block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
-  unblock(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void>;
-  flagMessage(orgId: string, actor: Actor, messageId: string, reason: string): Promise<MessageFlag>;
-  resolveMessageFlags(
-    orgId: string,
     actor: Actor,
+  ): Promise<MessageReactions>;
+  markRead(chatId: string, messageId: string, actor: Actor): Promise<void>;
+  block(communityId: string, orgUserId: string, actor: Actor): Promise<void>;
+  unblock(communityId: string, orgUserId: string, actor: Actor): Promise<void>;
+  flagMessage(messageId: string, reason: string, actor: Actor): Promise<MessageFlag>;
+  resolveMessageFlags(
     messageId: string,
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
-    communityId?: string,
-  ): Promise<void>;
-  lock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat>;
-  unlock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat>;
-  listChats(
-    orgId: string,
+    communityId: string | null,
     actor: Actor,
-    communityId: string,
-    query: PageQuery,
-  ): Promise<Page<ChatListItem>>;
+  ): Promise<void>;
+  lock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat>;
+  unlock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat>;
+  listChats(communityId: string, query: PageQuery, actor: Actor): Promise<Page<ChatListItem>>;
   chatSummary(
     orgId: string,
     chatId: string,
@@ -575,23 +551,22 @@ export interface ChatService {
   unreadInChat(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread>;
   findMessage(orgId: string, messageId: string): Promise<Message | null>;
   isBlocked(orgId: string, communityId: string, a: string, b: string): Promise<boolean>;
-  titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>>;
+  titlesFor(chatIds: string[], actor: Actor): Promise<Record<string, string>>;
   messages(
-    orgId: string,
-    actor: Actor,
     chatId: string,
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
+    actor: Actor,
   ): Promise<Page<MessageView>>;
   /** Signed URL of a message attachment: for the chat's participants while the
-   *  message stands (staff also after deletion), and for staff while it is flagged. */
+   *  message stands (moderators also after deletion), and for moderators while
+   *  it is flagged. */
   attachmentFile(
-    orgId: string,
-    actor: Actor,
     chatId: string,
     messageId: string,
     assetId: string,
+    actor: Actor,
   ): Promise<string | null>;
-  messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue>;
+  messageQueue(communityId: string, actor: Actor): Promise<MessageQueue>;
 }
 
 export interface ChatRepository {
@@ -701,9 +676,9 @@ export type SubscriptionInput =
 export type MuteInput = Exclude<SubscriptionInput, { state: 'following' }>;
 
 export interface SubscriptionService {
-  setPost(orgId: string, actor: Actor, postId: string, input: SubscriptionInput): Promise<void>;
-  setSpace(orgId: string, actor: Actor, spaceId: string, input: MuteInput): Promise<void>;
-  setChat(orgId: string, actor: Actor, chatId: string, input: MuteInput): Promise<void>;
+  setPost(postId: string, input: SubscriptionInput, actor: Actor): Promise<void>;
+  setSpace(spaceId: string, input: MuteInput, actor: Actor): Promise<void>;
+  setChat(chatId: string, input: MuteInput, actor: Actor): Promise<void>;
   viewerSubscriptions(
     orgId: string,
     orgUserId: string,

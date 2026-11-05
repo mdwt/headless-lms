@@ -1091,8 +1091,8 @@ function makeCommunity(over: Partial<Community> = {}): Community {
       dm: {
         enabled: true,
         memberToMember: true,
-        memberToStaff: true,
-        staffToAnyone: true,
+        memberToTeam: true,
+        teamToAnyone: true,
         firstMessageIsRequest: true,
         groupChats: true,
         groupSize: 8,

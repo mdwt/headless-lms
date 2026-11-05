@@ -1,5 +1,5 @@
 import type { MentionItemType, MentionView } from '../types/index.js';
-import { authorView } from './authors.js';
+import { authorName } from './authors.js';
 import type { AuthorProfileReader, MentionsRepository } from './ports.js';
 
 const TOKEN = /<@([A-Za-z0-9_-]+)>/g;
@@ -49,9 +49,7 @@ export async function mentionViews(
       itemId,
       orgUserIds.flatMap((orgUserId) => {
         const record = records[orgUserId];
-        return record
-          ? [{ orgUserId, name: authorView(orgId, record, null).displayName || UNNAMED }]
-          : [];
+        return record ? [{ orgUserId, name: authorName(record) || UNNAMED }] : [];
       }),
     ]),
   );

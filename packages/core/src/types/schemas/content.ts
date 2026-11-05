@@ -303,8 +303,8 @@ export const dmSettingsSchema = z
   .object({
     enabled: z.boolean(),
     memberToMember: z.boolean(),
-    memberToStaff: z.boolean(),
-    staffToAnyone: z.boolean(),
+    memberToTeam: z.boolean(),
+    teamToAnyone: z.boolean(),
     firstMessageIsRequest: z.boolean(),
     groupChats: z.boolean(),
     groupSize: z.number().int().min(1),
@@ -315,8 +315,8 @@ export type DmSettings = z.infer<typeof dmSettingsSchema>;
 export const dmSettingsDefaults: DmSettings = {
   enabled: true,
   memberToMember: true,
-  memberToStaff: true,
-  staffToAnyone: true,
+  memberToTeam: true,
+  teamToAnyone: true,
   firstMessageIsRequest: true,
   groupChats: true,
   groupSize: 8,

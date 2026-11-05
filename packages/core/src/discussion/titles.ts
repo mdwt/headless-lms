@@ -1,11 +1,11 @@
 import { activityTitle } from '../content/index.js';
-import { canModerate, isStaffRole } from '../organizations/index.js';
 import type { Actor } from '../shared/actor.js';
-import type { SubjectRef } from '../types/index.js';
-import { authorView } from './authors.js';
+import type { Activity, SubjectRef } from '../types/index.js';
+import { authorName } from './authors.js';
 import { mentionTokens } from './mentions.js';
 import type {
   ActivityGetter,
+  AuthorPermissionReader,
   AuthorProfileReader,
   ChatRepository,
   ChatService,
@@ -29,6 +29,7 @@ export type DiscussionItemTitlesParams = {
   profiles: AuthorProfileReader;
   activities: ActivityGetter;
   access: ContentAccessReader;
+  actors: Pick<AuthorPermissionReader, 'systemActor'>;
 };
 
 function idsOf(refs: SubjectRef[], type: SubjectRef['type']): string[] {
@@ -44,16 +45,16 @@ function excerpt(body: string, names: Record<string, string>, max: number): stri
 export class DiscussionItemTitles implements ItemTitles {
   constructor(private readonly deps: DiscussionItemTitlesParams) {}
 
-  async titlesFor(
-    orgId: string,
-    actor: Actor,
-    refs: SubjectRef[],
-  ): Promise<Record<string, ItemTitle>> {
+  async titlesFor(refs: SubjectRef[], actor: Actor): Promise<Record<string, ItemTitle>> {
+    const orgId = actor.orgId;
     const [comments, messages] = await Promise.all([
       this.found(idsOf(refs, 'comment'), (id) => this.deps.comments.findComment(orgId, id)),
       this.found(idsOf(refs, 'message'), (id) => this.deps.messages.findMessage(orgId, id)),
     ]);
-    const shownComments = comments.filter((comment) => this.seesComment(actor, comment));
+    const activityOf = await this.activitiesOf(orgId, comments);
+    const shownComments = comments.filter((comment) =>
+      this.seesComment(actor, comment, activityOf),
+    );
     const shownMessages = messages.filter((message) => message.deletedAt === null);
     const postIds = [
       ...idsOf(refs, 'post'),
@@ -62,12 +63,12 @@ export class DiscussionItemTitles implements ItemTitles {
     const chatIds = [...idsOf(refs, 'chat'), ...shownMessages.map((message) => message.chatId)];
     const [posts, chats, activities, names] = await Promise.all([
       postIds.length > 0
-        ? this.deps.posts.visibleTitles(orgId, actor, postIds)
+        ? this.deps.posts.visibleTitles(postIds, actor)
         : ({} as Record<string, string>),
       chatIds.length > 0
-        ? this.deps.chats.titlesFor(orgId, actor, chatIds)
+        ? this.deps.chats.titlesFor(chatIds, actor)
         : ({} as Record<string, string>),
-      this.openActivities(orgId, actor, shownComments),
+      this.openActivities(actor, shownComments, activityOf),
       this.names(
         orgId,
         [...shownComments, ...shownMessages].map((item) => item.body),
@@ -116,30 +117,57 @@ export class DiscussionItemTitles implements ItemTitles {
     return rows.filter((row): row is T => row !== null);
   }
 
-  private seesComment(actor: Actor, comment: Comment): boolean {
-    if (comment.status === 'published' || canModerate(actor.role)) {
+  private async activitiesOf(orgId: string, comments: Comment[]): Promise<Map<string, Activity>> {
+    const ids = [
+      ...new Set(comments.flatMap((comment) => (comment.postId ? [] : (comment.activityId ?? [])))),
+    ];
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const system = this.deps.actors.systemActor(orgId);
+    const found = await Promise.all(ids.map((id) => this.deps.activities.getActivity(id, system)));
+    return new Map(
+      found.filter((activity): activity is Activity => activity !== null).map((a) => [a.id, a]),
+    );
+  }
+
+  private seesComment(actor: Actor, comment: Comment, activityOf: Map<string, Activity>): boolean {
+    if (comment.status === 'published') {
       return true;
+    }
+    if (comment.postId) {
+      if (
+        comment.communityId !== null &&
+        actor.permissions.has('communities:moderate', comment.communityId)
+      ) {
+        return true;
+      }
+    } else {
+      const activity = comment.activityId ? activityOf.get(comment.activityId) : undefined;
+      if (activity && actor.permissions.has('courses:moderate', activity.courseId)) {
+        return true;
+      }
     }
     return comment.orgUserId === actor.id && comment.status === 'pending';
   }
 
   private async openActivities(
-    orgId: string,
     actor: Actor,
     comments: Comment[],
+    activityOf: Map<string, Activity>,
   ): Promise<Record<string, string>> {
     const ids = [
       ...new Set(comments.flatMap((comment) => (comment.postId ? [] : (comment.activityId ?? [])))),
     ];
     const open = await Promise.all(
       ids.map(async (id): Promise<[string, string] | null> => {
-        const activity = await this.deps.activities.getActivity(orgId, id);
+        const activity = activityOf.get(id);
         if (!activity) {
           return null;
         }
         const opens =
-          isStaffRole(actor.role) ||
-          (await this.deps.access.hasAccess(orgId, actor.id, activity.courseId));
+          actor.permissions.has('courses:read', activity.courseId) ||
+          (await this.deps.access.hasAccess(actor.orgId, actor.id, activity.courseId));
         return opens ? [id, activityTitle(activity)] : null;
       }),
     );
@@ -153,10 +181,7 @@ export class DiscussionItemTitles implements ItemTitles {
     }
     const records = await this.deps.profiles.authorsOf(orgId, ids);
     return Object.fromEntries(
-      Object.entries(records).map(([id, record]) => [
-        id,
-        authorView(orgId, record, null).displayName || 'A member',
-      ]),
+      Object.entries(records).map(([id, record]) => [id, authorName(record) || 'A member']),
     );
   }
 }

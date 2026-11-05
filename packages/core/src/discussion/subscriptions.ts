@@ -1,7 +1,6 @@
 import { ForbiddenError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { Actor } from '../shared/actor.js';
 import type {
   SubjectRef,
@@ -11,6 +10,7 @@ import type {
 } from '../types/index.js';
 import type {
   ChatService,
+  CommunityAccess,
   MuteInput,
   PostService,
   SubscriptionInput,
@@ -45,7 +45,7 @@ export function activeSubscription(
 
 export type SubscriptionServiceParams = {
   repo: SubscriptionsRepository;
-  access: Pick<CommunityAccessReader, 'canOpenSpace' | 'isCommunityMember'>;
+  access: Pick<CommunityAccess, 'canOpenSpace' | 'isCommunityMember'>;
   posts: Pick<PostService, 'visible'>;
   chats: Pick<ChatService, 'chatSummary'>;
   logger?: Logger;
@@ -53,7 +53,7 @@ export type SubscriptionServiceParams = {
 
 export class SubscriptionServiceImpl implements SubscriptionService {
   private readonly repo: SubscriptionsRepository;
-  private readonly access: Pick<CommunityAccessReader, 'canOpenSpace' | 'isCommunityMember'>;
+  private readonly access: Pick<CommunityAccess, 'canOpenSpace' | 'isCommunityMember'>;
   private readonly posts: Pick<PostService, 'visible'>;
   private readonly chats: Pick<ChatService, 'chatSummary'>;
   private readonly logger: Logger;
@@ -66,29 +66,25 @@ export class SubscriptionServiceImpl implements SubscriptionService {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async setPost(
-    orgId: string,
-    actor: Actor,
-    postId: string,
-    input: SubscriptionInput,
-  ): Promise<void> {
-    await this.posts.visible(orgId, actor, postId);
-    await this.write(orgId, actor, 'post', postId, input);
+  async setPost(postId: string, input: SubscriptionInput, actor: Actor): Promise<void> {
+    await this.posts.visible(postId, actor);
+    await this.write(actor.orgId, actor, 'post', postId, input);
   }
 
-  async setSpace(orgId: string, actor: Actor, spaceId: string, input: MuteInput): Promise<void> {
-    if (!(await this.access.canOpenSpace(orgId, actor, spaceId))) {
+  async setSpace(spaceId: string, input: MuteInput, actor: Actor): Promise<void> {
+    if (!(await this.access.canOpenSpace(spaceId, actor))) {
       throw new NotFoundError('Space', spaceId);
     }
-    await this.write(orgId, actor, 'space', spaceId, input);
+    await this.write(actor.orgId, actor, 'space', spaceId, input);
   }
 
-  async setChat(orgId: string, actor: Actor, chatId: string, input: MuteInput): Promise<void> {
+  async setChat(chatId: string, input: MuteInput, actor: Actor): Promise<void> {
+    const orgId = actor.orgId;
     const summary = await this.chats.chatSummary(orgId, chatId);
     if (!summary) {
       throw new NotFoundError('Chat', chatId);
     }
-    if (!(await this.access.isCommunityMember(orgId, actor, summary.chat.communityId))) {
+    if (!(await this.access.isCommunityMember(summary.chat.communityId, actor))) {
       throw new ForbiddenError('You are not a member of this community');
     }
     if (!summary.participants.some((user) => user.orgUserId === actor.id && user.leftAt === null)) {

@@ -4,7 +4,16 @@ export { PostServiceImpl } from './posts.js';
 export { DigestServiceImpl, latestDueAt } from './digests.js';
 export { ChatServiceImpl } from './chats.js';
 export { SubscriptionServiceImpl, activeSubscription } from './subscriptions.js';
-export { authorView } from './authors.js';
+export { authorName, authorView } from './authors.js';
+export { isTeam, skipsReview, teamBadge, NO_BADGE } from './rules.js';
+export type { ReviewedItem, TeamBadge } from './rules.js';
+export {
+  chatsDeclarations,
+  digestsDeclarations,
+  discussionDeclarations,
+  postsDeclarations,
+  subscriptionsDeclarations,
+} from './declarations.js';
 export { nameMentions } from './mentions.js';
 export { DiscussionItemTitles } from './titles.js';
 export { discussionEvents } from './events.js';
@@ -27,7 +36,11 @@ export type {
   CommentWithContext,
   ContentAccessReader,
   PostCommentInput,
-  AuthorRoleReader,
+  AuthorPermissionReader,
+  CommunityAccess,
+  SpaceReader,
+  OpenableSpace,
+  ActivityGetter,
   CreatePostInput,
   UpdatePostInput,
   PostPatch,

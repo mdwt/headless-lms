@@ -81,8 +81,8 @@ export interface CommunityHome {
   dm: {
     enabled: boolean;
     memberToMember: boolean;
-    memberToStaff: boolean;
-    staffToAnyone: boolean;
+    memberToTeam: boolean;
+    teamToAnyone: boolean;
     firstMessageIsRequest: boolean;
     groupChats: boolean;
     groupSize: number;

@@ -41,7 +41,6 @@ export type {
   CommentListItem,
   ListCommentsQuery,
 } from './schemas/discussion.js';
-import type { Role } from './organizations.js';
 import type { CommentStatus } from './schemas/discussion.js';
 
 export interface Comment {
@@ -68,7 +67,8 @@ export interface CommentAuthor {
   image: string | null;
   imageAssetId: string | null;
   imageUrl: string | null;
-  role: Role;
+  team: boolean;
+  roleName: string | null;
 }
 
 export interface CommentReport {

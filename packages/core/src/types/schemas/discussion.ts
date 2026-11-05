@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { roleSchema } from './organizations.js';
 import { idSchema, emailSchema, jsonValueSchema } from './shared.js';
 
 export const commentStatusSchema = z.enum(['pending', 'published', 'removed']);
@@ -55,7 +54,8 @@ export const commentAuthorSchema = z
     image: z.string().nullable(),
     imageAssetId: idSchema.nullable(),
     imageUrl: z.string().nullable(),
-    role: roleSchema,
+    team: z.boolean(),
+    roleName: z.string().nullable(),
   })
   .strict();
 export type CommentAuthor = z.infer<typeof commentAuthorSchema>;

@@ -7,10 +7,7 @@ import {
 } from '../shared/errors.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
-import { isStaffRole } from '../organizations/index.js';
-import type { Role } from '../organizations/index.js';
-import type { CommunityReader, DmSettings } from '../content/index.js';
-import type { CommunityAccessReader } from '../entitlements/index.js';
+import type { DmSettings } from '../content/index.js';
 import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
 import type {
   Chat,
@@ -25,12 +22,13 @@ import type {
 import type { Actor } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
-import { authorView } from './authors.js';
+import { authorName, authorView } from './authors.js';
 import { activeSubscription } from './subscriptions.js';
 import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
+import { isTeam, teamBadge } from './rules.js';
 import type {
+  AuthorPermissionReader,
   AuthorProfileReader,
-  AuthorRoleReader,
   ChatListItem,
   ChatRepository,
   ChatService,
@@ -44,15 +42,17 @@ import type {
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
+  CommunityAccess,
+  SpaceReader,
   SubscriptionsRepository,
 } from './ports.js';
 import { MODERATION_QUEUE_LIMIT } from './ports.js';
 
 export type ChatServiceParams = {
   repo: ChatRepository;
-  access: CommunityAccessReader;
-  content: CommunityReader;
-  authors: AuthorRoleReader;
+  access: CommunityAccess;
+  content: Pick<SpaceReader, 'getDmSettings'>;
+  authors: AuthorPermissionReader;
   profiles: AuthorProfileReader;
   subscriptions: SubscriptionsRepository;
   mentions: MentionsRepository;
@@ -64,9 +64,9 @@ export type ChatServiceParams = {
 
 export class ChatServiceImpl implements ChatService {
   private readonly repo: ChatRepository;
-  private readonly access: CommunityAccessReader;
-  private readonly content: CommunityReader;
-  private readonly authors: AuthorRoleReader;
+  private readonly access: CommunityAccess;
+  private readonly content: Pick<SpaceReader, 'getDmSettings'>;
+  private readonly authors: AuthorPermissionReader;
   private readonly profiles: AuthorProfileReader;
   private readonly subscriptions: SubscriptionsRepository;
   private readonly mentions: MentionsRepository;
@@ -89,7 +89,8 @@ export class ChatServiceImpl implements ChatService {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async startDirect(orgId: string, actor: Actor, input: StartDirectInput): Promise<Chat> {
+  async startDirect(input: StartDirectInput, actor: Actor): Promise<Chat> {
+    const orgId = actor.orgId;
     if (actor.id === input.orgUserId) {
       throw new InvalidInputError('You cannot message yourself');
     }
@@ -97,9 +98,10 @@ export class ChatServiceImpl implements ChatService {
       throw new InvalidInputError('An attachment needs a message');
     }
     const settings = await this.requireSettings(orgId, input.communityId);
-    await this.requireActor(orgId, actor, input.communityId);
-    const role = await this.requirePerson(orgId, input.communityId, input.orgUserId);
-    this.assertMayMessage(settings, actor, role);
+    await this.requireActor(actor, input.communityId);
+    const targetTeam = await this.requirePerson(orgId, input.communityId, input.orgUserId);
+    const actorTeam = isTeam(actor.permissions, input.communityId);
+    this.assertMayMessage(settings, actorTeam, targetTeam);
     const first: SendMessageInput | null =
       input.body === null ? null : { body: input.body, replyToId: null, assetIds: input.assetIds };
     const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
@@ -142,8 +144,7 @@ export class ChatServiceImpl implements ChatService {
       if (await chats.isBlocked(orgId, input.communityId, actor.id, input.orgUserId)) {
         throw new ForbiddenError('You cannot message this person');
       }
-      const request =
-        settings.firstMessageIsRequest && !isStaffRole(actor.role) && !isStaffRole(role);
+      const request = settings.firstMessageIsRequest && !actorTeam && !targetTeam;
       if (request && !first) {
         throw new InvalidInputError('A message request needs a message');
       }
@@ -192,10 +193,11 @@ export class ChatServiceImpl implements ChatService {
     return saved.chat;
   }
 
-  async startGroup(orgId: string, actor: Actor, input: StartGroupInput): Promise<Chat> {
+  async startGroup(input: StartGroupInput, actor: Actor): Promise<Chat> {
+    const orgId = actor.orgId;
     const settings = await this.requireSettings(orgId, input.communityId);
     this.assertGroup(settings);
-    await this.requireActor(orgId, actor, input.communityId);
+    await this.requireActor(actor, input.communityId);
     const others = [...new Set(input.orgUserIds.filter((id) => id !== actor.id))].sort();
     if (others.length < 2) {
       throw new InvalidInputError('A group chat needs three people');
@@ -203,9 +205,10 @@ export class ChatServiceImpl implements ChatService {
     if (others.length + 1 > settings.groupSize) {
       throw new ConflictError('This group is full');
     }
+    const actorTeam = isTeam(actor.permissions, input.communityId);
     for (const orgUserId of others) {
-      const role = await this.requirePerson(orgId, input.communityId, orgUserId);
-      this.assertMayMessage(settings, actor, role);
+      const targetTeam = await this.requirePerson(orgId, input.communityId, orgUserId);
+      this.assertMayMessage(settings, actorTeam, targetTeam);
     }
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       if (await chats.anyBlockedAmong(orgId, input.communityId, [actor.id, ...others])) {
@@ -247,22 +250,18 @@ export class ChatServiceImpl implements ChatService {
     return saved;
   }
 
-  async addParticipant(
-    orgId: string,
-    actor: Actor,
-    chatId: string,
-    orgUserId: string,
-  ): Promise<Chat> {
+  async addParticipant(chatId: string, orgUserId: string, actor: Actor): Promise<Chat> {
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActor(actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     if (chat.kind !== 'group') {
       throw new ConflictError('This chat is not a group');
     }
     const settings = await this.requireSettings(orgId, chat.communityId);
     this.assertGroup(settings);
-    const role = await this.requirePerson(orgId, chat.communityId, orgUserId);
-    this.assertMayMessage(settings, actor, role);
+    const targetTeam = await this.requirePerson(orgId, chat.communityId, orgUserId);
+    this.assertMayMessage(settings, isTeam(actor.permissions, chat.communityId), targetTeam);
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       const current = await this.mustChat(chats, orgId, chatId);
       const users = await chats.participants(orgId, chatId);
@@ -296,9 +295,10 @@ export class ChatServiceImpl implements ChatService {
     return saved;
   }
 
-  async leave(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
+  async leave(chatId: string, actor: Actor): Promise<Chat> {
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActor(actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const saved = await this.uow.run(async ({ chats, outbox }) => {
       const current = await this.mustChat(chats, orgId, chatId);
@@ -316,9 +316,10 @@ export class ChatServiceImpl implements ChatService {
     return saved;
   }
 
-  async accept(orgId: string, actor: Actor, chatId: string): Promise<Chat> {
+  async accept(chatId: string, actor: Actor): Promise<Chat> {
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActor(actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     if (chat.createdBy === actor.id) {
       throw new ForbiddenError('You cannot accept this request');
@@ -340,14 +341,10 @@ export class ChatServiceImpl implements ChatService {
     return saved;
   }
 
-  async send(
-    orgId: string,
-    actor: Actor,
-    chatId: string,
-    input: SendMessageInput,
-  ): Promise<MessageView> {
+  async send(chatId: string, input: SendMessageInput, actor: Actor): Promise<MessageView> {
+    const orgId = actor.orgId;
     const preview = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, preview.communityId);
+    await this.requireActor(actor, preview.communityId);
     const settings = await this.requireSettings(orgId, preview.communityId);
     if (!settings.enabled) {
       throw new ForbiddenError('Direct messages are off');
@@ -366,17 +363,13 @@ export class ChatServiceImpl implements ChatService {
       return written.message;
     });
     this.logger.info('message sent', { orgId, chatId, messageId: saved.id, actorId: actor.id });
-    return this.viewOf(orgId, actor, saved);
+    return this.viewOf(actor, saved);
   }
 
-  async editMessage(
-    orgId: string,
-    actor: Actor,
-    messageId: string,
-    body: string,
-  ): Promise<MessageView> {
+  async editMessage(messageId: string, body: string, actor: Actor): Promise<MessageView> {
+    const orgId = actor.orgId;
     const message = await this.mustMessage(this.repo, orgId, messageId);
-    await this.requireWritableChat(orgId, actor, message.chatId);
+    await this.requireWritableChat(actor, message.chatId);
     if (message.orgUserId !== actor.id) {
       throw new ForbiddenError('You can change only your own message');
     }
@@ -384,7 +377,7 @@ export class ChatServiceImpl implements ChatService {
       throw new ConflictError('This message was deleted');
     }
     if (message.body === body) {
-      return this.viewOf(orgId, actor, message);
+      return this.viewOf(actor, message);
     }
     const now = new Date();
     const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
@@ -406,17 +399,23 @@ export class ChatServiceImpl implements ChatService {
       return next;
     });
     this.logger.info('message edited', { orgId, messageId, actorId: actor.id });
-    return this.viewOf(orgId, actor, saved);
+    return this.viewOf(actor, saved);
   }
 
-  async deleteMessage(orgId: string, actor: Actor, messageId: string): Promise<MessageView> {
+  async deleteMessage(messageId: string, actor: Actor): Promise<MessageView> {
+    const orgId = actor.orgId;
     const message = await this.mustMessage(this.repo, orgId, messageId);
-    await this.requireActor(orgId, actor, message.communityId);
-    if (!isStaffRole(actor.role)) {
+    await this.requireActor(actor, message.communityId);
+    if (!actor.permissions.has('communities:moderate', message.communityId)) {
       if (message.orgUserId !== actor.id) {
+        this.logger.warn('message delete refused — not the sender or a moderator', {
+          orgId,
+          messageId,
+          actorId: actor.id,
+        });
         throw new ForbiddenError('You cannot delete this message');
       }
-      await this.requireWritableChat(orgId, actor, message.chatId);
+      await this.requireWritableChat(actor, message.chatId);
     }
     if (message.deletedAt) {
       throw new ConflictError('This message was deleted');
@@ -443,17 +442,17 @@ export class ChatServiceImpl implements ChatService {
       return next;
     });
     this.logger.info('message deleted', { orgId, messageId, actorId: actor.id });
-    return this.viewOf(orgId, actor, saved);
+    return this.viewOf(actor, saved);
   }
 
   async setReaction(
-    orgId: string,
-    actor: Actor,
     messageId: string,
     emoji: ReactionEmoji | null,
+    actor: Actor,
   ): Promise<MessageReactions> {
+    const orgId = actor.orgId;
     const message = await this.mustMessage(this.repo, orgId, messageId);
-    await this.requireActor(orgId, actor, message.communityId);
+    await this.requireActor(actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     await this.uow.run(async ({ chats, outbox }) => {
       const first = await chats.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
@@ -479,9 +478,10 @@ export class ChatServiceImpl implements ChatService {
     return counts[messageId] ?? { reactions: {} };
   }
 
-  async markRead(orgId: string, actor: Actor, chatId: string, messageId: string): Promise<void> {
+  async markRead(chatId: string, messageId: string, actor: Actor): Promise<void> {
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActor(actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const message = await this.mustMessage(this.repo, orgId, messageId);
     if (message.chatId !== chatId) {
@@ -491,12 +491,13 @@ export class ChatServiceImpl implements ChatService {
     this.logger.debug('chat marked read', { orgId, chatId, messageId });
   }
 
-  async block(orgId: string, actor: Actor, communityId: string, orgUserId: string): Promise<void> {
+  async block(communityId: string, orgUserId: string, actor: Actor): Promise<void> {
+    const orgId = actor.orgId;
     if (actor.id === orgUserId) {
       throw new InvalidInputError('You cannot block yourself');
     }
     await this.requireSettings(orgId, communityId);
-    await this.requireActor(orgId, actor, communityId);
+    await this.requireActor(actor, communityId);
     await this.requirePerson(orgId, communityId, orgUserId);
     await this.uow.run(async ({ chats }) => {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
@@ -505,17 +506,13 @@ export class ChatServiceImpl implements ChatService {
     this.logger.info('user blocked', { orgId, communityId, actorId: actor.id });
   }
 
-  async unblock(
-    orgId: string,
-    actor: Actor,
-    communityId: string,
-    orgUserId: string,
-  ): Promise<void> {
+  async unblock(communityId: string, orgUserId: string, actor: Actor): Promise<void> {
+    const orgId = actor.orgId;
     if (actor.id === orgUserId) {
       throw new InvalidInputError('You cannot block yourself');
     }
     await this.requireSettings(orgId, communityId);
-    await this.requireActor(orgId, actor, communityId);
+    await this.requireActor(actor, communityId);
     await this.uow.run(async ({ chats }) => {
       await chats.lockDirectPair(orgId, communityId, actor.id, orgUserId);
       await chats.unblock(orgId, communityId, actor.id, orgUserId);
@@ -523,14 +520,10 @@ export class ChatServiceImpl implements ChatService {
     this.logger.info('user unblocked', { orgId, communityId, actorId: actor.id });
   }
 
-  async flagMessage(
-    orgId: string,
-    actor: Actor,
-    messageId: string,
-    reason: string,
-  ): Promise<MessageFlag> {
+  async flagMessage(messageId: string, reason: string, actor: Actor): Promise<MessageFlag> {
+    const orgId = actor.orgId;
     const message = await this.mustMessage(this.repo, orgId, messageId);
-    await this.requireActor(orgId, actor, message.communityId);
+    await this.requireActor(actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     const now = new Date();
     const saved = await this.uow.run(async ({ chats, outbox }) => {
@@ -568,20 +561,18 @@ export class ChatServiceImpl implements ChatService {
   }
 
   async resolveMessageFlags(
-    orgId: string,
-    actor: Actor,
     messageId: string,
     resolution: Extract<MessageFlagResolution, 'dismissed'>,
-    communityId?: string,
+    communityId: string | null,
+    actor: Actor,
   ): Promise<void> {
-    if (!isStaffRole(actor.role)) {
-      throw new ForbiddenError('You cannot work this queue');
-    }
+    const orgId = actor.orgId;
     const message = await this.mustMessage(this.repo, orgId, messageId);
-    if (communityId !== undefined && message.communityId !== communityId) {
+    if (communityId !== null && message.communityId !== communityId) {
       throw new NotFoundError('Message', messageId);
     }
-    await this.requireActor(orgId, actor, message.communityId);
+    this.requireModerator(actor, message.communityId, 'resolve message flags');
+    await this.requireActor(actor, message.communityId);
     await this.repo.resolveFlags(orgId, messageId, {
       resolvedAt: new Date(),
       resolvedBy: actor.id,
@@ -596,22 +587,23 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  async lock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat> {
-    return this.setLock(orgId, actor, chatId, true, communityId);
+  async lock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat> {
+    return this.setLock(actor, chatId, true, communityId);
   }
 
-  async unlock(orgId: string, actor: Actor, chatId: string, communityId?: string): Promise<Chat> {
-    return this.setLock(orgId, actor, chatId, false, communityId);
+  async unlock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat> {
+    return this.setLock(actor, chatId, false, communityId);
   }
 
   async listChats(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     query: PageQuery,
+    actor: Actor,
   ): Promise<Page<ChatListItem>> {
+    const orgId = actor.orgId;
     await this.requireSettings(orgId, communityId);
-    await this.requireActor(orgId, actor, communityId);
+    await this.requireActor(actor, communityId);
+    const seesDeleted = actor.permissions.has('communities:moderate', communityId);
     const now = new Date();
     const page = await this.repo.listForUser(orgId, communityId, actor.id, query);
     const subscribed = await this.subscriptions.forViewer(
@@ -625,7 +617,7 @@ export class ChatServiceImpl implements ChatService {
       ...item,
       subscription: activeSubscription(subscriptionOf.get(item.chat.id), now),
       lastMessage:
-        item.lastMessage && item.lastMessage.deletedAt !== null && !isStaffRole(actor.role)
+        item.lastMessage && item.lastMessage.deletedAt !== null && !seesDeleted
           ? { ...item.lastMessage, body: '' }
           : item.lastMessage,
     }));
@@ -634,29 +626,29 @@ export class ChatServiceImpl implements ChatService {
   }
 
   async messages(
-    orgId: string,
-    actor: Actor,
     chatId: string,
     query: { page: number; pageSize: number },
+    actor: Actor,
   ): Promise<Page<MessageView>> {
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
+    await this.requireActor(actor, chat.communityId);
     await this.requireActive(this.repo, orgId, chat.id, actor.id);
     const page = await this.repo.listMessages(orgId, chatId, query);
     this.logger.debug('chat messages read', { orgId, chatId });
     return {
       ...page,
-      rows: await this.withSenders(orgId, actor, page.rows),
+      rows: await this.withSenders(actor, page.rows),
     };
   }
 
   async attachmentFile(
-    orgId: string,
-    actor: Actor,
     chatId: string,
     messageId: string,
     assetId: string,
+    actor: Actor,
   ): Promise<string | null> {
+    const orgId = actor.orgId;
     const chat = await this.repo.findChat(orgId, chatId);
     const message = await this.repo.findMessage(orgId, messageId);
     if (!chat || !message || message.chatId !== chatId) {
@@ -666,14 +658,15 @@ export class ChatServiceImpl implements ChatService {
     if (!attached.includes(assetId)) {
       return null;
     }
-    if (!(await this.access.isCommunityMember(orgId, actor, chat.communityId))) {
+    if (!(await this.access.isCommunityMember(chat.communityId, actor))) {
       return null;
     }
+    const moderates = actor.permissions.has('communities:moderate', chat.communityId);
     const users = await this.repo.participants(orgId, chatId);
     const inChat = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
     const readable = inChat
-      ? message.deletedAt === null || isStaffRole(actor.role)
-      : isStaffRole(actor.role) &&
+      ? message.deletedAt === null || moderates
+      : moderates &&
         (await this.repo.listOpenFlags(orgId, chat.communityId)).some(
           (flag) => flag.messageId === messageId,
         );
@@ -683,11 +676,10 @@ export class ChatServiceImpl implements ChatService {
     return this.images.signFile(orgId, assetId);
   }
 
-  async messageQueue(orgId: string, actor: Actor, communityId: string): Promise<MessageQueue> {
-    if (!isStaffRole(actor.role)) {
-      throw new ForbiddenError('You cannot work this queue');
-    }
-    await this.requireActor(orgId, actor, communityId);
+  async messageQueue(communityId: string, actor: Actor): Promise<MessageQueue> {
+    const orgId = actor.orgId;
+    this.requireModerator(actor, communityId, 'message queue');
+    await this.requireActor(actor, communityId);
     await this.requireSettings(orgId, communityId);
     const flags = await this.repo.listOpenFlags(orgId, communityId, MODERATION_QUEUE_LIMIT);
     const messages = await this.repo.messagesByIds(orgId, [
@@ -697,7 +689,7 @@ export class ChatServiceImpl implements ChatService {
       ...new Set(messages.map((message) => message.chatId)),
     ]);
     const byChat = new Map(summaries.map((summary) => [summary.chat.id, summary]));
-    const views = await this.withSenders(orgId, actor, messages);
+    const views = await this.withSenders(actor, messages);
     const entries: MessageQueueEntry[] = views.flatMap((message) => {
       const summary = byChat.get(message.chatId);
       if (!summary) {
@@ -728,7 +720,8 @@ export class ChatServiceImpl implements ChatService {
     return { chat, participants };
   }
 
-  async titlesFor(orgId: string, actor: Actor, chatIds: string[]): Promise<Record<string, string>> {
+  async titlesFor(chatIds: string[], actor: Actor): Promise<Record<string, string>> {
+    const orgId = actor.orgId;
     if (chatIds.length === 0) {
       return {};
     }
@@ -743,7 +736,7 @@ export class ChatServiceImpl implements ChatService {
     const records = others.length > 0 ? await this.profiles.authorsOf(orgId, others) : {};
     const nameOf = (id: string): string => {
       const record = records[id];
-      return (record && authorView(orgId, record, null).displayName) || 'A member';
+      return (record && authorName(record)) || 'A member';
     };
     return Object.fromEntries(
       summaries.flatMap((summary) => {
@@ -774,20 +767,18 @@ export class ChatServiceImpl implements ChatService {
   }
 
   private async setLock(
-    orgId: string,
     actor: Actor,
     chatId: string,
     locked: boolean,
-    communityId?: string,
+    communityId: string | null,
   ): Promise<Chat> {
-    if (!isStaffRole(actor.role)) {
-      throw new ForbiddenError('You cannot lock this chat');
-    }
+    const orgId = actor.orgId;
     const chat = await this.mustChat(this.repo, orgId, chatId);
-    if (communityId !== undefined && chat.communityId !== communityId) {
+    if (communityId !== null && chat.communityId !== communityId) {
       throw new NotFoundError('Chat', chatId);
     }
-    await this.requireActor(orgId, actor, chat.communityId);
+    this.requireModerator(actor, chat.communityId, locked ? 'lock chat' : 'unlock chat');
+    await this.requireActor(actor, chat.communityId);
     if (Boolean(chat.lockedAt) === locked) {
       return chat;
     }
@@ -816,56 +807,64 @@ export class ChatServiceImpl implements ChatService {
     return saved;
   }
 
+  private requireModerator(actor: Actor, communityId: string, action: string): void {
+    if (!actor.permissions.has('communities:moderate', communityId)) {
+      this.logger.warn('chat moderation refused — not a moderator', {
+        orgId: actor.orgId,
+        communityId,
+        action,
+        actorId: actor.id,
+      });
+      throw new ForbiddenError('You need communities:moderate');
+    }
+  }
+
   private async requireSettings(orgId: string, communityId: string): Promise<DmSettings> {
-    const settings = await this.content.getDmSettings(orgId, communityId);
+    const settings = await this.content.getDmSettings(communityId, this.authors.systemActor(orgId));
     if (!settings) {
       throw new NotFoundError('Community', communityId);
     }
     return settings;
   }
 
-  private async requireActor(orgId: string, actor: Actor, communityId: string): Promise<void> {
-    if (!(await this.access.isCommunityMember(orgId, actor, communityId))) {
+  private async requireActor(actor: Actor, communityId: string): Promise<void> {
+    if (!(await this.access.isCommunityMember(communityId, actor))) {
       throw new ForbiddenError('You are not a member of this community');
     }
   }
 
+  /** Whether the person is team in the community; throws when they are not a
+   *  member of it. */
   private async requirePerson(
     orgId: string,
     communityId: string,
     orgUserId: string,
-  ): Promise<Role> {
-    const role = await this.personRole(orgId, communityId, orgUserId);
-    if (!role) {
+  ): Promise<boolean> {
+    const teams = await this.membersTeam(orgId, communityId, [orgUserId]);
+    const team = teams.get(orgUserId);
+    if (team === undefined) {
       throw new ForbiddenError('That person is not a member of this community');
     }
-    return role;
+    return team;
   }
 
-  private async personRole(
-    orgId: string,
-    communityId: string,
-    orgUserId: string,
-  ): Promise<Role | null> {
-    const role = await this.authors.roleOf(orgId, orgUserId);
-    if (!role) {
-      return null;
-    }
-    const member = await this.access.isCommunityMember(orgId, { id: orgUserId, role }, communityId);
-    return member ? role : null;
-  }
-
-  private async personRoles(
+  /** Each member of the community among the given people, with whether they
+   *  are team there. People who are not members are left out. */
+  private async membersTeam(
     orgId: string,
     communityId: string,
     orgUserIds: string[],
-  ): Promise<Record<string, Role>> {
-    const roles = await this.authors.rolesOf(orgId, orgUserIds);
-    const members = new Set(
-      await this.access.communityMembersAmong(orgId, communityId, Object.keys(roles)),
-    );
-    return Object.fromEntries(
-      Object.entries(roles).filter(([orgUserId]) => members.has(orgUserId)),
+  ): Promise<Map<string, boolean>> {
+    const members = await this.access.communityMembersAmong(orgId, communityId, orgUserIds);
+    if (members.length === 0) {
+      return new Map();
+    }
+    const permissions = await this.authors.permissionsOfMany(orgId, members);
+    return new Map(
+      members.map((orgUserId) => {
+        const held = permissions.get(orgUserId);
+        return [orgUserId, held !== undefined && isTeam(held, communityId)];
+      }),
     );
   }
 
@@ -895,11 +894,13 @@ export class ChatServiceImpl implements ChatService {
       )
       .map((other) => other.orgUserId);
     if (others.length > 0) {
-      const roles = await this.personRoles(orgId, chat.communityId, others);
-      const recipients = chat.kind === 'group' ? others.filter((other) => roles[other]) : others;
+      const teams = await this.membersTeam(orgId, chat.communityId, others);
+      const recipients =
+        chat.kind === 'group' ? others.filter((other) => teams.has(other)) : others;
+      const actorTeam = isTeam(actor.permissions, chat.communityId);
       for (const other of recipients) {
-        const role = roles[other];
-        if (!role || !this.mayMessage(settings, actor, role)) {
+        const team = teams.get(other);
+        if (team === undefined || !this.mayMessage(settings, actorTeam, team)) {
           throw new ForbiddenError('You cannot send in this chat');
         }
       }
@@ -952,11 +953,11 @@ export class ChatServiceImpl implements ChatService {
     return { chat: current, message, opened, mentioned };
   }
 
-  private assertMayMessage(settings: DmSettings, actor: Actor, role: Role): void {
+  private assertMayMessage(settings: DmSettings, actorTeam: boolean, targetTeam: boolean): void {
     if (!settings.enabled) {
       throw new ForbiddenError('Direct messages are off');
     }
-    if (!this.mayMessage(settings, actor, role)) {
+    if (!this.mayMessage(settings, actorTeam, targetTeam)) {
       throw new ForbiddenError('You cannot message this person');
     }
   }
@@ -970,12 +971,12 @@ export class ChatServiceImpl implements ChatService {
     }
   }
 
-  private mayMessage(settings: DmSettings, actor: Actor, target: Role): boolean {
-    if (isStaffRole(actor.role)) {
-      return settings.staffToAnyone;
+  private mayMessage(settings: DmSettings, actorTeam: boolean, targetTeam: boolean): boolean {
+    if (actorTeam) {
+      return settings.teamToAnyone;
     }
-    if (isStaffRole(target)) {
-      return settings.memberToStaff;
+    if (targetTeam) {
+      return settings.memberToTeam;
     }
     return settings.memberToMember;
   }
@@ -1009,10 +1010,10 @@ export class ChatServiceImpl implements ChatService {
     }
   }
 
-  private async requireWritableChat(orgId: string, actor: Actor, chatId: string): Promise<void> {
-    const chat = await this.mustChat(this.repo, orgId, chatId);
-    await this.requireActor(orgId, actor, chat.communityId);
-    await this.requireActive(this.repo, orgId, chat.id, actor.id);
+  private async requireWritableChat(actor: Actor, chatId: string): Promise<void> {
+    const chat = await this.mustChat(this.repo, actor.orgId, chatId);
+    await this.requireActor(actor, chat.communityId);
+    await this.requireActive(this.repo, actor.orgId, chat.id, actor.id);
     if (chat.lockedAt || chat.status === 'closed') {
       throw new ForbiddenError('You cannot send in this chat');
     }
@@ -1155,28 +1156,29 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  private async viewOf(orgId: string, actor: Actor, message: Message): Promise<MessageView> {
-    const [view] = await this.withSenders(orgId, actor, [message]);
+  private async viewOf(actor: Actor, message: Message): Promise<MessageView> {
+    const [view] = await this.withSenders(actor, [message]);
     return view!;
   }
 
-  private async withSenders(
-    orgId: string,
-    actor: Actor,
-    messages: Message[],
-  ): Promise<MessageView[]> {
+  private async withSenders(actor: Actor, messages: Message[]): Promise<MessageView[]> {
     if (messages.length === 0) {
       return [];
     }
+    const orgId = actor.orgId;
     const messageIds = messages.map((message) => message.id);
-    const [records, attached, reactions, mentioned] = await Promise.all([
-      this.profiles.authorsOf(orgId, [...new Set(messages.map((message) => message.orgUserId))]),
+    const senderIds = [...new Set(messages.map((message) => message.orgUserId))];
+    const [records, permissions, attached, reactions, mentioned] = await Promise.all([
+      this.profiles.authorsOf(orgId, senderIds),
+      this.authors.permissionsOfMany(orgId, senderIds),
       this.repo.attachmentsOf(orgId, messageIds),
       this.repo.reactionsOf(orgId, messageIds, actor.id),
       mentionViews(this.mentions, this.profiles, orgId, 'message', messageIds),
     ]);
-    const shown = (message: Message) =>
-      message.deletedAt !== null && !isStaffRole(actor.role) ? [] : (attached[message.id] ?? []);
+    const hidden = (message: Message) =>
+      message.deletedAt !== null &&
+      !actor.permissions.has('communities:moderate', message.communityId);
+    const shown = (message: Message) => (hidden(message) ? [] : (attached[message.id] ?? []));
     return messages.map((message) => {
       const record = records[message.orgUserId];
       if (!record) {
@@ -1185,23 +1187,28 @@ export class ChatServiceImpl implements ChatService {
       const counts = reactions[message.id];
       return {
         ...this.present(message, actor),
-        sender: authorView(orgId, record, this.fileUrls),
+        sender: authorView(
+          orgId,
+          record,
+          this.fileUrls,
+          teamBadge(permissions.get(message.orgUserId), message.communityId),
+        ),
         attachments: shown(message).map((assetId) => ({
           assetId,
           url: this.fileUrls.messageAttachment(message.chatId, message.id, assetId),
         })),
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
-        mentions:
-          message.deletedAt !== null && !isStaffRole(actor.role)
-            ? []
-            : (mentioned[message.id] ?? []),
+        mentions: hidden(message) ? [] : (mentioned[message.id] ?? []),
       };
     });
   }
 
   private present(message: Message, actor: Actor): Message {
-    if (message.deletedAt !== null && !isStaffRole(actor.role)) {
+    if (
+      message.deletedAt !== null &&
+      !actor.permissions.has('communities:moderate', message.communityId)
+    ) {
       return { ...message, body: '' };
     }
     return message;
