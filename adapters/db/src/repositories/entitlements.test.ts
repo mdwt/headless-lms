@@ -125,49 +125,55 @@ describe("community access", () => {
 
   it("counts toward capacity only active rows whose holder still holds the community", async () => {
     const { repo, queries } = capturingDb([[0]]);
-    await repo.countActiveSpaceMembers("org-1", "spc_1");
-    const { text } = queries[0]!;
+    await repo.countActiveSpaceMembers("org-1", "spc_1", ["ou_mod"]);
+    const { text, values } = queries[0]!;
     expect(text).toContain("pc.status = 'published'");
     expect(text).toContain('"space_members"."org_user_id"');
+    expect(text).toMatch(/not "space_members"\."org_user_id" in \(\$\d+\)/);
+    expect(values).toContain("ou_mod");
   });
 
-  it("answers role, membership and space row for many people in one query", async () => {
-    const { repo, queries } = capturingDb([["ou_1", "student", true, false]]);
+  it("answers the grant and space row for many people in one query, reading no role", async () => {
+    const { repo, queries } = capturingDb([["ou_1", true, false]]);
     await expect(repo.accessAmong("org-1", "cmy_1", "spc_1", ["ou_1"])).resolves.toEqual([
-      { orgUserId: "ou_1", role: "student", member: true, activeInSpace: false },
+      { orgUserId: "ou_1", granted: true, activeInSpace: false },
     ]);
     expect(queries).toHaveLength(1);
     const { text, values } = queries[0]!;
-    expect(text).toContain('"org_users"."role" in ($');
+    expect(text).not.toContain('"org_users"."role"');
     expect(text).toContain("pc.status = 'published'");
     expect(text).toContain('sm.org_id = "org_users"."org_id"');
     expect(text).toContain('sm.org_user_id = "org_users"."id"');
-    expect(values).toEqual(expect.arrayContaining(["owner", "admin", "instructor", "community"]));
+    expect(values).toEqual(expect.arrayContaining(["community"]));
   });
 
-  it("lists staff and moderators holding the published community as its moderators", async () => {
+  it("takes the holders of communities:read as members beside the grant holders", async () => {
     const { repo, queries } = capturingDb([]);
-    await repo.communityModeratorIds("org-1", "cmy_1");
+    await repo.communityMemberIds("org-1", "cmy_1", ["ou_reader"]);
     const { text, values } = queries[0]!;
-    expect(text).toMatch(/"org_users"."role" in \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
-    expect(text).toContain("pc.status = 'published'");
-    expect(text).toContain("ci.type = $");
-    expect(values).toEqual(
-      expect.arrayContaining(["owner", "admin", "instructor", "moderator", "cmy_1", "community"]),
-    );
-    expect(values).not.toContain("student");
+    expect(text).toMatch(/"org_users"\."id" in \(\$\d+\) or/);
+    expect(text).not.toContain('"org_users"."role"');
+    expect(values).toEqual(expect.arrayContaining(["ou_reader", "cmy_1"]));
   });
 
-  it("lists every community a staff member or a holder of a published community can open", async () => {
+  it("opens the communities read on, or held through a published grant", async () => {
     const { repo, queries } = capturingDb([["cmy_1"], ["cmy_2"]]);
-    await expect(repo.openCommunityIds("org-1", "ou_1")).resolves.toEqual(["cmy_1", "cmy_2"]);
+    await expect(
+      repo.openCommunityIds("org-1", "ou_1", { all: false, ids: ["cmy_9"] }),
+    ).resolves.toEqual(["cmy_1", "cmy_2"]);
     const { text, values } = queries[0]!;
-    expect(text).toContain('inner join "org_users"');
-    expect(text).toContain('"org_users"."role" in ($');
+    expect(text).not.toContain('"org_users"');
     expect(text).toContain("pc.status = 'published'");
-    expect(values).toEqual(
-      expect.arrayContaining(["org-1", "ou_1", "owner", "admin", "instructor"]),
-    );
+    expect(values).toEqual(expect.arrayContaining(["org-1", "ou_1", "cmy_9"]));
+    await repo.openCommunityIds("org-1", "ou_1", { all: true, ids: [] });
+    expect(queries[1]!.text).not.toContain("pc.status");
+  });
+
+  it("answers whether a person holds an active grant", async () => {
+    const { repo, queries } = capturingDb([[true]]);
+    await repo.holdsAnyGrant("org-1", "ou_1");
+    expect(queries[0]!.text).toContain('"entitlements"."status" = \'active\'');
+    expect(queries[0]!.values).toEqual(expect.arrayContaining(["org-1", "ou_1"]));
   });
 });
 

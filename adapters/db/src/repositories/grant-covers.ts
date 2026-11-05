@@ -1,5 +1,4 @@
 import { sql, type SQL, type SQLWrapper } from "drizzle-orm";
-import { STAFF_ROLES } from "@headless-lms/core/organizations";
 import { entitlements } from "../schema/entitlements.js";
 
 export type GrantedContentType = "course" | "download" | "community";
@@ -72,10 +71,21 @@ export function holdsCommunity(orgId: SQL, orgUserId: SQL, communityId: SQL): SQ
   return sql`(${communityPublished(orgId, communityId)} and ${activeGrantCovers(orgId, orgUserId, communityId, "community")})`;
 }
 
-export function communityMember(orgId: SQL, orgUserId: SQL, role: SQL, communityId: SQL): SQL {
-  const staff = sql.join(
-    STAFF_ROLES.map((r) => sql`${r}`),
+export function oneOf(column: SQL, ids: readonly string[]): SQL {
+  if (ids.length === 0) {
+    return sql`false`;
+  }
+  return sql`${column} in (${sql.join(
+    ids.map((id) => sql`${id}`),
     sql`, `,
-  );
-  return sql`(${role} in (${staff}) or ${holdsCommunity(orgId, orgUserId, communityId)})`;
+  )})`;
+}
+
+export function communityMember(
+  orgId: SQL,
+  orgUserId: SQL,
+  communityId: SQL,
+  readerIds: readonly string[],
+): SQL {
+  return sql`(${oneOf(orgUserId, readerIds)} or ${holdsCommunity(orgId, orgUserId, communityId)})`;
 }

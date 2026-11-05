@@ -18,13 +18,12 @@ import {
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
-import { communityMember, communityPublished } from "./grant-covers.js";
+import { communityMember, communityPublished, oneOf } from "./grant-covers.js";
 
 function personColumns(orgId: string) {
   return {
     orgUserId: orgUsers.id,
     userId: orgUsers.userId,
-    role: orgUsers.role,
     displayName: sql<
       string | null
     >`coalesce(nullif(trim(${userProfiles.displayName}), ''), nullif(trim(concat_ws(' ', ${users.firstName}, ${users.lastName})), ''))`,
@@ -46,17 +45,13 @@ export class DrizzleMemberRepository implements MemberReportRepository {
     orgId: string,
     communityId: string,
     query: DirectoryQuery,
+    readerIds: string[],
   ): Promise<Page<DirectoryRow>> {
     const columns = personColumns(orgId);
     const q = query.search?.trim();
     const where = and(
       eq(orgUsers.orgId, orgId),
-      communityMember(
-        sql`${orgUsers.orgId}`,
-        sql`${orgUsers.id}`,
-        sql`${orgUsers.role}`,
-        sql`${communityId}`,
-      ),
+      communityMember(sql`${orgUsers.orgId}`, sql`${orgUsers.id}`, sql`${communityId}`, readerIds),
       q ? ilike(columns.displayName, `%${q}%`) : undefined,
     );
     const rows = await this.db
@@ -89,7 +84,11 @@ export class DrizzleMemberRepository implements MemberReportRepository {
       .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
   }
 
-  async spaceMemberCounts(orgId: string, communityId: string): Promise<Record<string, number>> {
+  async spaceMemberCounts(
+    orgId: string,
+    communityId: string,
+    excluding: string[],
+  ): Promise<Record<string, number>> {
     const holders = this.db.$with("holders").as(
       this.db
         .selectDistinct({ orgUserId: contentAccess.orgUserId })
@@ -115,6 +114,9 @@ export class DrizzleMemberRepository implements MemberReportRepository {
             eq(spaceMembers.orgId, orgId),
             eq(spaceMembers.communityId, communityId),
             eq(spaceMembers.status, "active"),
+            excluding.length > 0
+              ? sql`not ${oneOf(sql`${spaceMembers.orgUserId}`, excluding)}`
+              : undefined,
           ),
         )
         .groupBy(spaceMembers.spaceId),

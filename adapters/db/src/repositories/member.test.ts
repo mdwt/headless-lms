@@ -13,7 +13,7 @@ describe("DrizzleMemberRepository.directory", () => {
     };
     const repo = new DrizzleMemberRepository(drizzle({ client: client as never }));
 
-    await repo.directory("org1", "cmy_1", { page: 1, pageSize: 20 });
+    await repo.directory("org1", "cmy_1", { page: 1, pageSize: 20 }, []);
 
     const [statement] = statements;
     const photo = statement?.text.match(
@@ -39,7 +39,7 @@ describe("DrizzleMemberRepository.directory paging", () => {
   it("pages the directory, counts it, and filters by display name", async () => {
     const { repo, statements } = capture();
     await expect(
-      repo.directory("org1", "cmy_1", { page: 3, pageSize: 10, search: "sar" }),
+      repo.directory("org1", "cmy_1", { page: 3, pageSize: 10, search: "sar" }, []),
     ).resolves.toEqual({ rows: [], total: 0, page: 3, pageSize: 10 });
     expect(statements).toHaveLength(2);
     expect(statements[0]?.text).toMatch(/ilike \$\d+\) order by .* limit \$\d+ offset \$\d+$/);
@@ -52,7 +52,7 @@ describe("DrizzleMemberRepository.directory paging", () => {
 describe("DrizzleMemberRepository.spaceMemberCounts", () => {
   it("counts the community's holders from content_access once and groups seated holders per space", async () => {
     const { repo, statements } = capture();
-    await repo.spaceMemberCounts("org1", "cmy_1");
+    await repo.spaceMemberCounts("org1", "cmy_1", ["ou_mod"]);
     const [statement] = statements;
     expect(statements).toHaveLength(1);
     expect(statement?.text).toMatch(
@@ -69,5 +69,7 @@ describe("DrizzleMemberRepository.spaceMemberCounts", () => {
     );
     expect(statement?.text).toMatch(/from "spaces" left join "seated"/);
     expect(statement?.text).not.toContain('from "org_users"');
+    expect(statement?.text).toMatch(/not "space_members"\."org_user_id" in \(\$\d+\)/);
+    expect(statement?.params).toContain("ou_mod");
   });
 });

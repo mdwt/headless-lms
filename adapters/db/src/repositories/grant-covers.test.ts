@@ -46,10 +46,13 @@ describe("community membership predicate", () => {
     expect(text).toContain("ci.type = $1");
   });
 
-  it("drives the directory: staff, or a grant to the published community", async () => {
+  it("drives the directory: a holder of communities:read, or a grant to the published community", async () => {
     const { db, queries } = capturingDb();
-    await new DrizzleMemberRepository(db).directory("org-1", "cmy_1", { page: 1, pageSize: 20 });
+    await new DrizzleMemberRepository(db).directory("org-1", "cmy_1", { page: 1, pageSize: 20 }, [
+      "ou_reader",
+    ]);
     expect(queries[0]!.text).toContain("pc.status = 'published'");
-    expect(queries[0]!.values).toEqual(expect.arrayContaining(["owner", "admin", "instructor"]));
+    expect(queries[0]!.text).not.toContain('"org_users"."role"');
+    expect(queries[0]!.values).toEqual(expect.arrayContaining(["ou_reader"]));
   });
 });

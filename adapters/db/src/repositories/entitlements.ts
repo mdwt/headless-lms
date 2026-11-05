@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, ilike, inArray, or, sql, type SQL } from "drizz
 import type { DbExecutor } from "../client.js";
 import type {
   AccessFacts,
+  CommunityReaders,
   EndingGrant,
   EndingGrantKey,
   EntitlementNotice,
@@ -19,7 +20,6 @@ import type {
   GrantEntitlementInput,
   Logger,
   Page,
-  Role,
   SpaceMember,
   SpaceMemberStatus,
 } from "@headless-lms/core/types";
@@ -38,15 +38,13 @@ import {
   communityMember,
   grantOpens,
   holdsCommunity,
+  oneOf,
 } from "./grant-covers.js";
 import { bundles, communities, contentItems, courses, downloads } from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { ROLES, canModerate } from "@headless-lms/core/organizations";
 import { translateDbErrors } from "./pg-errors.js";
 
 type ResolvedStatus = "active" | "expired" | "revoked";
-
-const MODERATING_ROLES: Role[] = ROLES.filter((role) => canModerate(role));
 
 // CASE expression: revoked beats everything; otherwise an elapsed expiry reads as
 // expired; otherwise active.
@@ -430,6 +428,24 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return this.holds(holdsCommunity(sql`${orgId}`, sql`${orgUserId}`, sql`${communityId}`));
   }
 
+  holdsAnyGrant(orgId: string, orgUserId: string): Promise<boolean> {
+    return this.holds(sql`exists (
+      select 1 from ${entitlements}
+      where ${entitlements.orgId} = ${orgId}
+        and ${entitlements.orgUserId} = ${orgUserId}
+        and ${grantIsActive(entitlements)}
+    )`);
+  }
+
+  async contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null> {
+    const [row] = await this.db
+      .select({ type: contentItems.type })
+      .from(contentItems)
+      .where(and(eq(contentItems.orgId, orgId), eq(contentItems.id, contentId)))
+      .limit(1);
+    return (row?.type as ContentType | undefined) ?? null;
+  }
+
   private async holds(predicate: SQL): Promise<boolean> {
     const result = await this.db.execute<{ covered: boolean }>(sql`select ${predicate} as covered`);
     const rows = Array.isArray(result) ? result : result.rows;
@@ -480,16 +496,14 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     const rows = await this.db
       .select({
         orgUserId: orgUsers.id,
-        role: orgUsers.role,
-        member: sql<boolean>`${communityMember(sql`${orgUsers.orgId}`, sql`${orgUsers.id}`, sql`${orgUsers.role}`, sql`${communityId}`)}`,
+        granted: sql<boolean>`${holdsCommunity(sql`${orgUsers.orgId}`, sql`${orgUsers.id}`, sql`${communityId}`)}`,
         activeInSpace,
       })
       .from(orgUsers)
       .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
     return rows.map((row) => ({
       orgUserId: row.orgUserId,
-      role: row.role as Role,
-      member: row.member === true,
+      granted: row.granted === true,
       activeInSpace: row.activeInSpace === true,
     }));
   }
@@ -560,6 +574,9 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       eq(spaceMembers.orgId, orgId),
       eq(spaceMembers.spaceId, spaceId),
       query.statuses ? inArray(spaceMembers.status, query.statuses) : undefined,
+      query.excluding?.length
+        ? sql`not ${oneOf(sql`${spaceMembers.orgUserId}`, query.excluding)}`
+        : undefined,
     );
     const rows = await this.db
       .select()
@@ -612,7 +629,11 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .where(and(eq(spaceMembers.orgId, orgId), eq(spaceMembers.id, id)));
   }
 
-  async countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number> {
+  async countActiveSpaceMembers(
+    orgId: string,
+    spaceId: string,
+    excluding: string[],
+  ): Promise<number> {
     const [row] = await this.db
       .select({ total: sql<number>`cast(count(*) as int)` })
       .from(spaceMembers)
@@ -626,6 +647,9 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
             sql`${spaceMembers.orgUserId}`,
             sql`${spaceMembers.communityId}`,
           ),
+          excluding.length > 0
+            ? sql`not ${oneOf(sql`${spaceMembers.orgUserId}`, excluding)}`
+            : undefined,
         ),
       );
     return row?.total ?? 0;
@@ -741,27 +765,11 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     )!;
   }
 
-  async communityModeratorIds(orgId: string, communityId: string): Promise<string[]> {
-    const rows = await this.db
-      .select({ id: orgUsers.id })
-      .from(orgUsers)
-      .where(
-        and(
-          eq(orgUsers.orgId, orgId),
-          inArray(orgUsers.role, MODERATING_ROLES),
-          communityMember(
-            sql`${orgUsers.orgId}`,
-            sql`${orgUsers.id}`,
-            sql`${orgUsers.role}`,
-            sql`${communityId}`,
-          ),
-        ),
-      )
-      .orderBy(asc(orgUsers.id));
-    return rows.map((row) => row.id);
-  }
-
-  async communityMemberIds(orgId: string, communityId: string): Promise<string[]> {
+  async communityMemberIds(
+    orgId: string,
+    communityId: string,
+    readerIds: string[],
+  ): Promise<string[]> {
     const rows = await this.db
       .select({ id: orgUsers.id })
       .from(orgUsers)
@@ -771,8 +779,8 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           communityMember(
             sql`${orgUsers.orgId}`,
             sql`${orgUsers.id}`,
-            sql`${orgUsers.role}`,
             sql`${communityId}`,
+            readerIds,
           ),
         ),
       )
@@ -803,20 +811,27 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.map((row) => row.orgUserId);
   }
 
-  async openCommunityIds(orgId: string, orgUserId: string): Promise<string[]> {
+  async openCommunityIds(
+    orgId: string,
+    orgUserId: string,
+    readers: CommunityReaders,
+  ): Promise<string[]> {
     const rows = await this.db
       .select({ id: communities.id })
       .from(communities)
-      .innerJoin(orgUsers, and(eq(orgUsers.orgId, communities.orgId), eq(orgUsers.id, orgUserId)))
       .where(
         and(
           eq(communities.orgId, orgId),
-          communityMember(
-            sql`${communities.orgId}`,
-            sql`${orgUsers.id}`,
-            sql`${orgUsers.role}`,
-            sql`${communities.id}`,
-          ),
+          readers.all
+            ? undefined
+            : or(
+                oneOf(sql`${communities.id}`, readers.ids),
+                holdsCommunity(
+                  sql`${communities.orgId}`,
+                  sql`${orgUserId}`,
+                  sql`${communities.id}`,
+                ),
+              ),
         ),
       )
       .orderBy(asc(communities.id));
