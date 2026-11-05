@@ -128,5 +128,7 @@ After it:
 | 20 | A and B | 100/100 | 60 ms | 792 / 1279 / 1352 ms | 0 |
 | 30 | A | 150/150 | 107 ms | 701 / 1132 / 1255 ms | 0 |
 | 30 | A and B | 150/150 | 94 ms | 874 / 1469 / 1559 ms | 0 |
+| 50 | A | 200/200 | 281 ms | 1198 / 1702 / 1841 ms | 0 |
+| 50 | A and B | 200/200 | 121 ms | 856 / 1391 / 1546 ms | 0 |
 
-UI-24: Sarah's open chat, idle for 60 s, made no requests at all (before live chat: a 136 KB compressed RSC refresh every 5 s). The stream carries a 9-byte ping every 25 s.
+UI-24: Sarah's open chat, idle for 60 s, made no requests at all (before live chat: a 136 KB compressed RSC refresh every 5 s). The stream carries an 8-byte `: ping` comment every 25 s.
