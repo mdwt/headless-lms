@@ -28,6 +28,7 @@ adapters/
   email-resend/      @headless-lms/adapter-email-resend — EmailSender via Resend
   email-templates/   @headless-lms/adapter-email-templates — TemplateRenderer via React Email
   push/              @headless-lms/adapter-push — PushSender via APNs, FCM and Web Push
+  pubsub-postgres/   @headless-lms/adapter-pubsub-postgres — PubSub via Postgres LISTEN/NOTIFY
   storage-minio/     @headless-lms/adapter-storage-minio — ObjectStorage via MinIO/S3
   workflow-hatchet/  @headless-lms/adapter-workflow-hatchet — AutomationEngine and Scheduler via Hatchet
 ```
@@ -112,9 +113,12 @@ const container = await createContainer(config, {
 
 A slot left absent falls back to the default from `@headless-lms/adapter-defaults`
 — for email, storage and templates, a stub that fails loudly on use; for workflows,
-the in-process `InlineAutomationEngine`; for webhooks, `FetchWebhookSender`. `apps/api/src/config.ts` is the only file
+the in-process `InlineAutomationEngine`; for webhooks, `FetchWebhookSender`. The
+`pubsub` slot has no default: without it there is no live chat, and the chat stream
+answers 503. `apps/api/src/config.ts` is the only file
 on the backend that touches `process.env`; `adapters/email-resend`, `push`,
-`storage-minio` and `workflow-hatchet` each carry a README for the env they expect.
+`pubsub-postgres`, `storage-minio` and `workflow-hatchet` each carry a README for the
+env or connection they expect.
 
 `@headless-lms/core/integrations` holds the code that must exist at runtime — the
 zod adapters (`zodConfig`, `zodSecrets`, `zodAction`) that turn zod schemas into

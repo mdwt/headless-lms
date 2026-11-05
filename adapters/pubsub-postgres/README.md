@@ -51,9 +51,8 @@ The adapter reads no environment itself. `apps/api` reads the connection string 
   so a publish fails within about 2 s instead of waiting on an unreachable database. A
   publish reaches only the listeners connected when it commits. Publishing works without
   `start()`.
-- **Poolers.** `LISTEN` needs a session connection. Behind a transaction-mode pooler
-  (PgBouncer in transaction mode, Supabase's pooled port) point the connection string at
-  Postgres directly.
+- **Poolers.** `LISTEN` needs a session connection. Behind a transaction-mode pooler,
+  point the connection string at Postgres directly.
 
 ## Large messages
 

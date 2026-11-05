@@ -10,13 +10,27 @@ integration plugins. The `headless-lms` bin lives in `@headless-lms/cli`.
 
 ```ts
 import { createContainer, buildServer } from '@headless-lms/server';
+import { PostgresPubSub } from '@headless-lms/adapter-pubsub-postgres';
 
 const container = await createContainer(config, {
   pluginsDir, // one folder per integration (directory name = integration id)
+  adapters: {
+    pubsub: (logger) => new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
+  },
 });
 const app = await buildServer(config, container);
 await app.listen({ port: config.port, host: config.host });
+await container.pubsub?.start();
+await container.chatHub?.start();
+container.outboxRelay.start();
+await container.automationEngine.start();
 ```
+
+The container constructs the outbox relay, the automation engine, `PubSub` and the
+chat hub but starts none of them; the entry point starts them after `listen`, `PubSub`
+and the hub before the relay. `buildServer` closes the hub in `preClose`, so open chat
+streams receive their closing frame, and on close stops the relay, the engine and then
+`PubSub`.
 
 Public surface (`src/index.ts`): `createContainer`, `buildServer`,
 `loadIntegrations`, the operational function `runMigrations` (re-exported from

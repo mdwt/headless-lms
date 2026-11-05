@@ -75,15 +75,28 @@ not served. Download files use `DELIVERY_URL_EXPIRY`; every other file uses `STO
 
 There are 3 ways to change or extend the core service.
 
-| Type             | Description                                                                                                                                  | Examples                                                                                                                                                                                                                                     |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Push (APNs, FCM and Web Push, `@headless-lms/adapter-push`), Workflows and scheduler (Hatchet), Video, Event Bus, Cache (Redis/in-memory) |
-| **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Slack. Community is a content type in the core, not a plugin.                                                                                                                                                                                |
-| **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly                                                                                                                                                                                                               |
+| Type             | Description                                                                                                                                  | Examples                                                                                                                                                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Push (APNs, FCM and Web Push, `@headless-lms/adapter-push`), Workflows and scheduler (Hatchet), PubSub (Postgres `LISTEN/NOTIFY`), Video, Event Bus, Cache (Redis/in-memory) |
+| **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Slack. Community is a content type in the core, not a plugin.                                                                                                                                                                                                                   |
+| **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly                                                                                                                                                                                                                                                  |
 
 The scheduler is a deployment port in `shared/ports`, beside `AutomationEngine`, and the workflow adapter implements
 both: it runs automations, notification deliveries and the scheduled jobs the contexts define, such as publishing a
 scheduled post or expiring grants.
+
+### Events and PubSub
+
+A write and its domain events commit together: the service appends the events to the outbox inside the write's
+`UnitOfWork`. Every API process runs an outbox relay that publishes committed events on its in-process `EventBus`,
+where automations handle them. An event is handled on whichever instance dispatched it.
+
+`PubSub` is the deployment port, in `shared/ports`, for what every instance must hear: a message published on any
+instance reaches every subscriber on every instance, best effort and unordered, with `onReset` after a reconnect.
+Live chat is its one user. `ChatLiveForwarder` subscribes on the `EventBus` and publishes each chat change, ids only,
+on `discussion.chats`; the `ChatHub` on each instance reads the current state and pushes it to the chat streams
+connected there. The adapter is `@headless-lms/adapter-pubsub-postgres` (`LISTEN/NOTIFY`); a container built without
+one has no hub, and the chat stream answers 503.
 
 ## Composition
 

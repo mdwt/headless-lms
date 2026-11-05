@@ -227,6 +227,14 @@ Discussion also owns what members write inside a community.
 - **Block** — two people inside one community. It closes their direct chat
   there and rejects their sends in that community, including in a group chat.
   The other participants can still send. Another community is untouched.
+- **Read mark** — the latest message a participant has read in a chat. It only
+  moves forward; marking an older message read changes nothing.
+- **Live chat** — a member following their chats in a community as they
+  change. Every change to a chat they are in reaches them while they are an
+  active participant: new, edited and deleted messages, reactions, the chat's
+  state and participants, their own read marks, mutes and unread counts, and
+  who is typing. Live updates are a delivery of current state, not a record:
+  a member who missed some reads the chats again. Typing is not stored.
 
 - **Scheduled post** — a post with a time to publish. At that time it is
   published, or sent to review when the space requires it. Until then the
@@ -249,9 +257,14 @@ Events, in addition to the comment events: `post.created`, `post.updated`,
 `post.published`, `post.removed`, `post.reported`, `chat.created`,
 `chat.updated`, `chat.participant.added`, `message.sent`, `message.updated`,
 `message.deleted`, `message.reported`, `post.reaction.added`,
-`message.reaction.added` and `digest.due`. A publish names everyone a post or
+`message.reaction.added`, `chat.read`, `message.reactions.changed`,
+`chat.muted` and `digest.due`. A publish names everyone a post or
 message mentions, an edit only the people it newly mentions, and a reaction
-event fires for a person's first reaction of a kind. `digest.due` fires when a
+event fires for a person's first reaction of a kind. `chat.read` fires when a
+participant's read mark moves forward, `message.reactions.changed` whenever a
+member's reaction on a message changes or is withdrawn, and `chat.muted` when
+a member mutes a chat or clears the mute. These three are a member's own state
+and have no public form: they are not automation triggers or webhook events. `digest.due` fires when a
 community's digest schedule comes round. A transition the row does not store,
 such as the status a post had before it published, is
 `metadata.previousStatus`. A comment on a post is created published, so of the

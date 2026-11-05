@@ -39,6 +39,7 @@ Headless LMS ships with a backend api, an admin portal and course builder and a 
 | **Email**                      | Resend                          | @headless-lms/adapter-email-resend    |
 | **Email Templates**            | React Email                     | @headless-lms/adapter-email-templates |
 | **Push**                       | APNs, FCM and Web Push          | @headless-lms/adapter-push            |
+| **PubSub**                     | Postgres LISTEN/NOTIFY          | @headless-lms/adapter-pubsub-postgres |
 | **Content Builder & Renderer** | Plate.js builder and components |                                       |
 | **File & Media Storage**       | Minio (S3 compatible)           |                                       |
 | **Logging**                    | Pino                            |                                       |
