@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { Permission } from '../types/index.js';
 import { contentTypeSchema } from '../types/schemas/content.js';
 import { levelSchema, roleKeySchema } from '../types/schemas/organizations.js';
 import { prefixId } from '../shared/id.js';
@@ -243,6 +244,44 @@ describe('resolvePermissions', () => {
     expect(p.has('courses:write', 'cmy_1')).toBe(false);
   });
 
+  it('adds a role on a course to the org role on that course only', () => {
+    const p = resolvePermissions({
+      assignments: [
+        { roleKey: 'moderator', contentId: null, contentType: null },
+        { roleKey: 'instructor', contentId: 'crs_1', contentType: 'course' },
+      ],
+      roles,
+    });
+    expect(p.has('communities:moderate', 'cmy_1')).toBe(true);
+    expect(p.has('communities:moderate', 'crs_1')).toBe(true);
+    expect(p.has('courses:write', 'crs_1')).toBe(true);
+    expect(p.has('courses:write', 'crs_2')).toBe(false);
+    expect(p.roleOn('crs_1').key).toBe('instructor');
+    expect(p.roleOn('crs_2').key).toBe('moderator');
+  });
+
+  it('lets people:read see every course’s progress and courses:moderate open its course', () => {
+    const only = (permissions: Permission[], levels: RoleDefinition['levels']) =>
+      new Map<string, OrgRole>([
+        ...roles,
+        ['only', { ...roles.get('admin')!, key: 'only', levels, permissions }],
+      ]);
+    const reader = resolvePermissions({
+      assignments: [{ roleKey: 'only', contentId: null, contentType: null }],
+      roles: only(['people:read'], ['org']),
+    });
+    expect(reader.has('progress:read', 'crs_1')).toBe(true);
+    expect(reader.has('progress:read', 'crs_9')).toBe(true);
+    expect(reader.has('courses:read', 'crs_1')).toBe(false);
+    const moderator = resolvePermissions({
+      assignments: [{ roleKey: 'only', contentId: 'crs_1', contentType: 'course' }],
+      roles: only(['courses:moderate'], ['course']),
+    });
+    expect(moderator.has('courses:read', 'crs_1')).toBe(true);
+    expect(moderator.has('courses:read', 'crs_2')).toBe(false);
+    expect(moderator.has('courses:write', 'crs_1')).toBe(false);
+  });
+
   it('expands implications', () => {
     const p = resolvePermissions({
       assignments: [{ roleKey: 'admin', contentId: null, contentType: null }],
@@ -290,7 +329,10 @@ describe('resolvePermissions', () => {
 
   it('gives the system every permission and no ownership', () => {
     const system = systemPermissions();
-    expect(system.has('people:delete')).toBe(true);
+    for (const permission of ALL_PERMISSIONS) {
+      expect(system.has(permission), permission).toBe(true);
+      expect(system.has(permission, 'crs_9'), permission).toBe(true);
+    }
     expect(system.isOwner()).toBe(false);
   });
 });
