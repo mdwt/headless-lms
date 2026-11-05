@@ -23,6 +23,8 @@ import {
   foreignKey,
   unique,
   index,
+  uniqueIndex,
+  uuid,
   check,
 } from "drizzle-orm/pg-core";
 import type {
@@ -450,6 +452,7 @@ export const messages = pgTable(
     orgUserId: text("org_user_id").notNull(),
     body: text("body").notNull(),
     replyToId: text("reply_to_id"),
+    clientId: uuid("client_id"),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -475,6 +478,7 @@ export const messages = pgTable(
     }),
     chatIdx: index("messages_chat_idx").on(t.orgId, t.chatId, t.createdAt),
     replyIdx: index("messages_reply_idx").on(t.orgId, t.replyToId),
+    clientUq: uniqueIndex("messages_client_id_uq").on(t.orgId, t.chatId, t.orgUserId, t.clientId),
   }),
 );
 

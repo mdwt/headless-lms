@@ -349,6 +349,7 @@ export const messageSchema = z
     orgUserId: idSchema,
     body: z.string(),
     replyToId: idSchema.nullable(),
+    clientId: z.uuid().nullable(),
     editedAt: z.coerce.date().nullable(),
     deletedAt: z.coerce.date().nullable(),
     createdAt: z.coerce.date(),
@@ -370,6 +371,17 @@ export const messageViewSchema = messageSchema
   })
   .strict();
 export type MessageView = z.output<typeof messageViewSchema>;
+
+export const liveMessageSchema = messageViewSchema.omit({ viewerReaction: true });
+export type LiveMessage = z.output<typeof liveMessageSchema>;
+
+export const chatUnreadSummarySchema = z
+  .object({
+    unread: z.number().int().min(0),
+    requests: z.number().int().min(0),
+  })
+  .strict();
+export type ChatUnreadSummary = z.output<typeof chatUnreadSummarySchema>;
 
 export const chatLastMessageSchema = z
   .object({
@@ -448,3 +460,63 @@ export const digestRunSchema = z
   })
   .strict();
 export type DigestRun = z.output<typeof digestRunSchema>;
+
+export const chatLiveEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('ready'), heartbeatMs: z.number().int() }).strict(),
+  z
+    .object({ type: z.literal('message.created'), chatId: idSchema, message: liveMessageSchema })
+    .strict(),
+  z
+    .object({ type: z.literal('message.updated'), chatId: idSchema, message: liveMessageSchema })
+    .strict(),
+  z
+    .object({
+      type: z.literal('message.deleted'),
+      chatId: idSchema,
+      messageId: idSchema,
+      deletedAt: z.coerce.date(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('message.reactions'),
+      chatId: idSchema,
+      messageId: idSchema,
+      reactions: reactionCountsSchema,
+      orgUserId: idSchema,
+      reaction: reactionEmojiSchema.nullable(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('chat.updated'),
+      chatId: idSchema,
+      chat: chatSchema,
+      participants: z.array(commentAuthorSchema),
+    })
+    .strict(),
+  z.object({ type: z.literal('chat.removed'), chatId: idSchema }).strict(),
+  z
+    .object({
+      type: z.literal('chat.state'),
+      chatId: idSchema,
+      unread: z.number().int().min(0),
+      lastReadMessageId: idSchema.nullable(),
+      subscription: subscriptionViewSchema.nullable(),
+    })
+    .strict(),
+  chatUnreadSummarySchema.extend({ type: z.literal('unread') }).strict(),
+  z
+    .object({
+      type: z.literal('typing'),
+      chatId: idSchema,
+      orgUserId: idSchema,
+      until: z.coerce.date(),
+    })
+    .strict(),
+  z.object({ type: z.literal('resync') }).strict(),
+  z
+    .object({ type: z.literal('closed'), reason: z.enum(['access', 'session', 'shutdown']) })
+    .strict(),
+]);
+export type ChatLiveEvent = z.output<typeof chatLiveEventSchema>;

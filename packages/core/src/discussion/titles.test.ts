@@ -32,6 +32,7 @@ function message(over: Partial<Message>): Message {
     orgUserId: 'ou_james',
     body: 'See you   at nine',
     replyToId: null,
+    clientId: null,
     editedAt: null,
     deletedAt: null,
     createdAt: AT,

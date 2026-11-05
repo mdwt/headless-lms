@@ -21,7 +21,8 @@ const mentioned = { mentionedOrgUserIds: z.array(idSchema) };
 const commentEventSchema = commentSchema.extend(mentioned);
 const postEventSchema = postSchema.extend(mentioned);
 const publicPost = postSchema.strip();
-const messageEventSchema = messageSchema.extend(mentioned);
+const eventMessageSchema = messageSchema.omit({ clientId: true });
+const messageEventSchema = eventMessageSchema.extend(mentioned);
 
 const publicComment = commentSchema
   .pick({
@@ -81,7 +82,7 @@ const participantAddedSchema = z
   })
   .strict();
 
-const publicMessage = messageSchema.omit({ body: true }).strip();
+const publicMessage = messageSchema.omit({ body: true, clientId: true }).strip();
 
 const postReactionAddedSchema = z
   .object({
@@ -112,6 +113,34 @@ const messageReactionAddedSchema = z
     communityId: idSchema,
     orgUserId: idSchema,
     reaction: reactionEmojiSchema,
+  })
+  .strict();
+
+const messageReactionsChangedSchema = z
+  .object({
+    messageId: idSchema,
+    chatId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    reaction: reactionEmojiSchema.nullable(),
+  })
+  .strict();
+
+const chatReadSchema = z
+  .object({
+    chatId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    lastReadMessageId: idSchema,
+  })
+  .strict();
+
+const chatMutedSchema = z
+  .object({
+    chatId: idSchema,
+    communityId: idSchema,
+    orgUserId: idSchema,
+    mutedUntil: z.coerce.date().nullable(),
   })
   .strict();
 
@@ -211,6 +240,16 @@ export const discussionEvents = {
     data: participantAddedSchema,
     publicData: participantAddedSchema,
   }),
+  chatRead: defineEvent({
+    type: 'discussion.chat.read',
+    version: 1,
+    data: chatReadSchema,
+  }),
+  chatMuted: defineEvent({
+    type: 'discussion.chat.muted',
+    version: 1,
+    data: chatMutedSchema,
+  }),
   messageSent: defineEvent({
     type: 'discussion.message.sent',
     version: 1,
@@ -229,10 +268,15 @@ export const discussionEvents = {
     data: messageReactionAddedSchema,
     publicData: messageReactionAddedSchema,
   }),
+  messageReactionsChanged: defineEvent({
+    type: 'discussion.message.reactions.changed',
+    version: 1,
+    data: messageReactionsChangedSchema,
+  }),
   messageDeleted: defineEvent({
     type: 'discussion.message.deleted',
     version: 1,
-    data: messageSchema,
+    data: eventMessageSchema,
     publicData: publicMessage,
   }),
   messageReported: defineEvent({
@@ -265,9 +309,12 @@ export type PostReported = EventOf<typeof discussionEvents.postReported>;
 export type ChatCreated = EventOf<typeof discussionEvents.chatCreated>;
 export type ChatUpdated = EventOf<typeof discussionEvents.chatUpdated>;
 export type ChatParticipantAdded = EventOf<typeof discussionEvents.chatParticipantAdded>;
+export type ChatRead = EventOf<typeof discussionEvents.chatRead>;
+export type ChatMuted = EventOf<typeof discussionEvents.chatMuted>;
 export type MessageSent = EventOf<typeof discussionEvents.messageSent>;
 export type MessageUpdated = EventOf<typeof discussionEvents.messageUpdated>;
 export type MessageReactionAdded = EventOf<typeof discussionEvents.messageReactionAdded>;
+export type MessageReactionsChanged = EventOf<typeof discussionEvents.messageReactionsChanged>;
 export type MessageDeleted = EventOf<typeof discussionEvents.messageDeleted>;
 export type MessageReported = EventOf<typeof discussionEvents.messageReported>;
 export type DigestDue = EventOf<typeof discussionEvents.digestDue>;

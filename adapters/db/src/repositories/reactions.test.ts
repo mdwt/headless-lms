@@ -48,7 +48,8 @@ describe("reaction writes", () => {
         const repo = new DrizzleChatRepository(db);
         return {
           statements,
-          run: (emoji: string | null) => repo.setReaction("o", "cmy", "m", "u", emoji),
+          run: async (emoji: string | null) =>
+            (await repo.setReaction("o", "cmy", "m", "u", emoji)).inserted,
         };
       },
     },
@@ -72,5 +73,23 @@ describe("reaction writes", () => {
     const removed = write([]);
     await expect(removed.run(null)).resolves.toBe(false);
     expect(removed.statements[0]).toMatch(/^delete from /);
+  });
+
+  it("message_reactions reports a change only when the reaction differs or a row is removed", async () => {
+    const run = (rows: unknown[][], emoji: string | null) => {
+      const { db, statements } = client(rows);
+      return {
+        statements,
+        result: new DrizzleChatRepository(db).setReaction("o", "cmy", "m", "u", emoji),
+      };
+    };
+    const changed = run([[false]], "🎉");
+    await expect(changed.result).resolves.toEqual({ inserted: false, changed: true });
+    expect(changed.statements[0]).toMatch(
+      /do update set .* where "message_reactions"."emoji" is distinct from excluded.emoji returning/,
+    );
+    await expect(run([], "🎉").result).resolves.toEqual({ inserted: false, changed: false });
+    await expect(run([["u"]], null).result).resolves.toEqual({ inserted: false, changed: true });
+    await expect(run([], null).result).resolves.toEqual({ inserted: false, changed: false });
   });
 });

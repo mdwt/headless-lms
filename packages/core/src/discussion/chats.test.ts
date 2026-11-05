@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { ForbiddenError, InvalidInputError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+  UnavailableError,
+} from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
-import type { NewDomainEvent } from '../shared/ports.js';
+import type { JsonValue, NewDomainEvent, PubSub } from '../shared/ports.js';
 import type { DmSettings } from '../content/index.js';
 import { actorWith } from '../organizations/index.js';
 import type { AssetFiles, MemberImageReader } from '../assets/index.js';
 import { createFileUrls } from '../assets/index.js';
 import { ChatServiceImpl } from './chats.js';
+import { activeSubscription } from './subscriptions.js';
 import type {
   AuthorPermissionReader,
   ChatInboxRow,
@@ -187,6 +194,7 @@ function harness(options?: {
   settings?: Partial<DmSettings> | null;
   members?: string[];
   images?: MemberImageReader & Partial<Pick<AssetFiles, 'signFile'>>;
+  pubsub?: PubSub;
 }) {
   const chats: Chat[] = [];
   const users: ChatUser[] = [];
@@ -203,6 +211,84 @@ function harness(options?: {
 
   const pair = (a: string, b: string) => [a, b].sort().join(':');
   const queries = { isBlocked: 0, blockedWith: 0, anyBlockedAmong: 0 };
+  const race = { missClientId: false };
+  const subscriptions = subscriptionStore();
+  const newest = (a: Message, b: Message) =>
+    b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1);
+  const after = (a: Message, b: Message) =>
+    a.createdAt.getTime() > b.createdAt.getTime() ||
+    (a.createdAt.getTime() === b.createdAt.getTime() && a.id > b.id);
+  const unreadOf = (chatId: string, orgUserId: string) => {
+    const marker = users.find(
+      (row) => row.chatId === chatId && row.orgUserId === orgUserId,
+    )?.lastReadMessageId;
+    const read = messages.find((row) => row.id === marker);
+    return messages
+      .filter(
+        (row) =>
+          row.chatId === chatId &&
+          row.orgUserId !== orgUserId &&
+          row.deletedAt === null &&
+          (!read || row.createdAt.getTime() > read.createdAt.getTime()),
+      )
+      .sort(newest);
+  };
+  const isRequestTo = (chat: Chat, orgUserId: string) =>
+    chat.kind === 'direct' && chat.status === 'pending' && chat.createdBy !== orgUserId;
+  const activeIn = (chatId: string, orgUserId: string) =>
+    users.some((user) => user.chatId === chatId && user.orgUserId === orgUserId && !user.leftAt);
+  const inboxRowOf = (chat: Chat, orgUserId: string): ChatInboxRow => {
+    const mine = users.find((user) => user.chatId === chat.id && user.orgUserId === orgUserId);
+    const last = messages.filter((row) => row.chatId === chat.id).sort(newest)[0];
+    return {
+      chat: { ...chat },
+      participantIds: users
+        .filter((user) => user.chatId === chat.id && user.leftAt === null)
+        .map((user) => user.orgUserId)
+        .sort(),
+      lastReadMessageId: mine?.lastReadMessageId ?? null,
+      unread: unreadOf(chat.id, orgUserId).length,
+      lastMessage: last
+        ? {
+            id: last.id,
+            orgUserId: last.orgUserId,
+            body: last.body,
+            createdAt: last.createdAt,
+            deletedAt: last.deletedAt,
+          }
+        : null,
+    };
+  };
+  const statesOf = (communityId: string, orgUserId: string, at: Date) => {
+    const mine = chats.filter(
+      (chat) => chat.communityId === communityId && activeIn(chat.id, orgUserId),
+    );
+    let unread = 0;
+    let requests = 0;
+    const states = mine.map((chat) => {
+      const count = unreadOf(chat.id, orgUserId).length;
+      const subscription = activeSubscription(
+        subscriptions.rows.find(
+          (row) => row.orgUserId === orgUserId && row.itemType === 'chat' && row.itemId === chat.id,
+        ),
+        at,
+      );
+      if (isRequestTo(chat, orgUserId)) {
+        requests += 1;
+      } else if (subscription?.state !== 'muted') {
+        unread += count;
+      }
+      return {
+        chatId: chat.id,
+        unread: count,
+        lastReadMessageId:
+          users.find((user) => user.chatId === chat.id && user.orgUserId === orgUserId)
+            ?.lastReadMessageId ?? null,
+        subscription,
+      };
+    });
+    return { orgUserId, unread: { unread: unread + requests, requests }, chats: states };
+  };
 
   const repo: ChatRepository = {
     async lockDirectPair() {},
@@ -239,39 +325,10 @@ function harness(options?: {
           (chat) =>
             chat.orgId === orgId &&
             chat.communityId === communityId &&
-            users.some(
-              (user) =>
-                user.chatId === chat.id && user.orgUserId === orgUserId && user.leftAt === null,
-            ),
+            activeIn(chat.id, orgUserId) &&
+            (query.requests === undefined || isRequestTo(chat, orgUserId) === query.requests),
         )
-        .map((chat): ChatInboxRow => {
-          const mine = users.find(
-            (user) => user.chatId === chat.id && user.orgUserId === orgUserId,
-          );
-          const last = messages
-            .filter((row) => row.chatId === chat.id)
-            .sort(
-              (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
-            )[0];
-          return {
-            chat: { ...chat },
-            participantIds: users
-              .filter((user) => user.chatId === chat.id && user.leftAt === null)
-              .map((user) => user.orgUserId)
-              .sort(),
-            lastReadMessageId: mine?.lastReadMessageId ?? null,
-            unread: 0,
-            lastMessage: last
-              ? {
-                  id: last.id,
-                  orgUserId: last.orgUserId,
-                  body: last.body,
-                  createdAt: last.createdAt,
-                  deletedAt: last.deletedAt,
-                }
-              : null,
-          };
-        });
+        .map((chat) => inboxRowOf(chat, orgUserId));
       const from = (query.page - 1) * query.pageSize;
       return {
         rows: all.slice(from, from + query.pageSize),
@@ -280,10 +337,40 @@ function harness(options?: {
         pageSize: query.pageSize,
       };
     },
+    async inboxRow(orgId, chatId, orgUserId) {
+      const chat = chats.find((row) => row.orgId === orgId && row.id === chatId);
+      return chat && activeIn(chatId, orgUserId) ? inboxRowOf(chat, orgUserId) : null;
+    },
     async participants(orgId, chatId) {
       return users
         .filter((user) => user.orgId === orgId && user.chatId === chatId)
         .map((user) => ({ ...user }));
+    },
+    async activeParticipants(orgId, chatId) {
+      return users
+        .filter((user) => user.orgId === orgId && user.chatId === chatId && !user.leftAt)
+        .map((user) => user.orgUserId)
+        .sort();
+    },
+    async unreadSummary(_orgId, communityId, orgUserId, at) {
+      return statesOf(communityId, orgUserId, at).unread;
+    },
+    async memberStates(_orgId, communityId, orgUserIds, at) {
+      return orgUserIds.map((orgUserId) => statesOf(communityId, orgUserId, at));
+    },
+    async findByClientId(orgId, chatId, orgUserId, clientId) {
+      if (race.missClientId) {
+        race.missClientId = false;
+        return null;
+      }
+      const message = messages.find(
+        (row) =>
+          row.orgId === orgId &&
+          row.chatId === chatId &&
+          row.orgUserId === orgUserId &&
+          row.clientId === clientId,
+      );
+      return message ? { ...message } : null;
     },
     async join(_orgId, user) {
       const existing = users.find(
@@ -307,9 +394,13 @@ function harness(options?: {
       const user = users.find(
         (row) => row.orgId === orgId && row.chatId === chatId && row.orgUserId === orgUserId,
       );
-      if (user) {
-        user.lastReadMessageId = messageId;
+      const target = messages.find((row) => row.id === messageId);
+      const current = messages.find((row) => row.id === user?.lastReadMessageId);
+      if (!user || !target || (current && !after(target, current))) {
+        return false;
       }
+      user.lastReadMessageId = messageId;
+      return true;
     },
     async unreadFor(orgId, chatId, orgUserId) {
       const marker = users.find(
@@ -334,6 +425,17 @@ function harness(options?: {
       };
     },
     async insertMessage(_orgId, message) {
+      if (
+        message.clientId !== null &&
+        messages.some(
+          (row) =>
+            row.chatId === message.chatId &&
+            row.orgUserId === message.orgUserId &&
+            row.clientId === message.clientId,
+        )
+      ) {
+        throw new ConflictError('A message with this client id already exists');
+      }
       messages.push({ ...message });
       return { ...message };
     },
@@ -390,13 +492,14 @@ function harness(options?: {
       const index = reactions.findIndex(
         (row) => row.messageId === messageId && row.orgUserId === orgUserId,
       );
+      const before = index >= 0 ? reactions[index]!.emoji : null;
       if (index >= 0) {
         reactions.splice(index, 1);
       }
       if (emoji !== null) {
         reactions.push({ messageId, orgUserId, emoji });
       }
-      return index < 0 && emoji !== null;
+      return { inserted: index < 0 && emoji !== null, changed: before !== emoji };
     },
     async reactionsOf(_orgId, messageIds, viewerId) {
       const byMessage: Record<
@@ -562,7 +665,6 @@ function harness(options?: {
       }),
   };
 
-  const subscriptions = subscriptionStore();
   const svc = new ChatServiceImpl({
     repo,
     access,
@@ -607,10 +709,12 @@ function harness(options?: {
     },
     fileUrls,
     uow,
+    ...(options?.pubsub && { pubsub: options.pubsub }),
   });
 
   return {
     svc,
+    race,
     subscriptions,
     mentions,
     chats,
@@ -1899,7 +2003,7 @@ describe('message events', () => {
       .filter((row) => row.type === type)
       .at(-1)?.data as Record<string, unknown> | undefined;
 
-  it('announces only a person’s first reaction to a message', async () => {
+  it('announces only a person’s first reaction as added, and every change as changed', async () => {
     const h = harness({ settings: { firstMessageIsRequest: false } });
     const chat = await h.svc.startDirect(
       {
@@ -1913,20 +2017,49 @@ describe('message events', () => {
     const sent = await h.svc.send(chat.id, messageInput('hi'), member);
     h.calls.length = 0;
     await h.svc.setReaction(sent.id, '👍', other);
+    await h.svc.setReaction(sent.id, '👍', other);
     await h.svc.setReaction(sent.id, '🎉', other);
     await h.svc.setReaction(sent.id, null, other);
-    expect(h.calls.flat()).toEqual([
-      expect.objectContaining({
-        type: 'discussion.message.reaction.added',
-        data: {
-          messageId: sent.id,
-          chatId: chat.id,
-          communityId: COMMUNITY,
-          orgUserId: other.id,
-          reaction: '👍',
-        },
-      }),
+    await h.svc.setReaction(sent.id, null, other);
+    const where = {
+      messageId: sent.id,
+      chatId: chat.id,
+      communityId: COMMUNITY,
+      orgUserId: other.id,
+    };
+    expect(h.calls.flat().map((event) => [event.type, event.data])).toEqual([
+      ['discussion.message.reaction.added', { ...where, reaction: '👍' }],
+      ['discussion.message.reactions.changed', { ...where, reaction: '👍' }],
+      ['discussion.message.reactions.changed', { ...where, reaction: '🎉' }],
+      ['discussion.message.reactions.changed', { ...where, reaction: null }],
     ]);
+  });
+
+  it('leaves the client id out of message event data', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const sent = await h.svc.send(
+      chat.id,
+      { ...messageInput('hi'), clientId: '0f6c3a52-8f1e-4d8a-9a3b-4f1b2c3d4e5f' },
+      member,
+    );
+    expect(sent.clientId).toBe('0f6c3a52-8f1e-4d8a-9a3b-4f1b2c3d4e5f');
+    await h.svc.editMessage(sent.id, 'hello', member);
+    await h.svc.deleteMessage(sent.id, member);
+    const messageEvents = h.calls
+      .flat()
+      .filter((event) => event.type.startsWith('discussion.message.'));
+    expect(messageEvents.map((event) => event.type)).toEqual([
+      'discussion.message.sent',
+      'discussion.message.updated',
+      'discussion.message.deleted',
+    ]);
+    for (const event of messageEvents) {
+      expect(dataOf(event)).not.toHaveProperty('clientId');
+    }
   });
 
   it('announces an edit with the people it newly mentions', async () => {
@@ -2149,5 +2282,311 @@ describe('direct message rules on team', () => {
     expect(await badge(emma, 'cmy_2')).toEqual({ team: false, roleName: null });
     expect(await badge(member, COMMUNITY)).toEqual({ team: false, roleName: null });
     expect(await badge(staff, COMMUNITY)).toEqual({ team: true, roleName: 'Admin' });
+  });
+});
+
+describe('read marks', () => {
+  it('moves the read mark only forward and records each move once', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const first = await h.svc.send(chat.id, messageInput('one'), other);
+    const second = await h.svc.send(chat.id, messageInput('two'), other);
+    h.messages.find((row) => row.id === first.id)!.createdAt = new Date(1000);
+    h.messages.find((row) => row.id === second.id)!.createdAt = new Date(2000);
+    h.calls.length = 0;
+    await h.svc.markRead(chat.id, second.id, member);
+    await h.svc.markRead(chat.id, first.id, member);
+    await h.svc.markRead(chat.id, second.id, member);
+    expect(h.users.find((user) => user.orgUserId === member.id)?.lastReadMessageId).toBe(second.id);
+    expect(h.calls.flat().map((event) => [event.type, event.data])).toEqual([
+      [
+        'discussion.chat.read',
+        {
+          chatId: chat.id,
+          communityId: COMMUNITY,
+          orgUserId: member.id,
+          lastReadMessageId: second.id,
+        },
+      ],
+    ]);
+  });
+});
+
+describe('client ids', () => {
+  const CLIENT_ID = '7d3b9f2e-1c4a-4b5d-8e6f-0a1b2c3d4e5f';
+
+  async function room() {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    h.calls.length = 0;
+    return { ...h, chat };
+  }
+
+  it('returns the stored message for a repeat send and records nothing', async () => {
+    const h = await room();
+    const first = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hi'), clientId: CLIENT_ID },
+      member,
+    );
+    const repeat = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hi again'), clientId: CLIENT_ID },
+      member,
+    );
+    expect(repeat.id).toBe(first.id);
+    expect(repeat.body).toBe('hi');
+    expect(h.messages).toHaveLength(1);
+    expect(h.calls.flat().map((event) => event.type)).toEqual(['discussion.message.sent']);
+  });
+
+  it('treats the same client id from another member as a new message', async () => {
+    const h = await room();
+    const mine = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hi'), clientId: CLIENT_ID },
+      member,
+    );
+    const theirs = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hey'), clientId: CLIENT_ID },
+      other,
+    );
+    expect(theirs.id).not.toBe(mine.id);
+    expect(h.messages).toHaveLength(2);
+  });
+
+  it('returns the winner’s message to the send that lost the race to the unique index', async () => {
+    const h = await room();
+    const first = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hi'), clientId: CLIENT_ID },
+      member,
+    );
+    h.race.missClientId = true;
+    const loser = await h.svc.send(
+      h.chat.id,
+      { ...messageInput('hi'), clientId: CLIENT_ID },
+      member,
+    );
+    expect(loser.id).toBe(first.id);
+    expect(h.messages).toHaveLength(1);
+    expect(h.calls.flat().map((event) => event.type)).toEqual(['discussion.message.sent']);
+  });
+});
+
+describe('chat reads for one chat', () => {
+  it('lists each chat with its active participants’ profiles', async () => {
+    const h = harness();
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, emma.id] },
+      member,
+    );
+    await h.svc.addParticipant(chat.id, third.id, member);
+    await h.svc.leave(chat.id, other);
+    const [item] = (await h.svc.listChats(COMMUNITY, PAGE, member)).rows;
+    expect(item?.participantIds).toEqual([emma.id, member.id, third.id].sort());
+    expect(item?.participants.map((person) => person.id)).toEqual(item?.participantIds);
+    expect(item?.participants.find((person) => person.id === emma.id)).toMatchObject({
+      team: true,
+      roleName: 'Moderator',
+    });
+    expect(item?.participants.find((person) => person.id === member.id)).toMatchObject({
+      displayName: 'Sarah',
+      team: false,
+    });
+  });
+
+  it('lists only the pending requests to the member, or everything else', async () => {
+    const h = harness();
+    const request = await h.svc.startDirect(
+      { communityId: COMMUNITY, orgUserId: member.id, body: 'Hi', assetIds: [] },
+      other,
+    );
+    const group = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const ids = async (actor: Actor, requests?: boolean) =>
+      (
+        await h.svc.listChats(
+          COMMUNITY,
+          requests === undefined ? PAGE : { ...PAGE, requests },
+          actor,
+        )
+      ).rows
+        .map((row) => row.chat.id)
+        .sort();
+    expect(await ids(member, true)).toEqual([request.id]);
+    expect(await ids(member, false)).toEqual([group.id]);
+    expect(await ids(member)).toEqual([request.id, group.id].sort());
+    expect(await ids(other, true)).toEqual([]);
+  });
+
+  it('reads one chat for an active participant only', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    await h.svc.send(chat.id, messageInput('hi'), other);
+    const item = await h.svc.chat(chat.id, member);
+    expect(item).toMatchObject({
+      chat: { id: chat.id },
+      unread: 1,
+      subscription: null,
+      lastMessage: { body: 'hi' },
+    });
+    expect(item.participants).toHaveLength(3);
+    await expect(h.svc.chat(chat.id, fourth)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(h.svc.chat('cht_missing', member)).rejects.toBeInstanceOf(NotFoundError);
+    h.dropMember(member.id);
+    await expect(h.svc.chat(chat.id, member)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('finds the direct chat with a member, and none once the member left it', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    await expect(h.svc.directChat(COMMUNITY, other.id, member)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    const chat = await h.svc.startDirect(
+      { communityId: COMMUNITY, orgUserId: other.id, body: null, assetIds: [] },
+      member,
+    );
+    expect((await h.svc.directChat(COMMUNITY, other.id, member)).chat.id).toBe(chat.id);
+    expect((await h.svc.directChat(COMMUNITY, member.id, other)).chat.id).toBe(chat.id);
+    await expect(h.svc.directChat(COMMUNITY, member.id, member)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await h.svc.leave(chat.id, member);
+    await expect(h.svc.directChat(COMMUNITY, other.id, member)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(h.svc.directChat(COMMUNITY, member.id, outsider)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it('totals unread across chats that are neither muted nor requests, plus the requests', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const group = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const muted = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, fourth.id] },
+      member,
+    );
+    await h.svc.send(group.id, messageInput('one'), other);
+    await h.svc.send(group.id, messageInput('two'), third);
+    await h.svc.send(muted.id, messageInput('quiet'), other);
+    await h.subscriptions.repo.upsert(ORG, {
+      orgId: ORG,
+      orgUserId: member.id,
+      itemType: 'chat',
+      itemId: muted.id,
+      state: 'muted',
+      mutedUntil: null,
+      createdAt: new Date(),
+    });
+    expect(await h.svc.unreadSummary(COMMUNITY, member)).toEqual({ unread: 2, requests: 0 });
+    const strict = harness();
+    await strict.svc.startDirect(
+      { communityId: COMMUNITY, orgUserId: member.id, body: 'Hi', assetIds: [] },
+      other,
+    );
+    expect(await strict.svc.unreadSummary(COMMUNITY, member)).toEqual({
+      unread: 1,
+      requests: 1,
+    });
+    await expect(h.svc.unreadSummary(COMMUNITY, outsider)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('serves message views without a viewer reaction or a deleted message’s body', async () => {
+    const h = harness({ settings: { firstMessageIsRequest: false } });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const kept = await h.svc.send(chat.id, messageInput('kept'), member);
+    const gone = await h.svc.send(
+      chat.id,
+      { body: 'gone <@ou_other>', replyToId: null, assetIds: ['ast_1'] },
+      member,
+    );
+    await h.svc.setReaction(kept.id, '👍', other);
+    await h.svc.deleteMessage(gone.id, member);
+    const views = await h.svc.messageViews(ORG, [kept.id, gone.id]);
+    const byId = new Map(views.map((view) => [view.id, view]));
+    expect(byId.get(kept.id)).toMatchObject({ body: 'kept', reactions: { '👍': 1 } });
+    expect(byId.get(gone.id)).toMatchObject({ body: '', attachments: [], mentions: [] });
+    for (const view of views) {
+      expect(view).not.toHaveProperty('viewerReaction');
+    }
+  });
+});
+
+describe('typing and live streams', () => {
+  function recordingPubSub() {
+    const published: JsonValue[] = [];
+    const pubsub: PubSub = {
+      async publish(_channel, message) {
+        published.push(message);
+      },
+      subscribe: () => () => {},
+      async start() {},
+      async stop() {},
+    };
+    return { pubsub, published };
+  }
+
+  it('publishes typing for an active participant and drops a repeat within 2 s', async () => {
+    const { pubsub, published } = recordingPubSub();
+    const h = harness({ settings: { firstMessageIsRequest: false }, pubsub });
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    await h.svc.typing(chat.id, member);
+    await h.svc.typing(chat.id, member);
+    await h.svc.typing(chat.id, other);
+    expect(published).toEqual([
+      expect.objectContaining({
+        event: 'typing',
+        orgId: ORG,
+        communityId: COMMUNITY,
+        chatId: chat.id,
+        orgUserId: member.id,
+      }),
+      expect.objectContaining({ event: 'typing', orgUserId: other.id }),
+    ]);
+    const until = new Date((published[0] as { until: string }).until).getTime();
+    expect(until - Date.now()).toBeGreaterThan(4000);
+    expect(until - Date.now()).toBeLessThanOrEqual(5000);
+    await expect(h.svc.typing(chat.id, fourth)).rejects.toBeInstanceOf(ForbiddenError);
+    await h.svc.lock(chat.id, null, staff);
+    await expect(h.svc.typing(chat.id, third)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('refuses a stream without a PubSub and to a non-member', async () => {
+    const plain = harness();
+    const session = { current: async () => ({ status: 'signed-out' as const }) };
+    await expect(plain.svc.watch(COMMUNITY, session, member)).rejects.toBeInstanceOf(
+      UnavailableError,
+    );
+    const { pubsub } = recordingPubSub();
+    const live = harness({ pubsub });
+    await expect(live.svc.watch(COMMUNITY, session, outsider)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    const stream = (await live.svc.watch(COMMUNITY, session, member))[Symbol.asyncIterator]();
+    expect((await stream.next()).value).toEqual({ type: 'ready', heartbeatMs: 25_000 });
+    await stream.return?.();
   });
 });

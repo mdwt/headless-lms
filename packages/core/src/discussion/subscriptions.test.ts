@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ForbiddenError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import { actorWith } from '../organizations/index.js';
+import type { NewDomainEvent } from '../shared/ports.js';
 import type { Chat, ChatUser, Subscription } from '../types/index.js';
 import { SubscriptionServiceImpl } from './subscriptions.js';
 import type { SubscriptionsRepository } from './ports.js';
@@ -85,8 +86,20 @@ function chatUser(orgUserId: string, leftAt: Date | null = null): ChatUser {
 
 function harness() {
   const store = subscriptionStore();
+  const events: NewDomainEvent[] = [];
   const svc = new SubscriptionServiceImpl({
     repo: store.repo,
+    uow: {
+      run: (fn) =>
+        fn({
+          subscriptions: store.repo,
+          outbox: {
+            async append(appended: NewDomainEvent[]) {
+              events.push(...appended);
+            },
+          },
+        }),
+    },
     access: {
       async canOpenSpace(spaceId, actor) {
         return spaceId === 'spc_1' && actor.id !== outsider.id;
@@ -115,7 +128,7 @@ function harness() {
       },
     },
   });
-  return { svc, rows: store.rows };
+  return { svc, rows: store.rows, events };
 }
 
 const rowOf = (rows: Subscription[], orgUserId: string, itemType: string, itemId: string) =>
@@ -187,6 +200,26 @@ describe('subscriptions', () => {
     await expect(svc.setChat('cht_x', { state: 'muted' }, james)).rejects.toBeInstanceOf(
       NotFoundError,
     );
+  });
+
+  it('records a chat mute and its clearing as chat.muted, and nothing for posts or spaces', async () => {
+    const { svc, events } = harness();
+    const until = new Date('2030-01-01T00:00:00.000Z');
+    await svc.setChat('cht_1', { state: 'muted', mutedUntil: until }, james);
+    await svc.setChat('cht_1', { state: 'none' }, james);
+    await svc.setPost('pst_1', { state: 'following' }, james);
+    await svc.setSpace('spc_1', { state: 'muted' }, james);
+    expect(events.map((event) => [event.type, event.data])).toEqual([
+      [
+        'discussion.chat.muted',
+        { chatId: 'cht_1', communityId: 'cmy_1', orgUserId: james.id, mutedUntil: until },
+      ],
+      [
+        'discussion.chat.muted',
+        { chatId: 'cht_1', communityId: 'cmy_1', orgUserId: james.id, mutedUntil: null },
+      ],
+    ]);
+    expect(events[0]?.metadata).toEqual({ actorOrgUserId: james.id });
   });
 
   it('follows only a post', async () => {

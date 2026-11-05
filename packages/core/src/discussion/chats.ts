@@ -4,19 +4,24 @@ import {
   ForbiddenError,
   InvalidInputError,
   NotFoundError,
+  UnavailableError,
 } from '../shared/errors.js';
-import type { Logger } from '../shared/ports.js';
+import type { Logger, PubSub } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { DmSettings } from '../content/index.js';
 import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
 import type {
   Chat,
+  ChatLiveEvent,
+  ChatUnreadSummary,
   ChatUser,
+  LiveMessage,
   Message,
   MessageFlag,
   MessageFlagResolution,
   MessageView,
   Page,
+  ReactionCounts,
   ReactionEmoji,
 } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
@@ -26,19 +31,26 @@ import { authorName, authorView } from './authors.js';
 import { activeSubscription } from './subscriptions.js';
 import { keepAllowed, mentionTokens, mentionViews } from './mentions.js';
 import { isTeam, teamBadge } from './rules.js';
+import { ChatHub, TYPING, publishChange, type ChatHubOptions } from './live.js';
+import type { CommentAuthor } from './model.js';
 import type {
   AuthorPermissionReader,
   AuthorProfileReader,
+  ChatInboxRow,
   ChatListItem,
+  ChatListQuery,
+  ChatLiveReads,
+  ChatMemberStates,
   ChatRepository,
   ChatService,
   ChatUnread,
   ChatUnitOfWork,
+  LiveChat,
+  LiveSession,
   MentionsRepository,
   MessageQueue,
   MessageQueueEntry,
   MessageReactions,
-  PageQuery,
   SendMessageInput,
   StartDirectInput,
   StartGroupInput,
@@ -47,6 +59,9 @@ import type {
   SubscriptionsRepository,
 } from './ports.js';
 import { MODERATION_QUEUE_LIMIT } from './ports.js';
+
+const TYPING_FOR_MS = 5000;
+const TYPING_REPEAT_MS = 2000;
 
 export type ChatServiceParams = {
   repo: ChatRepository;
@@ -59,10 +74,19 @@ export type ChatServiceParams = {
   images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   uow: ChatUnitOfWork;
+  pubsub?: PubSub;
+  live?: ChatHubOptions;
   logger?: Logger;
 };
 
-export class ChatServiceImpl implements ChatService {
+function eventMessage(message: Message): Omit<Message, 'clientId'> {
+  const { clientId: _clientId, ...rest } = message;
+  return rest;
+}
+
+export class ChatServiceImpl implements ChatService, ChatLiveReads {
+  /** This process's live chat hub; null without a PubSub. */
+  readonly hub: ChatHub | null;
   private readonly repo: ChatRepository;
   private readonly access: CommunityAccess;
   private readonly content: Pick<SpaceReader, 'getDmSettings'>;
@@ -73,7 +97,9 @@ export class ChatServiceImpl implements ChatService {
   private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: ChatUnitOfWork;
+  private readonly pubsub: PubSub | null;
   private readonly logger: Logger;
+  private readonly typed = new Map<string, number>();
 
   constructor(params: ChatServiceParams) {
     this.repo = params.repo;
@@ -86,7 +112,11 @@ export class ChatServiceImpl implements ChatService {
     this.images = params.images;
     this.fileUrls = params.fileUrls;
     this.uow = params.uow;
+    this.pubsub = params.pubsub ?? null;
     this.logger = params.logger ?? noopLogger;
+    this.hub = this.pubsub
+      ? new ChatHub({ pubsub: this.pubsub, reads: this, logger: this.logger, ...params.live })
+      : null;
   }
 
   async startDirect(input: StartDirectInput, actor: Actor): Promise<Chat> {
@@ -349,21 +379,53 @@ export class ChatServiceImpl implements ChatService {
     if (!settings.enabled) {
       throw new ForbiddenError('Direct messages are off');
     }
-    const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
-      const chat = await this.mustChat(chats, orgId, chatId);
-      const users = await chats.participants(orgId, chatId);
-      await this.assertMaySend(chats, orgId, actor, chat, users, settings, input);
-      const written = await this.writeMessage(chats, mentions, orgId, actor, chat, users, input);
-      const events: NewDiscussionEvent[] = [];
-      if (written.opened) {
-        events.push(this.updatedEvent(orgId, actor, written.chat, users));
+    const clientId = input.clientId;
+    let saved: { message: Message; repeat: boolean };
+    try {
+      saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
+        const chat = await this.mustChat(chats, orgId, chatId);
+        if (clientId) {
+          const stored = await chats.findByClientId(orgId, chatId, actor.id, clientId);
+          if (stored) {
+            return { message: stored, repeat: true };
+          }
+        }
+        const users = await chats.participants(orgId, chatId);
+        await this.assertMaySend(chats, orgId, actor, chat, users, settings, input);
+        const written = await this.writeMessage(chats, mentions, orgId, actor, chat, users, input);
+        const events: NewDiscussionEvent[] = [];
+        if (written.opened) {
+          events.push(this.updatedEvent(orgId, actor, written.chat, users));
+        }
+        events.push(this.sentEvent(orgId, actor, written.chat, written.message, written.mentioned));
+        await outbox.append(events);
+        return { message: written.message, repeat: false };
+      });
+    } catch (error) {
+      const stored =
+        clientId && error instanceof ConflictError
+          ? await this.repo.findByClientId(orgId, chatId, actor.id, clientId)
+          : null;
+      if (!stored) {
+        throw error;
       }
-      events.push(this.sentEvent(orgId, actor, written.chat, written.message, written.mentioned));
-      await outbox.append(events);
-      return written.message;
-    });
-    this.logger.info('message sent', { orgId, chatId, messageId: saved.id, actorId: actor.id });
-    return this.viewOf(actor, saved);
+      saved = { message: stored, repeat: true };
+    }
+    if (saved.repeat) {
+      this.logger.debug('message send repeated', {
+        orgId,
+        chatId,
+        messageId: saved.message.id,
+      });
+    } else {
+      this.logger.info('message sent', {
+        orgId,
+        chatId,
+        messageId: saved.message.id,
+        actorId: actor.id,
+      });
+    }
+    return this.viewOf(actor, saved.message);
   }
 
   async editMessage(messageId: string, body: string, actor: Actor): Promise<MessageView> {
@@ -392,7 +454,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([
         discussionEvents.messageUpdated.make({
           orgId,
-          data: { ...next, mentionedOrgUserIds: keepAllowed(candidates, added) },
+          data: { ...eventMessage(next), mentionedOrgUserIds: keepAllowed(candidates, added) },
           metadata: { ...this.meta(actor), chatStatus: chat.status },
         }),
       ]);
@@ -435,7 +497,7 @@ export class ChatServiceImpl implements ChatService {
       await outbox.append([
         discussionEvents.messageDeleted.make({
           orgId,
-          data: next,
+          data: eventMessage(next),
           metadata: this.meta(actor),
         }),
       ]);
@@ -455,23 +517,40 @@ export class ChatServiceImpl implements ChatService {
     await this.requireActor(actor, message.communityId);
     await this.requireActive(this.repo, orgId, message.chatId, actor.id);
     await this.uow.run(async ({ chats, outbox }) => {
-      const first = await chats.setReaction(orgId, message.communityId, messageId, actor.id, emoji);
-      if (!first || emoji === null) {
+      const change = await chats.setReaction(
+        orgId,
+        message.communityId,
+        messageId,
+        actor.id,
+        emoji,
+      );
+      if (!change.changed) {
         return;
       }
-      await outbox.append([
-        discussionEvents.messageReactionAdded.make({
+      const where = {
+        messageId,
+        chatId: message.chatId,
+        communityId: message.communityId,
+        orgUserId: actor.id,
+      };
+      const events: NewDiscussionEvent[] = [];
+      if (change.inserted && emoji !== null) {
+        events.push(
+          discussionEvents.messageReactionAdded.make({
+            orgId,
+            data: { ...where, reaction: emoji },
+            metadata: this.meta(actor),
+          }),
+        );
+      }
+      events.push(
+        discussionEvents.messageReactionsChanged.make({
           orgId,
-          data: {
-            messageId,
-            chatId: message.chatId,
-            communityId: message.communityId,
-            orgUserId: actor.id,
-            reaction: emoji,
-          },
+          data: { ...where, reaction: emoji },
           metadata: this.meta(actor),
         }),
-      ]);
+      );
+      await outbox.append(events);
     });
     this.logger.debug('message reaction set', { orgId, messageId });
     const counts = await this.repo.reactionsOf(orgId, [messageId], actor.id);
@@ -487,8 +566,29 @@ export class ChatServiceImpl implements ChatService {
     if (message.chatId !== chatId) {
       throw new NotFoundError('Message', messageId);
     }
-    await this.repo.setRead(orgId, chatId, actor.id, messageId);
-    this.logger.debug('chat marked read', { orgId, chatId, messageId });
+    const moved = await this.uow.run(async ({ chats, outbox }) => {
+      if (!(await chats.setRead(orgId, chatId, actor.id, messageId))) {
+        return false;
+      }
+      await outbox.append([
+        discussionEvents.chatRead.make({
+          orgId,
+          data: {
+            chatId,
+            communityId: chat.communityId,
+            orgUserId: actor.id,
+            lastReadMessageId: messageId,
+          },
+          metadata: this.meta(actor),
+        }),
+      ]);
+      return true;
+    });
+    this.logger.debug(moved ? 'chat marked read' : 'chat read mark kept', {
+      orgId,
+      chatId,
+      messageId,
+    });
   }
 
   async block(communityId: string, orgUserId: string, actor: Actor): Promise<void> {
@@ -597,32 +697,146 @@ export class ChatServiceImpl implements ChatService {
 
   async listChats(
     communityId: string,
-    query: PageQuery,
+    query: ChatListQuery,
     actor: Actor,
   ): Promise<Page<ChatListItem>> {
     const orgId = actor.orgId;
     await this.requireSettings(orgId, communityId);
     await this.requireActor(actor, communityId);
-    const seesDeleted = actor.permissions.has('communities:moderate', communityId);
-    const now = new Date();
     const page = await this.repo.listForUser(orgId, communityId, actor.id, query);
-    const subscribed = await this.subscriptions.forViewer(
-      orgId,
-      actor.id,
-      'chat',
-      page.rows.map((item) => item.chat.id),
-    );
-    const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
-    const items = page.rows.map((item) => ({
-      ...item,
-      subscription: activeSubscription(subscriptionOf.get(item.chat.id), now),
-      lastMessage:
-        item.lastMessage && item.lastMessage.deletedAt !== null && !seesDeleted
-          ? { ...item.lastMessage, body: '' }
-          : item.lastMessage,
-    }));
+    const items = await this.listItems(actor, communityId, page.rows);
     this.logger.debug('chats listed', { orgId, communityId, count: items.length });
     return { ...page, rows: items };
+  }
+
+  async chat(chatId: string, actor: Actor): Promise<ChatListItem> {
+    const orgId = actor.orgId;
+    const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(actor, chat.communityId);
+    await this.requireActive(this.repo, orgId, chat.id, actor.id);
+    const row = await this.repo.inboxRow(orgId, chatId, actor.id);
+    if (!row) {
+      throw new NotFoundError('Chat', chatId);
+    }
+    const [item] = await this.listItems(actor, chat.communityId, [row]);
+    this.logger.debug('chat read', { orgId, chatId });
+    return item!;
+  }
+
+  async directChat(communityId: string, orgUserId: string, actor: Actor): Promise<ChatListItem> {
+    const orgId = actor.orgId;
+    await this.requireSettings(orgId, communityId);
+    await this.requireActor(actor, communityId);
+    const chat =
+      orgUserId === actor.id
+        ? null
+        : await this.repo.findDirect(orgId, communityId, actor.id, orgUserId);
+    const row = chat ? await this.repo.inboxRow(orgId, chat.id, actor.id) : null;
+    if (!row) {
+      throw new NotFoundError('Chat', orgUserId);
+    }
+    const [item] = await this.listItems(actor, communityId, [row]);
+    this.logger.debug('direct chat read', { orgId, communityId, chatId: row.chat.id });
+    return item!;
+  }
+
+  async unreadSummary(communityId: string, actor: Actor): Promise<ChatUnreadSummary> {
+    const orgId = actor.orgId;
+    await this.requireSettings(orgId, communityId);
+    await this.requireActor(actor, communityId);
+    return this.repo.unreadSummary(orgId, communityId, actor.id, new Date());
+  }
+
+  async typing(chatId: string, actor: Actor): Promise<void> {
+    const orgId = actor.orgId;
+    const chat = await this.mustChat(this.repo, orgId, chatId);
+    await this.requireActor(actor, chat.communityId);
+    await this.requireActive(this.repo, orgId, chat.id, actor.id);
+    if (chat.lockedAt || chat.status === 'closed') {
+      throw new ForbiddenError('You cannot send in this chat');
+    }
+    if (!this.pubsub) {
+      return;
+    }
+    const now = Date.now();
+    const key = `${orgId}:${chatId}:${actor.id}`;
+    const last = this.typed.get(key);
+    if (last !== undefined && now - last < TYPING_REPEAT_MS) {
+      return;
+    }
+    this.typed.set(key, now);
+    for (const [seen, at] of this.typed) {
+      if (now - at >= TYPING_REPEAT_MS) {
+        this.typed.delete(seen);
+      }
+    }
+    await publishChange(
+      this.pubsub,
+      {
+        event: TYPING,
+        orgId,
+        communityId: chat.communityId,
+        chatId,
+        orgUserId: actor.id,
+        until: new Date(now + TYPING_FOR_MS).toISOString(),
+      },
+      this.logger,
+    );
+  }
+
+  async watch(
+    communityId: string,
+    session: LiveSession,
+    actor: Actor,
+  ): Promise<AsyncIterable<ChatLiveEvent>> {
+    if (!this.hub) {
+      throw new UnavailableError('Live chat is not available');
+    }
+    await this.requireSettings(actor.orgId, communityId);
+    await this.requireActor(actor, communityId);
+    return this.hub.open({
+      communityId,
+      actor,
+      session,
+      allowed: (next) => this.access.isCommunityMember(communityId, next),
+    });
+  }
+
+  async messageViews(orgId: string, messageIds: string[]): Promise<LiveMessage[]> {
+    const messages = await this.repo.messagesByIds(orgId, [...new Set(messageIds)]);
+    const views = await this.withSenders(orgId, null, messages);
+    return views.map(({ viewerReaction: _viewerReaction, ...view }) => view);
+  }
+
+  activeParticipants(orgId: string, chatId: string): Promise<string[]> {
+    return this.repo.activeParticipants(orgId, chatId);
+  }
+
+  async messageReactions(orgId: string, messageId: string): Promise<ReactionCounts> {
+    const counts = await this.repo.reactionsOf(orgId, [messageId], '');
+    return counts[messageId]?.reactions ?? {};
+  }
+
+  async liveChat(orgId: string, chatId: string): Promise<LiveChat | null> {
+    const chat = await this.repo.findChat(orgId, chatId);
+    if (!chat) {
+      return null;
+    }
+    const participantIds = await this.repo.activeParticipants(orgId, chatId);
+    const profiles = await this.participantsOf(orgId, chat.communityId, participantIds);
+    return {
+      chat,
+      participantIds,
+      participants: participantIds.flatMap((id) => profiles.get(id) ?? []),
+    };
+  }
+
+  memberStates(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<ChatMemberStates[]> {
+    return this.repo.memberStates(orgId, communityId, orgUserIds, new Date());
   }
 
   async messages(
@@ -638,7 +852,7 @@ export class ChatServiceImpl implements ChatService {
     this.logger.debug('chat messages read', { orgId, chatId });
     return {
       ...page,
-      rows: await this.withSenders(actor, page.rows),
+      rows: await this.withSenders(orgId, actor, page.rows),
     };
   }
 
@@ -689,7 +903,7 @@ export class ChatServiceImpl implements ChatService {
       ...new Set(messages.map((message) => message.chatId)),
     ]);
     const byChat = new Map(summaries.map((summary) => [summary.chat.id, summary]));
-    const views = await this.withSenders(actor, messages);
+    const views = await this.withSenders(orgId, actor, messages);
     const entries: MessageQueueEntry[] = views.flatMap((message) => {
       const summary = byChat.get(message.chatId);
       if (!summary) {
@@ -1091,6 +1305,7 @@ export class ChatServiceImpl implements ChatService {
       orgUserId: actor.id,
       body: input.body,
       replyToId: input.replyToId,
+      clientId: input.clientId ?? null,
       editedAt: null,
       deletedAt: null,
       createdAt: now,
@@ -1151,33 +1366,36 @@ export class ChatServiceImpl implements ChatService {
   ) {
     return discussionEvents.messageSent.make({
       orgId,
-      data: { ...message, mentionedOrgUserIds },
+      data: { ...eventMessage(message), mentionedOrgUserIds },
       metadata: { ...this.meta(actor), chatStatus: chat.status },
     });
   }
 
   private async viewOf(actor: Actor, message: Message): Promise<MessageView> {
-    const [view] = await this.withSenders(actor, [message]);
+    const [view] = await this.withSenders(actor.orgId, actor, [message]);
     return view!;
   }
 
-  private async withSenders(actor: Actor, messages: Message[]): Promise<MessageView[]> {
+  private async withSenders(
+    orgId: string,
+    viewer: Actor | null,
+    messages: Message[],
+  ): Promise<MessageView[]> {
     if (messages.length === 0) {
       return [];
     }
-    const orgId = actor.orgId;
     const messageIds = messages.map((message) => message.id);
     const senderIds = [...new Set(messages.map((message) => message.orgUserId))];
     const [records, permissions, attached, reactions, mentioned] = await Promise.all([
       this.profiles.authorsOf(orgId, senderIds),
       this.authors.permissionsOfMany(orgId, senderIds),
       this.repo.attachmentsOf(orgId, messageIds),
-      this.repo.reactionsOf(orgId, messageIds, actor.id),
+      this.repo.reactionsOf(orgId, messageIds, viewer?.id ?? ''),
       mentionViews(this.mentions, this.profiles, orgId, 'message', messageIds),
     ]);
     const hidden = (message: Message) =>
       message.deletedAt !== null &&
-      !actor.permissions.has('communities:moderate', message.communityId);
+      !viewer?.permissions.has('communities:moderate', message.communityId);
     const shown = (message: Message) => (hidden(message) ? [] : (attached[message.id] ?? []));
     return messages.map((message) => {
       const record = records[message.orgUserId];
@@ -1186,7 +1404,7 @@ export class ChatServiceImpl implements ChatService {
       }
       const counts = reactions[message.id];
       return {
-        ...this.present(message, actor),
+        ...(hidden(message) ? { ...message, body: '' } : message),
         sender: authorView(
           orgId,
           record,
@@ -1204,13 +1422,69 @@ export class ChatServiceImpl implements ChatService {
     });
   }
 
-  private present(message: Message, actor: Actor): Message {
-    if (
-      message.deletedAt !== null &&
-      !actor.permissions.has('communities:moderate', message.communityId)
-    ) {
-      return { ...message, body: '' };
+  private async listItems(
+    actor: Actor,
+    communityId: string,
+    rows: ChatInboxRow[],
+  ): Promise<ChatListItem[]> {
+    const orgId = actor.orgId;
+    const seesDeleted = actor.permissions.has('communities:moderate', communityId);
+    const now = new Date();
+    const [subscribed, profiles] = await Promise.all([
+      this.subscriptions.forViewer(
+        orgId,
+        actor.id,
+        'chat',
+        rows.map((item) => item.chat.id),
+      ),
+      this.participantsOf(
+        orgId,
+        communityId,
+        rows.flatMap((item) => item.participantIds),
+      ),
+    ]);
+    const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
+    return rows.map((item) => ({
+      ...item,
+      participants: item.participantIds.flatMap((id) => profiles.get(id) ?? []),
+      subscription: activeSubscription(subscriptionOf.get(item.chat.id), now),
+      lastMessage:
+        item.lastMessage && item.lastMessage.deletedAt !== null && !seesDeleted
+          ? { ...item.lastMessage, body: '' }
+          : item.lastMessage,
+    }));
+  }
+
+  private async participantsOf(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<Map<string, CommentAuthor>> {
+    const ids = [...new Set(orgUserIds)];
+    if (ids.length === 0) {
+      return new Map();
     }
-    return message;
+    const [records, permissions] = await Promise.all([
+      this.profiles.authorsOf(orgId, ids),
+      this.authors.permissionsOfMany(orgId, ids),
+    ]);
+    return new Map(
+      ids.flatMap((id) => {
+        const record = records[id];
+        return record
+          ? [
+              [
+                id,
+                authorView(
+                  orgId,
+                  record,
+                  this.fileUrls,
+                  teamBadge(permissions.get(id), communityId),
+                ),
+              ] as const,
+            ]
+          : [];
+      }),
+    );
   }
 }

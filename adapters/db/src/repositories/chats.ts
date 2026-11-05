@@ -1,12 +1,16 @@
-import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   ChatInboxRow,
+  ChatListQuery,
+  ChatMemberStates,
   ChatRepository,
   ChatUnread,
+  ChatUnreadSummary,
   FeedQuery,
   MessageReactions,
   PageQuery,
+  ReactionChange,
 } from "@headless-lms/core/discussion";
 import type {
   Chat,
@@ -27,6 +31,7 @@ import {
   messageFlags,
   messageReactions,
   messages,
+  subscriptions,
 } from "../schema/index.js";
 import { translateDbErrors } from "./pg-errors.js";
 import { insertedRow } from "./inserted-row.js";
@@ -74,6 +79,7 @@ function toMessage(row: MessageRow): Message {
     orgUserId: row.orgUserId,
     body: row.body,
     replyToId: row.replyToId,
+    clientId: row.clientId,
     editedAt: row.editedAt,
     deletedAt: row.deletedAt,
     createdAt: row.createdAt,
@@ -200,108 +206,151 @@ export class DrizzleChatRepository implements ChatRepository {
     orgId: string,
     communityId: string,
     orgUserId: string,
-    query: PageQuery,
+    query: ChatListQuery,
   ): Promise<Page<ChatInboxRow>> {
-    const unread = sql<number>`cast((
-      select count(*)
-      from messages m
-      where m.org_id = ${chats.orgId}
-        and m.chat_id = ${chats.id}
-        and m.org_user_id <> ${orgUserId}
-        and m.deleted_at is null
-        and (
-          ${chatUsers.lastReadMessageId} is null
-          or m.created_at > coalesce((
-            select lr.created_at
-            from messages lr
-            where lr.org_id = ${chats.orgId}
-              and lr.id = ${chatUsers.lastReadMessageId}
-          ), '-infinity'::timestamptz)
-        )
-    ) as int)`;
-    const latest = this.db
-      .select({
-        id: messages.id,
-        orgUserId: messages.orgUserId,
-        body: messages.body,
-        createdAt: messages.createdAt,
-        deletedAt: messages.deletedAt,
-      })
-      .from(messages)
-      .where(and(eq(messages.orgId, chats.orgId), eq(messages.chatId, chats.id)))
-      .orderBy(desc(messages.createdAt), desc(messages.id))
-      .limit(1)
-      .as("last_message");
+    const request = this.requestTo(orgUserId);
     const mine = and(
       eq(chatUsers.orgId, orgId),
       eq(chatUsers.communityId, communityId),
       eq(chatUsers.orgUserId, orgUserId),
       isNull(chatUsers.leftAt),
+      query.requests === undefined ? undefined : query.requests ? request : sql`not ${request}`,
     );
-    const rows = await this.db
-      .select({
-        chat: chats,
-        lastReadMessageId: chatUsers.lastReadMessageId,
-        unread,
-        lastId: latest.id,
-        lastOrgUserId: latest.orgUserId,
-        lastBody: latest.body,
-        lastCreatedAt: latest.createdAt,
-        lastDeletedAt: latest.deletedAt,
-      })
-      .from(chatUsers)
-      .innerJoin(chats, and(eq(chats.orgId, chatUsers.orgId), eq(chats.id, chatUsers.chatId)))
-      .leftJoinLateral(latest, sql`true`)
-      .where(mine)
-      .orderBy(desc(chats.updatedAt), desc(chats.id))
-      .limit(query.pageSize)
-      .offset((query.page - 1) * query.pageSize);
+    const rows = await this.inbox(orgUserId, mine, query);
     const [{ total } = { total: 0 }] = await this.db
       .select({ total: sql<number>`cast(count(*) as int)` })
       .from(chatUsers)
+      .innerJoin(chats, and(eq(chats.orgId, chatUsers.orgId), eq(chats.id, chatUsers.chatId)))
       .where(mine);
     const page = { total, page: query.page, pageSize: query.pageSize };
-    if (rows.length === 0) {
-      return { rows: [], ...page };
-    }
-    const people = await this.db
-      .select()
+    return { rows: await this.withParticipants(orgId, rows), ...page };
+  }
+
+  async inboxRow(orgId: string, chatId: string, orgUserId: string): Promise<ChatInboxRow | null> {
+    const rows = await this.inbox(
+      orgUserId,
+      and(
+        eq(chatUsers.orgId, orgId),
+        eq(chatUsers.chatId, chatId),
+        eq(chatUsers.orgUserId, orgUserId),
+        isNull(chatUsers.leftAt),
+      ),
+    );
+    const [row] = await this.withParticipants(orgId, rows);
+    return row ?? null;
+  }
+
+  async activeParticipants(orgId: string, chatId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ orgUserId: chatUsers.orgUserId })
       .from(chatUsers)
+      .where(
+        and(eq(chatUsers.orgId, orgId), eq(chatUsers.chatId, chatId), isNull(chatUsers.leftAt)),
+      )
+      .orderBy(asc(chatUsers.orgUserId));
+    return rows.map((row) => row.orgUserId);
+  }
+
+  async unreadSummary(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    at: Date,
+  ): Promise<ChatUnreadSummary> {
+    const [states] = await this.memberStates(orgId, communityId, [orgUserId], at);
+    return states?.unread ?? { unread: 0, requests: 0 };
+  }
+
+  async memberStates(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+    at: Date,
+  ): Promise<ChatMemberStates[]> {
+    const ids = [...new Set(orgUserIds)];
+    if (ids.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({
+        orgUserId: chatUsers.orgUserId,
+        chatId: chatUsers.chatId,
+        lastReadMessageId: chatUsers.lastReadMessageId,
+        kind: chats.kind,
+        status: chats.status,
+        createdBy: chats.createdBy,
+        state: subscriptions.state,
+        mutedUntil: subscriptions.mutedUntil,
+        unread: this.unreadCount(chatUsers.orgUserId),
+      })
+      .from(chatUsers)
+      .innerJoin(chats, and(eq(chats.orgId, chatUsers.orgId), eq(chats.id, chatUsers.chatId)))
+      .leftJoin(
+        subscriptions,
+        and(
+          eq(subscriptions.orgId, chatUsers.orgId),
+          eq(subscriptions.orgUserId, chatUsers.orgUserId),
+          eq(subscriptions.itemType, "chat"),
+          eq(subscriptions.itemId, chatUsers.chatId),
+        ),
+      )
       .where(
         and(
           eq(chatUsers.orgId, orgId),
-          inArray(
-            chatUsers.chatId,
-            rows.map((row) => row.chat.id),
-          ),
+          eq(chatUsers.communityId, communityId),
+          inArray(chatUsers.orgUserId, ids),
           isNull(chatUsers.leftAt),
         ),
-      );
-    const byChat = new Map<string, string[]>();
-    for (const person of people) {
-      const list = byChat.get(person.chatId) ?? [];
-      list.push(person.orgUserId);
-      byChat.set(person.chatId, list);
-    }
-    return {
-      rows: rows.map((row) => ({
-        chat: toChat(row.chat),
-        participantIds: (byChat.get(row.chat.id) ?? []).sort(),
-        lastReadMessageId: row.lastReadMessageId,
+      )
+      .orderBy(asc(chatUsers.orgUserId), asc(chatUsers.chatId));
+    const byMember = new Map<string, ChatMemberStates>(
+      ids.map((id) => [id, { orgUserId: id, unread: { unread: 0, requests: 0 }, chats: [] }]),
+    );
+    for (const row of rows) {
+      const entry = byMember.get(row.orgUserId)!;
+      const lapsed =
+        row.state === "muted" &&
+        row.mutedUntil !== null &&
+        row.mutedUntil.getTime() <= at.getTime();
+      const subscription =
+        row.state !== null && !lapsed ? { state: row.state, mutedUntil: row.mutedUntil } : null;
+      const request =
+        row.kind === "direct" && row.status === "pending" && row.createdBy !== row.orgUserId;
+      if (request) {
+        entry.unread.requests += 1;
+        entry.unread.unread += 1;
+      } else if (subscription?.state !== "muted") {
+        entry.unread.unread += row.unread;
+      }
+      entry.chats.push({
+        chatId: row.chatId,
         unread: row.unread,
-        lastMessage:
-          row.lastId !== null && row.lastOrgUserId !== null && row.lastCreatedAt !== null
-            ? {
-                id: row.lastId,
-                orgUserId: row.lastOrgUserId,
-                body: row.lastBody ?? "",
-                createdAt: row.lastCreatedAt,
-                deletedAt: row.lastDeletedAt,
-              }
-            : null,
-      })),
-      ...page,
-    };
+        lastReadMessageId: row.lastReadMessageId,
+        subscription,
+      });
+    }
+    return [...byMember.values()];
+  }
+
+  async findByClientId(
+    orgId: string,
+    chatId: string,
+    orgUserId: string,
+    clientId: string,
+  ): Promise<Message | null> {
+    const [row] = await this.db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.orgId, orgId),
+          eq(messages.chatId, chatId),
+          eq(messages.orgUserId, orgUserId),
+          eq(messages.clientId, clientId),
+        ),
+      )
+      .limit(1);
+    return row ? toMessage(row) : null;
   }
 
   async participants(orgId: string, chatId: string): Promise<ChatUser[]> {
@@ -353,8 +402,8 @@ export class DrizzleChatRepository implements ChatRepository {
     chatId: string,
     orgUserId: string,
     messageId: string,
-  ): Promise<void> {
-    await this.db
+  ): Promise<boolean> {
+    const rows = await this.db
       .update(chatUsers)
       .set({ lastReadMessageId: messageId, updatedAt: new Date() })
       .where(
@@ -362,8 +411,26 @@ export class DrizzleChatRepository implements ChatRepository {
           eq(chatUsers.orgId, orgId),
           eq(chatUsers.chatId, chatId),
           eq(chatUsers.orgUserId, orgUserId),
+          sql`(
+            ${chatUsers.lastReadMessageId} is null
+            or not exists (
+              select 1 from messages cur
+              where cur.org_id = ${chatUsers.orgId} and cur.id = ${chatUsers.lastReadMessageId}
+            )
+            or exists (
+              select 1
+              from messages target
+              join messages cur on cur.org_id = target.org_id
+              where target.org_id = ${chatUsers.orgId}
+                and target.id = ${messageId}
+                and cur.id = ${chatUsers.lastReadMessageId}
+                and (target.created_at, target.id) > (cur.created_at, cur.id)
+            )
+          )`,
         ),
-      );
+      )
+      .returning({ orgUserId: chatUsers.orgUserId });
+    return rows.length > 0;
   }
 
   async unreadFor(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread> {
@@ -413,6 +480,7 @@ export class DrizzleChatRepository implements ChatRepository {
         orgUserId: message.orgUserId,
         body: message.body,
         replyToId: message.replyToId,
+        clientId: message.clientId,
         editedAt: message.editedAt,
         deletedAt: message.deletedAt,
         createdAt: message.createdAt,
@@ -517,9 +585,9 @@ export class DrizzleChatRepository implements ChatRepository {
     messageId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<boolean> {
+  ): Promise<ReactionChange> {
     if (emoji === null) {
-      await this.db
+      const removed = await this.db
         .delete(messageReactions)
         .where(
           and(
@@ -527,8 +595,9 @@ export class DrizzleChatRepository implements ChatRepository {
             eq(messageReactions.messageId, messageId),
             eq(messageReactions.orgUserId, orgUserId),
           ),
-        );
-      return false;
+        )
+        .returning({ orgUserId: messageReactions.orgUserId });
+      return { inserted: false, changed: removed.length > 0 };
     }
     const [row] = await this.db
       .insert(messageReactions)
@@ -536,9 +605,10 @@ export class DrizzleChatRepository implements ChatRepository {
       .onConflictDoUpdate({
         target: [messageReactions.orgId, messageReactions.messageId, messageReactions.orgUserId],
         set: { emoji, updatedAt: new Date() },
+        setWhere: sql`${messageReactions.emoji} is distinct from excluded.emoji`,
       })
       .returning({ inserted: insertedRow });
-    return row?.inserted === true;
+    return { inserted: row?.inserted === true, changed: row !== undefined };
   }
 
   async reactionsOf(
@@ -823,6 +893,116 @@ export class DrizzleChatRepository implements ChatRepository {
           isNull(messageFlags.resolvedAt),
         ),
       );
+  }
+
+  private requestTo(orgUserId: string): SQL {
+    return sql`(${chats.kind} = 'direct' and ${chats.status} = 'pending' and ${chats.createdBy} is distinct from ${orgUserId})`;
+  }
+
+  private unreadCount(orgUserId: string | typeof chatUsers.orgUserId) {
+    return sql<number>`cast((
+      select count(*)
+      from messages m
+      where m.org_id = ${chatUsers.orgId}
+        and m.chat_id = ${chatUsers.chatId}
+        and m.org_user_id <> ${orgUserId}
+        and m.deleted_at is null
+        and (
+          ${chatUsers.lastReadMessageId} is null
+          or m.created_at > coalesce((
+            select lr.created_at
+            from messages lr
+            where lr.org_id = ${chatUsers.orgId}
+              and lr.id = ${chatUsers.lastReadMessageId}
+          ), '-infinity'::timestamptz)
+        )
+    ) as int)`;
+  }
+
+  private async inbox(
+    orgUserId: string,
+    where: SQL | undefined,
+    query?: PageQuery,
+  ): Promise<Omit<ChatInboxRow, "participantIds">[]> {
+    const latest = this.db
+      .select({
+        id: messages.id,
+        orgUserId: messages.orgUserId,
+        body: messages.body,
+        createdAt: messages.createdAt,
+        deletedAt: messages.deletedAt,
+      })
+      .from(messages)
+      .where(and(eq(messages.orgId, chats.orgId), eq(messages.chatId, chats.id)))
+      .orderBy(desc(messages.createdAt), desc(messages.id))
+      .limit(1)
+      .as("last_message");
+    const select = this.db
+      .select({
+        chat: chats,
+        lastReadMessageId: chatUsers.lastReadMessageId,
+        unread: this.unreadCount(orgUserId),
+        lastId: latest.id,
+        lastOrgUserId: latest.orgUserId,
+        lastBody: latest.body,
+        lastCreatedAt: latest.createdAt,
+        lastDeletedAt: latest.deletedAt,
+      })
+      .from(chatUsers)
+      .innerJoin(chats, and(eq(chats.orgId, chatUsers.orgId), eq(chats.id, chatUsers.chatId)))
+      .leftJoinLateral(latest, sql`true`)
+      .where(where)
+      .orderBy(desc(chats.updatedAt), desc(chats.id));
+    const rows = query
+      ? await select.limit(query.pageSize).offset((query.page - 1) * query.pageSize)
+      : await select.limit(1);
+    return rows.map((row) => ({
+      chat: toChat(row.chat),
+      lastReadMessageId: row.lastReadMessageId,
+      unread: row.unread,
+      lastMessage:
+        row.lastId !== null && row.lastOrgUserId !== null && row.lastCreatedAt !== null
+          ? {
+              id: row.lastId,
+              orgUserId: row.lastOrgUserId,
+              body: row.lastBody ?? "",
+              createdAt: row.lastCreatedAt,
+              deletedAt: row.lastDeletedAt,
+            }
+          : null,
+    }));
+  }
+
+  private async withParticipants(
+    orgId: string,
+    rows: Omit<ChatInboxRow, "participantIds">[],
+  ): Promise<ChatInboxRow[]> {
+    if (rows.length === 0) {
+      return [];
+    }
+    const people = await this.db
+      .select()
+      .from(chatUsers)
+      .where(
+        and(
+          eq(chatUsers.orgId, orgId),
+          inArray(
+            chatUsers.chatId,
+            rows.map((row) => row.chat.id),
+          ),
+          isNull(chatUsers.leftAt),
+        ),
+      );
+    const byChat = new Map<string, string[]>();
+    for (const person of people) {
+      const list = byChat.get(person.chatId) ?? [];
+      list.push(person.orgUserId);
+      byChat.set(person.chatId, list);
+    }
+    return rows.map((row) => ({
+      ...row,
+      participantIds: (byChat.get(row.chat.id) ?? []).sort(),
+    }));
   }
 
   private async touch(orgId: string, chatId: string): Promise<void> {

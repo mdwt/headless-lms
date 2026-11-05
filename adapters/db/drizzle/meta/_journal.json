@@ -127,6 +127,13 @@
       "when": 1793875122303,
       "tag": "0017_configurable_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793882420896,
+      "tag": "0018_messages_client_id",
+      "breakpoints": true
     }
   ]
 }

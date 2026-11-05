@@ -5,10 +5,13 @@ import type {
   Activity,
   Chat,
   ChatLastMessage,
+  ChatLiveEvent,
+  ChatUnreadSummary,
   ChatUser,
   DigestRun,
   FlaggedComment,
   JsonValue,
+  LiveMessage,
   MentionItemType,
   Message,
   MessageFlag,
@@ -27,7 +30,7 @@ import type {
 import type { CommunityDigest, DmSettings, SpaceDetail } from '../content/index.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
-import type { Comment, CommentReport } from './model.js';
+import type { Comment, CommentAuthor, CommentReport } from './model.js';
 import type {
   CommentsConfig,
   CommentListItem,
@@ -481,18 +484,75 @@ export interface SendMessageInput {
   body: string;
   replyToId: string | null;
   assetIds: string[];
+  clientId?: string;
 }
 
 export interface ChatListItem {
   chat: Chat;
   participantIds: string[];
+  participants: CommentAuthor[];
   lastReadMessageId: string | null;
   subscription: SubscriptionView | null;
   unread: number;
   lastMessage: ChatLastMessage | null;
 }
 
-export type ChatInboxRow = Omit<ChatListItem, 'subscription'>;
+export type ChatInboxRow = Omit<ChatListItem, 'subscription' | 'participants'>;
+
+/** `requests`: true for only the pending requests to the member, false for
+ *  everything else, omitted for every chat. */
+export interface ChatListQuery extends PageQuery {
+  requests?: boolean;
+}
+
+export interface ReactionChange {
+  inserted: boolean;
+  changed: boolean;
+}
+
+export interface ChatMemberState {
+  chatId: string;
+  unread: number;
+  lastReadMessageId: string | null;
+  subscription: SubscriptionView | null;
+}
+
+/** A member's state in each chat they are in in one community, with their
+ *  unread total there. */
+export interface ChatMemberStates {
+  orgUserId: string;
+  unread: ChatUnreadSummary;
+  chats: ChatMemberState[];
+}
+
+export type LiveSessionState =
+  { status: 'ok'; actor: Actor } | { status: 'signed-out' } | { status: 'no-member' };
+
+/** The live stream's view of the request's session, checked again while the
+ *  stream is open. */
+export interface LiveSession {
+  current(): Promise<LiveSessionState>;
+}
+
+export interface LiveChat {
+  chat: Chat;
+  participantIds: string[];
+  participants: CommentAuthor[];
+}
+
+/** What the chat hub reads for each change, as current state. */
+export interface ChatLiveReads {
+  activeParticipants(orgId: string, chatId: string): Promise<string[]>;
+  messageViews(orgId: string, messageIds: string[]): Promise<LiveMessage[]>;
+  messageReactions(orgId: string, messageId: string): Promise<ReactionCounts>;
+  /** The chat with its active participants and their profiles. */
+  liveChat(orgId: string, chatId: string): Promise<LiveChat | null>;
+  memberStates(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+  ): Promise<ChatMemberStates[]>;
+}
 
 export interface ChatUnread {
   count: number;
@@ -546,7 +606,20 @@ export interface ChatService {
   ): Promise<void>;
   lock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat>;
   unlock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat>;
-  listChats(communityId: string, query: PageQuery, actor: Actor): Promise<Page<ChatListItem>>;
+  listChats(communityId: string, query: ChatListQuery, actor: Actor): Promise<Page<ChatListItem>>;
+  /** One live stream of the member's chat events in the community. */
+  watch(
+    communityId: string,
+    session: LiveSession,
+    actor: Actor,
+  ): Promise<AsyncIterable<ChatLiveEvent>>;
+  chat(chatId: string, actor: Actor): Promise<ChatListItem>;
+  directChat(communityId: string, orgUserId: string, actor: Actor): Promise<ChatListItem>;
+  unreadSummary(communityId: string, actor: Actor): Promise<ChatUnreadSummary>;
+  typing(chatId: string, actor: Actor): Promise<void>;
+  /** The messages as every participant sees them: a deleted message without
+   *  its body, attachments or mentions, and no viewer reaction. */
+  messageViews(orgId: string, messageIds: string[]): Promise<LiveMessage[]>;
   chatSummary(
     orgId: string,
     chatId: string,
@@ -597,13 +670,38 @@ export interface ChatRepository {
     orgId: string,
     communityId: string,
     orgUserId: string,
-    query: PageQuery,
+    query: ChatListQuery,
   ): Promise<Page<ChatInboxRow>>;
+  /** The member's inbox row for one chat they are in, or null. */
+  inboxRow(orgId: string, chatId: string, orgUserId: string): Promise<ChatInboxRow | null>;
   participants(orgId: string, chatId: string): Promise<ChatUser[]>;
+  activeParticipants(orgId: string, chatId: string): Promise<string[]>;
   join(orgId: string, user: ChatUser): Promise<void>;
   markLeft(orgId: string, chatId: string, orgUserId: string, leftAt: Date): Promise<void>;
-  setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<void>;
+  /** Moves the read mark to the message only when it is newer (by created
+   *  time, then id) than the current one. True when it moved. */
+  setRead(orgId: string, chatId: string, orgUserId: string, messageId: string): Promise<boolean>;
   unreadFor(orgId: string, chatId: string, orgUserId: string): Promise<ChatUnread>;
+  /** Unread messages across the member's chats in the community that are
+   *  neither muted at `at` nor pending requests to them, plus those requests. */
+  unreadSummary(
+    orgId: string,
+    communityId: string,
+    orgUserId: string,
+    at: Date,
+  ): Promise<ChatUnreadSummary>;
+  memberStates(
+    orgId: string,
+    communityId: string,
+    orgUserIds: string[],
+    at: Date,
+  ): Promise<ChatMemberStates[]>;
+  findByClientId(
+    orgId: string,
+    chatId: string,
+    orgUserId: string,
+    clientId: string,
+  ): Promise<Message | null>;
   insertMessage(orgId: string, message: Message): Promise<Message>;
   updateMessage(
     orgId: string,
@@ -630,7 +728,7 @@ export interface ChatRepository {
     messageId: string,
     orgUserId: string,
     emoji: ReactionEmoji | null,
-  ): Promise<boolean>;
+  ): Promise<ReactionChange>;
   reactionsOf(
     orgId: string,
     messageIds: string[],
@@ -678,6 +776,12 @@ export type SubscriptionInput =
   { state: 'following' } | { state: 'muted'; mutedUntil?: Date | null } | { state: 'none' };
 
 export type MuteInput = Exclude<SubscriptionInput, { state: 'following' }>;
+
+export interface SubscriptionWriteScope {
+  subscriptions: SubscriptionsRepository;
+  outbox: OutboxAppender;
+}
+export type SubscriptionUnitOfWork = UnitOfWork<SubscriptionWriteScope>;
 
 export interface SubscriptionService {
   setPost(postId: string, input: SubscriptionInput, actor: Actor): Promise<void>;

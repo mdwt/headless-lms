@@ -16,7 +16,9 @@ import type {
   SubscriptionInput,
   SubscriptionService,
   SubscriptionsRepository,
+  SubscriptionUnitOfWork,
 } from './ports.js';
+import { discussionEvents } from './events.js';
 
 const ITEM_TYPES: readonly SubscriptionItemType[] = ['post', 'space', 'chat'];
 
@@ -48,6 +50,7 @@ export type SubscriptionServiceParams = {
   access: Pick<CommunityAccess, 'canOpenSpace' | 'isCommunityMember'>;
   posts: Pick<PostService, 'visible'>;
   chats: Pick<ChatService, 'chatSummary'>;
+  uow: SubscriptionUnitOfWork;
   logger?: Logger;
 };
 
@@ -56,6 +59,7 @@ export class SubscriptionServiceImpl implements SubscriptionService {
   private readonly access: Pick<CommunityAccess, 'canOpenSpace' | 'isCommunityMember'>;
   private readonly posts: Pick<PostService, 'visible'>;
   private readonly chats: Pick<ChatService, 'chatSummary'>;
+  private readonly uow: SubscriptionUnitOfWork;
   private readonly logger: Logger;
 
   constructor(params: SubscriptionServiceParams) {
@@ -63,19 +67,20 @@ export class SubscriptionServiceImpl implements SubscriptionService {
     this.access = params.access;
     this.posts = params.posts;
     this.chats = params.chats;
+    this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
 
   async setPost(postId: string, input: SubscriptionInput, actor: Actor): Promise<void> {
     await this.posts.visible(postId, actor);
-    await this.write(actor.orgId, actor, 'post', postId, input);
+    await this.write(this.repo, actor.orgId, actor, 'post', postId, input);
   }
 
   async setSpace(spaceId: string, input: MuteInput, actor: Actor): Promise<void> {
     if (!(await this.access.canOpenSpace(spaceId, actor))) {
       throw new NotFoundError('Space', spaceId);
     }
-    await this.write(actor.orgId, actor, 'space', spaceId, input);
+    await this.write(this.repo, actor.orgId, actor, 'space', spaceId, input);
   }
 
   async setChat(chatId: string, input: MuteInput, actor: Actor): Promise<void> {
@@ -90,7 +95,21 @@ export class SubscriptionServiceImpl implements SubscriptionService {
     if (!summary.participants.some((user) => user.orgUserId === actor.id && user.leftAt === null)) {
       throw new ForbiddenError('You are not in this chat');
     }
-    await this.write(orgId, actor, 'chat', chatId, input);
+    await this.uow.run(async ({ subscriptions, outbox }) => {
+      await this.write(subscriptions, orgId, actor, 'chat', chatId, input);
+      await outbox.append([
+        discussionEvents.chatMuted.make({
+          orgId,
+          data: {
+            chatId,
+            communityId: summary.chat.communityId,
+            orgUserId: actor.id,
+            mutedUntil: input.state === 'muted' ? (input.mutedUntil ?? null) : null,
+          },
+          metadata: { actorOrgUserId: actor.id },
+        }),
+      ]);
+    });
   }
 
   async viewerSubscriptions(
@@ -135,6 +154,7 @@ export class SubscriptionServiceImpl implements SubscriptionService {
   }
 
   private async write(
+    repo: SubscriptionsRepository,
     orgId: string,
     actor: Actor,
     itemType: SubscriptionItemType,
@@ -142,14 +162,14 @@ export class SubscriptionServiceImpl implements SubscriptionService {
     input: SubscriptionInput,
   ): Promise<void> {
     if (input.state === 'none') {
-      await this.repo.remove(orgId, actor.id, itemType, itemId);
+      await repo.remove(orgId, actor.id, itemType, itemId);
       this.logger.debug('subscription removed', { orgId, itemType, itemId });
       return;
     }
     if (input.state === 'following' && itemType !== 'post') {
       throw new InvalidInputError('Only a post can be followed');
     }
-    await this.repo.upsert(orgId, {
+    await repo.upsert(orgId, {
       orgId,
       orgUserId: actor.id,
       itemType,
