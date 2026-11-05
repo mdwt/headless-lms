@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runCase, toolSpecs, type ToolCase } from '../test-support.js';
+import { OWNER, runCase, toolSpecs, type ToolCase } from '../test-support.js';
 import { catalogTools } from './catalog.js';
 
 const files = [{ assetId: 'ast_1', displayName: 'Workbook' }];
@@ -9,113 +9,113 @@ const cases: ToolCase[] = [
     tool: 'list_downloads',
     args: {},
     service: 'content.listDownloads',
-    expected: ['org_1', { page: 1, pageSize: 20 }],
+    expected: [{ page: 1, pageSize: 20 }, OWNER],
   },
   {
     tool: 'list_download_files',
     args: { downloadId: 'dl_1' },
     service: 'content.listDownloadAssets',
-    expected: ['org_1', 'dl_1'],
+    expected: ['dl_1', OWNER],
     returns: files,
   },
   {
     tool: 'create_download',
     args: { title: 'Kit' },
     service: 'content.createDownload',
-    expected: ['org_1', { title: 'Kit', description: '', category: '' }],
+    expected: [{ title: 'Kit', description: '', category: '' }, OWNER],
   },
   {
     tool: 'update_download',
     args: { downloadId: 'dl_1', status: 'published' },
     service: 'content.updateDownload',
-    expected: ['org_1', 'dl_1', { status: 'published' }],
+    expected: ['dl_1', { status: 'published' }, OWNER],
   },
   {
     tool: 'add_download_file',
     args: { downloadId: 'dl_1', assetId: 'ast_1' },
     service: 'content.addDownloadAsset',
-    expected: ['org_1', 'dl_1', { assetId: 'ast_1' }],
+    expected: ['dl_1', { assetId: 'ast_1' }, OWNER],
     returns: files,
   },
   {
     tool: 'rename_download_file',
     args: { downloadId: 'dl_1', assetId: 'ast_1', displayName: 'Workbook' },
     service: 'content.renameDownloadAsset',
-    expected: ['org_1', 'dl_1', 'ast_1', 'Workbook'],
+    expected: ['dl_1', 'ast_1', 'Workbook', OWNER],
     returns: files,
   },
   {
     tool: 'reorder_download_files',
     args: { downloadId: 'dl_1', assetIds: ['ast_2', 'ast_1'] },
     service: 'content.reorderDownloadAssets',
-    expected: ['org_1', 'dl_1', ['ast_2', 'ast_1']],
+    expected: ['dl_1', ['ast_2', 'ast_1'], OWNER],
     returns: files,
   },
   {
     tool: 'remove_download_file',
     args: { downloadId: 'dl_1', assetId: 'ast_1' },
     service: 'content.removeDownloadAsset',
-    expected: ['org_1', 'dl_1', 'ast_1'],
+    expected: ['dl_1', 'ast_1', OWNER],
     returns: [],
   },
   {
     tool: 'delete_download',
     args: { downloadId: 'dl_1' },
     service: 'content.removeDownload',
-    expected: ['org_1', 'dl_1', { id: 'ou_1', role: 'owner' }],
+    expected: ['dl_1', OWNER],
     returns: undefined,
   },
   {
     tool: 'list_bundles',
     args: { search: 'starter' },
     service: 'content.listBundles',
-    expected: ['org_1', { page: 1, pageSize: 20, search: 'starter' }],
+    expected: [{ page: 1, pageSize: 20, search: 'starter' }, OWNER],
   },
   {
     tool: 'list_bundle_items',
     args: { bundleId: 'bdl_1' },
     service: 'content.listBundleItems',
-    expected: ['org_1', 'bdl_1'],
+    expected: ['bdl_1', OWNER],
     returns: [{ contentId: 'crs_1' }],
   },
   {
     tool: 'create_bundle',
     args: { name: 'Starter', contentIds: ['crs_1'] },
     service: 'content.createBundle',
-    expected: ['org_1', { name: 'Starter', contentIds: ['crs_1'] }],
+    expected: [{ name: 'Starter', contentIds: ['crs_1'] }, OWNER],
   },
   {
     tool: 'rename_bundle',
     args: { bundleId: 'bdl_1', name: 'Starter pack' },
     service: 'content.updateBundle',
-    expected: ['org_1', 'bdl_1', { name: 'Starter pack' }],
+    expected: ['bdl_1', { name: 'Starter pack' }, OWNER],
   },
   {
     tool: 'add_bundle_item',
     args: { bundleId: 'bdl_1', contentId: 'crs_2' },
     service: 'content.addBundleItem',
-    expected: ['org_1', 'bdl_1', 'crs_2'],
+    expected: ['bdl_1', 'crs_2', OWNER],
     returns: [{ contentId: 'crs_2' }],
   },
   {
     tool: 'remove_bundle_item',
     args: { bundleId: 'bdl_1', contentId: 'crs_2' },
     service: 'content.removeBundleItem',
-    expected: ['org_1', 'bdl_1', 'crs_2'],
+    expected: ['bdl_1', 'crs_2', OWNER],
     returns: [],
   },
   {
     tool: 'delete_bundle',
     args: { bundleId: 'bdl_1' },
     service: 'content.deleteBundle',
-    expected: ['org_1', 'bdl_1'],
+    expected: ['bdl_1', OWNER],
     returns: undefined,
   },
   {
     tool: 'list_media',
     args: { kind: 'video' },
     service: 'assets.list',
-    expected: ['org_1', { page: 1, pageSize: 20, kind: 'video' }],
+    expected: [{ page: 1, pageSize: 20, kind: 'video' }, OWNER],
     returns: {
       rows: [
         {
@@ -129,6 +129,7 @@ const cases: ToolCase[] = [
           size: 1024,
           status: 'ready',
           uploadedBy: 'ou_1',
+          contentId: null,
           createdAt: new Date('2026-10-30T00:00:00.000Z'),
           updatedAt: new Date('2026-10-30T00:00:00.000Z'),
           url: 'https://lms.example.com/api/assets/ast_1/file',
@@ -151,6 +152,7 @@ const cases: ToolCase[] = [
           size: 1024,
           status: 'ready',
           uploadedBy: 'ou_1',
+          contentId: null,
           createdAt: '2026-10-30T00:00:00.000Z',
           updatedAt: '2026-10-30T00:00:00.000Z',
           url: 'https://lms.example.com/api/assets/ast_1/file',
@@ -165,25 +167,25 @@ const cases: ToolCase[] = [
 ];
 
 describe('download, bundle and media tools', () => {
-  it('declare their scope and hints', () => {
+  it('declare their operation and hints', () => {
     expect(toolSpecs(catalogTools)).toEqual([
-      ['list_downloads', 'downloads:read', 'read', true, false],
-      ['list_download_files', 'downloads:read', 'read', true, false],
-      ['create_download', 'downloads:write', 'write', false, false],
-      ['update_download', 'downloads:write', 'write', true, false],
-      ['add_download_file', 'downloads:write', 'write', false, false],
-      ['rename_download_file', 'downloads:write', 'write', true, false],
-      ['reorder_download_files', 'downloads:write', 'write', true, false],
-      ['remove_download_file', 'downloads:write', 'destructive', true, false],
-      ['delete_download', 'downloads:delete', 'destructive', true, false],
-      ['list_bundles', 'bundles:read', 'read', true, false],
-      ['list_bundle_items', 'bundles:read', 'read', true, false],
-      ['create_bundle', 'bundles:write', 'write', false, false],
-      ['rename_bundle', 'bundles:write', 'write', true, false],
-      ['add_bundle_item', 'bundles:write', 'write', false, false],
-      ['remove_bundle_item', 'bundles:write', 'destructive', true, false],
-      ['delete_bundle', 'bundles:delete', 'destructive', true, false],
-      ['list_media', 'media:read', 'read', true, false],
+      ['list_downloads', 'content.listDownloads', 'read', true, false],
+      ['list_download_files', 'content.listDownloadAssets', 'read', true, false],
+      ['create_download', 'content.createDownload', 'write', false, false],
+      ['update_download', 'content.updateDownload', 'write', true, false],
+      ['add_download_file', 'content.addDownloadAsset', 'write', false, false],
+      ['rename_download_file', 'content.renameDownloadAsset', 'write', true, false],
+      ['reorder_download_files', 'content.reorderDownloadAssets', 'write', true, false],
+      ['remove_download_file', 'content.removeDownloadAsset', 'destructive', true, false],
+      ['delete_download', 'content.removeDownload', 'destructive', true, false],
+      ['list_bundles', 'content.listBundles', 'read', true, false],
+      ['list_bundle_items', 'content.listBundleItems', 'read', true, false],
+      ['create_bundle', 'content.createBundle', 'write', false, false],
+      ['rename_bundle', 'content.updateBundle', 'write', true, false],
+      ['add_bundle_item', 'content.addBundleItem', 'write', false, false],
+      ['remove_bundle_item', 'content.removeBundleItem', 'destructive', true, false],
+      ['delete_bundle', 'content.deleteBundle', 'destructive', true, false],
+      ['list_media', 'assets.list', 'read', true, false],
     ]);
   });
 

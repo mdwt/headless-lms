@@ -3,7 +3,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import { resolveConfiguratorScope, resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 import {
   Community,
   CommunityAnalytics,
@@ -35,39 +36,36 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities',
+    config: { operation: 'content.listCommunities' },
     schema: {
       operationId: 'listCommunities',
       tags,
-      summary: 'List communities (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Pages every community in the organization, drafts included, filtered by `status` and searched by title.',
+      summary: 'List communities',
+      description: `${describeOperation('content.listCommunities')} Pages every community in the organization, drafts included, filtered by \`status\` and searched by title.`,
       querystring: CommunitiesQuery,
       response: { 200: CommunitiesPage, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.listCommunities(scope.orgId, req.query);
+      const actor = await resolveActor(container, req);
+      return content.listCommunities(req.query, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/communities',
+    config: { operation: 'content.createCommunity' },
     schema: {
       operationId: 'createCommunity',
       tags,
-      summary: 'Create a community (staff)',
-      description:
-        'Owner or admin only. The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.',
+      summary: 'Create a community',
+      description: `${describeOperation('content.createCommunity')} The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.`,
       body: CreateCommunity,
       response: { 201: Community, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const community = await content.createCommunity(scope.orgId, req.body, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      const community = await content.createCommunity(req.body, actor);
       req.log.info({ communityId: community.id }, 'community created');
       return reply.code(201).send(community);
     },
@@ -76,18 +74,18 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId',
+    config: { operation: 'content.getCommunity' },
     schema: {
       operationId: 'getCommunity',
       tags,
-      summary: 'Get a community (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Any community of the organization, drafts included.',
+      summary: 'Get a community',
+      description: `${describeOperation('content.getCommunity')} Any community of the organization, drafts included.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const community = await content.getCommunity(scope.orgId, req.params.communityId);
+      const actor = await resolveActor(container, req);
+      const community = await content.getCommunity(req.params.communityId, actor);
       if (!community) {
         throw new NotFoundError('Community', req.params.communityId);
       }
@@ -98,43 +96,37 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId',
+    config: { operation: 'content.updateCommunity' },
     schema: {
       operationId: 'updateCommunity',
       tags,
-      summary: 'Update a community (staff)',
-      description:
-        'Owner or admin only. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.',
+      summary: 'Update a community',
+      description: `${describeOperation('content.updateCommunity')} Changes only the fields sent. \`thumbnailAssetId\` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs \`media:read\` (403 otherwise).`,
       params: CommunityIdParam,
       body: UpdateCommunity,
       response: { 200: Community, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.updateCommunity(scope.orgId, req.params.communityId, req.body, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      return content.updateCommunity(req.params.communityId, req.body, actor);
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId',
+    config: { operation: 'content.deleteCommunity' },
     schema: {
       operationId: 'deleteCommunity',
       tags,
-      summary: 'Delete a community (staff)',
-      description:
-        'Owner or admin only. Links to the community from other spaces are removed with it.',
+      summary: 'Delete a community',
+      description: `${describeOperation('content.deleteCommunity')} Links to the community from other spaces are removed with it.`,
       params: CommunityIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      await content.deleteCommunity(scope.orgId, req.params.communityId, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      await content.deleteCommunity(req.params.communityId, actor);
       return reply.code(204).send();
     },
   });
@@ -142,22 +134,19 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId/settings',
+    config: { operation: 'content.patchCommunitySettings' },
     schema: {
       operationId: 'patchCommunitySettings',
       tags,
-      summary: 'Change the direct-message and digest settings of a community (staff)',
-      description:
-        'Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.',
+      summary: 'Change the direct-message and digest settings of a community',
+      description: `${describeOperation('content.patchCommunitySettings')} Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. \`digest\` sets when the community digest goes out, or \`null\` stops it; the first digest after a change goes out at the next slot.`,
       params: CommunityIdParam,
       body: PatchCommunitySettings,
       response: { 200: Community, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.patchCommunitySettings(scope.orgId, req.params.communityId, req.body, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      return content.patchCommunitySettings(req.params.communityId, req.body, actor);
     },
   });
 
@@ -223,61 +212,56 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/publish',
+    config: { operation: 'content.publishCommunity' },
     schema: {
       operationId: 'publishCommunity',
       tags,
-      summary: 'Publish a community (staff)',
-      description: 'Owner or admin only. Makes the community visible to the people who hold it.',
+      summary: 'Publish a community',
+      description: `${describeOperation('content.publishCommunity')} Makes the community visible to the people who hold it.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.publishCommunity(scope.orgId, req.params.communityId, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      return content.publishCommunity(req.params.communityId, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/unpublish',
+    config: { operation: 'content.unpublishCommunity' },
     schema: {
       operationId: 'unpublishCommunity',
       tags,
-      summary: 'Unpublish a community (staff)',
-      description:
-        'Owner or admin only. Hides the community from members again; nothing in it is deleted.',
+      summary: 'Unpublish a community',
+      description: `${describeOperation('content.unpublishCommunity')} Hides the community from members again; nothing in it is deleted.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.unpublishCommunity(scope.orgId, req.params.communityId, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      return content.unpublishCommunity(req.params.communityId, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/analytics',
+    config: { operation: 'reporting.admin.communityAnalytics' },
     schema: {
       operationId: 'getCommunityAnalytics',
       tags,
-      summary: 'Staff analytics for a community',
-      description:
-        'Staff only (owner, admin, instructor). Membership, activity and moderation counts for one community.',
+      summary: 'Analytics for a community',
+      description: `${describeOperation('reporting.admin.communityAnalytics')} Membership, activity and moderation counts for one community.`,
       params: CommunityIdParam,
       response: { 200: CommunityAnalytics, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       const stats = await container.reporting.admin.communityAnalytics(
-        scope.orgId,
         req.params.communityId,
+        actor,
       );
       if (!stats) {
         throw new NotFoundError('Community', req.params.communityId);
@@ -289,62 +273,55 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/message-queue',
+    config: { operation: 'chats.messageQueue' },
     schema: {
       operationId: 'getCommunityMessageQueue',
       tags,
-      summary: 'Open message flags in a community (staff)',
-      description:
-        "Staff only (owner, admin, instructor). The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.",
+      summary: 'Open message flags in a community',
+      description: `${describeOperation('chats.messageQueue')} The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
       params: CommunityIdParam,
       response: { 200: MessageQueue, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return container.chats.messageQueue(
-        scope.orgId,
-        { id: scope.orgUserId, role: scope.role },
-        req.params.communityId,
-      );
+      const actor = await resolveActor(container, req);
+      return container.chats.messageQueue(req.params.communityId, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces',
+    config: { operation: 'content.listSpaces' },
     schema: {
       operationId: 'listCommunitySpaces',
       tags,
-      summary: 'List the spaces in a community (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Every space in order, with its topics and links.',
+      summary: 'List the spaces in a community',
+      description: `${describeOperation('content.listSpaces')} Every space in order, with its topics and links.`,
       params: CommunityIdParam,
       response: { 200: z.array(SpaceDetail), ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.listSpaces(scope.orgId, req.params.communityId);
+      const actor = await resolveActor(container, req);
+      return content.listSpaces(req.params.communityId, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces',
+    config: { operation: 'content.createSpace' },
     schema: {
       operationId: 'createSpace',
       tags,
-      summary: 'Create a space (staff)',
-      description:
-        'Owner or admin only. The space is added last. An `all_members` space cannot have a capacity (409).',
+      summary: 'Create a space',
+      description: `${describeOperation('content.createSpace')} The space is added last. An \`all_members\` space cannot have a capacity (409).`,
       params: CommunityIdParam,
       body: CreateSpace,
       response: { 201: SpaceDetail, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const space = await content.createSpace(scope.orgId, req.params.communityId, req.body, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      const space = await content.createSpace(req.params.communityId, req.body, actor);
       return reply.code(201).send(space);
     },
   });
@@ -352,42 +329,40 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/order',
+    config: { operation: 'content.reorderSpaces' },
     schema: {
       operationId: 'reorderSpaces',
       tags,
-      summary: 'Reorder the spaces in a community (staff)',
-      description:
-        'Owner or admin only. Send every space id of the community exactly once (409 otherwise).',
+      summary: 'Reorder the spaces in a community',
+      description: `${describeOperation('content.reorderSpaces')} Send every space id of the community exactly once (409 otherwise).`,
       params: CommunityIdParam,
       body: OrderedIds,
       response: { 200: z.array(SpaceDetail), ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.reorderSpaces(scope.orgId, req.params.communityId, req.body.ids, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      return content.reorderSpaces(req.params.communityId, req.body.ids, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces/:spaceId',
+    config: { operation: 'content.getCommunitySpace' },
     schema: {
       operationId: 'getSpace',
       tags,
-      summary: 'Get a space (staff)',
-      description: 'Staff only (owner, admin, instructor). The space with its topics and links.',
+      summary: 'Get a space',
+      description: `${describeOperation('content.getCommunitySpace')} The space with its topics and links.`,
       params: CommunitySpaceParam,
       response: { 200: SpaceDetail, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       const space = await content.getCommunitySpace(
-        scope.orgId,
         req.params.communityId,
         req.params.spaceId,
+        actor,
       );
       if (!space) {
         throw new NotFoundError('Space', req.params.spaceId);
@@ -399,45 +374,37 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId/spaces/:spaceId',
+    config: { operation: 'content.updateSpace' },
     schema: {
       operationId: 'updateSpace',
       tags,
-      summary: 'Update a space (staff)',
-      description:
-        'Owner or admin only. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409).',
+      summary: 'Update a space',
+      description: `${describeOperation('content.updateSpace')} Changes only the fields sent; \`settings\` merges into the current settings. An \`all_members\` space cannot have a capacity (409).`,
       params: CommunitySpaceParam,
       body: UpdateSpace,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.updateSpace(
-        scope.orgId,
-        req.params.communityId,
-        req.params.spaceId,
-        req.body,
-        { id: scope.orgUserId, role: scope.role },
-      );
+      const actor = await resolveActor(container, req);
+      return content.updateSpace(req.params.communityId, req.params.spaceId, req.body, actor);
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId/spaces/:spaceId',
+    config: { operation: 'content.deleteSpace' },
     schema: {
       operationId: 'deleteSpace',
       tags,
-      summary: 'Delete a space (staff)',
-      description: 'Owner or admin only. The space and everything in it go.',
+      summary: 'Delete a space',
+      description: `${describeOperation('content.deleteSpace')} The space and everything in it go.`,
       params: CommunitySpaceParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      await content.deleteSpace(scope.orgId, req.params.communityId, req.params.spaceId, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      await content.deleteSpace(req.params.communityId, req.params.spaceId, actor);
       return reply.code(204).send();
     },
   });
@@ -445,49 +412,42 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/:spaceId/topics',
+    config: { operation: 'content.setSpaceTopics' },
     schema: {
       operationId: 'setSpaceTopics',
       tags,
-      summary: 'Replace the topics on a space (staff)',
-      description:
-        'Owner or admin only. The list replaces the current topics: an entry with an `id` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).',
+      summary: 'Replace the topics on a space',
+      description: `${describeOperation('content.setSpaceTopics')} The list replaces the current topics: an entry with an \`id\` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).`,
       params: CommunitySpaceParam,
       body: SetSpaceTopics,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.setSpaceTopics(
-        scope.orgId,
-        req.params.communityId,
-        req.params.spaceId,
-        req.body,
-        { id: scope.orgUserId, role: scope.role },
-      );
+      const actor = await resolveActor(container, req);
+      return content.setSpaceTopics(req.params.communityId, req.params.spaceId, req.body, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/links',
+    config: { operation: 'content.addSpaceLink' },
     schema: {
       operationId: 'addSpaceLink',
       tags,
-      summary: 'Link a course, download, or community into a space (staff)',
-      description:
-        'Owner or admin only. The link is added last. Linking the same content twice is a 409.',
+      summary: 'Link a course, download, or community into a space',
+      description: `${describeOperation('content.addSpaceLink')} The link is added last. Linking the same content twice is a 409.`,
       params: CommunitySpaceParam,
       body: SpaceLinkBody,
       response: { 201: SpaceDetail, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       const space = await content.addSpaceLink(
-        scope.orgId,
         req.params.communityId,
         req.params.spaceId,
         req.body.contentId,
-        { id: scope.orgUserId, role: scope.role },
+        actor,
       );
       return reply.code(201).send(space);
     },
@@ -496,22 +456,22 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId/spaces/:spaceId/links/:linkId',
+    config: { operation: 'content.removeSpaceLink' },
     schema: {
       operationId: 'removeSpaceLink',
       tags,
-      summary: 'Remove a link from a space (staff)',
-      description: 'Owner or admin only. The linked content itself is untouched.',
+      summary: 'Remove a link from a space',
+      description: `${describeOperation('content.removeSpaceLink')} The linked content itself is untouched.`,
       params: SpaceLinkParam,
       response: { 200: SpaceDetail, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       return content.removeSpaceLink(
-        scope.orgId,
         req.params.communityId,
         req.params.spaceId,
         req.params.linkId,
-        { id: scope.orgUserId, role: scope.role },
+        actor,
       );
     },
   });
@@ -519,24 +479,23 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/:spaceId/links/order',
+    config: { operation: 'content.reorderSpaceLinks' },
     schema: {
       operationId: 'reorderSpaceLinks',
       tags,
-      summary: 'Reorder the links in a space (staff)',
-      description:
-        'Owner or admin only. Send every link id of the space exactly once (409 otherwise).',
+      summary: 'Reorder the links in a space',
+      description: `${describeOperation('content.reorderSpaceLinks')} Send every link id of the space exactly once (409 otherwise).`,
       params: CommunitySpaceParam,
       body: OrderedIds,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       return content.reorderSpaceLinks(
-        scope.orgId,
         req.params.communityId,
         req.params.spaceId,
         req.body.ids,
-        { id: scope.orgUserId, role: scope.role },
+        actor,
       );
     },
   });

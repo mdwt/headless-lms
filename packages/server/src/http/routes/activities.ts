@@ -1,7 +1,6 @@
 // HTTP routes for course modules + activities. Write operations return the
 // course's full, reordered module list (how the editor re-renders). Nested under
-// courses. All require a session with an active organization; handlers resolve
-// the session's active org to the domain org id and scope every call by it.
+// courses. All require a session with an active organization.
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
@@ -18,7 +17,8 @@ import {
   refusals,
 } from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function activitiesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -29,162 +29,160 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/courses/:courseId/modules',
+    config: { operation: 'content.listCourseModules' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listModules',
       tags,
-      summary: "List a course's modules (staff)",
-      description:
-        'Staff only (owner, admin, instructor). Modules in order, each with its activities.',
+      summary: "List a course's modules",
+      description: `${describeOperation('content.listCourseModules')} Modules in order, each with its activities.`,
       params: CourseIdPathParam,
       response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.listCourseModules(scope.orgId, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      return content.listCourseModules(req.params.courseId, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/courses/:courseId/activities',
+    config: { operation: 'content.listCourseActivityViews' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listActivities',
       tags,
-      summary: "List a course's activities (staff)",
-      description: 'Staff only (owner, admin, instructor). Every activity, published or not.',
+      summary: "List a course's activities",
+      description: `${describeOperation('content.listCourseActivityViews')} Every activity, published or not.`,
       params: CourseIdPathParam,
       response: { 200: ActivityList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.listCourseActivityViews(scope.orgId, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      return content.listCourseActivityViews(req.params.courseId, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/courses/:courseId/activity-assets',
+    config: { operation: 'content.listCourseActivityAssets' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listActivityAssets',
       tags,
-      summary: 'List the library files each activity of a course uses (staff)',
-      description:
-        'Staff only (owner, admin, instructor). One row per activity and file, as recorded when the activity was saved.',
+      summary: 'List the library files each activity of a course uses',
+      description: `${describeOperation('content.listCourseActivityAssets')} One row per activity and file, as recorded when the activity was saved.`,
       params: CourseIdPathParam,
       response: { 200: ActivityAssetList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.listCourseActivityAssets(scope.orgId, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      return content.listCourseActivityAssets(req.params.courseId, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/courses/:courseId/modules',
+    config: { operation: 'content.createModule' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createModule',
       tags,
-      summary: 'Add a module (staff)',
-      description:
-        "Staff only (owner, admin, instructor). Added last. Returns the course's modules.",
+      summary: 'Add a module',
+      description: `${describeOperation('content.createModule')} Added last. Returns the course's modules.`,
       params: CourseIdPathParam,
       body: CreateModule,
       response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.createModule(scope.orgId, req.params.courseId, req.body.title);
+      const actor = await resolveActor(container, req);
+      return content.createModule(req.params.courseId, req.body.title, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/courses/:courseId/modules/reorder',
+    config: { operation: 'content.reorderModules' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'reorderModules',
       tags,
-      summary: "Reorder a course's modules (staff)",
-      description:
-        "Staff only (owner, admin, instructor). Ids that are not modules of the course are ignored. Returns the course's modules.",
+      summary: "Reorder a course's modules",
+      description: `${describeOperation('content.reorderModules')} Ids that are not modules of the course are ignored. Returns the course's modules.`,
       params: CourseIdPathParam,
       body: ReorderInput,
       response: { 200: ModuleList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.reorderModules(scope.orgId, req.params.courseId, req.body.orderedIds);
+      const actor = await resolveActor(container, req);
+      return content.reorderModules(req.params.courseId, req.body.orderedIds, actor);
     },
   });
 
   r.route({
     method: 'PATCH',
     url: '/api/courses/:courseId/modules/:moduleId',
+    config: { operation: 'content.updateModule' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateModule',
       tags,
-      summary: 'Rename a module (staff)',
-      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
+      summary: 'Rename a module',
+      description: `${describeOperation('content.updateModule')} Returns the course's modules.`,
       params: ModulePathParam,
       body: UpdateModule,
       response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.updateModule(
-        scope.orgId,
-        req.params.courseId,
-        req.params.moduleId,
-        req.body.title,
-      );
+      const actor = await resolveActor(container, req);
+      return content.updateModule(req.params.courseId, req.params.moduleId, req.body.title, actor);
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/courses/:courseId/modules/:moduleId',
+    config: { operation: 'content.deleteModule' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteModule',
       tags,
-      summary: 'Delete a module (staff)',
-      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
+      summary: 'Delete a module',
+      description: `${describeOperation('content.deleteModule')} Returns the course's modules.`,
       params: ModulePathParam,
       response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.deleteModule(scope.orgId, req.params.courseId, req.params.moduleId);
+      const actor = await resolveActor(container, req);
+      return content.deleteModule(req.params.courseId, req.params.moduleId, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/courses/:courseId/modules/:moduleId/activities/reorder',
+    config: { operation: 'content.reorderActivities' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'reorderActivities',
       tags,
-      summary: 'Reorder the activities in a module (staff)',
-      description:
-        "Staff only (owner, admin, instructor). Send every activity id of the module once (409 otherwise). Returns the course's modules.",
+      summary: 'Reorder the activities in a module',
+      description: `${describeOperation('content.reorderActivities')} Send every activity id of the module once (409 otherwise). Returns the course's modules.`,
       params: ModulePathParam,
       body: ReorderInput,
       response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       return content.reorderActivities(
-        scope.orgId,
         req.params.courseId,
         req.params.moduleId,
         req.body.orderedIds,
+        actor,
       );
     },
   });
@@ -192,45 +190,45 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'POST',
     url: '/api/courses/:courseId/modules/:moduleId/activities',
+    config: { operation: 'content.saveActivity' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createActivity',
       tags,
-      summary: 'Add an activity (staff)',
-      description:
-        "Staff only (owner, admin, instructor). Records the library files the activity uses; each must be a ready library file (409 otherwise). Returns the course's modules.",
+      summary: 'Add an activity',
+      description: `${describeOperation('content.saveActivity')} Records the library files the activity uses; each must be a ready library file (409 otherwise). A file the course does not already use must be uploaded for the course, or the caller needs \`media:read\` (403 otherwise). Returns the course's modules.`,
       params: ModulePathParam,
       body: SaveActivity,
       response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return content.saveActivity(scope.orgId, req.params.courseId, req.params.moduleId, req.body);
+      const actor = await resolveActor(container, req);
+      return content.saveActivity(req.params.courseId, req.params.moduleId, req.body, null, actor);
     },
   });
 
   r.route({
     method: 'PATCH',
     url: '/api/courses/:courseId/modules/:moduleId/activities/:activityId',
+    config: { operation: 'content.saveActivity' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateActivity',
       tags,
-      summary: 'Update an activity (staff)',
-      description:
-        "Staff only (owner, admin, instructor). Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). Returns the course's modules.",
+      summary: 'Update an activity',
+      description: `${describeOperation('content.saveActivity')} Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). A file the course does not already use must be uploaded for the course, or the caller needs \`media:read\` (403 otherwise). Returns the course's modules.`,
       params: ActivityPathParam,
       body: SaveActivity,
       response: { 200: ModuleList, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       return content.saveActivity(
-        scope.orgId,
         req.params.courseId,
         req.params.moduleId,
         req.body,
         req.params.activityId,
+        actor,
       );
     },
   });
@@ -238,22 +236,23 @@ export async function activitiesRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'DELETE',
     url: '/api/courses/:courseId/modules/:moduleId/activities/:activityId',
+    config: { operation: 'content.deleteActivity' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteActivity',
       tags,
-      summary: 'Delete an activity (staff)',
-      description: "Staff only (owner, admin, instructor). Returns the course's modules.",
+      summary: 'Delete an activity',
+      description: `${describeOperation('content.deleteActivity')} Returns the course's modules.`,
       params: ActivityPathParam,
       response: { 200: ModuleList, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       return content.deleteActivity(
-        scope.orgId,
         req.params.courseId,
         req.params.moduleId,
         req.params.activityId,
+        actor,
       );
     },
   });

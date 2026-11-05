@@ -16,7 +16,7 @@ import {
   UpdateBundle,
   UpdateDownload,
 } from '../../schemas/index.js';
-import { actor, defineTool, type Tool } from '../tool.js';
+import { defineTool, type Tool } from '../tool.js';
 
 export const catalogTools: Tool[] = [
   defineTool({
@@ -24,207 +24,207 @@ export const catalogTools: Tool[] = [
     title: 'List downloads',
     description:
       'Search and page through downloads: file collections a student can be granted. Filter by status or category.',
-    scope: 'downloads:read',
+    operation: 'content.listDownloads',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: DownloadsQuery,
-    call: (input, { container, scope }) => container.content.listDownloads(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.listDownloads(input, caller.actor),
   }),
   defineTool({
     name: 'list_download_files',
     title: 'List download files',
     description: 'The files of a download, in order, with their display names.',
-    scope: 'downloads:read',
+    operation: 'content.listDownloadAssets',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: DownloadIdParam,
-    call: ({ downloadId }, { container, scope }) =>
-      container.content.listDownloadAssets(scope.orgId, downloadId),
+    call: ({ downloadId }, { container, caller }) =>
+      container.content.listDownloadAssets(downloadId, caller.actor),
   }),
   defineTool({
     name: 'create_download',
     title: 'Create download',
     description:
       'Create a draft download. Add files with add_download_file and publish it with update_download.',
-    scope: 'downloads:write',
+    operation: 'content.createDownload',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: CreateDownload,
-    call: (input, { container, scope }) => container.content.createDownload(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.createDownload(input, caller.actor),
   }),
   defineTool({
     name: 'update_download',
     title: 'Update download',
     description:
       'Change a download title, description, category or cover image, or publish and unpublish it with status. Fields left out stay as they are.',
-    scope: 'downloads:write',
+    operation: 'content.updateDownload',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: UpdateDownload.extend(DownloadIdParam.shape),
-    call: ({ downloadId, ...patch }, { container, scope }) =>
-      container.content.updateDownload(scope.orgId, downloadId, patch),
+    call: ({ downloadId, ...patch }, { container, caller }) =>
+      container.content.updateDownload(downloadId, patch, caller.actor),
   }),
   defineTool({
     name: 'add_download_file',
     title: 'Add file to download',
     description: 'Add an uploaded file to the end of a download. Find file ids with list_media.',
-    scope: 'downloads:write',
+    operation: 'content.addDownloadAsset',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: AddDownloadAsset.extend(DownloadIdParam.shape),
-    call: ({ downloadId, ...file }, { container, scope }) =>
-      container.content.addDownloadAsset(scope.orgId, downloadId, file),
+    call: ({ downloadId, ...file }, { container, caller }) =>
+      container.content.addDownloadAsset(downloadId, file, caller.actor),
   }),
   defineTool({
     name: 'rename_download_file',
     title: 'Rename download file',
     description: 'Set the name a file shows under in a download. null shows the file name.',
-    scope: 'downloads:write',
+    operation: 'content.renameDownloadAsset',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: RenameDownloadAsset.extend(DownloadAssetParams.shape),
-    call: ({ downloadId, assetId, displayName }, { container, scope }) =>
-      container.content.renameDownloadAsset(scope.orgId, downloadId, assetId, displayName),
+    call: ({ downloadId, assetId, displayName }, { container, caller }) =>
+      container.content.renameDownloadAsset(downloadId, assetId, displayName, caller.actor),
   }),
   defineTool({
     name: 'reorder_download_files',
     title: 'Reorder download files',
     description:
       'Set the file order of a download. Pass every file id of the download in the new order.',
-    scope: 'downloads:write',
+    operation: 'content.reorderDownloadAssets',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: ReorderDownloadAssets.extend(DownloadIdParam.shape),
-    call: ({ downloadId, assetIds }, { container, scope }) =>
-      container.content.reorderDownloadAssets(scope.orgId, downloadId, assetIds),
+    call: ({ downloadId, assetIds }, { container, caller }) =>
+      container.content.reorderDownloadAssets(downloadId, assetIds, caller.actor),
   }),
   defineTool({
     name: 'remove_download_file',
     title: 'Remove file from download',
     description: 'Take a file out of a download. The uploaded file itself is kept.',
-    scope: 'downloads:write',
+    operation: 'content.removeDownloadAsset',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: DownloadAssetParams,
-    call: ({ downloadId, assetId }, { container, scope }) =>
-      container.content.removeDownloadAsset(scope.orgId, downloadId, assetId),
+    call: ({ downloadId, assetId }, { container, caller }) =>
+      container.content.removeDownloadAsset(downloadId, assetId, caller.actor),
   }),
   defineTool({
     name: 'delete_download',
     title: 'Delete download',
     description: 'Permanently delete a download. The uploaded files are kept.',
-    scope: 'downloads:delete',
+    operation: 'content.removeDownload',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: DownloadIdParam,
-    call: ({ downloadId }, { container, scope }) =>
-      container.content.removeDownload(scope.orgId, downloadId, actor(scope)),
+    call: ({ downloadId }, { container, caller }) =>
+      container.content.removeDownload(downloadId, caller.actor),
   }),
   defineTool({
     name: 'list_bundles',
     title: 'List bundles',
     description:
       'Search and page through bundles: sets of courses, downloads and communities granted together.',
-    scope: 'bundles:read',
+    operation: 'content.listBundles',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: BundlesQuery,
-    call: (input, { container, scope }) => container.content.listBundles(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.listBundles(input, caller.actor),
   }),
   defineTool({
     name: 'list_bundle_items',
     title: 'List bundle items',
     description: 'The courses, downloads and communities in a bundle.',
-    scope: 'bundles:read',
+    operation: 'content.listBundleItems',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: BundleIdParam,
-    call: ({ bundleId }, { container, scope }) =>
-      container.content.listBundleItems(scope.orgId, bundleId),
+    call: ({ bundleId }, { container, caller }) =>
+      container.content.listBundleItems(bundleId, caller.actor),
   }),
   defineTool({
     name: 'create_bundle',
     title: 'Create bundle',
     description:
       'Create a bundle, optionally with the course, download and community ids it starts with.',
-    scope: 'bundles:write',
+    operation: 'content.createBundle',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: CreateBundle,
-    call: (input, { container, scope }) => container.content.createBundle(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.createBundle(input, caller.actor),
   }),
   defineTool({
     name: 'rename_bundle',
     title: 'Rename bundle',
     description: 'Rename a bundle.',
-    scope: 'bundles:write',
+    operation: 'content.updateBundle',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: UpdateBundle.extend(BundleIdParam.shape),
-    call: ({ bundleId, ...patch }, { container, scope }) =>
-      container.content.updateBundle(scope.orgId, bundleId, patch),
+    call: ({ bundleId, ...patch }, { container, caller }) =>
+      container.content.updateBundle(bundleId, patch, caller.actor),
   }),
   defineTool({
     name: 'add_bundle_item',
     title: 'Add to bundle',
     description: 'Add a course, download or community to a bundle. Returns the bundle items.',
-    scope: 'bundles:write',
+    operation: 'content.addBundleItem',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: AddBundleItem.extend(BundleIdParam.shape),
-    call: ({ bundleId, contentId }, { container, scope }) =>
-      container.content.addBundleItem(scope.orgId, bundleId, contentId),
+    call: ({ bundleId, contentId }, { container, caller }) =>
+      container.content.addBundleItem(bundleId, contentId, caller.actor),
   }),
   defineTool({
     name: 'remove_bundle_item',
     title: 'Remove from bundle',
     description:
       'Take a course, download or community out of a bundle. Returns the remaining items.',
-    scope: 'bundles:write',
+    operation: 'content.removeBundleItem',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: BundleItemParams,
-    call: ({ bundleId, contentId }, { container, scope }) =>
-      container.content.removeBundleItem(scope.orgId, bundleId, contentId),
+    call: ({ bundleId, contentId }, { container, caller }) =>
+      container.content.removeBundleItem(bundleId, contentId, caller.actor),
   }),
   defineTool({
     name: 'delete_bundle',
     title: 'Delete bundle',
     description: 'Permanently delete a bundle. Its courses, downloads and communities are kept.',
-    scope: 'bundles:delete',
+    operation: 'content.deleteBundle',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: BundleIdParam,
-    call: ({ bundleId }, { container, scope }) =>
-      container.content.deleteBundle(scope.orgId, bundleId),
+    call: ({ bundleId }, { container, caller }) =>
+      container.content.deleteBundle(bundleId, caller.actor),
   }),
   defineTool({
     name: 'list_media',
     title: 'List media',
     description:
       'Search and page through uploaded files, to use in downloads or as cover images of courses, downloads and communities. Uploading is done in the admin app.',
-    scope: 'media:read',
+    operation: 'assets.list',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: AssetsQuery,
     output: AssetsPage,
-    call: (input, { container, scope }) => container.assets.list(scope.orgId, input),
+    call: (input, { container, caller }) => container.assets.list(input, caller.actor),
   }),
 ];

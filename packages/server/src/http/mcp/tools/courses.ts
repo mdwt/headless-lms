@@ -9,7 +9,7 @@ import {
   UpdateCourse,
   UpdateModule,
 } from '../../schemas/index.js';
-import { actor, defineTool, type Tool } from '../tool.js';
+import { defineTool, type Tool } from '../tool.js';
 
 export const courseTools: Tool[] = [
   defineTool({
@@ -17,122 +17,122 @@ export const courseTools: Tool[] = [
     title: 'List courses',
     description:
       'Search and page through the courses, each with its status and settings. Filter by status or category.',
-    scope: 'courses:read',
+    operation: 'content.listCourses',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: CoursesQuery,
-    call: (input, { container, scope }) => container.content.listCourses(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.listCourses(input, caller.actor),
   }),
   defineTool({
     name: 'list_modules',
     title: 'List modules',
     description: 'The modules of a course, in order.',
-    scope: 'courses:read',
+    operation: 'content.listCourseModules',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: CourseIdPathParam,
-    call: ({ courseId }, { container, scope }) =>
-      container.content.listCourseModules(scope.orgId, courseId),
+    call: ({ courseId }, { container, caller }) =>
+      container.content.listCourseModules(courseId, caller.actor),
   }),
   defineTool({
     name: 'create_course',
     title: 'Create course',
     description: 'Create a draft course. Publish it with update_course.',
-    scope: 'courses:write',
+    operation: 'content.createCourse',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: CreateCourse,
-    call: (input, { container, scope }) => container.content.createCourse(scope.orgId, input),
+    call: (input, { container, caller }) => container.content.createCourse(input, caller.actor),
   }),
   defineTool({
     name: 'update_course',
     title: 'Update course',
     description:
       'Change a course title, description, category or cover image, or publish and unpublish it with status. Fields left out stay as they are.',
-    scope: 'courses:write',
+    operation: 'content.updateCourse',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: UpdateCourse.extend(CourseIdPathParam.shape),
-    call: ({ courseId, ...patch }, { container, scope }) =>
-      container.content.updateCourse(scope.orgId, courseId, patch),
+    call: ({ courseId, ...patch }, { container, caller }) =>
+      container.content.updateCourse(courseId, patch, caller.actor),
   }),
   defineTool({
     name: 'update_course_settings',
     title: 'Update course settings',
     description:
       'Change course settings such as transcript downloads and comments. Settings left out stay as they are.',
-    scope: 'courses:write',
+    operation: 'content.patchCourseSettings',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: PatchCourseSettings.extend(CourseIdPathParam.shape),
-    call: ({ courseId, ...settings }, { container, scope }) =>
-      container.content.patchCourseSettings(scope.orgId, courseId, settings),
+    call: ({ courseId, ...settings }, { container, caller }) =>
+      container.content.patchCourseSettings(courseId, settings, caller.actor),
   }),
   defineTool({
     name: 'create_module',
     title: 'Create module',
     description: 'Add a module at the end of a course. Returns the course modules in order.',
-    scope: 'courses:write',
+    operation: 'content.createModule',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: CreateModule.extend(CourseIdPathParam.shape),
-    call: ({ courseId, title }, { container, scope }) =>
-      container.content.createModule(scope.orgId, courseId, title),
+    call: ({ courseId, title }, { container, caller }) =>
+      container.content.createModule(courseId, title, caller.actor),
   }),
   defineTool({
     name: 'rename_module',
     title: 'Rename module',
     description: 'Rename a module. Returns the course modules in order.',
-    scope: 'courses:write',
+    operation: 'content.updateModule',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: UpdateModule.extend(ModulePathParam.shape),
-    call: ({ courseId, moduleId, title }, { container, scope }) =>
-      container.content.updateModule(scope.orgId, courseId, moduleId, title),
+    call: ({ courseId, moduleId, title }, { container, caller }) =>
+      container.content.updateModule(courseId, moduleId, title, caller.actor),
   }),
   defineTool({
     name: 'reorder_modules',
     title: 'Reorder modules',
     description:
       'Set the module order of a course. Pass every module id of the course in the new order.',
-    scope: 'courses:write',
+    operation: 'content.reorderModules',
     kind: 'write',
     idempotent: true,
     openWorld: false,
     input: ReorderInput.extend(CourseIdPathParam.shape),
-    call: ({ courseId, orderedIds }, { container, scope }) =>
-      container.content.reorderModules(scope.orgId, courseId, orderedIds),
+    call: ({ courseId, orderedIds }, { container, caller }) =>
+      container.content.reorderModules(courseId, orderedIds, caller.actor),
   }),
   defineTool({
     name: 'delete_course',
     title: 'Delete course',
     description: 'Permanently delete a course with its modules and activities.',
-    scope: 'courses:delete',
+    operation: 'content.deleteCourse',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: CourseIdPathParam,
-    call: ({ courseId }, { container, scope }) =>
-      container.content.deleteCourse(scope.orgId, courseId, actor(scope)),
+    call: ({ courseId }, { container, caller }) =>
+      container.content.deleteCourse(courseId, caller.actor),
   }),
   defineTool({
     name: 'delete_module',
     title: 'Delete module',
     description:
       'Permanently delete a module with its activities. Returns the remaining modules in order.',
-    scope: 'courses:delete',
+    operation: 'content.deleteModule',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: ModulePathParam,
-    call: ({ courseId, moduleId }, { container, scope }) =>
-      container.content.deleteModule(scope.orgId, courseId, moduleId),
+    call: ({ courseId, moduleId }, { container, caller }) =>
+      container.content.deleteModule(courseId, moduleId, caller.actor),
   }),
 ];

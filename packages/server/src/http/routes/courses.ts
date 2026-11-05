@@ -17,7 +17,8 @@ import {
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function coursesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -26,37 +27,38 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'GET',
     url: '/api/courses',
+    config: { operation: 'content.listCourses' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listCourses',
       tags: ['Content'],
-      summary: 'List courses (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Every course in the organization, drafts included, filtered by status and category and searched by title.',
+      summary: 'List courses',
+      description: `${describeOperation('content.listCourses')} Every course in the organization, drafts included, filtered by status and category and searched by title.`,
       querystring: CoursesQuery,
       response: { 200: CoursesPage, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return courses.listCourses(scope.orgId, req.query);
+      const actor = await resolveActor(container, req);
+      return courses.listCourses(req.query, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/courses/:id',
+    config: { operation: 'content.getCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getCourse',
       tags: ['Content'],
-      summary: 'Get a course (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'Get a course',
+      description: describeOperation('content.getCourse'),
       params: CourseIdParam,
       response: { 200: Course, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const course = await courses.getCourse(scope.orgId, req.params.id);
+      const actor = await resolveActor(container, req);
+      const course = await courses.getCourse(req.params.id, actor);
       if (!course) {
         throw new NotFoundError('Course', req.params.id);
       }
@@ -67,19 +69,19 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'POST',
     url: '/api/courses',
+    config: { operation: 'content.createCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createCourse',
       tags: ['Content'],
-      summary: 'Create a course (staff)',
-      description:
-        'Staff only (owner, admin, instructor). The course starts as a draft. 409 when its slug is taken.',
+      summary: 'Create a course',
+      description: `${describeOperation('content.createCourse')} The course starts as a draft. 409 when its slug is taken.`,
       body: CreateCourse,
       response: { 201: Course, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const course = await courses.createCourse(scope.orgId, req.body);
+      const actor = await resolveActor(container, req);
+      const course = await courses.createCourse(req.body, actor);
       return reply.code(201).send(course);
     },
   });
@@ -87,62 +89,60 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'PATCH',
     url: '/api/courses/:id',
+    config: { operation: 'content.updateCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateCourse',
       tags: ['Content'],
-      summary: 'Update a course (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.',
+      summary: 'Update a course',
+      description: `${describeOperation('content.updateCourse')} Changes only the fields sent. \`thumbnailAssetId\` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs \`media:read\` (403 otherwise).`,
       params: CourseIdParam,
       body: UpdateCourse,
       response: { 200: Course, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return courses.updateCourse(scope.orgId, req.params.id, req.body);
+      const actor = await resolveActor(container, req);
+      return courses.updateCourse(req.params.id, req.body, actor);
     },
   });
 
   r.route({
     method: 'PATCH',
     url: '/api/courses/:id/settings',
+    config: { operation: 'content.patchCourseSettings' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateCourseSettings',
       tags: ['Content'],
-      summary: "Update a course's settings (staff)",
-      description:
-        'Staff only (owner, admin, instructor). Merges the settings sent into the current ones.',
+      summary: "Update a course's settings",
+      description: `${describeOperation('content.patchCourseSettings')} Merges the settings sent into the current ones.`,
       params: CourseIdParam,
       body: PatchCourseSettings,
       response: { 200: CourseSettings, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       req.log.info({ body: req.body }, 'update course settings');
-      return courses.patchCourseSettings(scope.orgId, req.params.id, req.body);
+      return courses.patchCourseSettings(req.params.id, req.body, actor);
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/courses/:id',
+    config: { operation: 'content.deleteCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteCourse',
       tags: ['Content'],
-      summary: 'Delete a course (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'Delete a course',
+      description: describeOperation('content.deleteCourse'),
       params: CourseIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      await courses.deleteCourse(scope.orgId, req.params.id, {
-        id: scope.orgUserId,
-        role: scope.role,
-      });
+      const actor = await resolveActor(container, req);
+      await courses.deleteCourse(req.params.id, actor);
       return reply.code(204).send();
     },
   });

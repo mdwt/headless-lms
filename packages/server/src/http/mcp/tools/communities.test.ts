@@ -1,124 +1,122 @@
 import { describe, expect, it } from 'vitest';
-import { runCase, toolSpecs, type ToolCase } from '../test-support.js';
+import { OWNER, runCase, toolSpecs, type ToolCase } from '../test-support.js';
 import { communityTools } from './communities.js';
-
-const actor = { id: 'ou_1', role: 'owner' };
 
 const cases: ToolCase[] = [
   {
     tool: 'list_communities',
     args: { status: 'published' },
     service: 'content.listCommunities',
-    expected: ['org_1', { page: 1, pageSize: 20, status: 'published' }],
+    expected: [{ page: 1, pageSize: 20, status: 'published' }, OWNER],
   },
   {
     tool: 'list_spaces',
     args: { communityId: 'cmy_1' },
     service: 'content.listSpaces',
-    expected: ['org_1', 'cmy_1'],
+    expected: ['cmy_1', OWNER],
     returns: [{ id: 'spc_1' }],
   },
   {
     tool: 'create_community',
     args: { title: 'Founders' },
     service: 'content.createCommunity',
-    expected: ['org_1', { title: 'Founders' }, actor],
+    expected: [{ title: 'Founders' }, OWNER],
   },
   {
     tool: 'update_community',
     args: { communityId: 'cmy_1', status: 'published' },
     service: 'content.updateCommunity',
-    expected: ['org_1', 'cmy_1', { status: 'published' }, actor],
+    expected: ['cmy_1', { status: 'published' }, OWNER],
   },
   {
     tool: 'update_community_messaging',
     args: { communityId: 'cmy_1', memberToMember: false },
     service: 'content.patchCommunitySettings',
-    expected: ['org_1', 'cmy_1', { memberToMember: false }, actor],
+    expected: ['cmy_1', { memberToMember: false }, OWNER],
   },
   {
     tool: 'create_space',
     args: { communityId: 'cmy_1', name: 'Wins', accessRule: 'by_request' },
     service: 'content.createSpace',
-    expected: ['org_1', 'cmy_1', { name: 'Wins', accessRule: 'by_request' }, actor],
+    expected: ['cmy_1', { name: 'Wins', accessRule: 'by_request' }, OWNER],
   },
   {
     tool: 'update_space',
     args: { communityId: 'cmy_1', spaceId: 'spc_1', capacity: 20 },
     service: 'content.updateSpace',
-    expected: ['org_1', 'cmy_1', 'spc_1', { capacity: 20 }, actor],
+    expected: ['cmy_1', 'spc_1', { capacity: 20 }, OWNER],
   },
   {
     tool: 'reorder_spaces',
     args: { communityId: 'cmy_1', ids: ['spc_2', 'spc_1'] },
     service: 'content.reorderSpaces',
-    expected: ['org_1', 'cmy_1', ['spc_2', 'spc_1'], actor],
+    expected: ['cmy_1', ['spc_2', 'spc_1'], OWNER],
     returns: [],
   },
   {
     tool: 'set_space_topics',
     args: { communityId: 'cmy_1', spaceId: 'spc_1', topics: [{ id: 'top_1', name: 'Intros' }] },
     service: 'content.setSpaceTopics',
-    expected: ['org_1', 'cmy_1', 'spc_1', { topics: [{ id: 'top_1', name: 'Intros' }] }, actor],
+    expected: ['cmy_1', 'spc_1', { topics: [{ id: 'top_1', name: 'Intros' }] }, OWNER],
   },
   {
     tool: 'add_space_link',
     args: { communityId: 'cmy_1', spaceId: 'spc_1', contentId: 'crs_1' },
     service: 'content.addSpaceLink',
-    expected: ['org_1', 'cmy_1', 'spc_1', 'crs_1', actor],
+    expected: ['cmy_1', 'spc_1', 'crs_1', OWNER],
   },
   {
     tool: 'reorder_space_links',
     args: { communityId: 'cmy_1', spaceId: 'spc_1', ids: ['lnk_2', 'lnk_1'] },
     service: 'content.reorderSpaceLinks',
-    expected: ['org_1', 'cmy_1', 'spc_1', ['lnk_2', 'lnk_1'], actor],
+    expected: ['cmy_1', 'spc_1', ['lnk_2', 'lnk_1'], OWNER],
   },
   {
     tool: 'remove_space_link',
     args: { communityId: 'cmy_1', spaceId: 'spc_1', linkId: 'lnk_1' },
     service: 'content.removeSpaceLink',
-    expected: ['org_1', 'cmy_1', 'spc_1', 'lnk_1', actor],
+    expected: ['cmy_1', 'spc_1', 'lnk_1', OWNER],
   },
   {
     tool: 'delete_space',
     args: { communityId: 'cmy_1', spaceId: 'spc_1' },
     service: 'content.deleteSpace',
-    expected: ['org_1', 'cmy_1', 'spc_1', actor],
+    expected: ['cmy_1', 'spc_1', OWNER],
     returns: undefined,
   },
   {
     tool: 'delete_community',
     args: { communityId: 'cmy_1' },
     service: 'content.deleteCommunity',
-    expected: ['org_1', 'cmy_1', actor],
+    expected: ['cmy_1', OWNER],
     returns: undefined,
   },
   {
     tool: 'get_community_analytics',
     args: { communityId: 'cmy_1' },
     service: 'reporting.admin.communityAnalytics',
-    expected: ['org_1', 'cmy_1'],
+    expected: ['cmy_1', OWNER],
   },
 ];
 
 describe('community tools', () => {
-  it('declare their scope and hints', () => {
+  it('declare their operation and hints', () => {
     expect(toolSpecs(communityTools)).toEqual([
-      ['list_communities', 'communities:read', 'read', true, false],
-      ['list_spaces', 'communities:read', 'read', true, false],
-      ['create_community', 'communities:write', 'write', false, false],
-      ['update_community', 'communities:write', 'write', true, false],
-      ['update_community_messaging', 'communities:write', 'write', true, false],
-      ['create_space', 'communities:write', 'write', false, false],
-      ['update_space', 'communities:write', 'write', true, false],
-      ['reorder_spaces', 'communities:write', 'write', true, false],
-      ['set_space_topics', 'communities:write', 'write', true, false],
-      ['add_space_link', 'communities:write', 'write', false, false],
-      ['reorder_space_links', 'communities:write', 'write', true, false],
-      ['remove_space_link', 'communities:write', 'destructive', true, false],
-      ['delete_space', 'communities:delete', 'destructive', true, false],
-      ['delete_community', 'communities:delete', 'destructive', true, false],
-      ['get_community_analytics', 'analytics:read', 'read', true, false],
+      ['list_communities', 'content.listCommunities', 'read', true, false],
+      ['list_spaces', 'content.listSpaces', 'read', true, false],
+      ['create_community', 'content.createCommunity', 'write', false, false],
+      ['update_community', 'content.updateCommunity', 'write', true, false],
+      ['update_community_messaging', 'content.patchCommunitySettings', 'write', true, false],
+      ['create_space', 'content.createSpace', 'write', false, false],
+      ['update_space', 'content.updateSpace', 'write', true, false],
+      ['reorder_spaces', 'content.reorderSpaces', 'write', true, false],
+      ['set_space_topics', 'content.setSpaceTopics', 'write', true, false],
+      ['add_space_link', 'content.addSpaceLink', 'write', false, false],
+      ['reorder_space_links', 'content.reorderSpaceLinks', 'write', true, false],
+      ['remove_space_link', 'content.removeSpaceLink', 'destructive', true, false],
+      ['delete_space', 'content.deleteSpace', 'destructive', true, false],
+      ['delete_community', 'content.deleteCommunity', 'destructive', true, false],
+      ['get_community_analytics', 'reporting.admin.communityAnalytics', 'read', true, false],
     ]);
   });
 
