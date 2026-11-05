@@ -1,0 +1,12 @@
+{
+  "title": "Roles",
+  "description": "The organization's roles and their permissions",
+  "pages": [
+    "listRoles",
+    "createRole",
+    "getRole",
+    "updateRole",
+    "deleteRole",
+    "resetRole"
+  ]
+}

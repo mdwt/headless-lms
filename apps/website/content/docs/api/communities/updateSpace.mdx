@@ -1,6 +1,6 @@
 ---
-description: "PATCH /api/communities/{communityId}/spaces/{spaceId}. Update a space (staff). Headless LMS Communities API reference."
-title: Update a space (staff)
+description: "PATCH /api/communities/{communityId}/spaces/{spaceId}. Update a space. Headless LMS Communities API reference."
+title: Update a space
 full: true
 _openapi:
   preload:
@@ -11,8 +11,8 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Owner or admin only. Changes only the fields sent; `settings` merges
-          into the current settings. An `all_members` space cannot have a
+      - content: Requires `communities:write`. Changes only the fields sent; `settings`
+          merges into the current settings. An `all_members` space cannot have a
           capacity (409).
 ---
 

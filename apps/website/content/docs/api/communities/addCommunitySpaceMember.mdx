@@ -1,6 +1,6 @@
 ---
-description: "POST /api/communities/{communityId}/spaces/{spaceId}/members. Add a person to a space (staff). Headless LMS Communities API reference."
-title: Add a person to a space (staff)
+description: "POST /api/communities/{communityId}/spaces/{spaceId}/members. Add a person to a space. Headless LMS Communities API reference."
+title: Add a person to a space
 full: true
 _openapi:
   preload:
@@ -11,7 +11,7 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Staff only (owner, admin, instructor). Places a member of the community
+      - content: Requires `communities:moderate`. Places a member of the community
           straight into the space, with no request or invitation. 409 when the
           space is open to all members, the person is already placed, or the
           space is full.

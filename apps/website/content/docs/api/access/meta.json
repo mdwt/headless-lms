@@ -1,8 +1,9 @@
 {
   "title": "Access",
-  "description": "Access scopes, connected apps and API keys",
+  "description": "Your permissions, connected apps and API keys",
   "pages": [
-    "listAccessScopes",
+    "listPermissions",
+    "getMyPermissions",
     "listConnectedApps",
     "revokeConnectedApp",
     "listApiKeys",

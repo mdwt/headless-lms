@@ -4,6 +4,8 @@
   "pages": [
     "index",
     "organizations",
+    "roles",
+    "people",
     "notifications",
     "content",
     "communities",

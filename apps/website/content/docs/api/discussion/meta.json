@@ -10,6 +10,8 @@
     "setCommentReaction",
     "reportComment",
     "resolveCommentFlags",
+    "restoreMemberComment",
+    "approveMemberComment",
     "listComments",
     "publishComment",
     "moderateRemoveComment",

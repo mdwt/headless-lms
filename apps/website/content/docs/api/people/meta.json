@@ -1,0 +1,20 @@
+{
+  "title": "People",
+  "description": "The organization's people, invites and the roles they hold",
+  "pages": [
+    "listTeam",
+    "listPersonRoles",
+    "setOrgRole",
+    "unassignRole",
+    "assignRole",
+    "listRolesOn",
+    "removePerson",
+    "createInvite",
+    "resendInvite",
+    "cancelInvite",
+    "getInvite",
+    "acceptInvite",
+    "listStudents",
+    "getStudent"
+  ]
+}

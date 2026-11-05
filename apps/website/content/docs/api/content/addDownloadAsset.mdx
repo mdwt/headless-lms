@@ -1,6 +1,6 @@
 ---
-description: "POST /api/downloads/{downloadId}/assets. Add a library file to a download (staff). Headless LMS Content API reference."
-title: Add a library file to a download (staff)
+description: "POST /api/downloads/{downloadId}/assets. Add a library file to a download. Headless LMS Content API reference."
+title: Add a library file to a download
 full: true
 _openapi:
   preload:
@@ -11,8 +11,9 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Staff only (owner, admin, instructor). Added last. 409 when the file is
-          not a ready library file or is already in the download. Returns the
+      - content: Requires `downloads:write`. Added last. 409 when the file is not a
+          ready library file or is already in the download. A file not uploaded
+          for the download needs `media:read` (403 otherwise). Returns the
           download's files.
 ---
 

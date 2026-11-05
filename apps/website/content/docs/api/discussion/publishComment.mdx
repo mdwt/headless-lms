@@ -1,6 +1,6 @@
 ---
-description: "PATCH /api/comments/{commentId}. Publish a course comment (staff). Headless LMS Discussion API reference."
-title: Publish a course comment (staff)
+description: "PATCH /api/comments/{commentId}. Publish a course comment. Headless LMS Discussion API reference."
+title: Publish a course comment
 full: true
 _openapi:
   preload:
@@ -11,7 +11,7 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Staff only (owner, admin, instructor). Approves a pending comment or
+      - content: Needs `courses:moderate` on the course. Approves a pending comment or
           restores a removed one; a published comment is returned unchanged.
 ---
 

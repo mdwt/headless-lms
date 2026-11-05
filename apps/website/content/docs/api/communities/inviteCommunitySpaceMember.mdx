@@ -1,6 +1,6 @@
 ---
-description: "POST /api/communities/{communityId}/spaces/{spaceId}/invites. Invite a person into a space (staff). Headless LMS Communities API reference."
-title: Invite a person into a space (staff)
+description: "POST /api/communities/{communityId}/spaces/{spaceId}/invites. Invite a person into a space. Headless LMS Communities API reference."
+title: Invite a person into a space
 full: true
 _openapi:
   preload:
@@ -11,9 +11,9 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: Staff only (owner, admin, instructor). Invites a member of the
-          community into a `by_invite` space; they join when they accept. 403
-          when the person is staff or does not hold the community; 409 when the
+      - content: Requires `communities:moderate`. Invites a member of the community into
+          a `by_invite` space; they join when they accept. 403 when the person
+          opens every space or is not a member of the community; 409 when the
           space is not invite-only or the person is already placed.
 ---
 

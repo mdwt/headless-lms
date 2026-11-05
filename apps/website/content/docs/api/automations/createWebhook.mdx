@@ -1,6 +1,6 @@
 ---
-description: "POST /api/automations/webhooks. Create a webhook (staff). Headless LMS Automations API reference."
-title: Create a webhook (staff)
+description: "POST /api/automations/webhooks. Create a webhook. Headless LMS Automations API reference."
+title: Create a webhook
 full: true
 _openapi:
   preload:
@@ -11,7 +11,7 @@ _openapi:
   structuredData:
     headings: []
     contents:
-      - content: "Staff only (owner, admin, instructor). `url` must be a public address:
+      - content: "Requires `automations:write`. `url` must be a public address:
           localhost and private network addresses are refused when saved and
           when delivering. Each subscribed event is POSTed to `url` as the JSON
           event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`,

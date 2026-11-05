@@ -4,17 +4,8 @@
   "pages": [
     "createOrganization",
     "updateOrganization",
-    "listMembers",
-    "updateMemberRole",
-    "removeMember",
-    "createInvite",
-    "getInvite",
-    "acceptInvite",
+    "transferOwnership",
     "getMemberOrg",
-    "getMemberViewer",
-    "listStudents",
-    "getStudent",
-    "deleteStudent",
-    "resendStudentInvite"
+    "getMemberViewer"
   ]
 }
