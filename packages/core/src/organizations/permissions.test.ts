@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { contentTypeSchema } from '../types/schemas/content.js';
-import { levelSchema } from '../types/schemas/organizations.js';
+import { levelSchema, roleKeySchema } from '../types/schemas/organizations.js';
+import { prefixId } from '../shared/id.js';
 import { ForbiddenError } from '../shared/errors.js';
 import { ALL_PERMISSIONS, PERMISSIONS, fitsLevels, withImplied } from './permissions.js';
 import {
@@ -70,6 +71,16 @@ describe('permission list', () => {
     expect(fitsLevels('courses:write', ['org'])).toBe(true);
     expect(fitsLevels('courses:write', ['community'])).toBe(false);
     expect(fitsLevels('people:write', ['course'])).toBe(false);
+  });
+});
+
+describe('role keys', () => {
+  it('accepts the default keys and the keys the org adds', () => {
+    for (const key of ['owner', 'instructor', 'member', prefixId('role')]) {
+      expect(roleKeySchema.safeParse(key).success, key).toBe(true);
+    }
+    expect(roleKeySchema.safeParse('Owner').success).toBe(false);
+    expect(roleKeySchema.safeParse('role-1').success).toBe(false);
   });
 });
 

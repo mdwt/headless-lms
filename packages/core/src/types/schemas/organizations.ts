@@ -56,7 +56,10 @@ export const roleKeySchema = z
   .trim()
   .min(1)
   .max(64)
-  .regex(/^[a-z][a-z0-9_]*$/, 'A role key is lowercase letters, digits and underscores');
+  .regex(
+    /^[a-z][a-zA-Z0-9_]*$/,
+    'A role key starts with a lowercase letter and holds letters, digits and underscores',
+  );
 export type RoleKey = z.infer<typeof roleKeySchema>;
 
 export const orgRoleRowSchema = z
