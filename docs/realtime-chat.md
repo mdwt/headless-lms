@@ -26,7 +26,7 @@ Measured in QA (`hlms-community/docs/qa/issues.md`):
 
 - A write and its domain events commit together: services append events to the outbox inside the write's `UnitOfWork` (`packages/core/src/shared/ports.ts`).
 - Every API process runs an outbox relay, started by its entry point (`apps/api/src/main.ts:44`). A relay selects unprocessed rows with `FOR UPDATE SKIP LOCKED` inside a transaction that ends when the select returns (`adapters/db/src/repositories/outbox.ts:47-62`), and publishes each to its own `EventBus`. Within one batch, events of one chat are dispatched in order (`orderingKey`, `adapters/defaults/src/events/outbox-relay.ts:41-53`). Across batches and relays there is no order: two relays can dispatch the same row, and a failed row is retried later while later rows flow. Handlers are idempotent on event id.
-- The only subscriber on the `EventBus` today is `automations.handle` (`packages/server/src/app/container.ts:727`). A handler that throws fails the event, and the relay retries it.
+- The only subscriber on the `EventBus` today is `automations.handle` (`packages/server/src/app/container.ts:748`). A handler that throws fails the event, and the relay retries it.
 
 An event is handled on whichever instance dispatched it. Nothing delivers an event to every instance, which is what live delivery needs: Sarah's stream is open on A while James's message is dispatched on B.
 
@@ -42,11 +42,12 @@ An event is handled on whichever instance dispatched it. Nothing delivers an eve
 | add participant | `discussion.chat.participant.added` |
 | reaction | `discussion.message.reaction.added` when the member had no reaction on the message and one is inserted; changing or clearing it emits nothing (`adapters/db/src/repositories/chats.ts:533-541`) |
 | mark read | nothing; written outside a unit of work, unconditionally (`packages/core/src/discussion/chats.ts:481`; `adapters/db/src/repositories/chats.ts:351-367`) |
-| mute a chat | nothing; `SubscriptionService.write` writes the repository directly (`packages/core/src/discussion/subscriptions.ts`) |
+| mute a chat | nothing; `SubscriptionService.setChat` writes the repository directly (`packages/core/src/discussion/subscriptions.ts:81-93`) |
+| block, unblock | nothing |
 
 ### 2.3 Reads
 
-The member chat routes are in `packages/server/src/http/routes/member/chats.ts`; the attachment route is in `routes/member/files.ts` and the moderators' lock routes in `routes/community-moderation.ts`. There is no read for one chat, for the direct chat with a given member, or for the unread total. The app reads every chat to find one, sums the unread total from all of them (`hlms-community/src/server/data.ts:87-98`), and reads the whole directory for names, headlines and avatars, because `ChatListItem` carries `participantIds` only (`packages/server/src/http/schemas/chats.ts`).
+The member chat routes are in `packages/server/src/http/routes/member/chats.ts`; the attachment route is in `routes/member/files.ts`, and moderators also lock and unlock chats through `routes/community-moderation.ts`. There is no read for one chat, for the direct chat with a given member, or for the unread total. The app reads every chat to find one, sums the unread total from all of them (`hlms-community/src/server/data.ts:87-98`), and reads the whole directory for names, headlines and avatars, because `ChatListItem` carries `participantIds` only (`packages/server/src/http/schemas/chats.ts`).
 
 ## 3. Design
 
@@ -96,12 +97,14 @@ The one implementation is `PostgresPubSub` in the new package `@headless-lms/ada
 
 The container takes it as `adapters.pubsub`, beside `workflows` and `pushSender`, and exposes it as `container.pubsub`. A container built without one, as `gen:openapi` builds it (`apps/api/scripts/gen-openapi.ts:11`), has no forwarder and no hub, and the stream route answers 503.
 
+Like `workflows`, it takes a factory, so the adapter logs through the container's logger:
+
 ```ts
 import { PostgresPubSub } from '@headless-lms/adapter-pubsub-postgres';
 
 const container = await createContainer(config, {
   adapters: {
-    pubsub: new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
+    pubsub: (logger) => new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
   },
 });
 ```
@@ -111,7 +114,7 @@ const container = await createContainer(config, {
 A new package in `adapters/pubsub-postgres`, laid out like `adapters/workflow-hatchet` (`package.json`, `tsconfig.json`, `tsdown.config.ts`, `src/index.ts`, `README.md`), depending on `@headless-lms/core` and `pg` (the version `adapters/db` uses). It reads no environment itself.
 
 - **Listening.** `start()` opens one dedicated `pg.Client` with `keepAlive: true`, outside any pool, and runs `LISTEN hlms_pubsub`. Every channel shares that one Postgres channel; a notification carries the channel name and the adapter dispatches to that channel's handlers.
-- **Publishing.** `publish` runs `SELECT pg_notify('hlms_pubsub', $1)` on the adapter's own `pg.Pool` of 2 connections, created in the constructor, so publishing works whether or not `start()` has run.
+- **Publishing.** `publish` runs `SELECT pg_notify('hlms_pubsub', $1)` on the adapter's own `pg.Pool` of 2 connections, created in the constructor, with `connectionTimeoutMillis: 2000` and a 2 s `statement_timeout`, so a publish fails within about 2 s instead of waiting on an unreachable database. A publish reaches only the listeners connected when it commits.
 - **Encoding.** A message is serialized to JSON, encoded as UTF-8 and then as base64, so the payload is ASCII and its length in characters is its length in bytes. A payload of up to 7,800 characters is sent as `{ c, d }`. A longer one is split into 7,800-character parts sent as `{ c, id, i, n, d }`, all with `pg_notify` in one transaction; Postgres delivers one transaction's notifications in the order they were sent. The listener concatenates the parts by `id` and dispatches once all `n` arrived; parts not completed within 10 s, and all parts on reconnect, are dropped.
 - **Liveness.** Every 30 s the adapter publishes a ping on its own channel and expects it back on the listener within 10 s. A missing ping, an `error` or an `end` on the listening connection ends it; the adapter reconnects with exponential backoff and full jitter (1 s up to 30 s), runs `LISTEN` again and calls every subscriber's `onReset`.
 - **Start.** `start()` makes the first connection attempt and resolves after it, connected or not; a failed attempt is logged and retried as above.
@@ -126,17 +129,17 @@ The writes that emit nothing today get domain events, appended inside their unit
 |---|---|---|
 | `discussion.chat.read` | `chatId`, `communityId`, `orgUserId`, `lastReadMessageId` | `markRead`, which moves into the unit of work and stores the mark only when the message is newer (by `created_at`, then id) than the current one; an older mark is a no-op and emits nothing |
 | `discussion.message.reactions.changed` | `messageId`, `chatId`, `communityId`, `orgUserId`, `reaction` (null when cleared) | every `setReaction` that changes the member's reaction; the repository's `setReaction` reports both whether it inserted and whether it changed anything, and `discussion.message.reaction.added` keeps its meaning |
-| `discussion.subscription.changed` | `itemType`, `itemId`, `communityId`, `orgUserId` | `SubscriptionService.write`, which gains a unit of work with the outbox |
+| `discussion.chat.muted` | `chatId`, `communityId`, `orgUserId`, `mutedUntil` (null when cleared) | `SubscriptionService.setChat`, which gains a unit of work with the outbox; the community comes from the chat summary it already reads. Post and space subscriptions are unchanged |
 
 They are defined in `packages/core/src/discussion/events.ts` without a public form, so they are not automation triggers or webhook events (the trigger catalog lists every event that has one, `packages/core/src/automations/catalog.test.ts:114`), and a member's read marks and mutes stay theirs.
 
-Messages gain a `clientId` (3.8). The event schemas leave it out (`messageSchema.omit({ clientId: true })` in `messageEventSchema`, the deleted event's data and `publicMessage`), so webhook payloads are unchanged and outbox rows written before the deploy still parse.
+Messages gain a `clientId` (3.8). The event schemas leave it out (`messageSchema.omit({ clientId: true })` in `messageEventSchema`, the deleted event's data and `publicMessage`), so webhook payloads are unchanged and outbox rows written before the deploy still parse. Because `make()` validates data against the strict schema (`packages/core/src/shared/events.ts:88-95`), the services build message event data without `clientId` (`send`, `editMessage`, `deleteMessage`, which pass the whole message today, `chats.ts:393`, `:437`, `:1149`).
 
 Typing is not stored and is not a domain event: `ChatService.typing` publishes straight to `PubSub` (3.8).
 
 ### 3.5 The forwarder
 
-`ChatLiveForwarder` (`packages/core/src/discussion/live.ts`) subscribes on the `EventBus` to `chat.created`, `chat.updated`, `chat.participant.added`, `message.sent`, `message.updated`, `message.deleted`, `message.reactions.changed`, `chat.read`, and `subscription.changed` for chats. For each it publishes a `ChatChange` to the channel `discussion.chats`:
+`ChatLiveForwarder` (`packages/core/src/discussion/live.ts`) subscribes on the `EventBus` to `chat.created`, `chat.updated`, `chat.participant.added`, `message.sent`, `message.updated`, `message.deleted`, `message.reactions.changed`, `chat.read` and `chat.muted`. For each it publishes a `ChatChange` to the channel `discussion.chats`:
 
 ```ts
 type ChatChange = {
@@ -146,16 +149,17 @@ type ChatChange = {
   chatId: string;
   messageId?: string;
   orgUserId?: string;         // the reader, the reacting or muting member, the added member, the typist
-  actorOrgUserId?: string;    // from the event's metadata: on a leave, the member who left
-  participantIds?: string[];  // chat events: the active participants after the change
+  members?: string[];         // chat events: everyone the change may concern
   reaction?: string | null;   // reactions.changed
   until?: string;             // typing
 };
 ```
 
+For a chat event, `members` is the event's `participantIds` (when it has them), its `orgUserId` (the added member) and its `actorOrgUserId` (the member who acted, such as the one who left). The hub reads who is in the chat now and uses `members` only to find the streams a removal concerns (3.6).
+
 A change never carries a body; each instance reads current state itself (3.6).
 
-The forwarder never throws. A failed publish is logged as `live publish failed` and dropped, so a `PubSub` outage cannot hold back or park the event for `automations.handle`. Clients recover what they missed on their next load (3.11): a failed publish almost always means the database connection is down, which also drops every listener, and their reconnect sends `resync`.
+The forwarder never throws. A publish that fails, or has not finished within 2 s, is logged as `live publish failed` and dropped, so a `PubSub` outage cannot hold back or park the event for `automations.handle`, and cannot stall the relay. Clients recover what they missed on their next load (3.11): a failed publish almost always means the database connection is down, which also drops every listener, and their reconnect sends `resync`.
 
 A change can arrive twice, from a retried event or two relays dispatching one row. The hub reads current state for each, so the second push carries the same state, and the client merges by id.
 
@@ -163,19 +167,20 @@ A change can arrive twice, from a retried event or two relays dispatching one ro
 
 `ChatHub` (`packages/core/src/discussion/live.ts`), one per process, holds this process's open streams indexed by member and by community. Both are fixed when a stream connects. The hub keeps no record of which chats a stream is in: for every change it reads the chat's current active participants, so a join, a leave or a missed change never leaves routing wrong.
 
-It subscribes to `discussion.chats` in `start()`. Changes are queued per chat and handled one chat at a time per chat, many chats in parallel. While a chat's change is being handled, newer changes for it coalesce: message changes by message id, chat changes into one. The hub holds at most 5,000 pending changes; past that it drops them all and pushes `resync` to every stream.
+It subscribes to `discussion.chats` in `start()`. Changes are queued per chat: one chat's changes are handled one at a time, and at most 16 chats are handled at once. While a chat's change is being handled, newer changes for it coalesce only where nothing is lost: `message.sent`, `message.updated` and `message.deleted` by message id (the state is read fresh); `message.reactions.changed` by message id and member; `chat.created`, `chat.updated` and `chat.participant.added` into one change whose `members` are the union; `chat.read` and `chat.muted` by member. Typing is never coalesced. The hub holds at most 5,000 pending changes; past that it drops them all and pushes `resync` to every stream.
 
 | Change | Action |
 |---|---|
 | any, no local stream in the change's community | ignore |
-| `message.sent`, `message.updated`, `message.deleted` | read the chat's active participants; keep the local streams of those members; if none, stop. Read the message once (`messageViews`, viewer-neutral) and push `message.created`, `message.updated` or `message.deleted` |
+| `message.sent`, `message.updated` | read the chat's active participants; keep the local streams of those members; if none, stop. Read the message once with `messageViews`, which never returns a deleted message's body. If the message is deleted by now, push `message.deleted`; otherwise push `message.created` or `message.updated` |
+| `message.deleted` | as above; push `message.deleted` |
 | `message.reactions.changed` | as above, reading the message's reaction counts once; push `message.reactions` |
-| `chat.created`, `chat.updated`, `chat.participant.added` | the participants are `participantIds` from the change. Read the chat and its participants' profiles once. Push `chat.updated` to the local streams of participants. On a leave, push `chat.removed` to the local streams of `actorOrgUserId` when it is not a participant |
-| `chat.read`, `subscription.changed` | for `orgUserId`'s local streams only |
+| `chat.created`, `chat.updated`, `chat.participant.added` | read the chat, its active participants and their profiles once. Push `chat.updated` to the local streams of active participants. Push `chat.removed` to the local streams of `members` who are not active participants; a client with no row for the chat ignores it |
+| `chat.read`, `chat.muted` | for `orgUserId`'s local streams only |
 | `typing` | read the active participants; push `typing` to the other participants' local streams |
 | `onReset` from `PubSub` | push `resync` to every stream |
 
-**Member state.** After a message is sent or deleted, a chat is started, accepted, left or joined, a read mark moves or a mute changes, each affected local member gets their `chat.state` for that chat and their `unread`. The hub reads them for all affected members in one query, and pushes at most once a second per member, always delivering the latest values at the end of the second.
+**Member state.** After a message is sent or deleted, a chat is started, accepted, left or joined, a read mark moves or a mute changes, each affected local member is marked dirty for that chat. Once a second, the hub reads the `chat.state` of every dirty member and chat, and the `unread` of every dirty member, in one query, and pushes them. Reads happen at flush time and one flush runs at a time, so a member always gets the state as of the last flush.
 
 **Failures.** When a read for a change fails, the hub logs it and pushes `resync` to the local streams in that community.
 
@@ -184,15 +189,19 @@ It subscribes to `discussion.chats` in `start()`. Changes are queued per chat an
 1. `requireSettings` and `requireActor` (entitlements), as `listChats` does.
 2. Register the stream with the hub. When the hub is closing, yield `closed { reason: 'shutdown' }` and end.
 3. Yield `ready`, then the member's current `unread`.
-4. Every 30 s, with a random offset of up to 5 s so streams that connected together spread out: `session.current()` resolves the actor again, and `requireActor` runs with it. No actor yields `closed { reason: 'session' }`; no access yields `closed { reason: 'access' }`; either ends the stream. The re-resolved actor replaces the old one, so a changed role takes effect.
+4. Every 30 s, with a random offset of up to 5 s so streams that connected together spread out, call `session.current()`:
+   - `{ status: 'signed-out' }`: yield `closed { reason: 'session' }` and end;
+   - `{ status: 'no-member' }` (the org user was removed or suspended), or an actor that fails `requireActor`: yield `closed { reason: 'access' }` and end;
+   - an actor that passes: it replaces the old one, so a changed role takes effect;
+   - a thrown error (a database or auth outage): log it, keep the stream, and check again at the next interval.
 5. A queue of at most 256 events. On overflow drop it and yield `resync`.
 
-`session.current()` is supplied by the HTTP layer: it verifies the request's cookie with the session cookie cache bypassed, then resolves the actor through `organizations.actorFor`, as `resolveActor` does. `SessionVerifier.verify` (`packages/core/src/types/identity.ts:33-34`) gains an option to bypass the cache, implemented with `getSession({ query: { disableCookieCache: true } })` in `adapters/auth/src/better-auth.ts`.
+`session` is a `LiveSession` (`packages/core/src/discussion/ports.ts`): `{ current(): Promise<{ status: 'ok'; actor: Actor } | { status: 'signed-out' } | { status: 'no-member' }> }`. The HTTP layer builds it with `sessionOf(container, req)` in `packages/server/src/http/scope.ts`, beside `resolveActor`: it verifies the request's cookie with the session cookie cache bypassed, then resolves the actor through `organizations.actorFor`. `SessionVerifier.verify` (`packages/core/src/types/identity.ts:33-34`) gains an option to bypass the cache, implemented with `getSession({ query: { disableCookieCache: true } })` in `adapters/auth/src/better-auth.ts`.
 
 ### 3.7 Startup and shutdown
 
-- The entry point starts `container.pubsub` and `container.chatHub` before `listen`, beside `outboxRelay.start()` (`apps/api/src/main.ts`, `packages/create-headless-lms/templates/src/main.ts`).
-- A `preClose` hook in `packages/server/src/http/server.ts` calls `chatHub.close()`. The hub sets `closing`, pushes `closed { reason: 'shutdown' }` to every stream and ends them. Without it, Fastify destroys the open connections after `preClose` (`forceCloseConnections` defaults to `'idle'`) and clients get a reset instead of the frame.
+- After `listen`, the entry point awaits `container.pubsub.start()` and `container.chatHub.start()`, then starts the relay and the automation engine as today (`apps/api/src/main.ts:44`, `packages/create-headless-lms/templates/src/main.ts:26`).
+- A `preClose` hook in `packages/server/src/http/server.ts` awaits `chatHub.close()`. The hub sets `closing`, writes `closed { reason: 'shutdown' }` to every stream, ends it, and waits for each response to finish, up to 2 s in all. Without it, Fastify destroys the open connections after `preClose` (`forceCloseConnections` defaults to `'idle'`) and clients get a reset instead of the frame. A stream request already past routing that registers after `closing` is set gets the frame at once; a request arriving after `close()` began gets Fastify's 503.
 - The `onClose` hook stops the relay, then the automation engine, then `PubSub`, so events still in flight when the relay stops are forwarded.
 
 ### 3.8 Endpoints and contract changes
@@ -215,7 +224,7 @@ New routes, each declared `'member'` in `chatsDeclarations` and routed with `con
 Changes to existing contracts:
 
 - `listMemberChats` gains an optional `requests` query: `true` returns only the pending requests to the member, `false` everything else, omitted everything as today.
-- `ChatListItem` gains `participants: CommentAuthor[]`, the active participants' profiles (`headline`, `team` and `roleName` included), so the inbox, the chat header and the direct-message refusal need no directory. `ChatInboxRow` in `packages/core/src/discussion/ports.ts` and `listForUser` gain it.
+- `ChatListItem` gains `participants: CommentAuthor[]`, the active participants' profiles (`headline`, `team` and `roleName` included), so the inbox, the chat header and the direct-message refusal need no directory. The service builds them the way it builds a message's `sender` (`authorsOf`, `permissionsOfMany`, `teamBadge`, `FileUrls`; `chats.ts:1164-1190`). `ChatInboxRow` stays a repository row without them (`Omit<ChatListItem, 'subscription' | 'participants'>`, `packages/core/src/discussion/ports.ts:495`). The repository gains `inboxRow(orgId, chatId, orgUserId)` for `chat` and `directChat`, and `listForUser` takes the `requests` filter.
 - `SendMessage` gains an optional `clientId` (UUID), and `MessageView` returns it. A repeat send by the same member in the same chat with the same `clientId` returns the stored message and appends no event; two concurrent sends meet the unique index and the loser returns the winner's message. Stored as `messages.client_id`, unique on `(org_id, chat_id, org_user_id, client_id)`.
 
 ### 3.9 The stream route in Fastify
@@ -285,7 +294,7 @@ data: {"type":"message.created","chatId":"cht_1","message":{"id":"msg_9","client
 ### 3.11 The client loads state on every connect
 
 1. Open the stream.
-2. On `ready`, start buffering events, and load inbox page 1 (`listMemberChats`), the pending requests (`listMemberChats` with `requests=true`) and the latest page of the open chat (`listChatMessages`). The `unread` after `ready` sets the badge.
+2. On `ready`, start buffering events, and load inbox page 1 (`listMemberChats` with `requests=false`), the pending requests (`listMemberChats` with `requests=true`) and the latest page of the open chat (`listChatMessages`). The `unread` after `ready` sets the badge.
 3. When the loads settle, replace the inbox rows and the requests with them, drop every thread but the open one (it loads again when opened), merge the open chat's page by message id, and then apply the buffered events in order.
 4. While connected, apply events as they arrive.
 5. On `resync`, wait a random 0–3 s and repeat steps 2–3. On a dropped connection or `closed { reason: 'shutdown' }`, reconnect after a random 0–5 s; the new stream starts at step 1.
@@ -296,7 +305,7 @@ Sarah closes her laptop. James sends two messages in `cht_1` and edits one; Emma
 
 - The stream request passes `requireOrgSession` (Better Auth session from the cookie, active organization required), resolves the actor, and passes `requireActor` (entitlements), as `listChats` does.
 - A stream receives a chat's events only while its member is an active participant at the moment the hub handles the change.
-- Every 30 s the stream re-resolves the actor and re-checks community access. A revoked or expired grant, a removed bundle item or a removed org user ends it with `closed { reason: 'access' }`. A session that ended, by signing out in that browser, by a password reset (which revokes every session, `adapters/auth/src/better-auth.ts:190`) or by expiry, ends it with `closed { reason: 'session' }`.
+- Every 30 s the stream re-resolves the actor and re-checks community access. A revoked or expired grant, a removed bundle item, or a removed or suspended org user ends it with `closed { reason: 'access' }`. A session that ended, by signing out in that browser, by a password reset (which revokes every session, `adapters/auth/src/better-auth.ts:194`) or by expiry, ends it with `closed { reason: 'session' }`. A check that fails on an outage keeps the stream.
 - The browser connects with credentials from an allowed origin (`packages/server/src/http/plugins/cors.ts`); the cookie is `SameSite=Lax`, so other sites cannot open a stream with it.
 
 ### 3.13 Operations
@@ -308,18 +317,20 @@ Sarah closes her laptop. James sends two messages in `cht_1` and edits one; Emma
 
 **Store.** `src/lib/live/chat-store.ts` holds, per tab: inbox rows and requests by chat id, threads by chat id (messages by id, display order, `more`), the unread total, typing marks and the connection state. Components read it with `useSyncExternalStore`. A pure reducer applies events:
 
-- `message.created` inserts by id, keeping a stored message's `viewerReaction`; when the sender is the viewer it also replaces the viewer's own pending message with the same `clientId`. It moves the inbox row up, or calls `getMemberChat` when the chat has no row. It clears the sender's typing mark.
-- `message.updated` replaces the message's fields by id, keeping `viewerReaction`; `message.reactions` replaces the counts, and sets `viewerReaction` when `orgUserId` is the viewer.
-- `message.deleted` marks the message deleted and drops its body and images.
-- `chat.updated` upserts the row's chat and participants; `chat.removed` drops the row and leaves the thread if it is open.
+- `message.created` inserts by id, keeping a stored message's `viewerReaction`; when the sender is the viewer it also replaces the viewer's own pending message with the same `clientId`. It sets the row's `lastMessage` and moves the row up, or calls `getMemberChat` when the chat has no row. It clears the sender's typing mark.
+- `message.updated` replaces the message's fields by id, keeping `viewerReaction`, and updates the row's `lastMessage` when it is that message; `message.reactions` replaces the counts, and sets `viewerReaction` when `orgUserId` is the viewer.
+- `message.deleted` marks the message deleted and drops its body and images, and marks the row's `lastMessage` deleted when it is that message.
+- `chat.updated` replaces the row's chat and participants, or calls `getMemberChat` when the chat has no row; `chat.removed` drops the row, if any, and leaves the thread if it is open.
 - `chat.state` sets the row's unread count, read mark and mute; `unread` sets the badge. The client never counts unread itself.
 - `typing` shows a mark until `until`.
 
 When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at `mutedUntil`.
 
-**Connection.** `src/lib/live/connection.ts` opens `Chats.streamMemberChatEvents` from a browser SDK client (`baseUrl` = `NEXT_PUBLIC_API_URL`, `credentials: 'include'`) with the SDK's own retry off (`sseMaxRetryAttempts: 0`), and drives reconnects itself: exponential backoff with full jitter from 1 s up to 30 s. A 401 or `closed { reason: 'session' }` stops and goes to sign-in; a 403 or `closed { reason: 'access' }` stops and shows the app's no-access state. When three connects fail within a minute it also polls `getMemberChatUnread`, inbox page 1 and the open chat's latest page every 15 s while visible, one request at a time, and stops polling once a stream reaches `ready`. It closes the stream after the tab has been hidden for 60 s and reopens it when the tab is visible again.
+**Connection.** `src/lib/live/connection.ts` opens `Chats.streamMemberChatEvents` from a browser SDK client (`baseUrl` = `NEXT_PUBLIC_API_URL`, `credentials: 'include'`) with the SDK's own retry off (`sseMaxRetryAttempts: 0`), and drives reconnects itself: exponential backoff with full jitter from 1 s up to 30 s. With retries off, the SDK reports a refused connect through `onSseError` and ends the stream without the status (`serverSentEvents.gen.ts:131-135`), so the client passes the SDK a `fetch` that records each response's status, and reads it when a stream ends before `ready`. A 401 or `closed { reason: 'session' }` stops and goes to sign-in; a 403 or `closed { reason: 'access' }` stops and shows the app's no-access state. When three connects fail within a minute it also polls `getMemberChatUnread`, inbox page 1 and the open chat's latest page every 15 s while visible, one request at a time, and stops polling once a stream reaches `ready`. It closes the stream after the tab has been hidden for 60 s and reopens it when the tab is visible again.
 
-**Writes.** Chat actions use a `call` helper in `src/server/actions/shared.ts` that returns the API's result without calling `refresh()`. `mutate()` and every other action are unchanged.
+**Chat page.** The header, the Accept banner, the locked and muted states and the composer's refusal read the chat's row in the store (`chat.status`, `chat.lockedAt`, `subscription`, `participants`), so a pushed accept, lock or mute shows at once. They are rendered on the server today (`src/app/(community)/chats/[chatId]/page.tsx:139-206`).
+
+**Writes.** Chat actions use a `call` helper in `src/server/actions/shared.ts` that returns the API's result without calling `refresh()`. Block and unblock emit no event, so they stay on `mutate()` and keep its `refresh()`. `mutate()` and every other action are unchanged.
 
 **Optimistic send.** The composer adds a pending message with a new `clientId`, sends, and replaces it with the returned `MessageView`. If `message.created` with the same `clientId` and the viewer as sender lands first, it replaces the pending one. A failed send keeps the pending message with a retry that reuses the `clientId`.
 
@@ -335,11 +346,11 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 |---|---|
 | `packages/core/src/shared/ports.ts` | `PubSub` |
 | `packages/core/src/types/identity.ts`, `adapters/auth/src/better-auth.ts` | `SessionVerifier.verify` option to bypass the cookie cache |
-| `packages/core/src/discussion/events.ts` | `chat.read`, `message.reactions.changed`, `subscription.changed`; `clientId` left out of message event schemas |
-| `packages/core/src/discussion/chats.ts` | `markRead` in the unit of work, forward only, with its event; `setReaction` event; `clientId` on send; `watch`, `chat`, `directChat`, `unreadSummary`, `typing`, `messageViews`; `participants` on list items |
-| `packages/core/src/discussion/subscriptions.ts`, `subscriptions.test.ts` | unit of work and `subscription.changed` |
+| `packages/core/src/discussion/events.ts` | `chat.read`, `message.reactions.changed`, `chat.muted`; `clientId` left out of message event schemas |
+| `packages/core/src/discussion/chats.ts` | `markRead` in the unit of work, forward only, with its event; `setReaction` event; `clientId` on send, and left out of event data; `watch`, `chat`, `directChat`, `unreadSummary`, `typing`, `messageViews`; `participants` on list items |
+| `packages/core/src/discussion/subscriptions.ts`, `subscriptions.test.ts` | unit of work and `chat.muted` in `setChat` |
 | `packages/core/src/discussion/live.ts`, `live.test.ts` | new: `ChatLiveForwarder`, `ChatHub`; tests use a local fake `PubSub` (lint keeps core from importing adapters) |
-| `packages/core/src/discussion/ports.ts` | `ChatService` additions; `ChatInboxRow` and `ChatListItem` with `participants`; repository `findByClientId`, `unreadSummary`, `memberStates`, `activeParticipants`, `setRead` forward only, `setReaction` result |
+| `packages/core/src/discussion/ports.ts` | `ChatService` additions; `LiveSession`; `ChatListItem` with `participants`, `ChatInboxRow` without; repository `inboxRow`, `findByClientId`, `unreadSummary`, `memberStates`, `activeParticipants`, `requests` on `listForUser`, `setRead` forward only, `setReaction` result |
 | `packages/core/src/discussion/declarations.ts` | entries for the new `ChatService` methods |
 | `packages/core/src/discussion/index.ts`, `packages/core/src/types/discussion.ts` | export the hub, the forwarder, `ChatLiveEvent`, `LiveMessage`, `ChatUnreadSummary` |
 | `packages/core/src/types/schemas/discussion.ts` | `clientId` on message, `ChatLiveEvent`, `LiveMessage`, `ChatUnreadSummary` |
@@ -348,10 +359,12 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 | `adapters/pubsub-postgres/` | new package: `PostgresPubSub`, tests, `README.md` |
 | `packages/server/src/app/container.ts` | `adapters.pubsub`; with it, `container.pubsub`, `container.chatHub` and the forwarder on the bus; a unit of work for `SubscriptionService` |
 | `packages/server/src/http/sse.ts` | new: frame writer, backpressure, heartbeat |
+| `packages/server/src/http/scope.ts` | `sessionOf` |
+| `packages/server/test/live/harness.ts` | new: migrates a fresh database at `TEST_DATABASE_URL`, seeds the example org, community, members and grants through the services, signs members in through Better Auth for cookies, and boots two `buildServer` instances with `PostgresPubSub` |
 | `packages/server/src/http/routes/member/chats.ts`, `packages/server/src/http/schemas/chats.ts`, `schemas/chats.test.ts` | the five routes; `requests` query; `participants` on `ChatListItem`; `clientId` on send |
 | `packages/server/src/http/server.ts` | `preClose` closes the hub; `onClose` stops relay, engine, then `PubSub` |
 | `packages/server/src/http/config.ts`, `apps/api/src/config.ts`, `.env.example` | `pubsubDatabaseUrl` from `PUBSUB_DATABASE_URL` |
-| `apps/api/src/main.ts`, `apps/api/package.json` | inject `PostgresPubSub`; start `PubSub` and the hub before `listen` |
+| `apps/api/src/main.ts`, `apps/api/package.json` | inject `PostgresPubSub`; start `PubSub` and the hub after `listen`, before the relay |
 | `packages/create-headless-lms/templates/src/main.ts` | start `PubSub` and the hub |
 | `tsconfig.base.json`, `vitest.config.ts` | path and alias for `@headless-lms/adapter-pubsub-postgres` |
 | `.github/workflows/ci.yml` | a Postgres service and `TEST_DATABASE_URL` for the Postgres suites |
@@ -374,13 +387,14 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 | `src/app/(community)/chats/with/[orgUserId]/page.tsx` | `getMemberDirectChat` instead of `getChats()` |
 | `src/lib/chats.ts`, `src/lib/chats.test.ts` | `chatTitle` and `otherParticipant` from `participants`, not the directory |
 | `src/components/chats/thread.tsx` | render from the store; read marks |
+| `src/components/chats/chat-chrome.tsx`, `composer.tsx` | the header's locked and muted state, the Accept banner, message delete rights and the composer's refusal read the chat's row in the store, not props computed in `[chatId]/page.tsx:130-199`; the blocked state stays a server prop |
 | `src/components/chats/composer.tsx` | optimistic send with `clientId`; typing |
 | `src/components/chats/chat-chrome.tsx` | addable people searched on open, not passed as a prop |
 | `src/components/shell/frame.tsx` | chat badges from the store |
-| `src/server/actions/chats.ts`, `src/server/actions/shared.ts` | chat actions through `call`; `clientId` on send |
+| `src/server/actions/chats.ts`, `src/server/actions/shared.ts` | chat actions through `call`, block and unblock still through `mutate()`; `clientId` on send |
 | `src/server/data.ts` | `getChat`, `getDirectChat`, `getChatUnread`; the inbox reads page 1 and requests only |
 | `src/proxy.ts` | the comment that only the server talks to the API after sign-in |
-| `README.md` | the 5-second refresh and `refresh()` lines (`:19`); `NEXT_PUBLIC_API_URL` now also used for the chat stream (`:62`) |
+| `README.md` | the `refresh()` line (`:19`) and the 5-second refresh line (`:25`); `NEXT_PUBLIC_API_URL` now also used for the chat stream (`:62`) |
 
 ## 5. Documentation
 
@@ -397,7 +411,7 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 
 ## 6. Test plan
 
-Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped otherwise; CI sets it (4.1).
+Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped otherwise; CI sets it (4.1). The two-instance, access and shutdown suites use `packages/server/test/live/harness.ts`.
 
 **`PostgresPubSub`** (Postgres, two adapter instances on one database).
 
@@ -406,7 +420,8 @@ Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped ot
 - A 50 KB message of quotes, backslashes, emoji and CJK text arrives whole and once.
 - `pg_terminate_backend` on the listening connection: the adapter reconnects, `onReset` fires, later messages arrive.
 - A listener that stops receiving without an error (its pings blocked): within 40 s the adapter reconnects and `onReset` fires.
-- `publish` before `start` delivers once started; `start` with Postgres down resolves, and the adapter connects and fires `onReset` when Postgres is back.
+- `publish` on an adapter that was never started reaches the other, listening instance; `start` with Postgres down resolves, and the adapter connects and fires `onReset` when Postgres is back.
+- `publish` against an unreachable database rejects within about 2 s.
 - `stop()` closes the listening connection and the pool.
 
 **Forwarder and hub** (`packages/core/src/discussion/live.test.ts`, fakes).
@@ -417,7 +432,12 @@ Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped ot
 - Emma leaves `cht_2`: she gets `chat.removed`. A message James sends after her leave does not reach her, whichever of the two changes the hub handles first.
 - 100 `chat.participant.added` changes for one group arriving together are handled with at most two participant reads.
 - A message edited twice in quick succession: the last push carries the second edit.
-- A failing `PubSub.publish` does not stop `automations.handle` for the event.
+- A failing `PubSub.publish`, and one that never settles, do not stop `automations.handle` for the event or stall the relay.
+- A `chat.updated` that still lists Emma, handled after she left: she gets `chat.removed`, not `chat.updated`. A leave handled after she was added back: she gets `chat.updated`.
+- Sarah's and James's reactions on one message arriving together: each one's streams get their own `reaction`.
+- A `message.sent` handled after the message was deleted pushes `message.deleted` and no body.
+- Two chats' changes for Sarah handled at once: her last `unread` equals the database total.
+- A moderator who locks a chat he is not in gets no row added.
 - A failing read sends `resync` to the community's streams; `onReset` and a full queue send `resync`.
 - No pushed event carries `viewerReaction`, a deleted message's body or another member's state.
 - `markRead` with an older message changes nothing and emits nothing.
@@ -435,12 +455,14 @@ Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped ot
 - No cookie: 401. A member of another community: 403. A server built without a `PubSub`: 503.
 - Revoke Sarah's grant, let it expire through the expiry job, or remove the community from her bundle: within 35 s her stream yields `closed { reason: 'access' }`; a new connect returns 403.
 - Sign Sarah out in the browser that holds the stream, or reset her password: her stream yields `closed { reason: 'session' }`; a new connect returns 401.
+- Remove Sarah from the org: her stream yields `closed { reason: 'access' }`.
+- Make the session check throw: the stream stays open and checks again.
 
 **Contract and operations.**
 
 - `openapi.json` declares `text/event-stream` for `streamMemberChatEvents`; the regenerated SDK exposes it as a stream method whose items carry `type`.
-- Through nginx with default buffering, events arrive as written and heartbeats keep a 5-minute idle stream open.
-- `app.close()` with open streams completes and each client receives `closed { reason: 'shutdown' }`; a stream connecting during `close()` receives it too.
+- `app.close()` with open streams completes and each client receives `closed { reason: 'shutdown' }`; a stream request already past routing when `close()` starts receives it too.
+- Manual, in the local Docker setup: through nginx with default buffering, events arrive as written and heartbeats keep a 5-minute idle stream open.
 - A client that stops reading: its stream ends within 30 s of the first undrained write.
 - Repeat the LOAD-05 burst (`hlms-community/docs/qa/issues.md:357-378`) with streams open on both instances, and record the time from each send's commit to its `message.created` on the other instance.
 
@@ -451,4 +473,6 @@ Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped ot
 - Repeat the UI-24 measurement (`hlms-community/docs/qa/issues.md:563-570`): an idle open chat transfers only heartbeats.
 - Hide the tab for 60 s: the stream closes; show it: it reconnects and loads state.
 - Block the stream route at the proxy: after three failed connects the app polls, and it returns to the stream when unblocked.
+- A stream refused with 401 sends the member to sign-in; with 403, to the no-access state.
+- James locks `cht_2` while Sarah has it open: her composer shows the locked state without a reload.
 - A post, a comment and a profile edit still refresh their pages.
