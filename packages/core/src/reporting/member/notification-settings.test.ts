@@ -4,6 +4,7 @@ import type { NotificationCategory, StoredSetting } from '../../types/index.js';
 import type { ContentServicePort } from '../../content/index.js';
 import { createFileUrls } from '../../assets/index.js';
 import { actorWith } from '../../organizations/index.js';
+import { NotFoundError } from '../../shared/errors.js';
 
 const on = { default: true, locked: false };
 const off = { default: false, locked: false };
@@ -263,9 +264,9 @@ describe('member notification settings view', () => {
     expect(view?.categories.find((c) => c.key === 'new_posts')?.spaces).toEqual([]);
   });
 
-  it('answers null for someone who cannot open the community', async () => {
+  it('throws NotFoundError for someone who cannot open the community', async () => {
     const { svc, asked } = build({ member: false });
-    await expect(svc.communityNotificationSettings('cmy_1', sarah)).resolves.toBeNull();
+    await expect(svc.communityNotificationSettings('cmy_1', sarah)).rejects.toThrow(NotFoundError);
     expect(asked).toEqual([]);
   });
 

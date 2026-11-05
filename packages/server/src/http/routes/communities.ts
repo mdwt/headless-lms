@@ -260,14 +260,7 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const stats = await container.reporting.admin.communityAnalytics(
-        req.params.communityId,
-        actor,
-      );
-      if (!stats) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return stats;
+      return container.reporting.admin.communityAnalytics(req.params.communityId, actor);
     },
   });
 
@@ -360,15 +353,7 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const space = await content.getCommunitySpace(
-        req.params.communityId,
-        req.params.spaceId,
-        actor,
-      );
-      if (!space) {
-        throw new NotFoundError('Space', req.params.spaceId);
-      }
-      return space;
+      return content.getCommunitySpace(req.params.communityId, req.params.spaceId, actor);
     },
   });
 

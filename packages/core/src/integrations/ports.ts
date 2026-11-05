@@ -35,13 +35,13 @@ export interface IntegrationsService {
   /** Establish a connection for an org; stores its credential and configuration. */
   connect(input: ConnectInput, actor: Actor): Promise<Connection>;
   /** Replace a connection's stored secrets (re-auth / token refresh). */
-  reconnect(id: string, secrets: Record<string, unknown>, actor: Actor): Promise<Connection | null>;
+  reconnect(id: string, secrets: Record<string, unknown>, actor: Actor): Promise<Connection>;
   /** Set or change a connection's configuration and/or active flag. */
-  configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection | null>;
+  configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection>;
   /** Remove a connection and destroy its credential. */
-  disconnect(id: string, actor: Actor): Promise<boolean>;
+  disconnect(id: string, actor: Actor): Promise<void>;
   list(actor: Actor): Promise<Connection[]>;
-  get(id: string, actor: Actor): Promise<Connection | null>;
+  get(id: string, actor: Actor): Promise<Connection>;
   /** The connection consumers (billing, automations) resolve an integration by id. */
   getByIntegration(orgId: string, integrationId: string): Promise<Connection | null>;
   /** Invoke one of a connection's actions with its credential revealed at point

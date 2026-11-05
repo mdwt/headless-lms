@@ -8,7 +8,6 @@ import {
   UploadTicket,
   refusals,
 } from '../../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../../scope.js';
 import type { Container } from '../../../app/container.js';
 
@@ -57,11 +56,7 @@ export async function memberAssetsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const asset = await container.assets.confirmOwn(req.params.id, actor);
-      if (!asset) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
-      return asset;
+      return container.assets.confirmOwn(req.params.id, actor);
     },
   });
 
@@ -81,10 +76,7 @@ export async function memberAssetsRoutes(
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const removed = await container.assets.removeOwn(req.params.id, actor);
-      if (!removed) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
+      await container.assets.removeOwn(req.params.id, actor);
       return reply.code(204).send();
     },
   });

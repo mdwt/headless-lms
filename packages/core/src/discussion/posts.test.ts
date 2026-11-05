@@ -658,7 +658,7 @@ describe('posts', () => {
     ]) {
       expect(await message(run)).toBe(expected);
     }
-    expect(await svc.coverFile(created.id, outsider)).toBeNull();
+    await expect(svc.coverFile(created.id, outsider)).rejects.toThrow(NotFoundError);
   });
 
   it('lets only the author edit, and a pending edit says it was already pending', async () => {
@@ -1249,14 +1249,14 @@ describe('posts', () => {
     const post = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
     const bare = await svc.create(draftInput({ title: 'Bare' }), member);
     expect(await svc.coverFile(post.id, other)).toBe('https://signed');
-    expect(await svc.coverFile(post.id, outsider)).toBeNull();
-    expect(await svc.coverFile(bare.id, other)).toBeNull();
-    expect(await svc.coverFile('pst_missing', other)).toBeNull();
+    await expect(svc.coverFile(post.id, outsider)).rejects.toThrow(NotFoundError);
+    await expect(svc.coverFile(bare.id, other)).rejects.toThrow(NotFoundError);
+    await expect(svc.coverFile('pst_missing', other)).rejects.toThrow(NotFoundError);
     const draft = await svc.create(
       draftInput({ mode: 'draft', title: 'Draft', coverAssetId: 'ast_cover' }),
       member,
     );
-    expect(await svc.coverFile(draft.id, other)).toBeNull();
+    await expect(svc.coverFile(draft.id, other)).rejects.toThrow(NotFoundError);
     expect(await svc.coverFile(draft.id, member)).toBe('https://signed');
   });
 });

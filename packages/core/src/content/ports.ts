@@ -92,11 +92,7 @@ export interface CommunitiesService extends CommunityReader {
   getCommunity(id: string, actor: Actor): Promise<CommunityView | null>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
   listCommunitiesById(ids: string[], actor: Actor): Promise<Community[]>;
-  getCommunitySpace(
-    communityId: string,
-    spaceId: string,
-    actor: Actor,
-  ): Promise<SpaceDetail | null>;
+  getCommunitySpace(communityId: string, spaceId: string, actor: Actor): Promise<SpaceDetail>;
   createCommunity(input: CreateCommunityInput, actor: Actor): Promise<CommunityView>;
   updateCommunity(id: string, patch: UpdateCommunityInput, actor: Actor): Promise<CommunityView>;
   publishCommunity(id: string, actor: Actor): Promise<CommunityView>;

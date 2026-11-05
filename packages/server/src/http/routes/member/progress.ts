@@ -7,7 +7,6 @@ import {
   ReportProgress,
   refusals,
 } from '../../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
 import { resolveActor } from '../../scope.js';
 
@@ -58,11 +57,7 @@ export async function memberProgressRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const view = await member.courseProgress(req.params.courseId, actor);
-      if (!view) {
-        throw new NotFoundError('Course', req.params.courseId);
-      }
-      return view;
+      return member.courseProgress(req.params.courseId, actor);
     },
   });
 }

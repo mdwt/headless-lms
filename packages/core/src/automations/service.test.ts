@@ -997,17 +997,15 @@ describe('AutomationsService CRUD', () => {
     ]);
   });
 
-  it('returns null and appends nothing when updating a missing automation', async () => {
+  it('throws NotFoundError and appends nothing when updating a missing automation', async () => {
     const { svc, append } = build(fakeRepo({ update: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.update('missing', { enabled: true }, ADMIN);
-    expect(result).toBeNull();
+    await expect(svc.update('missing', { enabled: true }, ADMIN)).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 
   it('deletes an automation and appends automation.deleted with the removed snapshot', async () => {
     const { svc, repo, appended } = build();
-    const ok = await svc.delete('atm_1', ADMIN);
-    expect(ok).toBe(true);
+    await expect(svc.delete('atm_1', ADMIN)).resolves.toBeUndefined();
     expect(repo.delete).toHaveBeenCalledWith('org-1', 'atm_1');
     expect(appended).toEqual([
       expect.objectContaining({
@@ -1018,10 +1016,9 @@ describe('AutomationsService CRUD', () => {
     ]);
   });
 
-  it('returns false and appends nothing when deleting a missing automation', async () => {
+  it('throws NotFoundError and appends nothing when deleting a missing automation', async () => {
     const { svc, append } = build(fakeRepo({ delete: vi.fn().mockResolvedValue(null) }));
-    const ok = await svc.delete('missing', ADMIN);
-    expect(ok).toBe(false);
+    await expect(svc.delete('missing', ADMIN)).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -1452,11 +1449,13 @@ describe('AutomationsService webhooks', () => {
 
   it('does not treat a workflow as a webhook', async () => {
     const { svc, repo, credentials } = build();
-    expect(await svc.getWebhook('atm_1', ADMIN)).toBeNull();
-    expect(await svc.updateWebhook('atm_1', { enabled: false }, ADMIN)).toBeNull();
-    expect(await svc.deleteWebhook('atm_1', ADMIN)).toBe(false);
-    expect(await svc.revealWebhookSecret('atm_1', ADMIN)).toBeNull();
-    expect(await svc.rotateWebhookSecret('atm_1', ADMIN)).toBeNull();
+    await expect(svc.getWebhook('atm_1', ADMIN)).rejects.toThrow(NotFoundError);
+    await expect(svc.updateWebhook('atm_1', { enabled: false }, ADMIN)).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(svc.deleteWebhook('atm_1', ADMIN)).rejects.toThrow(NotFoundError);
+    await expect(svc.revealWebhookSecret('atm_1', ADMIN)).rejects.toThrow(NotFoundError);
+    await expect(svc.rotateWebhookSecret('atm_1', ADMIN)).rejects.toThrow(NotFoundError);
     expect(repo.update).not.toHaveBeenCalled();
     expect(repo.delete).not.toHaveBeenCalled();
     expect(credentials.update).not.toHaveBeenCalled();
@@ -1495,7 +1494,7 @@ describe('AutomationsService webhooks', () => {
 
   it('deletes the webhook and destroys its signing secret', async () => {
     const { svc, credentials, appended } = buildWebhooks();
-    expect(await svc.deleteWebhook('atm_wh', ADMIN)).toBe(true);
+    await expect(svc.deleteWebhook('atm_wh', ADMIN)).resolves.toBeUndefined();
     expect(credentials.destroy).toHaveBeenCalledWith('org-1', 'crd_1');
     expect(appended).toEqual([expect.objectContaining({ type: 'automation.deleted' })]);
   });
@@ -1785,7 +1784,7 @@ describe('schedule reconcile after commit', () => {
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), engine);
     await expect(svc.update('atm_1', { name: 'Renamed' }, ADMIN)).resolves.toEqual(AUTOMATION);
-    await expect(svc.delete('atm_1', ADMIN)).resolves.toBe(true);
+    await expect(svc.delete('atm_1', ADMIN)).resolves.toBeUndefined();
   });
 });
 

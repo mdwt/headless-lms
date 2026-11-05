@@ -10,7 +10,6 @@ import {
   WebhookSecret,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -76,11 +75,7 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const webhook = await automations.getWebhook(req.params.id, actor);
-      if (!webhook) {
-        throw new NotFoundError('Webhook', req.params.id);
-      }
-      return webhook;
+      return automations.getWebhook(req.params.id, actor);
     },
   });
 
@@ -100,11 +95,7 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const webhook = await automations.updateWebhook(req.params.id, req.body, actor);
-      if (!webhook) {
-        throw new NotFoundError('Webhook', req.params.id);
-      }
-      return webhook;
+      return automations.updateWebhook(req.params.id, req.body, actor);
     },
   });
 
@@ -123,10 +114,7 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const deleted = await automations.deleteWebhook(req.params.id, actor);
-      if (!deleted) {
-        throw new NotFoundError('Webhook', req.params.id);
-      }
+      await automations.deleteWebhook(req.params.id, actor);
       return reply.code(204).send();
     },
   });
@@ -146,11 +134,7 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const secret = await automations.revealWebhookSecret(req.params.id, actor);
-      if (!secret) {
-        throw new NotFoundError('Webhook', req.params.id);
-      }
-      return secret;
+      return automations.revealWebhookSecret(req.params.id, actor);
     },
   });
 
@@ -169,11 +153,7 @@ export async function webhooksRoutes(app: FastifyInstance, container: Container)
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const secret = await automations.rotateWebhookSecret(req.params.id, actor);
-      if (!secret) {
-        throw new NotFoundError('Webhook', req.params.id);
-      }
-      return secret;
+      return automations.rotateWebhookSecret(req.params.id, actor);
     },
   });
 }

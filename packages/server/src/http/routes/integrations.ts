@@ -18,7 +18,6 @@ import {
   refusals,
 } from '../schemas/index.js';
 import type { Connection as DomainConnection } from '@headless-lms/core/integrations';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -103,11 +102,7 @@ export async function integrationsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const connection = await integrations.get(req.params.id, actor);
-      if (!connection) {
-        throw new NotFoundError('Connection', req.params.id);
-      }
-      return toApi(connection);
+      return toApi(await integrations.get(req.params.id, actor));
     },
   });
 
@@ -126,11 +121,7 @@ export async function integrationsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const connection = await integrations.configure(req.params.id, req.body, actor);
-      if (!connection) {
-        throw new NotFoundError('Connection', req.params.id);
-      }
-      return toApi(connection);
+      return toApi(await integrations.configure(req.params.id, req.body, actor));
     },
   });
 
@@ -149,11 +140,7 @@ export async function integrationsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const connection = await integrations.reconnect(req.params.id, req.body.secrets, actor);
-      if (!connection) {
-        throw new NotFoundError('Connection', req.params.id);
-      }
-      return toApi(connection);
+      return toApi(await integrations.reconnect(req.params.id, req.body.secrets, actor));
     },
   });
 
@@ -196,10 +183,7 @@ export async function integrationsRoutes(
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const removed = await integrations.disconnect(req.params.id, actor);
-      if (!removed) {
-        throw new NotFoundError('Connection', req.params.id);
-      }
+      await integrations.disconnect(req.params.id, actor);
       return reply.code(204).send();
     },
   });

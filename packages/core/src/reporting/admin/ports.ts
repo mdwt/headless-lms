@@ -19,21 +19,17 @@ import type {
 export interface AdminReportService {
   overview(actor: Actor): Promise<OverviewStats>;
   enrollments(days: number, actor: Actor): Promise<EnrollmentPoint[]>;
-  courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics | null>;
-  courseEnrollments(
-    courseId: string,
-    days: number,
-    actor: Actor,
-  ): Promise<CourseEnrollmentPoint[] | null>;
+  courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics>;
+  courseEnrollments(courseId: string, days: number, actor: Actor): Promise<CourseEnrollmentPoint[]>;
   listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>>;
-  getStudent(id: string, actor: Actor): Promise<Student | null>;
-  studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics | null>;
-  communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics | null>;
+  getStudent(id: string, actor: Actor): Promise<Student>;
+  studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics>;
+  communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics>;
   communityMembers(
     communityId: string,
     query: CommunityMembersQuery,
     actor: Actor,
-  ): Promise<Page<CommunityMember> | null>;
+  ): Promise<Page<CommunityMember>>;
 }
 
 export interface PermissionsReader {

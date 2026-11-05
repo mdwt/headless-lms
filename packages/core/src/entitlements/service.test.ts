@@ -244,10 +244,9 @@ describe('EntitlementsService', () => {
     ]);
   });
 
-  it('appends nothing when setStatus finds no entitlement', async () => {
+  it('throws NotFoundError and appends nothing when setStatus finds no entitlement', async () => {
     const { svc, append } = build(fakeRepo({ setStatus: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.setStatus('missing', 'revoked', admin);
-    expect(result).toBeNull();
+    await expect(svc.setStatus('missing', 'revoked', admin)).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 

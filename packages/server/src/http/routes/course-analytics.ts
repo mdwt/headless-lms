@@ -8,7 +8,6 @@ import {
   EnrollmentSeriesQuery,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -34,11 +33,7 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const analytics = await container.reporting.admin.courseAnalytics(req.params.id, actor);
-      if (!analytics) {
-        throw new NotFoundError('Course', req.params.id);
-      }
-      return analytics;
+      return container.reporting.admin.courseAnalytics(req.params.id, actor);
     },
   });
 
@@ -58,15 +53,7 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const series = await container.reporting.admin.courseEnrollments(
-        req.params.id,
-        req.query.days,
-        actor,
-      );
-      if (!series) {
-        throw new NotFoundError('Course', req.params.id);
-      }
-      return series;
+      return container.reporting.admin.courseEnrollments(req.params.id, req.query.days, actor);
     },
   });
 }

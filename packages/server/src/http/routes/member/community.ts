@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../../scope.js';
 import { describeOperation } from '../../operations.js';
 import {
@@ -45,11 +44,7 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const home = await container.reporting.member.communityHome(req.params.communityId, actor);
-      if (!home) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return home;
+      return container.reporting.member.communityHome(req.params.communityId, actor);
     },
   });
 
@@ -69,15 +64,11 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const space = await container.reporting.member.communitySpace(
+      return container.reporting.member.communitySpace(
         req.params.communityId,
         req.params.spaceId,
         actor,
       );
-      if (!space) {
-        throw new NotFoundError('Space', req.params.spaceId);
-      }
-      return space;
     },
   });
 
@@ -98,15 +89,7 @@ export async function memberCommunityRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const page = await container.reporting.member.directory(
-        req.params.communityId,
-        req.query,
-        actor,
-      );
-      if (!page) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return page;
+      return container.reporting.member.directory(req.params.communityId, req.query, actor);
     },
   });
 

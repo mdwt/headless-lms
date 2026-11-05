@@ -18,7 +18,6 @@ import {
   UpdateAutomationBody,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -119,11 +118,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const automation = await automations.get(req.params.id, actor);
-      if (!automation) {
-        throw new NotFoundError('Automation', req.params.id);
-      }
-      return automation;
+      return automations.get(req.params.id, actor);
     },
   });
 
@@ -143,11 +138,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const automation = await automations.update(req.params.id, req.body, actor);
-      if (!automation) {
-        throw new NotFoundError('Automation', req.params.id);
-      }
-      return automation;
+      return automations.update(req.params.id, req.body, actor);
     },
   });
 
@@ -166,10 +157,7 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const deleted = await automations.delete(req.params.id, actor);
-      if (!deleted) {
-        throw new NotFoundError('Automation', req.params.id);
-      }
+      await automations.delete(req.params.id, actor);
       return reply.code(204).send();
     },
   });

@@ -1001,10 +1001,13 @@ export class ContentService
     communityId: string,
     spaceId: string,
     actor: Actor,
-  ): Promise<SpaceDetail | null> {
+  ): Promise<SpaceDetail> {
     this.require(actor, 'communities:read', communityId);
     const space = await this.repo.findSpace(actor.orgId, spaceId);
-    return space?.communityId === communityId ? space : null;
+    if (space?.communityId !== communityId) {
+      throw new NotFoundError('Space', spaceId);
+    }
+    return space;
   }
 
   async listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]> {

@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
 import {
@@ -51,15 +50,7 @@ export async function communityModerationRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const page = await container.reporting.admin.communityMembers(
-        req.params.communityId,
-        req.query,
-        actor,
-      );
-      if (!page) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return page;
+      return container.reporting.admin.communityMembers(req.params.communityId, req.query, actor);
     },
   });
 

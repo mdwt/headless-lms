@@ -5,7 +5,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import {
   ActivityFileParams,
   CommunityThumbnailParams,
@@ -24,10 +23,7 @@ import type { Container } from '../../../app/container.js';
 const tags = ['Files'];
 const responses = { 302: z.void(), ...refusals(403, 404) };
 
-function redirect(reply: FastifyReply, url: string | null, what: string, id: string) {
-  if (!url) {
-    throw new NotFoundError(what, id);
-  }
+function redirect(reply: FastifyReply, url: string) {
   return reply
     .header('cache-control', 'no-store')
     .header('referrer-policy', 'no-referrer')
@@ -55,7 +51,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.thumbnailFile('course', req.params.courseId, actor);
-      return redirect(reply, url, 'Course thumbnail', req.params.courseId);
+      return redirect(reply, url);
     },
   });
 
@@ -76,7 +72,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.thumbnailFile('download', req.params.downloadId, actor);
-      return redirect(reply, url, 'Download thumbnail', req.params.downloadId);
+      return redirect(reply, url);
     },
   });
 
@@ -97,7 +93,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.thumbnailFile('community', req.params.communityId, actor);
-      return redirect(reply, url, 'Community thumbnail', req.params.communityId);
+      return redirect(reply, url);
     },
   });
 
@@ -118,7 +114,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.activityFile(req.params.activityId, req.params.assetId, actor);
-      return redirect(reply, url, 'Lesson file', req.params.assetId);
+      return redirect(reply, url);
     },
   });
 
@@ -139,7 +135,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.downloadFile(req.params.downloadId, req.params.assetId, actor);
-      return redirect(reply, url, 'Download file', req.params.assetId);
+      return redirect(reply, url);
     },
   });
 
@@ -159,7 +155,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await container.posts.coverFile(req.params.postId, actor);
-      return redirect(reply, url, 'Post cover', req.params.postId);
+      return redirect(reply, url);
     },
   });
 
@@ -185,7 +181,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
         req.params.assetId,
         actor,
       );
-      return redirect(reply, url, 'Message attachment', req.params.assetId);
+      return redirect(reply, url);
     },
   });
 
@@ -206,7 +202,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.personImage(req.params.orgUserId, actor);
-      return redirect(reply, url, 'Profile photo', req.params.orgUserId);
+      return redirect(reply, url);
     },
   });
 
@@ -226,7 +222,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await container.assets.ownUploadFile(req.params.id, actor);
-      return redirect(reply, url, 'Upload', req.params.id);
+      return redirect(reply, url);
     },
   });
 }

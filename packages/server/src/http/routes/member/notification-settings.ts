@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveCaller } from '../../scope.js';
 import {
   CommunityParam,
@@ -39,14 +38,10 @@ export async function memberNotificationSettingsRoutes(
       response: { 200: CommunityNotificationSettings, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const view = await container.reporting.member.communityNotificationSettings(
+      return container.reporting.member.communityNotificationSettings(
         req.params.communityId,
         await memberOf(req),
       );
-      if (!view) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return view;
     },
   });
 

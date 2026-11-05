@@ -647,19 +647,19 @@ export class ChatServiceImpl implements ChatService {
     messageId: string,
     assetId: string,
     actor: Actor,
-  ): Promise<string | null> {
+  ): Promise<string> {
     const orgId = actor.orgId;
     const chat = await this.repo.findChat(orgId, chatId);
     const message = await this.repo.findMessage(orgId, messageId);
     if (!chat || !message || message.chatId !== chatId) {
-      return null;
+      throw new NotFoundError('Message attachment', assetId);
     }
     const attached = (await this.repo.attachmentsOf(orgId, [messageId]))[messageId] ?? [];
     if (!attached.includes(assetId)) {
-      return null;
+      throw new NotFoundError('Message attachment', assetId);
     }
     if (!(await this.access.isCommunityMember(chat.communityId, actor))) {
-      return null;
+      throw new NotFoundError('Message attachment', assetId);
     }
     const moderates = actor.permissions.has('communities:moderate', chat.communityId);
     const users = await this.repo.participants(orgId, chatId);
@@ -671,9 +671,13 @@ export class ChatServiceImpl implements ChatService {
           (flag) => flag.messageId === messageId,
         );
     if (!readable) {
-      return null;
+      throw new NotFoundError('Message attachment', assetId);
     }
-    return this.images.signFile(orgId, assetId);
+    const url = await this.images.signFile(orgId, assetId);
+    if (!url) {
+      throw new NotFoundError('Message attachment', assetId);
+    }
+    return url;
   }
 
   async messageQueue(communityId: string, actor: Actor): Promise<MessageQueue> {

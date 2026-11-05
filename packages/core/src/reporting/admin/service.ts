@@ -1,4 +1,5 @@
 import type { Actor } from '../../shared/actor.js';
+import { NotFoundError } from '../../shared/errors.js';
 import { MEMBER_ROLE_KEY } from '../../organizations/index.js';
 import type {
   CommunityAnalytics,
@@ -40,18 +41,22 @@ export class AdminReportServiceImpl implements AdminReportService {
     return this.repo.enrollments(actor.orgId, days);
   }
 
-  async courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics | null> {
+  async courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics> {
     actor.permissions.require('progress:read', courseId);
-    return this.repo.courseAnalytics(actor.orgId, courseId);
+    return found(await this.repo.courseAnalytics(actor.orgId, courseId), 'Course', courseId);
   }
 
   async courseEnrollments(
     courseId: string,
     days: number,
     actor: Actor,
-  ): Promise<CourseEnrollmentPoint[] | null> {
+  ): Promise<CourseEnrollmentPoint[]> {
     actor.permissions.require('progress:read', courseId);
-    return this.repo.courseEnrollments(actor.orgId, courseId, days);
+    return found(
+      await this.repo.courseEnrollments(actor.orgId, courseId, days),
+      'Course',
+      courseId,
+    );
   }
 
   async listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>> {
@@ -60,36 +65,38 @@ export class AdminReportServiceImpl implements AdminReportService {
     return { ...page, rows: await this.withItemRoles(actor.orgId, page.rows) };
   }
 
-  async getStudent(id: string, actor: Actor): Promise<Student | null> {
+  async getStudent(id: string, actor: Actor): Promise<Student> {
     actor.permissions.require('people:read');
-    const row = await this.repo.getStudent(actor.orgId, id);
-    if (!row) {
-      return null;
-    }
+    const row = found(await this.repo.getStudent(actor.orgId, id), 'Student', id);
     const [student] = await this.withItemRoles(actor.orgId, [row]);
-    return student ?? null;
+    return found(student, 'Student', id);
   }
 
-  async studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics | null> {
+  async studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics> {
     actor.permissions.require('people:read');
-    return this.repo.studentAnalytics(actor.orgId, id);
+    return found(await this.repo.studentAnalytics(actor.orgId, id), 'Student', id);
   }
 
-  async communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics | null> {
+  async communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics> {
     actor.permissions.require('communities:read', communityId);
-    return this.repo.communityAnalytics(actor.orgId, communityId);
+    return found(
+      await this.repo.communityAnalytics(actor.orgId, communityId),
+      'Community',
+      communityId,
+    );
   }
 
   async communityMembers(
     communityId: string,
     query: CommunityMembersQuery,
     actor: Actor,
-  ): Promise<Page<CommunityMember> | null> {
+  ): Promise<Page<CommunityMember>> {
     actor.permissions.require('access:read');
-    const page = await this.repo.communityMembers(actor.orgId, communityId, query);
-    if (!page) {
-      return null;
-    }
+    const page = found(
+      await this.repo.communityMembers(actor.orgId, communityId, query),
+      'Community',
+      communityId,
+    );
     const held = await this.permissions.permissionsOfMany(
       actor.orgId,
       page.rows.map((row) => row.id),
@@ -118,4 +125,11 @@ export class AdminReportServiceImpl implements AdminReportService {
       }),
     }));
   }
+}
+
+function found<T>(value: T | null | undefined, what: string, id: string): T {
+  if (value === null || value === undefined) {
+    throw new NotFoundError(what, id);
+  }
+  return value;
 }

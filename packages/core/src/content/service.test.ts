@@ -1280,7 +1280,9 @@ describe('spaces', () => {
     await expect(svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).resolves.toEqual(
       makeSpace(),
     );
-    await expect(svc.getCommunitySpace('cmy_other', 'spc_1', ownerIn('org1'))).resolves.toBeNull();
+    await expect(svc.getCommunitySpace('cmy_other', 'spc_1', ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it('writes the topics inside the unit of work under the space lock', async () => {

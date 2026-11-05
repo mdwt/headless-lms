@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { actorWith, MEMBER_ROLE_KEY } from '../../organizations/index.js';
 import type { EffectivePermissions } from '../../shared/actor.js';
-import { ForbiddenError } from '../../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { adminReportDeclarations } from './declarations.js';
 import type { AdminReportRepository, PermissionsReader } from './ports.js';
 import { AdminReportServiceImpl } from './service.js';
@@ -100,15 +100,15 @@ describe('AdminReportService', () => {
   it('opens course analytics with progress:read on that course only', async () => {
     const { svc } = build();
     const james = actorWith({ content: { crs_1: ['progress:read'] } });
-    await expect(svc.courseAnalytics('crs_1', james)).resolves.toBeNull();
-    await expect(svc.courseEnrollments('crs_1', 7, james)).resolves.toBeNull();
+    await expect(svc.courseAnalytics('crs_1', james)).rejects.toThrow(NotFoundError);
+    await expect(svc.courseEnrollments('crs_1', 7, james)).rejects.toThrow(NotFoundError);
     await expect(svc.courseAnalytics('crs_2', james)).rejects.toThrow(ForbiddenError);
   });
 
   it('opens community analytics with communities:read on that community only', async () => {
     const { svc } = build();
     const host = actorWith({ content: { cmy_1: ['communities:read'] } });
-    await expect(svc.communityAnalytics('cmy_1', host)).resolves.toBeNull();
+    await expect(svc.communityAnalytics('cmy_1', host)).rejects.toThrow(NotFoundError);
     await expect(svc.communityAnalytics('cmy_2', host)).rejects.toThrow(ForbiddenError);
   });
 
