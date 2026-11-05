@@ -5,7 +5,19 @@ import type { AssetsRepository, AssetsUnitOfWork } from './ports.js';
 import type { Asset } from './model.js';
 import type { NewDomainEvent, ObjectStorage, OutboxAppender } from '../shared/ports.js';
 import { createCapturingLogger } from '../shared/logger.js';
-import { ConflictError, InvalidInputError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, InvalidInputError } from '../shared/errors.js';
+import { actorWith } from '../organizations/index.js';
+import type { ContentType } from '../types/index.js';
+
+const ITEMS: Record<string, ContentType> = { crs_1: 'course', crs_2: 'course', dl_1: 'download' };
+
+function admin(id = 'ou_admin', orgId = 'org-1') {
+  return actorWith({ id, orgId, org: ['media:read', 'media:write', 'media:delete'] });
+}
+
+function uploader(id: string, orgId = 'org-1') {
+  return actorWith({ id, orgId });
+}
 
 function fakeStorage(
   stat: { size: number; contentType: string } = { size: 42, contentType: 'video/mp4' },
@@ -36,7 +48,11 @@ function fakeRepo(referenced: Set<string> = new Set()) {
       return asset;
     },
     async list(_orgId, query) {
-      const rows = assets.filter((a) => !query.source || a.source === query.source);
+      const rows = assets.filter(
+        (a) =>
+          (!query.source || a.source === query.source) &&
+          (!query.contentId || a.contentId === query.contentId),
+      );
       return { rows, total: rows.length, page: 1, pageSize: 20 };
     },
     async findById(_orgId, id) {
@@ -72,6 +88,9 @@ function fakeRepo(referenced: Set<string> = new Set()) {
     },
     async heldKeys(_orgId, keys) {
       return keys.filter((key) => assets.some((a) => a.key === key));
+    },
+    async contentTypeOf(_orgId, contentId) {
+      return ITEMS[contentId] ?? null;
     },
   };
   return { repo, assets };
@@ -121,16 +140,14 @@ describe('AssetsService', () => {
     const { logger, entries } = createCapturingLogger();
     const { svc, appended } = service({ logger });
 
-    const ticket = await svc.requestUpload('org-1', {
-      filename: 'a.mp4',
-      contentType: 'video/mp4',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
+    const ticket = await svc.requestUpload(
+      { filename: 'a.mp4', contentType: 'video/mp4' },
+      admin('ou_1'),
+    );
     expect(ticket.asset.kind).toBe('video');
     expect(ticket.asset.source).toBe('library');
-    await svc.confirm('org-1', ticket.asset.id);
-    await svc.remove('org-1', ticket.asset.id);
+    await svc.confirm(ticket.asset.id, admin());
+    await svc.remove(ticket.asset.id, admin());
 
     expect(entries.filter((e) => e.level === 'info').map((e) => e.msg)).toEqual([
       'asset upload requested',
@@ -143,20 +160,18 @@ describe('AssetsService', () => {
 
   it('lists the library by default and member uploads on request', async () => {
     const { svc } = service();
-    await svc.requestUpload('org-1', {
-      filename: 'a.mp4',
-      contentType: 'video/mp4',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
-    await svc.requestMemberUpload('org-1', 'ou_2', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    await svc.requestUpload({ filename: 'a.mp4', contentType: 'video/mp4' }, admin('ou_1'));
+    await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_2'),
+    );
 
-    const library = await svc.list('org-1', { page: 1, pageSize: 20 });
+    const library = await svc.list({ page: 1, pageSize: 20 }, admin());
     expect(library.rows.map((a) => a.source)).toEqual(['library']);
-    const member = await svc.list('org-1', { page: 1, pageSize: 20, source: 'member' });
+    const member = await svc.list({ page: 1, pageSize: 20, source: 'member' }, admin());
     expect(member.rows.map((a) => a.source)).toEqual(['member']);
   });
 
@@ -164,7 +179,7 @@ describe('AssetsService', () => {
     const { svc } = service();
     for (const contentType of ['application/pdf', 'image/svg+xml', 'image/tiff']) {
       await expect(
-        svc.requestMemberUpload('org-1', 'ou_1', { filename: 'a', contentType }),
+        svc.requestMemberUpload({ filename: 'a', contentType }, uploader('ou_1')),
       ).rejects.toThrow('A member upload must be a PNG, JPEG, GIF, WebP or AVIF image');
     }
     for (const contentType of [
@@ -174,48 +189,59 @@ describe('AssetsService', () => {
       'image/webp',
       'image/avif',
     ]) {
-      const ticket = await svc.requestMemberUpload('org-1', 'ou_1', { filename: 'a', contentType });
+      const ticket = await svc.requestMemberUpload({ filename: 'a', contentType }, uploader('ou_1'));
       expect(ticket.asset.contentType).toBe(contentType);
     }
   });
 
   it('discards a member upload recorded with an SVG type when it is finalized', async () => {
-    const { svc, storage } = service({
+    const { svc, storage, assets } = service({
       storage: fakeStorage({ size: 10, contentType: 'image/svg+xml' }),
     });
-    const ticket = await svc.requestUpload('org-1', {
+    const now = new Date();
+    assets.push({
+      orgId: 'org-1',
+      id: 'asset_svg',
+      key: 'org/org-1/uploads/asset_svg/me.svg',
+      kind: 'image',
+      source: 'member',
       filename: 'me.svg',
       contentType: 'image/svg+xml',
-      source: 'member',
+      size: 0,
+      status: 'pending',
       uploadedBy: 'ou_1',
+      contentId: null,
+      createdAt: now,
+      updatedAt: now,
     });
-    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+    await expect(svc.confirmOwn('asset_svg', uploader('ou_1'))).rejects.toThrow(
       'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image',
     );
     expect(storage.remove).toHaveBeenCalled();
-    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+    expect(await svc.get('asset_svg', admin())).toBeNull();
   });
 
   it('owns only a ready member image uploaded by that org user', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
-    const video = await svc.requestUpload('org-1', {
-      filename: 'a.mp4',
-      contentType: 'video/mp4',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
-    const image = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const video = await svc.requestUpload(
+      { filename: 'a.mp4', contentType: 'video/mp4' },
+      admin('ou_1'),
+    );
+    const image = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
 
     expect(image.asset.kind).toBe('image');
     expect(image.asset.source).toBe('member');
     expect(image.asset.uploadedBy).toBe('ou_1');
     expect(await svc.ownsImage('org-1', image.asset.id, 'ou_1')).toBe(false);
-    expect(await svc.confirmOwn('org-1', image.asset.id, 'ou_2')).toBeNull();
-    expect(await svc.confirmOwn('org-1', video.asset.id, 'ou_1')).toBeNull();
-    const confirmed = await svc.confirmOwn('org-1', image.asset.id, 'ou_1');
+    expect(await svc.confirmOwn(image.asset.id, uploader('ou_2'))).toBeNull();
+    expect(await svc.confirmOwn(video.asset.id, uploader('ou_1'))).toBeNull();
+    const confirmed = await svc.confirmOwn(image.asset.id, uploader('ou_1'));
     expect(confirmed?.status).toBe('ready');
     expect(await svc.ownsImage('org-1', image.asset.id, 'ou_1')).toBe(true);
     expect(await svc.ownsImage('org-1', image.asset.id, 'ou_2')).toBe(false);
@@ -224,26 +250,32 @@ describe('AssetsService', () => {
 
   it('discards a member upload whose stored bytes are too large or not an image', async () => {
     const big = service({ storage: fakeStorage({ size: 5000, contentType: 'image/png' }) });
-    const ticket = await big.svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    await expect(big.svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+    const ticket = await big.svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    await expect(big.svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
       new InvalidInputError('This image is too large'),
     );
     expect(big.storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(await big.svc.get('org-1', ticket.asset.id)).toBeNull();
+    expect(await big.svc.get(ticket.asset.id, admin())).toBeNull();
     expect(big.appended.map((e) => e.type)).toEqual(['asset.created', 'asset.deleted']);
 
     const fake = service({ storage: fakeStorage({ size: 10, contentType: 'application/zip' }) });
-    const spoofed = await fake.svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    await expect(fake.svc.confirmOwn('org-1', spoofed.asset.id, 'ou_1')).rejects.toThrow(
+    const spoofed = await fake.svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    await expect(fake.svc.confirmOwn(spoofed.asset.id, uploader('ou_1'))).rejects.toThrow(
       'The uploaded file is not the declared type',
     );
-    expect(await fake.svc.get('org-1', spoofed.asset.id)).toBeNull();
+    expect(await fake.svc.get(spoofed.asset.id, admin())).toBeNull();
   });
 
   it('leaves storage untouched when the references refuse the delete', async () => {
@@ -275,24 +307,27 @@ describe('AssetsService', () => {
       updatedAt: now,
     });
 
-    await expect(svc.remove('org-1', 'asset_used')).rejects.toThrow('This file is still in use');
-    await expect(svc.removeOwn('org-1', 'asset_used', 'ou_1')).rejects.toThrow(
+    await expect(svc.remove('asset_used', admin())).rejects.toThrow('This file is still in use');
+    await expect(svc.removeOwn('asset_used', uploader('ou_1'))).rejects.toThrow(
       'This file is still in use',
     );
     expect(storage.remove).not.toHaveBeenCalled();
-    expect(await svc.removeOwn('org-1', 'asset_used', 'ou_2')).toBe(false);
+    expect(await svc.removeOwn('asset_used', uploader('ou_2'))).toBe(false);
   });
 
   it('lets the uploader remove their own unreferenced upload', async () => {
     const { svc, storage } = service();
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    expect(await svc.removeOwn('org-1', ticket.asset.id, 'ou_2')).toBe(false);
-    expect(await svc.removeOwn('org-1', ticket.asset.id, 'ou_1')).toBe(true);
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    expect(await svc.removeOwn(ticket.asset.id, uploader('ou_2'))).toBe(false);
+    expect(await svc.removeOwn(ticket.asset.id, uploader('ou_1'))).toBe(true);
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
   });
 
   it('sweeps member uploads older than the one-hour grace that nothing references', async () => {
@@ -439,14 +474,12 @@ describe('AssetsService', () => {
     vi.mocked(storage.remove).mockImplementation(async () => {
       order.push('object');
     });
-    const ticket = await svc.requestUpload('org-1', {
-      filename: 'a.mp4',
-      contentType: 'video/mp4',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
+    const ticket = await svc.requestUpload(
+      { filename: 'a.mp4', contentType: 'video/mp4' },
+      admin('ou_1'),
+    );
 
-    expect(await svc.remove('org-1', ticket.asset.id)).toBe(true);
+    expect(await svc.remove(ticket.asset.id, admin())).toBe(true);
     expect(order).toEqual(['row', 'object']);
   });
 
@@ -454,12 +487,15 @@ describe('AssetsService', () => {
     const { svc, storage } = service({
       storage: fakeStorage({ size: 10, contentType: 'image/png' }),
     });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
 
-    const confirmed = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    const confirmed = await svc.confirmOwn(ticket.asset.id, uploader('ou_1'));
 
     expect(confirmed?.status).toBe('ready');
     expect(ticket.asset.key).toBe(`org/org-1/uploads/${ticket.asset.id}/me.png`);
@@ -474,91 +510,94 @@ describe('AssetsService', () => {
   it('leaves a ready asset and its bytes alone when it is confirmed again', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
     const { svc, appended } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    const confirmed = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    const confirmed = await svc.confirmOwn(ticket.asset.id, uploader('ou_1'));
     vi.mocked(storage.stat).mockResolvedValue({ key: 'k', size: 5000, contentType: 'image/png' });
     vi.mocked(storage.remove).mockClear();
 
-    const again = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    const again = await svc.confirmOwn(ticket.asset.id, uploader('ou_1'));
 
     expect(again).toEqual(confirmed);
     expect(storage.remove).not.toHaveBeenCalled();
-    expect(await svc.get('org-1', ticket.asset.id)).not.toBeNull();
+    expect(await svc.get(ticket.asset.id, admin())).not.toBeNull();
     expect(appended.map((e) => e.type)).toEqual(['asset.created', 'asset.ready']);
   });
 
   it('re-derives the kind from the stored content type when an upload is confirmed', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 42, contentType: 'video/mp4' }) });
-    const ticket = await svc.requestUpload('org-1', {
-      filename: 'clip',
-      contentType: 'application/octet-stream',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
+    const ticket = await svc.requestUpload(
+      { filename: 'clip', contentType: 'application/octet-stream' },
+      admin('ou_1'),
+    );
     expect(ticket.asset.kind).toBe('document');
 
-    const confirmed = await svc.confirm('org-1', ticket.asset.id);
+    const confirmed = await svc.confirm(ticket.asset.id, admin());
 
     expect(confirmed).toMatchObject({ kind: 'video', contentType: 'video/mp4', size: 42 });
   });
 
   it('refuses staff the finalize and the URL of a member upload but lets them delete it', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
-    const library = await svc.requestUpload('org-1', {
-      filename: 'a.png',
-      contentType: 'image/png',
-      source: 'library',
-      uploadedBy: 'ou_staff',
-    });
-    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const library = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png' },
+      admin('ou_staff'),
+    );
+    const member = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
 
-    await expect(svc.confirm('org-1', member.asset.id)).rejects.toThrow(
+    await expect(svc.confirm(member.asset.id, admin())).rejects.toThrow(
       'Only the uploader can finalize a member upload',
     );
-    await svc.confirm('org-1', library.asset.id);
-    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
-    expect((await svc.get('org-1', member.asset.id))?.url).toBeNull();
-    expect((await svc.get('org-1', library.asset.id))?.url).toMatch(
+    await svc.confirm(library.asset.id, admin());
+    await svc.confirmOwn(member.asset.id, uploader('ou_1'));
+    expect((await svc.get(member.asset.id, admin()))?.url).toBeNull();
+    expect((await svc.get(library.asset.id, admin()))?.url).toMatch(
       /\/api\/assets\/ast_\w+\/file$/,
     );
-    expect(await svc.remove('org-1', member.asset.id)).toBe(true);
+    expect(await svc.remove(member.asset.id, admin())).toBe(true);
   });
 
   it('answers which ids are ready library assets of the org, in the order asked', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
     const upload = (filename: string) =>
-      svc.requestUpload('org-1', {
-        filename,
-        contentType: 'image/png',
-        source: 'library',
-        uploadedBy: 'ou_staff',
-      });
+      svc.requestUpload({ filename, contentType: 'image/png' }, admin('ou_staff'));
     const first = await upload('a.png');
     const second = await upload('b.png');
     const pending = await upload('c.png');
-    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    await svc.confirm('org-1', first.asset.id);
-    await svc.confirm('org-1', second.asset.id);
-    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+    const member = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    await svc.confirm(first.asset.id, admin());
+    await svc.confirm(second.asset.id, admin());
+    await svc.confirmOwn(member.asset.id, uploader('ou_1'));
 
     expect(
-      await svc.libraryAssetsAmong('org-1', [
+      await svc.libraryAssetsFor('org-1', [
         second.asset.id,
         pending.asset.id,
         member.asset.id,
         'ast_missing',
         first.asset.id,
       ]),
-    ).toEqual([second.asset.id, first.asset.id]);
+    ).toEqual([
+      { id: second.asset.id, contentId: null },
+      { id: first.asset.id, contentId: null },
+    ]);
   });
 
   it('checks the copied object, which the upload ticket cannot replace', async () => {
@@ -569,12 +608,15 @@ describe('AssetsService', () => {
         : { key, size: 5000, contentType: 'image/png' },
     );
     const { svc } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
 
-    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+    await expect(svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
       'This image is too large',
     );
     const copied = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
@@ -588,33 +630,39 @@ describe('AssetsService', () => {
         .mock.calls.map(([key]) => key)
         .sort(),
     ).toEqual([copied, ticket.asset.key].sort());
-    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
   });
 
   it('refuses a stored object whose type is not the declared one', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png,text/plain' });
     const { svc } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
 
-    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow(
+    await expect(svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
       'The uploaded file is not the declared type',
     );
-    expect(await svc.get('org-1', ticket.asset.id)).toBeNull();
+    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
   });
 
   it('keeps a pending upload pending without copying when nothing was uploaded', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
     const { svc } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
     vi.mocked(storage.stat).mockResolvedValueOnce(null);
 
-    expect(await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).toMatchObject({
+    expect(await svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).toMatchObject({
       status: 'pending',
     });
     expect(storage.copy).not.toHaveBeenCalled();
@@ -624,17 +672,20 @@ describe('AssetsService', () => {
   it('returns the current row and keeps the final object when another finalize won', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
     const { svc, repo, assets } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
     const finalKey = `org/org-1/image/${ticket.asset.id}/me.png`;
     repo.markReady = async () => {
       Object.assign(assets[0]!, { status: 'ready', key: finalKey, size: 10 });
       return null;
     };
 
-    const result = await svc.confirmOwn('org-1', ticket.asset.id, 'ou_1');
+    const result = await svc.confirmOwn(ticket.asset.id, uploader('ou_1'));
 
     expect(result).toMatchObject({ status: 'ready', key: finalKey });
     expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: finalKey });
@@ -644,15 +695,18 @@ describe('AssetsService', () => {
   it('propagates a storage failure during finalize', async () => {
     const storage = fakeStorage({ size: 10, contentType: 'image/png' });
     const { svc } = service({ storage });
-    const ticket = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
+    const ticket = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
     vi.mocked(storage.copy).mockRejectedValue(new Error('copy failed'));
 
-    await expect(svc.confirmOwn('org-1', ticket.asset.id, 'ou_1')).rejects.toThrow('copy failed');
+    await expect(svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow('copy failed');
     expect(storage.remove).not.toHaveBeenCalled();
-    expect(await svc.get('org-1', ticket.asset.id)).toMatchObject({ status: 'pending' });
+    expect(await svc.get(ticket.asset.id, admin())).toMatchObject({ status: 'pending' });
   });
 
   it('sweeps stray objects under the uploads prefix that no asset holds once the ticket has expired', async () => {
@@ -742,21 +796,19 @@ describe('AssetsService', () => {
     const { svc, storage } = service({
       storage: fakeStorage({ size: 10, contentType: 'image/png' }),
     });
-    const ticket = await svc.requestUpload('org-1', {
-      filename: 'a.png',
-      contentType: 'image/png',
-      source: 'library',
-      uploadedBy: 'ou_staff',
-    });
+    const ticket = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png' },
+      admin('ou_staff'),
+    );
     expect(ticket.asset.url).toBeNull();
-    expect((await svc.get('org-1', ticket.asset.id))?.url).toBeNull();
-    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toBeNull();
+    expect((await svc.get(ticket.asset.id, admin()))?.url).toBeNull();
+    expect((await svc.list({ page: 1, pageSize: 20 }, admin())).rows[0]?.url).toBeNull();
 
-    const confirmed = await svc.confirm('org-1', ticket.asset.id);
+    const confirmed = await svc.confirm(ticket.asset.id, admin());
 
     expect(confirmed?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
-    expect((await svc.get('org-1', ticket.asset.id))?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
-    expect((await svc.list('org-1', { page: 1, pageSize: 20 })).rows[0]?.url).toMatch(
+    expect((await svc.get(ticket.asset.id, admin()))?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
+    expect((await svc.list({ page: 1, pageSize: 20 }, admin())).rows[0]?.url).toMatch(
       /\/api\/assets\/ast_\w+\/file$/,
     );
     expect(confirmed?.downloadUrl).toMatch(/\/api\/assets\/ast_\w+\/download$/);
@@ -766,14 +818,17 @@ describe('AssetsService', () => {
 
   it('lists member uploads to staff without a URL', async () => {
     const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/png' }) });
-    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    const own = await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+    const member = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    const own = await svc.confirmOwn(member.asset.id, uploader('ou_1'));
 
     expect(own?.url).toMatch(/\/api\/member\/uploads\/ast_\w+\/file$/);
-    const listed = await svc.list('org-1', { page: 1, pageSize: 20, source: 'member' });
+    const listed = await svc.list({ page: 1, pageSize: 20, source: 'member' }, admin());
     expect(listed.rows.map((a) => [a.status, a.url, a.downloadUrl])).toEqual([
       ['ready', null, null],
     ]);
@@ -869,24 +924,25 @@ describe('AssetsService', () => {
     const { svc, storage } = service();
     vi.mocked(storage.presignDownload).mockResolvedValue('https://signed');
     vi.mocked(storage.stat).mockResolvedValue({ key: 'k', size: 50, contentType: 'image/png' });
-    const library = await svc.requestUpload('org-1', {
-      filename: 'a.png',
-      contentType: 'image/png',
-      source: 'library',
-      uploadedBy: 'ou_1',
-    });
-    await svc.confirm('org-1', library.asset.id);
-    const member = await svc.requestMemberUpload('org-1', 'ou_1', {
-      filename: 'me.png',
-      contentType: 'image/png',
-    });
-    await svc.confirmOwn('org-1', member.asset.id, 'ou_1');
+    const library = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png' },
+      admin('ou_1'),
+    );
+    await svc.confirm(library.asset.id, admin());
+    const member = await svc.requestMemberUpload(
+      {
+        filename: 'me.png',
+        contentType: 'image/png',
+      },
+      uploader('ou_1'),
+    );
+    await svc.confirmOwn(member.asset.id, uploader('ou_1'));
 
-    expect(await svc.libraryFile('org-1', library.asset.id, { download: false })).toBe(
+    expect(await svc.libraryFile(library.asset.id, { download: false }, admin())).toBe(
       'https://signed',
     );
-    expect(await svc.libraryFile('org-1', member.asset.id, { download: false })).toBeNull();
-    expect(await svc.ownUploadFile('org-1', member.asset.id, 'ou_1')).toBe('https://signed');
-    expect(await svc.ownUploadFile('org-1', member.asset.id, 'ou_2')).toBeNull();
+    expect(await svc.libraryFile(member.asset.id, { download: false }, admin())).toBeNull();
+    expect(await svc.ownUploadFile(member.asset.id, uploader('ou_1'))).toBe('https://signed');
+    expect(await svc.ownUploadFile(member.asset.id, uploader('ou_2'))).toBeNull();
   });
 });

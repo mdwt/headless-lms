@@ -265,15 +265,22 @@ export class AssetsServiceImpl implements AssetsService {
     );
   }
 
-  async libraryAssetsAmong(orgId: string, assetIds: string[]): Promise<string[]> {
+  async libraryAssetsFor(
+    orgId: string,
+    assetIds: string[],
+  ): Promise<{ id: string; contentId: string | null }[]> {
     if (assetIds.length === 0) {
       return [];
     }
     const rows = await this.repo.findByIds(orgId, [...new Set(assetIds)]);
-    const library = new Set(
-      rows.filter((a) => a.source === 'library' && a.status === 'ready').map((a) => a.id),
+    const library = new Map(
+      rows
+        .filter((a) => a.source === 'library' && a.status === 'ready')
+        .map((a) => [a.id, a.contentId]),
     );
-    return assetIds.filter((id) => library.has(id));
+    return assetIds.flatMap((id) =>
+      library.has(id) ? [{ id, contentId: library.get(id) ?? null }] : [],
+    );
   }
 
   async list(query: AssetsQuery, actor: Actor): Promise<Page<AssetView>> {

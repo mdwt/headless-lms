@@ -15,7 +15,10 @@ export interface MemberImageReader {
 }
 
 export interface LibraryAssetReader {
-  libraryAssetsAmong(orgId: string, assetIds: string[]): Promise<string[]>;
+  libraryAssetsFor(
+    orgId: string,
+    assetIds: string[],
+  ): Promise<{ id: string; contentId: string | null }[]>;
 }
 
 export interface ReadyFile {

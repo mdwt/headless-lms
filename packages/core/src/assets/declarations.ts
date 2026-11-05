@@ -16,7 +16,7 @@ export const assetsDeclarations = {
   removeOwn: 'member',
   removeUnattached: 'system',
   ownsImage: 'system',
-  libraryAssetsAmong: 'system',
+  libraryAssetsFor: 'system',
   readyFiles: 'system',
   signFile: 'system',
 } as const satisfies Declarations<AssetsService>;
