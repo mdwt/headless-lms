@@ -17,9 +17,9 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | 2 | Functional, two browsers | passed |
 | 3 | Connection lifecycle | passed |
 | 4 | Access and session | passed |
-| 5 | Multiple instances behind a proxy | open |
-| 6 | Infrastructure | open |
-| 7 | Load and measurements | open |
+| 5 | Multiple instances behind a proxy | passed |
+| 6 | Infrastructure | passed |
+| 7 | Load and measurements | passed |
 | 8 | Regression | open |
 
 ## Issues
@@ -29,6 +29,9 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | 1 | Multiple instances | With two API instances, both outbox relays dispatched every event in the same millisecond: the rows were locked only for the select, so each poll took the same rows. Every live message reached a stream twice, and every automation ran twice before its unique key dropped the second. The `OutboxStore` port already says `fetchBatch` claims what it returns. | fixed | `521a1c11`: `fetchBatch` claims its rows for 60 s in the same transaction; a Postgres test with two stores fetching at once |
 | 2 | Logging | A chat stream left no line when it ended: the route takes over the response, so Fastify never logs `request completed` when the client disconnects, and the hub logged opens and closes at debug without the member or the reason. A stream closed for access or session left no trace at info. | fixed | `4149b561`: `event stream ended` at info with duration, events sent and how it ended; `chat stream closed` at info with the member and reason |
 | 3 | Shutdown | Stopping the API with SIGTERM never closed the server: nothing called `app.close()` on a signal, and the Hatchet worker's own handler exited the process once the worker stopped. Open streams got a reset instead of `closed { reason: 'shutdown' }`, which the self-hosting page promises; the relay, the engine and PubSub were never stopped. | fixed | `779799d9`: `closeOnSignals(app)` in both entry points, the Hatchet worker started with `handleKill: false`; the log now reads shutting down → chat hub closed → outbox relay stopped → hatchet worker stopped → pubsub stopped → shut down |
+| 4 | Infrastructure | Stopping Postgres crashed both API instances: the shared database pool had no `error` listener, so Postgres terminating an idle pooled connection was an unhandled `error` event and the process exited. | fixed | `2e99dd42`: `createDb` takes the container's logger and logs `database connection lost`; the pool replaces the connection |
+| 5 | Logging | During the Postgres outage `outbox poll failed` logged only "AggregateError" and the PubSub adapter logged `pubsub connect failed` and `pubsub listener lost` with an empty error: a refused pg connect is an AggregateError with an empty message. | fixed | `d902c107`: `describeError` names the inner errors and the code; used by the outbox relay (also for `last_error`) and the PubSub adapter |
+| 6 | Load | 20 concurrent sends on one instance deadlocked its pool: `send` and `startDirect` read team status and attachment ownership through other services inside their transaction, so each send held a pooled connection while waiting for another (pool default 10, no acquire timeout). All 60 sends timed out and the instance kept 10 connections idle in a transaction for good. The same pattern was in landing a post with mentions, approving a comment with mentions and changing an invited person's role. Present on `main` too. | fixed | `2a805817`: those reads move before the transaction; a send that finds someone it did not check gets 409; each harness now records any cross-service call while a transaction is open |
 
 ## Log
 
@@ -91,3 +94,39 @@ Browsers:
 - 401 path: Emma signs out in a second tab; the hub closes her stream for `session` and the first tab goes through `/session/reset` to sign-in.
 - Mia (community Moderator) locks the flagged Pod 1 chat from the admin moderation queue; James's open chat shows "This chat is locked" without a reload, and the flagged message leaves the queue.
 - Warnings and errors in both API logs since the run began: only the two expected "chat moderation refused" warnings.
+
+### 5. Multiple instances behind the proxy
+
+- Browsers: Sarah's stream pinned to A by a cookie, James's to B; James's send went through B and showed for Sarah on A.
+- `02-functional.mjs` with every request through nginx's round robin (27 writes to A, 24 to B) and the six streams alternating between A and B: 49/49. The typing repeat-drop is per instance by design ("on that instance"), so the two typing posts in that check are sent to one instance.
+
+### 6. Infrastructure
+
+`06-infra.mjs`:
+
+- Through nginx with default buffering: 30 messages from B to a stream on A through nginx, commit to arrival p50 783 ms, p95 811 ms; the same through a direct stream p50 786 ms, p95 808 ms. Arrivals follow the sends one by one; nginx honours `x-accel-buffering: no` and adds nothing. The ~0.8 s is the outbox relay's 1 s poll.
+- A stream through nginx left idle for 5 min 15 s stayed open on 12 heartbeats, and the next event arrived.
+- A client that stops reading: 566 messages of 10 KB into its group; the socket buffers filled within about 3 s, the server logged `event stream not drained` and ended the stream 33 s after the flood began (30 s drain timeout); the other member's probes kept arriving in 67–1063 ms throughout.
+- `pg_terminate_backend` on both listening connections: both adapters reconnected, streams on A and B got `resync` within 0.9 s, delivery resumed (A 466 ms, B 94 ms), streams stayed open. Sarah's browser reloaded inbox, requests and the open chat on the `resync` without reopening its stream.
+- Postgres stopped for 8 s and started again, after the fixes for issues 4 and 5: a request during the outage got 500 `internal_error` with a request id and no system detail; both instances stayed up; streams stayed open and got `resync` once Postgres was back; delivery resumed on both; nothing was left in the outbox.
+
+### 7. Load and measurements
+
+`07-burst.mjs`: senders in groups of five with two watchers, one watching on A and one on B; each sender sends 5 messages at once with the others; time from each send's response to its arrival on the other instance.
+
+Before the fix for issue 6: 10 concurrent senders passed; 20 on A timed out every send and left A's pool stuck.
+
+After it:
+
+| concurrent | sends to | accepted | send p95 | other instance p50 / p95 / max | missing |
+|---|---|---|---|---|---|
+| 1 | A | 5/5 | 13 ms | 515 / 636 / 636 ms | 0 |
+| 5 | A | 25/25 | 39 ms | 440 / 762 / 800 ms | 0 |
+| 10 | A | 50/50 | 57 ms | 543 / 897 / 909 ms | 0 |
+| 10 | A and B | 50/50 | 35 ms | 862 / 1163 / 1273 ms | 0 |
+| 20 | A | 100/100 | 114 ms | 625 / 977 / 1161 ms | 0 |
+| 20 | A and B | 100/100 | 60 ms | 792 / 1279 / 1352 ms | 0 |
+| 30 | A | 150/150 | 107 ms | 701 / 1132 / 1255 ms | 0 |
+| 30 | A and B | 150/150 | 94 ms | 874 / 1469 / 1559 ms | 0 |
+
+UI-24: Sarah's open chat, idle for 60 s, made no requests at all (before live chat: a 136 KB compressed RSC refresh every 5 s). The stream carries a 9-byte ping every 25 s.
