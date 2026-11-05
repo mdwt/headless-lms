@@ -23,10 +23,10 @@ Measured in QA (`hlms-community/docs/qa/issues.md`):
 ### 2.1 The event system
 
 - A write and its domain events commit together: services append events to the outbox inside the write's `UnitOfWork` (`packages/core/src/shared/ports.ts:75-92`).
-- Every API instance runs an outbox relay. A relay claims committed rows (`FOR UPDATE SKIP LOCKED`, `adapters/db/src/repositories/outbox.ts`) and publishes each to its `EventBus`, in order per chat (`orderingKey`, `adapters/defaults/src/events/outbox-relay.ts:41-53`). Delivery is at-least-once; handlers are idempotent on event id.
+- Every API instance runs an outbox relay. A relay selects unprocessed rows (`FOR UPDATE SKIP LOCKED` inside a transaction that ends when the select returns, `adapters/db/src/repositories/outbox.ts:47-62`) and publishes each to its own `EventBus`, in order per chat (`orderingKey`, `adapters/defaults/src/events/outbox-relay.ts:41-53`). Delivery is at-least-once: two relays can dispatch the same row, and handlers are idempotent on event id.
 - The only subscriber is `automations.handle` (`packages/server/src/app/container.ts:726-727`).
 
-Each event is handled on exactly one instance, which is right for automations. Nothing delivers an event to every instance, which is what live delivery needs: Sarah's stream is open on A while James's message is dispatched on B.
+An event is handled on whichever instance dispatched it, which is right for automations. Nothing delivers an event to every instance, which is what live delivery needs: Sarah's stream is open on A while James's message is dispatched on B.
 
 ### 2.2 Chat events
 
@@ -144,7 +144,7 @@ type ChatChange = {
 };
 ```
 
-A change names what changed and never carries a body; each instance reads current state itself (3.6). A failed publish throws, the relay retries the event, and a duplicate change is harmless.
+A change names what changed and never carries a body; each instance reads current state itself (3.6). A failed publish throws and the relay retries the event. A change can arrive twice, from a retry or from two relays dispatching one event; the second push carries the same state and the client merges it by id.
 
 ### 3.6 The hub
 
@@ -160,7 +160,7 @@ It handles changes one chat at a time, and reads current state when it handles a
 | any, no local stream in the chat or for the member | ignore |
 | `message.sent` | read the message once (`messageViews`); push `message.created` |
 | `message.updated` | read it once; push `message.updated` |
-| `message.deleted` | push `message.deleted` |
+| `message.deleted` | read it once; push `message.deleted` |
 | `message.reactions.changed` | read the message's reaction counts once; push `message.reactions` |
 | `chat.created`, `chat.updated`, `chat.participant.added` | read the chat and its active participants once; push `chat.updated` to streams already in it, `chat.added` to new participants' streams (each with that member's `ChatListItem`), `chat.removed` to those who left; update `byChat` |
 | `chat.read` | for that member's streams only: push `chat.read` |
@@ -188,7 +188,7 @@ After any change that can move a member's unread total or pending requests (a me
 | `GET /api/member/communities/:communityId/chats/unread` | `getMemberChatUnread` | `chats.unreadSummary` | `{ unread, requests }` |
 | `POST /api/member/chats/:chatId/typing` | `sendChatTyping` | `chats.typing` | `204` |
 
-Each new read checks access as `chats.messages` does. Changes to existing contracts:
+Each new read checks access as `chats.messages` does. `typing` checks what `send` checks: an active participant of an open, unlocked chat. `unread` counts unread messages across the member's unmuted chats, and `requests` the pending requests sent to them, as the app sums today (`hlms-community/src/server/data.ts:96`). Changes to existing contracts:
 
 - `ChatListItem` gains `participants: { orgUserId, displayName, imageUrl }[]`, so the inbox and the chat header need no directory.
 - `SendMessage` gains an optional `clientId` (UUID); `MessageView` returns it. A repeat send with the same `clientId` returns the stored message and appends no event; two concurrent sends with one `clientId` meet the unique index, and the loser returns the winner's message. Stored as `messages.client_id`, unique on `(org_id, chat_id, org_user_id, client_id)`.
@@ -202,7 +202,7 @@ The route is an ordinary `r.route` with `preHandler: app.requireOrgSession`, a Z
 - writes a `: ping` comment every 25 s;
 - ends the response when the iterable ends, and ends the iterable when the client disconnects.
 
-The `onClose` hook in `packages/server/src/http/server.ts` ends every open stream with `closed { reason: 'shutdown' }` and stops `PubSub`, beside the relay and the automation engine.
+A `preClose` hook in `packages/server/src/http/server.ts` ends every open stream with `closed { reason: 'shutdown' }`. It has to be `preClose`: `server.close()` waits for in-flight responses, so an open stream would hold `app.close()` forever, and `onClose` only runs after that. The existing `onClose` hook stops `PubSub` beside the relay and the automation engine.
 
 The schema declares the response as content:
 
@@ -249,7 +249,7 @@ data: {"chatId":"cht_1","message":{"id":"msg_9","clientId":"0f6c…","orgUserId"
 | `resync` | — | events may have been missed; load state (3.10) |
 | `closed` | `reason`: `access`, `session`, `shutdown` | the stream ended; on `shutdown`, reconnect |
 
-Every event but `chat.added`, `chat.read`, `chat.subscription` and `unread` is the same for every recipient: no `viewerReaction`, no per-member fields on the chat, and no body for a deleted message. The four member events carry that member's own state.
+Every event but `chat.added`, `chat.read`, `chat.subscription` and `unread` is the same for every recipient: no `viewerReaction`, no per-member fields on the chat, and no body for a deleted message. The four member events carry that member's own state. Staff who read deleted bodies today (`packages/core/src/discussion/chats.ts:628`) still see them through the reads.
 
 ### 3.10 The client loads state on every connect
 
@@ -286,7 +286,7 @@ Sarah closes her laptop. James sends two messages in `cht_1` and edits one; Emma
 
 When a mute on a loaded row lapses, the client fetches the unread total at `mutedUntil`.
 
-**Connection.** `src/lib/live/connection.ts` opens `Chats.streamMemberChatEvents` from a browser SDK client (`baseUrl` = `NEXT_PUBLIC_API_URL`, `credentials: 'include'`) and loads state on `ready` and `resync` (3.10). It closes the stream after the tab has been hidden for 60 s and reopens it when the tab is visible again. If no `ready` arrives within 10 s, or three connects fail within a minute, it polls `getMemberChatUnread` and the open chat's latest page every 15 s while visible, one request at a time, and retries the stream with backoff up to 60 s.
+**Connection.** `src/lib/live/connection.ts` opens `Chats.streamMemberChatEvents` from a browser SDK client (`baseUrl` = `NEXT_PUBLIC_API_URL`, `credentials: 'include'`) and loads state on `ready` and `resync` (3.10). It closes the stream after the tab has been hidden for 60 s and reopens it when the tab is visible again. If no `ready` arrives within 10 s, or three connects fail within a minute, it polls `getMemberChatUnread`, inbox page 1 and the open chat's latest page every 15 s while visible, one request at a time, and retries the stream with backoff up to 60 s.
 
 **Writes.** Chat actions stay Server Actions, return the API's result and no longer call `refresh()`.
 
@@ -309,13 +309,13 @@ When a mute on a loaded row lapses, the client fetches the unread total at `mute
 | `packages/core/src/discussion/index.ts` | export the hub, the forwarder and the new types |
 | `packages/core/src/types/schemas/discussion.ts` | `clientId` on message, `ChatLiveEvent`, `ChatUnreadSummary` |
 | `adapters/db/src/schema/discussion.ts` + a generated migration | `messages.client_id` and its unique index |
-| `adapters/db/src/repositories/chats.ts` | the new repository reads; `client_id` on insert |
+| `adapters/db/src/repositories/chats.ts` | the new repository reads; `client_id` on insert; `setReaction` reports whether the member's reaction changed |
 | `adapters/defaults/src/pubsub/index.ts`, `adapters/defaults/package.json` | new: `InMemoryPubSub`, exported as `./pubsub` |
 | `adapters/pubsub-postgres/` | new package: `PostgresPubSub`, tests, `README.md` |
-| `packages/server/src/app/container.ts` | `adapters.pubsub` with the in-memory fallback; forwarder on the bus; hub |
+| `packages/server/src/app/container.ts` | `adapters.pubsub` with the in-memory fallback; forwarder on the bus; hub; a unit of work for `SubscriptionService` |
 | `packages/server/src/http/sse.ts` | new: frame writer and heartbeat |
 | `packages/server/src/http/routes/member/chats.ts`, `packages/server/src/http/schemas/chats.ts` | the four routes; `participants` on `ChatListItem`; `clientId` on send |
-| `packages/server/src/http/server.ts` | close streams and stop `PubSub` in `onClose` |
+| `packages/server/src/http/server.ts` | end streams in `preClose`; stop `PubSub` in `onClose` |
 | `apps/api/src/main.ts`, `apps/api/src/config.ts` | inject `PostgresPubSub`; `PUBSUB_DATABASE_URL`; start it before `listen` |
 | `packages/sdk` | regenerate (`pnpm gen:sdk`) |
 
