@@ -94,16 +94,23 @@ moderation state. Locking removes nothing; hiding un-publishes nothing.
 
 ### Authors and moderators
 
-A comment names the person who wrote it. Learners and staff write comments the
+A comment names the person who wrote it. Learners and team write comments the
 same way, and the domain records which person, not what kind of person.
 
-Whether an author is staff is resolved from their current role in the org each
-time comments are read, and is never recorded on the comment. The same role
-decides three things: who carries an instructor badge, who bypasses review, and
-who may moderate. Any staff org user — owner, admin or instructor —
-moderates course comments. The moderator role is a Better Auth org role for
-community posts and comments. It is not staff, and it does not moderate course
-comments.
+An author's permissions are resolved from organizations each time comments are
+read, and are never recorded on the comment. They decide three things, always
+on the comment's own course or community; the course is resolved through the
+activity the comment attaches to.
+
+- **Badge** — an author who is team on the course or community carries a badge
+  with the name of their role there.
+- **Review** — an author who holds `courses:moderate` on the course, or
+  `communities:moderate` on the community, skips review: whoever approves
+  others' comments isn't held for review.
+- **Moderation** — a holder of `courses:moderate` on a course moderates its
+  lesson comments and sees the held and removed ones. A holder of
+  `communities:moderate` on a community moderates its posts, post comments and
+  messages, and moderates as a member of the community.
 
 An author has full control of their own comments: read, revise, remove, with no
 time limit and regardless of replies. Edits are not versioned. An edit is
@@ -118,7 +125,8 @@ is served to its own author marked as awaiting review, and to nobody else. It is
 not a reply target until it publishes. Approving it publishes it; rejecting it
 removes it, recorded against the moderator.
 
-Review applies to learners. Staff comments are created published.
+Review applies to authors who don't skip it. A comment by someone who skips
+review is created published.
 
 Review is evaluated when a comment is written and never again. Turning it on
 leaves published comments alone; turning it off does not release what is
@@ -157,8 +165,9 @@ flags scope to the community.
    Removing an activity removes its comments, reactions and reports. Removing a
    space removes its posts.
 2. **discussion → organizations** — discussion references the person's org user
-   in the org on every comment, reaction and report, and reads their role from
-   it. Organizations owns the org user and the role; discussion stores neither.
+   in the org on every comment, reaction and report, and asks organizations for
+   their permissions on the course or community. Organizations owns the org
+   user, the roles and the permissions; discussion stores none of them.
 3. **discussion → entitlements** — an activity's comments are gated by access to
    the content it attaches to. Entitlements resolves access; discussion serves
    and accepts nothing for content a person cannot open. Entitlements decides
@@ -192,8 +201,8 @@ Discussion also owns what members write inside a community.
 - **Post** — what a member writes in a space: author, space, community, title,
   body, topic, status (`draft | scheduled | pending | published | removed`),
   and a cover that is an asset id. `community_id` is stored on the row. A post
-  enters `pending` when the space requires review and the author is not staff,
-  and is published otherwise. `comments_closed` and `reactions_enabled` are
+  enters `pending` when the space requires review and the author doesn't hold
+  `communities:moderate` on the community, and is published otherwise. `comments_closed` and `reactions_enabled` are
   null when the space default applies. `pinned` is a boolean.
 - **Comment on a post** — the same comment, targeting the post, storing the
   community id, created `published`. Flags and removal moderate it.
@@ -229,8 +238,12 @@ Discussion also owns what members write inside a community.
 A post's topic is a topic of its own space. A topic cannot be deleted while a
 post references it.
 
-Staff are owner, admin and instructor. A moderator moderates the communities
-they hold a grant to and is not staff.
+Moderating a community needs `communities:moderate` on it: reviewing,
+approving, removing, restoring, pinning and locking posts and comments,
+deleting messages and reading reported attachments, locking chats, managing
+space members and join requests, and resolving reports. A person is team in a
+community when their role there, or their org role, is a team role; the
+community's DM settings say whom team and members may message.
 
 Events, in addition to the comment events: `post.created`, `post.updated`,
 `post.published`, `post.removed`, `post.reported`, `chat.created`,
@@ -250,23 +263,24 @@ A worked example for context. Discussion is enabled on a course with review off.
 
 A student opens a video and asks a question. Access is resolved first — they
 hold an active grant — and the comment is created published; `comment.created`
-is emitted. The instructor replies, and because their role in the org is staff,
-their reply carries an instructor badge whenever the comments are read. Another
-student reacts to it; reacting the same way again changes nothing.
+is emitted. James, Instructor on the course, replies. He is team on the
+course, so his reply carries the badge "Instructor", or the org's name for the
+role, whenever the comments are read. Another student reacts to it; reacting
+the same way again changes nothing.
 
 A third student posts something abusive and two replies land beneath it. Two
 students report it. The comment stays published — reports do not change state —
-and appears in the course's queue with two unresolved reports. A moderator
-removes it and resolves both. Because it has replies, a placeholder is served in
+and appears in the course's queue with two unresolved reports. James holds
+`courses:moderate` on the course, so he removes it and resolves both. Because it has replies, a placeholder is served in
 its position naming a moderator as remover, and the replies below it read in
 order. A student elsewhere removes their own comment; it has no replies, so it
 is not served at all.
 
 Review is then turned on for the course. The existing comments are unchanged.
 The next learner's question is created pending: they see it marked as awaiting
-review, nobody else does, and nobody can reply to it. The instructor's next
-comment is created published. A moderator approves the question from the course
-queue and `comment.published` is emitted. The same learner's next question is
+review, nobody else does, and nobody can reply to it. James's next comment is
+created published, because he holds `courses:moderate` there. He approves the
+question from the course queue and `comment.published` is emitted. The same learner's next question is
 pending again.
 
 When the cohort closes, the introduction lesson's comments are set to hidden

@@ -42,6 +42,8 @@ Shared across all content types:
 - **Define gating** — where a type supports it, set the rules on its structure (a course's drip and unlock-on-completion, a space's access rule and capacity).
 - **Define what others apply** — set a course's discussion settings, a space's post defaults and topics, and a community's DM settings, notification categories and digest schedule. Discussion, entitlements and automations read them; only content writes them.
 
+Each capability needs the type's permission on the item acted on: `courses:write` to author and publish a course, `courses:delete` to delete it, and likewise for downloads and communities. Removing a module, an activity or a space changes its item and needs the write permission. Creating an item needs the type's write permission on the org, because there is no item yet. A list holds the items the person holds the type's read permission on. Bundles need the `bundles` permissions on the org.
+
 ## Model
 
 Structure is per-type; the entities below are a type's own. The course type, as the richest example:
@@ -64,8 +66,8 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 - **Space** — a place inside the community: name, description, order within the community, an access rule (`all members | by request | by invite`), an optional capacity for a by-request or by-invite space, its topics, its links, and the defaults for its posts (comments on, reactions on, review before publishing). A community holds a flat list of spaces; there are no spaces inside spaces.
 - **Topic** — a subject defined on a space. Where a space defines topics, each post in it carries one. A topic cannot be deleted while a post references it.
 - **Link** — a space pointing at a course, a download or a community. A link shows the resource in the space and never grants access; opening it needs a grant. A link is removed when its space or its resource is deleted.
-- **DM settings** — per community: whether DMs are on, who may message whom by role, whether a first message is a request, whether group chats are allowed and how many people one holds.
-- **Notification categories** — per community: the ordered switches on a member's notification settings in that community. Each covers kinds of notification for people with given reasons, offers channels with a default and an optional lock, and can be set per space, with a default per space. A community without its own list uses the default list, and an owner can go back to it.
+- **DM settings** — per community: whether DMs are on, who may message whom (member to member, member to team, team to anyone), whether a first message is a request, whether group chats are allowed and how many people one holds.
+- **Notification categories** — per community: the ordered switches on a member's notification settings in that community. Each covers kinds of notification for people with given reasons, offers channels with a default and an optional lock, and can be set per space, with a default per space. A community without its own list uses the default list, and a holder of `communities:write` on the community can go back to it.
 - **Digest schedule** — per community: daily or weekly, the weekday for a weekly digest, the hour and the time zone. A community without one sends no digest.
 
 A space's access rule, capacity and post defaults and the community's DM settings, notification categories and digest schedule are content's definition. Entitlements reads the access rule and capacity to answer who can open a space; discussion reads the post defaults, topics and DM settings to decide what it accepts, and the digest schedule to know when a digest is due; automations reads the notification categories to file each notification and identity reads them to check a member's settings. None of them writes them. The posts in a space, and the chats in a community, are discussion's.
@@ -76,7 +78,7 @@ Each other type defines its own entities. A download owns an ordered set of asse
 
 ## Activity settings and assets
 
-An activity is just content. Its settings blob holds whatever that piece of content needs — a video's playback settings, an assessment's rules, a page's body — and the learner-facing surface renders whatever is there. The domain doesn't classify activities or branch on a type; it stores content uniformly. The blob may name the files it shows, but the link is what counts: every asset an activity uses is linked through the activity–asset relation, so the assets domain can own them and track their usage, and a learner is served an activity's file only through its link. Content refuses a link to anything that is not a ready library file of the org.
+An activity is just content. Its settings blob holds whatever that piece of content needs — a video's playback settings, an assessment's rules, a page's body — and the learner-facing surface renders whatever is there. The domain doesn't classify activities or branch on a type; it stores content uniformly. The blob may name the files it shows, but the link is what counts: every asset an activity uses is linked through the activity–asset relation, so the assets domain can own them and track their usage, and a learner is served an activity's file only through its link. Content refuses a link to anything that is not a ready library file of the org, and, from a person without `media:read`, to a file that was not uploaded for the same item.
 
 ## Boundaries
 

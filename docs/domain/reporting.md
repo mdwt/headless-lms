@@ -2,7 +2,7 @@
 
 The read domain. It reads every other context and answers whoever needs data that no single context holds. It owns no data of its own and writes nothing. The other contexts do not import it. The HTTP layer and the composition root do.
 
-There are two services, one per product. A person calls the service for the product they are logged into. Role is a guard on the route, not a third service.
+There are two services, one per product. A person calls the service for the product they are logged into. Each read checks the person's permissions itself; there is no service per role.
 
 ## Scope
 
@@ -18,12 +18,12 @@ Domains own per-entity facts: progress knows one student's progress through one 
 
 ### `reporting/member`
 
-The person in the member product. A student in a course, a member in a community, and a moderator all call this service. One org user. The course screen and the community screen call it for different methods. The screen does not choose a second reporting service, and the role does not either. Entitlements decide what that person can see.
+The person in the member product. A student in a course, a member in a community, and a moderator all call this service. One org user. The course screen and the community screen call it for different methods. The screen does not choose a second reporting service, and the person's roles do not either. Entitlements decide what that person can see, and the read permission of a content type opens it without a grant.
 
 - The courses, modules, and activities they can open.
 - Their progress in a course.
 - The downloads they can open, and the paywall in front of a download.
-- **Directory** — the people in one community: members from their grants, each person's role, and their profile. No write-context owns this join.
+- **Directory** — the people in one community: members from their grants and holders of `communities:read` on it, each with their profile and, for team, the name of their role there. No write-context owns this join.
 - **Community home** — every space of the community with its topics, links, post defaults, member count and where the person stands with it, plus the community's description and direct-message settings. One space can be read on its own in the same shape.
 - **Notification list** — the person's notifications shown in the app, newest first, filtered by community, category, reason, kind or unread, with the current titles and names of what they are about. Something the person can no longer open, or that was deleted, is left blank.
 - **Unread counts** — how many unread notifications the person has outside any community, and in each community they can open.
@@ -33,21 +33,21 @@ The `/api/member` prefix is the member HTTP API. Its course, download, progress,
 
 ### `reporting/admin`
 
-The person in the admin app. Owner, admin, and instructor call this service. The route guard decides whether that role may call the method.
+The person in the admin app, whatever their role. Each report needs a permission, and a course report needs it on that course.
 
-- **Org overview** — across the whole org: total enrolments and trend, active learners, and completions.
-- **Enrollment series** — enrolments over a window of days.
-- **Course completion** — for a course, the enrolled count, average completion, and how many have finished, are in progress, or have stalled. Read across entitlements, progress, and the course structure. ("142 enrolled, 61% average completion, 38 finished, 17 stalled.")
-- **Course engagement** — for a course, where students drop off: which lessons or assessments are completed by most and abandoned by most.
-- **Learner record** — for one student, every course they're enrolled in, how far through each, and what they've completed. Read across their entitlements, their progress, and the course structure.
-- **Learner activity** — for one student, what they've started but not finished, and when they were last active.
-- **Roster** — the students list: each learner with their enrolment count and overall progress, filtered and paged.
-- **Community members** — the people who hold a community, directly or through a bundle, searched and paged.
-- **Community staff analytics** — member count, active members, posts per space, comments per post, messages sent, flags raised and resolved, grants lapsed and renewed.
+- **Org overview** (`analytics:read`) — across the whole org: total enrolments and trend, active learners, and completions.
+- **Enrollment series** (`analytics:read`) — enrolments over a window of days.
+- **Course completion** (`progress:read`) — for a course, the enrolled count, average completion, and how many have finished, are in progress, or have stalled. Read across entitlements, progress, and the course structure. ("142 enrolled, 61% average completion, 38 finished, 17 stalled.")
+- **Course engagement** (`progress:read`) — for a course, where students drop off: which lessons or assessments are completed by most and abandoned by most.
+- **Learner record** (`people:read`) — for one learner, every course they're enrolled in, how far through each, and what they've completed. Read across their entitlements, their progress, and the course structure.
+- **Learner activity** (`people:read`) — for one learner, what they've started but not finished, and when they were last active.
+- **Roster** (`people:read`) — the people whose org role is Member: each learner with their enrolment count and overall progress, filtered and paged.
+- **Community members** (`access:read`) — the people who hold a community, directly or through a bundle, searched and paged.
+- **Community analytics** (`communities:read`) — member count, active members, posts per space, comments per post, messages sent, flags raised and resolved, grants lapsed and renewed.
 
 ## Build state
 
-`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the stable links of the files it shows, and the notification list, the unread counts and the notification settings. The admin service answers the org overview, the enrollment series, course analytics, the roster, a student's record, community members, and community staff analytics.
+`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory and the community home, each with the stable links of the files it shows, and the notification list, the unread counts and the notification settings. The admin service answers the org overview, the enrollment series, course analytics, the roster, a learner's record, community members, and community analytics.
 
 ## Boundaries
 

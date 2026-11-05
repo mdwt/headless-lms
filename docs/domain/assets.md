@@ -13,20 +13,20 @@ Owns the org's stored files: the registry of what exists, where it lives, who pu
 
 A file enters the registry from one of two places, and the `source` of an asset says which.
 
-**Library.** Staff put files in the org's media library: a course video, an inline image, a download product's files, a course or community thumbnail. The file belongs to the org. A member reaches it only with content a grant covers: the activity that links it, the download that lists it, the course or community whose thumbnail it is.
+**Library.** Files in the org's media library: a course video, an inline image, a download product's files, a course or community thumbnail. A holder of `media:write` uploads to the library. A holder of a course's, download's or community's write permission uploads for that item, and the file records the item it was uploaded for. The file belongs to the org. A holder of `media:read` sees the whole library and attaches any of its files; anyone else attaches a file to an item only when it was uploaded for that same item. A member reaches a library file only with content a grant covers: the activity that links it, the download that lists it, the course or community whose thumbnail it is.
 
-**Member.** A person uploads a file of their own: a profile photo, a post cover, a message attachment. The file belongs to that person. Only they can finalize it or attach it. While nothing references it, they or staff may delete it. Who may see it follows the thing it is attached to.
+**Member.** A person uploads a file of their own: a profile photo, a post cover, a message attachment. The file belongs to that person. Only they can finalize it or attach it. While nothing references it, they or a holder of `media:delete` may delete it. Who may see it follows the thing it is attached to.
 
 Both sources share the registry row, the storage key, the presigned upload, the file links, the pending-to-ready lifecycle, and the deletion rule. They differ in who may upload, what is allowed, who owns the file, where it is listed, how it is served, and how it dies.
 
-|                    | Library                                                                | Member                                                              |
-| ------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Who uploads        | staff                                                                  | any org user                                                        |
-| What is allowed    | any content type                                                       | images only, size-capped when finalized                             |
-| Who owns it        | the org; `uploaded_by` records the staff org user                      | the uploading org user                                              |
-| Where it is listed | the media library                                                      | `source=member` in the library, never by default                    |
-| How it is served   | with the library to staff; with the content a grant covers to a member | with the profile, post or message it is attached to                 |
-| Who deletes it     | staff, when nothing references it                                      | the uploader or staff, when nothing references it; the hourly sweep |
+|                    | Library                                                                                                                                         | Member                                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Who uploads        | holders of `media:write`, or of an item's write permission for that item                                                                        | any org user                                                                             |
+| What is allowed    | any content type                                                                                                                                | images only, size-capped when finalized                                                  |
+| Who owns it        | the org; `uploaded_by` records the org user                                                                                                     | the uploading org user                                                                   |
+| Where it is listed | the media library                                                                                                                               | `source=member` in the library, never by default                                         |
+| How it is served   | to holders of `media:read`, and to holders of the write permission of the item it was uploaded for; with the content a grant covers to a member | with the profile, post or message it is attached to                                      |
+| Who deletes it     | holders of `media:delete`, when nothing references it                                                                                           | the uploader or a holder of `media:delete`, when nothing references it; the hourly sweep |
 
 ## Model
 
@@ -37,6 +37,7 @@ Both sources share the registry row, the storage key, the presigned upload, the 
   - `source` is where the file came from: `library` or `member`.
   - `status` is `pending` until the upload is confirmed, then `ready`. Only a ready asset is ever served or attached.
   - `uploaded_by` is the org user who uploaded it, for both sources.
+  - A library file uploaded for a course, a download or a community records that item.
 
 ### Not persisted
 
@@ -45,19 +46,19 @@ Both sources share the registry row, the storage key, the presigned upload, the 
 
 ## Capabilities
 
-- **Request an upload** — register a pending asset and hand back a short-lived upload link. Staff register library files. Any org user registers a member file, which must be an image.
-- **Confirm an upload** — once the client has uploaded, read the stored object's size and content type from storage and mark the asset ready. The content type is the one stored with the object; the bytes are not inspected. The media class is derived again from it. A member file is first copied to a location its upload link does not reach, and its size and content type are read from that copy, so the upload cannot be replaced between the check and the move. A member file whose stored content type is not an image, or whose size is over the configured limit, is discarded instead, the upload and the copy both, and the caller is told why. Only the uploader confirms a member file; staff confirm library files. Only a pending asset is confirmed; confirming a ready one changes nothing, and two confirms of the same upload at once leave one ready file.
-- **Serve a file** — once the domain that owns the thing has decided the caller may see it, hand back a short-lived signed storage link to the ready file: a plain link to display it, or a download link that saves under a given name. A download file's link lives a few minutes; every other link outlives a viewing. Staff fetch library files directly; a member file is fetched through what it is attached to, or by its uploader.
-- **Browse the library** — list and read assets, scoped to the org. The list is the library unless `source=member` is asked for.
+- **Request an upload** — register a pending asset and hand back a short-lived upload link. A holder of `media:write` registers a library file; a holder of an item's write permission registers one for that item. Any org user registers a member file, which must be an image.
+- **Confirm an upload** — once the client has uploaded, read the stored object's size and content type from storage and mark the asset ready. The content type is the one stored with the object; the bytes are not inspected. The media class is derived again from it. A member file is first copied to a location its upload link does not reach, and its size and content type are read from that copy, so the upload cannot be replaced between the check and the move. A member file whose stored content type is not an image, or whose size is over the configured limit, is discarded instead, the upload and the copy both, and the caller is told why. Only the uploader confirms a member file; whoever a library file is served to confirms it. Only a pending asset is confirmed; confirming a ready one changes nothing, and two confirms of the same upload at once leave one ready file.
+- **Serve a file** — once the domain that owns the thing has decided the caller may see it, hand back a short-lived signed storage link to the ready file: a plain link to display it, or a download link that saves under a given name. A download file's link lives a few minutes; every other link outlives a viewing. Holders of `media:read` fetch library files directly, and holders of an item's write permission fetch the files uploaded for it; a member file is fetched through what it is attached to, or by its uploader.
+- **Browse the library** — list and read assets, scoped to the org. A holder of `media:read` sees the whole library; a holder of an item's write permission sees the files uploaded for that item. The list is the library unless `source=member` is asked for.
 - **Remove an asset** — delete the registry entry, then the stored object. An asset still referenced by content, a post, a message or a profile cannot be removed: the references refuse the delete, and storage is not touched. Nothing that removes the referencing record removes the asset.
-- **Remove own upload** — the uploader removes their own member file while nothing references it. Staff may remove it too, under the same rule.
+- **Remove own upload** — the uploader removes their own member file while nothing references it. A holder of `media:delete` may remove it too, under the same rule.
 - **Sweep unattached uploads** — an hourly job removes member files older than an hour that nothing references. The hour is the assets domain's rule. A file attached while the sweep runs is kept. An upload link keeps working until it expires, even after its upload is confirmed or refused, so the sweep also removes any object in the org's member upload location that no asset holds and that was last written longer ago than an upload link lives.
 
 ## Boundaries
 
 1. **assets → organizations** — every asset is scoped to an org and `uploaded_by` is an org user; an operation resolves the caller's active org before touching anything, and one org cannot see another's assets.
 2. **assets ↔ content** — an activity references the assets it uses; a download lists its files; a course and a community reference a thumbnail. Assets owns the objects; content owns the structure. A member fetches those files through a stable link per file, which checks on every request that a grant covers the item.
-3. **assets ↔ discussion** — a post references its cover and a message references its attachments. Both must be member images the author uploaded. They are fetched through a stable link per file, which checks on every request that the reader can open the post, takes part in the chat, or is staff reading a flagged message.
+3. **assets ↔ discussion** — a post references its cover and a message references its attachments. Both must be member images the author uploaded. They are fetched through a stable link per file, which checks on every request that the reader can open the post, takes part in the chat, or holds `communities:moderate` on the community while the message is flagged.
 4. **assets ↔ identity** — a profile references its photo, which must be a member image the person uploaded. A profile is global and a photo belongs to an org, so the reference names the org as well as the asset. The photo is served only inside that org, to its org users.
 5. **assets ↔ reporting** — `reporting/member` composes the courses, activities and downloads a member opens and the photos in the community directory; it hands out each file's stable link, never a signed one.
 6. **assets ↔ the scheduler** — the hourly sweep is a job assets defines and the scheduler runs, not a system automation; no org can switch it off.

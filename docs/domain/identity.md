@@ -27,7 +27,7 @@ The notifications themselves, and their delivery by email and push, are automati
 
 ## Boundaries
 
-- **identity ↔ organizations** - organizations owns the org user: which people belong to which organization, and in which role.
+- **identity ↔ organizations** - organizations owns the org user: which people belong to which organization, the roles they hold there and what those roles permit.
 - **identity ↔ assets** - assets owns the photo file and the rule that only the uploader may attach it. Identity checks that rule before storing the reference.
 - **identity ↔ automations** - automations determines who an event concerns from the owning contexts' data, and stores and delivers notifications using categories and settings; identity keeps settings and devices.
 - **identity ↔ discussion** - discussion owns follows and mutes on posts, spaces and chats; automations reads them for notifications.
