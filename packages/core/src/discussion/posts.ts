@@ -344,12 +344,13 @@ export class PostServiceImpl implements PostService {
             skipsReview(author.permissions, { communityId: post.communityId }),
             now,
           );
-    const saved = await this.uow.run(async ({ posts, mentions, outbox }) => {
+    const mentioned = await this.mentionedOpeners(orgId, post);
+    const saved = await this.uow.run(async ({ posts, outbox }) => {
       const next = await posts.updateIf(orgId, postId, { status: 'scheduled', dueBy: now }, patch);
       if (!next) {
         return null;
       }
-      await outbox.append([await this.landed(mentions, orgId, next, this.meta(null, post.status))]);
+      await outbox.append([this.landed(orgId, next, this.meta(null, post.status), mentioned)]);
       return next;
     });
     if (!saved) {
@@ -414,16 +415,15 @@ export class PostServiceImpl implements PostService {
       throw new ConflictError('This post is not awaiting review');
     }
     const now = new Date();
-    const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
+    const mentioned = await this.mentionedOpeners(orgId, post);
+    const updated = await this.uow.run(async ({ posts, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, {
         status: 'published',
         publishedAt: now,
         scheduledAt: null,
         removedBy: null,
       });
-      await outbox.append([
-        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
-      ]);
+      await outbox.append([this.landed(orgId, next, this.meta(actor, post.status), mentioned)]);
       return next;
     });
     this.logger.info('post approved', { orgId, postId, actorId: actor.id });
@@ -881,7 +881,8 @@ export class PostServiceImpl implements PostService {
     actor: Actor,
     now: Date,
   ): Promise<Post> {
-    return this.uow.run(async ({ posts, mentions, outbox }) => {
+    const mentioned = await this.mentionedOpeners(orgId, post);
+    return this.uow.run(async ({ posts, outbox }) => {
       const next = await posts.updateIf(
         orgId,
         post.id,
@@ -891,9 +892,7 @@ export class PostServiceImpl implements PostService {
       if (!next) {
         throw new ConflictError('This post cannot be submitted');
       }
-      await outbox.append([
-        await this.landed(mentions, orgId, next, this.meta(actor, post.status)),
-      ]);
+      await outbox.append([this.landed(orgId, next, this.meta(actor, post.status), mentioned)]);
       return next;
     });
   }
@@ -1104,20 +1103,19 @@ export class PostServiceImpl implements PostService {
     return keepAllowed(orgUserIds, await this.access.spaceOpenersAmong(orgId, spaceId, orgUserIds));
   }
 
-  private async landed(
-    mentions: MentionsRepository,
+  private async mentionedOpeners(orgId: string, post: Post): Promise<string[]> {
+    return this.openersOf(orgId, post.spaceId, await this.mentions.ofItem(orgId, 'post', post.id));
+  }
+
+  private landed(
     orgId: string,
     post: Post,
     metadata: EventMeta,
-  ): Promise<NewDiscussionEvent> {
+    mentioned: string[],
+  ): NewDiscussionEvent {
     if (post.status !== 'published') {
       return this.updated(orgId, post, metadata);
     }
-    const mentioned = await this.openersOf(
-      orgId,
-      post.spaceId,
-      await mentions.ofItem(orgId, 'post', post.id),
-    );
     return this.published(orgId, post, metadata, mentioned);
   }
 

@@ -671,6 +671,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     const seen = (await this.roles.assignmentsOf(orgId, orgUserId)).find(
       (row) => row.contentId === null,
     );
+    const target = await this.repo.findOrgUserById(orgId, orgUserId);
+    const invitee =
+      target?.status === 'invited' ? await this.people.getUserById(target.userId) : null;
     await this.uow.run(async (scope) => {
       const { roles, organizations, outbox } = scope;
       await roles.lock(
@@ -701,7 +704,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         throw new OrganizationRuleError("The owner's role changes only by transfer");
       }
       if (orgUser.status === 'invited') {
-        const person = await this.people.getUserById(orgUser.userId);
+        const person = invitee?.id === orgUser.userId ? invitee : null;
         const pending = person ? await organizations.findPendingInvite(orgId, person.email) : null;
         if (!pending) {
           throw new NotFoundError('Invite', orgUserId);

@@ -499,18 +499,41 @@ function harness(options?: {
   };
 
   const mentions = mentionStore();
+  const tx = { open: false };
+  const escapes: string[] = [];
   const uow: PostUnitOfWork = {
-    run: (fn) =>
-      fn({
-        posts: repo,
-        mentions: mentions.repo,
-        outbox: {
-          async append(events: NewDomainEvent[]) {
-            calls.push(events);
+    run: async (fn) => {
+      tx.open = true;
+      try {
+        return await fn({
+          posts: repo,
+          mentions: mentions.repo,
+          outbox: {
+            async append(events: NewDomainEvent[]) {
+              calls.push(events);
+            },
           },
-        },
-      }),
+        });
+      } finally {
+        tx.open = false;
+      }
+    },
   };
+  const outsideTx = <T extends object>(name: string, port: T): T =>
+    new Proxy(port, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== 'function') {
+          return value;
+        }
+        return (...args: unknown[]) => {
+          if (tx.open) {
+            escapes.push(`${name}.${String(key)}`);
+          }
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
 
   const scheduler = {
     at: vi.fn(options?.scheduler?.at ?? (async () => {})),
@@ -520,7 +543,7 @@ function harness(options?: {
   const subscriptions = subscriptionStore();
   const svc = new PostServiceImpl({
     repo,
-    access,
+    access: outsideTx('access', access),
     subscriptions: subscriptions.repo,
     mentions: mentions.repo,
     content: {
@@ -542,6 +565,7 @@ function harness(options?: {
 
   return {
     svc,
+    escapes,
     repo,
     scheduler,
     rows,
@@ -1605,6 +1629,16 @@ describe('post mentions', () => {
       { orgUserId: other.id, name: 'First Last' },
       { orgUserId: moderator.id, name: 'First Last' },
     ]);
+  });
+
+  it('reads who can open the space before the transaction when a post with mentions lands', async () => {
+    const { svc, escapes, setSpaces } = harness();
+    const draft = await svc.create(draftInput({ mode: 'draft', body: '<@ou_other>' }), member);
+    await svc.submit(draft.id, member);
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const pending = await svc.create(draftInput({ body: '<@ou_other>' }), member);
+    await svc.approve(pending.id, null, moderator);
+    expect(escapes).toEqual([]);
   });
 
   it('stores the mentions of a draft and carries them when the draft is submitted', async () => {

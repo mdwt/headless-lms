@@ -211,7 +211,10 @@ function harness(options?: {
 
   const pair = (a: string, b: string) => [a, b].sort().join(':');
   const queries = { isBlocked: 0, blockedWith: 0, anyBlockedAmong: 0 };
-  const race = { missClientId: false };
+  const race: { missClientId: boolean; joinAfterRead: ChatUser | null } = {
+    missClientId: false,
+    joinAfterRead: null,
+  };
   const subscriptions = subscriptionStore();
   const newest = (a: Message, b: Message) =>
     b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1);
@@ -342,9 +345,14 @@ function harness(options?: {
       return chat && activeIn(chatId, orgUserId) ? inboxRowOf(chat, orgUserId) : null;
     },
     async participants(orgId, chatId) {
-      return users
+      const rows = users
         .filter((user) => user.orgId === orgId && user.chatId === chatId)
         .map((user) => ({ ...user }));
+      if (race.joinAfterRead && !tx.open) {
+        users.push(race.joinAfterRead);
+        race.joinAfterRead = null;
+      }
+      return rows;
     },
     async activeParticipants(orgId, chatId) {
       return users
@@ -652,22 +660,45 @@ function harness(options?: {
   };
 
   const mentions = mentionStore();
+  const tx = { open: false };
+  const escapes: string[] = [];
   const uow: ChatUnitOfWork = {
-    run: (fn) =>
-      fn({
-        chats: repo,
-        mentions: mentions.repo,
-        outbox: {
-          async append(events: NewDomainEvent[]) {
-            calls.push(events);
+    run: async (fn) => {
+      tx.open = true;
+      try {
+        return await fn({
+          chats: repo,
+          mentions: mentions.repo,
+          outbox: {
+            async append(events: NewDomainEvent[]) {
+              calls.push(events);
+            },
           },
-        },
-      }),
+        });
+      } finally {
+        tx.open = false;
+      }
+    },
   };
+  const outsideTx = <T extends object>(name: string, port: T): T =>
+    new Proxy(port, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== 'function') {
+          return value;
+        }
+        return (...args: unknown[]) => {
+          if (tx.open) {
+            escapes.push(`${name}.${String(key)}`);
+          }
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
 
   const svc = new ChatServiceImpl({
     repo,
-    access,
+    access: outsideTx('access', access),
     subscriptions: subscriptions.repo,
     mentions: mentions.repo,
     content: {
@@ -681,7 +712,7 @@ function harness(options?: {
         return settings;
       },
     },
-    authors,
+    authors: outsideTx('authors', authors),
     profiles: {
       async authorsOf(orgId, orgUserIds) {
         return Object.fromEntries(
@@ -703,10 +734,10 @@ function harness(options?: {
         );
       },
     },
-    images: {
+    images: outsideTx('images', {
       signFile: async () => 'https://signed',
       ...(options?.images ?? { ownsImage: async () => true }),
-    },
+    }),
     fileUrls,
     uow,
     ...(options?.pubsub && { pubsub: options.pubsub }),
@@ -714,6 +745,7 @@ function harness(options?: {
 
   return {
     svc,
+    escapes,
     race,
     subscriptions,
     mentions,
@@ -734,6 +766,42 @@ function harness(options?: {
 }
 
 describe('chats', () => {
+  it('reads other services before the transaction, never while it holds a connection', async () => {
+    const { svc, escapes } = harness();
+    const chat = await svc.startDirect(
+      { communityId: COMMUNITY, orgUserId: other.id, body: 'Hello', assetIds: ['ast_1'] },
+      member,
+    );
+    await svc.startDirect(
+      { communityId: COMMUNITY, orgUserId: member.id, body: 'Again', assetIds: ['ast_2'] },
+      other,
+    );
+    await svc.send(
+      chat.id,
+      { body: 'Third', replyToId: null, assetIds: ['ast_3'], clientId: undefined },
+      member,
+    );
+    expect(escapes).toEqual([]);
+  });
+
+  it('refuses a send when someone joined between its early reads and its transaction', async () => {
+    const h = harness();
+    const chat = await h.svc.startGroup(
+      { communityId: COMMUNITY, orgUserIds: [other.id, third.id] },
+      member,
+    );
+    const row = h.users.find((user) => user.chatId === chat.id && user.orgUserId === other.id)!;
+    h.race.joinAfterRead = { ...row, orgUserId: fourth.id };
+    await expect(
+      h.svc.send(
+        chat.id,
+        { body: 'Hi', replyToId: null, assetIds: [], clientId: undefined },
+        member,
+      ),
+    ).rejects.toThrow('This chat changed while you were sending; send again');
+    expect(h.messages.filter((message) => message.chatId === chat.id)).toEqual([]);
+  });
+
   it('starts a direct chat as a request with its message and records the chat once', async () => {
     const { svc, calls } = harness();
     const chat = await svc.startDirect(

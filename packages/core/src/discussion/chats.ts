@@ -84,6 +84,8 @@ function eventMessage(message: Message): Omit<Message, 'clientId'> {
   return rest;
 }
 
+type Teams = { asked: ReadonlySet<string>; team: Map<string, boolean> };
+
 export class ChatServiceImpl implements ChatService, ChatLiveReads {
   /** This process's live chat hub; null without a PubSub. */
   readonly hub: ChatHub | null;
@@ -134,6 +136,11 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
     this.assertMayMessage(settings, actorTeam, targetTeam);
     const first: SendMessageInput | null =
       input.body === null ? null : { body: input.body, replyToId: null, assetIds: input.assetIds };
+    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
+    const teams: Teams = {
+      asked: new Set([input.orgUserId]),
+      team: new Map([[input.orgUserId, targetTeam]]),
+    };
     const saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
       await chats.lockDirectPair(orgId, input.communityId, actor.id, input.orgUserId);
       const existing = await chats.findDirect(orgId, input.communityId, actor.id, input.orgUserId);
@@ -144,7 +151,7 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
           user.orgUserId === actor.id ? { ...user, leftAt: null } : user,
         );
         if (first) {
-          await this.assertMaySend(chats, orgId, actor, existing, present, settings, first);
+          await this.assertMaySend(chats, orgId, actor, existing, present, settings, first, teams);
         }
         if (rejoin) {
           await chats.join(
@@ -170,7 +177,6 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
         }
         return { chat, created: false };
       }
-      await this.requireOwnedImages(orgId, actor.id, input.assetIds);
       if (await chats.isBlocked(orgId, input.communityId, actor.id, input.orgUserId)) {
         throw new ForbiddenError('You cannot message this person');
       }
@@ -380,6 +386,13 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
       throw new ForbiddenError('Direct messages are off');
     }
     const clientId = input.clientId;
+    const before = await this.repo.participants(orgId, chatId);
+    const teams = await this.teamsOf(
+      orgId,
+      preview.communityId,
+      before.map((user) => user.orgUserId).filter((orgUserId) => orgUserId !== actor.id),
+    );
+    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
     let saved: { message: Message; repeat: boolean };
     try {
       saved = await this.uow.run(async ({ chats, mentions, outbox }) => {
@@ -391,7 +404,7 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
           }
         }
         const users = await chats.participants(orgId, chatId);
-        await this.assertMaySend(chats, orgId, actor, chat, users, settings, input);
+        await this.assertMaySend(chats, orgId, actor, chat, users, settings, input, teams);
         const written = await this.writeMessage(chats, mentions, orgId, actor, chat, users, input);
         const events: NewDiscussionEvent[] = [];
         if (written.opened) {
@@ -1086,6 +1099,13 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
     );
   }
 
+  private async teamsOf(orgId: string, communityId: string, orgUserIds: string[]): Promise<Teams> {
+    return {
+      asked: new Set(orgUserIds),
+      team: await this.membersTeam(orgId, communityId, orgUserIds),
+    };
+  }
+
   private async assertMaySend(
     chats: ChatRepository,
     orgId: string,
@@ -1094,6 +1114,7 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
     users: ChatUser[],
     settings: DmSettings,
     input: SendMessageInput,
+    teams: Teams,
   ): Promise<void> {
     this.assertActive(users, actor.id);
     if (chat.lockedAt) {
@@ -1111,13 +1132,15 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
           other.orgUserId !== actor.id && (chat.kind === 'direct' || other.leftAt === null),
       )
       .map((other) => other.orgUserId);
+    if (others.some((other) => !teams.asked.has(other))) {
+      throw new ConflictError('This chat changed while you were sending; send again');
+    }
     if (others.length > 0) {
-      const teams = await this.membersTeam(orgId, chat.communityId, others);
       const recipients =
-        chat.kind === 'group' ? others.filter((other) => teams.has(other)) : others;
+        chat.kind === 'group' ? others.filter((other) => teams.team.has(other)) : others;
       const actorTeam = isTeam(actor.permissions, chat.communityId);
       for (const other of recipients) {
-        const team = teams.get(other);
+        const team = teams.team.get(other);
         if (team === undefined || !this.mayMessage(settings, actorTeam, team)) {
           throw new ForbiddenError('You cannot send in this chat');
         }
@@ -1135,7 +1158,6 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
         throw new NotFoundError('Message', input.replyToId);
       }
     }
-    await this.requireOwnedImages(orgId, actor.id, input.assetIds);
   }
 
   private mentionable(body: string, users: ChatUser[]): string[] {

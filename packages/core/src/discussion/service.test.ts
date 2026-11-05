@@ -415,21 +415,48 @@ function fakeContent(
 
 export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
   const mentions = mentionStore();
-  const { uow, appended } = fakeUow(fake.repo, mentions.repo);
+  const { uow: inner, appended } = fakeUow(fake.repo, mentions.repo);
+  const tx = { open: false };
+  const escapes: string[] = [];
+  const uow: DiscussionUnitOfWork = {
+    run: async (fn) => {
+      tx.open = true;
+      try {
+        return await inner.run(fn);
+      } finally {
+        tx.open = false;
+      }
+    },
+  };
+  const outsideTx = <T extends object>(name: string, port: T): T =>
+    new Proxy(port, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== 'function') {
+          return value;
+        }
+        return (...args: unknown[]) => {
+          if (tx.open) {
+            escapes.push(`${name}.${String(key)}`);
+          }
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
   const { settings, rows } = fakeSettings();
   const activitySettings = new Map<string, unknown>();
   const service = new DiscussionServiceImpl({
     repo: fake.repo,
-    access: gate.access,
-    content: fakeContent(fake.activityCourse, activitySettings),
-    posts: {
+    access: outsideTx('access', gate.access),
+    content: outsideTx('content', fakeContent(fake.activityCourse, activitySettings)),
+    posts: outsideTx('posts', {
       visible: async () => {
         throw new Error('no post');
       },
       find: async () => null,
-    },
-    spaces: { spaceOpenersAmong: async () => [] },
-    authors: fakeAuthors(),
+    }),
+    spaces: outsideTx('spaces', { spaceOpenersAmong: async () => [] }),
+    authors: outsideTx('authors', fakeAuthors()),
     mentions: mentions.repo,
     uow,
     settings,
@@ -437,6 +464,7 @@ export function makeService(fake = fakeRepo(), gate = fakeAccess()) {
   });
   return {
     service,
+    escapes,
     appended,
     mentions,
     settings,
@@ -916,6 +944,18 @@ describe('edit, remove, restore, approve', () => {
     await service.remove(c.id, 'any', learner);
     await service.remove(c.id, 'any', learner);
     expect(appended.filter((e) => e.type === 'discussion.comment.removed')).toHaveLength(1);
+  });
+
+  it('reads who can open the lesson before the transaction when a comment with mentions is approved', async () => {
+    const { service, settings, escapes, appended } = await openCourse();
+    await setSettings(settings, 'c1', { requireReview: true });
+    const c = await service.postComment(
+      { activityId: 'a1', parentId: null, body: `Thanks <@${staff.id}>` },
+      learner,
+    );
+    await service.approve(c.id, staff);
+    expect(appended.filter((e) => e.type === 'discussion.comment.published')).toHaveLength(1);
+    expect(escapes).toEqual([]);
   });
 
   it('lets only a moderator restore or approve', async () => {

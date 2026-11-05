@@ -381,24 +381,46 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     revokeAllFor: vi.fn(async () => {}),
   } satisfies ApiKeys;
   const membersRepo: MembersRepository = { teamRows: async () => [] };
+  const tx = { open: false };
+  const escapes: string[] = [];
   const uow: OrganizationsUnitOfWork = {
-    run: (fn) =>
-      fn({
-        organizations: repo,
-        roles,
-        outbox: {
-          append: async (e) => {
-            events.push(...e);
+    run: async (fn) => {
+      tx.open = true;
+      try {
+        return await fn({
+          organizations: repo,
+          roles,
+          outbox: {
+            append: async (e) => {
+              events.push(...e);
+            },
           },
-        },
-      }),
+        });
+      } finally {
+        tx.open = false;
+      }
+    },
   };
+  const guardedPeople = new Proxy(identity, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver) as unknown;
+      if (typeof value !== 'function') {
+        return value;
+      }
+      return (...args: unknown[]) => {
+        if (tx.open) {
+          escapes.push(`people.${String(key)}`);
+        }
+        return (value as (...a: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
   const send = vi.fn(async () => {});
   const service = new OrganizationServiceImpl({
     repo,
     roles,
     membersRepo,
-    people: identity,
+    people: guardedPeople,
     uow,
     orgAdmin: () => orgAdmin,
     apiKeys: () => apiKeys,
@@ -441,6 +463,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
 
   return {
     service,
+    escapes,
     repo,
     roles,
     assignments,
@@ -714,7 +737,9 @@ describe('giving roles', () => {
       s.sarah.person.id,
     );
     const ivy = w.findByEmail('ivy@example.com');
+    w.escapes.length = 0;
     await w.service.setOrgRole(ivy.id, 'instructor', owner);
+    expect(w.escapes).toEqual([]);
     expect([...w.invites.values()][0]!.roleKey).toBe('instructor');
     expect(w.assignments.some((a) => a.orgUserId === ivy.id)).toBe(false);
   });

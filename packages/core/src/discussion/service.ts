@@ -843,6 +843,11 @@ export class DiscussionServiceImpl implements DiscussionService {
     if (comment.status !== 'pending') {
       throw new ForbiddenError('Only a comment awaiting review can be approved');
     }
+    const mentioned = await this.openersOf(
+      orgId,
+      comment,
+      await this.mentions.ofItem(orgId, 'comment', commentId),
+    );
     return this.uow.run(async (scope) => {
       const updated = await scope.discussion.updateComment(orgId, commentId, {
         status: 'published',
@@ -852,11 +857,6 @@ export class DiscussionServiceImpl implements DiscussionService {
         // Roll back rather than emit an event for a transition that didn't happen.
         throw new NotFoundError('Comment', commentId);
       }
-      const mentioned = await this.openersOf(
-        orgId,
-        updated,
-        await scope.mentions.ofItem(orgId, 'comment', commentId),
-      );
       await scope.outbox.append([
         discussionEvents.commentPublished.make({
           orgId,
