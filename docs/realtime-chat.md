@@ -26,7 +26,7 @@ Measured in QA (`hlms-community/docs/qa/issues.md`):
 
 - A write and its domain events commit together: services append events to the outbox inside the write's `UnitOfWork` (`packages/core/src/shared/ports.ts`).
 - Every API process runs an outbox relay, started by its entry point (`apps/api/src/main.ts:44`). A relay selects unprocessed rows with `FOR UPDATE SKIP LOCKED` inside a transaction that ends when the select returns (`adapters/db/src/repositories/outbox.ts:47-62`), and publishes each to its own `EventBus`. Within one batch, events of one chat are dispatched in order (`orderingKey`, `adapters/defaults/src/events/outbox-relay.ts:41-53`). Across batches and relays there is no order: two relays can dispatch the same row, and a failed row is retried later while later rows flow. Handlers are idempotent on event id.
-- `InMemoryEventBus.publish` runs the handlers subscribed to the event's type, then the all-events handlers, awaiting each (`adapters/defaults/src/events/index.ts:10-17`). The only subscriber today is `automations.handle`, an all-events handler (`packages/server/src/app/container.ts:727`).
+- The only subscriber on the `EventBus` today is `automations.handle` (`packages/server/src/app/container.ts:727`). A handler that throws fails the event, and the relay retries it.
 
 An event is handled on whichever instance dispatched it. Nothing delivers an event to every instance, which is what live delivery needs: Sarah's stream is open on A while James's message is dispatched on B.
 
