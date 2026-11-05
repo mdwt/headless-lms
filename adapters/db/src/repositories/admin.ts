@@ -343,7 +343,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       this.db
         .selectDistinctOn([entitlements.orgUserId], {
           orgUserId: entitlements.orgUserId,
-          status: grantStatus.as("status"),
+          status: grantStatus.as("grant_status"),
           source: entitlements.source,
           grantedAt: entitlements.grantedAt,
           expiresAt: entitlements.expiresAt,

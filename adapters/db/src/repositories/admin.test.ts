@@ -92,6 +92,8 @@ describe("DrizzleAdminRepository course learners", () => {
       /with "learner_grant" as \(select distinct on \("entitlements"\."org_user_id"\)/,
     );
     expect(list?.text).toMatch(/select 1 from bundle_items bi/);
+    expect(list?.text).toMatch(/end as "grant_status"/);
+    expect(list?.text).not.toMatch(/as "status"/);
     expect(list?.text).not.toMatch(/"entitlements"\."status" = 'active'/);
     expect(list?.text).not.toMatch(/content_access/);
     expect(list?.text).toMatch(/case when \("org_users"\."status" <> 'invited'/);
