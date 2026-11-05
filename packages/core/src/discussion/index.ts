@@ -34,6 +34,7 @@ export type {
   AuthorProfileReader,
   CommentReactions,
   CommentWithContext,
+  CommentWithin,
   ContentAccessReader,
   PostCommentInput,
   AuthorPermissionReader,

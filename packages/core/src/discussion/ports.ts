@@ -89,6 +89,10 @@ export interface AuthorProfileReader {
   authorsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, AuthorRecord>>;
 }
 
+/** Where a comment must be for a moderation call: in one community, on a
+ *  lesson, or anywhere the actor can reach. */
+export type CommentWithin = { communityId: string } | 'lesson' | 'any';
+
 export interface DiscussionService {
   /** Post a root comment or a reply. Lands pending where review is required and
    *  the poster does not skip review. */
@@ -99,14 +103,14 @@ export interface DiscussionService {
   /** Author-only. Throws ForbiddenError for anyone else, moderators included. */
   edit(commentId: string, body: string, actor: Actor): Promise<CommentView>;
   /** The author, or a moderator of where the comment is. */
-  remove(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView>;
+  remove(commentId: string, within: CommentWithin, actor: Actor): Promise<CommentView>;
   /** A moderator of where the comment is. Returns the comment to published. */
-  restore(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView>;
+  restore(commentId: string, within: CommentWithin, actor: Actor): Promise<CommentView>;
   /** A moderator of where the comment is. Publishes a pending comment. */
   approve(commentId: string, actor: Actor): Promise<Comment>;
   /** Make a comment published, whichever state it is in. A moderator of where
    *  the comment is. */
-  publish(commentId: string, communityId: string | null, actor: Actor): Promise<Comment>;
+  publish(commentId: string, within: CommentWithin, actor: Actor): Promise<Comment>;
 
   /** The activity's comments as this reader may see them. */
   activityComments(activityId: string, actor: Actor): Promise<ActivityComments>;
@@ -124,7 +128,7 @@ export interface DiscussionService {
     actor: Actor,
   ): Promise<CommentReactions>;
 
-  resolveReports(commentId: string, communityId: string | null, actor: Actor): Promise<void>;
+  resolveReports(commentId: string, within: CommentWithin, actor: Actor): Promise<void>;
 
   /** Accepted even on locked comments — a locked activity can still hold
    *  something a moderator needs to see. */

@@ -28,6 +28,7 @@ import type {
   AuthorPermissionReader,
   AuthorRecord,
   CommentReactions,
+  CommentWithin,
   CommunityAccess,
   ContentAccessReader,
   DiscussionRepository,
@@ -554,8 +555,14 @@ export class DiscussionServiceImpl implements DiscussionService {
     }
   }
 
-  private inCommunity(comment: Comment, communityId: string | null): boolean {
-    return communityId === null || comment.communityId === communityId;
+  private isWithin(comment: Comment, within: CommentWithin): boolean {
+    if (within === 'any') {
+      return true;
+    }
+    if (within === 'lesson') {
+      return comment.activityId !== null;
+    }
+    return comment.communityId === within.communityId;
   }
 
   private commentsOpen(post: Post, space: SpaceDetail): boolean {
@@ -599,12 +606,12 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   private async findIn(
     commentId: string,
-    communityId: string | null,
+    within: CommentWithin,
     actor: Actor,
     action: string,
   ): Promise<Comment> {
     const comment = await this.getComment(actor.orgId, commentId);
-    if (!comment || !this.inCommunity(comment, communityId)) {
+    if (!comment || !this.isWithin(comment, within)) {
       this.logger.warn(`comment ${action} rejected — not found`, {
         orgId: actor.orgId,
         commentId,
@@ -680,9 +687,9 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.renderOne(updated, where, actor);
   }
 
-  async remove(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView> {
+  async remove(commentId: string, within: CommentWithin, actor: Actor): Promise<CommentView> {
     const orgId = actor.orgId;
-    const comment = await this.findIn(commentId, communityId, actor, 'remove');
+    const comment = await this.findIn(commentId, within, actor, 'remove');
     const where = await this.whereOf(comment, actor);
     if (comment.orgUserId !== actor.id && !this.moderates(actor, where)) {
       this.logger.warn('comment remove refused — not the author or a moderator', {
@@ -727,8 +734,8 @@ export class DiscussionServiceImpl implements DiscussionService {
     return this.renderOne(removed, where, actor);
   }
 
-  async restore(commentId: string, communityId: string | null, actor: Actor): Promise<CommentView> {
-    const comment = await this.findIn(commentId, communityId, actor, 'restore');
+  async restore(commentId: string, within: CommentWithin, actor: Actor): Promise<CommentView> {
+    const comment = await this.findIn(commentId, within, actor, 'restore');
     const where = await this.whereOf(comment, actor);
     this.requireModerates(actor, where);
     return this.renderOne(await this.restoreComment(comment, actor), where, actor);
@@ -824,7 +831,7 @@ export class DiscussionServiceImpl implements DiscussionService {
   }
 
   async approve(commentId: string, actor: Actor): Promise<Comment> {
-    const comment = await this.findIn(commentId, null, actor, 'approve');
+    const comment = await this.findIn(commentId, 'any', actor, 'approve');
     const where = await this.whereOf(comment, actor);
     this.requireModerates(actor, where);
     return this.approveComment(comment, actor);
@@ -864,8 +871,8 @@ export class DiscussionServiceImpl implements DiscussionService {
 
   /** Loads the comment and dispatches to whichever transition applies — the
    *  caller must not decide that itself. */
-  async publish(commentId: string, communityId: string | null, actor: Actor): Promise<Comment> {
-    const comment = await this.findIn(commentId, communityId, actor, 'publish');
+  async publish(commentId: string, within: CommentWithin, actor: Actor): Promise<Comment> {
+    const comment = await this.findIn(commentId, within, actor, 'publish');
     const where = await this.whereOf(comment, actor);
     this.requireModerates(actor, where);
     if (comment.status === 'pending') {
@@ -877,8 +884,8 @@ export class DiscussionServiceImpl implements DiscussionService {
     return comment;
   }
 
-  async resolveReports(commentId: string, communityId: string | null, actor: Actor): Promise<void> {
-    const comment = await this.findIn(commentId, communityId, actor, 'reports resolve');
+  async resolveReports(commentId: string, within: CommentWithin, actor: Actor): Promise<void> {
+    const comment = await this.findIn(commentId, within, actor, 'reports resolve');
     const where = await this.whereOf(comment, actor);
     this.requireModerates(actor, where);
     await this.repo.resolveReportsFor(actor.orgId, commentId, {

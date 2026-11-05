@@ -729,7 +729,7 @@ describe('activityComments', () => {
       learner,
     );
     await service.postComment({ activityId: 'a1', parentId: root.id, body: 'reply' }, other);
-    await service.remove(root.id, null, staff);
+    await service.remove(root.id, 'any', staff);
 
     const { comments } = await service.activityComments('a1', learner);
     const placeholder = comments.find((c) => c.id === root.id);
@@ -749,7 +749,7 @@ describe('activityComments', () => {
     const edited = await service.edit(root.id, 'root, edited', learner);
     expect(edited.author.imageUrl).toBe(fileUrls.personImage(learner.id));
     await service.postComment({ activityId: 'a1', parentId: root.id, body: 'reply' }, other);
-    await service.remove(root.id, null, staff);
+    await service.remove(root.id, 'any', staff);
     const { comments } = await service.activityComments('a1', learner);
     const placeholder = comments.find((c) => c.id === root.id);
     expect(placeholder?.author).toMatchObject({
@@ -770,7 +770,7 @@ describe('activityComments', () => {
       { activityId: 'a1', parentId: null, body: 'root' },
       learner,
     );
-    await service.remove(root.id, null, learner);
+    await service.remove(root.id, 'any', learner);
     expect((await service.activityComments('a1', learner)).comments).toHaveLength(0);
   });
 
@@ -784,7 +784,7 @@ describe('activityComments', () => {
       { activityId: 'a1', parentId: root.id, body: 'reply' },
       other,
     );
-    await service.remove(reply.id, null, other);
+    await service.remove(reply.id, 'any', other);
     const { comments } = await service.activityComments('a1', learner);
     expect(comments.map((c) => c.id)).toEqual([root.id]);
   });
@@ -800,7 +800,7 @@ describe('activityComments', () => {
       { activityId: 'a1', parentId: root.id, body: 'pending reply' },
       learner,
     );
-    await service.remove(root.id, null, staff);
+    await service.remove(root.id, 'any', staff);
 
     expect((await service.activityComments('a1', learner)).comments).toHaveLength(2);
     expect((await service.activityComments('a1', other)).comments).toHaveLength(0);
@@ -885,7 +885,7 @@ describe('edit, remove, restore, approve', () => {
       { activityId: 'a1', parentId: null, body: 'first' },
       learner,
     );
-    await service.remove(c.id, null, learner);
+    await service.remove(c.id, 'any', learner);
     await expect(service.edit(c.id, 'x', learner)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
@@ -899,22 +899,22 @@ describe('edit, remove, restore, approve', () => {
       { activityId: 'a1', parentId: null, body: 'b' },
       other,
     );
-    expect((await service.remove(mine.id, null, learner)).status).toBe('removed');
-    expect((await service.remove(theirs.id, null, staff)).status).toBe('removed');
-    expect(await service.remove(theirs.id, null, staff)).toMatchObject({
+    expect((await service.remove(mine.id, 'any', learner)).status).toBe('removed');
+    expect((await service.remove(theirs.id, 'any', staff)).status).toBe('removed');
+    expect(await service.remove(theirs.id, 'any', staff)).toMatchObject({
       body: null,
       removedBy: { id: staff.id },
     });
 
     const third = await service.postComment({ activityId: 'a1', parentId: null, body: 'c' }, other);
-    await expect(service.remove(third.id, null, learner)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.remove(third.id, 'any', learner)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('emits comment.removed once, and is idempotent on a second removal', async () => {
     const { service, appended } = await openCourse();
     const c = await service.postComment({ activityId: 'a1', parentId: null, body: 'a' }, learner);
-    await service.remove(c.id, null, learner);
-    await service.remove(c.id, null, learner);
+    await service.remove(c.id, 'any', learner);
+    await service.remove(c.id, 'any', learner);
     expect(appended.filter((e) => e.type === 'discussion.comment.removed')).toHaveLength(1);
   });
 
@@ -925,9 +925,9 @@ describe('edit, remove, restore, approve', () => {
     await expect(service.approve(c.id, learner)).rejects.toBeInstanceOf(ForbiddenError);
     expect((await service.approve(c.id, staff)).status).toBe('published');
 
-    await service.remove(c.id, null, staff);
-    await expect(service.restore(c.id, null, learner)).rejects.toBeInstanceOf(ForbiddenError);
-    expect((await service.restore(c.id, null, staff)).status).toBe('published');
+    await service.remove(c.id, 'any', staff);
+    await expect(service.restore(c.id, 'any', learner)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await service.restore(c.id, 'any', staff)).status).toBe('published');
   });
 
   it('refuses to approve a comment that is not pending', async () => {
@@ -939,13 +939,13 @@ describe('edit, remove, restore, approve', () => {
   it('clears removedBy when a comment is restored', async () => {
     const { service } = await openCourse();
     const c = await service.postComment({ activityId: 'a1', parentId: null, body: 'a' }, learner);
-    await service.remove(c.id, null, staff);
-    expect((await service.restore(c.id, null, staff)).removedBy).toBeNull();
+    await service.remove(c.id, 'any', staff);
+    expect((await service.restore(c.id, 'any', staff)).removedBy).toBeNull();
   });
 
   it('throws for a comment that does not exist', async () => {
     const { service } = await openCourse();
-    await expect(service.remove('nope', null, staff)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.remove('nope', 'any', staff)).rejects.toBeInstanceOf(NotFoundError);
     await expect(service.edit('nope', 'x', learner)).rejects.toBeInstanceOf(NotFoundError);
   });
 });
@@ -1016,7 +1016,7 @@ describe('reactions', () => {
 
   it('refuses on a removed comment', async () => {
     const { service, commentId } = await seeded();
-    await service.remove(commentId, null, staff);
+    await service.remove(commentId, 'any', staff);
     await expect(service.setReaction(commentId, 'like', learner)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
@@ -1059,7 +1059,7 @@ describe('reports', () => {
   it('closes every open report on a comment', async () => {
     const { service, reports, commentId } = await seeded();
     await service.reportComment(commentId, 'spam', other);
-    await service.resolveReports(commentId, null, staff);
+    await service.resolveReports(commentId, 'any', staff);
     expect(reports.every((r) => r.resolvedAt !== null)).toBe(true);
     expect(reports[0]?.resolution).toBe('dismissed');
   });
@@ -1067,21 +1067,21 @@ describe('reports', () => {
   it('resolves open reports as removed when the comment is removed', async () => {
     const { service, reports, commentId } = await seeded();
     await service.reportComment(commentId, 'spam', other);
-    await service.remove(commentId, null, staff);
+    await service.remove(commentId, 'any', staff);
     expect(reports[0]).toMatchObject({ resolution: 'removed', resolvedBy: staff.id });
   });
 
   it('leaves open reports open when the author removes their own comment', async () => {
     const { service, reports, commentId } = await seeded();
     await service.reportComment(commentId, 'spam', other);
-    await service.remove(commentId, null, learner);
+    await service.remove(commentId, 'any', learner);
     expect(reports[0]).toMatchObject({ resolvedAt: null, resolution: null, resolvedBy: null });
   });
 
   it('refuses to close reports for a learner', async () => {
     const { service, commentId } = await seeded();
     await service.reportComment(commentId, 'spam', other);
-    await expect(service.resolveReports(commentId, null, learner)).rejects.toBeInstanceOf(
+    await expect(service.resolveReports(commentId, 'any', learner)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
   });
@@ -1117,7 +1117,7 @@ describe('listComments', () => {
 
   it('serves a removed comment with its body, which a reader is never given', async () => {
     const { service, a } = await seeded();
-    await service.remove(a.id, null, staff);
+    await service.remove(a.id, 'any', staff);
     const page = await service.listComments(q({ activityId: 'a1' }), moderator);
     expect(page.rows[0]?.body).toBe('first post');
     expect(page.rows[0]?.status).toBe('removed');
@@ -1343,8 +1343,8 @@ describe('comments on a post', () => {
     );
     await service.reportComment(mine.id, 'spam', other);
     await service.reportComment(theirs.id, 'spam', learner);
-    await service.remove(mine.id, null, learner);
-    await service.remove(theirs.id, null, communityMod);
+    await service.remove(mine.id, 'any', learner);
+    await service.remove(theirs.id, 'any', communityMod);
     expect(reports.find((r) => r.commentId === mine.id)?.resolvedAt).toBeNull();
     expect(reports.find((r) => r.commentId === theirs.id)).toMatchObject({
       resolution: 'removed',
@@ -1359,16 +1359,20 @@ describe('comments on a post', () => {
       learner,
     );
     await service.reportComment(view.id, 'spam', other);
-    await expect(service.resolveReports(view.id, 'cmy_other', admin)).rejects.toBeInstanceOf(
-      NotFoundError,
+    await expect(
+      service.resolveReports(view.id, { communityId: 'cmy_other' }, admin),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await service.resolveReports(view.id, { communityId: 'cmy_1' }, admin);
+    await expect(
+      service.remove(view.id, { communityId: 'cmy_other' }, admin),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await service.remove(view.id, { communityId: 'cmy_1' }, admin)).status).toBe('removed');
+    await expect(
+      service.restore(view.id, { communityId: 'cmy_other' }, admin),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect((await service.restore(view.id, { communityId: 'cmy_1' }, admin)).status).toBe(
+      'published',
     );
-    await service.resolveReports(view.id, 'cmy_1', admin);
-    await expect(service.remove(view.id, 'cmy_other', admin)).rejects.toBeInstanceOf(NotFoundError);
-    expect((await service.remove(view.id, 'cmy_1', admin)).status).toBe('removed');
-    await expect(service.restore(view.id, 'cmy_other', admin)).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
-    expect((await service.restore(view.id, 'cmy_1', admin)).status).toBe('published');
   });
 
   it('keeps course comment moderation off comments on posts', async () => {
@@ -1378,13 +1382,19 @@ describe('comments on a post', () => {
       learner,
     );
     await service.reportComment(view.id, 'spam', other);
+    for (const actor of [moderator, staff, admin]) {
+      await expect(service.resolveReports(view.id, 'lesson', actor)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(service.remove(view.id, 'lesson', actor)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.restore(view.id, 'lesson', actor)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.publish(view.id, 'lesson', actor)).rejects.toBeInstanceOf(NotFoundError);
+    }
     for (const actor of [moderator, staff]) {
-      await expect(service.resolveReports(view.id, null, actor)).rejects.toBeInstanceOf(
+      await expect(service.resolveReports(view.id, 'any', actor)).rejects.toBeInstanceOf(
         ForbiddenError,
       );
-      await expect(service.remove(view.id, null, actor)).rejects.toBeInstanceOf(ForbiddenError);
-      await expect(service.restore(view.id, null, actor)).rejects.toBeInstanceOf(ForbiddenError);
-      await expect(service.publish(view.id, null, actor)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(service.remove(view.id, 'any', actor)).rejects.toBeInstanceOf(ForbiddenError);
     }
     expect(reports[0]?.resolvedAt).toBeNull();
   });
@@ -1398,16 +1408,16 @@ describe('comments on a post', () => {
     );
     await service.reportComment(view.id, 'spam', other);
     for (const actor of [other, elsewhereMod]) {
-      await expect(service.resolveReports(view.id, null, actor)).rejects.toBeInstanceOf(
+      await expect(service.resolveReports(view.id, 'any', actor)).rejects.toBeInstanceOf(
         ForbiddenError,
       );
-      await expect(service.remove(view.id, null, actor)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(service.remove(view.id, 'any', actor)).rejects.toBeInstanceOf(ForbiddenError);
     }
-    await service.resolveReports(view.id, null, communityMod);
+    await service.resolveReports(view.id, 'any', communityMod);
     expect(reports[0]?.resolution).toBe('dismissed');
-    expect((await service.remove(view.id, null, communityMod)).status).toBe('removed');
-    await expect(service.restore(view.id, null, other)).rejects.toBeInstanceOf(ForbiddenError);
-    expect((await service.restore(view.id, null, communityMod)).status).toBe('published');
+    expect((await service.remove(view.id, 'any', communityMod)).status).toBe('removed');
+    await expect(service.restore(view.id, 'any', other)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await service.restore(view.id, 'any', communityMod)).status).toBe('published');
   });
 
   it('badges a moderator as team on comments in their community', async () => {
@@ -1447,10 +1457,10 @@ describe('comments on a post', () => {
     const expected = await message(service.edit('cmt_missing', 'x', learner));
     for (const run of [
       service.edit(view.id, 'x', outsider),
-      service.remove(view.id, null, outsider),
+      service.remove(view.id, 'any', outsider),
       service.setReaction(view.id, '👍', outsider),
       service.reportComment(view.id, 'spam', outsider),
-      service.resolveReports(view.id, null, outsider),
+      service.resolveReports(view.id, 'any', outsider),
     ]) {
       expect(await message(run)).toBe(expected);
     }
@@ -1470,7 +1480,7 @@ describe('comments on a post', () => {
     const first = await say(learner, 'first');
     await say(other, 'reply to first', first.id);
     const dropped = await say(other, 'removed, no replies');
-    await service.remove(dropped.id, null, other);
+    await service.remove(dropped.id, 'any', other);
     await say(other, 'second');
     const third = await say(learner, 'third');
     await say(learner, 'reply to third', third.id);
@@ -1545,25 +1555,25 @@ describe('lesson comment moderation is courses:moderate on the comment’s cours
     const c = await service.postComment({ activityId: 'a1', parentId: null, body: 'a' }, learner);
     await expect(service.approve(c.id, elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(service.approve(c.id, other)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(service.publish(c.id, null, elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.publish(c.id, 'any', elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
     expect((await service.approve(c.id, staff)).status).toBe('published');
   });
 
   it('restores only for a moderator of the course', async () => {
     const { service, c1 } = await seeded();
-    await service.remove(c1.id, null, learner);
-    await expect(service.restore(c1.id, null, elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(service.restore(c1.id, null, other)).rejects.toBeInstanceOf(ForbiddenError);
-    expect((await service.restore(c1.id, null, staff)).status).toBe('published');
+    await service.remove(c1.id, 'any', learner);
+    await expect(service.restore(c1.id, 'any', elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.restore(c1.id, 'any', other)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await service.restore(c1.id, 'any', staff)).status).toBe('published');
   });
 
   it('removes another person’s comment only for a moderator of the course', async () => {
     const { service, c1, c2 } = await seeded();
-    await expect(service.remove(c1.id, null, elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(service.remove(c1.id, null, other)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(service.remove(c2.id, null, staff)).rejects.toBeInstanceOf(ForbiddenError);
-    expect((await service.remove(c1.id, null, staff)).status).toBe('removed');
-    expect((await service.remove(c2.id, null, elsewhere)).status).toBe('removed');
+    await expect(service.remove(c1.id, 'any', elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.remove(c1.id, 'any', other)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.remove(c2.id, 'any', staff)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await service.remove(c1.id, 'any', staff)).status).toBe('removed');
+    expect((await service.remove(c2.id, 'any', elsewhere)).status).toBe('removed');
   });
 
   it('replies from the moderation queue only for a moderator of the course, onto the root', async () => {
@@ -1589,12 +1599,14 @@ describe('lesson comment moderation is courses:moderate on the comment’s cours
   it('resolves reports only for a moderator of the course', async () => {
     const { service, reports, c1 } = await seeded();
     await service.reportComment(c1.id, 'spam', other);
-    await expect(service.resolveReports(c1.id, null, elsewhere)).rejects.toBeInstanceOf(
+    await expect(service.resolveReports(c1.id, 'any', elsewhere)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
-    await expect(service.resolveReports(c1.id, null, other)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(service.resolveReports(c1.id, 'any', other)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     expect(reports[0]?.resolvedAt).toBeNull();
-    await service.resolveReports(c1.id, null, staff);
+    await service.resolveReports(c1.id, 'any', staff);
     expect(reports[0]).toMatchObject({ resolution: 'dismissed', resolvedBy: staff.id });
   });
 
@@ -1729,7 +1741,7 @@ describe('comment mentions on an activity', () => {
       type: 'discussion.comment.reported',
       metadata: { actorOrgUserId: other.id },
     });
-    await service.remove(c.id, null, staff);
+    await service.remove(c.id, 'any', staff);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.removed',
       metadata: { actorOrgUserId: staff.id },
@@ -1742,8 +1754,8 @@ describe('comment mentions on an activity', () => {
       { activityId: 'a1', parentId: null, body: 'hi <@ou_other>' },
       learner,
     );
-    expect((await service.remove(c.id, null, staff)).mentions).toEqual([]);
-    expect((await service.restore(c.id, null, staff)).mentions).toEqual([
+    expect((await service.remove(c.id, 'any', staff)).mentions).toEqual([]);
+    expect((await service.restore(c.id, 'any', staff)).mentions).toEqual([
       { orgUserId: other.id, name: other.id },
     ]);
   });
