@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { DomainEvent, EventBus, JsonValue, Logger, PubSub } from '../shared/ports.js';
-import { noopLogger } from '../shared/logger.js';
+import { describeError, noopLogger } from '../shared/logger.js';
 import type { Actor } from '../shared/actor.js';
 import type { ChatLiveEvent } from '../types/index.js';
 import { discussionEvents } from './events.js';
@@ -75,7 +75,7 @@ export async function publishChange(
       orgId: change.orgId,
       chatId: change.chatId,
       event: change.event,
-      error: (error as Error).message,
+      error: describeError(error),
     });
   } finally {
     clearTimeout(timer);
@@ -503,7 +503,7 @@ export class ChatHub {
     } catch (error) {
       this.logger.warn('chat stream session check failed', {
         orgId: stream.orgId,
-        error: (error as Error).message,
+        error: describeError(error),
       });
       this.scheduleCheck(stream, registration);
       return;
@@ -668,7 +668,7 @@ export class ChatHub {
         orgId: change.orgId,
         chatId: change.chatId,
         event: change.event,
-        error: (error as Error).message,
+        error: describeError(error),
       });
       this.resync(this.communityStreams(change.orgId, change.communityId));
     }
@@ -839,7 +839,7 @@ export class ChatHub {
       this.logger.error('chat member state read failed', {
         orgId,
         communityId,
-        error: (error as Error).message,
+        error: describeError(error),
       });
       for (const orgUserId of members) {
         const chats = group.members.get(orgUserId) ?? new Set<string>();
