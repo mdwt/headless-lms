@@ -530,12 +530,13 @@ export class MemberReportServiceImpl implements MemberReportService {
       ...page,
       rows: page.rows.map((row) => {
         const held = permissions.get(row.orgUserId);
-        const role = held?.roleOn(communityId);
+        const item = held?.roleOn(communityId);
+        const org = held?.roleOn();
         return {
           ...row,
           imageUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
-          team: role?.team ?? false,
-          roleName: role?.team ? role.name : null,
+          team: (item?.team ?? false) || (org?.team ?? false),
+          roleName: item?.team ? item.name : org?.team ? org.name : null,
           opensEverySpace:
             (held?.has('communities:read', communityId) ||
               held?.has('communities:moderate', communityId)) ??
@@ -558,7 +559,9 @@ export class MemberReportServiceImpl implements MemberReportService {
       this.content.listSpaces(communityId, system),
       this.access.opensEverySpace(actor, communityId),
     ]);
-    const role = actor.permissions.roleOn(communityId);
+    const itemRole = actor.permissions.roleOn(communityId);
+    const orgRole = actor.permissions.roleOn();
+    const role = itemRole.team || !orgRole.team ? itemRole : orgRole;
     return {
       communityId,
       title: community.title,
@@ -569,7 +572,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       viewer: {
         permissions: PERMISSION_KEYS.filter((p) => actor.permissions.has(p, communityId)),
         opensEverySpace: everySpace,
-        team: role.team,
+        team: itemRole.team || orgRole.team,
         roleName: role.name,
       },
     };

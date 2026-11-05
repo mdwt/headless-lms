@@ -40,6 +40,7 @@ export interface CommunityMailReads {
   spaceOpeners(orgId: string, spaceId: string): Promise<string[]>;
   holders(orgId: string, permission: Permission, on?: string): Promise<string[]>;
   role(orgId: string, roleKey: string): Promise<{ name: string; permissions: Permission[] } | null>;
+  heldOnOrg(orgId: string, orgUserId: string, permissions: Permission[]): Promise<Permission[]>;
   orgName(orgId: string): Promise<string | null>;
   contentInfo(
     orgId: string,
@@ -120,6 +121,7 @@ export const emptyCommunityMail: CommunityMailReads = {
   spaceOpeners: async () => [],
   holders: async () => [],
   role: async () => null,
+  heldOnOrg: async () => [],
   orgName: async () => null,
   contentInfo: async () => null,
   displayName: async () => 'A member',
@@ -163,9 +165,10 @@ function contributes(
 }
 
 export async function roleGain(
-  reads: Pick<CommunityMailReads, 'role' | 'orgName' | 'contentInfo'>,
+  reads: Pick<CommunityMailReads, 'role' | 'orgName' | 'contentInfo' | 'heldOnOrg'>,
   orgId: string,
   assigned: {
+    orgUserId: string;
     roleKey: string;
     previousRoleKey: string | null;
     contentId: string | null;
@@ -180,9 +183,14 @@ export async function roleGain(
     ? await reads.role(orgId, assigned.previousRoleKey)
     : null;
   const before = contributes(previous?.permissions ?? [], assigned.contentType);
-  const gained = [...contributes(next.permissions, assigned.contentType)].some(
+  const offered = [...contributes(next.permissions, assigned.contentType)].filter(
     (permission) => !before.has(permission),
   );
+  const fromOrg =
+    assigned.contentId === null || offered.length === 0
+      ? []
+      : await reads.heldOnOrg(orgId, assigned.orgUserId, offered);
+  const gained = offered.some((permission) => !fromOrg.includes(permission));
   if (!gained) {
     return null;
   }

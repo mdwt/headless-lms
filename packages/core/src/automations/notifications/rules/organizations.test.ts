@@ -163,4 +163,22 @@ describe('organization.role.assigned', () => {
     );
     expect(lists).toEqual([]);
   });
+
+  it('sends nothing for an item role whose permissions the org role already gives', async () => {
+    const reads = {
+      ...withRoles(),
+      heldOnOrg: async (_o: string, _id: string, ps: string[]) => ps,
+    };
+    expect(
+      await rule(
+        assigned({
+          roleKey: 'instructor',
+          previousRoleKey: null,
+          contentId: 'crs_1',
+          contentType: 'course',
+        }),
+        reads as NotificationReads,
+      ),
+    ).toEqual([]);
+  });
 });

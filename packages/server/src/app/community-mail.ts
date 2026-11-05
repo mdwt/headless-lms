@@ -29,7 +29,13 @@ export type CommunityMailDeps = {
   >;
   organizations: Pick<
     OrganizationService,
-    'getById' | 'getOrgUserById' | 'actorFor' | 'systemActor' | 'holders' | 'getRole'
+    | 'getById'
+    | 'getOrgUserById'
+    | 'actorFor'
+    | 'systemActor'
+    | 'holders'
+    | 'getRole'
+    | 'permissionsOfMany'
   >;
   identity: Pick<IdentityService, 'displayName'>;
   posts: Pick<PostService, 'find'>;
@@ -68,6 +74,10 @@ export function communityMail(deps: CommunityMailDeps): {
       deps.entitlements.spaceOpenersAmong(orgId, spaceId, ids),
     spaceOpeners: (orgId, spaceId) => deps.entitlements.spaceOpeners(orgId, spaceId),
     holders: (orgId, permission, on) => deps.organizations.holders(orgId, permission, on),
+    async heldOnOrg(orgId, orgUserId, permissions) {
+      const held = (await deps.organizations.permissionsOfMany(orgId, [orgUserId])).get(orgUserId);
+      return held ? permissions.filter((permission) => held.has(permission)) : [];
+    },
     async role(orgId, roleKey) {
       try {
         const role = await deps.organizations.getRole(roleKey, system(orgId));

@@ -97,9 +97,12 @@ export class AdminReportServiceImpl implements AdminReportService {
     return {
       ...page,
       rows: page.rows.map((row) => {
-        const role = held.get(row.id)?.roleOn(communityId);
-        const team = role?.team ?? false;
-        return { ...row, team, roleName: team ? (role?.name ?? null) : null };
+        const permissions = held.get(row.id);
+        const item = permissions?.roleOn(communityId);
+        const org = permissions?.roleOn();
+        const team = (item?.team ?? false) || (org?.team ?? false);
+        const roleName = item?.team ? item.name : org?.team ? org.name : null;
+        return { ...row, team, roleName };
       }),
     };
   }
