@@ -38,6 +38,7 @@ export interface CataloguePermission {
   label: string;
   description: string;
   about: Level;
+  implies: Permission[];
   roles: string[];
   removes: boolean;
 }
@@ -122,6 +123,7 @@ export function mcpCatalogue(): McpCatalogue {
         label: definition.label,
         description: definition.description,
         about: definition.about,
+        implies: [...withImplied([permission])].filter((p) => p !== permission),
         roles: DEFAULT_ROLES.filter((role) => withImplied(role.permissions).has(permission)).map(
           (role) => role.name,
         ),
@@ -129,7 +131,8 @@ export function mcpCatalogue(): McpCatalogue {
       };
     }),
     tools: TOOLS.map((tool) => {
-      const permissions = [...permissionFor(tool.operation)];
+      const declared = [...permissionFor(tool.operation)];
+      const permissions = declared.length > 0 ? declared : [...(tool.listedFor ?? [])];
       return {
         name: tool.name,
         title: tool.title,

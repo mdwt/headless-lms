@@ -192,14 +192,14 @@ export const PERMISSIONS = {
     group: 'courses',
     label: 'See courses',
     description:
-      'See the course in the admin app, and open it, its lessons, files and titles without a grant, unpublished included.',
+      'See the course, its modules and activities in the admin app; open it, its lessons, files and titles without a grant, unpublished included; be reachable for its lesson-comment mentions.',
     about: 'course',
   },
   'courses:write': {
     group: 'courses',
     label: 'Edit courses',
     description:
-      'Edit and publish the course; add, change and delete its modules and activities; upload media for it. Creating a course needs it on the org.',
+      'Edit and publish the course; add, change and delete its modules and activities; upload media for it and attach media uploaded for it. Creating a course needs it on the org.',
     about: 'course',
     implies: ['courses:read'],
   },
@@ -214,7 +214,7 @@ export const PERMISSIONS = {
     group: 'courses',
     label: 'Moderate lesson comments',
     description:
-      "See the course's lesson comments, held ones included; approve, remove, restore, reply to and resolve reports on them.",
+      "See the course's lesson comments, held ones included; approve, remove, restore, reply to and resolve reports on them; be notified of reports. The holder's own lesson comments publish without review.",
     about: 'course',
     implies: ['courses:read'],
   },
@@ -235,7 +235,7 @@ export const PERMISSIONS = {
     group: 'downloads',
     label: 'Edit downloads',
     description:
-      'Edit and publish the download; upload files for it. Creating a download needs it on the org.',
+      'Edit and publish the download; upload files for it and attach files uploaded for it. Creating a download needs it on the org.',
     about: 'download',
     implies: ['downloads:read'],
   },
@@ -250,14 +250,14 @@ export const PERMISSIONS = {
     group: 'communities',
     label: 'See communities',
     description:
-      'See the community, its spaces, notification categories and analytics in the admin app; be a member of it without a grant and open every space in it.',
+      'See the community, its spaces, notification categories and analytics in the admin app; be a member of it without a grant, unpublished included, open every space in it and see its thumbnail while unpublished.',
     about: 'community',
   },
   'communities:write': {
     group: 'communities',
     label: 'Configure communities',
     description:
-      'Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces; upload media for it. Creating a community needs it on the org.',
+      'Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces; upload media for it and attach media uploaded for it. Creating a community needs it on the org.',
     about: 'community',
     implies: ['communities:read'],
   },
@@ -272,7 +272,7 @@ export const PERMISSIONS = {
     group: 'communities',
     label: 'Moderate communities',
     description:
-      'Review, approve, remove, restore, pin and lock posts, comments and messages; manage space members and join requests; resolve reports.',
+      "See the review queue, pending and removed posts, held comments and their titles; open every space; approve, remove, restore, pin and lock posts and comments; turn comments and reactions on and off; delete any message, see deleted messages, read reported attachments, lock chats, see the message queue; see every space member and locked spaces' rosters; invite, add, approve, decline and remove space members; resolve reports; be notified of reviews, reports and join requests. The holder's own posts publish without review.",
     about: 'community',
   },
   'automations:read': {
