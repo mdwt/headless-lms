@@ -58,12 +58,13 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 22 | Review L12 | `role.assigned` fired when the org role already gave everything the item role adds. | fixed | d22cb533 |
 | 23 | Review L13 | Notification methods took a free `userId`. They now take the member actor. | fixed | ea9b8981 |
 | 24 | Review L14 | `requestUpload` stored an unchecked `contentId` for `media:write` holders. | fixed | e0b8eac7 |
-| 25 | Review L15 | Some routes did more than one call (invite peek and accept; null-to-404 branches). The invite routes and the reporting, assets, automations and integrations branches are fixed; four content item reads are in progress. | in progress | 027f1a02, 037771fc |
+| 25 | Review L15 | Some routes did more than one call (invite peek and accept; null-to-404 branches). The invite routes and the reporting, assets, automations and integrations branches are fixed; the four content item reads now throw not-found in core, so their routes make one call. | fixed | 027f1a02, 44fe299e |
 | 26 | Review L16 | Remove-post and remove-comment descriptions said only moderators may call them. | fixed | d04fd04e |
 | 27 | Review L17 | The MCP catalogue read the default role set outside organizations; no boundary test. | fixed | 1664fe6a |
 | 28 | Review L18 | The 'Member updated' trigger never fired. Acceptance now emits `organization.user.updated`. | fixed | 027f1a02 |
-| 29 | Admin, API | A course's learners show without names to `progress:read` holders: `GET /api/entitlements?contentId=` rows carry only `orgUserId`, and names need `people:read`. | open | |
-| 30 | Admin, API | A moderator without `communities:read` can't read the community's name or spaces in the admin app (`getCommunity`, `listSpaces`, `listCommunities` need `communities:read`). Comment-flag authors show as "Unknown person" without `people:read`. | open | |
-| 31 | Admin, API | The admin community member list has no `opensEverySpace`; the admin app joins the member directory to exclude those people from space candidates. | open | |
-| 32 | Admin, API | Roles carry no flag for whether they can be given; the picker infers Owner. | open | |
+| 29 | Admin, API | A course's learners show without names to `progress:read` holders: `GET /api/entitlements?contentId=` rows carry only `orgUserId`, and names need `people:read`. | fixed | f12b12fc, a0cd4291, 9f0e6666 |
+| 30 | Admin, API | A moderator without `communities:read` can't read the community's name or spaces in the admin app (`getCommunity`, `listSpaces`, `listCommunities` need `communities:read`). Comment-flag authors show as "Unknown person" without `people:read`. | fixed | 44fe299e, c2ad33ad, a0cd4291 |
+| 31 | Admin, API | The admin community member list has no `opensEverySpace`; the admin app joins the member directory to exclude those people from space candidates. | fixed | f12b12fc, a0cd4291 |
+| 32 | Admin, API | Roles carry no flag for whether they can be given; the picker infers Owner. | fixed | 501a13c2, a0cd4291 |
 | 33 | Admin (existing) | Team and Students tables scroll sideways inside the settings column at 1280px. Exists before this build. | open (outside roles) | |
+| 34 | Admin | After the community reads accepted `communities:moderate`, a moderator who isn't a member of a community saw it in their list, and its moderation tab failed with an error page (the queue is for members). The list shows only communities they are a member of again, and the tab explains that moderating needs access to the community. | fixed | 0066541d |
