@@ -295,7 +295,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Remove your post, or one in a space you moderate',
       description:
-        "For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
+        "The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
       params: PostIdParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },

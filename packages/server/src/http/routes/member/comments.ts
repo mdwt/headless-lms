@@ -103,7 +103,7 @@ export async function memberCommentsRoutes(
       tags,
       summary: 'Delete your comment, or one you moderate',
       description:
-        'For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.',
+        'The author can delete their own comment; anyone else needs `communities:moderate` on the community for a post comment, or `courses:moderate` on the course for a lesson comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.',
       params: CommentIdParam,
       response: { 200: CommentView, ...refusals(403, 404) },
     },
