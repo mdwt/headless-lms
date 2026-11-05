@@ -582,7 +582,7 @@ export async function buildContainer(
       activities: content,
       access: entitlements,
     }),
-    content: new ContentItemTitles({ content, access: entitlements }),
+    content: new ContentItemTitles({ content, access: entitlements, organizations }),
   };
 
   const reporting = {
@@ -648,15 +648,16 @@ export async function buildContainer(
       return user ? { userId: user.id, email: user.email } : null;
     },
     contentInfo: async (orgId, contentId) => {
-      const course = await content.getCourse(orgId, contentId);
+      const system = organizations.systemActor(orgId);
+      const course = await content.getCourse(contentId, system);
       if (course) {
         return { id: course.id, title: course.title, type: course.type };
       }
-      const download = await content.getDownload(orgId, contentId);
+      const download = await content.getDownload(contentId, system);
       if (download) {
         return { id: download.id, title: download.title, type: download.type };
       }
-      const community = await content.getCommunity(orgId, contentId);
+      const community = await content.getCommunity(contentId, system);
       return community ? { id: community.id, title: community.title, type: community.type } : null;
     },
   };
