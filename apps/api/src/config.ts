@@ -5,6 +5,11 @@ import type { ServerConfig, ContainerConfig, PushConfig } from "@headless-lms/se
 import type { ResendEmailConfig } from "@headless-lms/adapter-email-resend";
 import type { MinioStorageConfig } from "@headless-lms/adapter-storage-minio";
 
+/** EMAIL_SINK_DIR wins over RESEND_API_KEY: development writes every email there. */
+export function loadEmailSinkDir(): string | undefined {
+  return process.env.EMAIL_SINK_DIR || undefined;
+}
+
 /** RESEND_API_KEY unset → no transport; email sends fail loudly. */
 export function loadEmailConfig(): ResendEmailConfig | undefined {
   const apiKey = process.env.RESEND_API_KEY;

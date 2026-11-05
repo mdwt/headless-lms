@@ -432,6 +432,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@headless-lms/adapter-defaults':
+        specifier: workspace:*
+        version: link:../../adapters/defaults
       '@headless-lms/adapter-email-resend':
         specifier: workspace:*
         version: link:../../adapters/email-resend

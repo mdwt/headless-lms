@@ -6,15 +6,25 @@ import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
 import { ReactEmailTemplateRenderer } from "@headless-lms/adapter-email-templates";
 import { PushAdapter } from "@headless-lms/adapter-push";
-import { loadEmailConfig, loadPushConfig, loadServerConfig, loadStorageConfig } from "./config.js";
+import { FileSinkEmailAdapter } from "@headless-lms/adapter-defaults/email";
+import {
+  loadEmailConfig,
+  loadEmailSinkDir,
+  loadPushConfig,
+  loadServerConfig,
+  loadStorageConfig,
+} from "./config.js";
 
 const config = loadServerConfig();
 const emailConfig = loadEmailConfig();
+const emailSinkDir = loadEmailSinkDir();
 const pushConfig = loadPushConfig();
 const container = await createContainer(config, {
   pluginsDir: fileURLToPath(new URL("./plugins/", import.meta.url)),
   adapters: {
-    email: emailConfig && new ResendEmailAdapter(emailConfig),
+    email: emailSinkDir
+      ? new FileSinkEmailAdapter(emailSinkDir)
+      : emailConfig && new ResendEmailAdapter(emailConfig),
     storage: new MinioStorageAdapter(loadStorageConfig()),
     templates: new ReactEmailTemplateRenderer(),
     workflows: (logger) => new HatchetAutomationEngine(undefined, logger),
