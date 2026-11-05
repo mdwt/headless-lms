@@ -7,11 +7,11 @@ import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import { actorWith } from '../organizations/index.js';
+import type { Mailer } from '../shared/mailer.js';
 
 function memberOf(userId: string, orgUserId: string, orgId: string) {
   return { ...actorWith({ id: orgUserId, orgId }), userId };
 }
-import type { Mailer } from '../shared/mailer.js';
 
 const PROVISIONED: User = {
   id: 'usr_invited',
