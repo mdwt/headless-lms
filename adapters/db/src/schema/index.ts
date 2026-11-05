@@ -13,3 +13,4 @@ export * from "./outbox.js";
 export * from "./automations.js";
 export * from "./settings.js";
 export * from "./discussion.js";
+export * from "./roles.js";

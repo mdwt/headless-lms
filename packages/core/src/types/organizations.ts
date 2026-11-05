@@ -18,6 +18,8 @@ export type {
   Level,
   Permission,
   RoleKey,
+  OrgRoleRow,
+  RoleAssignment,
 } from './schemas/organizations.js';
 
 export type ContentId = string;

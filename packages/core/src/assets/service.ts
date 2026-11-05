@@ -126,6 +126,7 @@ export class AssetsServiceImpl implements AssetsService {
         size: 0,
         status: 'pending',
         uploadedBy: input.uploadedBy,
+        contentId: null,
         createdAt: now,
         updatedAt: now,
       });

@@ -22,6 +22,7 @@ export const assetSchema = z
     size: z.number().int().min(0),
     status: assetStatusSchema,
     uploadedBy: idSchema,
+    contentId: idSchema.nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })

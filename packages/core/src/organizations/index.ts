@@ -12,6 +12,8 @@ export type {
   AuthHeaders,
   AuthOrganization,
   OrganizationsRepository,
+  RolesRepository,
+  ActorFacts,
   NewOrganizationRow,
   NewInviteRow,
 } from './ports.js';
@@ -64,3 +66,28 @@ export type {
   StudentLinked,
 } from './events.js';
 export * from './access-scopes.js';
+export {
+  PERMISSIONS,
+  ALL_PERMISSIONS,
+  isPermission,
+  fitsLevels,
+  withImplied,
+  permissionList,
+} from './permissions.js';
+export type { PermissionDefinition, PermissionGroup, PermissionListEntry } from './permissions.js';
+export {
+  DEFAULT_ROLES,
+  OWNER_ROLE_KEY,
+  MEMBER_ROLE_KEY,
+  RoleSetError,
+  validateRoleSet,
+} from './default-roles.js';
+export type { RoleDefinition } from './default-roles.js';
+export { catalogOf, resolveRole, resolveOrgRoles, isSystemRole } from './org-roles.js';
+export type { OrgRole, StoredOrgRole, RoleCatalog } from './org-roles.js';
+export {
+  ResolvedPermissions,
+  resolvePermissions,
+  systemPermissions,
+} from './effective-permissions.js';
+export type { AssignmentRow, ResolveInput } from './effective-permissions.js';

@@ -169,6 +169,7 @@ function build(opts?: {
     run: (fn) =>
       fn({
         organizations: repo,
+        roles: {} as never,
         outbox: {
           append: async (events) => {
             appended.push(...events);

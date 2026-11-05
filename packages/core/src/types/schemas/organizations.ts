@@ -59,6 +59,37 @@ export const roleKeySchema = z
   .regex(/^[a-z][a-z0-9_]*$/, 'A role key is lowercase letters, digits and underscores');
 export type RoleKey = z.infer<typeof roleKeySchema>;
 
+export const orgRoleRowSchema = z
+  .object({
+    id: idSchema,
+    orgId: idSchema,
+    key: z.string(),
+    name: z.string().nullable(),
+    description: z.string().nullable(),
+    base: z.string(),
+    levels: z.array(levelSchema).nullable(),
+    permissions: z.record(z.string(), z.boolean()),
+    team: z.boolean().nullable(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type OrgRoleRow = z.output<typeof orgRoleRowSchema>;
+
+export const roleAssignmentSchema = z
+  .object({
+    id: idSchema,
+    orgId: idSchema,
+    orgUserId: idSchema,
+    roleKey: z.string(),
+    contentId: idSchema.nullable(),
+    contentType: z.lazy(() => contentTypeSchema).nullable(),
+    assignedBy: z.string(),
+    createdAt: z.coerce.date(),
+  })
+  .strict();
+export type RoleAssignment = z.output<typeof roleAssignmentSchema>;
+
 export const roleSchema = z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']);
 export type Role = z.infer<typeof roleSchema>;
 

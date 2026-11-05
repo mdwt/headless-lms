@@ -4,6 +4,9 @@ import type { Member, MemberRoleChange, MembersQuery, Page } from './members.js'
 import type { Role } from './roles.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
+import type { ContentType, RoleAssignment } from '../types/index.js';
+import type { AssignmentRow } from './effective-permissions.js';
+import type { StoredOrgRole } from './org-roles.js';
 import type {
   AcceptInviteInput,
   AddOrgUserInput,
@@ -72,9 +75,52 @@ export interface OrganizationService {
   staffOrgUserIds(orgId: string): Promise<string[]>;
 }
 
+export interface ActorFacts {
+  orgUserId: string;
+  status: OrgUser['status'];
+  assignments: AssignmentRow[];
+  storedRoles: StoredOrgRole[];
+}
+
+export interface RolesRepository {
+  actorFacts(orgId: string, orgUserId: string): Promise<ActorFacts | null>;
+  storedRoles(orgId: string): Promise<StoredOrgRole[]>;
+  saveStoredRole(orgId: string, role: StoredOrgRole): Promise<void>;
+  deleteStoredRole(orgId: string, key: string): Promise<boolean>;
+  assignmentsOf(orgId: string, orgUserId: string): Promise<RoleAssignment[]>;
+  assignmentsOfMany(orgId: string, orgUserIds: string[]): Promise<Map<string, AssignmentRow[]>>;
+  assignmentsOn(orgId: string, contentId: string): Promise<RoleAssignment[]>;
+  holdersOf(orgId: string, roleKeys: string[], contentId?: string): Promise<string[]>;
+  setOrgRole(
+    orgId: string,
+    orgUserId: string,
+    roleKey: string | null,
+    assignedBy: string,
+  ): Promise<void>;
+  setItemRole(
+    orgId: string,
+    orgUserId: string,
+    contentId: string,
+    contentType: ContentType,
+    roleKey: string,
+    assignedBy: string,
+  ): Promise<void>;
+  removeItemRole(
+    orgId: string,
+    orgUserId: string,
+    contentId: string,
+  ): Promise<RoleAssignment | null>;
+  countHolders(orgId: string, roleKey: string, contentType?: ContentType | 'org'): Promise<number>;
+  holderCounts(orgId: string): Promise<Record<string, number>>;
+  contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null>;
+  ownerOrgUserId(orgId: string): Promise<string | null>;
+  lock(keys: string[]): Promise<void>;
+}
+
 /** Atomic write scope: tx-bound repo + outbox appender, one transaction. */
 export interface OrganizationsWriteScope {
   organizations: OrganizationsRepository;
+  roles: RolesRepository;
   outbox: OutboxAppender;
 }
 export type OrganizationsUnitOfWork = UnitOfWork<OrganizationsWriteScope>;

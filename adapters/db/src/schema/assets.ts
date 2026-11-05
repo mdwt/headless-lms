@@ -26,6 +26,7 @@ export const assets = pgTable(
       .notNull()
       .default("pending"),
     uploadedBy: text("uploaded_by").notNull(),
+    contentId: text("content_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

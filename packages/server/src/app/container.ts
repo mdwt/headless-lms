@@ -21,6 +21,7 @@ import {
   DrizzleNotificationsRepository,
   DrizzleNotificationSettingsRepository,
   DrizzleOrganizationsRepository,
+  DrizzleRolesRepository,
   DrizzleOutboxAppender,
   DrizzleOutboxStore,
   DrizzleProgressRepository,
@@ -348,6 +349,7 @@ export async function buildContainer(
   const organizationsRepo = new DrizzleOrganizationsRepository(db, logger.child({ name: 'org' }));
   const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
+    roles: new DrizzleRolesRepository(tx),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };

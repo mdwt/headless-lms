@@ -29,6 +29,7 @@ function toAsset(row: Row): Asset {
     size: row.size,
     status: row.status as AssetStatus,
     uploadedBy: row.uploadedBy,
+    contentId: row.contentId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

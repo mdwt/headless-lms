@@ -270,6 +270,7 @@ describe('AssetsService', () => {
       size: 10,
       status: 'ready',
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: now,
       updatedAt: now,
     });
@@ -316,6 +317,7 @@ describe('AssetsService', () => {
       size: 10,
       status: 'ready' as const,
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: old,
       updatedAt: old,
     };
@@ -363,6 +365,7 @@ describe('AssetsService', () => {
       size: 10,
       status: 'ready',
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: old,
       updatedAt: old,
     });
@@ -397,6 +400,7 @@ describe('AssetsService', () => {
       size: 10,
       status: 'ready' as const,
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: old,
       updatedAt: old,
     };
@@ -665,6 +669,7 @@ describe('AssetsService', () => {
       contentType: 'image/png',
       size: 10,
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -782,6 +787,7 @@ describe('AssetsService', () => {
       source: 'library' as const,
       contentType: 'application/pdf',
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -840,6 +846,7 @@ describe('AssetsService', () => {
       size: 100,
       status: 'ready',
       uploadedBy: 'ou_1',
+      contentId: null,
       createdAt: now,
       updatedAt: now,
     });
