@@ -10,7 +10,11 @@ import type {
 } from '../../discussion/index.js';
 import type { ItemTitles as ContentItemTitles } from '../../content/index.js';
 import type { NotificationSettingsService } from '../../identity/index.js';
-import type { ListedNotification, NotificationsService } from '../../automations/index.js';
+import {
+  applicableCategories,
+  type ListedNotification,
+  type NotificationsService,
+} from '../../automations/index.js';
 import type { ChannelRegistry, NotificationCategoryService } from '../../shared/ports.js';
 import { resolveChannels } from '../../shared/notification-settings.js';
 import { channelOrder } from '../../shared/notification-categories.js';
@@ -188,7 +192,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       communityId,
       digest: community?.settings.digest ?? null,
       categories: this.settingsView(
-        list.categories,
+        applicableCategories(list.categories, actor.permissions, { communityId }),
         settings,
         spaces
           .filter((space) => open.has(space.id))
@@ -206,7 +210,13 @@ export class MemberReportServiceImpl implements MemberReportService {
       this.notificationCategories.org.get(orgId, this.system(actor)),
       this.notificationSettings.get(orgId, userId, 'org'),
     ]);
-    return { categories: this.settingsView(list.categories, settings, []) };
+    return {
+      categories: this.settingsView(
+        applicableCategories(list.categories, actor.permissions, 'org'),
+        settings,
+        [],
+      ),
+    };
   }
 
   private settingsView(
