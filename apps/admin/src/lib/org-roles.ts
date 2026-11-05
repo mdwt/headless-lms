@@ -1,11 +1,7 @@
 import type { OrgRole } from "./api/types";
 
-function holdsEverything(role: OrgRole): boolean {
-  return role.system && role.permissions.length > 0;
-}
-
 export function givableOrgRoles(roles: OrgRole[]): OrgRole[] {
-  return roles.filter((role) => role.levels.includes("org") && !holdsEverything(role));
+  return roles.filter((role) => role.givable && role.levels.includes("org"));
 }
 
 export function defaultOrgRole(roles: OrgRole[]): OrgRole | undefined {

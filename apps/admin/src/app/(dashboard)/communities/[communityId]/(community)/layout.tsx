@@ -18,21 +18,6 @@ export default async function CommunityLayout({
     communityId,
   );
 
-  if (!permissions.has("communities:read", communityId)) {
-    const home = await serverApi.memberCommunityHome(communityId);
-    return (
-      <div className="flex flex-col gap-8">
-        <CommunityHeader
-          id={communityId}
-          title={home.title}
-          community={null}
-          stats={{ spaceCount: home.spaces.length, memberCount: null }}
-        />
-        {children}
-      </div>
-    );
-  }
-
   const [community, spaces, memberCount] = await Promise.all([
     serverApi.getCommunity(communityId),
     serverApi.communitySpaces(communityId),
@@ -43,12 +28,7 @@ export default async function CommunityLayout({
 
   return (
     <div className="flex flex-col gap-8">
-      <CommunityHeader
-        id={communityId}
-        title={community.title}
-        community={community}
-        stats={{ spaceCount: spaces.length, memberCount }}
-      />
+      <CommunityHeader community={community} stats={{ spaceCount: spaces.length, memberCount }} />
       {children}
     </div>
   );

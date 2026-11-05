@@ -9,15 +9,9 @@ export default async function CommunityModerationTab({
   params: Promise<{ communityId: string }>;
 }) {
   const { communityId } = await params;
-  const { permissions } = await requirePermission("communities:moderate", communityId);
-  const spaces = permissions.has("communities:read", communityId)
-    ? await serverApi.communitySpaces(communityId)
-    : (await serverApi.memberCommunityHome(communityId)).spaces;
-  const moderation = await serverApi.communityModeration(
-    communityId,
-    spaces,
-    permissions.has("people:read"),
-  );
+  await requirePermission("communities:moderate", communityId);
+  const spaces = await serverApi.communitySpaces(communityId);
+  const moderation = await serverApi.communityModeration(communityId, spaces);
 
   return <ModerationQueue communityId={communityId} moderation={moderation} />;
 }

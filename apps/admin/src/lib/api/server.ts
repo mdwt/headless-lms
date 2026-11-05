@@ -56,6 +56,7 @@ import type {
   AvailableIntegration,
   Course,
   CourseAnalytics,
+  CourseLearner,
   Download,
   DownloadAsset,
   EnrollmentSeries,
@@ -64,7 +65,6 @@ import type {
   IntegrationConnection,
   ListParams,
   Member,
-  MemberCommunityHome,
   OrgRole,
   RoleOnItem,
   NotificationCategoryList,
@@ -219,6 +219,17 @@ export const serverApi = {
   },
   async courseEnrollmentSeries(courseId: string, days: number): Promise<EnrollmentSeries> {
     return await Reporting.getCourseEnrollmentSeries({ id: courseId, days }, await authHeaders());
+  },
+  async courseLearners(courseId: string, params: ListParams): Promise<Paginated<CourseLearner>> {
+    return await Reporting.listCourseLearners(
+      {
+        courseId,
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search || undefined,
+      },
+      await authHeaders(),
+    );
   },
 
   // courses
@@ -489,16 +500,12 @@ export const serverApi = {
   async spaceCandidates(
     communityId: string,
   ): Promise<{ id: string; name: string; email: string }[]> {
-    const headers = await authHeaders();
-    const [page, directory] = await Promise.all([
-      Communities.listCommunityMembers({ communityId, page: 1, pageSize: 100 }, headers),
-      Communities.getMemberCommunityDirectory({ communityId, page: 1, pageSize: 100 }, headers),
-    ]);
-    const opensEverySpace = new Set(
-      directory.rows.filter((r) => r.opensEverySpace).map((r) => r.orgUserId),
+    const page = await Communities.listCommunityMembers(
+      { communityId, page: 1, pageSize: 100 },
+      await authHeaders(),
     );
     return page.rows
-      .filter((m) => !opensEverySpace.has(m.id))
+      .filter((m) => !m.opensEverySpace)
       .map((m) => ({ id: m.id, name: fullName(m), email: m.email }));
   },
   async communityMemberIds(communityId: string): Promise<Set<string>> {
@@ -513,9 +520,6 @@ export const serverApi = {
       if (ids.size >= batch.total || batch.rows.length === 0) break;
     }
     return ids;
-  },
-  async memberCommunityHome(communityId: string): Promise<MemberCommunityHome> {
-    return await Communities.getMemberCommunityHome({ communityId }, await authHeaders());
   },
   async spaceMembers(communityId: string, spaceId: string): Promise<SpaceMember[]> {
     const headers = await authHeaders();
@@ -556,7 +560,6 @@ export const serverApi = {
   async communityModeration(
     communityId: string,
     spaces: { id: string; name: string }[],
-    canReadPeople: boolean,
   ): Promise<CommunityModeration> {
     const headers = await authHeaders();
     const messages = await Communities.getCommunityMessageQueue({ communityId }, headers);
@@ -566,23 +569,15 @@ export const serverApi = {
       ),
     );
     const flaggedPostIds = [...new Set(queues.flatMap((q) => q.flags.map((f) => f.postId)))];
-    const [posts, people] = await Promise.all([
-      Promise.all(
-        flaggedPostIds.map(async (postId) => {
-          try {
-            return await Posts.getPost({ postId }, headers);
-          } catch {
-            return null;
-          }
-        }),
-      ),
-      canReadPeople
-        ? peopleById(
-            queues.flatMap((q) => q.commentFlags.map((f) => f.comment.orgUserId)),
-            headers,
-          )
-        : Promise.resolve(new Map<string, { name: string; email: string }>()),
-    ]);
+    const posts = await Promise.all(
+      flaggedPostIds.map(async (postId) => {
+        try {
+          return await Posts.getPost({ postId }, headers);
+        } catch {
+          return null;
+        }
+      }),
+    );
     const postById = new Map(posts.filter((p) => p !== null).map((p) => [p.id, p]));
     return {
       spaces: spaces.map((space, i) => {
@@ -598,7 +593,6 @@ export const serverApi = {
           }),
           flaggedComments: [...flagsByComment].map(([, flags]) => ({
             comment: flags[0].comment,
-            authorName: people.get(flags[0].comment.orgUserId)?.name ?? "Unknown person",
             flags,
           })),
         };
