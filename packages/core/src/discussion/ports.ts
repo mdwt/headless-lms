@@ -8,6 +8,7 @@ import type {
   ChatUser,
   DigestRun,
   FlaggedComment,
+  FlaggedCommentView,
   JsonValue,
   MentionItemType,
   Message,
@@ -310,7 +311,7 @@ export const MODERATION_QUEUE_LIMIT = 100;
 export interface SpaceModerationQueue {
   pending: PostView[];
   flags: PostFlag[];
-  commentFlags: FlaggedComment[];
+  commentFlags: FlaggedCommentView[];
 }
 
 export interface PostCommentReader {

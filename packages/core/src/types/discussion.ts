@@ -10,6 +10,7 @@ export type {
   CommentStatus,
   DigestRun,
   FlaggedComment,
+  FlaggedCommentView,
   Mention,
   MentionItemType,
   MentionView,

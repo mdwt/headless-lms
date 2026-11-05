@@ -938,12 +938,47 @@ describe('posts', () => {
     );
     const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
-    expect(queue.commentFlags[0]?.comment).toEqual({
+    expect(queue.commentFlags[0]?.comment).toMatchObject({
       id: 'cmt_1',
       postId: 'pst_1',
       body: 'Buy now',
       orgUserId: member.id,
       status: 'published',
+    });
+  });
+
+  it("carries each flagged comment's author, named as other author views name them", async () => {
+    const { svc, commentFlagRows } = harness({
+      profiles: { [member.id]: { displayName: 'Sarah', firstName: 'Sarah', lastName: 'Jones' } },
+    });
+    commentFlagRows.push({
+      spaceId: 'spc_1',
+      flag: {
+        id: 'crp_1',
+        orgId: ORG,
+        commentId: 'cmt_1',
+        orgUserId: other.id,
+        reason: 'spam',
+        resolvedAt: null,
+        resolution: null,
+        resolvedBy: null,
+        createdAt: AT,
+        updatedAt: AT,
+        comment: {
+          id: 'cmt_1',
+          postId: 'pst_1',
+          body: 'Buy now',
+          orgUserId: member.id,
+          status: 'published',
+        },
+      },
+    });
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
+    expect(queue.commentFlags[0]?.comment.author).toMatchObject({
+      id: member.id,
+      displayName: 'Sarah',
+      firstName: 'Sarah',
+      lastName: 'Jones',
     });
   });
 

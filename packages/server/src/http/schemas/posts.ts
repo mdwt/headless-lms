@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
   boundedJsonSchema,
-  flaggedCommentSchema,
+  flaggedCommentViewSchema,
   idSchema,
   postFlagResolutionSchema,
   postFlagSchema,
@@ -76,7 +76,7 @@ export const ResolvePostFlags = z
 export const SpaceQueue = z.object({
   pending: z.array(PostView),
   flags: z.array(PostFlag),
-  commentFlags: z.array(flaggedCommentSchema),
+  commentFlags: z.array(flaggedCommentViewSchema),
 });
 
 export const PostCommentsPage = paginated(CommentView);

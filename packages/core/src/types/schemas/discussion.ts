@@ -261,6 +261,13 @@ export const flaggedCommentSchema = commentReportSchema
   .strict();
 export type FlaggedComment = z.output<typeof flaggedCommentSchema>;
 
+export const flaggedCommentViewSchema = commentReportSchema
+  .extend({
+    comment: flaggedCommentSchema.shape.comment.extend({ author: commentAuthorSchema }).strict(),
+  })
+  .strict();
+export type FlaggedCommentView = z.output<typeof flaggedCommentViewSchema>;
+
 export const postReactionSchema = z
   .object({
     orgId: idSchema,
