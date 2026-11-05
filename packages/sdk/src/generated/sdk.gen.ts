@@ -6,6 +6,7 @@ import {
   type ClientMeta,
   type Options as Options2,
   type RequestResult,
+  type ServerSentEventsResult,
   type TDataShape,
 } from "./client";
 import { client } from "./client.gen";
@@ -177,6 +178,10 @@ import type {
   GetInviteErrors,
   GetInviteResponses,
   GetLibraryFileErrors,
+  GetMemberChatErrors,
+  GetMemberChatResponses,
+  GetMemberChatUnreadErrors,
+  GetMemberChatUnreadResponses,
   GetMemberCommunityDirectoryErrors,
   GetMemberCommunityDirectoryResponses,
   GetMemberCommunityHomeErrors,
@@ -187,6 +192,8 @@ import type {
   GetMemberCourseProgressErrors,
   GetMemberCourseProgressResponses,
   GetMemberCourseResponses,
+  GetMemberDirectChatErrors,
+  GetMemberDirectChatResponses,
   GetMemberDownloadErrors,
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
@@ -456,6 +463,8 @@ import type {
   SchedulePostResponses,
   SendChatMessageErrors,
   SendChatMessageResponses,
+  SendChatTypingErrors,
+  SendChatTypingResponses,
   SetChatSubscriptionErrors,
   SetChatSubscriptionResponses,
   SetCommentReactionErrors,
@@ -484,6 +493,9 @@ import type {
   StartDirectChatResponses,
   StartGroupChatErrors,
   StartGroupChatResponses,
+  StreamMemberChatEventsErrors,
+  StreamMemberChatEventsResponse,
+  StreamMemberChatEventsResponses,
   SubmitPostErrors,
   SubmitPostResponses,
   TransferOwnershipErrors,
@@ -6797,13 +6809,14 @@ export class Chats {
   /**
    * List your chats in a community
    *
-   * For a member of the community. Every chat you are in, with your unread count and its last message.
+   * For a member of the community. Every chat you are in, with your unread count and its last message. `requests=true` lists only the pending message requests to you, `requests=false` everything else.
    */
   public static listMemberChats<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
       page?: number;
       pageSize?: number;
+      requests?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListMemberChatsResponses, ListMemberChatsErrors, ThrowOnError, "data"> {
@@ -6815,6 +6828,7 @@ export class Chats {
             { in: "path", key: "communityId" },
             { in: "query", key: "page" },
             { in: "query", key: "pageSize" },
+            { in: "query", key: "requests" },
           ],
         },
       ],
@@ -6827,6 +6841,148 @@ export class Chats {
     >({
       responseStyle: "data",
       url: "/api/member/communities/{communityId}/chats",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Stream your chat events in a community
+   *
+   * Any active member of the organization. For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with `ready` and your `unread`; load your chats on `ready` and on `resync`. A `: ping` comment every 25 s keeps it open. Every 30 s it checks your session and access again, and ends with `closed` when either is gone or the server shuts down. 503 when this server has no live delivery.
+   */
+  public static streamMemberChatEvents<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError, StreamMemberChatEventsResponse>,
+  ): Promise<ServerSentEventsResult<StreamMemberChatEventsResponses>> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).sse.get<
+      StreamMemberChatEventsResponses,
+      StreamMemberChatEventsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/chats/events",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Your unread chat total in a community
+   *
+   * Any active member of the organization. For a member of the community. `unread` counts the unread messages in your chats that are neither muted nor requests to you, plus your pending requests; `requests` is the number of pending requests to you.
+   */
+  public static getMemberChatUnread<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberChatUnreadResponses, GetMemberChatUnreadErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetMemberChatUnreadResponses,
+      GetMemberChatUnreadErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/chats/unread",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Your direct chat with a person
+   *
+   * Any active member of the organization. For a member of the community. Your direct chat with the person while you are in it; 404 when there is none.
+   */
+  public static getMemberDirectChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberDirectChatResponses, GetMemberDirectChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "communityId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      GetMemberDirectChatResponses,
+      GetMemberDirectChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/chats/direct/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Read one of your chats
+   *
+   * Any active member of the organization. For a participant of the chat. The chat as it appears in your chat list.
+   */
+  public static getMemberChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberChatResponses, GetMemberChatErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).get<
+      GetMemberChatResponses,
+      GetMemberChatErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Tell the chat you are typing
+   *
+   * Any active member of the organization. For a participant while the chat is open and not locked (403 otherwise). The others see you typing for 5 s; a repeat within 2 s is dropped.
+   */
+  public static sendChatTyping<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SendChatTypingResponses, SendChatTypingErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatId" }] }]);
+    return (options?.client ?? client).post<
+      SendChatTypingResponses,
+      SendChatTypingErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/chats/{chatId}/typing",
       ...options,
       ...params,
     });
@@ -7083,7 +7239,7 @@ export class Chats {
   /**
    * Send a message
    *
-   * For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted.
+   * For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted. Sending again with the same `clientId` returns the message already sent.
    */
   public static sendChatMessage<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7091,6 +7247,7 @@ export class Chats {
       body: string;
       replyToId?: string | null;
       assetIds?: Array<string>;
+      clientId?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<SendChatMessageResponses, SendChatMessageErrors, ThrowOnError, "data"> {
@@ -7103,6 +7260,7 @@ export class Chats {
             { in: "body", key: "body" },
             { in: "body", key: "replyToId" },
             { in: "body", key: "assetIds" },
+            { in: "body", key: "clientId" },
           ],
         },
       ],
