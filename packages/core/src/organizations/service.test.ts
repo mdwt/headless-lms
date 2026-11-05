@@ -622,6 +622,26 @@ describe('roles', () => {
     expect(w.storedRoles.some((r) => r.key === ta.key)).toBe(false);
   });
 
+  it('marks every role givable except the owner, on every role read and write', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const roles = await w.service.listRoles(owner);
+    expect(roles.filter((role) => !role.givable).map((role) => role.key)).toEqual(['owner']);
+    expect(roles.find((role) => role.key === 'member')?.givable).toBe(true);
+    await expect(w.service.getRole('owner', owner)).resolves.toMatchObject({ givable: false });
+    await expect(w.service.updateRole('owner', { name: 'Founder' }, owner)).resolves.toMatchObject({
+      givable: false,
+    });
+    await expect(
+      w.service.updateRole('instructor', { name: 'Tutor' }, owner),
+    ).resolves.toMatchObject({ givable: true });
+    await expect(w.service.resetRole('instructor', owner)).resolves.toMatchObject({
+      givable: true,
+    });
+    await expect(
+      w.service.createRole({ base: 'moderator', name: 'Host' }, owner),
+    ).resolves.toMatchObject({ givable: true });
+  });
+
   it('refuses deleting a deployment role, and resets one', async () => {
     const owner = await w.actor(s.sarah.orgUser.id);
     await expect(w.service.deleteRole('instructor', owner)).rejects.toBeInstanceOf(

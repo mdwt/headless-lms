@@ -46,6 +46,7 @@ export interface RoleView {
   added: boolean;
   customized: boolean;
   holders: number;
+  givable: boolean;
 }
 
 export interface UpdateRoleInput {
