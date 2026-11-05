@@ -101,7 +101,7 @@ export type PostComment = z.infer<typeof PostComment>;
 export const EditComment = z.object({ body: z.string().min(1).max(10_000) }).strict();
 export type EditComment = z.infer<typeof EditComment>;
 
-/** The staff PATCH writes status and nothing else: publishing covers approving
+/** The moderator's PATCH writes status and nothing else: publishing covers approving
  *  a pending comment and restoring a removed one. Revising the text is the
  *  author's own edit, under /api/member. */
 export const PatchComment = z.object({
@@ -153,7 +153,7 @@ export type CommentReport = z.infer<typeof CommentReport>;
 export const CommentReportSummary = commentReportSummarySchema;
 export type CommentReportSummary = z.infer<typeof CommentReportSummary>;
 
-/** One row of the staff comment list: the comment plus the context a
+/** One row of the moderation comment list: the comment plus the context a
  *  moderation decision needs, so the list needs no follow-up request. */
 export const CommentListItem = commentListItemSchema;
 export type CommentListItem = z.infer<typeof CommentListItem>;

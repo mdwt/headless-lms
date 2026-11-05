@@ -28,6 +28,7 @@ export const communityMemberTools: Tool[] = [
     description:
       "Page through a space's members, its open requests to join and its open invitations.",
     operation: 'entitlements.listSpaceMembers',
+    listedFor: ['communities:read', 'communities:moderate'],
     kind: 'read',
     idempotent: true,
     openWorld: false,

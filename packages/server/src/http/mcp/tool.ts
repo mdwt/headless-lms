@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Permission } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { classifyError } from '../errors.js';
 import type { Caller } from '../scope.js';
@@ -16,6 +17,7 @@ export interface Tool {
   title: string;
   description: string;
   operation: string;
+  listedFor?: readonly Permission[];
   kind: ToolKind;
   idempotent: boolean;
   openWorld: boolean;

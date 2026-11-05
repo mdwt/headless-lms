@@ -108,7 +108,10 @@ export function toolAvailable(tool: Tool, caller: Caller): boolean {
     return false;
   }
   if (declaration === 'member') {
-    return true;
+    return (
+      tool.listedFor === undefined ||
+      tool.listedFor.some((permission) => caller.actor.permissions.anywhere(permission))
+    );
   }
   return declaration.permissions.some((permission) =>
     caller.actor.permissions.anywhere(permission),

@@ -56,6 +56,7 @@ export const commentTools: Tool[] = [
     title: 'Remove comment',
     description: 'Take a comment down.',
     operation: 'discussion.remove',
+    listedFor: ['courses:moderate'],
     kind: 'destructive',
     idempotent: true,
     openWorld: false,

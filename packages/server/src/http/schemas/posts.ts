@@ -36,7 +36,7 @@ export const CreatePost = z
     mode: z
       .enum(['draft', 'submit', 'schedule'])
       .describe(
-        '`draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you are not staff. `schedule` submits it at `scheduledAt`.',
+        '`draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you do not moderate the community. `schedule` submits it at `scheduledAt`.',
       ),
     scheduledAt: DateTimeInput.nullable().describe(
       'When a scheduled post is submitted. Required, and in the future, when `mode` is `schedule`; ignored otherwise.',

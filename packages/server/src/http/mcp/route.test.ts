@@ -37,15 +37,20 @@ function probe(name: string, operation: string, kind: Tool['kind']) {
   });
 }
 
+const MEMBER_PROBE = {
+  ...probe('member_x', 'organizations.listConnectedApps', 'read'),
+  listedFor: ['roles:write'] as const,
+};
+
 const PROBES = [
   probe('read_x', 'organizations.listRoles', 'read'),
   probe('write_x', 'organizations.updateRole', 'write'),
   probe('delete_x', 'organizations.deleteRole', 'destructive'),
 ];
 
-async function build(container: Container) {
+async function build(container: Container, tools: Tool[] = PROBES) {
   app = Fastify();
-  registerMcp(app, container, PROBES);
+  registerMcp(app, container, tools);
   await app.ready();
   return app;
 }
@@ -85,8 +90,8 @@ const parseSse = (text: string) =>
       .slice(6),
   );
 
-async function listed(container: Container) {
-  const server = await build(container);
+async function listed(container: Container, tools?: Tool[]) {
+  const server = await build(container, tools);
   const res = await server.inject({
     method: 'POST',
     url: '/mcp',
@@ -191,6 +196,13 @@ describe('POST /mcp tool list', () => {
 
   it('lists no tools when the filter leaves none', async () => {
     expect(await listed(granted(['roles:write'], 'instructor'))).toEqual([]);
+  });
+
+  it('lists a tool any member may call only to holders of its listing permission', async () => {
+    expect(await listed(granted(['roles:read', 'roles:write']), [MEMBER_PROBE])).toEqual([
+      'member_x',
+    ]);
+    expect(await listed(granted(['roles:read']), [MEMBER_PROBE])).toEqual([]);
   });
 
   it('does not run a tool outside the list', async () => {

@@ -67,6 +67,7 @@ export const communityModerationTools: Tool[] = [
     description:
       'Take a published or pending post down and resolve its open flags as removed. restore_post brings it back.',
     operation: 'posts.remove',
+    listedFor: ['communities:moderate'],
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -104,6 +105,7 @@ export const communityModerationTools: Tool[] = [
     description:
       'Hide a comment on a post and resolve its open flags as removed. restore_post_comment brings it back.',
     operation: 'discussion.remove',
+    listedFor: ['communities:moderate'],
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
