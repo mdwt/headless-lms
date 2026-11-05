@@ -1,0 +1,63 @@
+---
+title: Postgres
+description: Deliver chat changes to every API instance with the pubsub-postgres adapter, on Postgres LISTEN/NOTIFY.
+---
+
+`@headless-lms/adapter-pubsub-postgres` implements the `PubSub` port with Postgres `LISTEN/NOTIFY`. A message published on any API instance reaches every subscriber of its channel on every instance, the publisher's included. Live chat runs on it: each chat change committed through the outbox is published once, and every instance's chat hub pushes the current state to the chat streams connected to it.
+
+Every deployment runs it, a single instance included. Without a `pubsub` adapter the container has no chat hub, and the chat stream answers 503.
+
+Delivery is best effort and unordered. An instance misses what is published while its listening connection is down; when it reconnects, every open chat stream on it receives `resync` and its clients load their chats again.
+
+## Setup
+
+1. Point `PUBSUB_DATABASE_URL` at your Postgres, or leave it unset to use `DATABASE_URL`.
+2. Inject the adapter.
+3. Start it, then the chat hub, after the server begins listening.
+
+```ts title="main.ts"
+import { PostgresPubSub } from "@headless-lms/adapter-pubsub-postgres";
+
+const container = await createContainer(config, {
+  adapters: {
+    pubsub: (logger) => new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
+  },
+});
+const app = await buildServer(config, container);
+
+await app.listen({ port: config.port, host: config.host });
+await container.pubsub?.start();
+await container.chatHub?.start();
+container.outboxRelay.start();
+```
+
+`buildServer` closes the chat hub before the server stops accepting connections, so every open stream receives `closed { reason: 'shutdown' }`, and stops `PubSub` after the outbox relay and the automation engine, so events still in flight are forwarded.
+
+## Options
+
+| Option             | Default  | Notes                                                       |
+| ------------------ | -------- | ----------------------------------------------------------- |
+| `connectionString` | required | A Postgres URL that reaches Postgres directly (see below).  |
+| `logger`           | silent   | The container passes its logger to the factory.             |
+| `pingIntervalMs`   | `30000`  | How often the adapter checks its listening connection.      |
+| `pingTimeoutMs`    | `10000`  | How long a ping may take to come back before it reconnects. |
+
+The adapter reads no environment itself. `apps/api` reads the connection string from `PUBSUB_DATABASE_URL`, defaulting to `DATABASE_URL`.
+
+## Connections
+
+- **Listening.** `start()` opens one dedicated connection, outside any pool, with TCP keep-alive, and runs `LISTEN hlms_pubsub`. Every channel shares that one Postgres channel; a notification carries the channel name, and the adapter dispatches it to that channel's handlers.
+- **Publishing.** `publish` runs `pg_notify` on the adapter's own pool of 2 connections, with a 2 s connection timeout and a 2 s statement timeout, so a publish against an unreachable database fails within about 2 s. A publish reaches only the listeners connected when it commits. Publishing works without `start()`.
+- **Poolers.** `LISTEN` needs a session connection. Behind a transaction-mode pooler, point `PUBSUB_DATABASE_URL` at Postgres directly; `DATABASE_URL` can stay on the pooler.
+
+## Large messages
+
+A message is serialized to JSON, encoded as UTF-8 and then as base64, so its length in characters is its length in bytes. A payload of up to 7,800 characters is sent as one notification. A longer one is split into 7,800-character parts sent in one transaction, which Postgres delivers in the order they were sent; the listener joins the parts and dispatches the message once all of them arrived. Parts not completed within 10 s, and all parts on reconnect, are dropped.
+
+Chat changes carry ids only, never a message body, so they fit in one notification.
+
+## Liveness and reconnects
+
+Every 30 s the adapter publishes a ping and expects it back on its listening connection within 10 s. A missing ping, an error or the end of the listening connection ends it. The adapter then reconnects with exponential backoff and full jitter, from 1 s up to 30 s, runs `LISTEN` again and calls every subscriber's `onReset`; the chat hub answers with `resync` on every open stream.
+
+`start()` makes the first connection attempt and resolves after it, connected or not, so the API starts while Postgres is unreachable and connects when it is back. `stop()` stops the ping, runs `UNLISTEN *`, and closes the listening connection and the pool.

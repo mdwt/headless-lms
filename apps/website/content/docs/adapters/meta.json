@@ -1,4 +1,4 @@
 {
   "title": "Adapters",
-  "pages": ["index", "email", "storage", "workflows", "push"]
+  "pages": ["index", "email", "storage", "workflows", "push", "pubsub"]
 }

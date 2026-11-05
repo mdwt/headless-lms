@@ -68,3 +68,58 @@ A download link is used once to start the download. Video and audio keep fetchin
 ## Lesson content
 
 A lesson's content is in its activity's `settings.content`, as `{ type, version, config }`. `config` is in the editor's own format: render it with the editor's `Renderer`, passing the activity's `assetUrls`. See [Custom editor](/docs/editor).
+
+## Live chat
+
+A member's chats update over one server-sent event stream per tab: [`GET /api/member/communities/{communityId}/chats/events`](/docs/api/chats/streamMemberChatEvents). The browser opens it with the session cookie, from an origin the API allows. The SDK exposes it as `Chats.streamMemberChatEvents`, which yields each event with its `type`:
+
+```ts
+const { stream } = await Chats.streamMemberChatEvents(
+  { communityId },
+  { client, credentials: "include", sseMaxRetryAttempts: 0, signal },
+);
+for await (const event of stream) {
+  apply(event);
+}
+```
+
+The stream never replays what a member missed. A client loads state whenever the stream asks it to, and applies events on top.
+
+### Load state on `ready` and `resync`
+
+1. Open the stream.
+2. On `ready`, start buffering events, and load the first page of the inbox ([`listMemberChats`](/docs/api/chats/listMemberChats) with `requests=false`), the pending requests (`requests=true`) and the latest page of the open chat ([`listChatMessages`](/docs/api/chats/listChatMessages)). The `unread` event after `ready` sets the badge.
+3. When the loads settle, replace the inbox rows and the requests with them, drop every loaded thread but the open one, merge the open chat's page by message id, and then apply the buffered events in order.
+4. While connected, apply events as they arrive.
+5. On `resync`, wait a random 0–3 s and repeat steps 2 and 3.
+
+### Events
+
+| Event               | Data                                                        | Apply                                                                                                                                           |
+| ------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ready`             | `heartbeatMs`                                               | Load state                                                                                                                                      |
+| `message.created`   | `chatId`, `message`                                         | Insert by id; set the row's last message and move it up. Fetch the row with [`getMemberChat`](/docs/api/chats/getMemberChat) when there is none |
+| `message.updated`   | `chatId`, `message`                                         | Replace the message's fields by id                                                                                                              |
+| `message.deleted`   | `chatId`, `messageId`, `deletedAt`                          | Mark it deleted and drop its body and images                                                                                                    |
+| `message.reactions` | `chatId`, `messageId`, `reactions`, `orgUserId`, `reaction` | Replace the counts; set the viewer's own reaction when `orgUserId` is the viewer                                                                |
+| `chat.updated`      | `chatId`, `chat`, `participants`                            | Replace the row's chat and participants, or fetch the row when there is none                                                                    |
+| `chat.removed`      | `chatId`                                                    | Drop the row                                                                                                                                    |
+| `chat.state`        | `chatId`, `unread`, `lastReadMessageId`, `subscription`     | Set the row's unread count, read mark and mute                                                                                                  |
+| `unread`            | `unread`, `requests`                                        | Set the badge                                                                                                                                   |
+| `typing`            | `chatId`, `orgUserId`, `until`                              | Show that the participant is typing until `until`                                                                                               |
+| `resync`            |                                                             | Load state                                                                                                                                      |
+| `closed`            | `reason`: `access`, `session` or `shutdown`                 | The stream has ended                                                                                                                            |
+
+A message in an event has no `viewerReaction`; keep the one already stored. Unread counts come from `chat.state` and `unread`; a client never counts them itself. When a mute lapses, read the total again with [`getMemberChatUnread`](/docs/api/chats/getMemberChatUnread).
+
+### Sending
+
+Give each send a new `clientId` (a UUID) and show the message as pending. Replace it with the returned message, or with the `message.created` whose sender is the viewer and whose `clientId` matches, whichever arrives first. A retry of a failed send reuses its `clientId`, and the API returns the message already stored instead of sending it twice. Call [`sendChatTyping`](/docs/api/chats/sendChatTyping) at most every 3 s while the member types.
+
+### Reconnecting
+
+- On a dropped connection or `closed` with `shutdown`, reconnect after a random 0–5 s; the new stream starts with `ready`. While connects keep failing, back off exponentially with full jitter, from 1 s up to 30 s.
+- A `401` or `closed` with `session` means the session ended: send the member to sign in. A `403` or `closed` with `access` means they can no longer open the community.
+- With the SDK's own retries off, a refused connect ends the stream without its status. Pass the client a `fetch` that records each response's status, and read it when a stream ends before `ready`.
+- When connects keep failing, poll `getMemberChatUnread`, the inbox's first page and the open chat's latest page every 15 s while the tab is visible, one request at a time, and stop once a stream reaches `ready`.
+- Close the stream when the tab has been hidden for a while, and reopen it when the tab is visible again.

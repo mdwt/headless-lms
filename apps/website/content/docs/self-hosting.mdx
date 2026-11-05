@@ -46,3 +46,19 @@ These commands run across all workspaces:
 - `:8002` — Student portal
 - `:8005` — Postgres · `:8006/:8007` — MinIO (API / console)
 - `:8008/:8009` — Hatchet (gRPC / dashboard)
+
+## Live chat
+
+Members see new chat messages, edits, reactions, read marks and typing without reloading. Each browser holds one server-sent event stream to the API, and every API instance receives every chat change through the `PubSub` adapter. Live chat needs it on every instance, a single instance included; `apps/api` wires [`@headless-lms/adapter-pubsub-postgres`](/docs/adapters/pubsub/postgres). Without it the stream route answers 503.
+
+| Variable              | Required | Default        | Notes                                                                                                                                        |
+| --------------------- | -------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUBSUB_DATABASE_URL` | no       | `DATABASE_URL` | The Postgres the adapter listens on. `LISTEN` needs a session connection: behind a transaction-mode pooler, point this at Postgres directly. |
+
+The stream is `GET /api/member/communities/:communityId/chats/events`. In front of the API:
+
+- **Serve the API over HTTP/2.** Over HTTP/1.1 a browser opens at most six connections per origin across all its tabs, and each open tab's stream holds one, so a sixth tab starves every other request to the API.
+- **Don't buffer the stream route.** The API sends `X-Accel-Buffering: no` and `Cache-Control: no-cache, no-transform`; a proxy that buffers responses must not hold back this route's.
+- **Keep idle timeouts above 25 s.** The API writes a heartbeat comment on every stream every 25 s, which stays under the common 60 s proxy idle timeout. A shorter timeout drops streams between heartbeats.
+
+On shutdown the API sends every open stream a `closed` event before it stops, and clients reconnect to another instance.

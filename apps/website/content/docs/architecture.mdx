@@ -18,7 +18,7 @@ implements these ports.
 - An **inbound port** is what a context _offers_: its use cases, like "list courses" or "grant access".
 - An **outbound port** is what a context _needs_: capabilities like "store a file" or "send an email".
 
-Adapters implement the outbound ports: Postgres for persistence, Better Auth for identity, S3-compatible storage for files, Resend for email, Hatchet for durable workflows.
+Adapters implement the outbound ports: Postgres for persistence, Better Auth for identity, S3-compatible storage for files, Resend for email, Hatchet for durable workflows, Postgres `LISTEN/NOTIFY` for delivery to every API instance.
 Because the core only knows the port interfaces, any adapter can be replaced without touching business logic.
 
 The inbound entry point is the HTTP layer. It calls into the core's services and owns no business logic and no permission checks of its own.
@@ -40,6 +40,12 @@ The core is split into nine self-contained contexts. Each exposes one public sur
 | **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                              |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
+
+## Events and live delivery
+
+A write and its domain events commit together: a service appends its events to an outbox in the same transaction as the write. Every API process runs an outbox relay that publishes the committed events on its in-process event bus, where automations and integrations handle them. An event is handled on whichever instance dispatched it.
+
+Live chat needs every instance to hear every chat change, because a member's stream can be open on one instance while the message is sent through another. The `PubSub` port carries that: a message published on any instance reaches every subscriber on every instance. A forwarder on the event bus publishes each chat change, which carries ids and never a body, and the chat hub on each instance reads the current state and pushes it to the streams connected there. Delivery is best effort; after a reconnect the hub tells its streams to load state again. The write path does not change. See [Postgres PubSub](/docs/adapters/pubsub/postgres).
 
 ## Roles and permissions
 
