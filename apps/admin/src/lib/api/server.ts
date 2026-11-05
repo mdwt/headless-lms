@@ -115,9 +115,12 @@ async function contentRefOf(
 /** Join bare grant rows with student identity + target titles (one fetch per
  *  unique id, in parallel) and derive the display status. A grant targets
  *  either a content item or a bundle. */
-async function composeEntitlements(grants: EntitlementGrant[]): Promise<Entitlement[]> {
+async function composeEntitlements(
+  grants: EntitlementGrant[],
+  withPeople = true,
+): Promise<Entitlement[]> {
   const headers = await authHeaders();
-  const studentIds = [...new Set(grants.map((g) => g.orgUserId))];
+  const studentIds = withPeople ? [...new Set(grants.map((g) => g.orgUserId))] : [];
   const contentIds = [...new Set(grants.map((g) => g.contentId).filter((id) => id !== null))];
   const bundleIds = [...new Set(grants.map((g) => g.bundleId).filter((id) => id !== null))];
   const [students, contentRefs, bundleRefs] = await Promise.all([
@@ -364,12 +367,12 @@ export const serverApi = {
     );
     return { ...page, rows: await composeEntitlements(page.rows) };
   },
-  async contentEntitlements(contentId: string): Promise<Entitlement[]> {
+  async contentEntitlements(contentId: string, withPeople = true): Promise<Entitlement[]> {
     const page = await Entitlements.listEntitlements(
       { contentId, page: 1, pageSize: 100 },
       await authHeaders(),
     );
-    return composeEntitlements(page.rows);
+    return composeEntitlements(page.rows, withPeople);
   },
 
   // discussion (the comment list; settings ride on the course payload)

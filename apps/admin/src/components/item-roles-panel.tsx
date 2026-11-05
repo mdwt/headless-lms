@@ -93,8 +93,7 @@ export function ItemRolesPanel({
             People with roles here
           </h2>
           <p className="text-sm text-pretty text-ink-3">
-            A role given on this {contentNoun} applies to this {contentNoun} only, on top of the
-            person&apos;s org role.
+            {`A role given on this ${contentNoun} applies to it alone, on top of the person's org role.`}
           </p>
         </div>
         {canGive ? (

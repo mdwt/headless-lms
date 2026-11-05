@@ -15,7 +15,7 @@ export default async function CourseAccessTab({
   const canGrant = permissions.has("access:write") && permissions.has("people:read");
 
   const [grants, students] = await Promise.all([
-    serverApi.contentEntitlements(courseId),
+    serverApi.contentEntitlements(courseId, permissions.has("people:read")),
     canGrant ? serverApi.studentsLite() : Promise.resolve([]),
   ]);
 
