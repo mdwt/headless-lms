@@ -56,10 +56,10 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 20 | Review L10 | An org row whose role no longer lists `org` still contributed; dangling role keys weren't logged at startup. | fixed | 1664fe6a |
 | 21 | Review L11 | Reporting's `team` flag ignored the org role. | fixed | d22cb533 |
 | 22 | Review L12 | `role.assigned` fired when the org role already gave everything the item role adds. | fixed | d22cb533 |
-| 23 | Review L13 | Notification methods took a free `userId`. | in progress |  |
-| 24 | Review L14 | `requestUpload` stored an unchecked `contentId` for `media:write` holders. | in progress |  |
-| 25 | Review L15 | Some routes did more than one call (invite peek and accept; null-to-404 branches). The invite routes are fixed; the reporting branches are in progress. | in progress | 027f1a02 |
-| 26 | Review L16 | Remove-post and remove-comment descriptions said only moderators may call them. | in progress |  |
+| 23 | Review L13 | Notification methods took a free `userId`. They now take the member actor. | fixed | ea9b8981 |
+| 24 | Review L14 | `requestUpload` stored an unchecked `contentId` for `media:write` holders. | fixed | e0b8eac7 |
+| 25 | Review L15 | Some routes did more than one call (invite peek and accept; null-to-404 branches). The invite routes and the reporting, assets, automations and integrations branches are fixed; four content item reads are in progress. | in progress | 027f1a02, 037771fc |
+| 26 | Review L16 | Remove-post and remove-comment descriptions said only moderators may call them. | fixed | d04fd04e |
 | 27 | Review L17 | The MCP catalogue read the default role set outside organizations; no boundary test. | fixed | 1664fe6a |
 | 28 | Review L18 | The 'Member updated' trigger never fired. Acceptance now emits `organization.user.updated`. | fixed | 027f1a02 |
 | 29 | Admin, API | A course's learners show without names to `progress:read` holders: `GET /api/entitlements?contentId=` rows carry only `orgUserId`, and names need `people:read`. | open | |
