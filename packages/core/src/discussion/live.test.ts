@@ -7,7 +7,7 @@ import type { Chat, ChatLiveEvent, LiveMessage } from '../types/index.js';
 import type { CommentAuthor } from './model.js';
 import { discussionEvents } from './events.js';
 import { CHAT_CHANNEL, ChatHub, ChatLiveForwarder, type ChatChange } from './live.js';
-import type { ChatLiveReads, ChatMemberStates, LiveSession, LiveSessionState } from './ports.js';
+import type { ChatLiveReads, ChatMemberStates } from './ports.js';
 
 const ORG = 'org_1';
 const COMMUNITY = 'cmy_1';
@@ -257,11 +257,7 @@ async function until(check: () => boolean, timeoutMs = 2000): Promise<void> {
 
 const settle = (ms = 40) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const okSession = (actor: Actor): LiveSession => ({
-  current: async () => ({ status: 'ok', actor }),
-});
-
-function setup(options: { checkMs?: number; closeTimeoutMs?: number } = {}) {
+function setup(options: { closeTimeoutMs?: number } = {}) {
   const w = world();
   const bus = fakePubSub();
   const { logger, entries } = createCapturingLogger();
@@ -270,16 +266,9 @@ function setup(options: { checkMs?: number; closeTimeoutMs?: number } = {}) {
     reads: w.reads,
     logger,
     flushMs: 10,
-    checkMs: options.checkMs ?? 60_000,
-    checkJitterMs: 0,
     closeTimeoutMs: options.closeTimeoutMs ?? 2000,
   });
-  const open = (
-    actor: Actor,
-    communityId = COMMUNITY,
-    session: LiveSession = okSession(actor),
-    allowed: (actor: Actor) => Promise<boolean> = async () => true,
-  ) => read(hub.open({ communityId, actor, session, allowed }));
+  const open = (actor: Actor, communityId = COMMUNITY) => read(hub.open({ communityId, actor }));
   const change = (
     over: Partial<ChatChange> & Pick<ChatChange, 'event' | 'chatId'>,
   ): ChatChange => ({
@@ -698,8 +687,6 @@ describe('ChatHub', () => {
     const stream = hub.open({
       communityId: COMMUNITY,
       actor: sarah,
-      session: okSession(sarah),
-      allowed: async () => true,
     });
     const iterator = stream[Symbol.asyncIterator]();
     const typing = change({
@@ -754,62 +741,6 @@ describe('ChatHub', () => {
 });
 
 describe('ChatHub streams', () => {
-  function sessionSequence(states: (LiveSessionState | Error)[]): LiveSession {
-    return {
-      current: async () => {
-        const next = states.length > 1 ? states.shift()! : states[0]!;
-        if (next instanceof Error) {
-          throw next;
-        }
-        return next;
-      },
-    };
-  }
-
-  it('closes a stream whose session ended', async () => {
-    const { hub, open } = setup({ checkMs: 10 });
-    await hub.start();
-    const s = open(sarah, COMMUNITY, sessionSequence([{ status: 'signed-out' }]));
-    await until(() => s.ended());
-    expect(s.events.at(-1)).toEqual({ type: 'closed', reason: 'session' });
-    await hub.close();
-  });
-
-  it('closes a stream whose member was removed or lost the community', async () => {
-    const { hub, open } = setup({ checkMs: 10 });
-    await hub.start();
-    const removed = open(sarah, COMMUNITY, sessionSequence([{ status: 'no-member' }]));
-    const revoked = open(james, COMMUNITY, okSession(james), async () => false);
-    const switched = open(
-      emma,
-      COMMUNITY,
-      sessionSequence([{ status: 'ok', actor: actorWith({ id: emma.id, orgId: 'org_2' }) }]),
-    );
-    await until(() => removed.ended() && revoked.ended() && switched.ended());
-    for (const stream of [removed, revoked, switched]) {
-      expect(stream.events.at(-1)).toEqual({ type: 'closed', reason: 'access' });
-    }
-    await hub.close();
-  });
-
-  it('keeps a stream through a failed check, takes the new actor and checks again', async () => {
-    const { hub, open } = setup({ checkMs: 10 });
-    await hub.start();
-    const promoted = actorWith({ id: sarah.id, orgId: ORG, org: ['communities:moderate'] });
-    const allowed = vi.fn(async () => true);
-    const s = open(
-      sarah,
-      COMMUNITY,
-      sessionSequence([new Error('auth down'), { status: 'ok', actor: promoted }]),
-      allowed,
-    );
-    await until(() => allowed.mock.calls.length >= 2);
-    expect(s.ended()).toBe(false);
-    expect(allowed).toHaveBeenCalledWith(promoted);
-    await s.stop();
-    await hub.close();
-  });
-
   it('closes every stream with shutdown, and answers a late stream with it at once', async () => {
     const { hub, open } = setup();
     await hub.start();
@@ -832,8 +763,6 @@ describe('ChatHub streams', () => {
     hub.open({
       communityId: COMMUNITY,
       actor: sarah,
-      session: okSession(sarah),
-      allowed: async () => true,
     });
     const started = Date.now();
     await hub.close();

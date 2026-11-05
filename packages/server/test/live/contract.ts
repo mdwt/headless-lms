@@ -11,7 +11,6 @@ import {
   startInstance,
   type Instance,
   type LiveEnv,
-  type Mailbox,
   type Member,
   type World,
 } from './harness.js';
@@ -23,14 +22,13 @@ export function contract(env: () => LiveEnv): void {
   describe('contract and operations', () => {
     let a: Instance;
     let b: Instance;
-    let mailbox: Mailbox;
     let world: World;
     let sarah: Member;
     let james: Member;
     let chatId: string;
 
     beforeAll(async () => {
-      ({ a, b, mailbox, world } = env());
+      ({ a, b, world } = env());
       sarah = await world.join('Sarah');
       james = await world.join('James');
       chatId = await directChat(a, world, sarah, james);
@@ -52,7 +50,7 @@ export function contract(env: () => LiveEnv): void {
     });
 
     it('sends every open stream, and one past routing, the shutdown frame when the app closes', async () => {
-      const s = await startInstance('S', mailbox);
+      const s = await startInstance('S');
       const open = await Promise.all(
         [sarah, james].map((member) => openStream(s, member, world.communityId)),
       );

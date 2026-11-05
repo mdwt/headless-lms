@@ -2656,16 +2656,11 @@ describe('typing and live streams', () => {
 
   it('refuses a stream without a PubSub and to a non-member', async () => {
     const plain = harness();
-    const session = { current: async () => ({ status: 'signed-out' as const }) };
-    await expect(plain.svc.watch(COMMUNITY, session, member)).rejects.toBeInstanceOf(
-      UnavailableError,
-    );
+    await expect(plain.svc.watch(COMMUNITY, member)).rejects.toBeInstanceOf(UnavailableError);
     const { pubsub } = recordingPubSub();
     const live = harness({ pubsub });
-    await expect(live.svc.watch(COMMUNITY, session, outsider)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
-    const stream = (await live.svc.watch(COMMUNITY, session, member))[Symbol.asyncIterator]();
+    await expect(live.svc.watch(COMMUNITY, outsider)).rejects.toBeInstanceOf(ForbiddenError);
+    const stream = (await live.svc.watch(COMMUNITY, member))[Symbol.asyncIterator]();
     expect((await stream.next()).value).toEqual({ type: 'ready', heartbeatMs: 25_000 });
     await stream.return?.();
   });

@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { resolveActor, sessionOf } from '../../scope.js';
+import { resolveActor } from '../../scope.js';
 import { describeOperation } from '../../operations.js';
 import { sse } from '../../sse.js';
 import {
@@ -65,13 +65,13 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/chats/events',
-    preHandler: app.requireLiveOrgSession,
+    preHandler: app.requireOrgSession,
     config: { operation: 'chats.watch', eventStream: true },
     schema: {
       operationId: 'streamMemberChatEvents',
       tags,
       summary: 'Stream your chat events in a community',
-      description: `${describeOperation('chats.watch')} For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with \`ready\` and your \`unread\`; load your chats on \`ready\` and on \`resync\`. A \`: ping\` comment every 25 s keeps it open. Every 30 s it checks your session and access again, and ends with \`closed\` when either is gone or the server shuts down. 503 when this server has no live delivery.`,
+      description: `${describeOperation('chats.watch')} For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with \`ready\` and your \`unread\`; load your chats on \`ready\` and on \`resync\`. A \`: ping\` comment every 25 s keeps it open. It ends with \`closed\` when the server shuts down. 503 when this server has no live delivery.`,
       params: CommunityParam,
       response: {
         200: { content: { 'text/event-stream': { schema: ChatLiveEvent } } },
@@ -80,7 +80,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const events = await chats.watch(req.params.communityId, sessionOf(container, req), actor);
+      const events = await chats.watch(req.params.communityId, actor);
       await sse(reply, events);
     },
   });

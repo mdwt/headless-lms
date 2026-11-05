@@ -21,17 +21,13 @@ const PASSWORD = 'correct horse battery staple';
 const SECRET = randomBytes(32).toString('base64');
 const CREDENTIAL_KEY = randomBytes(32).toString('base64');
 
-export const LIVE = { flushMs: 100, checkMs: 400, checkJitterMs: 100, closeTimeoutMs: 2000 };
+export const LIVE = { flushMs: 100, closeTimeoutMs: 2000 };
 
 export interface Instance {
   name: string;
   app: FastifyInstance;
   container: Container;
   url: string;
-}
-
-export interface Mailbox {
-  resetUrls: Map<string, string>;
 }
 
 export interface Member {
@@ -51,7 +47,6 @@ export interface World {
   otherCommunityId: string;
   owner: Member;
   ownerActor: Actor;
-  mailbox: Mailbox;
   join(
     name: string,
     options?: { community?: string | null; bundleId?: string; expiresAt?: Date },
@@ -88,7 +83,7 @@ function serverConfig(): ServerConfig {
   };
 }
 
-function capture(mailbox: Mailbox): {
+function silentMail(): {
   templates: TemplateRenderer;
   email: { send(message: EmailMessage): Promise<void> };
 } {
@@ -99,12 +94,7 @@ function capture(mailbox: Mailbox): {
       },
     } as TemplateRenderer,
     email: {
-      async send(message: EmailMessage) {
-        if (message.subject === 'passwordReset') {
-          const { resetUrl } = JSON.parse(message.text) as { resetUrl: string };
-          mailbox.resetUrls.set(message.to, resetUrl);
-        }
-      },
+      async send() {},
     },
   };
 }
@@ -112,13 +102,12 @@ function capture(mailbox: Mailbox): {
 /** One API instance on a random port: its own container, PubSub, hub and relay. */
 export async function startInstance(
   name: string,
-  mailbox: Mailbox,
   options: { pubsub?: boolean } = {},
 ): Promise<Instance> {
   const config = serverConfig();
   const container = await createContainer(config, {
     adapters: {
-      ...capture(mailbox),
+      ...silentMail(),
       ...(options.pubsub !== false && {
         pubsub: (logger) => new PostgresPubSub({ connectionString: DATABASE_URL!, logger }),
       }),
@@ -217,7 +206,7 @@ export async function signIn(instance: Instance, member: Member): Promise<void> 
 
 /** Seeds the example org through the services: the org and its owner, the
  *  Spring cohort community and a second one, and members who join it. */
-export async function seed(instance: Instance, mailbox: Mailbox): Promise<World> {
+export async function seed(instance: Instance): Promise<World> {
   const { container } = instance;
   const owner = await signUp(instance, 'Oliver');
   const org = await json<{ id: string }>(
@@ -272,13 +261,8 @@ export async function seed(instance: Instance, mailbox: Mailbox): Promise<World>
     otherCommunityId: other.id,
     owner,
     ownerActor,
-    mailbox,
     join,
   };
-}
-
-export function newMailbox(): Mailbox {
-  return { resetUrls: new Map() };
 }
 
 /** Sarah starts a direct chat with James and he accepts it. */
@@ -441,16 +425,14 @@ export async function stop(...instances: Instance[]): Promise<void> {
 export interface LiveEnv {
   a: Instance;
   b: Instance;
-  mailbox: Mailbox;
   world: World;
 }
 
 /** Two instances, A and B, on one database, and the example org seeded through A. */
 export async function startEnv(): Promise<LiveEnv> {
   await migrate();
-  const mailbox = newMailbox();
-  const a = await startInstance('A', mailbox);
-  const b = await startInstance('B', mailbox);
-  const world = await seed(a, mailbox);
-  return { a, b, mailbox, world };
+  const a = await startInstance('A');
+  const b = await startInstance('B');
+  const world = await seed(a);
+  return { a, b, world };
 }

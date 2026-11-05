@@ -108,7 +108,7 @@ The stream never replays what a member missed. A client loads state whenever the
 | `unread`            | `unread`, `requests`                                        | Set the badge                                                                                                                                   |
 | `typing`            | `chatId`, `orgUserId`, `until`                              | Show that the participant is typing until `until`                                                                                               |
 | `resync`            |                                                             | Load state                                                                                                                                      |
-| `closed`            | `reason`: `access`, `session` or `shutdown`                 | The stream has ended                                                                                                                            |
+| `closed`            | `reason`: `shutdown`                                        | The stream has ended                                                                                                                            |
 
 A message in an event has no `viewerReaction`; keep the one already stored. Unread counts come from `chat.state` and `unread`; a client never counts them itself. When a mute lapses, read the total again with [`getMemberChatUnread`](/docs/api/chats/getMemberChatUnread).
 
@@ -119,7 +119,7 @@ Give each send a new `clientId` (a UUID) and show the message as pending. Replac
 ### Reconnecting
 
 - On a dropped connection or `closed` with `shutdown`, reconnect after a random 0–5 s; the new stream starts with `ready`. While connects keep failing, back off exponentially with full jitter, from 1 s up to 30 s.
-- A `401` or `closed` with `session` means the session ended: send the member to sign in. A `403` or `closed` with `access` means they can no longer open the community.
+- A `401` when connecting means the session ended: send the member to sign in. A `403` means they can no longer open the community.
 - With the SDK's own retries off, a refused connect ends the stream without its status. Pass the client a `fetch` that records each response's status, and read it when a stream ends before `ready`.
 - When connects keep failing, poll `getMemberChatUnread`, the inbox's first page and the open chat's latest page every 15 s while the tab is visible, one request at a time, and stop once a stream reaches `ready`.
 - Close the stream when the tab has been hidden for a while, and reopen it when the tab is visible again.

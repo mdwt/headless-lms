@@ -46,7 +46,6 @@ import type {
   ChatUnread,
   ChatUnitOfWork,
   LiveChat,
-  LiveSession,
   MentionsRepository,
   MessageQueue,
   MessageQueueEntry,
@@ -797,22 +796,13 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
     );
   }
 
-  async watch(
-    communityId: string,
-    session: LiveSession,
-    actor: Actor,
-  ): Promise<AsyncIterable<ChatLiveEvent>> {
+  async watch(communityId: string, actor: Actor): Promise<AsyncIterable<ChatLiveEvent>> {
     if (!this.hub) {
       throw new UnavailableError('Live chat is not available');
     }
     await this.requireSettings(actor.orgId, communityId);
     await this.requireActor(actor, communityId);
-    return this.hub.open({
-      communityId,
-      actor,
-      session,
-      allowed: (next) => this.access.isCommunityMember(communityId, next),
-    });
+    return this.hub.open({ communityId, actor });
   }
 
   async messageViews(orgId: string, messageIds: string[]): Promise<LiveMessage[]> {

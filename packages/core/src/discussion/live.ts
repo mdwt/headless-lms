@@ -13,7 +13,7 @@ import type {
   MessageSent,
   MessageUpdated,
 } from './events.js';
-import type { ChatLiveReads, LiveSession } from './ports.js';
+import type { ChatLiveReads } from './ports.js';
 
 export const CHAT_CHANNEL = 'discussion.chats';
 export const TYPING = 'typing';
@@ -21,8 +21,6 @@ export const TYPING = 'typing';
 const HEARTBEAT_MS = 25_000;
 const PUBLISH_TIMEOUT_MS = 2000;
 const FLUSH_MS = 1000;
-const CHECK_MS = 30_000;
-const CHECK_JITTER_MS = 5000;
 const CLOSE_TIMEOUT_MS = 2000;
 const MAX_CHATS = 16;
 const MAX_PENDING = 5000;
@@ -169,8 +167,6 @@ export class ChatLiveForwarder {
 
 export interface ChatHubOptions {
   flushMs?: number;
-  checkMs?: number;
-  checkJitterMs?: number;
   closeTimeoutMs?: number;
 }
 
@@ -183,14 +179,10 @@ export type ChatHubParams = ChatHubOptions & {
 export interface LiveRegistration {
   communityId: string;
   actor: Actor;
-  session: LiveSession;
-  /** Whether the member may still read the community's chats. */
-  allowed(actor: Actor): Promise<boolean>;
 }
 
 class LiveStream implements AsyncIterableIterator<ChatLiveEvent> {
   readonly done: Promise<void>;
-  timer: NodeJS.Timeout | undefined;
   private queue: ChatLiveEvent[] = [];
   private waiter: ((result: IteratorResult<ChatLiveEvent>) => void) | null = null;
   private ending = false;
@@ -348,8 +340,6 @@ export class ChatHub {
   private readonly reads: ChatLiveReads;
   private readonly logger: Logger;
   private readonly flushMs: number;
-  private readonly checkMs: number;
-  private readonly checkJitterMs: number;
   private readonly closeTimeoutMs: number;
   private readonly streams = new Set<LiveStream>();
   private readonly byMember = new Map<string, Set<LiveStream>>();
@@ -370,8 +360,6 @@ export class ChatHub {
     this.reads = params.reads;
     this.logger = params.logger ?? noopLogger;
     this.flushMs = params.flushMs ?? FLUSH_MS;
-    this.checkMs = params.checkMs ?? CHECK_MS;
-    this.checkJitterMs = params.checkJitterMs ?? CHECK_JITTER_MS;
     this.closeTimeoutMs = params.closeTimeoutMs ?? CLOSE_TIMEOUT_MS;
   }
 
@@ -443,7 +431,6 @@ export class ChatHub {
     stream.push({ type: 'ready', heartbeatMs: HEARTBEAT_MS });
     this.markDirty(stream.orgId, stream.communityId, stream.orgUserId);
     void this.flush();
-    this.scheduleCheck(stream, registration);
     this.logger.debug('chat stream opened', {
       orgId: stream.orgId,
       communityId,
@@ -467,7 +454,6 @@ export class ChatHub {
   }
 
   private unregister(stream: LiveStream): void {
-    clearTimeout(stream.timer);
     if (!this.streams.delete(stream)) {
       return;
     }
@@ -478,60 +464,6 @@ export class ChatHub {
       communityId: stream.communityId,
       streams: this.streams.size,
     });
-  }
-
-  private scheduleCheck(stream: LiveStream, registration: LiveRegistration): void {
-    if (stream.ended) {
-      return;
-    }
-    const delay = this.checkMs + Math.random() * this.checkJitterMs;
-    stream.timer = setTimeout(() => void this.check(stream, registration), delay);
-    stream.timer.unref();
-  }
-
-  private async check(stream: LiveStream, registration: LiveRegistration): Promise<void> {
-    let state: Awaited<ReturnType<LiveSession['current']>>;
-    let allowed = false;
-    try {
-      state = await registration.session.current();
-      if (state.status === 'ok') {
-        allowed =
-          state.actor.orgId === stream.orgId &&
-          state.actor.id === stream.orgUserId &&
-          (await registration.allowed(state.actor));
-      }
-    } catch (error) {
-      this.logger.warn('chat stream session check failed', {
-        orgId: stream.orgId,
-        error: describeError(error),
-      });
-      this.scheduleCheck(stream, registration);
-      return;
-    }
-    if (stream.ended) {
-      return;
-    }
-    if (state.status === 'signed-out') {
-      this.logger.info('chat stream closed', {
-        orgId: stream.orgId,
-        communityId: stream.communityId,
-        orgUserId: stream.orgUserId,
-        reason: 'session',
-      });
-      stream.end({ type: 'closed', reason: 'session' });
-      return;
-    }
-    if (state.status === 'no-member' || !allowed) {
-      this.logger.info('chat stream closed', {
-        orgId: stream.orgId,
-        communityId: stream.communityId,
-        orgUserId: stream.orgUserId,
-        reason: 'access',
-      });
-      stream.end({ type: 'closed', reason: 'access' });
-      return;
-    }
-    this.scheduleCheck(stream, { ...registration, actor: state.actor });
   }
 
   private streamsOf(orgId: string, communityId: string, orgUserId: string): LiveStream[] {

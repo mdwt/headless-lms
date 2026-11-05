@@ -522,8 +522,6 @@ export const chatLiveEventSchema = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ type: z.literal('resync') }).strict(),
-  z
-    .object({ type: z.literal('closed'), reason: z.enum(['access', 'session', 'shutdown']) })
-    .strict(),
+  z.object({ type: z.literal('closed'), reason: z.enum(['shutdown']) }).strict(),
 ]);
 export type ChatLiveEvent = z.output<typeof chatLiveEventSchema>;

@@ -6851,7 +6851,7 @@ export class Chats {
   /**
    * Stream your chat events in a community
    *
-   * Any active member of the organization. For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with `ready` and your `unread`; load your chats on `ready` and on `resync`. A `: ping` comment every 25 s keeps it open. Every 30 s it checks your session and access again, and ends with `closed` when either is gone or the server shuts down. 503 when this server has no live delivery.
+   * Any active member of the organization. For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with `ready` and your `unread`; load your chats on `ready` and on `resync`. A `: ping` comment every 25 s keeps it open. It ends with `closed` when the server shuts down. 503 when this server has no live delivery.
    */
   public static streamMemberChatEvents<ThrowOnError extends boolean = false>(
     parameters: {

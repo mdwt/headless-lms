@@ -10,7 +10,6 @@ import type {
   NewOrganizationInput,
   Permission,
   SessionVerifier,
-  SessionVerifyOptions,
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
 import { fromNodeHeaders } from "better-auth/node";
@@ -583,14 +582,8 @@ export class BetterAuth
     });
   }
 
-  async verify(
-    headers: IncomingHttpHeaders,
-    options: SessionVerifyOptions = {},
-  ): Promise<ActiveSession | null> {
-    const res = await this.auth.api.getSession({
-      headers: fromNodeHeaders(headers),
-      ...(options.bypassCookieCache && { query: { disableCookieCache: true } }),
-    });
+  async verify(headers: IncomingHttpHeaders): Promise<ActiveSession | null> {
+    const res = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
     if (!res) {
       return null;
     }

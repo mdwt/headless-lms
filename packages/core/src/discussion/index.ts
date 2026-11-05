@@ -80,8 +80,6 @@ export type {
   ChatMemberStates,
   ChatUnread,
   LiveChat,
-  LiveSession,
-  LiveSessionState,
   ReactionChange,
   MessageQueue,
   ChatService,

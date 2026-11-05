@@ -3,7 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { ForbiddenError, NotFoundError, UnavailableError } from '@headless-lms/core/shared/errors';
 import { actorWith } from '@headless-lms/core/organizations';
-import type { ChatLiveEvent, LiveSession } from '@headless-lms/core/discussion';
+import type { ChatLiveEvent } from '@headless-lms/core/discussion';
 import type { Container } from '../../../app/container.js';
 import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
@@ -53,7 +53,6 @@ const calls: { method: string; args: unknown[] }[] = [];
 let session: { user: { id: string }; session: { activeOrganizationId: string } } | null;
 let orgUser: typeof ORG_USER | null;
 let watched: (() => Promise<AsyncIterable<ChatLiveEvent>>) | null;
-const verified: unknown[] = [];
 
 async function* events(list: ChatLiveEvent[]): AsyncIterable<ChatLiveEvent> {
   yield* list;
@@ -66,10 +65,7 @@ const container = {
   }),
   requestContext: { set: () => {} },
   auth: {
-    verify: async (_headers: unknown, options?: unknown) => {
-      verified.push(options);
-      return session;
-    },
+    verify: async () => session,
   },
   organizations: {
     getByExternalId: async () => ORG,
@@ -140,7 +136,6 @@ afterAll(async () => {
 
 beforeEach(() => {
   calls.length = 0;
-  verified.length = 0;
   session = { user: { id: USER.id }, session: { activeOrganizationId: ORG.id } };
   orgUser = ORG_USER;
   watched = null;
@@ -281,24 +276,5 @@ describe('member chat routes', () => {
         'event: closed\ndata: {"type":"closed","reason":"shutdown"}\n\n',
       ].join(''),
     );
-  });
-
-  it("checks the stream's session with the cookie cache bypassed", async () => {
-    watched = async () => events([]);
-    await app.inject({ method: 'GET', url: '/api/member/communities/cmy_1/chats/events' });
-    expect(verified).toEqual([{ bypassCookieCache: true }]);
-    await app.inject({ method: 'GET', url: '/api/member/chats/cht_1' });
-    expect(verified.at(-1)).toEqual({ bypassCookieCache: false });
-    const live = last('watch')![1] as LiveSession;
-    verified.length = 0;
-
-    expect(await live.current()).toEqual({ status: 'ok', actor: ACTOR });
-    expect(verified).toEqual([{ bypassCookieCache: true }]);
-
-    orgUser = null;
-    expect(await live.current()).toEqual({ status: 'no-member' });
-
-    session = null;
-    expect(await live.current()).toEqual({ status: 'signed-out' });
   });
 });

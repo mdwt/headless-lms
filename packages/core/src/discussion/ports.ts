@@ -526,15 +526,6 @@ export interface ChatMemberStates {
   chats: ChatMemberState[];
 }
 
-export type LiveSessionState =
-  { status: 'ok'; actor: Actor } | { status: 'signed-out' } | { status: 'no-member' };
-
-/** The live stream's view of the request's session, checked again while the
- *  stream is open. */
-export interface LiveSession {
-  current(): Promise<LiveSessionState>;
-}
-
 export interface LiveChat {
   chat: Chat;
   participantIds: string[];
@@ -609,11 +600,7 @@ export interface ChatService extends ChatLiveReads {
   unlock(chatId: string, communityId: string | null, actor: Actor): Promise<Chat>;
   listChats(communityId: string, query: ChatListQuery, actor: Actor): Promise<Page<ChatListItem>>;
   /** One live stream of the member's chat events in the community. */
-  watch(
-    communityId: string,
-    session: LiveSession,
-    actor: Actor,
-  ): Promise<AsyncIterable<ChatLiveEvent>>;
+  watch(communityId: string, actor: Actor): Promise<AsyncIterable<ChatLiveEvent>>;
   chat(chatId: string, actor: Actor): Promise<ChatListItem>;
   directChat(communityId: string, orgUserId: string, actor: Actor): Promise<ChatListItem>;
   unreadSummary(communityId: string, actor: Actor): Promise<ChatUnreadSummary>;

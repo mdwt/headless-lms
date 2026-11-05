@@ -14119,7 +14119,7 @@ export type StreamMemberChatEventsResponses = {
       }
     | {
         type: "closed";
-        reason: "access" | "session" | "shutdown";
+        reason: "shutdown";
       };
 };
 

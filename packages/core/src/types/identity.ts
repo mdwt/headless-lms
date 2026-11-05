@@ -29,16 +29,8 @@ export type ActiveSession = {
   };
 };
 
-export interface SessionVerifyOptions {
-  /** Reads the session from the store, not from the signed session cookie cache. */
-  bypassCookieCache?: boolean;
-}
-
 export interface SessionVerifier {
-  verify(
-    headers: Record<string, string | string[] | undefined>,
-    options?: SessionVerifyOptions,
-  ): Promise<ActiveSession | null>;
+  verify(headers: Record<string, string | string[] | undefined>): Promise<ActiveSession | null>;
 }
 
 export interface AccountProvisioner {
