@@ -26,7 +26,7 @@ Baseline at `451cdc5a`: `pnpm build` passes, `pnpm test` 1982 tests in 159 files
 | 9 | Community app (`hlms-community`) | open |
 | 10 | SDK, OpenAPI, MCP catalogue, docs | open |
 | 11 | Tests (section 19) | open |
-| 12 | End to end on a running stack | in progress: API scenarios: people and roles 52/52, access and moderation 47/47, custom roles, media and people 39/39; no error lines in the API log |
+| 12 | End to end on a running stack | in progress: API scenarios: people and roles 52/52, access and moderation 47/47, custom roles, media and people 39/39, limits and events 10/10 (102 memberships, REST and MCP agree, a demoted creator's key narrows on the next request, org events at version 2); no error lines in the API log |
 
 ## Issues
 
