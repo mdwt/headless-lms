@@ -38,6 +38,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
       systemActor: () => SYSTEM,
       holders: reject,
       getRole: reject,
+      permissionsOfMany: reject,
     },
     identity: { displayName: reject },
     posts: { find: reject },

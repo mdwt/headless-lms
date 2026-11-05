@@ -39,6 +39,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       systemActor: (orgId: string) => ({ id: 'system', orgId }) as never,
       holders: reject,
       getRole: reject,
+      permissionsOfMany: reject,
       getOrgUsersByIds: reject,
     },
     identity: { displayName: reject, getUserById: reject },
