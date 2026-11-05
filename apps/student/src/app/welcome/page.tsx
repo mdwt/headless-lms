@@ -8,7 +8,7 @@
  * client components.
  */
 import type { Metadata } from "next";
-import { Organizations, type GetInviteResponse } from "@headless-lms/sdk";
+import { People, type GetInviteResponse } from "@headless-lms/sdk";
 
 import { AuthShell, AuthHeading } from "@/components/auth/auth-shell";
 import { InviteProblem } from "@/components/welcome/invite-problem";
@@ -34,7 +34,7 @@ export default async function WelcomePage({
   let invite: GetInviteResponse | undefined;
   if (token) {
     try {
-      invite = await Organizations.getInvite({ token }, await authHeaders());
+      invite = await People.getInvite({ token }, await authHeaders());
     } catch (e) {
       // 404 is the answer for a forged, expired or already-used token — a page
       // state. Every other failure is a real one and stays unhandled.

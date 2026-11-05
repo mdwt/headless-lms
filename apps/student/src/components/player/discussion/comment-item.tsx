@@ -83,12 +83,12 @@ export function CommentItem({
               >
                 {author}
               </span>
-              {comment.author.role !== "student" && (
+              {comment.author.team && comment.author.roleName && (
                 <span
-                  className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold capitalize"
+                  className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
                   style={{ background: "var(--brand-soft)", color: "var(--brand-strong)" }}
                 >
-                  {comment.author.role}
+                  {comment.author.roleName}
                 </span>
               )}
               {comment.status === "pending" && (

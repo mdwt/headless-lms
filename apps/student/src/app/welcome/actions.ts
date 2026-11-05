@@ -11,7 +11,7 @@
  * email from the invitation row and refuses a token whose email doesn't match
  * the session, so nothing here is steerable from the query string.
  */
-import { Organizations } from "@headless-lms/sdk";
+import { People } from "@headless-lms/sdk";
 
 import { authHeaders } from "@/lib/api/server-call";
 import { ApiError } from "@/lib/api/shared";
@@ -20,7 +20,7 @@ export type AcceptInviteState = { error: string } | null;
 
 export async function acceptInvite(token: string): Promise<AcceptInviteState> {
   try {
-    await Organizations.acceptInvite({ token }, await authHeaders());
+    await People.acceptInvite({ token }, await authHeaders());
   } catch (e) {
     // Only a failed request becomes a message. Anything else — including the
     // redirect server-call.ts throws on 401 — is not ours to handle.

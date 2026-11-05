@@ -11,7 +11,8 @@ const author = {
   image: null,
   imageAssetId: null,
   imageUrl: null,
-  role: "student" as const,
+  team: false,
+  roleName: null,
 };
 const instructor = {
   id: "orm_s",
@@ -22,7 +23,8 @@ const instructor = {
   image: null,
   imageAssetId: null,
   imageUrl: null,
-  role: "instructor" as const,
+  team: true,
+  roleName: "Instructor",
 };
 
 const ME = "orm_me";
