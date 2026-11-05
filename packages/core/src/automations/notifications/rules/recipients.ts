@@ -8,7 +8,7 @@ export type Recipient = NonNullable<RecipientList['recipients']>[number];
 export type ListBase = Omit<RecipientList, 'recipients' | 'audience'>;
 export type Chat = NonNullable<Awaited<ReturnType<NotificationReads['chat']>>>;
 
-const MUTE_PROOF: Reason[] = ['subject', 'moderator', 'staff', 'mentioned'];
+const MUTE_PROOF: Reason[] = ['subject', 'moderator', 'mentioned'];
 
 export class Reasons {
   private readonly byPerson = new Map<string, Reason[]>();

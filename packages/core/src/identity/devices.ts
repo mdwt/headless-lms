@@ -38,11 +38,8 @@ export class DevicesServiceImpl implements DevicesService {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async register(
-    orgId: string,
-    actor: MemberActor,
-    input: DeviceRegistration,
-  ): Promise<PushDevice> {
+  async register(input: DeviceRegistration, actor: MemberActor): Promise<PushDevice> {
+    const orgId = actor.orgId;
     const problems = this.registrationProblems(input);
     if (problems.length > 0) {
       throw new ValidationError(problems);
@@ -69,11 +66,12 @@ export class DevicesServiceImpl implements DevicesService {
     return pushDevice(device);
   }
 
-  list(orgId: string, actor: MemberActor): Promise<DeviceView[]> {
-    return this.repo.listForUser(orgId, actor.userId, null);
+  list(actor: MemberActor): Promise<DeviceView[]> {
+    return this.repo.listForUser(actor.orgId, actor.userId, null);
   }
 
-  async remove(orgId: string, actor: MemberActor, deviceId: string): Promise<void> {
+  async remove(deviceId: string, actor: MemberActor): Promise<void> {
+    const orgId = actor.orgId;
     if (!(await this.repo.deleteOwn(orgId, actor.userId, deviceId))) {
       throw new NotFoundError('Device', deviceId);
     }

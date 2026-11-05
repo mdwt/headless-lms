@@ -1,5 +1,6 @@
 export { AssetsServiceImpl, MEMBER_IMAGE_TYPE, isMemberImageType, kindOf } from './service.js';
 export { assetEvents } from './events.js';
+export { assetsDeclarations } from './declarations.js';
 export { UPLOADS_REMOVE_UNATTACHED_JOB, assetsJobs, assetsRecurringJobs } from './jobs.js';
 export type {
   AssetFiles,

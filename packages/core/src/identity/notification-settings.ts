@@ -68,12 +68,8 @@ export class NotificationSettingsServiceImpl implements NotificationSettingsServ
     return result;
   }
 
-  async set(
-    orgId: string,
-    actor: MemberActor,
-    scope: SettingsScope,
-    changes: SettingChange[],
-  ): Promise<void> {
+  async set(scope: SettingsScope, changes: SettingChange[], actor: MemberActor): Promise<void> {
+    const orgId = actor.orgId;
     const communityId = communityOf(scope);
     let list: NotificationCategory[];
     if (communityId === null) {

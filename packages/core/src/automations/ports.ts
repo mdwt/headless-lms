@@ -31,6 +31,7 @@ import type {
   SubjectRef,
 } from '../types/index.js';
 import type { CommunityMailReads } from './community-mail.js';
+import type { Actor } from '../shared/actor.js';
 
 export type {
   AutomationDispatch,
@@ -71,10 +72,6 @@ export interface NotificationReads extends Omit<CommunityMailReads, 'recentMessa
   ): Promise<{ title: string; moduleTitle: string; courseId: string; courseTitle: string } | null>;
   userIdsOf(orgId: string, orgUserIds: string[]): Promise<Record<string, string>>;
   emailOf(orgId: string, userId: string): Promise<string | null>;
-  contentInfo(
-    orgId: string,
-    item: { contentId: string } | { bundleId: string },
-  ): Promise<{ title: string; type: string } | null>;
   message(
     orgId: string,
     messageId: string,
@@ -140,18 +137,18 @@ export interface UnreadCounts {
 
 export interface NotificationsService {
   list(
-    orgId: string,
     userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
+    actor: Actor,
   ): Promise<NotificationPage>;
-  get(orgId: string, userId: string, notificationId: string): Promise<ListedNotification | null>;
-  unreadCounts(orgId: string, userId: string, communityIds: string[]): Promise<UnreadCounts>;
-  markRead(orgId: string, userId: string, notificationId: string): Promise<void>;
+  get(userId: string, notificationId: string, actor: Actor): Promise<ListedNotification | null>;
+  unreadCounts(userId: string, communityIds: string[], actor: Actor): Promise<UnreadCounts>;
+  markRead(userId: string, notificationId: string, actor: Actor): Promise<void>;
   markAllRead(
-    orgId: string,
     userId: string,
     filter: NotificationFilter,
+    actor: Actor,
   ): Promise<{ marked: number }>;
 }
 
@@ -185,27 +182,27 @@ export interface AutomationsService {
   /** Dispatches a run per enabled automation the event matches, then runs the notification process; throws only when the notification process fails, so the outbox redelivers. */
   handle(event: DomainEvent): Promise<void>;
   /** Built-in action types plus every loaded integration's declared actions. */
-  availableActions(): AvailableActions;
+  availableActions(actor: Actor): AvailableActions;
   /** The domain event types an automation may react to. */
-  availableTriggers(): AvailableTriggers;
-  list(orgId: string, query?: AutomationsQuery): Promise<Automation[]>;
-  get(orgId: string, id: string): Promise<Automation | null>;
-  create(orgId: string, input: CreateAutomationInput): Promise<Automation>;
-  update(orgId: string, id: string, input: UpdateAutomationInput): Promise<Automation | null>;
-  delete(orgId: string, id: string): Promise<boolean>;
+  availableTriggers(actor: Actor): AvailableTriggers;
+  list(query: AutomationsQuery | undefined, actor: Actor): Promise<Automation[]>;
+  get(id: string, actor: Actor): Promise<Automation | null>;
+  create(input: CreateAutomationInput, actor: Actor): Promise<Automation>;
+  update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation | null>;
+  delete(id: string, actor: Actor): Promise<boolean>;
   listRuns(
-    orgId: string,
     automationId: string,
     query: AutomationRunsQuery,
+    actor: Actor,
   ): Promise<Page<AutomationRun>>;
-  rerun(orgId: string, automationId: string, runId: string): Promise<AutomationRun>;
-  listWebhooks(orgId: string): Promise<Webhook[]>;
-  getWebhook(orgId: string, id: string): Promise<Webhook | null>;
-  createWebhook(orgId: string, input: CreateWebhookInput): Promise<CreatedWebhook>;
-  updateWebhook(orgId: string, id: string, input: UpdateWebhookInput): Promise<Webhook | null>;
-  deleteWebhook(orgId: string, id: string): Promise<boolean>;
-  revealWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null>;
-  rotateWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null>;
+  rerun(automationId: string, runId: string, actor: Actor): Promise<AutomationRun>;
+  listWebhooks(actor: Actor): Promise<Webhook[]>;
+  getWebhook(id: string, actor: Actor): Promise<Webhook | null>;
+  createWebhook(input: CreateWebhookInput, actor: Actor): Promise<CreatedWebhook>;
+  updateWebhook(id: string, input: UpdateWebhookInput, actor: Actor): Promise<Webhook | null>;
+  deleteWebhook(id: string, actor: Actor): Promise<boolean>;
+  revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null>;
+  rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null>;
 }
 
 // Outbound ports (persistence contracts the repositories fulfil).

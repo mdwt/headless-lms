@@ -1,7 +1,12 @@
 import { discussionEvents } from '../../../discussion/index.js';
 import type { DomainEvent } from '../../../shared/ports.js';
 import type { JsonValue, RecipientList, SubjectRef } from '../../../types/index.js';
-import { MESSAGE_EXCERPT, POST_EXCERPT, previousStatusOf } from '../../community-mail.js';
+import {
+  communityModerators,
+  MESSAGE_EXCERPT,
+  POST_EXCERPT,
+  previousStatusOf,
+} from '../../community-mail.js';
 import type { NotificationReads, RecipientRule } from '../../ports.js';
 import {
   actorOr,
@@ -55,11 +60,11 @@ function courseReach(
     exclude,
     at,
     canOpen: async (orgUserIds) => {
-      const [holders, staff] = await Promise.all([
+      const [holders, readers] = await Promise.all([
         reads.courseHolders(orgId, courseId),
-        reads.staffIds(orgId),
+        reads.holders(orgId, 'courses:read', courseId),
       ]);
-      const open = new Set([...holders, ...staff]);
+      const open = new Set([...holders, ...readers]);
       return orgUserIds.filter((orgUserId) => open.has(orgUserId));
     },
   };
@@ -320,7 +325,7 @@ async function awaitingReview(
     await recipientsOf(
       reads,
       orgId,
-      new Reasons().add(await reads.moderationAudience(orgId, post.communityId), 'moderator'),
+      new Reasons().add(await communityModerators(reads, orgId, post.communityId), 'moderator'),
       {
         exclude: [actor, post.orgUserId],
         at: eventAt(event),
@@ -575,7 +580,7 @@ const postReported: RecipientRule = async (event, reads) => {
     await recipientsOf(
       reads,
       orgId,
-      new Reasons().add(await reads.moderationAudience(orgId, flag.communityId), 'moderator'),
+      new Reasons().add(await communityModerators(reads, orgId, flag.communityId), 'moderator'),
       {
         exclude: [actorOr(event, flag.orgUserId)],
         at: eventAt(event),
@@ -609,7 +614,7 @@ const commentReported: RecipientRule = async (event, reads) => {
         reads,
         orgId,
         new Reasons().add(
-          await reads.moderationAudience(orgId, place.post.communityId),
+          await communityModerators(reads, orgId, place.post.communityId),
           'moderator',
         ),
         {
@@ -625,10 +630,15 @@ const commentReported: RecipientRule = async (event, reads) => {
       excerpt: text,
       reason: flag.reason,
     }),
-    await recipientsOf(reads, orgId, new Reasons().add(await reads.staffIds(orgId), 'staff'), {
-      exclude: [actor],
-      at: eventAt(event),
-    }),
+    await recipientsOf(
+      reads,
+      orgId,
+      new Reasons().add(
+        await reads.holders(orgId, 'courses:moderate', place.activity.courseId),
+        'moderator',
+      ),
+      { exclude: [actor], at: eventAt(event) },
+    ),
   );
 };
 
@@ -781,10 +791,12 @@ const messageReported: RecipientRule = async (event, reads) => {
       parent: message ? { type: 'chat', id: message.chatId } : null,
       display: { reason: flag.reason },
     },
-    await recipientsOf(reads, orgId, new Reasons().add(await reads.staffIds(orgId), 'staff'), {
-      exclude: [actorOr(event, flag.orgUserId)],
-      at: eventAt(event),
-    }),
+    await recipientsOf(
+      reads,
+      orgId,
+      new Reasons().add(await communityModerators(reads, orgId, flag.communityId), 'moderator'),
+      { exclude: [actorOr(event, flag.orgUserId)], at: eventAt(event) },
+    ),
   );
 };
 

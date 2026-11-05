@@ -1,27 +1,36 @@
 import { organizationEvents } from '../../../organizations/index.js';
+import { roleGain } from '../../community-mail.js';
 import type { RecipientRule } from '../../ports.js';
 import { actorOr, eventAt, listOf, Reasons, recipientsOf } from './recipients.js';
 
-const orgUserUpdated: RecipientRule = async (event, reads) => {
-  const parsed = organizationEvents.orgUserUpdated.safeParse(event);
-  if (!parsed.success || parsed.data.data.role !== 'moderator') {
+const roleAssigned: RecipientRule = async (event, reads) => {
+  const parsed = organizationEvents.roleAssigned.safeParse(event);
+  if (!parsed.success) {
     return [];
   }
-  const orgUser = parsed.data.data;
+  const assigned = parsed.data.data;
   const orgId = event.orgId;
-  const communities = await reads.memberCommunityTitles(orgId, orgUser.id);
+  const gain = await roleGain(reads, orgId, assigned);
+  if (!gain) {
+    return [];
+  }
   return listOf(
     {
-      type: 'moderator.assigned',
+      type: 'role.assigned',
       scope: 'org',
       actorOrgUserId: actorOr(event, null),
       communityId: null,
       spaceId: null,
       subject: null,
       parent: null,
-      display: { communityTitles: communities.map((community) => community.title) },
+      display: {
+        roleName: gain.roleName,
+        place: gain.place,
+        contentId: gain.contentId,
+        contentType: gain.contentType,
+      },
     },
-    await recipientsOf(reads, orgId, new Reasons().add([orgUser.id], 'subject'), {
+    await recipientsOf(reads, orgId, new Reasons().add([assigned.orgUserId], 'subject'), {
       exclude: [actorOr(event, null)],
       at: eventAt(event),
     }),
@@ -29,5 +38,5 @@ const orgUserUpdated: RecipientRule = async (event, reads) => {
 };
 
 export const ORGANIZATION_RULES: Record<string, RecipientRule> = {
-  'organization.user.updated': orgUserUpdated,
+  'organization.role.assigned': roleAssigned,
 };

@@ -1,6 +1,13 @@
 import { genId } from '../shared/id.js';
 import type { Logger, ObjectStorage } from '../shared/ports.js';
-import { ConflictError, ForbiddenError, InvalidInputError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
+import type { AssetSource, ContentType, Permission } from '../types/index.js';
 import type {
   Asset,
   AssetKind,
@@ -20,6 +27,12 @@ import type {
 import type { FileUrls } from './file-urls.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
+
+const WRITE_PERMISSION: Record<ContentType, Permission> = {
+  course: 'courses:write',
+  download: 'downloads:write',
+  community: 'communities:write',
+};
 
 const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
@@ -107,7 +120,56 @@ export class AssetsServiceImpl implements AssetsService {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket> {
+  async requestUpload(input: RequestUploadInput, actor: Actor): Promise<UploadTicket> {
+    const orgId = actor.orgId;
+    if (input.contentId === undefined) {
+      actor.permissions.require('media:write');
+    } else if (!actor.permissions.has('media:write')) {
+      const type = await this.repo.contentTypeOf(orgId, input.contentId);
+      if (!type) {
+        throw new NotFoundError('Content item', input.contentId);
+      }
+      if (!actor.permissions.has(WRITE_PERMISSION[type], input.contentId)) {
+        this.logger.warn('asset upload refused', {
+          orgId,
+          orgUserId: actor.id,
+          contentId: input.contentId,
+        });
+        throw new ForbiddenError(`You need media:write or ${WRITE_PERMISSION[type]}`);
+      }
+    }
+    return this.createUpload(orgId, {
+      filename: input.filename,
+      contentType: input.contentType,
+      source: 'library',
+      uploadedBy: actor.id,
+      contentId: input.contentId ?? null,
+    });
+  }
+
+  async requestMemberUpload(input: MemberUploadInput, actor: Actor): Promise<UploadTicket> {
+    if (!isMemberImageType(input.contentType)) {
+      throw new InvalidInputError(MEMBER_IMAGE_REFUSAL);
+    }
+    return this.createUpload(actor.orgId, {
+      filename: input.filename,
+      contentType: input.contentType,
+      source: 'member',
+      uploadedBy: actor.id,
+      contentId: null,
+    });
+  }
+
+  private async createUpload(
+    orgId: string,
+    input: {
+      filename: string;
+      contentType: string;
+      source: AssetSource;
+      uploadedBy: string;
+      contentId: string | null;
+    },
+  ): Promise<UploadTicket> {
     const id = genId('asset');
     const kind = kindOf(input.contentType);
     const folder = input.source === 'member' ? 'uploads' : kind;
@@ -126,7 +188,7 @@ export class AssetsServiceImpl implements AssetsService {
         size: 0,
         status: 'pending',
         uploadedBy: input.uploadedBy,
-        contentId: null,
+        contentId: input.contentId,
         createdAt: now,
         updatedAt: now,
       });
@@ -138,6 +200,7 @@ export class AssetsServiceImpl implements AssetsService {
       assetId: id,
       kind,
       source: input.source,
+      contentId: input.contentId,
     });
     return {
       asset: { ...asset, url: null, downloadUrl: null },
@@ -148,27 +211,13 @@ export class AssetsServiceImpl implements AssetsService {
     };
   }
 
-  async requestMemberUpload(
-    orgId: string,
-    orgUserId: string,
-    input: MemberUploadInput,
-  ): Promise<UploadTicket> {
-    if (!isMemberImageType(input.contentType)) {
-      throw new InvalidInputError(MEMBER_IMAGE_REFUSAL);
-    }
-    return this.requestUpload(orgId, {
-      filename: input.filename,
-      contentType: input.contentType,
-      source: 'member',
-      uploadedBy: orgUserId,
-    });
-  }
-
-  async confirm(orgId: string, id: string): Promise<AssetView | null> {
+  async confirm(id: string, actor: Actor): Promise<AssetView | null> {
+    const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, id);
     if (!asset) {
       return null;
     }
+    await this.requireReach(asset, actor);
     if (asset.source === 'member') {
       throw new ForbiddenError('Only the uploader can finalize a member upload');
     }
@@ -176,10 +225,11 @@ export class AssetsServiceImpl implements AssetsService {
     return confirmed ? this.view(confirmed) : null;
   }
 
-  async confirmOwn(orgId: string, id: string, orgUserId: string): Promise<AssetView | null> {
+  async confirmOwn(id: string, actor: Actor): Promise<AssetView | null> {
+    const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, id);
-    if (!asset || asset.source !== 'member' || asset.uploadedBy !== orgUserId) {
-      this.logger.debug('upload confirm refused', { orgId, assetId: id, orgUserId });
+    if (!asset || asset.source !== 'member' || asset.uploadedBy !== actor.id) {
+      this.logger.debug('upload confirm refused', { orgId, assetId: id, orgUserId: actor.id });
       return null;
     }
     const confirmed = await this.finalize(orgId, asset);
@@ -191,9 +241,14 @@ export class AssetsServiceImpl implements AssetsService {
       : { ...confirmed, url: null, downloadUrl: null };
   }
 
-  async ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null> {
-    if (!(await this.ownsImage(orgId, assetId, orgUserId))) {
-      this.logger.warn('upload file not served — not the uploader', { orgId, assetId, orgUserId });
+  async ownUploadFile(assetId: string, actor: Actor): Promise<string | null> {
+    const orgId = actor.orgId;
+    if (!(await this.ownsImage(orgId, assetId, actor.id))) {
+      this.logger.warn('upload file not served — not the uploader', {
+        orgId,
+        assetId,
+        orgUserId: actor.id,
+      });
       return null;
     }
     return this.signFile(orgId, assetId);
@@ -221,14 +276,25 @@ export class AssetsServiceImpl implements AssetsService {
     return assetIds.filter((id) => library.has(id));
   }
 
-  async list(orgId: string, query: AssetsQuery): Promise<Page<AssetView>> {
+  async list(query: AssetsQuery, actor: Actor): Promise<Page<AssetView>> {
+    const orgId = actor.orgId;
+    if (!actor.permissions.has('media:read')) {
+      if (query.contentId === undefined || (query.source ?? 'library') !== 'library') {
+        throw new ForbiddenError('You need media:read');
+      }
+      await this.requireItemWrite(orgId, query.contentId, actor);
+    }
     const page = await this.repo.list(orgId, { ...query, source: query.source ?? 'library' });
     return { ...page, rows: await Promise.all(page.rows.map((asset) => this.view(asset))) };
   }
 
-  async get(orgId: string, id: string): Promise<AssetView | null> {
-    const asset = await this.repo.findById(orgId, id);
-    return asset ? this.view(asset) : null;
+  async get(id: string, actor: Actor): Promise<AssetView | null> {
+    const asset = await this.repo.findById(actor.orgId, id);
+    if (!asset) {
+      return null;
+    }
+    await this.requireReach(asset, actor);
+    return this.view(asset);
   }
 
   async readyFiles(orgId: string, assetIds: readonly string[]): Promise<Record<string, ReadyFile>> {
@@ -261,19 +327,34 @@ export class AssetsServiceImpl implements AssetsService {
   }
 
   async libraryFile(
-    orgId: string,
     assetId: string,
     opts: { download: boolean },
+    actor: Actor,
   ): Promise<string | null> {
+    const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, assetId);
     if (!asset || asset.source !== 'library') {
       this.logger.warn('library file not served — not a library asset', { orgId, assetId });
       return null;
     }
+    await this.requireReach(asset, actor);
     return this.signFile(orgId, assetId, opts.download ? { saveAs: asset.filename } : {});
   }
 
-  async remove(orgId: string, id: string): Promise<boolean> {
+  async remove(id: string, actor: Actor): Promise<boolean> {
+    actor.permissions.require('media:delete');
+    return this.removeAsset(actor.orgId, id);
+  }
+
+  async removeOwn(id: string, actor: Actor): Promise<boolean> {
+    const asset = await this.repo.findById(actor.orgId, id);
+    if (!asset || asset.source !== 'member' || asset.uploadedBy !== actor.id) {
+      return false;
+    }
+    return this.removeAsset(actor.orgId, id);
+  }
+
+  private async removeAsset(orgId: string, id: string): Promise<boolean> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) {
       return false;
@@ -285,12 +366,29 @@ export class AssetsServiceImpl implements AssetsService {
     return removed;
   }
 
-  async removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean> {
-    const asset = await this.repo.findById(orgId, id);
-    if (!asset || asset.source !== 'member' || asset.uploadedBy !== orgUserId) {
-      return false;
+  private async requireReach(asset: Asset, actor: Actor): Promise<void> {
+    if (actor.permissions.has('media:read')) {
+      return;
     }
-    return this.remove(orgId, id);
+    if (asset.contentId === null) {
+      this.logger.warn('asset refused', {
+        orgId: actor.orgId,
+        assetId: asset.id,
+        orgUserId: actor.id,
+      });
+      throw new ForbiddenError('You need media:read');
+    }
+    await this.requireItemWrite(actor.orgId, asset.contentId, actor);
+  }
+
+  private async requireItemWrite(orgId: string, contentId: string, actor: Actor): Promise<void> {
+    const type = await this.repo.contentTypeOf(orgId, contentId);
+    if (!type || !actor.permissions.has(WRITE_PERMISSION[type], contentId)) {
+      this.logger.warn('asset refused', { orgId, contentId, orgUserId: actor.id });
+      throw new ForbiddenError(
+        type ? `You need media:read or ${WRITE_PERMISSION[type]}` : 'You need media:read',
+      );
+    }
   }
 
   async removeUnattached(orgId: string, now: Date): Promise<number> {

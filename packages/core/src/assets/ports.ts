@@ -7,6 +7,8 @@ import type {
   UploadTicket,
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
+import type { ContentType } from '../types/index.js';
 
 export interface MemberImageReader {
   ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
@@ -36,20 +38,16 @@ export interface MemberUploadInput {
 }
 
 export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetFiles {
-  requestUpload(orgId: string, input: RequestUploadInput): Promise<UploadTicket>;
-  requestMemberUpload(
-    orgId: string,
-    orgUserId: string,
-    input: MemberUploadInput,
-  ): Promise<UploadTicket>;
-  confirm(orgId: string, id: string): Promise<AssetView | null>;
-  confirmOwn(orgId: string, id: string, orgUserId: string): Promise<AssetView | null>;
-  list(orgId: string, query: AssetsQuery): Promise<Page<AssetView>>;
-  get(orgId: string, id: string): Promise<AssetView | null>;
-  libraryFile(orgId: string, assetId: string, opts: { download: boolean }): Promise<string | null>;
-  ownUploadFile(orgId: string, assetId: string, orgUserId: string): Promise<string | null>;
-  remove(orgId: string, id: string): Promise<boolean>;
-  removeOwn(orgId: string, id: string, orgUserId: string): Promise<boolean>;
+  requestUpload(input: RequestUploadInput, actor: Actor): Promise<UploadTicket>;
+  requestMemberUpload(input: MemberUploadInput, actor: Actor): Promise<UploadTicket>;
+  confirm(id: string, actor: Actor): Promise<AssetView | null>;
+  confirmOwn(id: string, actor: Actor): Promise<AssetView | null>;
+  list(query: AssetsQuery, actor: Actor): Promise<Page<AssetView>>;
+  get(id: string, actor: Actor): Promise<AssetView | null>;
+  libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string | null>;
+  ownUploadFile(assetId: string, actor: Actor): Promise<string | null>;
+  remove(id: string, actor: Actor): Promise<boolean>;
+  removeOwn(id: string, actor: Actor): Promise<boolean>;
   removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 
@@ -70,6 +68,7 @@ export interface AssetsRepository {
   delete(orgId: string, id: string): Promise<boolean>;
   listUnreferencedMemberUploads(orgId: string, before: Date): Promise<Asset[]>;
   heldKeys(orgId: string, keys: string[]): Promise<string[]>;
+  contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null>;
 }
 
 export interface AssetsWriteScope {

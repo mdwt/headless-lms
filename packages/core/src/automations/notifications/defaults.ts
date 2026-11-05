@@ -26,7 +26,7 @@ export const DEFAULT_COMMUNITY_CATEGORIES: NotificationCategory[] = [
       { type: 'post.awaiting_review', reasons: ['moderator'] },
       { type: 'space.join_requested', reasons: ['moderator'] },
       { type: 'content.flagged', reasons: ['moderator'] },
-      { type: 'message.flagged', reasons: ['staff'] },
+      { type: 'message.flagged', reasons: ['moderator'] },
     ],
     channels: { inApp: on, email: on, push: on },
   },
@@ -86,14 +86,14 @@ export const DEFAULT_ORG_CATEGORIES: NotificationCategory[] = [
   {
     key: 'about_you',
     covers: [
-      { type: 'moderator.assigned', reasons: ['subject'] },
+      { type: 'role.assigned', reasons: ['subject'] },
       { type: 'comment.removed', reasons: ['subject'] },
     ],
     channels: { inApp: lockedOn, email: on, push: on },
   },
   {
     key: 'review',
-    covers: [{ type: 'content.flagged', reasons: ['staff'] }],
+    covers: [{ type: 'content.flagged', reasons: ['moderator'] }],
     channels: { inApp: on, email: on, push: on },
   },
   {

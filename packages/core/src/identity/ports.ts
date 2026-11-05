@@ -62,15 +62,9 @@ export interface SessionAdmin {
 
 // Inbound port (use cases the service exposes).
 export interface IdentityService extends UserProvisioner, UserResolver, UserEditor {
-  profileOf(orgId: string, userId: string): Promise<UserProfileView>;
+  profileOf(actor: MemberActor): Promise<UserProfileView>;
   displayName(userId: string | null): Promise<string>;
-  updateProfile(
-    orgId: string,
-    userId: string,
-    actorUserId: string,
-    orgUserId: string,
-    patch: UpdateProfileInput,
-  ): Promise<UserProfileView>;
+  updateProfile(patch: UpdateProfileInput, actor: MemberActor): Promise<UserProfileView>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -108,12 +102,7 @@ export interface NotificationSettingsService {
     scope: SettingsScope,
     categories: string[],
   ): Promise<Record<string, StoredSetting[]>>;
-  set(
-    orgId: string,
-    actor: MemberActor,
-    scope: SettingsScope,
-    changes: SettingChange[],
-  ): Promise<void>;
+  set(scope: SettingsScope, changes: SettingChange[], actor: MemberActor): Promise<void>;
   switchedOn(
     orgId: string,
     communityId: string,
@@ -169,9 +158,9 @@ export interface DeviceRegistration {
 }
 
 export interface DevicesService {
-  register(orgId: string, actor: MemberActor, input: DeviceRegistration): Promise<PushDevice>;
-  list(orgId: string, actor: MemberActor): Promise<DeviceView[]>;
-  remove(orgId: string, actor: MemberActor, deviceId: string): Promise<void>;
+  register(input: DeviceRegistration, actor: MemberActor): Promise<PushDevice>;
+  list(actor: MemberActor): Promise<DeviceView[]>;
+  remove(deviceId: string, actor: MemberActor): Promise<void>;
   activeDevices(orgId: string, userId: string, since: Date): Promise<PushDevice[]>;
   withActiveDevices(orgId: string, userIds: string[], since: Date): Promise<string[]>;
   removeDead(orgId: string, deviceIds: string[]): Promise<void>;

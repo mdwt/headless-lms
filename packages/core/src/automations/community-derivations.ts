@@ -6,11 +6,13 @@ import type { DomainEvent } from '../shared/ports.js';
 import {
   actorOf,
   address,
+  communityModerators,
   excerpt,
   MESSAGE_BATCH_MS,
   MESSAGE_EXCERPT,
   POST_EXCERPT,
   previousStatusOf,
+  roleGain,
   type ActionDeps,
   type EmailRecipient,
 } from './community-mail.js';
@@ -324,7 +326,7 @@ export const COMMUNITY_DERIVATIONS: {
       if (!space) {
         return undefined;
       }
-      const audience = await deps.mail.moderationAudience(event.orgId, post.communityId);
+      const audience = await communityModerators(deps.mail, event.orgId, post.communityId);
       return address(deps, event, event.orgId, audience, {
         spaceName: space.name,
         postTitle: post.title,
@@ -350,7 +352,7 @@ export const COMMUNITY_DERIVATIONS: {
         return undefined;
       }
       const active = await deps.mail.activeMemberCount(event.orgId, member.spaceId);
-      const audience = await deps.mail.moderationAudience(event.orgId, member.communityId);
+      const audience = await communityModerators(deps.mail, event.orgId, member.communityId);
       return address(deps, event, event.orgId, audience, {
         spaceName: space.name,
         memberName: await deps.mail.displayName(event.orgId, member.orgUserId),
@@ -535,21 +537,19 @@ export const COMMUNITY_DERIVATIONS: {
       });
     },
   },
-  youAreNowAModerator: {
-    triggers: ['organization.user.updated'],
+  roleAssigned: {
+    triggers: ['organization.role.assigned'],
     derive: async (event, deps) => {
-      const parsed = organizationEvents.orgUserUpdated.safeParse(event);
+      const parsed = organizationEvents.roleAssigned.safeParse(event);
       if (!parsed.success) {
         return undefined;
       }
-      const orgUser = parsed.data.data;
-      if (orgUser.role !== 'moderator') {
+      const assigned = parsed.data.data;
+      const gain = await roleGain(deps.mail, event.orgId, assigned);
+      if (!gain) {
         return [];
       }
-      const communities = await deps.mail.memberCommunityTitles(event.orgId, orgUser.id);
-      return address(deps, event, event.orgId, [orgUser.id], {
-        communityTitles: communities.map((community) => community.title),
-      });
+      return address(deps, event, event.orgId, [assigned.orgUserId], gain);
     },
   },
   digest: silence(['discussion.digest.due']),
@@ -567,7 +567,7 @@ export const COMMUNITY_DERIVATIONS: {
         if (!post || !space) {
           return undefined;
         }
-        const audience = await deps.mail.moderationAudience(event.orgId, flag.communityId);
+        const audience = await communityModerators(deps.mail, event.orgId, flag.communityId);
         return address(deps, event, event.orgId, audience, {
           spaceName: space.name,
           excerpt: excerpt(post.body || post.title, POST_EXCERPT),
@@ -593,7 +593,7 @@ export const COMMUNITY_DERIVATIONS: {
       if (!post || !space) {
         return undefined;
       }
-      const audience = await deps.mail.moderationAudience(event.orgId, flag.communityId);
+      const audience = await communityModerators(deps.mail, event.orgId, flag.communityId);
       return address(deps, event, event.orgId, audience, {
         spaceName: space.name,
         excerpt: excerpt(comment.body, POST_EXCERPT),
@@ -611,7 +611,7 @@ export const COMMUNITY_DERIVATIONS: {
         return undefined;
       }
       const flag = parsed.data.data;
-      const audience = await deps.mail.staffIds(event.orgId);
+      const audience = await communityModerators(deps.mail, event.orgId, flag.communityId);
       return address(deps, event, event.orgId, audience, {
         reason: flag.reason,
         communityId: flag.communityId,

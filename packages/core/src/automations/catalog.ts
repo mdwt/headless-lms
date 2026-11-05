@@ -39,7 +39,7 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   messageRequest: true,
   newMessage: true,
   addedToGroupChat: true,
-  youAreNowAModerator: true,
+  roleAssigned: true,
   digest: true,
   postAwaitingReview: true,
   joinRequest: true,
@@ -144,6 +144,12 @@ const TRIGGERS: CatalogTrigger[] = [
     label: 'Member updated',
     category: 'Organization',
     description: 'an organization member was updated',
+  },
+  {
+    event: organizationEvents.roleAssigned,
+    label: 'Role assigned',
+    category: 'Organization',
+    description: 'a person was given a role on the organization or on a content item',
   },
   {
     event: organizationEvents.inviteCreated,

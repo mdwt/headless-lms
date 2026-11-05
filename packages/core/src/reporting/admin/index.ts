@@ -1,6 +1,8 @@
 // reporting/admin — public surface.
 export { AdminReportServiceImpl } from './service.js';
-export type { AdminReportService, AdminReportRepository } from './ports.js';
+export type { AdminReportServiceParams } from './service.js';
+export { adminReportDeclarations } from './declarations.js';
+export type { AdminReportService, AdminReportRepository, PermissionsReader } from './ports.js';
 export type {
   CommunityAnalytics,
   CommunityMember,
@@ -14,5 +16,7 @@ export type {
   Student,
   StudentAnalytics,
   StudentCourseProgress,
+  StudentItem,
+  StudentRow,
   StudentsQuery,
 } from './model.js';

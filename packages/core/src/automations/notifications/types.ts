@@ -127,7 +127,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
   {
     type: 'content.flagged',
     scopes: ['space', 'org'],
-    reasons: ['moderator', 'staff'],
+    reasons: ['moderator'],
     display: {
       space: ['spaceName', 'excerpt', 'reason'],
       org: ['activityTitle', 'courseTitle', 'courseId', 'excerpt', 'reason'],
@@ -188,7 +188,7 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
   {
     type: 'message.flagged',
     scopes: ['chat'],
-    reasons: ['staff'],
+    reasons: ['moderator'],
     display: { chat: ['reason'] },
     email: { chat: { template: 'messageWasFlagged' } },
     push: { chat: { title: 'A message was flagged', body: '{{reason}}' } },
@@ -341,13 +341,13 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     },
   },
   {
-    type: 'moderator.assigned',
+    type: 'role.assigned',
     scopes: ['org'],
     reasons: ['subject'],
-    display: { org: ['communityTitles'] },
-    email: { org: { template: 'youAreNowAModerator' } },
+    display: { org: ['roleName', 'place', 'contentId', 'contentType'] },
+    email: { org: { template: 'roleAssigned' } },
     push: {
-      org: { title: 'You are now a moderator', body: 'You can moderate {{communityTitles}}' },
+      org: { title: 'You are now {{roleName}}', body: 'You are now {{roleName}} {{place}}' },
     },
   },
 ];

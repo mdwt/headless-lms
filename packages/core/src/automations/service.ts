@@ -60,6 +60,7 @@ import { ConflictError, InvalidInputError, NotFoundError } from '../shared/error
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { IntegrationsService } from '../integrations/index.js';
+import type { Actor } from '../shared/actor.js';
 import { automationEvents } from './events.js';
 
 /** True only when `input` sets `enabled` and nothing else — emits automation.enabled|disabled instead of automation.updated. */
@@ -208,6 +209,7 @@ export type AutomationsServiceParams = {
   mailer: Pick<Mailer, 'send'>;
   lookups: MailerLookups;
   integrations: Pick<IntegrationsService, 'available'>;
+  systemActor: (orgId: string) => Actor;
   credentials: CredentialStore;
   webhooks: WebhookSender;
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
@@ -225,6 +227,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly mailer: Pick<Mailer, 'send'>;
   private readonly lookups: MailerLookups;
   private readonly integrations: Pick<IntegrationsService, 'available'>;
+  private readonly systemActor: (orgId: string) => Actor;
   private readonly credentials: CredentialStore;
   private readonly webhooks: WebhookSender;
   private readonly mail: CommunityMailReads;
@@ -241,6 +244,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.mailer = params.mailer;
     this.lookups = params.lookups;
     this.integrations = params.integrations;
+    this.systemActor = params.systemActor;
     this.credentials = params.credentials;
     this.webhooks = params.webhooks;
     this.mail = {
@@ -534,7 +538,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
   }
 
-  async create(orgId: string, input: CreateAutomationInput): Promise<Automation> {
+  async create(input: CreateAutomationInput, actor: Actor): Promise<Automation> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     assertCatalogTriggers(input.triggers, true);
     assertAuthorableActions(input.actions);
     const automation = await this.uow.run(async ({ automations, outbox }) => {
@@ -551,11 +557,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automation;
   }
 
-  async update(
-    orgId: string,
-    id: string,
-    input: UpdateAutomationInput,
-  ): Promise<Automation | null> {
+  async update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation | null> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     if (input.triggers !== undefined) {
       assertCatalogTriggers(input.triggers, true);
     }
@@ -586,7 +590,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automation;
   }
 
-  async delete(orgId: string, id: string): Promise<boolean> {
+  async delete(id: string, actor: Actor): Promise<boolean> {
+    actor.permissions.require('automations:delete');
+    const orgId = actor.orgId;
     const existing = await this.repo.findById(orgId, id);
     if (!existing) {
       return false;
@@ -609,26 +615,31 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return deleted !== null;
   }
 
-  async list(orgId: string, query?: AutomationsQuery): Promise<Automation[]> {
-    const automations = await this.repo.listByOrg(orgId, query?.kind);
+  async list(query: AutomationsQuery | undefined, actor: Actor): Promise<Automation[]> {
+    actor.permissions.require('automations:read');
+    const automations = await this.repo.listByOrg(actor.orgId, query?.kind);
     return automations.map(toAutomationView);
   }
 
-  async get(orgId: string, id: string): Promise<Automation | null> {
-    const automation = await this.repo.findById(orgId, id);
+  async get(id: string, actor: Actor): Promise<Automation | null> {
+    actor.permissions.require('automations:read');
+    const automation = await this.repo.findById(actor.orgId, id);
     return automation ? toAutomationView(automation) : null;
   }
 
   async listRuns(
-    orgId: string,
     automationId: string,
     query: AutomationRunsQuery,
+    actor: Actor,
   ): Promise<Page<AutomationRun>> {
-    const page = await this.runsRepo.list(orgId, automationId, query);
+    actor.permissions.require('automations:read');
+    const page = await this.runsRepo.list(actor.orgId, automationId, query);
     return { ...page, rows: page.rows.map(toRunView) };
   }
 
-  async rerun(orgId: string, automationId: string, runId: string): Promise<AutomationRun> {
+  async rerun(automationId: string, runId: string, actor: Actor): Promise<AutomationRun> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     const existing = await this.runsRepo.findById(orgId, runId);
     if (!existing || existing.automationId !== automationId) {
       throw new NotFoundError('Automation run', runId);
@@ -668,17 +679,21 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return toRunView(run);
   }
 
-  async listWebhooks(orgId: string): Promise<Webhook[]> {
-    const automations = await this.repo.listByOrg(orgId, 'webhook');
+  async listWebhooks(actor: Actor): Promise<Webhook[]> {
+    actor.permissions.require('automations:read');
+    const automations = await this.repo.listByOrg(actor.orgId, 'webhook');
     return automations.map(toWebhook);
   }
 
-  async getWebhook(orgId: string, id: string): Promise<Webhook | null> {
-    const automation = await this.findWebhook(orgId, id);
+  async getWebhook(id: string, actor: Actor): Promise<Webhook | null> {
+    actor.permissions.require('automations:read');
+    const automation = await this.findWebhook(actor.orgId, id);
     return automation ? toWebhook(automation) : null;
   }
 
-  async createWebhook(orgId: string, input: CreateWebhookInput): Promise<CreatedWebhook> {
+  async createWebhook(input: CreateWebhookInput, actor: Actor): Promise<CreatedWebhook> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     const events = unique(input.events);
     assertCatalogTriggers(events, false);
     const secret = generateWebhookSecret();
@@ -699,10 +714,12 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   }
 
   async updateWebhook(
-    orgId: string,
     id: string,
     input: UpdateWebhookInput,
+    actor: Actor,
   ): Promise<Webhook | null> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     const existing = await this.findWebhook(orgId, id);
     if (!existing) {
       return null;
@@ -737,7 +754,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return toWebhook(updated);
   }
 
-  async deleteWebhook(orgId: string, id: string): Promise<boolean> {
+  async deleteWebhook(id: string, actor: Actor): Promise<boolean> {
+    actor.permissions.require('automations:delete');
+    const orgId = actor.orgId;
     const existing = await this.findWebhook(orgId, id);
     if (!existing) {
       return false;
@@ -758,7 +777,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return deleted !== null;
   }
 
-  async revealWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null> {
+  async revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     const existing = await this.findWebhook(orgId, id);
     if (!existing) {
       return null;
@@ -771,7 +792,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return { secret };
   }
 
-  async rotateWebhookSecret(orgId: string, id: string): Promise<WebhookSecret | null> {
+  async rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null> {
+    actor.permissions.require('automations:write');
+    const orgId = actor.orgId;
     const existing = await this.findWebhook(orgId, id);
     if (!existing) {
       return null;
@@ -787,10 +810,11 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automation?.kind === 'webhook' ? automation : null;
   }
 
-  availableActions(): AvailableActions {
+  availableActions(actor: Actor): AvailableActions {
+    actor.permissions.require('automations:read');
     return [
       ...catalogActions(),
-      ...this.integrations.available().flatMap((integration) =>
+      ...this.integrations.available(this.systemActor(actor.orgId)).flatMap((integration) =>
         integration.actions.map((action) => ({
           type: `${integration.id}.${action.id}`,
           description: action.description,
@@ -801,7 +825,8 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     ];
   }
 
-  availableTriggers(): AvailableTriggers {
+  availableTriggers(actor: Actor): AvailableTriggers {
+    actor.permissions.require('automations:read');
     return { triggers: catalogTriggers() };
   }
 }

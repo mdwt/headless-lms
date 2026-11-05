@@ -1,10 +1,13 @@
 import type { GrantEntitlementInput } from '../entitlements/index.js';
 import type {
   ChatStatus,
+  ContentType,
   EmailTemplateId,
   EmailTemplateParams,
   JsonValue,
+  Permission,
 } from '../types/index.js';
+import { PERMISSIONS, withImplied } from '../organizations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -35,8 +38,13 @@ export interface CommunityMailReads {
   communityMembersAmong(orgId: string, communityId: string, ids: string[]): Promise<string[]>;
   spaceOpenersAmong(orgId: string, spaceId: string, ids: string[]): Promise<string[]>;
   spaceOpeners(orgId: string, spaceId: string): Promise<string[]>;
-  moderationAudience(orgId: string, communityId: string): Promise<string[]>;
-  staffIds(orgId: string): Promise<string[]>;
+  holders(orgId: string, permission: Permission, on?: string): Promise<string[]>;
+  role(orgId: string, roleKey: string): Promise<{ name: string; permissions: Permission[] } | null>;
+  orgName(orgId: string): Promise<string | null>;
+  contentInfo(
+    orgId: string,
+    item: { contentId: string } | { bundleId: string },
+  ): Promise<{ title: string; type: string } | null>;
   displayName(orgId: string, orgUserId: string): Promise<string>;
   followerIds(orgId: string, postId: string): Promise<string[]>;
   comment(
@@ -110,8 +118,10 @@ export const emptyCommunityMail: CommunityMailReads = {
   communityMembersAmong: async () => [],
   spaceOpenersAmong: async () => [],
   spaceOpeners: async () => [],
-  moderationAudience: async () => [],
-  staffIds: async () => [],
+  holders: async () => [],
+  role: async () => null,
+  orgName: async () => null,
+  contentInfo: async () => null,
   displayName: async () => 'A member',
   followerIds: async () => [],
   comment: async () => null,
@@ -123,6 +133,70 @@ export const emptyCommunityMail: CommunityMailReads = {
   memberCommunityTitles: async () => [],
   recentMessageRecipients: async () => [],
 };
+
+export async function communityModerators(
+  reads: Pick<CommunityMailReads, 'holders' | 'communityMembersAmong'>,
+  orgId: string,
+  communityId: string,
+): Promise<string[]> {
+  const holders = await reads.holders(orgId, 'communities:moderate', communityId);
+  return holders.length === 0 ? [] : reads.communityMembersAmong(orgId, communityId, holders);
+}
+
+export interface RoleGain {
+  roleName: string;
+  place: string;
+  contentId: string | null;
+  contentType: ContentType | null;
+}
+
+function contributes(
+  permissions: readonly Permission[],
+  contentType: ContentType | null,
+): Set<Permission> {
+  const expanded = [...withImplied(permissions)];
+  return new Set(
+    contentType === null
+      ? expanded
+      : expanded.filter((permission) => PERMISSIONS[permission].about === contentType),
+  );
+}
+
+export async function roleGain(
+  reads: Pick<CommunityMailReads, 'role' | 'orgName' | 'contentInfo'>,
+  orgId: string,
+  assigned: {
+    roleKey: string;
+    previousRoleKey: string | null;
+    contentId: string | null;
+    contentType: ContentType | null;
+  },
+): Promise<RoleGain | null> {
+  const next = await reads.role(orgId, assigned.roleKey);
+  if (!next) {
+    return null;
+  }
+  const previous = assigned.previousRoleKey
+    ? await reads.role(orgId, assigned.previousRoleKey)
+    : null;
+  const before = contributes(previous?.permissions ?? [], assigned.contentType);
+  const gained = [...contributes(next.permissions, assigned.contentType)].some(
+    (permission) => !before.has(permission),
+  );
+  if (!gained) {
+    return null;
+  }
+  const place =
+    assigned.contentId === null
+      ? `in ${(await reads.orgName(orgId)) ?? 'the organization'}`
+      : `of ${(await reads.contentInfo(orgId, { contentId: assigned.contentId }))?.title ?? 'an item'}`;
+  return {
+    roleName: next.name,
+    place,
+    contentId: assigned.contentId,
+    contentType: assigned.contentType,
+  };
+}
 
 export function actorOf(event: DomainEvent): string | undefined {
   const value = event.metadata?.actorOrgUserId;

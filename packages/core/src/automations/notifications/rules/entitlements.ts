@@ -1,7 +1,7 @@
 import { entitlementEvents } from '../../../entitlements/index.js';
 import type { DomainEvent } from '../../../shared/ports.js';
 import type { RecipientList, SubjectRef } from '../../../types/index.js';
-import { previousStatusOf } from '../../community-mail.js';
+import { communityModerators, previousStatusOf } from '../../community-mail.js';
 import type { NotificationReads, RecipientRule } from '../../ports.js';
 import { actorOr, eventAt, listOf, Reasons, recipientsOf } from './recipients.js';
 
@@ -129,7 +129,7 @@ const spaceMemberCreated: RecipientRule = async (event, reads) => {
       await recipientsOf(
         reads,
         orgId,
-        new Reasons().add(await reads.moderationAudience(orgId, member.communityId), 'moderator'),
+        new Reasons().add(await communityModerators(reads, orgId, member.communityId), 'moderator'),
         {
           exclude: [member.orgUserId, actorOr(event, null)],
           at: eventAt(event),

@@ -5,7 +5,6 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   AdminReportRepository,
   CommunityAnalytics,
-  CommunityMember,
   CommunityMembersQuery,
   CourseActivityEngagement,
   CourseAnalytics,
@@ -13,9 +12,10 @@ import type {
   EnrollmentPoint,
   OverviewStats,
   Page,
-  Student,
   StudentAnalytics,
   StudentCourseProgress,
+  StudentItem,
+  StudentRow as StudentRecord,
   StudentsQuery,
 } from "@headless-lms/core/reporting/admin";
 import {
@@ -25,17 +25,18 @@ import {
   contentAccess,
   courses,
   entitlements,
+  invites,
   messageFlags,
   messages,
   orgUsers,
+  roleAssignments,
   postFlags,
   posts,
   spaces,
   users,
 } from "../schema/index.js";
-import { STUDENT_ROLE } from "@headless-lms/core/organizations";
 import { user } from "../schema/better-auth.js";
-import type { OrgUserStatus } from "@headless-lms/core/types";
+import type { OrgUserProfile, OrgUserStatus } from "@headless-lms/core/types";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import {
@@ -54,6 +55,32 @@ const avgProgressExpr = sql<number>`0`;
 // Last learning activity: the newest touch on any of the student's progress
 // records. A scalar subquery so it neither fans out the entitlement count nor
 // widens the GROUP BY.
+function hasNoOrgRole(): SQL {
+  return sql`not exists (
+    select 1 from ${roleAssignments} ra
+    where ra.org_id = ${orgUsers.orgId} and ra.org_user_id = ${orgUsers.id} and ra.content_id is null
+  )`;
+}
+
+function invitedAs(roleKey: string): SQL {
+  return sql`coalesce((
+    select i.role from ${invites} i
+    where i.org_id = ${orgUsers.orgId} and lower(i.email) = lower(${users.email}) and i.status = 'pending'
+    order by i.created_at desc
+    limit 1
+  ), ${roleKey}) = ${roleKey}`;
+}
+
+function isStudent(memberRoleKey: string): SQL {
+  return and(
+    hasNoOrgRole(),
+    or(
+      eq(orgUsers.status, "active"),
+      and(eq(orgUsers.status, "invited"), invitedAs(memberRoleKey)),
+    ),
+  )!;
+}
+
 const lastActiveExpr = sql<Date | null>`(
   select max(pr.updated_at) from progress_records pr
   where pr.org_id = ${orgUsers.orgId} and pr.org_user_id = ${orgUsers.id}
@@ -72,8 +99,9 @@ interface StudentRow {
   lastActiveAt: Date | null;
 }
 
-function toStudent(row: StudentRow): Student {
+function toStudent(row: StudentRow, items: StudentItem[]): StudentRecord {
   return {
+    items,
     id: row.id,
     email: row.email,
     image: row.image ?? null,
@@ -290,10 +318,12 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
   }
 
-  async listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>> {
-    // Staff share this table now — the role filter is what keeps them out of
-    // the students report.
-    const filters: SQL[] = [eq(orgUsers.orgId, orgId), eq(orgUsers.role, STUDENT_ROLE)];
+  async listStudents(
+    orgId: string,
+    query: StudentsQuery,
+    memberRoleKey: string,
+  ): Promise<Page<StudentRecord>> {
+    const filters: SQL[] = [eq(orgUsers.orgId, orgId), isStudent(memberRoleKey)];
     const q = query.search?.trim();
     if (q) {
       const like = `%${q}%`;
@@ -343,15 +373,19 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       .limit(query.pageSize)
       .offset((query.page - 1) * query.pageSize);
 
+    const items = await this.itemsOf(
+      orgId,
+      rows.map((row) => row.id),
+    );
     return {
-      rows: rows.map(toStudent),
+      rows: rows.map((row) => toStudent(row, items.get(row.id) ?? [])),
       total: Number(totals?.total ?? 0),
       page: query.page,
       pageSize: query.pageSize,
     };
   }
 
-  async getStudent(orgId: string, id: string): Promise<Student | null> {
+  async getStudent(orgId: string, id: string): Promise<StudentRecord | null> {
     const [row] = await this.db
       .select({
         ...studentProfileColumns,
@@ -368,7 +402,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       )
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .leftJoin(user, eq(user.id, users.externalId))
-      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id), eq(orgUsers.role, STUDENT_ROLE)))
+      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
       .groupBy(
         orgUsers.orgId,
         orgUsers.id,
@@ -381,7 +415,42 @@ export class DrizzleAdminRepository implements AdminReportRepository {
         user.image,
       )
       .limit(1);
-    return row ? toStudent(row) : null;
+    if (!row) {
+      return null;
+    }
+    const items = await this.itemsOf(orgId, [row.id]);
+    return toStudent(row, items.get(row.id) ?? []);
+  }
+
+  private async itemsOf(orgId: string, orgUserIds: string[]): Promise<Map<string, StudentItem[]>> {
+    const byPerson = new Map<string, StudentItem[]>();
+    if (orgUserIds.length === 0) {
+      return byPerson;
+    }
+    const rows = await this.db
+      .select({
+        orgUserId: roleAssignments.orgUserId,
+        contentId: roleAssignments.contentId,
+        contentType: roleAssignments.contentType,
+      })
+      .from(roleAssignments)
+      .where(
+        and(
+          eq(roleAssignments.orgId, orgId),
+          inArray(roleAssignments.orgUserId, orgUserIds),
+          sql`${roleAssignments.contentId} is not null`,
+        ),
+      )
+      .orderBy(asc(roleAssignments.createdAt));
+    for (const row of rows) {
+      if (row.contentId === null || row.contentType === null) {
+        continue;
+      }
+      const items = byPerson.get(row.orgUserId) ?? [];
+      items.push({ contentId: row.contentId, contentType: row.contentType });
+      byPerson.set(row.orgUserId, items);
+    }
+    return byPerson;
   }
 
   // Learner record: one row per course the student holds an effective-active
@@ -391,7 +460,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     const [exists] = await this.db
       .select({ id: orgUsers.id })
       .from(orgUsers)
-      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id), eq(orgUsers.role, STUDENT_ROLE)));
+      .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)));
     if (!exists) {
       return null;
     }
@@ -687,7 +756,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     orgId: string,
     communityId: string,
     query: CommunityMembersQuery,
-  ): Promise<Page<CommunityMember> | null> {
+  ): Promise<Page<OrgUserProfile> | null> {
     const [community] = await this.db
       .select({ id: communities.id })
       .from(communities)
@@ -723,7 +792,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .where(where);
     const rows = await this.db
-      .select({ ...orgUserProfileColumns, role: orgUsers.role })
+      .select(orgUserProfileColumns)
       .from(orgUsers)
       .innerJoin(users, eq(users.id, orgUsers.userId))
       .leftJoin(user, eq(user.id, users.externalId))

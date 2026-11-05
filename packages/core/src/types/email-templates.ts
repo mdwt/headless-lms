@@ -88,7 +88,12 @@ export interface EmailTemplateParams {
     chatId: string;
     communityId: string;
   };
-  youAreNowAModerator: { communityTitles: string[] };
+  roleAssigned: {
+    roleName: string;
+    place: string;
+    contentId: string | null;
+    contentType: ContentType | null;
+  };
   digest: {
     communityTitle: string;
     communityId: string;

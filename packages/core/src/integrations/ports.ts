@@ -5,6 +5,7 @@
 import type { Integration } from '../types/index.js';
 import type { ConfigureInput, ConnectInput, Connection } from './model.js';
 import type { CredentialStore, OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
 
 export type { Validation, ActionContext, Action, Integration } from '../types/index.js';
 
@@ -30,30 +31,26 @@ export interface AvailableIntegration {
 // Inbound port (use cases the service exposes).
 export interface IntegrationsService {
   /** The integrations declared in this deployment, with their config schemas. */
-  available(): AvailableIntegration[];
+  available(actor: Actor): AvailableIntegration[];
   /** Establish a connection for an org; stores its credential and configuration. */
-  connect(orgId: string, input: ConnectInput): Promise<Connection>;
+  connect(input: ConnectInput, actor: Actor): Promise<Connection>;
   /** Replace a connection's stored secrets (re-auth / token refresh). */
-  reconnect(
-    orgId: string,
-    id: string,
-    secrets: Record<string, unknown>,
-  ): Promise<Connection | null>;
+  reconnect(id: string, secrets: Record<string, unknown>, actor: Actor): Promise<Connection | null>;
   /** Set or change a connection's configuration and/or active flag. */
-  configure(orgId: string, id: string, input: ConfigureInput): Promise<Connection | null>;
+  configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection | null>;
   /** Remove a connection and destroy its credential. */
-  disconnect(orgId: string, id: string): Promise<boolean>;
-  list(orgId: string): Promise<Connection[]>;
-  get(orgId: string, id: string): Promise<Connection | null>;
+  disconnect(id: string, actor: Actor): Promise<boolean>;
+  list(actor: Actor): Promise<Connection[]>;
+  get(id: string, actor: Actor): Promise<Connection | null>;
   /** The connection consumers (billing, automations) resolve an integration by id. */
   getByIntegration(orgId: string, integrationId: string): Promise<Connection | null>;
   /** Invoke one of a connection's actions with its credential revealed at point
    *  of use (e.g. a listing action that feeds a client-side picker). */
   invoke(
-    orgId: string,
     connectionId: string,
     actionId: string,
     input: Record<string, unknown>,
+    actor: Actor,
   ): Promise<unknown>;
 }
 

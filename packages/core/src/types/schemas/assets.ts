@@ -40,10 +40,9 @@ export type AssetUrls = z.infer<typeof assetUrlsSchema>;
 
 export const requestUploadInputSchema = z
   .object({
-    uploadedBy: idSchema,
     filename: z.string().trim().min(1).max(255),
     contentType: z.string().trim().min(1).max(255),
-    source: assetSourceSchema,
+    contentId: idSchema.optional(),
   })
   .strict();
 export type RequestUploadInput = z.infer<typeof requestUploadInputSchema>;
@@ -67,6 +66,7 @@ export const assetsQuerySchema = z
     sort: z.string().optional(),
     kind: assetKindSchema.optional(),
     source: assetSourceSchema.optional(),
+    contentId: idSchema.optional(),
   })
   .strict();
 export type AssetsQuery = z.infer<typeof assetsQuerySchema>;

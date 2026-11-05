@@ -1,4 +1,6 @@
 // reporting/admin — ports.
+import type { Actor, EffectivePermissions } from '../../shared/actor.js';
+import type { OrgUserProfile } from '../../types/index.js';
 import type {
   CommunityAnalytics,
   CommunityMember,
@@ -10,27 +12,35 @@ import type {
   Page,
   Student,
   StudentAnalytics,
+  StudentRow,
   StudentsQuery,
 } from './model.js';
 
 export interface AdminReportService {
-  overview(orgId: string): Promise<OverviewStats>;
-  enrollments(orgId: string, days: number): Promise<EnrollmentPoint[]>;
-  courseAnalytics(orgId: string, courseId: string): Promise<CourseAnalytics | null>;
+  overview(actor: Actor): Promise<OverviewStats>;
+  enrollments(days: number, actor: Actor): Promise<EnrollmentPoint[]>;
+  courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics | null>;
   courseEnrollments(
-    orgId: string,
     courseId: string,
     days: number,
+    actor: Actor,
   ): Promise<CourseEnrollmentPoint[] | null>;
-  listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>>;
-  getStudent(orgId: string, id: string): Promise<Student | null>;
-  studentAnalytics(orgId: string, id: string): Promise<StudentAnalytics | null>;
-  communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null>;
+  listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>>;
+  getStudent(id: string, actor: Actor): Promise<Student | null>;
+  studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics | null>;
+  communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics | null>;
   communityMembers(
-    orgId: string,
     communityId: string,
     query: CommunityMembersQuery,
+    actor: Actor,
   ): Promise<Page<CommunityMember> | null>;
+}
+
+export interface PermissionsReader {
+  permissionsOfMany(
+    orgId: string,
+    orgUserIds: string[],
+  ): Promise<Map<string, EffectivePermissions>>;
 }
 
 export interface AdminReportRepository {
@@ -42,13 +52,19 @@ export interface AdminReportRepository {
     courseId: string,
     days: number,
   ): Promise<CourseEnrollmentPoint[] | null>;
-  listStudents(orgId: string, query: StudentsQuery): Promise<Page<Student>>;
-  getStudent(orgId: string, id: string): Promise<Student | null>;
+  /** Active and invited org users whose org role is `memberRoleKey`: no org assignment,
+   *  and for an invited one, a pending invite carrying that key. */
+  listStudents(
+    orgId: string,
+    query: StudentsQuery,
+    memberRoleKey: string,
+  ): Promise<Page<StudentRow>>;
+  getStudent(orgId: string, id: string): Promise<StudentRow | null>;
   studentAnalytics(orgId: string, id: string): Promise<StudentAnalytics | null>;
   communityAnalytics(orgId: string, communityId: string): Promise<CommunityAnalytics | null>;
   communityMembers(
     orgId: string,
     communityId: string,
     query: CommunityMembersQuery,
-  ): Promise<Page<CommunityMember> | null>;
+  ): Promise<Page<OrgUserProfile> | null>;
 }

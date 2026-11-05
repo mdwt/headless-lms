@@ -5,7 +5,9 @@ import type {
   NotificationCategoryService,
   NotificationTypeRegistry,
 } from '../shared/ports.js';
-import { NotFoundError } from '../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../shared/errors.js';
+import type { Actor } from '../shared/actor.js';
+import { requires, type Declarations } from '../shared/declarations.js';
 import { noopLogger } from '../shared/logger.js';
 import { SettingsNamespace, type SettingsService } from '../shared/settings.js';
 import {
@@ -39,9 +41,11 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
   }
 
   async get(
-    orgId: string,
     communityId: string,
+    actor: Actor,
   ): Promise<{ categories: NotificationCategory[]; source: 'default' | 'stored' }> {
+    actor.permissions.require('communities:read', communityId);
+    const orgId = actor.orgId;
     await this.assertCommunity(orgId, communityId);
     const value = await this.settings.get<Record<string, unknown>>(
       orgId,
@@ -51,14 +55,16 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     const stored = storedCategoryList(value?.notificationCategories);
     return stored
       ? { categories: offeringConfigured(stored, this.channels.list()), source: 'stored' }
-      : { categories: this.defaults(), source: 'default' };
+      : { categories: this.types.defaults('community'), source: 'default' };
   }
 
   async replace(
-    orgId: string,
     communityId: string,
     categories: NotificationCategory[],
+    actor: Actor,
   ): Promise<{ categories: NotificationCategory[]; source: 'stored' }> {
+    actor.permissions.require('communities:write', communityId);
+    const orgId = actor.orgId;
     await this.assertCommunity(orgId, communityId);
     const configured = this.channels.list();
     assertValidCategoryList(categories, 'community', this.types, configured);
@@ -68,21 +74,34 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     });
     this.logger.info('community notification categories replaced', {
       orgId,
+      orgUserId: actor.id,
       communityId,
       keys: categories.map((category) => category.key),
     });
     return { categories: ordered, source: 'stored' };
   }
 
-  async reset(orgId: string, communityId: string): Promise<void> {
+  async reset(communityId: string, actor: Actor): Promise<void> {
+    actor.permissions.require('communities:write', communityId);
+    const orgId = actor.orgId;
     await this.assertCommunity(orgId, communityId);
     await this.settings.patch(orgId, SettingsNamespace.content, communityId, {
       notificationCategories: null,
     });
-    this.logger.info('community notification categories reset', { orgId, communityId });
+    this.logger.info('community notification categories reset', {
+      orgId,
+      orgUserId: actor.id,
+      communityId,
+    });
   }
 
-  defaults(): NotificationCategory[] {
+  defaults(actor: Actor): NotificationCategory[] {
+    if (
+      !actor.permissions.has('notification_categories:read') &&
+      !actor.permissions.anywhere('communities:read')
+    ) {
+      throw new ForbiddenError('You need notification_categories:read or communities:read');
+    }
     return this.types.defaults('community');
   }
 
@@ -93,3 +112,10 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     }
   }
 }
+
+export const communityNotificationCategoriesDeclarations = {
+  get: requires('communities:read'),
+  replace: requires('communities:write'),
+  reset: requires('communities:write'),
+  defaults: requires('notification_categories:read', 'communities:read'),
+} as const satisfies Declarations<NotificationCategoryService>;

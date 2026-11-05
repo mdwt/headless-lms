@@ -1,5 +1,6 @@
 // reporting/admin — read models for the admin app. Framework-free.
-import type { OrgUserProfile, OrgUserStatus, Role } from '../../types/index.js';
+import type { ContentType, OrgUserProfile, OrgUserStatus } from '../../types/index.js';
+import type { ItemRole } from '../../organizations/index.js';
 
 export interface SpacePostCount {
   spaceId: string;
@@ -70,6 +71,17 @@ export interface Student extends OrgUserProfile {
   status: OrgUserStatus;
   joinedAt: string;
   lastActiveAt: string | null;
+  /** The roles they hold on content items. */
+  items: ItemRole[];
+}
+
+export interface StudentItem {
+  contentId: string;
+  contentType: ContentType;
+}
+
+export interface StudentRow extends Omit<Student, 'items'> {
+  items: StudentItem[];
 }
 
 export interface StudentCourseProgress {
@@ -95,7 +107,8 @@ export interface StudentAnalytics {
 }
 
 export interface CommunityMember extends OrgUserProfile {
-  role: Role;
+  team: boolean;
+  roleName: string | null;
 }
 
 export interface CommunityMembersQuery {

@@ -6,10 +6,12 @@ import type {
   AssetSource,
   AssetStatus,
   AssetsQuery,
+  ContentType,
   Logger,
   Page,
 } from "@headless-lms/core/types";
 import { assets } from "../schema/assets.js";
+import { contentItems } from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import type { DbExecutor } from "../client.js";
 import { ConflictError } from "@headless-lms/core/shared/errors";
@@ -86,6 +88,7 @@ export class DrizzleAssetsRepository implements AssetsRepository {
         size: asset.size,
         status: asset.status,
         uploadedBy: asset.uploadedBy,
+        contentId: asset.contentId,
         createdAt: new Date(asset.createdAt),
       })
       .returning();
@@ -102,6 +105,9 @@ export class DrizzleAssetsRepository implements AssetsRepository {
     }
     if (query.source) {
       filters.push(eq(assets.source, query.source));
+    }
+    if (query.contentId) {
+      filters.push(eq(assets.contentId, query.contentId));
     }
     const q = query.search?.trim();
     if (q) {
@@ -213,6 +219,15 @@ export class DrizzleAssetsRepository implements AssetsRepository {
       .from(assets)
       .where(and(eq(assets.orgId, orgId), inArray(assets.key, keys)));
     return rows.map((r) => r.key);
+  }
+
+  async contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null> {
+    const [row] = await this.db
+      .select({ type: contentItems.type })
+      .from(contentItems)
+      .where(and(eq(contentItems.orgId, orgId), eq(contentItems.id, contentId)))
+      .limit(1);
+    return row?.type ?? null;
   }
 }
 translateDbErrors(DrizzleAssetsRepository);

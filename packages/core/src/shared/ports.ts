@@ -23,6 +23,7 @@ import type {
   PushDevice,
   PushMessage,
 } from '../types/index.js';
+import type { Actor } from './actor.js';
 
 export type {
   DomainEvent,
@@ -155,16 +156,16 @@ export interface ChannelRegistry {
 
 export interface NotificationCategoryService {
   get(
-    orgId: string,
     scopeId: string,
+    actor: Actor,
   ): Promise<{ categories: NotificationCategory[]; source: 'default' | 'stored' }>;
   replace(
-    orgId: string,
     scopeId: string,
     categories: NotificationCategory[],
+    actor: Actor,
   ): Promise<{ categories: NotificationCategory[]; source: 'stored' }>;
-  reset(orgId: string, scopeId: string): Promise<void>;
-  defaults(): NotificationCategory[];
+  reset(scopeId: string, actor: Actor): Promise<void>;
+  defaults(actor: Actor): NotificationCategory[];
 }
 
 export interface PushSender {

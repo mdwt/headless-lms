@@ -1,6 +1,7 @@
 // integrations context — public surface. Re-export only what other contexts may use.
 export { IntegrationsServiceImpl } from './service.js';
 export { integrationEvents } from './events.js';
+export { integrationsDeclarations } from './declarations.js';
 export { createIntegrationsRegistry } from './registry.js';
 export { zodConfig, zodSecrets, zodAction } from './zod.js';
 export {

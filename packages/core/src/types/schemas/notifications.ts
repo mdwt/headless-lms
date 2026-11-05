@@ -14,7 +14,6 @@ export const reasonSchema = z.enum([
   'community_member',
   'course_member',
   'moderator',
-  'staff',
 ]) satisfies z.ZodType<Reason>;
 
 export const notificationScopeSchema = z.enum(['org', 'community', 'space', 'chat']);

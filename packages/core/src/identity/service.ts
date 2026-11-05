@@ -1,11 +1,11 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
 import type { User, UserProfile, UserProfileView } from './model.js';
-import type { UpdateProfileInput } from './ports.js';
+import type { MemberActor, UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
 import type { FileUrls, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
@@ -109,10 +109,11 @@ export class IdentityServiceImpl implements IdentityService {
     await this.mailer.send(input.email, 'magicLink', { url: input.url });
   }
 
-  async profileOf(orgId: string, userId: string): Promise<UserProfileView> {
+  async profileOf(actor: MemberActor): Promise<UserProfileView> {
+    const userId = actor.userId;
     const stored = await this.repo.findProfile(userId);
     if (stored) {
-      return this.view(orgId, stored);
+      return this.view(actor.orgId, stored);
     }
     const never = new Date(0);
     return {
@@ -150,16 +151,10 @@ export class IdentityServiceImpl implements IdentityService {
     return composed || UNNAMED;
   }
 
-  async updateProfile(
-    orgId: string,
-    userId: string,
-    actorUserId: string,
-    orgUserId: string,
-    patch: UpdateProfileInput,
-  ): Promise<UserProfileView> {
-    if (actorUserId !== userId) {
-      throw new ForbiddenError('You can only update your own profile');
-    }
+  async updateProfile(patch: UpdateProfileInput, actor: MemberActor): Promise<UserProfileView> {
+    const orgId = actor.orgId;
+    const userId = actor.userId;
+    const orgUserId = actor.id;
     const user = await this.repo.findUserById(userId);
     if (!user) {
       throw new NotFoundError('User', userId);

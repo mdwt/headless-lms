@@ -27,6 +27,7 @@ import type {
   IntegrationsUnitOfWork,
 } from './ports.js';
 import type { CredentialStore, Logger } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { integrationEvents } from './events.js';
@@ -57,7 +58,8 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     this.logger = params.logger ?? noopLogger;
   }
 
-  available() {
+  available(actor: Actor) {
+    actor.permissions.require('integrations:read');
     return this.registry.list().map((integration) => ({
       id: integration.id,
       configSchema: integration.configSchema(),
@@ -87,7 +89,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     }
   }
 
-  async connect(orgId: string, input: ConnectInput): Promise<Connection> {
+  async connect(input: ConnectInput, actor: Actor): Promise<Connection> {
+    actor.permissions.require('integrations:write');
+    const orgId = actor.orgId;
     const config = input.config ?? {};
     this.validate(input.integrationId, config);
     const existing = await this.repo.findByIntegration(orgId, input.integrationId);
@@ -128,10 +132,12 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   }
 
   async reconnect(
-    orgId: string,
     id: string,
     secrets: Record<string, unknown>,
+    actor: Actor,
   ): Promise<Connection | null> {
+    actor.permissions.require('integrations:write');
+    const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
       return null;
@@ -152,7 +158,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return updated;
   }
 
-  async configure(orgId: string, id: string, input: ConfigureInput): Promise<Connection | null> {
+  async configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection | null> {
+    actor.permissions.require('integrations:write');
+    const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
       return null;
@@ -179,7 +187,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return updated;
   }
 
-  async disconnect(orgId: string, id: string): Promise<boolean> {
+  async disconnect(id: string, actor: Actor): Promise<boolean> {
+    actor.permissions.require('integrations:delete');
+    const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
       return false;
@@ -199,12 +209,14 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return deleted;
   }
 
-  list(orgId: string): Promise<Connection[]> {
-    return this.repo.list(orgId);
+  async list(actor: Actor): Promise<Connection[]> {
+    actor.permissions.require('integrations:read');
+    return this.repo.list(actor.orgId);
   }
 
-  get(orgId: string, id: string): Promise<Connection | null> {
-    return this.repo.findById(orgId, id);
+  async get(id: string, actor: Actor): Promise<Connection | null> {
+    actor.permissions.require('integrations:read');
+    return this.repo.findById(actor.orgId, id);
   }
 
   getByIntegration(orgId: string, integrationId: string): Promise<Connection | null> {
@@ -212,11 +224,13 @@ export class IntegrationsServiceImpl implements IntegrationsService {
   }
 
   async invoke(
-    orgId: string,
     connectionId: string,
     actionId: string,
     input: Record<string, unknown>,
+    actor: Actor,
   ): Promise<unknown> {
+    actor.permissions.require('integrations:write');
+    const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, connectionId);
     if (!connection) {
       throw new NotFoundError('Connection', connectionId);

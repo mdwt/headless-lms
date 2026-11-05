@@ -25,8 +25,10 @@ export {
 export { RECIPIENT_RULES } from './notifications/rules/index.js';
 export { NOTIFICATION_TYPES } from './notifications/types.js';
 export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifications/defaults.js';
+export { applicableCategories } from './notifications/applicable.js';
 export type { CommunityMailReads, GrantWriter } from './community-mail.js';
 export { automationEvents } from './events.js';
+export { automationsDeclarations, notificationListDeclarations } from './declarations.js';
 export {
   ACTION_FAILED,
   ActionFailedError,
