@@ -581,7 +581,7 @@ export interface MessageQueue {
   entries: MessageQueueEntry[];
 }
 
-export interface ChatService {
+export interface ChatService extends ChatLiveReads {
   startDirect(input: StartDirectInput, actor: Actor): Promise<Chat>;
   startGroup(input: StartGroupInput, actor: Actor): Promise<Chat>;
   addParticipant(chatId: string, orgUserId: string, actor: Actor): Promise<Chat>;
