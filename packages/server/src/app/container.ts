@@ -559,6 +559,10 @@ export async function buildContainer(
     access: entitlements,
     posts,
     chats,
+    uow: new DrizzleUnitOfWork(db, (tx) => ({
+      subscriptions: new DrizzleSubscriptionsRepository(tx, discussionLogger),
+      outbox: new DrizzleOutboxAppender(tx, outboxLogger),
+    })),
     logger: discussionLogger,
   });
 
