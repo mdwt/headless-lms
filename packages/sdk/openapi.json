@@ -464,7 +464,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[a-z][a-z0-9_]*$"
+                    "pattern": "^[a-z][a-zA-Z0-9_]*$"
                   }
                 },
                 "required": [
@@ -888,7 +888,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[a-z][a-z0-9_]*$"
+                    "pattern": "^[a-z][a-zA-Z0-9_]*$"
                   },
                   "name": {
                     "type": "string",
@@ -2924,7 +2924,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[a-z][a-z0-9_]*$"
+                    "pattern": "^[a-z][a-zA-Z0-9_]*$"
                   }
                 },
                 "required": [
@@ -3182,7 +3182,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[a-z][a-z0-9_]*$"
+                    "pattern": "^[a-z][a-zA-Z0-9_]*$"
                   }
                 },
                 "required": [
@@ -4059,7 +4059,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 64,
-                    "pattern": "^[a-z][a-z0-9_]*$"
+                    "pattern": "^[a-z][a-zA-Z0-9_]*$"
                   },
                   "firstName": {
                     "type": "string",
@@ -33701,7 +33701,7 @@
                       "submit",
                       "schedule"
                     ],
-                    "description": "`draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you are not staff. `schedule` submits it at `scheduledAt`."
+                    "description": "`draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you do not moderate the community. `schedule` submits it at `scheduledAt`."
                   },
                   "scheduledAt": {
                     "nullable": true,

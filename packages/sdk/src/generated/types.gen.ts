@@ -11124,7 +11124,7 @@ export type CreatePostData = {
      */
     coverAssetId: string | null;
     /**
-     * `draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you are not staff. `schedule` submits it at `scheduledAt`.
+     * `draft` keeps the post to yourself. `submit` publishes it, or holds it for review when the space requires review and you do not moderate the community. `schedule` submits it at `scheduledAt`.
      */
     mode: "draft" | "submit" | "schedule";
     /**
