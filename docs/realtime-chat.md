@@ -94,7 +94,7 @@ The contract sets no size limit on a message; an implementation that has one han
 
 | Implementation | Package | Use |
 |---|---|---|
-| `InMemoryPubSub` | `@headless-lms/adapter-defaults/pubsub` | one process: development, tests, a single instance. The fallback when none is injected, as for `gen:openapi`, which builds a container with no adapters (`apps/api/src/gen-openapi.ts:11`). |
+| `InMemoryPubSub` | `@headless-lms/adapter-defaults/pubsub` | one process: development, tests, a single instance. The fallback when none is injected, as for `gen:openapi`, which builds a container with no adapters (`apps/api/scripts/gen-openapi.ts:11`). |
 | `PostgresPubSub` | `@headless-lms/adapter-pubsub-postgres` (new, `adapters/pubsub-postgres`) | more than one instance on Postgres |
 
 The container takes it as `adapters.pubsub`, beside `workflows` and `pushSender`, and exposes it as `container.pubsub`:
