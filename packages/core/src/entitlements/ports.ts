@@ -11,8 +11,8 @@ import type {
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Space, SpaceRowLock } from '../content/index.js';
-import type { Role } from '../organizations/index.js';
 import type { Actor } from '../shared/actor.js';
+import type { Permission } from '../types/index.js';
 
 export interface GrantTarget {
   contentId: string | null;
@@ -63,9 +63,23 @@ export interface EndingGrantKey {
 
 export interface AccessFacts {
   orgUserId: string;
-  role: Role;
-  member: boolean;
+  granted: boolean;
   activeInSpace: boolean;
+}
+
+export interface PermissionHolders {
+  holders(orgId: string, permission: Permission, on?: string): Promise<string[]>;
+  systemActor(orgId: string): Actor;
+}
+
+export interface SpaceReader {
+  getSpace(spaceId: string, actor: Actor): Promise<Space | null>;
+  listSpaces(communityId: string, actor: Actor): Promise<Space[]>;
+}
+
+export interface CommunityReaders {
+  all: boolean;
+  ids: string[];
 }
 
 export interface GrantKey {
@@ -78,6 +92,7 @@ export interface SpaceMembersQuery {
   page: number;
   pageSize: number;
   statuses?: SpaceMemberStatus[];
+  excluding?: string[];
 }
 
 export interface InsertSpaceMemberInput {
@@ -90,66 +105,58 @@ export interface InsertSpaceMemberInput {
 
 // Inbound port (use cases the service exposes).
 export interface EntitlementsService extends CommunityAccessReader {
-  list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
-  grant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
-  ensureGrant(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
-  setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
+  list(query: EntitlementsQuery, actor: Actor): Promise<Page<Entitlement>>;
+  grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
+  ensureGrant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
+  setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement | null>;
   /** Whether this org user can open the content right now, through a grant to
    *  it or to a bundle holding it. The only access check — nothing else may
    *  derive access from grants. */
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
   /** Ids of the content this org user can open right now, optionally of one type. */
   listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]>;
-  requestJoin(
-    orgId: string,
-    actor: Actor,
-    communityId: string,
-    spaceId: string,
-  ): Promise<SpaceMember>;
+  holdsAnyGrant(orgId: string, orgUserId: string): Promise<boolean>;
+  /** `communities:read` on the community, or a member of it holding `communities:moderate` on it. */
+  opensEverySpace(actor: Actor, communityId: string): Promise<boolean>;
+  requestJoin(communityId: string, spaceId: string, actor: Actor): Promise<SpaceMember>;
   invite(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     orgUserId: string,
+    actor: Actor,
   ): Promise<SpaceMember>;
   addSpaceMember(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     orgUserId: string,
+    actor: Actor,
   ): Promise<SpaceMember>;
-  accept(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
+  accept(communityId: string, spaceId: string, actor: Actor): Promise<SpaceMember>;
   approve(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     orgUserId: string,
+    actor: Actor,
   ): Promise<SpaceMember>;
   decline(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     orgUserId: string,
+    actor: Actor,
   ): Promise<SpaceMember>;
-  refuse(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
-  leave(orgId: string, actor: Actor, communityId: string, spaceId: string): Promise<SpaceMember>;
+  refuse(communityId: string, spaceId: string, actor: Actor): Promise<SpaceMember>;
+  leave(communityId: string, spaceId: string, actor: Actor): Promise<SpaceMember>;
   remove(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     orgUserId: string,
+    actor: Actor,
   ): Promise<SpaceMember>;
   listSpaceMembers(
-    orgId: string,
-    actor: Actor,
     communityId: string,
     spaceId: string,
     query: { page: number; pageSize: number },
+    actor: Actor,
   ): Promise<Page<SpaceMember>>;
   expireDueGrants(now: Date): Promise<void>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
@@ -159,6 +166,8 @@ export interface EntitlementsService extends CommunityAccessReader {
   communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
   contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
+  /** Org users who open every space of the community, so hold no place in its spaces. */
+  everySpaceOpeners(orgId: string, communityId: string): Promise<string[]>;
 }
 
 // Outbound port (persistence contract the repository fulfils).
@@ -172,6 +181,8 @@ export interface EntitlementsRepository {
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
   listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]>;
   hasCommunityAccess(orgId: string, orgUserId: string, communityId: string): Promise<boolean>;
+  holdsAnyGrant(orgId: string, orgUserId: string): Promise<boolean>;
+  contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null>;
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
   accessAmong(
     orgId: string,
@@ -198,7 +209,7 @@ export interface EntitlementsRepository {
     status: SpaceMemberStatus,
   ): Promise<SpaceMember | null>;
   deleteSpaceMember(orgId: string, id: string): Promise<void>;
-  countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
+  countActiveSpaceMembers(orgId: string, spaceId: string, excluding: string[]): Promise<number>;
   activeSpaceIds(orgId: string, orgUserId: string, communityId: string): Promise<string[]>;
   /** Expired grants with no expiry notice, in id order, after `afterId` when given. */
   listGrantsExpiredBy(
@@ -217,10 +228,9 @@ export interface EntitlementsRepository {
   ): Promise<EndingGrant[]>;
   orgIdsWithDueNotices(now: Date, until: Date): Promise<string[]>;
   claimNotice(orgId: string, notice: EntitlementNotice, now: Date): Promise<boolean>;
-  communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
-  communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
+  communityMemberIds(orgId: string, communityId: string, readerIds: string[]): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
-  openCommunityIds(orgId: string, orgUserId: string): Promise<string[]>;
+  openCommunityIds(orgId: string, orgUserId: string, readers: CommunityReaders): Promise<string[]>;
   contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
 }
 

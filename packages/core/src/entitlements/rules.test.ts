@@ -1,22 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { laterExpiry, opensSpace } from './rules.js';
+import { laterExpiry, opensSpace, seesSpace } from './rules.js';
 
 describe('opensSpace', () => {
   it('ignores space-member rows in an all-members space', () => {
-    expect(opensSpace('student', true, 'all_members', false)).toBe(true);
-    expect(opensSpace('student', false, 'all_members', true)).toBe(false);
+    expect(opensSpace(true, false, 'all_members', false)).toBe(true);
+    expect(opensSpace(false, false, 'all_members', true)).toBe(false);
   });
 
   it('requires an active row in a by-request or by-invite space for a member', () => {
-    expect(opensSpace('student', true, 'by_request', false)).toBe(false);
-    expect(opensSpace('student', true, 'by_invite', true)).toBe(true);
+    expect(opensSpace(true, false, 'by_request', false)).toBe(false);
+    expect(opensSpace(true, false, 'by_invite', true)).toBe(true);
   });
 
-  it('lets a moderating member open every space and nobody who is not a member', () => {
-    expect(opensSpace('moderator', true, 'by_invite', false)).toBe(true);
-    expect(opensSpace('owner', true, 'by_invite', false)).toBe(true);
-    expect(opensSpace('moderator', false, 'all_members', false)).toBe(false);
-    expect(opensSpace('owner', false, 'all_members', true)).toBe(false);
+  it('opens every space to a member who opens every space, and nothing to a non-member', () => {
+    expect(opensSpace(true, true, 'by_invite', false)).toBe(true);
+    expect(opensSpace(false, true, 'all_members', true)).toBe(false);
+  });
+});
+
+describe('seesSpace', () => {
+  it('hides a by-invite space from someone without a row, unless they open every space', () => {
+    expect(seesSpace(false, 'by_invite', undefined)).toBe(false);
+    expect(seesSpace(false, 'by_invite', 'revoked')).toBe(false);
+    expect(seesSpace(false, 'by_invite', 'invited')).toBe(true);
+    expect(seesSpace(true, 'by_invite', undefined)).toBe(true);
+    expect(seesSpace(false, 'by_request', undefined)).toBe(true);
   });
 });
 

@@ -1,11 +1,13 @@
 // entitlements context — public surface. Re-export only what other contexts may use.
 export { EntitlementsServiceImpl } from './service.js';
 export { entitlementEvents } from './events.js';
-export { seesSpace } from './rules.js';
+export { opensSpace, seesSpace } from './rules.js';
+export { entitlementsDeclarations } from './declarations.js';
 export { GRANTS_EXPIRE_JOB, entitlementsJobs, entitlementsRecurringJobs } from './jobs.js';
 export type {
   AccessFacts,
   CommunityAccessReader,
+  CommunityReaders,
   EndingGrant,
   EndingGrantKey,
   EntitlementNotice,
@@ -15,8 +17,10 @@ export type {
   GrantTarget,
   InsertSpaceMemberInput,
   OpenableSpace,
+  PermissionHolders,
   SpaceAccessRule,
   SpaceMembersQuery,
+  SpaceReader,
 } from './ports.js';
 export type {
   Entitlement,

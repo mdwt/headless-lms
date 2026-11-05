@@ -1,12 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EntitlementsServiceImpl } from './service.js';
-import type { EntitlementsRepository, EntitlementsUnitOfWork, SpaceMembersQuery } from './ports.js';
+import type {
+  EntitlementsRepository,
+  EntitlementsUnitOfWork,
+  PermissionHolders,
+  SpaceMembersQuery,
+  SpaceReader,
+} from './ports.js';
 import type { Entitlement, SpaceMember } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import type { CommunityReader, SpaceDetail, SpaceRowLock } from '../content/index.js';
+import type { SpaceDetail, SpaceRowLock } from '../content/index.js';
+import type { Permission } from '../types/index.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
-import { isStaffRole, type Role } from '../organizations/index.js';
+import { actorWith } from '../organizations/index.js';
 
 const SAMPLE: Entitlement = {
   orgId: 'org-1',
@@ -50,11 +57,28 @@ const SPACE: SpaceDetail = {
   updatedAt: new Date('2026-01-01T00:00:00Z'),
 };
 
-const student: Actor = { id: 'ou_member', role: 'student' };
-const owner: Actor = { id: 'ou_owner', role: 'owner' };
-const moderator: Actor = { id: 'ou_mod', role: 'moderator' };
+const student: Actor = actorWith({ id: 'ou_member', orgId: 'org-1' });
+const owner: Actor = actorWith({ id: 'ou_owner', orgId: 'org-1', owner: true });
+const moderator: Actor = actorWith({
+  id: 'ou_mod',
+  orgId: 'org-1',
+  content: { cmy_1: ['communities:moderate'] },
+});
+const admin: Actor = actorWith({ id: 'ou_admin', orgId: 'org-1', org: ['access:write'] });
+const SYSTEM: Actor = actorWith({ id: 'system', orgId: 'org-1', owner: true });
 
-const ROLES_BY_ID: Record<string, Role> = { ou_owner: 'owner', ou_mod: 'moderator' };
+const HOLDERS: Partial<Record<Permission, string[]>> = {
+  'communities:read': ['ou_owner'],
+  'communities:moderate': ['ou_owner', 'ou_mod'],
+};
+
+function fakePermissions(over?: Partial<PermissionHolders>): PermissionHolders {
+  return {
+    holders: vi.fn(async (_orgId: string, permission: Permission) => HOLDERS[permission] ?? []),
+    systemActor: vi.fn(() => SYSTEM),
+    ...over,
+  };
+}
 
 function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepository {
   const findSpaceMember = over?.findSpaceMember ?? vi.fn().mockResolvedValue(null);
@@ -67,11 +91,9 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
   ) =>
     Promise.all(
       orgUserIds.map(async (orgUserId) => {
-        const role = ROLES_BY_ID[orgUserId] ?? 'student';
-        const member =
-          isStaffRole(role) || (await hasCommunityAccess(orgId, orgUserId, communityId));
+        const granted = await hasCommunityAccess(orgId, orgUserId, communityId);
         const row = spaceId ? await findSpaceMember(orgId, spaceId, orgUserId) : null;
-        return { orgUserId, role, member, activeInSpace: row?.status === 'active' };
+        return { orgUserId, granted, activeInSpace: row?.status === 'active' };
       }),
     );
   return {
@@ -84,6 +106,8 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     hasAccess: vi.fn().mockResolvedValue(true),
     listAccessibleContent: vi.fn().mockResolvedValue(['c1']),
     hasCommunityAccess,
+    holdsAnyGrant: vi.fn().mockResolvedValue(false),
+    contentTypeOf: vi.fn().mockResolvedValue('course'),
     communitiesOpenedBy: vi.fn().mockResolvedValue([]),
     accessAmong: vi.fn(accessAmong),
     findSpaceMember,
@@ -98,7 +122,6 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
     listGrantsEndingBetween: vi.fn().mockResolvedValue([]),
     orgIdsWithDueNotices: vi.fn().mockResolvedValue(['org-1']),
     claimNotice: vi.fn().mockResolvedValue(true),
-    communityModeratorIds: vi.fn().mockResolvedValue([]),
     communityMemberIds: vi.fn().mockResolvedValue([]),
     communityIdsOpenedFor: vi.fn().mockResolvedValue([]),
     openCommunityIds: vi.fn().mockResolvedValue([]),
@@ -108,7 +131,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
   };
 }
 
-function inviteContent(): CommunityReader {
+function inviteContent(): SpaceReader {
   return fakeContent({
     getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }),
   });
@@ -118,11 +141,10 @@ function inviteLock(): SpaceRowLock {
   return { lockSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) };
 }
 
-function fakeContent(over?: Partial<CommunityReader>): CommunityReader {
+function fakeContent(over?: Partial<SpaceReader>): SpaceReader {
   return {
     getSpace: vi.fn().mockResolvedValue(SPACE),
     listSpaces: vi.fn().mockResolvedValue([SPACE]),
-    getDmSettings: vi.fn().mockResolvedValue(null),
     ...over,
   };
 }
@@ -144,20 +166,26 @@ function fakeUow(repo: EntitlementsRepository, spaces?: SpaceRowLock) {
   return { uow, append, appended, lock };
 }
 
-function build(repo = fakeRepo(), content = fakeContent(), spaces?: SpaceRowLock) {
+function build(
+  repo = fakeRepo(),
+  content = fakeContent(),
+  spaces?: SpaceRowLock,
+  permissions = fakePermissions(),
+) {
   const { uow, append, appended, lock } = fakeUow(repo, spaces);
   const svc = new EntitlementsServiceImpl({
     repo,
     content,
+    permissions,
     uow,
   });
-  return { svc, repo, content, append, appended, lock };
+  return { svc, repo, content, append, appended, lock, permissions };
 }
 
 describe('EntitlementsService', () => {
   it('lists entitlements via the read repository without appending events', async () => {
     const { svc, repo, append } = build();
-    const page = await svc.list('org-1', { page: 1, pageSize: 20 });
+    const page = await svc.list({ page: 1, pageSize: 20 }, admin);
     expect(page.rows).toHaveLength(1);
     expect(repo.list).toHaveBeenCalledWith('org-1', { page: 1, pageSize: 20 });
     expect(append).not.toHaveBeenCalled();
@@ -165,7 +193,7 @@ describe('EntitlementsService', () => {
 
   it('grants an entitlement (insert) and returns it', async () => {
     const { svc, repo } = build();
-    const result = await svc.grant('org-1', { orgUserId: 's1', contentId: 'c1', expiresAt: null });
+    const result = await svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin);
     expect(result.id).toBe('e1');
     expect(repo.insert).toHaveBeenCalledWith('org-1', {
       orgUserId: 's1',
@@ -176,7 +204,7 @@ describe('EntitlementsService', () => {
 
   it('appends entitlement.created (org + full snapshot) inside the unit of work', async () => {
     const { svc, appended } = build();
-    await svc.grant('org-1', { orgUserId: 's1', contentId: 'c1', expiresAt: null });
+    await svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.created',
@@ -188,13 +216,13 @@ describe('EntitlementsService', () => {
 
   it('sets status (revoke/reactivate) via the tx-bound repository', async () => {
     const { svc, repo } = build();
-    await svc.setStatus('org-1', 'e1', 'revoked');
+    await svc.setStatus('e1', 'revoked', admin);
     expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e1', 'revoked');
   });
 
   it('appends entitlement.deleted on revoke', async () => {
     const { svc, appended } = build();
-    await svc.setStatus('org-1', 'e1', 'revoked');
+    await svc.setStatus('e1', 'revoked', admin);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.deleted',
@@ -206,7 +234,7 @@ describe('EntitlementsService', () => {
 
   it('appends entitlement.updated on reactivation', async () => {
     const { svc, appended } = build();
-    await svc.setStatus('org-1', 'e1', 'active');
+    await svc.setStatus('e1', 'active', admin);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.updated',
@@ -218,7 +246,7 @@ describe('EntitlementsService', () => {
 
   it('appends nothing when setStatus finds no entitlement', async () => {
     const { svc, append } = build(fakeRepo({ setStatus: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.setStatus('org-1', 'missing', 'revoked');
+    const result = await svc.setStatus('missing', 'revoked', admin);
     expect(result).toBeNull();
     expect(append).not.toHaveBeenCalled();
   });
@@ -228,7 +256,7 @@ describe('EntitlementsService', () => {
       fakeRepo({ insert: vi.fn().mockRejectedValue(new Error('boom')) }),
     );
     await expect(
-      svc.grant('org-1', { orgUserId: 's1', contentId: 'c1', expiresAt: null }),
+      svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin),
     ).rejects.toThrow('boom');
     expect(append).not.toHaveBeenCalled();
   });
@@ -261,16 +289,20 @@ describe('logging', () => {
     const svc = new EntitlementsServiceImpl({
       repo,
       content: fakeContent(),
+      permissions: fakePermissions(),
       uow,
       logger,
     });
 
-    const entitlement = await svc.grant('org-1', {
-      orgUserId: 's1',
-      contentId: 'c1',
-      expiresAt: null,
-    });
-    await svc.setStatus('org-1', entitlement.id, 'revoked');
+    const entitlement = await svc.grant(
+      {
+        orgUserId: 's1',
+        contentId: 'c1',
+        expiresAt: null,
+      },
+      admin,
+    );
+    await svc.setStatus(entitlement.id, 'revoked', admin);
 
     expect(entries.map((e) => [e.level, e.msg])).toEqual([
       ['info', 'entitlement granted'],
@@ -291,41 +323,40 @@ describe('logging', () => {
 });
 
 describe('community access', () => {
-  it('takes community membership from the one membership answer of the repository', async () => {
-    const accessAmong = vi.fn(
-      async (_orgId: string, _communityId: string, _spaceId: string | null, ids: string[]) =>
-        ids.map((orgUserId) => ({
-          orgUserId,
-          role: 'student' as const,
-          member: orgUserId === 'ou_member',
-          activeInSpace: false,
-        })),
-    );
-    const repo = fakeRepo({ accessAmong, hasCommunityAccess: vi.fn().mockResolvedValue(true) });
+  it('takes a grant from the repository for a person without communities:read', async () => {
+    const repo = fakeRepo({ hasCommunityAccess: vi.fn(async (_o, id) => id === 'ou_member') });
     const { svc } = build(repo);
     await expect(svc.isCommunityMember('org-1', student, 'cmy_1')).resolves.toBe(true);
     await expect(svc.isCommunityMember('org-1', moderator, 'cmy_1')).resolves.toBe(false);
-    expect(accessAmong).toHaveBeenCalledWith('org-1', 'cmy_1', null, ['ou_member']);
-    expect(repo.hasCommunityAccess).not.toHaveBeenCalled();
+    expect(repo.hasCommunityAccess).toHaveBeenCalledWith('org-1', 'ou_member', 'cmy_1');
   });
 
-  it('treats staff as a community member without a grant', async () => {
+  it('makes a holder of communities:read a member without a grant', async () => {
     const repo = fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) });
     const { svc } = build(repo);
+    const reader = actorWith({ orgId: 'org-1', content: { cmy_1: ['communities:read'] } });
+    await expect(svc.isCommunityMember('org-1', reader, 'cmy_1')).resolves.toBe(true);
+    await expect(svc.isCommunityMember('org-1', reader, 'cmy_2')).resolves.toBe(false);
     await expect(svc.isCommunityMember('org-1', owner, 'cmy_1')).resolves.toBe(true);
+    expect(repo.hasCommunityAccess).toHaveBeenCalledTimes(1);
   });
 
-  it('requires a grant for a student and a moderator', async () => {
+  it('requires a grant for a member and a moderator', async () => {
     const repo = fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) });
     const { svc } = build(repo);
     await expect(svc.isCommunityMember('org-1', student, 'cmy_1')).resolves.toBe(false);
     await expect(svc.isCommunityMember('org-1', moderator, 'cmy_1')).resolves.toBe(false);
   });
 
-  it('refuses someone the repository does not know', async () => {
+  it('refuses a space to someone the repository does not know', async () => {
     const { svc } = build(fakeRepo({ accessAmong: vi.fn().mockResolvedValue([]) }));
-    await expect(svc.isCommunityMember('org-1', owner, 'cmy_1')).resolves.toBe(false);
-    await expect(svc.canOpenSpace('org-1', owner, 'spc_1')).resolves.toBe(false);
+    await expect(svc.canOpenSpace('org-1', student, 'spc_1')).resolves.toBe(false);
+  });
+
+  it('reads the space as the system actor', async () => {
+    const { svc, content } = build();
+    await svc.canOpenSpace('org-1', student, 'spc_1');
+    expect(content.getSpace).toHaveBeenCalledWith('spc_1', SYSTEM);
   });
 
   it('lets a member open an all-members space and a space they have joined', async () => {
@@ -341,7 +372,7 @@ describe('community access', () => {
     const { svc } = build(
       repo,
       fakeContent({
-        getSpace: vi.fn(async (_orgId, id: string) =>
+        getSpace: vi.fn(async (id: string) =>
           id === 'spc_hidden' ? hidden : id === 'spc_joined' ? joined : open,
         ),
         listSpaces: vi.fn().mockResolvedValue([open, joined, hidden]),
@@ -375,7 +406,7 @@ describe('community access', () => {
     await expect(svc.openSpaceIds('org-1', moderator, 'cmy_1')).resolves.toEqual([]);
   });
 
-  it('lets staff open a space without a grant or a space membership', async () => {
+  it('lets a holder of communities:read open every space without a grant or a place', async () => {
     const { svc } = build(fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }));
     await expect(svc.canOpenSpace('org-1', owner, 'spc_1')).resolves.toBe(true);
     await expect(svc.openSpaceIds('org-1', owner, 'cmy_1')).resolves.toEqual(['spc_1']);
@@ -402,36 +433,37 @@ describe('space members', () => {
     });
     const { svc } = build(repo, content);
     const page = { page: 1, pageSize: 20 };
-    const own = await svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', page);
+    const own = await svc.listSpaceMembers('cmy_1', 'spc_1', page, student);
     expect(own.rows).toEqual([expect.objectContaining({ id: 'spm_3', status: 'active' })]);
     expect(own.total).toBe(1);
     expect(listSpaceMembers).toHaveBeenLastCalledWith('org-1', 'spc_1', {
       ...page,
+      excluding: ['ou_owner', 'ou_mod'],
       statuses: ['active'],
     });
-    await expect(
-      svc.listSpaceMembers('org-1', moderator, 'cmy_1', 'spc_1', page),
-    ).resolves.toMatchObject({ rows, total: 4 });
-    await expect(
-      svc.listSpaceMembers('org-1', owner, 'cmy_1', 'spc_1', page),
-    ).resolves.toMatchObject({ rows, total: 4 });
+    await expect(svc.listSpaceMembers('cmy_1', 'spc_1', page, moderator)).resolves.toMatchObject({
+      rows,
+      total: 4,
+    });
+    await expect(svc.listSpaceMembers('cmy_1', 'spc_1', page, owner)).resolves.toMatchObject({
+      rows,
+      total: 4,
+    });
   });
 
   it('rejects a space that belongs to another community', async () => {
     const { svc, repo } = build();
-    await expect(svc.requestJoin('org-1', student, 'cmy_other', 'spc_1')).rejects.toBeInstanceOf(
+    await expect(svc.requestJoin('cmy_other', 'spc_1', student)).rejects.toBeInstanceOf(
       NotFoundError,
     );
-    await expect(svc.leave('org-1', student, 'cmy_other', 'spc_1')).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(svc.leave('cmy_other', 'spc_1', student)).rejects.toBeInstanceOf(NotFoundError);
     expect(repo.insertSpaceMember).not.toHaveBeenCalled();
     expect(repo.deleteSpaceMember).not.toHaveBeenCalled();
   });
 
   it('records a join request from a community member', async () => {
     const { svc, appended } = build();
-    const row = await svc.requestJoin('org-1', student, 'cmy_1', 'spc_1');
+    const row = await svc.requestJoin('cmy_1', 'spc_1', student);
     expect(row).toMatchObject({ status: 'requested', source: 'request', orgUserId: 'ou_member' });
     expect(appended).toEqual([
       expect.objectContaining({
@@ -444,16 +476,12 @@ describe('space members', () => {
 
   it('refuses a request from staff, a moderator, or someone without a grant', async () => {
     const { svc } = build(fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }));
-    await expect(svc.requestJoin('org-1', owner, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
+    await expect(svc.requestJoin('cmy_1', 'spc_1', owner)).rejects.toBeInstanceOf(ForbiddenError);
     const granted = build();
-    await expect(
-      granted.svc.requestJoin('org-1', moderator, 'cmy_1', 'spc_1'),
-    ).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
+    await expect(granted.svc.requestJoin('cmy_1', 'spc_1', moderator)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+    await expect(svc.requestJoin('cmy_1', 'spc_1', student)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('refuses a request for an all-members space or a by-invite space', async () => {
@@ -461,21 +489,21 @@ describe('space members', () => {
       fakeRepo(),
       fakeContent({ getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'all_members' }) }),
     );
-    await expect(all.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
+    await expect(all.svc.requestJoin('cmy_1', 'spc_1', student)).rejects.toThrow(
       'An all-members space has no space members',
     );
     const hidden = build(
       fakeRepo(),
       fakeContent({ getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) }),
     );
-    await expect(hidden.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
+    await expect(hidden.svc.requestJoin('cmy_1', 'spc_1', student)).rejects.toBeInstanceOf(
       NotFoundError,
     );
     const invited = build(
       fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'invited' }) }),
       fakeContent({ getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) }),
     );
-    await expect(invited.svc.requestJoin('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
+    await expect(invited.svc.requestJoin('cmy_1', 'spc_1', student)).rejects.toThrow(
       'This space is by invitation',
     );
   });
@@ -484,12 +512,12 @@ describe('space members', () => {
     const { svc } = build(fakeRepo(), inviteContent());
     const missing = build(fakeRepo(), fakeContent({ getSpace: vi.fn().mockResolvedValue(null) }));
     const paths = (service: typeof svc) => [
-      service.requestJoin('org-1', student, 'cmy_1', 'spc_1'),
-      service.accept('org-1', student, 'cmy_1', 'spc_1'),
-      service.refuse('org-1', student, 'cmy_1', 'spc_1'),
-      service.leave('org-1', student, 'cmy_1', 'spc_1'),
-      service.invite('org-1', student, 'cmy_1', 'spc_1', 'ou_other'),
-      service.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', { page: 1, pageSize: 20 }),
+      service.requestJoin('cmy_1', 'spc_1', student),
+      service.accept('cmy_1', 'spc_1', student),
+      service.refuse('cmy_1', 'spc_1', student),
+      service.leave('cmy_1', 'spc_1', student),
+      service.invite('cmy_1', 'spc_1', 'ou_other', student),
+      service.listSpaceMembers('cmy_1', 'spc_1', { page: 1, pageSize: 20 }, student),
     ];
     const messages = async (service: typeof svc) =>
       Promise.all(
@@ -508,11 +536,11 @@ describe('space members', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'requested' }),
     });
     const { svc } = build(repo, inviteContent());
-    await expect(svc.invite('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
+    await expect(svc.invite('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
       ConflictError,
     );
     const open = build(fakeRepo(), inviteContent());
-    const row = await open.svc.invite('org-1', moderator, 'cmy_1', 'spc_1', 'ou_member');
+    const row = await open.svc.invite('cmy_1', 'spc_1', 'ou_member', moderator);
     expect(row).toMatchObject({ status: 'invited', source: 'invite' });
   });
 
@@ -521,16 +549,16 @@ describe('space members', () => {
       fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'active' }) }),
       inviteContent(),
     );
-    await expect(svc.invite('org-1', student, 'cmy_1', 'spc_1', 'ou_other')).rejects.toBeInstanceOf(
+    await expect(svc.invite('cmy_1', 'spc_1', 'ou_other', student)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
     const outsider = build(
       fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }),
       inviteContent(),
     );
-    await expect(
-      outsider.svc.invite('org-1', owner, 'cmy_1', 'spc_1', 'ou_other'),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(outsider.svc.invite('cmy_1', 'spc_1', 'ou_other', owner)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
   });
 
   it('accepts an invitation when the space has room and records the previous status', async () => {
@@ -540,7 +568,7 @@ describe('space members', () => {
         .mockResolvedValue({ ...MEMBER, status: 'invited', source: 'invite' }),
     });
     const { svc, lock, appended } = build(repo, inviteContent(), inviteLock());
-    const row = await svc.accept('org-1', student, 'cmy_1', 'spc_1');
+    const row = await svc.accept('cmy_1', 'spc_1', student);
     expect(lock.lockSpace).toHaveBeenCalledWith('org-1', 'spc_1');
     expect(row.status).toBe('active');
     expect(appended[0]).toMatchObject({
@@ -557,9 +585,7 @@ describe('space members', () => {
     const { svc, appended } = build(repo, inviteContent(), {
       lockSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite', capacity: 2 }),
     });
-    await expect(svc.accept('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
-      'This space is full',
-    );
+    await expect(svc.accept('cmy_1', 'spc_1', student)).rejects.toThrow('This space is full');
     expect(appended).toEqual([]);
     expect(repo.updateSpaceMemberStatus).not.toHaveBeenCalled();
   });
@@ -568,13 +594,13 @@ describe('space members', () => {
     const requested = { ...MEMBER, status: 'requested' as const };
     const repo = fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue(requested) });
     const approved = build(repo);
-    const row = await approved.svc.approve('org-1', owner, 'cmy_1', 'spc_1', 'ou_member');
+    const row = await approved.svc.approve('cmy_1', 'spc_1', 'ou_member', owner);
     expect(row.status).toBe('active');
     expect(approved.appended[0]).toMatchObject({
       metadata: { previousStatus: 'requested' },
     });
     const declined = build(repo);
-    const gone = await declined.svc.decline('org-1', moderator, 'cmy_1', 'spc_1', 'ou_member');
+    const gone = await declined.svc.decline('cmy_1', 'spc_1', 'ou_member', moderator);
     expect(gone.status).toBe('requested');
     expect(repo.deleteSpaceMember).toHaveBeenCalledWith('org-1', 'spm_1');
     expect(declined.appended[0]).toMatchObject({
@@ -588,7 +614,7 @@ describe('space members', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'invited' }),
     });
     const refusal = build(invited, inviteContent());
-    await refusal.svc.refuse('org-1', student, 'cmy_1', 'spc_1');
+    await refusal.svc.refuse('cmy_1', 'spc_1', student);
     expect(refusal.appended[0]).toMatchObject({
       type: 'entitlement.space_member.deleted',
       metadata: { previousStatus: 'invited' },
@@ -597,7 +623,7 @@ describe('space members', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'active' }),
     });
     const left = build(active);
-    await left.svc.leave('org-1', student, 'cmy_1', 'spc_1');
+    await left.svc.leave('cmy_1', 'spc_1', student);
     expect(left.appended[0]).toMatchObject({ metadata: { previousStatus: 'active' } });
   });
 
@@ -606,7 +632,7 @@ describe('space members', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'active' }),
     });
     const { svc, appended } = build(repo);
-    const row = await svc.remove('org-1', owner, 'cmy_1', 'spc_1', 'ou_member');
+    const row = await svc.remove('cmy_1', 'spc_1', 'ou_member', owner);
     expect(row.status).toBe('revoked');
     expect(repo.deleteSpaceMember).not.toHaveBeenCalled();
     expect(appended[0]).toMatchObject({
@@ -622,15 +648,15 @@ describe('space members', () => {
     });
     const allMembers = { ...SPACE, accessRule: 'all_members' as const, capacity: null };
     const before = build(repo, fakeContent({ getSpace: vi.fn().mockResolvedValue(allMembers) }));
-    await expect(
-      before.svc.remove('org-1', owner, 'cmy_1', 'spc_1', 'ou_member'),
-    ).rejects.toBeInstanceOf(ConflictError);
+    await expect(before.svc.remove('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
+      ConflictError,
+    );
     const changed = build(repo, fakeContent(), {
       lockSpace: vi.fn().mockResolvedValue(allMembers),
     });
-    await expect(
-      changed.svc.remove('org-1', owner, 'cmy_1', 'spc_1', 'ou_member'),
-    ).rejects.toBeInstanceOf(ConflictError);
+    await expect(changed.svc.remove('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
+      ConflictError,
+    );
     expect(changed.lock.lockSpace).toHaveBeenCalledWith('org-1', 'spc_1');
     expect(repo.updateSpaceMemberStatus).not.toHaveBeenCalled();
     expect(before.appended).toEqual([]);
@@ -639,7 +665,7 @@ describe('space members', () => {
 
   it('adds a person directly when the space has room', async () => {
     const { svc, appended } = build();
-    const row = await svc.addSpaceMember('org-1', owner, 'cmy_1', 'spc_1', 'ou_member');
+    const row = await svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', owner);
     expect(row).toMatchObject({ status: 'active', source: 'manual' });
     expect(appended[0]).toMatchObject({ type: 'entitlement.space_member.created' });
   });
@@ -782,12 +808,12 @@ describe('expireDue', () => {
 });
 
 describe('membership among many', () => {
-  it('keeps the people the repository answers as members, staff included', async () => {
+  it('keeps grant holders and holders of communities:read as members', async () => {
     const repo = fakeRepo({
       accessAmong: vi.fn().mockResolvedValue([
-        { orgUserId: 'ou_owner', role: 'owner', member: true, activeInSpace: false },
-        { orgUserId: 'ou_member', role: 'student', member: true, activeInSpace: false },
-        { orgUserId: 'ou_mod', role: 'moderator', member: false, activeInSpace: false },
+        { orgUserId: 'ou_owner', granted: false, activeInSpace: false },
+        { orgUserId: 'ou_member', granted: true, activeInSpace: false },
+        { orgUserId: 'ou_mod', granted: false, activeInSpace: false },
       ]),
     });
     const { svc } = build(repo);
@@ -804,11 +830,11 @@ describe('membership among many', () => {
   it('answers who can open a space under the space-open rule', async () => {
     const repo = fakeRepo({
       accessAmong: vi.fn().mockResolvedValue([
-        { orgUserId: 'ou_owner', role: 'owner', member: true, activeInSpace: false },
-        { orgUserId: 'ou_joined', role: 'student', member: true, activeInSpace: true },
-        { orgUserId: 'ou_asked', role: 'student', member: true, activeInSpace: false },
-        { orgUserId: 'ou_mod', role: 'moderator', member: true, activeInSpace: false },
-        { orgUserId: 'ou_lapsed', role: 'student', member: false, activeInSpace: true },
+        { orgUserId: 'ou_owner', granted: false, activeInSpace: false },
+        { orgUserId: 'ou_joined', granted: true, activeInSpace: true },
+        { orgUserId: 'ou_asked', granted: true, activeInSpace: false },
+        { orgUserId: 'ou_mod', granted: true, activeInSpace: false },
+        { orgUserId: 'ou_lapsed', granted: false, activeInSpace: true },
       ]),
     });
     const { svc } = build(repo);
@@ -858,7 +884,7 @@ describe('open spaces', () => {
       getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'all_members' }),
     });
     const { svc } = build(fakeRepo(), content);
-    await svc.listSpaceMembers('org-1', student, 'cmy_1', 'spc_1', { page: 1, pageSize: 20 });
+    await svc.listSpaceMembers('cmy_1', 'spc_1', { page: 1, pageSize: 20 }, student);
     expect(content.getSpace).toHaveBeenCalledTimes(1);
   });
 });
@@ -893,19 +919,24 @@ describe('space member transitions', () => {
         }
       },
     };
-    const svc = new EntitlementsServiceImpl({ repo, content: fakeContent(), uow });
+    const svc = new EntitlementsServiceImpl({
+      repo,
+      content: fakeContent(),
+      permissions: fakePermissions(),
+      uow,
+    });
     return { svc, repo, appended, lockedInTx };
   }
 
   it('reads the row under lock inside the transaction when approving', async () => {
     const { svc, lockedInTx } = tracked({ ...MEMBER, status: 'requested' });
-    await svc.approve('org-1', owner, 'cmy_1', 'spc_1', 'ou_member');
+    await svc.approve('cmy_1', 'spc_1', 'ou_member', owner);
     expect(lockedInTx).toEqual([true]);
   });
 
   it('refuses a second approval and emits nothing', async () => {
     const { svc, repo, appended } = tracked({ ...MEMBER, status: 'active' });
-    await expect(svc.approve('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
+    await expect(svc.approve('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
       ConflictError,
     );
     expect(repo.updateSpaceMemberStatus).not.toHaveBeenCalled();
@@ -914,7 +945,7 @@ describe('space member transitions', () => {
 
   it('refuses a decline once the request was approved', async () => {
     const { svc, repo, appended, lockedInTx } = tracked({ ...MEMBER, status: 'active' });
-    await expect(svc.decline('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
+    await expect(svc.decline('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
       ConflictError,
     );
     expect(lockedInTx).toEqual([true]);
@@ -924,7 +955,7 @@ describe('space member transitions', () => {
 
   it('refuses a removal of a row that is gone', async () => {
     const { svc, appended } = tracked(null);
-    await expect(svc.remove('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toBeInstanceOf(
+    await expect(svc.remove('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toBeInstanceOf(
       NotFoundError,
     );
     expect(appended).toEqual([]);
@@ -936,7 +967,7 @@ describe('space member transitions', () => {
       hasCommunityAccess: vi.fn(async (_orgId, orgUserId: string) => orgUserId !== 'ou_member'),
     });
     const { svc, appended } = build(repo);
-    await expect(svc.approve('org-1', moderator, 'cmy_1', 'spc_1', 'ou_member')).rejects.toThrow(
+    await expect(svc.approve('cmy_1', 'spc_1', 'ou_member', moderator)).rejects.toThrow(
       'That person is not a member of this community',
     );
     expect(appended).toEqual([]);
@@ -949,12 +980,10 @@ describe('access rule of the space', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'invited' }),
     });
     const { svc, appended } = build(repo);
-    await expect(svc.invite('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toThrow(
+    await expect(svc.invite('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toThrow(
       'This space is by request',
     );
-    await expect(svc.accept('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
-      'This space is by request',
-    );
+    await expect(svc.accept('cmy_1', 'spc_1', student)).rejects.toThrow('This space is by request');
     expect(appended).toEqual([]);
   });
 
@@ -963,7 +992,7 @@ describe('access rule of the space', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'requested' }),
     });
     const { svc, appended } = build(repo, inviteContent(), inviteLock());
-    await expect(svc.approve('org-1', owner, 'cmy_1', 'spc_1', 'ou_member')).rejects.toThrow(
+    await expect(svc.approve('cmy_1', 'spc_1', 'ou_member', owner)).rejects.toThrow(
       'This space is by invitation',
     );
     expect(appended).toEqual([]);
@@ -974,9 +1003,7 @@ describe('access rule of the space', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'invited' }),
     });
     const { svc, appended } = build(repo, inviteContent());
-    await expect(svc.accept('org-1', student, 'cmy_1', 'spc_1')).rejects.toThrow(
-      'This space is by request',
-    );
+    await expect(svc.accept('cmy_1', 'spc_1', student)).rejects.toThrow('This space is by request');
     expect(repo.updateSpaceMemberStatus).not.toHaveBeenCalled();
     expect(appended).toEqual([]);
   });
@@ -991,7 +1018,7 @@ describe('ensureGrant', () => {
 
   it('creates an absent grant and emits entitlement.created', async () => {
     const { svc, repo, appended } = build();
-    await svc.ensureGrant('org-1', input);
+    await svc.ensureGrant(input, admin);
     expect(repo.insertIfAbsent).toHaveBeenCalledWith('org-1', input);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(appended).toEqual([expect.objectContaining({ type: 'entitlement.created' })]);
@@ -1003,7 +1030,7 @@ describe('ensureGrant', () => {
       lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, expiresAt: null }),
     });
     const { svc, append } = build(repo);
-    const result = await svc.ensureGrant('org-1', input);
+    const result = await svc.ensureGrant(input, admin);
     expect(result.expiresAt).toBeNull();
     expect(repo.setExpiresAt).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -1017,7 +1044,7 @@ describe('ensureGrant', () => {
         .mockResolvedValue({ ...SAMPLE, expiresAt: new Date('2026-07-01T00:00:00Z') }),
     });
     const { svc, appended } = build(repo);
-    await svc.ensureGrant('org-1', input);
+    await svc.ensureGrant(input, admin);
     expect(repo.setExpiresAt).toHaveBeenCalledWith('org-1', 'e1', input.expiresAt);
     expect(appended).toEqual([
       expect.objectContaining({
@@ -1035,7 +1062,7 @@ describe('ensureGrant', () => {
         .mockResolvedValue({ ...SAMPLE, expiresAt: new Date('2026-07-01T00:00:00Z') }),
     });
     const { svc } = build(repo);
-    await svc.ensureGrant('org-1', { ...input, expiresAt: null });
+    await svc.ensureGrant({ ...input, expiresAt: null }, admin);
     expect(repo.setExpiresAt).toHaveBeenCalledWith('org-1', 'e1', null);
   });
 
@@ -1045,9 +1072,216 @@ describe('ensureGrant', () => {
       lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, status: 'revoked' }),
     });
     const { svc, append } = build(repo);
-    const result = await svc.ensureGrant('org-1', input);
+    const result = await svc.ensureGrant(input, admin);
     expect(result.status).toBe('revoked');
     expect(repo.setExpiresAt).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
+  });
+});
+
+describe('permission checks', () => {
+  const nobody = actorWith({ id: 'ou_nobody', orgId: 'org-1' });
+  const input = { orgUserId: 's1', contentId: 'c1', expiresAt: null };
+
+  it('refuses grant, ensureGrant and setStatus without access:write', async () => {
+    const { svc, append } = build();
+    const reader = actorWith({ orgId: 'org-1', org: ['access:read'] });
+    await expect(svc.grant(input, nobody)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.ensureGrant(input, reader)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.setStatus('e1', 'revoked', reader)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('lets the system actor give a grant, as automations do', async () => {
+    const { svc } = build();
+    await expect(svc.ensureGrant(input, SYSTEM)).resolves.toMatchObject({ id: 'e1' });
+  });
+
+  it('lists every grant with access:read and refuses without it', async () => {
+    const { svc, repo } = build();
+    const reader = actorWith({ orgId: 'org-1', org: ['access:read'] });
+    await expect(svc.list({ page: 1, pageSize: 20 }, reader)).resolves.toMatchObject({ total: 1 });
+    await expect(svc.list({ page: 1, pageSize: 20 }, nobody)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(repo.list).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists a course's learners with progress:read on that course only", async () => {
+    const { svc, repo } = build();
+    const james = actorWith({ orgId: 'org-1', content: { crs_1: ['progress:read'] } });
+    const query = { page: 1, pageSize: 20 };
+    await expect(svc.list({ ...query, contentId: 'crs_1' }, james)).resolves.toMatchObject({
+      total: 1,
+    });
+    await expect(svc.list({ ...query, contentId: 'crs_2' }, james)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(svc.list(query, james)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(repo.list).toHaveBeenCalledWith('org-1', { ...query, contentId: 'crs_1' });
+  });
+
+  it('refuses progress:read on the org for an item that is not a course', async () => {
+    const repo = fakeRepo({ contentTypeOf: vi.fn().mockResolvedValue('download') });
+    const { svc } = build(repo);
+    const viewer = actorWith({ orgId: 'org-1', org: ['progress:read'] });
+    await expect(
+      svc.list({ page: 1, pageSize: 20, contentId: 'dl_1' }, viewer),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('needs communities:moderate on that community, as its member, to manage space members', async () => {
+    const elsewhere = actorWith({
+      id: 'ou_mod',
+      orgId: 'org-1',
+      content: { cmy_2: ['communities:moderate'] },
+    });
+    const open = build(fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue(null) }));
+    await expect(
+      open.svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', student),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      open.svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', elsewhere),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      open.svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', moderator),
+    ).resolves.toMatchObject({ status: 'active' });
+    const outside = build(
+      fakeRepo({
+        findSpaceMember: vi.fn().mockResolvedValue(null),
+        hasCommunityAccess: vi.fn(async (_o, id) => id !== 'ou_mod'),
+      }),
+    );
+    await expect(
+      outside.svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', moderator),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('opening every space', () => {
+  it('is communities:read on the community, or communities:moderate as its member', async () => {
+    const { svc } = build(
+      fakeRepo({ hasCommunityAccess: vi.fn(async (_o, id) => id === 'ou_mod') }),
+    );
+    const reader = actorWith({ orgId: 'org-1', content: { cmy_1: ['communities:read'] } });
+    const lapsedMod = actorWith({
+      id: 'ou_lapsed',
+      orgId: 'org-1',
+      content: { cmy_1: ['communities:moderate'] },
+    });
+    await expect(svc.opensEverySpace(reader, 'cmy_1')).resolves.toBe(true);
+    await expect(svc.opensEverySpace(reader, 'cmy_2')).resolves.toBe(false);
+    await expect(svc.opensEverySpace(moderator, 'cmy_1')).resolves.toBe(true);
+    await expect(svc.opensEverySpace(moderator, 'cmy_2')).resolves.toBe(false);
+    await expect(svc.opensEverySpace(lapsedMod, 'cmy_1')).resolves.toBe(false);
+    await expect(svc.opensEverySpace(student, 'cmy_1')).resolves.toBe(false);
+  });
+
+  it('holds no place: no request, acceptance, refusal or departure', async () => {
+    const reader = actorWith({ orgId: 'org-1', content: { cmy_1: ['communities:read'] } });
+    const { svc, append } = build();
+    const invited = build(fakeRepo(), inviteContent(), inviteLock());
+    await expect(svc.requestJoin('cmy_1', 'spc_1', reader)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.requestJoin('cmy_1', 'spc_1', moderator)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(invited.svc.accept('cmy_1', 'spc_1', reader)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(invited.svc.refuse('cmy_1', 'spc_1', moderator)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(svc.leave('cmy_1', 'spc_1', reader)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('refuses inviting or adding someone who opens every space', async () => {
+    const invited = build(
+      fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue(null) }),
+      inviteContent(),
+      inviteLock(),
+    );
+    await expect(invited.svc.invite('cmy_1', 'spc_1', 'ou_mod', owner)).rejects.toThrow(
+      'That person opens every space in this community and holds no place in them',
+    );
+    await expect(
+      invited.svc.addSpaceMember('cmy_1', 'spc_1', 'ou_owner', moderator),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('ignores the place rows of someone who opens every space', async () => {
+    const repo = fakeRepo({
+      listSpaceMembersFor: vi.fn().mockResolvedValue([{ ...MEMBER, status: 'active' }]),
+    });
+    const { svc } = build(repo);
+    await expect(svc.spaceStandings('org-1', moderator, 'cmy_1')).resolves.toEqual({});
+    await expect(svc.spaceStandings('org-1', student, 'cmy_1')).resolves.toEqual({
+      spc_1: 'active',
+    });
+  });
+
+  it('leaves those who open every space out of the counts', async () => {
+    const { svc, repo } = build();
+    await expect(svc.everySpaceOpeners('org-1', 'cmy_1')).resolves.toEqual(['ou_owner', 'ou_mod']);
+    await svc.countActiveSpaceMembers('org-1', 'spc_1');
+    expect(repo.countActiveSpaceMembers).toHaveBeenCalledWith('org-1', 'spc_1', [
+      'ou_owner',
+      'ou_mod',
+    ]);
+  });
+});
+
+describe('holders passed to the repository', () => {
+  it('passes the holders of communities:read as members of the community', async () => {
+    const { svc, repo, permissions } = build();
+    await svc.communityMemberIds('org-1', 'cmy_1');
+    expect(permissions.holders).toHaveBeenCalledWith('org-1', 'communities:read', 'cmy_1');
+    expect(repo.communityMemberIds).toHaveBeenCalledWith('org-1', 'cmy_1', ['ou_owner']);
+  });
+
+  it('lists the moderators who are members of the community', async () => {
+    const repo = fakeRepo({ hasCommunityAccess: vi.fn(async (_o, id) => id === 'ou_mod') });
+    const { svc } = build(repo);
+    await expect(svc.communityModeratorIds('org-1', 'cmy_1')).resolves.toEqual([
+      'ou_owner',
+      'ou_mod',
+    ]);
+    const lapsed = build(fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }));
+    await expect(lapsed.svc.communityModeratorIds('org-1', 'cmy_1')).resolves.toEqual(['ou_owner']);
+  });
+
+  it('opens the communities the actor reads, or every one on the org', async () => {
+    const { svc, repo } = build();
+    const reader = actorWith({
+      id: 'ou_r',
+      orgId: 'org-1',
+      content: { cmy_1: ['communities:read'] },
+    });
+    await svc.openCommunityIds('org-1', reader);
+    expect(repo.openCommunityIds).toHaveBeenCalledWith('org-1', 'ou_r', {
+      all: false,
+      ids: ['cmy_1'],
+    });
+    await svc.openCommunityIds('org-1', owner);
+    expect(repo.openCommunityIds).toHaveBeenLastCalledWith('org-1', 'ou_owner', {
+      all: true,
+      ids: [],
+    });
+  });
+
+  it('answers whether a person holds any grant', async () => {
+    const { svc, repo } = build();
+    await expect(svc.holdsAnyGrant('org-1', 'ou_member')).resolves.toBe(false);
+    expect(repo.holdsAnyGrant).toHaveBeenCalledWith('org-1', 'ou_member');
+  });
+});
+
+describe('a learner with a grant', () => {
+  it('requests a place in a space, with every internal read passing the system actor', async () => {
+    const { svc, content, permissions } = build();
+    const row = await svc.requestJoin('cmy_1', 'spc_1', student);
+    expect(row).toMatchObject({ orgUserId: 'ou_member', status: 'requested' });
+    expect(content.getSpace).toHaveBeenCalledWith('spc_1', SYSTEM);
+    expect(permissions.systemActor).toHaveBeenCalledWith('org-1');
   });
 });
