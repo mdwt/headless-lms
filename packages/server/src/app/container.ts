@@ -76,6 +76,7 @@ import {
   type SessionAdmin,
 } from '@headless-lms/core/identity';
 import {
+  type GrantReader,
   type OrgAdmin,
   OrganizationServiceImpl,
   OrgNotificationCategories,
@@ -377,6 +378,7 @@ export async function buildContainer(
     logger: logger.child({ name: 'org' }),
     mailer,
     inviteUrls: { studentPortalUrl: config.studentPortalUrl, adminAppUrl: config.adminAppUrl },
+    grants: (): GrantReader => entitlements,
   });
 
   /*
@@ -446,6 +448,7 @@ export async function buildContainer(
   const entitlements = new EntitlementsServiceImpl({
     repo: entitlementsRepo,
     content,
+    permissions: organizations,
     uow: entitlementsUow,
     logger: entitlementsLogger,
   });
@@ -459,7 +462,7 @@ export async function buildContainer(
     },
     access: {
       canOpen: (orgId, actor, communityId) =>
-        entitlements.isCommunityMember(orgId, actor, communityId),
+        entitlements.isCommunityMember(communityId, actor),
     },
     channels: notificationRegistries.channels,
     logger: identityLogger,
@@ -479,6 +482,7 @@ export async function buildContainer(
     repo: new DrizzleProgressRepository(db, progressLogger),
     content,
     access: entitlements,
+    system: organizations,
     uow: progressUow,
     logger: progressLogger,
   });
@@ -590,6 +594,7 @@ export async function buildContainer(
       files: assets,
       fileUrls,
       access: entitlements,
+      people: organizations,
       notifications: notificationList,
       titles: itemTitles,
       subscriptions,
