@@ -1,13 +1,19 @@
-import { createServer, type Http2Server } from "node:http2";
+import { createServer, type Http2Server, type ServerHttp2Session } from "node:http2";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { http2Transport } from "./http2.js";
 
 let server: Http2Server | null = null;
+const open = new Set<ServerHttp2Session>();
 
 afterEach(async () => {
-  await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
+  const closing = server;
   server = null;
+  for (const session of open) {
+    session.destroy();
+  }
+  open.clear();
+  await new Promise<void>((resolve) => (closing ? closing.close(() => resolve()) : resolve()));
 });
 
 async function listen(
@@ -15,8 +21,10 @@ async function listen(
 ): Promise<{ origin: string; sessions: () => number }> {
   let sessions = 0;
   server = createServer();
-  server.on("session", () => {
+  server.on("session", (session) => {
     sessions += 1;
+    open.add(session);
+    session.on("close", () => open.delete(session));
   });
   server.on("stream", (stream, headers) => {
     const chunks: Buffer[] = [];
