@@ -1,4 +1,4 @@
-// Process entry point: env → config → container → server → listen → relay.
+// Process entry point: env → config → container → server → listen → pubsub → relay.
 import { fileURLToPath } from "node:url";
 import { buildServer, createContainer } from "@headless-lms/server";
 import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
@@ -6,6 +6,7 @@ import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
 import { ReactEmailTemplateRenderer } from "@headless-lms/adapter-email-templates";
 import { PushAdapter } from "@headless-lms/adapter-push";
+import { PostgresPubSub } from "@headless-lms/adapter-pubsub-postgres";
 import { FileSinkEmailAdapter } from "@headless-lms/adapter-defaults/email";
 import {
   loadEmailConfig,
@@ -30,6 +31,7 @@ const container = await createContainer(config, {
     workflows: (logger) => new HatchetAutomationEngine(undefined, logger),
     push: pushConfig,
     pushSender: new PushAdapter(pushConfig),
+    pubsub: (logger) => new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
   },
 });
 const app = await buildServer(config, container);
@@ -41,6 +43,8 @@ try {
   process.exit(1);
 }
 
+await container.pubsub?.start();
+await container.chatHub?.start();
 container.outboxRelay.start();
 container.organizations.auditRoleKeys().catch((err) => {
   container.logger.error("role key audit failed", {

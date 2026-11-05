@@ -59,6 +59,8 @@ import {
 } from '@headless-lms/core/entitlements';
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import {
+  type ChatHub,
+  ChatLiveForwarder,
   ChatServiceImpl,
   DigestServiceImpl,
   DiscussionItemTitles,
@@ -123,6 +125,7 @@ import type {
   NotificationTypeRegistry,
   ObjectStorage,
   OutboxRelay,
+  PubSub,
   PushSender,
   Scheduler,
   TemplateContext,
@@ -145,6 +148,8 @@ export interface AdapterOverrides {
   /** Push credentials per provider. Absent → no provider is configured and devices cannot register. */
   push?: PushConfig;
   pushSender?: PushSender;
+  /** Delivery to every API instance, or a factory given its logger. Absent → no live chat; the chat stream answers 503. */
+  pubsub?: PubSub | ((logger: Logger) => PubSub);
 }
 
 export interface BuildContainerOptions {
@@ -273,6 +278,13 @@ export interface Container {
    *  not run a worker). buildServer stops it onClose. */
   automationEngine: AutomationEngine;
   scheduler: Scheduler;
+  /** The PubSub adapter — constructed but NEVER started by the container; the
+   *  installation's entry point starts it after listen. buildServer stops it
+   *  onClose. Null without one. */
+  pubsub: PubSub | null;
+  /** This process's live chat hub; started by the entry point after `pubsub`,
+   *  closed by buildServer preClose. Null without a PubSub. */
+  chatHub: ChatHub | null;
   /** Root logger port — components receive children bound with { name }. */
   logger: Logger;
   /** The raw pino root; buildServer hands it to Fastify so HTTP shares the stream. */
@@ -314,6 +326,11 @@ export async function buildContainer(
     typeof workflows === 'function'
       ? workflows(automationsLogger)
       : (workflows ?? new InlineAutomationEngine(automationsLogger));
+  const pubsubOption = options?.adapters?.pubsub;
+  const pubsub: PubSub | null =
+    typeof pubsubOption === 'function'
+      ? pubsubOption(logger.child({ name: 'pubsub' }))
+      : (pubsubOption ?? null);
   const mailer = new Mailer(templates, email, {
     ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
     studentPortalUrl: config.studentPortalUrl,
@@ -534,6 +551,7 @@ export async function buildContainer(
       mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
+    ...(pubsub && { pubsub }),
     logger: discussionLogger,
   });
   const discussion = new DiscussionServiceImpl({
@@ -749,6 +767,9 @@ export async function buildContainer(
   );
 
   const eventBus = new InMemoryEventBus();
+  if (pubsub) {
+    new ChatLiveForwarder({ pubsub, logger: discussionLogger }).attach(eventBus);
+  }
   eventBus.subscribeAll((event) => automations.handle(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
@@ -907,6 +928,8 @@ export async function buildContainer(
     outboxRelay,
     automationEngine,
     scheduler: automationEngine,
+    pubsub,
+    chatHub: chats.hub,
     logger,
     loggerInstance,
     requestContext: requestLogContext,

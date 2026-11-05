@@ -181,6 +181,9 @@ export function loadServerConfig(): ServerConfig {
     // Every other file streams or loads under STORAGE_DOWNLOAD_EXPIRY.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
+    // LISTEN needs a session connection; behind a transaction-mode pooler
+    // point PUBSUB_DATABASE_URL at Postgres directly.
+    pubsubDatabaseUrl: process.env.PUBSUB_DATABASE_URL || container.databaseUrl,
     container,
   };
 }

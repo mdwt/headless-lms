@@ -73,6 +73,9 @@ export function loadServerConfig(): ServerConfig {
     // default must never silently extend entitled/paywalled link lifetimes.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
+    // LISTEN needs a session connection; behind a transaction-mode pooler
+    // point PUBSUB_DATABASE_URL at Postgres directly.
+    pubsubDatabaseUrl: process.env.PUBSUB_DATABASE_URL || container.databaseUrl,
     container,
   };
 }

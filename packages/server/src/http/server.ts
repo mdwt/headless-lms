@@ -52,12 +52,18 @@ export async function buildServer(
   registerRoutes(app, container);
   registerMcp(app, container);
 
-  // Drain + stop the outbox relay and the automation engine on shutdown.
-  // Harmless when neither was started (gen-openapi boots this app with
-  // ready() + close() only).
+  // Open chat streams get their closing frame before Fastify drops connections.
+  app.addHook('preClose', async () => {
+    await container.chatHub?.close();
+  });
+
+  // Drain + stop the outbox relay, the automation engine and then PubSub on
+  // shutdown, so events still in flight are forwarded. Harmless when none was
+  // started (gen-openapi boots this app with ready() + close() only).
   app.addHook('onClose', async () => {
     await container.outboxRelay.stop();
     await container.automationEngine.stop();
+    await container.pubsub?.stop();
   });
 
   return app;

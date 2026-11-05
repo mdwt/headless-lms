@@ -23,6 +23,8 @@ try {
   process.exit(1);
 }
 
+await container.pubsub?.start();
+await container.chatHub?.start();
 container.outboxRelay.start();
 container.automationEngine.start().catch((err) => {
   container.logger.error("automation engine failed to start", {

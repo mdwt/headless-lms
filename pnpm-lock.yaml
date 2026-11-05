@@ -466,6 +466,9 @@ importers:
       '@headless-lms/adapter-email-templates':
         specifier: workspace:*
         version: link:../../adapters/email-templates
+      '@headless-lms/adapter-pubsub-postgres':
+        specifier: workspace:*
+        version: link:../../adapters/pubsub-postgres
       '@headless-lms/adapter-push':
         specifier: workspace:*
         version: link:../../adapters/push
