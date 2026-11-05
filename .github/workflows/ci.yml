@@ -27,6 +27,8 @@ jobs:
 
       - run: pnpm lint
 
+      - run: pnpm --filter admin --filter student lint
+
       - run: pnpm -r typecheck
 
       - run: pnpm test
