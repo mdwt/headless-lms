@@ -375,6 +375,36 @@ export class OrganizationServiceImpl implements OrganizationService {
     };
   }
 
+  async auditRoleKeys(): Promise<number> {
+    const usage = await this.roles.roleKeyUsage();
+    const storedByOrg = new Map<string, StoredOrgRole[]>();
+    let dangling = 0;
+    for (const row of usage) {
+      if (!storedByOrg.has(row.orgId)) {
+        storedByOrg.set(row.orgId, await this.roles.storedRoles(row.orgId));
+      }
+      const role = this.resolveIn(storedByOrg.get(row.orgId)!, row.roleKey);
+      if (!role) {
+        dangling += row.count;
+        this.logger.warn('assignments name a role the set no longer has', {
+          orgId: row.orgId,
+          roleKey: row.roleKey,
+          level: row.level,
+          count: row.count,
+        });
+      } else if (!role.levels.includes(row.level as Level)) {
+        dangling += row.count;
+        this.logger.warn('assignments sit at a level their role no longer lists', {
+          orgId: row.orgId,
+          roleKey: row.roleKey,
+          level: row.level,
+          count: row.count,
+        });
+      }
+    }
+    return dangling;
+  }
+
   async listRoles(actor: Actor): Promise<RoleView[]> {
     actor.permissions.require('roles:read');
     const [stored, counts] = await Promise.all([

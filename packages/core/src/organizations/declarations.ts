@@ -22,6 +22,7 @@ export const organizationsDeclarations = {
   holders: 'system',
   permissionList: 'member',
   viewerPermissions: 'member',
+  auditRoleKeys: 'system',
   listRoles: requires('roles:read'),
   getRole: requires('roles:read'),
   updateRole: requires('roles:write'),

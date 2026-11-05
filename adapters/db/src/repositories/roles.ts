@@ -11,6 +11,7 @@ import type { ContentType, Level, Permission, RoleAssignment } from "@headless-l
 import { contentItems } from "../schema/content.js";
 import { orgUsers } from "../schema/organizations.js";
 import { orgRoles, roleAssignments } from "../schema/roles.js";
+import { translateDbErrors } from "./pg-errors.js";
 
 type RoleRow = typeof orgRoles.$inferSelect;
 type AssignmentRecordRow = typeof roleAssignments.$inferSelect;
@@ -313,9 +314,35 @@ export class DrizzleRolesRepository implements RolesRepository {
     return row?.id ?? null;
   }
 
+  async roleKeyUsage(): Promise<
+    { orgId: string; roleKey: string; level: string; count: number; stored: boolean }[]
+  > {
+    const result = await this.db.execute<{
+      org_id: string;
+      role_key: string;
+      level: string;
+      count: number;
+      stored: boolean;
+    }>(sql`
+      select ra.org_id, ra.role_key, coalesce(ra.content_type, 'org') as level,
+        count(*)::int as count,
+        exists (select 1 from org_roles r where r.org_id = ra.org_id and r.key = ra.role_key) as stored
+      from role_assignments ra
+      group by ra.org_id, ra.role_key, coalesce(ra.content_type, 'org')
+    `);
+    return result.rows.map((row) => ({
+      orgId: row.org_id,
+      roleKey: row.role_key,
+      level: row.level,
+      count: row.count,
+      stored: row.stored,
+    }));
+  }
+
   async lock(keys: string[]): Promise<void> {
     for (const key of [...new Set(keys)].sort()) {
       await this.db.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
     }
   }
 }
+translateDbErrors(DrizzleRolesRepository);

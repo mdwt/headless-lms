@@ -122,7 +122,8 @@ export function resolvePermissions({
 }: ResolveInput): ResolvedPermissions {
   const scopes = tokenScopes ? withImplied(tokenScopes) : null;
   const orgRow = assignments.find((row) => row.contentId === null);
-  const orgRole = orgRow ? roles.get(orgRow.roleKey) : undefined;
+  const listed = orgRow ? roles.get(orgRow.roleKey) : undefined;
+  const orgRole = listed?.levels.includes('org') ? listed : undefined;
   const orgSet = orgRole ? withImplied(orgRole.permissions) : new Set<Permission>();
   const content = new Map<ContentId, ContentEntry>();
   for (const row of assignments) {

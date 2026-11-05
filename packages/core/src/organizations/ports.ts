@@ -77,6 +77,7 @@ export interface OrganizationService {
   holders(orgId: string, permission: Permission, on?: string): Promise<string[]>;
   permissionList(): PermissionListEntry[];
   viewerPermissions(actor: Actor): ViewerPermissions;
+  auditRoleKeys(): Promise<number>;
 
   listRoles(actor: Actor): Promise<RoleView[]>;
   getRole(key: string, actor: Actor): Promise<RoleView>;
@@ -152,6 +153,9 @@ export interface RolesRepository {
   holderCounts(orgId: string): Promise<Record<string, number>>;
   contentTypeOf(orgId: string, contentId: string): Promise<ContentType | null>;
   ownerOrgUserId(orgId: string): Promise<string | null>;
+  roleKeyUsage(): Promise<
+    { orgId: string; roleKey: string; level: string; count: number; stored: boolean }[]
+  >;
   lock(keys: string[]): Promise<void>;
 }
 

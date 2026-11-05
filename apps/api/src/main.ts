@@ -42,6 +42,11 @@ try {
 }
 
 container.outboxRelay.start();
+container.organizations.auditRoleKeys().catch((err) => {
+  container.logger.error("role key audit failed", {
+    err: err instanceof Error ? err : new Error(String(err)),
+  });
+});
 container.automationEngine.start().catch((err) => {
   container.logger.error("automation engine failed to start", {
     err: err instanceof Error ? err : new Error(String(err)),

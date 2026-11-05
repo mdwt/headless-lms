@@ -277,6 +277,17 @@ describe('resolvePermissions', () => {
     expect(p.has('courses:moderate', 'crs_1')).toBe(false);
   });
 
+  it('ignores an org row whose role no longer lists the org', () => {
+    const narrowed = new Map(roles);
+    narrowed.set('instructor', { ...roles.get('instructor')!, levels: ['course'] });
+    const p = resolvePermissions({
+      assignments: [{ roleKey: 'instructor', contentId: null, contentType: null }],
+      roles: narrowed,
+    });
+    expect(p.anywhere('courses:write')).toBe(false);
+    expect(p.roleOn().key).toBe('member');
+  });
+
   it('gives the system every permission and no ownership', () => {
     const system = systemPermissions();
     expect(system.has('people:delete')).toBe(true);

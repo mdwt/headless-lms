@@ -1,6 +1,6 @@
 import {
   ALL_PERMISSIONS,
-  DEFAULT_ROLES,
+  defaultHolders,
   PERMISSIONS,
   withImplied,
 } from '@headless-lms/core/organizations';
@@ -124,9 +124,7 @@ export function mcpCatalogue(): McpCatalogue {
         description: definition.description,
         about: definition.about,
         implies: [...withImplied([permission])].filter((p) => p !== permission),
-        roles: DEFAULT_ROLES.filter((role) => withImplied(role.permissions).has(permission)).map(
-          (role) => role.name,
-        ),
+        roles: defaultHolders(permission),
         removes: action === 'delete',
       };
     }),

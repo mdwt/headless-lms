@@ -309,6 +309,26 @@ function store() {
     },
     contentTypeOf: async (_orgId, id) => content.get(id) ?? null,
     ownerOrgUserId: async () => assignments.find((a) => a.roleKey === OWNER_KEY)?.orgUserId ?? null,
+    roleKeyUsage: async () => {
+      const out = new Map<
+        string,
+        { orgId: string; roleKey: string; level: string; count: number; stored: boolean }
+      >();
+      for (const a of assignments) {
+        const level = a.contentType ?? 'org';
+        const k = `${a.orgId}|${a.roleKey}|${level}`;
+        const row = out.get(k) ?? {
+          orgId: a.orgId,
+          roleKey: a.roleKey,
+          level,
+          count: 0,
+          stored: storedRoles.some((r) => r.key === a.roleKey),
+        };
+        row.count++;
+        out.set(k, row);
+      }
+      return [...out.values()];
+    },
     lock: async () => {},
   };
 
@@ -981,6 +1001,17 @@ describe('review fixes', () => {
       email: ivy.person.email,
     });
     expect(w.events.map((e) => e.type)).toContain('organization.user.updated');
+  });
+});
+
+describe('role key audit', () => {
+  it('counts assignments whose role is gone or sits at an unlisted level', async () => {
+    await w.roles.setItemRole(ORG, s.james.orgUser.id, 'crs_1', 'course', 'ghost', 'system');
+    await w.roles.setOrgRole(ORG, s.emma.orgUser.id, 'instructor', 'system');
+    await w.service
+      .updateRole('instructor', { levels: ['course'] }, await w.actor(s.sarah.orgUser.id))
+      .catch(() => undefined);
+    expect(await w.service.auditRoleKeys()).toBe(1);
   });
 });
 

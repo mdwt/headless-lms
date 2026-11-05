@@ -1,6 +1,6 @@
 import { levelSchema } from '../types/schemas/organizations.js';
 import type { Level, Permission } from '../types/index.js';
-import { ALL_PERMISSIONS, fitsLevels, isPermission } from './permissions.js';
+import { ALL_PERMISSIONS, fitsLevels, isPermission, withImplied } from './permissions.js';
 
 export interface RoleDefinition {
   key: string;
@@ -120,4 +120,10 @@ export function validateRoleSet(roles: readonly RoleDefinition[]): void {
   if (member.levels.length !== 1 || member.levels[0] !== 'org' || member.permissions.length > 0) {
     throw new RoleSetError(`${MEMBER_ROLE_KEY} must list the org only and hold nothing`);
   }
+}
+
+export function defaultHolders(permission: Permission): string[] {
+  return DEFAULT_ROLES.filter((role) => withImplied(role.permissions).has(permission)).map(
+    (role) => role.name,
+  );
 }

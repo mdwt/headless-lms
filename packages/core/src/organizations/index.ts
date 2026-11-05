@@ -95,6 +95,7 @@ export {
 export type { PermissionDefinition, PermissionGroup, PermissionListEntry } from './permissions.js';
 export {
   DEFAULT_ROLES,
+  defaultHolders,
   OWNER_ROLE_KEY,
   MEMBER_ROLE_KEY,
   RoleSetError,
