@@ -292,6 +292,8 @@ import type {
   ListConnectedAppsResponses,
   ListConnectionsErrors,
   ListConnectionsResponses,
+  ListCourseLearnersErrors,
+  ListCourseLearnersResponses,
   ListCoursesErrors,
   ListCoursesResponses,
   ListDownloadAssetsErrors,
@@ -3636,7 +3638,7 @@ export class Communities {
   /**
    * List communities
    *
-   * Requires `communities:read`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.
+   * Requires one of `communities:read`, `communities:moderate`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.
    */
   public static listCommunities<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3747,7 +3749,7 @@ export class Communities {
   /**
    * Get a community
    *
-   * Requires `communities:read`. Any community of the organization, drafts included.
+   * Requires one of `communities:read`, `communities:moderate`. Any community of the organization, drafts included.
    */
   public static getCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4018,7 +4020,7 @@ export class Communities {
   /**
    * List the spaces in a community
    *
-   * Requires `communities:read`. Every space in order, with its topics and links.
+   * Requires one of `communities:read`, `communities:moderate`. Every space in order, with its topics and links.
    */
   public static listCommunitySpaces<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8860,6 +8862,46 @@ export class Reporting {
     >({
       responseStyle: "data",
       url: "/api/courses/{id}/analytics/enrollments",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List a course's learners with their access and progress
+   *
+   * Requires `progress:read`. Everyone with a grant that opens the course, directly or through a bundle, active or not, each with that grant and their progress. Paged and searched by name or email.
+   */
+  public static listCourseLearners<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListCourseLearnersResponses, ListCourseLearnersErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "courseId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCourseLearnersResponses,
+      ListCourseLearnersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/learners",
       ...options,
       ...params,
     });

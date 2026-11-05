@@ -1785,6 +1785,45 @@
       ]
     },
     {
+      "name": "list_course_learners",
+      "title": "List course learners",
+      "description": "Page through a course's learners: everyone with a grant that opens it, directly or through a bundle, active or not, with that grant and their progress. Search by name or email.",
+      "resource": "progress",
+      "operation": "reporting.admin.courseLearners",
+      "permissions": [
+        "progress:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "courseId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
       "name": "get_course_enrollment_trend",
       "title": "Get course enrollment trend",
       "description": "Daily enrollments in one course for the last days (default 30, at most 365).",
@@ -2789,7 +2828,8 @@
       "resource": "communities",
       "operation": "content.listCommunities",
       "permissions": [
-        "communities:read"
+        "communities:read",
+        "communities:moderate"
       ],
       "kind": "read",
       "idempotent": true,
@@ -2834,7 +2874,8 @@
       "resource": "communities",
       "operation": "content.listSpaces",
       "permissions": [
-        "communities:read"
+        "communities:read",
+        "communities:moderate"
       ],
       "kind": "read",
       "idempotent": true,

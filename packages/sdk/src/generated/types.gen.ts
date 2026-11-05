@@ -332,6 +332,10 @@ export type ListRolesResponses = {
     added: boolean;
     customized: boolean;
     holders: number;
+    /**
+     * Whether the role can be given. False for the owner role, which moves only by transfer.
+     */
+    givable: boolean;
   }>;
 };
 
@@ -462,6 +466,10 @@ export type CreateRoleResponses = {
     added: boolean;
     customized: boolean;
     holders: number;
+    /**
+     * Whether the role can be given. False for the owner role, which moves only by transfer.
+     */
+    givable: boolean;
   };
 };
 
@@ -661,6 +669,10 @@ export type GetRoleResponses = {
     added: boolean;
     customized: boolean;
     holders: number;
+    /**
+     * Whether the role can be given. False for the owner role, which moves only by transfer.
+     */
+    givable: boolean;
   };
 };
 
@@ -800,6 +812,10 @@ export type UpdateRoleResponses = {
     added: boolean;
     customized: boolean;
     holders: number;
+    /**
+     * Whether the role can be given. False for the owner role, which moves only by transfer.
+     */
+    givable: boolean;
   };
 };
 
@@ -931,6 +947,10 @@ export type ResetRoleResponses = {
     added: boolean;
     customized: boolean;
     holders: number;
+    /**
+     * Whether the role can be given. False for the owner role, which moves only by transfer.
+     */
+    givable: boolean;
   };
 };
 
@@ -5528,6 +5548,10 @@ export type ListCommunityMembersResponses = {
        * The name of the role that makes them team in the community, or null.
        */
       roleName: string | null;
+      /**
+       * Opens every space of the community, so holds no place in its spaces.
+       */
+      opensEverySpace: boolean;
     }>;
     total: number;
     page: number;
@@ -6236,6 +6260,18 @@ export type GetCommunitySpaceQueueResponses = {
         body: string;
         orgUserId: string;
         status: "pending" | "published" | "removed";
+        author: {
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          displayName: string | null;
+          headline: string | null;
+          image: string | null;
+          imageAssetId: string | null;
+          imageUrl: string | null;
+          team: boolean;
+          roleName: string | null;
+        };
       };
     }>;
   };
@@ -11103,6 +11139,18 @@ export type GetSpaceQueueResponses = {
         body: string;
         orgUserId: string;
         status: "pending" | "published" | "removed";
+        author: {
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          displayName: string | null;
+          headline: string | null;
+          image: string | null;
+          imageAssetId: string | null;
+          imageUrl: string | null;
+          team: boolean;
+          roleName: string | null;
+        };
       };
     }>;
   };
@@ -22813,6 +22861,113 @@ export type GetCourseEnrollmentSeriesResponses = {
 
 export type GetCourseEnrollmentSeriesResponse =
   GetCourseEnrollmentSeriesResponses[keyof GetCourseEnrollmentSeriesResponses];
+
+export type ListCourseLearnersData = {
+  body?: never;
+  path: {
+    courseId: string;
+  };
+  query?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  };
+  url: "/api/courses/{courseId}/learners";
+};
+
+export type ListCourseLearnersErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListCourseLearnersError = ListCourseLearnersErrors[keyof ListCourseLearnersErrors];
+
+export type ListCourseLearnersResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+      image: string | null;
+      /**
+       * The status of the grant that opens the course to them.
+       */
+      status: "active" | "expired" | "revoked";
+      /**
+       * Where the grant came from.
+       */
+      source: string;
+      grantedAt: string;
+      expiresAt: string | null;
+      /**
+       * Published activities in the course.
+       */
+      totalActivities: number;
+      completedActivities: number;
+      /**
+       * Completed published activities over the total, 0–100.
+       */
+      progress: number;
+      lastActivityAt: string | null;
+      completedAt: string | null;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListCourseLearnersResponse =
+  ListCourseLearnersResponses[keyof ListCourseLearnersResponses];
 
 export type RequestUploadData = {
   body: {
