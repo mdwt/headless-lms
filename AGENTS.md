@@ -29,12 +29,17 @@ Read [this](docs/architecture.md)
   Two services, one per product. `reporting/member` is the member product (courses, progress, downloads,
   the community directory, the community home, the notification list, the unread counts and the
   notification settings view). `reporting/admin` is the admin app (org overview,
-  course analytics, roster, community members, community staff analytics). Role is a route guard, not a service. The
-  `/api/member` prefix is the member HTTP API and its course, download, progress, directory, community
-  home, notification list, unread count, notification settings view and asset URL routes call `reporting/member`.
+  course analytics, roster, community members, community analytics). Each method checks the caller's
+  permissions itself; there is no service per role. The `/api/member` prefix is the member HTTP API and
+  its course, download, progress, directory, community home, notification list, unread count,
+  notification settings view and asset URL routes call `reporting/member`.
 - `@headless-lms/server` is `app/` (composition root) + `http/` only.
 
-- Access to content is decided only by entitlements — see "Access checks" in `docs/architecture.md`.
+- Access to content is decided only by entitlements, except the read permission of each content type
+  (`courses:read`, `downloads:read`, `communities:read`) — see "Access checks" in `docs/architecture.md`.
+- Authorization is a permission check at the top of the core service method that owns the action
+  (`actor.permissions.require(...)`). Routes and MCP tools carry no logic: they build the actor and call one
+  method. No code compares a role's name or key — see "Permission checks" in `docs/architecture.md`.
 
 These rules are not advisory — run `pnpm lint` after changing imports across layers.
 

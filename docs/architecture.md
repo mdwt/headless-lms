@@ -29,7 +29,9 @@ adapters as reference when creating new ones.
 
 ### Access checks
 
-Whether a member can open content is decided only by the entitlements context:
+Whether a member can open content is decided by the entitlements context. The one exception is the read permission
+of each content type: `courses:read` and `downloads:read` open the item without a grant, unpublished included, and
+`communities:read` makes the person a member of the community and opens every space in it.
 
 - Services and the member surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
   it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
@@ -38,6 +40,27 @@ Whether a member can open content is decided only by the entitlements context:
   grants, with bundle grants expanded to the bundle's current items.
 - Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
   access themselves.
+
+### Permission checks
+
+What a person may do is a permission check in the core service method that owns the action, never in a route, an
+MCP tool or a repository. The organizations context owns the permission list, the roles and the assignments
+(`docs/domain/organizations.md`).
+
+- Every method a person can reach takes the caller as `actor`. `actor.permissions` answers
+  `has(permission, contentId?)`, `require`, `anywhere`, `where` (for filtering lists), `roleOn` and `isOwner`.
+  `Actor` and `EffectivePermissions` are in `core/shared`; organizations builds them with `actorFor`.
+- The check runs against the item acted on, loaded by the method, never an id the client sent. Lists return
+  everything to a holder on the org and filter to `where(...).content` otherwise. Creating an item needs the type's
+  write permission on the org.
+- Each service declares what each public method requires: permissions, `member`, `owner`, `system` or `public`
+  (`declarations.ts`). Every route and MCP tool names the method it calls (`operation`); the OpenAPI descriptions and
+  the MCP tool list are derived from the declaration.
+- Routes and tools resolve the credential, ask organizations for the actor and call one method. They decide nothing.
+  An API key or app token holds its scopes intersected with its creator's current permissions.
+- Work the system does itself, and one context's reads of another's data to serve a person, run as
+  `organizations.systemActor(orgId)`, which holds every permission and is never built from a request.
+- No code compares a role's name or key. A lint rule refuses it.
 
 ### Serving files
 
@@ -98,18 +121,20 @@ Reporting is the read domain. It lives in `packages/core` as `@headless-lms/core
 context, owns no data, and writes nothing. The other contexts do not import it. The HTTP layer and the composition
 root do.
 
-There are two services, one per product. A person calls the service for the product they are logged into. Role is a
-guard on the route, not another service.
+There are two services, one per product. A person calls the service for the product they are logged into. Each
+method checks the caller's permissions itself; there is no service per role.
 
-`reporting/member` is the person in the member product: a student in a course, a member in a community, a moderator.
+`reporting/member` is the person in the member product: a learner in a course, a member in a community, a moderator.
 It answers the courses, progress, and downloads they can open, the community directory, the community home, the
 notification list, the unread counts, and the notification settings view. The `/api/member` prefix is the member HTTP
 API. Its course, download, progress, directory, community-home, notification list, unread count and notification
 settings view routes call `reporting/member`. The other routes under that prefix call the context that owns the
 operation.
 
-`reporting/admin` is the person in the admin app: owner, admin, and instructor. It answers the org overview, course
-analytics, the roster, a student's record, a community's members, and the community staff analytics.
+`reporting/admin` is the person in the admin app, whatever their role. It answers the org overview
+(`analytics:read`), course analytics (`progress:read` on the course), the roster and a learner's record
+(`people:read`), a community's members (`access:read`), and the community analytics (`communities:read` on the
+community).
 
 `reporting/member` and `reporting/admin` are the services in the code.
 
