@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ACCESS_SCOPES } from '@headless-lms/core/organizations';
+import {
+  ALL_PERMISSIONS,
+  DEFAULT_ROLES,
+  catalogOf,
+  resolveOrgRoles,
+  resolvePermissions,
+} from '@headless-lms/core/organizations';
+import type { Permission } from '@headless-lms/core/types';
 import type { AccessRequest } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { registerMcp } from './route.js';
@@ -16,12 +23,12 @@ afterEach(async () => {
 
 const ran: string[] = [];
 
-function probe(name: string, scope: Tool['scope'], kind: Tool['kind']) {
+function probe(name: string, operation: string, kind: Tool['kind']) {
   return defineTool({
     name,
     title: name,
     description: name,
-    scope,
+    operation,
     kind,
     idempotent: kind !== 'write',
     openWorld: false,
@@ -31,9 +38,9 @@ function probe(name: string, scope: Tool['scope'], kind: Tool['kind']) {
 }
 
 const PROBES = [
-  probe('read_x', 'courses:read', 'read'),
-  probe('write_x', 'courses:write', 'write'),
-  probe('delete_x', 'courses:delete', 'destructive'),
+  probe('read_x', 'organizations.listRoles', 'read'),
+  probe('write_x', 'organizations.updateRole', 'write'),
+  probe('delete_x', 'organizations.deleteRole', 'destructive'),
 ];
 
 async function build(container: Container) {
@@ -43,13 +50,23 @@ async function build(container: Container) {
   return app;
 }
 
-const granted = (scopes: string[], role = 'owner') =>
+const roles = new Map(resolveOrgRoles(catalogOf(DEFAULT_ROLES), []).map((r) => [r.key, r]));
+
+const granted = (scopes: string[], roleKey = 'owner') =>
   fakeContainer({
     auth: {
       verifyAccess: async () => ({ userId: 'usr_1', orgId: 'org_1', scopes, clientId: 'client_1' }),
     },
     organizations: {
-      getOrgUser: async () => ({ id: 'ou_1', orgId: 'org_1', userId: 'usr_1', role }),
+      actorFor: async (orgId: string, orgUserId: string, tokenScopes?: Permission[]) => ({
+        id: orgUserId,
+        orgId,
+        permissions: resolvePermissions({
+          assignments: [{ roleKey, contentId: null, contentType: null }],
+          roles,
+          ...(tokenScopes && { tokenScopes }),
+        }),
+      }),
     },
   });
 
@@ -91,7 +108,7 @@ describe('POST /mcp credentials', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.headers['www-authenticate']).toBe(
-      `Bearer resource_metadata="http://localhost:8100/.well-known/oauth-protected-resource/mcp", scope="${ACCESS_SCOPES.join(' ')}"`,
+      `Bearer resource_metadata="http://localhost:8100/.well-known/oauth-protected-resource/mcp", scope="${ALL_PERMISSIONS.join(' ')}"`,
     );
   });
 
@@ -107,13 +124,16 @@ describe('POST /mcp credentials', () => {
     expect(res.headers['www-authenticate']).toBeUndefined();
     expect(res.json()).toEqual({
       jsonrpc: '2.0',
-      error: { code: -32000, message: 'Only staff of this organization can use this server' },
+      error: {
+        code: -32000,
+        message: 'Only active members of this organization can use this server',
+      },
       id: null,
     });
   }
 
-  it('refuses a person who is a student in the org without a challenge', async () => {
-    await refused(granted([...ACCESS_SCOPES], 'student'));
+  it('refuses a person who is not an active member without a challenge', async () => {
+    await refused(fakeContainer({ organizations: { actorFor: async () => null } }));
   });
 
   it('refuses a person with no org user in the org without a challenge', async () => {
@@ -155,30 +175,27 @@ describe('POST /mcp credentials', () => {
 
 describe('POST /mcp tool list', () => {
   it('lists only the tools whose scope was granted', async () => {
-    expect(await listed(granted(['courses:read', 'courses:write']))).toEqual(['read_x', 'write_x']);
+    expect(await listed(granted(['roles:read', 'roles:write']))).toEqual(['read_x', 'write_x']);
   });
 
   it('hides delete tools unless their scope was granted', async () => {
-    expect(await listed(granted(['courses:read']))).toEqual(['read_x']);
-    expect(await listed(granted(['courses:read', 'courses:delete']))).toEqual([
-      'read_x',
-      'delete_x',
-    ]);
+    expect(await listed(granted(['roles:read']))).toEqual(['read_x']);
+    expect(await listed(granted(['roles:read', 'roles:delete']))).toEqual(['read_x', 'delete_x']);
   });
 
   it('never lists a tool the role cannot hold, whatever was granted', async () => {
     expect(
-      await listed(granted(['courses:read', 'courses:write', 'courses:delete'], 'instructor')),
-    ).toEqual(['read_x']);
+      await listed(granted(['roles:read', 'roles:write', 'roles:delete'], 'instructor')),
+    ).toEqual([]);
   });
 
   it('lists no tools when the filter leaves none', async () => {
-    expect(await listed(granted(['courses:write'], 'instructor'))).toEqual([]);
+    expect(await listed(granted(['roles:write'], 'instructor'))).toEqual([]);
   });
 
   it('does not run a tool outside the list', async () => {
     ran.length = 0;
-    const server = await build(granted(['courses:read']));
+    const server = await build(granted(['roles:read']));
     const res = await server.inject({
       method: 'POST',
       url: '/mcp',
@@ -197,7 +214,7 @@ describe('POST /mcp tool list', () => {
 
   it('runs a granted tool', async () => {
     ran.length = 0;
-    const server = await build(granted(['courses:read']));
+    const server = await build(granted(['roles:read']));
     const res = await server.inject({
       method: 'POST',
       url: '/mcp',
@@ -214,7 +231,7 @@ describe('POST /mcp tool list', () => {
   });
 
   it('serves a 2026-07-28 client', async () => {
-    const server = await build(granted(['courses:read']));
+    const server = await build(granted(['roles:read']));
     const res = await server.inject({
       method: 'POST',
       url: '/mcp',
@@ -241,7 +258,7 @@ describe('POST /mcp tool list', () => {
   });
 
   it('lists no tools to a 2026-07-28 client when the filter leaves none', async () => {
-    const server = await build(granted(['courses:write'], 'instructor'));
+    const server = await build(granted(['roles:write'], 'instructor'));
     const res = await server.inject({
       method: 'POST',
       url: '/mcp',

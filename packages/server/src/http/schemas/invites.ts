@@ -1,47 +1,25 @@
 // Invites resource schemas — domain-owned invites (staff + student).
 import { z } from 'zod';
-import { emailSchema } from '@headless-lms/core/schemas';
-
-/** Roles an invitation can carry. Never owner. */
-export const InviteRole = z.enum(['admin', 'instructor', 'moderator', 'student']);
-export type InviteRole = z.infer<typeof InviteRole>;
+import { emailSchema, roleKeySchema } from '@headless-lms/core/schemas';
 
 export const Invite = z.object({
   id: z.string(),
   email: z.string(),
-  role: InviteRole,
+  roleKey: z.string(),
   status: z.string(),
   expiresAt: z.date().nullable(),
   createdAt: z.date(),
 });
 export type Invite = z.infer<typeof Invite>;
 
-/** A student is created by this call, not by the acceptance that follows it, so
- *  the admin names them here. `sendEmail: false` still creates everything —
- *  only delivery is skipped. Both are ignored for staff roles, whose org user
- *  is mirrored from the auth provider when they join. */
 export const CreateInvite = z.object({
   email: emailSchema,
-  role: InviteRole,
+  roleKey: roleKeySchema.default('member'),
   firstName: z.string().trim().min(1).optional(),
   lastName: z.string().trim().min(1).optional(),
   sendEmail: z.boolean().default(true),
 });
 export type CreateInvite = z.infer<typeof CreateInvite>;
-
-export const ActivateInvite = z.object({ token: z.string().min(1) });
-export type ActivateInvite = z.infer<typeof ActivateInvite>;
-
-/** accepted → consumed for the current session; auth-required → sign up/in first.
- *  accountExists says which of the two: the invitee's email already has an
- *  account (sign in to link it) or it does not (create one). */
-export const ActivateInviteResult = z.object({
-  status: z.enum(['accepted', 'auth-required']),
-  email: z.string(),
-  role: InviteRole,
-  accountExists: z.boolean(),
-});
-export type ActivateInviteResult = z.infer<typeof ActivateInviteResult>;
 
 export const InviteTokenParam = z.object({ token: z.string().min(1) });
 export type InviteTokenParam = z.infer<typeof InviteTokenParam>;

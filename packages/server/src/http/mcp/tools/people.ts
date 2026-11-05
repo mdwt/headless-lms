@@ -10,7 +10,7 @@ import {
   StudentIdParam,
   StudentsQuery,
 } from '../../schemas/index.js';
-import { actor, defineTool, noInput, type Tool } from '../tool.js';
+import { defineTool, noInput, type Tool } from '../tool.js';
 
 export const peopleTools: Tool[] = [
   defineTool({
@@ -18,145 +18,140 @@ export const peopleTools: Tool[] = [
     title: 'List students',
     description:
       'Search and page through the students with their access count, average progress, status and last activity.',
-    scope: 'students:read',
+    operation: 'reporting.admin.listStudents',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: StudentsQuery,
-    call: (input, { container, scope }) =>
-      container.reporting.admin.listStudents(scope.orgId, input),
+    call: (input, { container, caller }) =>
+      container.reporting.admin.listStudents(input, caller.actor),
   }),
   defineTool({
     name: 'invite_student',
     title: 'Invite student',
     description:
       'Invite someone by email as a student. They exist as an invited student at once. sendEmail false skips the email.',
-    scope: 'students:invite',
+    operation: 'organizations.createInvite',
     kind: 'write',
     idempotent: false,
     openWorld: true,
-    input: CreateInvite.omit({ role: true }),
+    input: CreateInvite.omit({ roleKey: true }),
     output: Invite,
-    call: (input, { container, scope }) =>
-      container.organizations.createInvite(actor(scope), {
-        orgId: scope.orgId,
-        inviterUserId: scope.userId,
-        role: 'student',
-        ...input,
-      }),
+    call: (input, { container, caller }) =>
+      container.organizations.createInvite(
+        { ...input, roleKey: 'member' },
+        caller.actor,
+        caller.userId,
+      ),
   }),
   defineTool({
     name: 'resend_student_invite',
     title: 'Resend student invite',
     description: "Send a pending student's invite email again.",
-    scope: 'students:invite',
+    operation: 'organizations.resendInvite',
     kind: 'write',
     idempotent: false,
     openWorld: true,
     input: StudentIdParam,
-    call: ({ id }, { container, scope }) =>
-      container.organizations.resendStudentInvite(actor(scope), {
-        orgId: scope.orgId,
-        orgUserId: id,
-        inviterUserId: scope.userId,
-      }),
+    call: ({ id }, { container, caller }) =>
+      container.organizations.resendInvite(id, caller.actor, caller.userId),
   }),
   defineTool({
     name: 'list_access',
     title: 'List access',
     description: 'Who has access to what. Filter by student (orgUserId), content, type or status.',
-    scope: 'access:read',
+    operation: 'entitlements.list',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: EntitlementsQuery,
-    call: (input, { container, scope }) => container.entitlements.list(scope.orgId, input),
+    call: (input, { container, caller }) => container.entitlements.list(input, caller.actor),
   }),
   defineTool({
     name: 'grant_access',
     title: 'Grant access',
     description:
       'Give a student access to one course, download or community (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.',
-    scope: 'access:write',
+    operation: 'entitlements.grant',
     kind: 'write',
     idempotent: false,
     openWorld: false,
     input: GrantEntitlement,
-    call: (input, { container, scope }) => container.entitlements.grant(scope.orgId, input),
+    call: (input, { container, caller }) => container.entitlements.grant(input, caller.actor),
   }),
   defineTool({
     name: 'set_access_status',
     title: 'Revoke or reinstate access',
     description: 'Revoke an access grant, or reinstate a revoked one.',
-    scope: 'access:write',
+    operation: 'entitlements.setStatus',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
     input: SetEntitlementStatus.extend(EntitlementIdParam.shape),
-    call: ({ id, status }, { container, scope }) =>
-      container.entitlements.setStatus(scope.orgId, id, status),
+    call: ({ id, status }, { container, caller }) =>
+      container.entitlements.setStatus(id, status, caller.actor),
   }),
   defineTool({
     name: 'get_dashboard',
     title: 'Get dashboard',
     description:
       'Published and draft course counts, active students, and access grants expiring soon.',
-    scope: 'analytics:read',
+    operation: 'reporting.admin.overview',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: noInput,
-    call: (_input, { container, scope }) => container.reporting.admin.overview(scope.orgId),
+    call: (_input, { container, caller }) => container.reporting.admin.overview(caller.actor),
   }),
   defineTool({
     name: 'get_enrollment_trend',
     title: 'Get enrollment trend',
     description:
       'Daily enrollments across the organization for the last days (default 30, at most 365).',
-    scope: 'analytics:read',
+    operation: 'reporting.admin.enrollments',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: EnrollmentSeriesQuery,
-    call: ({ days }, { container, scope }) =>
-      container.reporting.admin.enrollments(scope.orgId, days),
+    call: ({ days }, { container, caller }) =>
+      container.reporting.admin.enrollments(days, caller.actor),
   }),
   defineTool({
     name: 'get_course_analytics',
     title: 'Get course analytics',
     description:
       'Enrolled, started and completed counts, average progress and per-activity engagement for one course.',
-    scope: 'analytics:read',
+    operation: 'reporting.admin.courseAnalytics',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: CourseIdPathParam,
-    call: ({ courseId }, { container, scope }) =>
-      container.reporting.admin.courseAnalytics(scope.orgId, courseId),
+    call: ({ courseId }, { container, caller }) =>
+      container.reporting.admin.courseAnalytics(courseId, caller.actor),
   }),
   defineTool({
     name: 'get_course_enrollment_trend',
     title: 'Get course enrollment trend',
     description: 'Daily enrollments in one course for the last days (default 30, at most 365).',
-    scope: 'analytics:read',
+    operation: 'reporting.admin.courseEnrollments',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: EnrollmentSeriesQuery.extend(CourseIdPathParam.shape),
-    call: ({ courseId, days }, { container, scope }) =>
-      container.reporting.admin.courseEnrollments(scope.orgId, courseId, days),
+    call: ({ courseId, days }, { container, caller }) =>
+      container.reporting.admin.courseEnrollments(courseId, days, caller.actor),
   }),
   defineTool({
     name: 'get_student_analytics',
     title: 'Get student analytics',
     description:
       "One student's enrolled, started and completed counts, average progress and progress in each course.",
-    scope: 'analytics:read',
+    operation: 'reporting.admin.studentAnalytics',
     kind: 'read',
     idempotent: true,
     openWorld: false,
     input: StudentIdParam,
-    call: ({ id }, { container, scope }) =>
-      container.reporting.admin.studentAnalytics(scope.orgId, id),
+    call: ({ id }, { container, caller }) =>
+      container.reporting.admin.studentAnalytics(id, caller.actor),
   }),
 ];

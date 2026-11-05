@@ -1,16 +1,28 @@
-// Team (org members) resource schemas.
 import { z } from 'zod';
+import {
+  contentTypeSchema,
+  levelSchema,
+  permissionSchema,
+  roleKeySchema,
+} from '@headless-lms/core/schemas';
 import { ListQuery, paginated, OrgUserProfileSchema } from './shared.js';
-
-/** Org-scoped roles, mirrored from better-auth's organization plugin. */
-export const Role = z.enum(['owner', 'admin', 'instructor', 'moderator']);
-export type Role = z.infer<typeof Role>;
 
 export const MemberStatus = z.enum(['active', 'invited']);
 export type MemberStatus = z.infer<typeof MemberStatus>;
 
+export const RoleRef = z.object({ key: z.string(), name: z.string() });
+
+export const ItemRole = z.object({
+  contentId: z.string(),
+  contentType: contentTypeSchema,
+  roleKey: z.string(),
+  roleName: z.string(),
+});
+
 export const Member = OrgUserProfileSchema.extend({
-  role: Role,
+  orgRole: RoleRef,
+  isOwner: z.boolean(),
+  items: z.array(ItemRole),
   status: MemberStatus,
   joinedAt: z.string().nullable(),
   invitedAt: z.string().nullable(),
@@ -18,7 +30,7 @@ export const Member = OrgUserProfileSchema.extend({
 export type Member = z.infer<typeof Member>;
 
 export const MembersQuery = ListQuery.extend({
-  role: Role.optional(),
+  roleKey: z.string().optional(),
   status: MemberStatus.optional(),
 });
 export type MembersQuery = z.infer<typeof MembersQuery>;
@@ -26,16 +38,63 @@ export type MembersQuery = z.infer<typeof MembersQuery>;
 export const MembersPage = paginated(Member);
 export type MembersPage = z.infer<typeof MembersPage>;
 
-export const AssignableRole = z.enum(['admin', 'instructor', 'moderator', 'student']);
-export type AssignableRole = z.infer<typeof AssignableRole>;
+export const OrgUserIdParam = z.object({ orgUserId: z.string() });
+export const OrgUserContentParam = z.object({ orgUserId: z.string(), contentId: z.string() });
+export const ContentIdParam = z.object({ contentId: z.string() });
+export const RoleKeyParam = z.object({ key: z.string() });
 
-export const UpdateMemberRole = z.object({ role: AssignableRole });
-export type UpdateMemberRole = z.infer<typeof UpdateMemberRole>;
-
-export const MemberRoleChange = Member.extend({
-  role: z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']),
+export const Assignment = z.object({
+  orgUserId: z.string(),
+  roleKey: z.string(),
+  roleName: z.string(),
+  contentId: z.string().nullable(),
+  contentType: contentTypeSchema.nullable(),
 });
-export type MemberRoleChange = z.infer<typeof MemberRoleChange>;
+export const AssignmentList = z.array(Assignment);
 
-export const MemberIdParam = z.object({ id: z.string() });
-export type MemberIdParam = z.infer<typeof MemberIdParam>;
+export const SetRole = z.object({ roleKey: roleKeySchema });
+
+export const OrgRoleView = z.object({
+  key: z.string(),
+  name: z.string(),
+  description: z.string(),
+  base: z.string(),
+  levels: z.array(levelSchema),
+  team: z.boolean(),
+  permissions: z.array(permissionSchema),
+  system: z.boolean(),
+  added: z.boolean(),
+  customized: z.boolean(),
+  holders: z.number().int(),
+});
+export const OrgRoleList = z.array(OrgRoleView);
+
+const PermissionChoices = z.partialRecord(permissionSchema, z.boolean());
+
+export const UpdateRole = z
+  .object({
+    name: z.string().trim().min(1).max(60).optional(),
+    description: z.string().trim().max(240).optional(),
+    levels: z.array(levelSchema).min(1).optional(),
+    team: z.boolean().optional(),
+    permissions: PermissionChoices.optional(),
+  })
+  .strict();
+
+export const CreateRole = z
+  .object({
+    base: roleKeySchema,
+    name: z.string().trim().min(1).max(60),
+    description: z.string().trim().max(240).optional(),
+    levels: z.array(levelSchema).min(1).optional(),
+    team: z.boolean().optional(),
+    permissions: PermissionChoices.optional(),
+  })
+  .strict();
+
+export const TransferOwnership = z
+  .object({
+    newOwnerOrgUserId: z.string().min(1),
+    previousOwnerRoleKey: roleKeySchema.optional(),
+  })
+  .strict();

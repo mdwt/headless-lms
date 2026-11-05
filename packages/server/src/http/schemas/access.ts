@@ -1,8 +1,25 @@
 import { z } from 'zod';
-import { ACCESS_SCOPES } from '@headless-lms/core/organizations';
+import { levelSchema, permissionSchema } from '@headless-lms/core/schemas';
 
-export const ScopeOption = z.object({ scope: z.enum(ACCESS_SCOPES), allowed: z.boolean() });
-export const ScopeOptionList = z.array(ScopeOption);
+export const Permission = permissionSchema;
+export const Level = levelSchema;
+
+export const PermissionDefinition = z.object({
+  key: permissionSchema,
+  group: z.string(),
+  label: z.string(),
+  description: z.string(),
+  about: levelSchema,
+  implies: z.array(permissionSchema).optional(),
+});
+export const PermissionDefinitionList = z.array(PermissionDefinition);
+
+export const ViewerPermissions = z.object({
+  orgRole: z.object({ key: z.string(), name: z.string() }),
+  isOwner: z.boolean(),
+  org: z.array(permissionSchema),
+  content: z.record(z.string(), z.array(permissionSchema)),
+});
 
 export const ConnectedApp = z.object({
   clientId: z.string(),
@@ -26,6 +43,6 @@ export const ApiKeyList = z.array(ApiKey);
 export const CreatedApiKey = ApiKey.extend({ key: z.string() });
 export const CreateApiKey = z.object({
   name: z.string().trim().min(1).max(80),
-  scopes: z.array(z.enum(ACCESS_SCOPES)).min(1),
+  scopes: z.array(permissionSchema).min(1),
 });
 export const ApiKeyIdParam = z.object({ id: z.string() });

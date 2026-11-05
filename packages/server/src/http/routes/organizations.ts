@@ -4,31 +4,51 @@ import { z } from 'zod';
 import {
   AcceptInvite,
   AcceptInviteResult,
+  AssignmentList,
+  ContentIdParam,
   CreateInvite,
   CreateOrganization,
+  CreateRole,
   Invite,
-  MemberIdParam,
   NotificationCategoryDefaults,
   NotificationCategoryList,
   NotificationChannelInfos,
   NotificationListScopeQuery,
   NotificationTypeInfos,
   ReplaceNotificationCategories,
-  MemberRoleChange,
   MembersPage,
   MembersQuery,
   GetInviteResult,
   InviteTokenParam,
+  OrgRoleList,
+  OrgRoleView,
+  OrgUserContentParam,
+  OrgUserIdParam,
   Organization,
-  UpdateMemberRole,
+  RoleKeyParam,
+  SetRole,
+  TransferOwnership,
   UpdateOrganization,
+  UpdateRole,
   refusals,
 } from '../schemas/index.js';
-import type { MemberWriteContext } from '@headless-lms/core/organizations';
+import type { Invite as InviteRecord } from '@headless-lms/core/organizations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
-import { resolveConfiguratorScope, resolveScope } from '../scope.js';
+import { resolveActor, resolveCaller } from '../scope.js';
+import { describeOperation } from '../operations.js';
 import { typesForList } from '@headless-lms/core/shared/notification-categories';
+
+function inviteView(invite: InviteRecord) {
+  return {
+    id: invite.id,
+    email: invite.email,
+    roleKey: invite.roleKey,
+    status: invite.status,
+    expiresAt: invite.expiresAt,
+    createdAt: invite.createdAt,
+  };
+}
 
 export async function organizationsRoutes(
   app: FastifyInstance,
@@ -37,17 +57,14 @@ export async function organizationsRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const organizations = container.organizations;
   const tags = ['Organizations'];
+  const peopleTags = ['People'];
+  const roleTags = ['Roles'];
 
-  // Create a new organization on the caller's behalf and make it their active
-  // org. This is the API's own front door for org creation — it drives Better
-  // Auth internally, so callers use the typed SDK, not the auth namespace. No
-  // resolveScope here: the caller has no active org yet, only a session.
   r.route({
     method: 'POST',
     url: '/api/organizations',
-    // Session only: a first-time signup has no active org yet, so requiring one
-    // here would 401 the very call that produces it.
     preHandler: app.requireSession,
+    config: { operation: 'organizations.createOrganization' },
     schema: {
       operationId: 'createOrganization',
       tags,
@@ -68,117 +85,288 @@ export async function organizationsRoutes(
     },
   });
 
-  // Update the caller's active organization (name/slug). Writes go through Better
-  // Auth, which enforces the caller's org-update permission (owner/admin).
   r.route({
     method: 'PATCH',
     url: '/api/organizations',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.updateOrganization' },
     schema: {
       operationId: 'updateOrganization',
       tags,
-      summary: 'Update the active organization (staff)',
-      description: 'Owner or admin. Changes its name or slug; 409 when the slug is taken.',
+      summary: 'Update the active organization',
+      description: `${describeOperation('organizations.updateOrganization')} Changes its name or slug; 409 when the slug is taken.`,
       body: UpdateOrganization,
       response: { 200: Organization, ...refusals(403, 409) },
     },
-    handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const org = await container.orgProvider.updateOrganization(
-        req.headers,
-        scope.authOrgId,
-        req.body,
-      );
-      return reply.send({
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      const org = await organizations.updateOrganization(req.body, actor);
+      return {
         id: org.id,
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
-      });
+      };
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/organizations/ownership',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.transferOwnership' },
+    schema: {
+      operationId: 'transferOwnership',
+      tags,
+      summary: 'Transfer ownership of the organization',
+      description:
+        "Owner only. The new owner must be an active member. The previous owner takes the named org role, Member by default. 403 for anyone else, including the owner's API keys.",
+      body: TransferOwnership,
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await organizations.transferOwnership(req.body, actor);
+      return reply.code(204).send();
     },
   });
 
   r.route({
     method: 'GET',
-    url: '/api/organizations/members',
+    url: '/api/organizations/roles',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listRoles' },
     schema: {
-      operationId: 'listMembers',
-      tags,
-      summary: "List the organization's team members (staff)",
-      description:
-        'Staff only (owner, admin, instructor). The team: everyone in the organization who is not a student.',
-      querystring: MembersQuery,
-      response: { 200: MembersPage, ...refusals(403) },
+      operationId: 'listRoles',
+      tags: roleTags,
+      summary: "The organization's roles",
+      description: `${describeOperation('organizations.listRoles')} Each role with its levels, permissions and the number of people who hold it.`,
+      response: { 200: OrgRoleList, ...refusals(403) },
     },
-    handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return organizations.listMembers(scope.orgId, req.query);
+    handler: async (req) => organizations.listRoles(await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/organizations/roles/:key',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.getRole' },
+    schema: {
+      operationId: 'getRole',
+      tags: roleTags,
+      summary: 'Read a role',
+      description: describeOperation('organizations.getRole'),
+      params: RoleKeyParam,
+      response: { 200: OrgRoleView, ...refusals(403, 404) },
     },
+    handler: async (req) =>
+      organizations.getRole(req.params.key, await resolveActor(container, req)),
   });
 
   r.route({
     method: 'PATCH',
-    url: '/api/organizations/members/:id/role',
+    url: '/api/organizations/roles/:key',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.updateRole' },
     schema: {
-      operationId: 'updateMemberRole',
-      tags,
-      summary: "Change a member's role (staff)",
-      description:
-        'Owner or admin only. The owner role can be neither granted nor changed (409), and only a moderator can become a student.',
-      params: MemberIdParam,
-      body: UpdateMemberRole,
-      response: { 200: MemberRoleChange, ...refusals(403, 404, 409) },
+      operationId: 'updateRole',
+      tags: roleTags,
+      summary: 'Rename or change a role',
+      description: `${describeOperation('organizations.updateRole')} A rename needs nothing else. Changing permissions, levels or the team flag needs every permission the role holds before and after the change (403 names the missing ones). Owner and Member can only be renamed (409). Names are unique in the organization (409).`,
+      params: RoleKeyParam,
+      body: UpdateRole,
+      response: { 200: OrgRoleView, ...refusals(400, 403, 404, 409) },
     },
-    handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const ctx: MemberWriteContext = {
-        orgId: scope.orgId,
-        authOrgId: scope.authOrgId,
-        headers: req.headers,
-      };
-      const member = await organizations.updateMemberRole(
-        ctx,
-        { id: scope.orgUserId, role: scope.role },
-        req.params.id,
-        req.body.role,
-      );
-      if (!member) {
-        throw new NotFoundError('Member', req.params.id);
-      }
-      return member;
+    handler: async (req) =>
+      organizations.updateRole(req.params.key, req.body, await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/organizations/roles',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.createRole' },
+    schema: {
+      operationId: 'createRole',
+      tags: roleTags,
+      summary: 'Add a role',
+      description: `${describeOperation('organizations.createRole')} The role starts from a deployment role (\`base\`) and needs every permission it holds.`,
+      body: CreateRole,
+      response: { 201: OrgRoleView, ...refusals(400, 403, 409) },
     },
+    handler: async (req, reply) =>
+      reply
+        .code(201)
+        .send(await organizations.createRole(req.body, await resolveActor(container, req))),
   });
 
   r.route({
     method: 'DELETE',
-    url: '/api/organizations/members/:id',
+    url: '/api/organizations/roles/:key/customization',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.resetRole' },
     schema: {
-      operationId: 'removeMember',
-      tags,
-      summary: 'Remove an organization member (staff)',
-      description:
-        'Owner or admin only. Removing a pending member cancels their invite. The owner cannot be removed (409).',
-      params: MemberIdParam,
+      operationId: 'resetRole',
+      tags: roleTags,
+      summary: "Reset a role to the deployment's version",
+      description: `${describeOperation('organizations.resetRole')} Needs every permission the role holds before and after.`,
+      params: RoleKeyParam,
+      response: { 200: OrgRoleView, ...refusals(403, 404, 409) },
+    },
+    handler: async (req) =>
+      organizations.resetRole(req.params.key, await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/organizations/roles/:key',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.deleteRole' },
+    schema: {
+      operationId: 'deleteRole',
+      tags: roleTags,
+      summary: 'Delete a role the organization added',
+      description: `${describeOperation('organizations.deleteRole')} Refused while anyone holds it (409, with the count).`,
+      params: RoleKeyParam,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const ctx: MemberWriteContext = {
-        orgId: scope.orgId,
-        authOrgId: scope.authOrgId,
-        headers: req.headers,
-      };
-      const removed = await organizations.removeMember(
-        ctx,
-        { id: scope.orgUserId, role: scope.role },
-        req.params.id,
-      );
-      if (!removed) {
-        throw new NotFoundError('Member', req.params.id);
-      }
+      await organizations.deleteRole(req.params.key, await resolveActor(container, req));
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/organizations/people',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listTeam' },
+    schema: {
+      operationId: 'listTeam',
+      tags: peopleTags,
+      summary: "The organization's team",
+      description: `${describeOperation('organizations.listTeam')} Everyone with an org role other than Member or a role on a content item, invited people included.`,
+      querystring: MembersQuery,
+      response: { 200: MembersPage, ...refusals(403) },
+    },
+    handler: async (req) => organizations.listTeam(req.query, await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/organizations/people/:orgUserId/roles',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listAssignments' },
+    schema: {
+      operationId: 'listPersonRoles',
+      tags: peopleTags,
+      summary: "A person's roles",
+      description: `${describeOperation('organizations.listAssignments')} Their org role and every role they hold on a content item.`,
+      params: OrgUserIdParam,
+      response: { 200: AssignmentList, ...refusals(403) },
+    },
+    handler: async (req) =>
+      organizations.listAssignments(req.params.orgUserId, await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'PUT',
+    url: '/api/organizations/people/:orgUserId/roles/org',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.setOrgRole' },
+    schema: {
+      operationId: 'setOrgRole',
+      tags: peopleTags,
+      summary: "Set a person's org role",
+      description: `${describeOperation('organizations.setOrgRole')} Needs every permission the old and the new role hold. Nobody changes their own roles, and the owner's role changes only by transfer.`,
+      params: OrgUserIdParam,
+      body: SetRole,
+      response: { 200: AssignmentList, ...refusals(403, 404, 409) },
+    },
+    handler: async (req) =>
+      organizations.setOrgRole(
+        req.params.orgUserId,
+        req.body.roleKey,
+        await resolveActor(container, req),
+      ),
+  });
+
+  r.route({
+    method: 'PUT',
+    url: '/api/organizations/people/:orgUserId/roles/content/:contentId',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.assignRole' },
+    schema: {
+      operationId: 'assignRole',
+      tags: peopleTags,
+      summary: 'Give a person a role on a content item',
+      description: `${describeOperation('organizations.assignRole')} The role must list the item's type as a level. Needs every permission the old and the new role give there.`,
+      params: OrgUserContentParam,
+      body: SetRole,
+      response: { 200: AssignmentList, ...refusals(403, 404, 409) },
+    },
+    handler: async (req) =>
+      organizations.assignRole(
+        req.params.orgUserId,
+        req.params.contentId,
+        req.body.roleKey,
+        await resolveActor(container, req),
+      ),
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/organizations/people/:orgUserId/roles/content/:contentId',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.unassignRole' },
+    schema: {
+      operationId: 'unassignRole',
+      tags: peopleTags,
+      summary: "Remove a person's role on a content item",
+      description: describeOperation('organizations.unassignRole'),
+      params: OrgUserContentParam,
+      response: { 200: AssignmentList, ...refusals(403, 404) },
+    },
+    handler: async (req) =>
+      organizations.unassignRole(
+        req.params.orgUserId,
+        req.params.contentId,
+        await resolveActor(container, req),
+      ),
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/organizations/content/:contentId/roles',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listAssignmentsOn' },
+    schema: {
+      operationId: 'listRolesOn',
+      tags: peopleTags,
+      summary: 'The people with a role on a content item',
+      description: describeOperation('organizations.listAssignmentsOn'),
+      params: ContentIdParam,
+      response: { 200: AssignmentList, ...refusals(403) },
+    },
+    handler: async (req) =>
+      organizations.listAssignmentsOn(req.params.contentId, await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/organizations/people/:orgUserId',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.removePerson' },
+    schema: {
+      operationId: 'removePerson',
+      tags: peopleTags,
+      summary: 'Remove a person from the organization',
+      description: `${describeOperation('organizations.removePerson')} Needs every permission the person holds, where they hold it. Revokes their API keys and connected apps here. The owner can't be removed (409); neither can someone whose posts must be kept (409).`,
+      params: OrgUserIdParam,
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
+    },
+    handler: async (req, reply) => {
+      await organizations.removePerson(req.params.orgUserId, await resolveActor(container, req));
       return reply.code(204).send();
     },
   });
@@ -187,55 +375,68 @@ export async function organizationsRoutes(
     method: 'POST',
     url: '/api/organizations/invites',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.createInvite' },
     schema: {
       operationId: 'createInvite',
-      tags,
-      summary: 'Invite a member or student into the active organization (staff)',
-      description:
-        'Owner or admin only. A student is created by this call, so their access can be granted before they accept. 409 when a student with that email is already in the organization.',
+      tags: peopleTags,
+      summary: 'Invite a person with an org role',
+      description: `${describeOperation('organizations.createInvite')} The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409).`,
       body: CreateInvite,
-      response: { 201: Invite, ...refusals(403, 409) },
+      response: { 201: Invite, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      // Domain ids, not the session's auth ids: invites FK to organizations.id
-      // and users.id.
-      const scope = await resolveScope(container, req);
-      const invite = await organizations.createInvite(
-        { id: scope.orgUserId, role: scope.role },
-        {
-          orgId: scope.orgId,
-          inviterUserId: scope.userId,
-          email: req.body.email,
-          role: req.body.role,
-          ...(req.body.firstName !== undefined && { firstName: req.body.firstName }),
-          ...(req.body.lastName !== undefined && { lastName: req.body.lastName }),
-          sendEmail: req.body.sendEmail,
-        },
-      );
-
-      req.log.debug({ inviteId: invite.id }, 'created invite');
-      return reply.code(201).send({
-        id: invite.id,
-        email: invite.email,
-        role: invite.role,
-        status: invite.status,
-        expiresAt: invite.expiresAt,
-        createdAt: invite.createdAt,
-      });
+      const caller = await resolveCaller(container, req);
+      const invite = await organizations.createInvite(req.body, caller.actor, caller.userId);
+      return reply.code(201).send(inviteView(invite));
     },
   });
 
-  // The invite landing page's first call, made before the invitee has any
-  // session — so no guard. It turns the emailed token into the two facts the
-  // page needs: who the invitation is for, and whether that address already has
-  // an account. The email comes from the invitation row rather than the URL, so
-  // it cannot be steered by editing the link.
+  r.route({
+    method: 'POST',
+    url: '/api/organizations/people/:orgUserId/invite/resend',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.resendInvite' },
+    schema: {
+      operationId: 'resendInvite',
+      tags: peopleTags,
+      summary: "Resend a person's pending invite",
+      description: `${describeOperation('organizations.resendInvite')} Issues a new link; the resender becomes the inviter.`,
+      params: OrgUserIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const caller = await resolveCaller(container, req);
+      await organizations.resendInvite(req.params.orgUserId, caller.actor, caller.userId);
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/organizations/people/:orgUserId/invite',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.cancelInvite' },
+    schema: {
+      operationId: 'cancelInvite',
+      tags: peopleTags,
+      summary: "Cancel a person's pending invite",
+      description: `${describeOperation('organizations.cancelInvite')} Someone still invited who holds no access and no item role is removed with it.`,
+      params: OrgUserIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      await organizations.cancelInvite(req.params.orgUserId, await resolveActor(container, req));
+      return reply.code(204).send();
+    },
+  });
+
   r.route({
     method: 'GET',
     url: '/api/organizations/invites/:token',
+    config: { operation: 'organizations.peekInvite' },
     schema: {
       operationId: 'getInvite',
-      tags,
+      tags: peopleTags,
       summary: 'Read an invite by its token',
       description:
         'Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.',
@@ -245,16 +446,8 @@ export async function organizationsRoutes(
     handler: async (req) => {
       const invite = await organizations.peekInvite(req.params.token);
       if (!invite) {
-        // Same answer for forged, expired, and already-accepted tokens: a
-        // probe learns nothing about which invitations exist.
         throw new NotFoundError('Invite', 'token');
       }
-      // Whether the address already has a login is deliberately not answered
-      // here. The mirror cannot say — an admin's student is a person long
-      // before they are an account — and asking the auth engine would mean
-      // reading its tables for one boolean. The sign-up form discovers it
-      // instead: a duplicate signup comes back 422 and the page flips to
-      // sign-in.
       const person = await container.identity.getUserByEmail(invite.email);
       return {
         email: invite.email,
@@ -268,38 +461,31 @@ export async function organizationsRoutes(
     method: 'POST',
     url: '/api/organizations/invites/accept',
     preHandler: app.requireSession,
+    config: { operation: 'organizations.acceptInvite' },
     schema: {
       operationId: 'acceptInvite',
-      tags,
+      tags: peopleTags,
       summary: 'Accept an invite with the signed-in account',
       description:
-        "For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, or the email does not match.",
+        "For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, the email does not match, or the inviter no longer holds the role.",
       body: AcceptInvite,
       response: { 200: AcceptInviteResult, ...refusals(400, 404) },
     },
     handler: async (req) => {
-      // No active org yet, so no resolveScope — but acceptInvite links a domain
-      // users.id, never the auth account id.
       const user = await container.identity.getUserByExternalId(req.authUser.id);
       if (!user) {
         throw new NotFoundError('User', req.authUser.id);
       }
-      const accepted = await container.organizations.acceptInvite({
+      const accepted = await organizations.acceptInvite({
         token: req.body.token,
         userId: user.id,
         email: req.authUser.email,
       });
-
-      // The session predates this grant, so it carries no active org and every
-      // org-scoped read would 401. Students are never org members, so the org
-      // plugin's set-active cannot do it — stamp the session row directly.
-      const org = await container.organizations.getById(accepted.orgId);
+      const org = await organizations.getById(accepted.orgId);
       if (!org) {
         throw new NotFoundError('Organization', accepted.orgId);
       }
-      const stamped = await container.sessions.stampActiveOrganization(req.headers, org.id);
-
-      req.log.info({ accepted, stamped }, 'accepted invite');
+      await container.sessions.stampActiveOrganization(req.headers, org.id);
       return {};
     },
   });

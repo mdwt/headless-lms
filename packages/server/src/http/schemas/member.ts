@@ -6,7 +6,7 @@ import { progressReportItemSchema } from '@headless-lms/core/schemas';
 import { Course } from './content.js';
 import { Module } from './activities.js';
 import { Download, DownloadFile } from './downloads.js';
-import { OrgRole } from './shared.js';
+import { permissionSchema } from '@headless-lms/core/schemas';
 
 /** Courses the authenticated student is actively enrolled in (published only). */
 export const MemberCourses = z.array(Course);
@@ -45,7 +45,9 @@ export type MemberOrg = z.infer<typeof MemberOrg>;
  *  an auth user; the learner surface is keyed on `org_users.id`. */
 export const MemberViewer = z.object({
   orgUserId: z.string(),
-  role: OrgRole,
+  orgRole: z.object({ key: z.string(), name: z.string() }),
+  permissions: z.array(permissionSchema),
+  orgPermissions: z.array(permissionSchema),
 });
 export type MemberViewer = z.infer<typeof MemberViewer>;
 

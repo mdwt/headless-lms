@@ -7,11 +7,13 @@ import { communityModerationTools } from './community-moderation.js';
 import { communityTools } from './communities.js';
 import { courseTools } from './courses.js';
 import { peopleTools } from './people.js';
+import { organizationTools } from './organization.js';
 
 export const TOOLS: Tool[] = [
   ...courseTools,
   ...catalogTools,
   ...peopleTools,
+  ...organizationTools,
   ...automationTools,
   ...commentTools,
   ...communityTools,

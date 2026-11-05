@@ -78,7 +78,7 @@ import {
   type OrgAdmin,
   OrganizationServiceImpl,
   OrgNotificationCategories,
-  parseRole,
+  type RoleDefinition,
 } from '@headless-lms/core/organizations';
 import {
   AssetsServiceImpl,
@@ -147,6 +147,7 @@ export interface BuildContainerOptions {
   /** Installation's plugins folder, scanned by loadIntegrations. Absent → no integrations. */
   pluginsDir?: string;
   adapters?: AdapterOverrides;
+  roles?: readonly RoleDefinition[];
 }
 
 export interface Config {
@@ -355,6 +356,14 @@ export async function buildContainer(
   const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
   const organizations = new OrganizationServiceImpl({
     repo: organizationsRepo,
+    roles: new DrizzleRolesRepository(db),
+    ...(options?.roles && { defaultRoles: options.roles }),
+    apiKeys: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('api keys not initialised');
+      }
+      return auth;
+    },
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
     uow: organizationsUow,
@@ -832,9 +841,6 @@ export async function buildContainer(
           return { data: { ...org, id: domainOrg.id } };
         },
       ),
-      beforeUpdateOrganization: authHook('beforeUpdateOrganization', async ({ organization }) => {
-        await organizations.updateOrganization(organization.id, organization);
-      }),
       beforeDeleteOrganization: authHook('beforeDeleteOrganization', async ({ organization }) => {
         await organizations.deleteOrganization(organization.id);
       }),
@@ -842,12 +848,6 @@ export async function buildContainer(
         await organizations.addOrgUser({
           orgId: member.organizationId,
           userId: member.userId,
-          role: parseRole(member.role),
-        });
-      }),
-      beforeUpdateMemberRole: authHook('beforeUpdateMemberRole', async ({ member, newRole }) => {
-        await organizations.updateOrgUser(member.organizationId, member.userId, {
-          role: parseRole(newRole),
         });
       }),
       beforeRemoveMember: authHook('beforeRemoveMember', async ({ member }) => {

@@ -1,12 +1,11 @@
 import {
-  ACCESS_SCOPES,
-  SCOPE_PERMISSION,
-  STAFF_ROLES,
-  isDeleteScope,
-  roleHoldsScope,
-  type AccessScope,
-  type StaffRole,
+  ALL_PERMISSIONS,
+  DEFAULT_ROLES,
+  PERMISSIONS,
+  withImplied,
 } from '@headless-lms/core/organizations';
+import type { Level, Permission } from '@headless-lms/core/types';
+import { permissionFor } from '../operations.js';
 import { toolInputSchema } from './input-schema.js';
 import { MCP_INSTRUCTIONS } from './server.js';
 import type { ToolKind } from './tool.js';
@@ -24,25 +23,28 @@ export interface CatalogueTool {
   title: string;
   description: string;
   resource: string;
-  scope: AccessScope;
+  operation: string;
+  permissions: Permission[];
   kind: ToolKind;
   idempotent: boolean;
   openWorld: boolean;
   fields: CatalogueField[];
 }
 
-export interface CatalogueScope {
-  scope: AccessScope;
+export interface CataloguePermission {
+  permission: Permission;
   resource: string;
   action: string;
-  permission: string | null;
-  roles: StaffRole[];
+  label: string;
+  description: string;
+  about: Level;
+  roles: string[];
   removes: boolean;
 }
 
 export interface McpCatalogue {
   instructions: string;
-  scopes: CatalogueScope[];
+  permissions: CataloguePermission[];
   tools: CatalogueTool[];
 }
 
@@ -107,40 +109,39 @@ function fieldsOf(tool: (typeof TOOLS)[number]): CatalogueField[] {
   ];
 }
 
-const REMOVING_WRITE_SCOPES: readonly AccessScope[] = [
-  'downloads:write',
-  'bundles:write',
-  'access:write',
-  'comments:moderate',
-  'communities:write',
-  'community_members:write',
-  'community_moderation:write',
-];
-
 export function mcpCatalogue(): McpCatalogue {
   return {
     instructions: MCP_INSTRUCTIONS,
-    scopes: ACCESS_SCOPES.map((scope) => {
-      const [resource = scope, action = ''] = scope.split(':');
+    permissions: ALL_PERMISSIONS.map((permission) => {
+      const [resource = permission, action = ''] = permission.split(':');
+      const definition = PERMISSIONS[permission];
       return {
-        scope,
+        permission,
         resource,
         action,
-        permission: SCOPE_PERMISSION[scope],
-        roles: STAFF_ROLES.filter((role) => roleHoldsScope(role, scope)),
-        removes: isDeleteScope(scope) || REMOVING_WRITE_SCOPES.includes(scope),
+        label: definition.label,
+        description: definition.description,
+        about: definition.about,
+        roles: DEFAULT_ROLES.filter((role) => withImplied(role.permissions).has(permission)).map(
+          (role) => role.name,
+        ),
+        removes: action === 'delete',
       };
     }),
-    tools: TOOLS.map((tool) => ({
-      name: tool.name,
-      title: tool.title,
-      description: tool.description,
-      resource: tool.scope.split(':')[0] ?? tool.scope,
-      scope: tool.scope,
-      kind: tool.kind,
-      idempotent: tool.idempotent,
-      openWorld: tool.openWorld,
-      fields: fieldsOf(tool),
-    })),
+    tools: TOOLS.map((tool) => {
+      const permissions = [...permissionFor(tool.operation)];
+      return {
+        name: tool.name,
+        title: tool.title,
+        description: tool.description,
+        resource: permissions[0]?.split(':')[0] ?? tool.operation.split('.')[0] ?? tool.operation,
+        operation: tool.operation,
+        permissions,
+        kind: tool.kind,
+        idempotent: tool.idempotent,
+        openWorld: tool.openWorld,
+        fields: fieldsOf(tool),
+      };
+    }),
   };
 }

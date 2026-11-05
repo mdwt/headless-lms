@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertRoleHoldsScopes, scopeOptions } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import {
   ApiKeyIdParam,
@@ -10,67 +9,84 @@ import {
   ConnectedAppList,
   CreateApiKey,
   CreatedApiKey,
+  PermissionDefinitionList,
+  ViewerPermissions,
   refusals,
-  ScopeOptionList,
 } from '../schemas/index.js';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function accessRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ['Access'];
+  const organizations = container.organizations;
 
   r.route({
     method: 'GET',
-    url: '/api/access/scopes',
+    url: '/api/access/permissions/list',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.permissionList' },
     schema: {
-      operationId: 'listAccessScopes',
+      operationId: 'listPermissions',
       tags,
-      summary: 'Every access scope and whether your role can grant it',
-      description:
-        'Staff only (owner, admin, instructor). Each scope an app connection or API key can carry, marked with whether your role holds it. Only allowed scopes can be granted.',
-      response: { 200: ScopeOptionList, ...refusals(403) },
+      summary: 'Every permission, with its label, description and level',
+      description: `${describeOperation('organizations.permissionList')} For role screens, the key-creation screen and the consent screen.`,
+      response: { 200: PermissionDefinitionList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return scopeOptions(scope.role);
+      await resolveActor(container, req);
+      return organizations.permissionList();
     },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/access/permissions',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.viewerPermissions' },
+    schema: {
+      operationId: 'getMyPermissions',
+      tags,
+      summary: 'Your effective permissions in this organization',
+      description: `${describeOperation('organizations.viewerPermissions')} Your org role, whether you own the organization, the permissions you hold on the organization, and the ones you hold on each content item.`,
+      response: { 200: ViewerPermissions, ...refusals(403) },
+    },
+    handler: async (req) => organizations.viewerPermissions(await resolveActor(container, req)),
   });
 
   r.route({
     method: 'GET',
     url: '/api/access/apps',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listConnectedApps' },
     schema: {
       operationId: 'listConnectedApps',
       tags,
       summary: 'Apps connected to this organization as you',
-      description:
-        'Staff only (owner, admin, instructor). The apps you connected to this organization, each with the scopes you granted and when.',
+      description: `${describeOperation('organizations.listConnectedApps')} The apps you connected to this organization, each with the scopes you granted and when.`,
       response: { 200: ConnectedAppList, ...refusals(403) },
     },
-    handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return container.auth.listConnectedApps(req.headers, scope.authOrgId);
-    },
+    handler: async (req) => organizations.listConnectedApps(await resolveActor(container, req)),
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/access/apps/:clientId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.revokeConnectedApp' },
     schema: {
       operationId: 'revokeConnectedApp',
       tags,
       summary: 'Disconnect an app',
-      description:
-        'Staff only (owner, admin, instructor). Revokes your consent and refresh tokens for the app in this organization; its next call is refused.',
+      description: `${describeOperation('organizations.revokeConnectedApp')} Revokes your consent and tokens for the app in this organization; its next call is refused.`,
       params: ClientIdParam,
       response: { 204: z.void(), ...refusals(403) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      await container.auth.revokeConnectedApp(req.headers, scope.authOrgId, req.params.clientId);
+      await organizations.revokeConnectedApp(
+        req.params.clientId,
+        await resolveActor(container, req),
+      );
       return reply.code(204).send();
     },
   });
@@ -79,42 +95,35 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'GET',
     url: '/api/access/api-keys',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.listApiKeys' },
     schema: {
       operationId: 'listApiKeys',
       tags,
       summary: 'Your API keys for this organization',
-      description:
-        'Staff only (owner, admin, instructor). Your keys for this organization with their scopes. The key itself is never returned again after it is created.',
+      description: `${describeOperation('organizations.listApiKeys')} Your keys for this organization with their scopes. The key itself is never returned again after it is created.`,
       response: { 200: ApiKeyList, ...refusals(403) },
     },
-    handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return container.auth.listApiKeys(req.headers, scope.authOrgId);
-    },
+    handler: async (req) => organizations.listApiKeys(await resolveActor(container, req)),
   });
 
   r.route({
     method: 'POST',
     url: '/api/access/api-keys',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.createApiKey' },
     schema: {
       operationId: 'createApiKey',
       tags,
       summary: 'Create an API key',
-      description:
-        'Staff only (owner, admin, instructor). The key acts as you in this organization with the scopes given. 403 when your role cannot hold one of them. The key is returned once.',
+      description: `${describeOperation('organizations.createApiKey')} The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.`,
       body: CreateApiKey,
       response: { 201: CreatedApiKey, ...refusals(400, 403) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      assertRoleHoldsScopes(scope.role, req.body.scopes);
-      const created = await container.auth.createApiKey({
-        authUserId: req.authUser.id,
-        orgId: scope.authOrgId,
-        name: req.body.name,
-        scopes: req.body.scopes,
-      });
+      const created = await organizations.createApiKey(
+        req.body,
+        await resolveActor(container, req),
+      );
       return reply.code(201).send(created);
     },
   });
@@ -123,18 +132,17 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'DELETE',
     url: '/api/access/api-keys/:id',
     preHandler: app.requireOrgSession,
+    config: { operation: 'organizations.deleteApiKey' },
     schema: {
       operationId: 'deleteApiKey',
       tags,
-      summary: 'Delete an API key',
-      description:
-        'Staff only (owner, admin, instructor). 404 when the key is not one of yours in this organization.',
+      summary: 'Revoke an API key',
+      description: `${describeOperation('organizations.deleteApiKey')} 404 when the key is not one of yours in this organization.`,
       params: ApiKeyIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      await container.auth.deleteApiKey(req.headers, scope.authOrgId, req.params.id);
+      await organizations.deleteApiKey(req.params.id, await resolveActor(container, req));
       return reply.code(204).send();
     },
   });

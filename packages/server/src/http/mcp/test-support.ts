@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { createMcpHandler } from '@modelcontextprotocol/server';
-import { ACCESS_SCOPES, type AccessScope, type StaffRole } from '@headless-lms/core/organizations';
+import { ALL_PERMISSIONS, actorWith } from '@headless-lms/core/organizations';
+import type { Actor } from '@headless-lms/core/shared/actor';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { createToolServer } from './server.js';
@@ -15,7 +16,8 @@ export const USER = {
   lastName: 'Lovelace',
   externalId: 'usr_1',
 };
-export const ORG_USER = { id: 'ou_1', orgId: 'org_1', userId: 'usr_1', role: 'owner' };
+export const ORG_USER = { id: 'ou_1', orgId: 'org_1', userId: 'usr_1', status: 'active' };
+export const OWNER: Actor = actorWith({ id: ORG_USER.id, orgId: ORG.id, owner: true });
 
 export function fakeContainer(overrides: Record<string, unknown> = {}): Container {
   const logger = {
@@ -36,7 +38,7 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
       verifyAccess: async () => ({
         userId: USER.id,
         orgId: ORG.id,
-        scopes: [...ACCESS_SCOPES],
+        scopes: [...ALL_PERMISSIONS],
         clientId: 'client_1',
       }),
     },
@@ -45,6 +47,8 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
       getByExternalId: async (id: string) => (id === ORG.externalId ? ORG : null),
       getOrgUser: async (orgId: string, userId: string) =>
         orgId === ORG.id && userId === USER.id ? ORG_USER : null,
+      actorFor: async (orgId: string, orgUserId: string) =>
+        orgId === ORG.id && orgUserId === ORG_USER.id ? OWNER : null,
     },
     identity: {
       getUserByExternalId: async (id: string) => (id === USER.id ? USER : null),
@@ -65,10 +69,17 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
   return base as unknown as Container;
 }
 
-export function toolContext(container: Container, role: StaffRole = 'owner'): ToolContext {
+export function toolContext(container: Container, actor: Actor = OWNER): ToolContext {
   return {
     container,
-    scope: { orgId: ORG.id, userId: USER.id, orgUserId: ORG_USER.id, role, authOrgId: ORG.id },
+    caller: {
+      actor,
+      orgId: ORG.id,
+      userId: USER.id,
+      orgUserId: ORG_USER.id,
+      authOrgId: ORG.id,
+      authUserId: USER.id,
+    },
     requestId: 'req_test',
   };
 }
@@ -140,14 +151,20 @@ export async function callTool(
 
 export type ToolSpec = [
   name: string,
-  scope: AccessScope,
+  operation: string,
   kind: ToolKind,
   idempotent: boolean,
   openWorld: boolean,
 ];
 
 export function toolSpecs(tools: readonly Tool[]): ToolSpec[] {
-  return tools.map((tool) => [tool.name, tool.scope, tool.kind, tool.idempotent, tool.openWorld]);
+  return tools.map((tool) => [
+    tool.name,
+    tool.operation,
+    tool.kind,
+    tool.idempotent,
+    tool.openWorld,
+  ]);
 }
 
 export type ToolCase = {
